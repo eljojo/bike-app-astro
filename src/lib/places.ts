@@ -1,4 +1,5 @@
-import type { PlaceData } from './proximity';
+import type { PlaceData, NearbyPlace } from './proximity';
+import { categoryEmoji } from './place-categories';
 
 /**
  * Convert a collection of place entries (from `getCollection('places')`)
@@ -22,4 +23,16 @@ export function toPlaceData(
       phone: p.data.phone,
       google_maps_url: p.data.google_maps_url,
     }));
+}
+
+/** Convert NearbyPlace[] into the format expected by LeafletMap/BigMap components. */
+export function toMapPlaces(nearby: NearbyPlace[]) {
+  return nearby.map(p => ({
+    name: p.name,
+    emoji: categoryEmoji[p.category] || '\u{1F4CD}',
+    lat: p.lat,
+    lng: p.lng,
+    google_maps_url: p.google_maps_url || `https://www.google.com/maps/?q=${p.lat},${p.lng}`,
+    link: p.website,
+  }));
 }

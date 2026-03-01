@@ -8,11 +8,11 @@ import { routeJsonLd, breadcrumbJsonLd } from '../../lib/json-ld';
 import { formatDistance } from '../../lib/distance';
 import PhotoGallery from '../../components/PhotoGallery.astro';
 import NearbyPlaces from '../../components/NearbyPlaces.astro';
-import { elevationConclusion, getAllElevations } from '../../lib/elevation';
+import { elevationConclusion } from '../../lib/elevation';
 import { difficultyRanking, routeShape, placeCounts, type RouteElevationData } from '../../lib/route-insights';
 import { tElevation, tShape, tPlaceSummary } from '../../lib/i18n';
 import { findNearbyPlaces } from '../../lib/proximity';
-import { toPlaceData } from '../../lib/places';
+import { loadRouteData } from '../../lib/route-data';
 import { buildSimilarityMatrix, findSimilarRoutes } from '../../lib/route-similarity';
 import { getCityConfig } from '../../lib/city-config';
 import { paths, assets } from '../../lib/paths';
@@ -20,8 +20,7 @@ import { paths, assets } from '../../lib/paths';
 const config = getCityConfig();
 
 export async function getStaticPaths() {
-  const routes = await getCollection('routes');
-  const allElevations = getAllElevations(routes);
+  const { routes, allElevations, placeData } = await loadRouteData();
 
   const routeElevationData: RouteElevationData[] = routes
     .filter(r => r.data.status === 'published')
@@ -32,9 +31,6 @@ export async function getStaticPaths() {
       return { id: r.id, elevationGainPerKm: gain / r.data.distance_km };
     })
     .filter(r => r.elevationGainPerKm > 0);
-
-  const allPlaces = await getCollection('places');
-  const placeData = toPlaceData(allPlaces);
 
   const similarityData = routes
     .filter(r => r.data.status === 'published')
