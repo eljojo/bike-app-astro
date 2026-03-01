@@ -48,13 +48,13 @@ jobs:
     environment: ${{ inputs.environment || null }}
     steps:
       - name: Checkout astro repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           lfs: true
           ref: ${{ github.head_ref || github.ref }}
 
       - name: Checkout data repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: eljojo/bike-routes
           ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
