@@ -4,27 +4,62 @@ import { getCollection } from 'astro:content';
 import { imageUrl } from '../../lib/image-service';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
 import { hasCachedMap, variantKeyFromGpx } from '../../lib/map-thumbnails';
-import { routeJsonLd } from '../../lib/json-ld';
+import { routeJsonLd, breadcrumbJsonLd } from '../../lib/json-ld';
 import { formatDistance } from '../../lib/distance';
 import PhotoGallery from '../../components/PhotoGallery.astro';
 import NearbyPlaces from '../../components/NearbyPlaces.astro';
 import { elevationConclusion, getAllElevations } from '../../lib/elevation';
+import { difficultyRanking, routeShape, placeSummary, type RouteElevationData } from '../../lib/route-insights';
+import { findNearbyPlaces, type PlaceData } from '../../lib/proximity';
+import { buildSimilarityMatrix, findSimilarRoutes } from '../../lib/route-similarity';
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
   const allElevations = getAllElevations(routes);
 
+  const routeElevationData: RouteElevationData[] = routes
+    .filter(r => r.data.status === 'published')
+    .map(r => {
+      const gpx = r.data.variants[0]?.gpx;
+      const track = gpx ? r.data.gpxTracks[gpx] : null;
+      const gain = track?.elevation_gain_m || 0;
+      return { id: r.id, elevationGainPerKm: gain / r.data.distance_km };
+    })
+    .filter(r => r.elevationGainPerKm > 0);
+
+  const allPlaces = await getCollection('places');
+  const placeData: PlaceData[] = allPlaces
+    .filter(p => p.data.status === 'published')
+    .map(p => ({ id: p.id, name: p.data.name, category: p.data.category, lat: p.data.lat, lng: p.data.lng }));
+
+  const similarityData = routes
+    .filter(r => r.data.status === 'published')
+    .map(r => {
+      const gpx = r.data.variants[0]?.gpx;
+      const track = gpx ? r.data.gpxTracks[gpx] : null;
+      return track?.polyline ? { id: r.id, polyline: track.polyline } : null;
+    })
+    .filter((r): r is { id: string; polyline: string } => r != null);
+
+  const similarityMatrix = buildSimilarityMatrix(similarityData);
+
+  const routeNames: Record<string, string> = {};
+  for (const r of routes) {
+    routeNames[r.id] = r.data.name;
+  }
+
   return routes.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations },
+    props: { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames },
   }));
 }
 
-const { route, allElevations } = Astro.props;
+const { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+const ogImageAlt = cover?.caption || `Photo from ${name}`;
 const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
 const videos = media.filter(m => m.type === 'video');
 const hasMap = hasCachedMap(route.id);
@@ -35,14 +70,27 @@ const manyVariants = variants.length > 1;
 
 const variantDistances = variants.map(v => v.distance_km).filter((d): d is number => d != null);
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
-const allTags = [distanceTag, ...tags];
 
 const conclusion = primaryTrack?.elevation_gain_m
   ? elevationConclusion(primaryTrack.elevation_gain_m, allElevations)
   : null;
+
+const difficulty = difficultyRanking(route.id, routeElevationData);
+const shape = primaryTrack ? routeShape(primaryTrack.points) : null;
+const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
+const placeDesc = placeSummary(nearbyPlaces);
+
+const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
+
+const allTags = [distanceTag, ...(shape ? [shape] : []), ...tags];
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: 'Home', url: 'https://ottawabybike.ca/' },
+  { name: name, url: `https://ottawabybike.ca/routes/${route.id}` },
+]);
 ---
 
-<Base title={`${name} | Ottawa by Bike`} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)}>
+<Base title={`${name} | Ottawa by Bike`} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
   <div class="route-detail">
     {cover && (
       <div class="route-detail--hero">
@@ -72,13 +120,37 @@ const conclusion = primaryTrack?.elevation_gain_m
           </p>
         )}
 
+        {difficulty && (
+          <p style="font-size: 0.9em; opacity: 0.8;">
+            Difficulty: {difficulty.rank}{difficulty.rank === 1 ? 'st' : difficulty.rank === 2 ? 'nd' : difficulty.rank === 3 ? 'rd' : 'th'} hardest of {difficulty.total} routes
+          </p>
+        )}
+
         {variants.length > 1 ? (
           <div>
             <h3>There's {variants.length} versions of this route</h3>
             {variants.map((v, i) => (
-              <a href={`/routes/${route.id}/map/${variantKeyFromGpx(v.gpx)}`} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
-                &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
-              </a>
+              <p>
+                <a href={`/routes/${route.id}/map/${variantKeyFromGpx(v.gpx)}`} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
+                  &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
+                </a>
+                {v.strava_url && (
+                  <Fragment>
+                    {' '}
+                    <a href={v.strava_url} target="_blank" rel="noopener" class="action-button">
+                      <img src="/strava.svg" width="80" alt="Open in Strava" />
+                    </a>
+                  </Fragment>
+                )}
+                {v.rwgps_url && (
+                  <Fragment>
+                    {' '}
+                    <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button">
+                      <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+                    </a>
+                  </Fragment>
+                )}
+              </p>
             ))}
           </div>
         ) : (
@@ -86,6 +158,22 @@ const conclusion = primaryTrack?.elevation_gain_m
             <a href={`/routes/${route.id}/map`} class="action-button --primary --wider" style="font-weight: bold;">
               &#x1F5FA;&#xFE0F; View Map of {name}
             </a>
+            {variants[0]?.strava_url && (
+              <Fragment>
+                {' '}
+                <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button">
+                  <img src="/strava.svg" width="80" alt="Open in Strava" />
+                </a>
+              </Fragment>
+            )}
+            {variants[0]?.rwgps_url && (
+              <Fragment>
+                {' '}
+                <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button">
+                  <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+                </a>
+              </Fragment>
+            )}
           </p>
         )}
       </div>
@@ -101,6 +189,7 @@ const conclusion = primaryTrack?.elevation_gain_m
           {primaryTrack && (
             <NearbyPlaces trackPoints={primaryTrack.points} />
           )}
+          {placeDesc && <p style="font-size: 0.9em; opacity: 0.8;">&#x1F5FA;&#xFE0F; This route {placeDesc}</p>}
         </div>
       )}
     </div>
@@ -133,6 +222,20 @@ const conclusion = primaryTrack?.elevation_gain_m
           );
         })}
       </section>
+    )}
+
+    {similarRoutes.length > 0 && (
+      <div style="margin-top: 2em;">
+        <h3>Similar Routes</h3>
+        <ul style="list-style: none; padding: 0;">
+          {similarRoutes.map(s => (
+            <li style="padding: 0.3em 0;">
+              <a href={`/routes/${s.id}`}>{routeNames[s.id]}</a>
+              <span style="opacity: 0.6; font-size: 0.85em;"> ({s.score}% similar)</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     )}
 
     <p style="margin-top: 2em;">

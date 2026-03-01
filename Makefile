@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-e2e test-update test-all screenshots maps maps-rebuild validate clean
+.PHONY: help install dev build preview test test-e2e test-update test-all screenshots maps maps-rebuild validate fonts clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -34,6 +34,9 @@ maps: ## Generate map thumbnails
 
 maps-rebuild: ## Force regenerate all map thumbnails
 	npx tsx scripts/generate-maps.ts --force
+
+fonts: ## Download and embed Google Fonts locally
+	npx tsx scripts/download-fonts.ts
 
 validate: ## Run content validation
 	npx tsx scripts/validate.ts

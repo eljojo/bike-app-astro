@@ -1,0 +1,44 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+const routes = await getCollection('routes');
+const guides = await getCollection('guides');
+
+const publishedRoutes = routes
+  .filter(r => r.data.status === 'published')
+  .sort((a, b) => a.data.distance_km - b.data.distance_km);
+
+const publishedGuides = guides
+  .filter(g => g.data.status === 'published');
+---
+
+<Base title="Sitemap | Ottawa by Bike" description="Sitemap for Ottawa by Bike">
+  <h1>Sitemap</h1>
+  <ul>
+    <li><a href="/">Ottawa by Bike</a>
+      <ul>
+        <li><a href="/about">About Ottawa by Bike</a></li>
+        <li><a href="/calendar">Cycling Calendar</a></li>
+        <li><a href="/map">Map with cycling routes</a></li>
+        <li><a href="/videos">Videos</a></li>
+      </ul>
+    </li>
+    {publishedRoutes.map(route => (
+      <li>
+        <a href={`/routes/${route.id}`}>{route.data.name}</a>
+        <ul>
+          <li><a href={`/routes/${route.id}/map`}>Map</a></li>
+        </ul>
+      </li>
+    ))}
+    <li><a href="/guides">Guides</a>
+      <ul>
+        {publishedGuides.map(guide => (
+          <li><a href={`/guides/${guide.id}`}>{guide.data.name}</a></li>
+        ))}
+      </ul>
+    </li>
+  </ul>
+  <p><a href="/sitemap.xml">sitemap.xml</a></p>
+</Base>

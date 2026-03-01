@@ -14,6 +14,7 @@ export const GET: APIRoute = async () => {
   const items = published.map(r => `    <item>
       <title>${escapeXml(r.data.name)}</title>
       <link>https://ottawabybike.ca/routes/${r.id}</link>
+      <guid>https://ottawabybike.ca/routes/${r.id}</guid>
       <description>${escapeXml(r.data.tagline || `${r.data.name} — ${r.data.distance_km}km cycling route`)}</description>
       <pubDate>${new Date(r.data.updated_at).toUTCString()}</pubDate>
     </item>`).join('\n');

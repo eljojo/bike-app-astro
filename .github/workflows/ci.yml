@@ -4,6 +4,14 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   test:
     uses: ./.github/workflows/_build-and-deploy.yml
@@ -12,6 +20,7 @@ jobs:
       environment: staging
       worker-name: bike-ottawa-staging
       disable-analytics: true
+      update-screenshots: true
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

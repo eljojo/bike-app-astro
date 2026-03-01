@@ -3,6 +3,10 @@ name: Deploy Production
 on:
   workflow_dispatch:
 
+concurrency:
+  group: production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     uses: ./.github/workflows/_build-and-deploy.yml

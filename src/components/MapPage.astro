@@ -67,7 +67,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
     <Fragment>
       {' '}
       <a href={variant.strava_url} class="action-button" target="_blank" rel="noopener">
-        Open in Strava
+        <img src="/strava.svg" width="80" alt="Open in Strava" />
       </a>
     </Fragment>
   )}
@@ -75,7 +75,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
     <Fragment>
       {' '}
       <a href={variant.rwgps_url} class="action-button" target="_blank" rel="noopener">
-        Open in Ride With GPS
+        <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
       </a>
     </Fragment>
   )}

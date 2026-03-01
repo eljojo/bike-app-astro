@@ -1,12 +1,23 @@
-export function routeJsonLd(route: { name: string; tagline?: string; distance_km: number; id: string }, coverUrl?: string) {
+export const AUTHOR = [{
+  '@type': 'Person' as const,
+  name: 'José Albornoz',
+  url: 'https://ottawabybike.ca/about',
+}];
+
+export function routeJsonLd(
+  route: { name: string; tagline?: string; distance_km: number; id: string; created_at: string; updated_at: string },
+  coverUrl?: string,
+) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'TouristTrip',
-    name: route.name,
+    '@type': 'BlogPosting',
+    headline: route.name,
     description: route.tagline || `${route.name} — ${route.distance_km}km cycling route in Ottawa`,
     url: `https://ottawabybike.ca/routes/${route.id}`,
-    touristType: 'Cycling',
-    ...(coverUrl && { image: coverUrl }),
+    datePublished: route.created_at,
+    dateModified: route.updated_at,
+    author: AUTHOR,
+    ...(coverUrl && { image: [coverUrl] }),
   };
 }
 
@@ -31,5 +42,20 @@ export function guideJsonLd(guide: { name: string; tagline?: string; id: string 
     ...(guide.tagline && { description: guide.tagline }),
     url: `https://ottawabybike.ca/guides/${guide.id}`,
     publisher: { '@type': 'Organization', name: 'Ottawa by Bike' },
+    author: AUTHOR,
+  };
+}
+
+export function breadcrumbJsonLd(crumbs: { name: string; url: string }[]) {
+  if (crumbs.length < 2) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((c, i) => ({
+      '@type': 'ListItem' as const,
+      position: i + 1,
+      name: c.name,
+      item: c.url,
+    })),
   };
 }

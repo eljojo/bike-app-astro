@@ -5,10 +5,12 @@ interface Props {
   description?: string;
   canonical?: string;
   ogImage?: string;
+  ogImageAlt?: string;
   jsonLd?: Record<string, any>;
+  breadcrumbs?: Record<string, any> | null;
 }
 
-const { title, description, canonical, ogImage, jsonLd } = Astro.props;
+const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.props;
 const siteUrl = 'https://ottawabybike.ca';
 const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
 ---
@@ -22,6 +24,7 @@ const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString
 <meta property="og:url" content={fullCanonical} />
 {description && <meta property="og:description" content={description} />}
 {ogImage && <meta property="og:image" content={ogImage} />}
+{ogImage && <meta property="og:image:secure_url" content={ogImage} />}
 <meta property="og:type" content="website" />
 
 <!-- Twitter -->
@@ -29,6 +32,7 @@ const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString
 <meta name="twitter:title" content={title} />
 {description && <meta name="twitter:description" content={description} />}
 {ogImage && <meta name="twitter:image" content={ogImage} />}
+{ogImageAlt && <meta name="twitter:image:alt" content={ogImageAlt} />}
 
 <!-- Site-level -->
 <meta property="og:site_name" content="Ottawa by Bike" />
@@ -37,4 +41,8 @@ const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString
 
 {jsonLd && (
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+)}
+
+{breadcrumbs && (
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} />
 )}

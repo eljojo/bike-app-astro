@@ -1,5 +1,5 @@
 @use 'variables' as *;
-@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;700&display=swap');
+@use 'webfonts';
 
 * { box-sizing: border-box; }
 
@@ -68,7 +68,7 @@ a.action-button {
       background-color: $color-btn-primary-bg;
     }
     &.--primary:hover {
-      background-color: darken(#ded, 10%);
+      background-color: #bbddbb; // darken(#ded, 10%) — hardcoded to avoid Sass deprecation warning
     }
   }
   @media (prefers-color-scheme: dark) {

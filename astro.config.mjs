@@ -28,8 +28,10 @@ export default defineConfig({
           const redirectsPath = path.join(contentDir, city, 'redirects.yml');
           if (!fs.existsSync(redirectsPath)) return;
 
-          const data = yaml.load(fs.readFileSync(redirectsPath, 'utf-8'));
-          const lines = ['# Generated from redirects.yml'];
+          const data = fs.existsSync(redirectsPath)
+            ? yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) || {}
+            : {};
+          const lines = ['# Generated from redirects.yml + per-route redirects'];
           const sections = { routes: '/routes/', guides: '/guides/', videos: '/videos/' };
           for (const [key, prefix] of Object.entries(sections)) {
             if (data[key]) {
@@ -38,6 +40,19 @@ export default defineConfig({
           }
           if (data.short_urls) {
             for (const r of data.short_urls) lines.push(`/${r.from}  ${r.to}  301`);
+          }
+
+          // Per-route redirects from each route's redirects.yml
+          const routesDir = path.join(contentDir, city, 'routes');
+          if (fs.existsSync(routesDir)) {
+            for (const slug of fs.readdirSync(routesDir)) {
+              const routeRedirects = path.join(routesDir, slug, 'redirects.yml');
+              if (!fs.existsSync(routeRedirects)) continue;
+              const entries = yaml.load(fs.readFileSync(routeRedirects, 'utf-8'));
+              if (Array.isArray(entries)) {
+                for (const from of entries) lines.push(`${from}  /routes/${slug}  301`);
+              }
+            }
           }
           const content = lines.join('\n');
           if (content) {

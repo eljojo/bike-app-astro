@@ -5,6 +5,7 @@ import { getCollection } from 'astro:content';
 import { elevationConclusion, getAllElevations } from '../../../../lib/elevation';
 import { findNearbyPlaces, type PlaceData } from '../../../../lib/proximity';
 import { categoryEmoji } from '../../../../lib/place-categories';
+import { breadcrumbJsonLd } from '../../../../lib/json-ld';
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
@@ -35,9 +36,15 @@ const mapPlaces = nearby.map(p => ({
   google_maps_url: p.google_maps_url || `https://www.google.com/maps/?q=${p.lat},${p.lng}`,
   link: p.website,
 }));
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: 'Home', url: 'https://ottawabybike.ca/' },
+  { name: route.data.name, url: `https://ottawabybike.ca/routes/${route.id}` },
+  { name: 'Map', url: `https://ottawabybike.ca/routes/${route.id}/map` },
+]);
 ---
 
-<Base title={`Map: ${name} | Ottawa by Bike`}>
+<Base title={`Map: ${name} | Ottawa by Bike`} breadcrumbs={breadcrumbs}>
   {variant && track ? (
     <MapPage
       routeSlug={route.id}

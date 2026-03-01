@@ -2,7 +2,7 @@
 // src/pages/guides/[slug].astro
 import Base from '../../layouts/Base.astro';
 import { getCollection, render } from 'astro:content';
-import { guideJsonLd } from '../../lib/json-ld';
+import { guideJsonLd, breadcrumbJsonLd } from '../../lib/json-ld';
 
 export async function getStaticPaths() {
   const guides = await getCollection('guides');
@@ -14,9 +14,15 @@ export async function getStaticPaths() {
 
 const { guide } = Astro.props;
 const { Content } = await render(guide);
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: 'Home', url: 'https://ottawabybike.ca/' },
+  { name: 'Guides', url: 'https://ottawabybike.ca/guides' },
+  { name: guide.data.name, url: `https://ottawabybike.ca/guides/${guide.id}` },
+]);
 ---
 
-<Base title={`${guide.data.name} | Ottawa by Bike`} description={guide.data.tagline} jsonLd={guideJsonLd({...guide.data, id: guide.id})}>
+<Base title={`${guide.data.name} | Ottawa by Bike`} description={guide.data.tagline} jsonLd={guideJsonLd({...guide.data, id: guide.id})} breadcrumbs={breadcrumbs}>
   <div class="guide-detail">
     <h1>{guide.data.name}</h1>
     {guide.data.tagline && <p class="guide-tagline">{guide.data.tagline}</p>}
