@@ -34,6 +34,7 @@ export const routeSchema = z.object({
     points: z.array(z.object({ lat: z.number(), lon: z.number(), ele: z.number().optional() })),
     distance_m: z.number(),
     elevation_gain_m: z.number(),
+    max_gradient_pct: z.number(),
     polyline: z.string(),
   })).default({}),
   renderedBody: z.string().default(''),

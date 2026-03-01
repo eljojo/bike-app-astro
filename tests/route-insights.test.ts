@@ -1,28 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { difficultyRanking, routeShape, placeCounts, adjustedElevationGainPerKm } from '../src/lib/route-insights';
-
-describe('difficultyRanking', () => {
-  const routes = [
-    { id: 'flat', elevationGainPerKm: 2 },
-    { id: 'medium', elevationGainPerKm: 8 },
-    { id: 'hard', elevationGainPerKm: 15 },
-  ];
-
-  it('returns rank and total for a route', () => {
-    const result = difficultyRanking('medium', routes);
-    expect(result).toEqual({ rank: 2, total: 3 });
-  });
-
-  it('ranks hardest route as #1', () => {
-    const result = difficultyRanking('hard', routes);
-    expect(result).toEqual({ rank: 1, total: 3 });
-  });
-
-  it('returns null for unknown route', () => {
-    const result = difficultyRanking('unknown', routes);
-    expect(result).toBeNull();
-  });
-});
+import { routeShape, placeCounts, adjustedElevationGainPerKm } from '../src/lib/route-insights';
 
 describe('routeShape', () => {
   it('returns "loop" when start and end are close', () => {

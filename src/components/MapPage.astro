@@ -82,7 +82,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   {variant.strava_url && (
     <Fragment>
       {' '}
-      <a href={variant.strava_url} class="action-button" target="_blank" rel="noopener">
+      <a href={variant.strava_url} class="action-button --light --logo" target="_blank" rel="noopener">
         <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
       </a>
     </Fragment>
@@ -90,7 +90,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   {variant.rwgps_url && (
     <Fragment>
       {' '}
-      <a href={variant.rwgps_url} class="action-button" target="_blank" rel="noopener">
+      <a href={variant.rwgps_url} class="action-button --light --logo" target="_blank" rel="noopener">
         <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
       </a>
     </Fragment>

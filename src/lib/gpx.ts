@@ -11,6 +11,7 @@ export interface GpxTrack {
   points: GpxPoint[];
   distance_m: number;
   elevation_gain_m: number;
+  max_gradient_pct: number;
   polyline: string;
 }
 
@@ -42,12 +43,13 @@ export function parseGpx(xml: string): GpxTrack {
     points,
     distance_m: computeDistance(points),
     elevation_gain_m: computeElevationGain(points),
+    max_gradient_pct: computeMaxGradient(points),
     polyline: polyline.encode(points.map(p => [p.lat, p.lon])),
   };
 }
 
 function emptyTrack(): GpxTrack {
-  return { points: [], distance_m: 0, elevation_gain_m: 0, polyline: '' };
+  return { points: [], distance_m: 0, elevation_gain_m: 0, max_gradient_pct: 0, polyline: '' };
 }
 
 function computeDistance(points: GpxPoint[]): number {
@@ -68,6 +70,40 @@ function computeElevationGain(points: GpxPoint[]): number {
     }
   }
   return Math.round(gain);
+}
+
+/**
+ * Compute the steepest gradient over sliding ~100m windows.
+ * Uses absolute elevation change — steep descents are scary too.
+ * Smoothing over 100m avoids GPS noise spikes on individual points.
+ */
+function computeMaxGradient(points: GpxPoint[]): number {
+  if (points.length < 2) return 0;
+
+  let maxGrad = 0;
+  let windowStart = 0;
+
+  for (let windowEnd = 1; windowEnd < points.length; windowEnd++) {
+    let windowDist = 0;
+    for (let j = windowStart + 1; j <= windowEnd; j++) {
+      windowDist += haversine(points[j - 1], points[j]);
+    }
+
+    while (windowStart < windowEnd - 1) {
+      const segDist = haversine(points[windowStart], points[windowStart + 1]);
+      if (windowDist - segDist < 100) break;
+      windowDist -= segDist;
+      windowStart++;
+    }
+
+    if (windowDist >= 50) {
+      const startEle = points[windowStart].ele ?? 0;
+      const endEle = points[windowEnd].ele ?? 0;
+      const gradient = Math.abs(endEle - startEle) / windowDist * 100;
+      if (gradient > maxGrad) maxGrad = gradient;
+    }
+  }
+  return Math.round(maxGrad * 10) / 10;
 }
 
 export function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {

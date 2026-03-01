@@ -9,11 +9,12 @@ import { formatDistance } from '@/lib/distance';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import { elevationConclusion } from '@/lib/elevation';
-import { difficultyRanking, routeShape, placeCounts, adjustedElevationGainPerKm, type RouteElevationData } from '@/lib/route-insights';
-import { t, tCategory, tOrdinal, localePath, formatLocale } from '@/i18n';
+import { routeShape, placeCounts } from '@/lib/route-insights';
+import { difficultyLabel } from '@/lib/difficulty';
+import { t, tCategory, localePath, formatLocale } from '@/i18n';
 import { findNearbyPlaces } from '@/lib/proximity';
 import { loadRouteData } from '@/lib/route-data';
-import { buildSimilarityMatrix, findSimilarRoutes } from '@/lib/route-similarity';
+import { findSimilarRoutes } from '@/lib/route-similarity';
 import { getCityConfig } from '@/lib/city-config';
 import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/locale-utils';
@@ -23,45 +24,15 @@ const config = getCityConfig();
 const locale = Astro.currentLocale;
 
 export async function getStaticPaths() {
-  const { routes, allElevations, placeData } = await loadRouteData();
-
-  const routeElevationData: RouteElevationData[] = routes
-    .filter(r => r.data.status === 'published')
-    .map(r => {
-      const gpx = r.data.variants[0]?.gpx;
-      const track = gpx ? r.data.gpxTracks[gpx] : null;
-      const gain = track?.elevation_gain_m || 0;
-      const points = track?.points || [];
-      const startEle = points[0]?.ele ?? 0;
-      const endEle = points[points.length - 1]?.ele ?? 0;
-      const netElevation = endEle - startEle;
-      return { id: r.id, elevationGainPerKm: adjustedElevationGainPerKm(gain, netElevation, r.data.distance_km) };
-    })
-    .filter(r => r.elevationGainPerKm > 0);
-
-  const similarityData = routes
-    .filter(r => r.data.status === 'published')
-    .map(r => {
-      const gpx = r.data.variants[0]?.gpx;
-      const track = gpx ? r.data.gpxTracks[gpx] : null;
-      return track?.polyline ? { id: r.id, polyline: track.polyline } : null;
-    })
-    .filter((r): r is { id: string; polyline: string } => r != null);
-
-  const similarityMatrix = buildSimilarityMatrix(similarityData);
-
-  const routeNames: Record<string, string> = {};
-  for (const r of routes) {
-    routeNames[r.id] = r.data.name;
-  }
+  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
 
   return routes.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames },
   }));
 }
 
-const { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -93,7 +64,11 @@ const conclusion = primaryTrack?.elevation_gain_m
   ? elevationConclusion(primaryTrack.elevation_gain_m, allElevations)
   : null;
 
-const difficulty = difficultyRanking(route.id, routeElevationData);
+const variantScores = routeDifficultyScores.get(route.id) || [];
+const primaryScore = variantScores[0] ?? null;
+const minScore = variantScores.length > 0 ? Math.min(...variantScores) : null;
+const maxScore = variantScores.length > 0 ? Math.max(...variantScores) : null;
+const hasRange = minScore !== null && maxScore !== null && Math.abs(maxScore - minScore) > 3;
 const shape = primaryTrack ? routeShape(primaryTrack.points, primaryTrack.distance_m) : null;
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
@@ -154,9 +129,15 @@ const breadcrumbs = breadcrumbJsonLd([
           </p>
         )}
 
-        {difficulty && (
+        {primaryScore !== null && (
           <p style="font-size: 0.9em; opacity: 0.8;">
-            {t('route.difficulty', locale)}: {difficulty.rank}{tOrdinal(difficulty.rank, locale)} {t('route.difficulty_rank', locale, { rank: difficulty.rank, total: difficulty.total })}
+            {t('route.difficulty', locale)}: {hasRange
+              ? t('difficulty.range', locale, {
+                  low: t('difficulty.' + difficultyLabel(minScore!, allScores), locale),
+                  high: t('difficulty.' + difficultyLabel(maxScore!, allScores), locale),
+                })
+              : t('difficulty.' + difficultyLabel(primaryScore, allScores), locale)
+            }
           </p>
         )}
 
@@ -171,7 +152,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 {v.strava_url && (
                   <Fragment>
                     {' '}
-                    <a href={v.strava_url} target="_blank" rel="noopener" class="action-button">
+                    <a href={v.strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
                       <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
                     </a>
                   </Fragment>
@@ -179,7 +160,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 {v.rwgps_url && (
                   <Fragment>
                     {' '}
-                    <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button">
+                    <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
                       <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
                     </a>
                   </Fragment>
@@ -195,7 +176,7 @@ const breadcrumbs = breadcrumbJsonLd([
             {variants[0]?.strava_url && (
               <Fragment>
                 {' '}
-                <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button">
+                <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
                   <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
                 </a>
               </Fragment>
@@ -203,7 +184,7 @@ const breadcrumbs = breadcrumbJsonLd([
             {variants[0]?.rwgps_url && (
               <Fragment>
                 {' '}
-                <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button">
+                <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
                   <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
                 </a>
               </Fragment>
