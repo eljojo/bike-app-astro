@@ -43,6 +43,8 @@ const guidesDir = path.join(cityDir, 'guides');
 if (fs.existsSync(guidesDir)) {
   for (const f of fs.readdirSync(guidesDir)) {
     if (!f.endsWith('.md')) continue;
+    // Skip translation files (e.g. bike-crash.fr.md) — only validate base language
+    if (/\.\w{2}\.md$/.test(f)) continue;
     const slug = f.replace('.md', '');
     if (!fs.existsSync(path.join(distDir, 'guides', slug, 'index.html'))) {
       console.error(`MISSING GUIDE: /guides/${slug}`);
@@ -52,7 +54,7 @@ if (fs.existsSync(guidesDir)) {
 }
 
 const routeCount = fs.existsSync(routesDir) ? fs.readdirSync(routesDir).filter(s => fs.statSync(path.join(routesDir, s)).isDirectory() && fs.existsSync(path.join(routesDir, s, 'index.md'))).length : 0;
-const guideCount = fs.existsSync(guidesDir) ? fs.readdirSync(guidesDir).filter(f => f.endsWith('.md')).length : 0;
+const guideCount = fs.existsSync(guidesDir) ? fs.readdirSync(guidesDir).filter(f => f.endsWith('.md') && !/\.\w{2}\.md$/.test(f)).length : 0;
 console.log(`Checked ${expectedPages.length} pages, ${routeCount} routes, ${guideCount} guides`);
 console.log(`\nValidation: ${errors === 0 ? 'PASS' : `FAIL — ${errors} errors`}`);
 process.exit(errors > 0 ? 1 : 0);

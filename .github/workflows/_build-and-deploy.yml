@@ -60,6 +60,7 @@ jobs:
           ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
           ref: ${{ inputs.data-ref }}
           path: bike-routes
+          lfs: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
