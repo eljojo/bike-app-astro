@@ -14,15 +14,26 @@ permissions:
 
 jobs:
   test:
+    if: github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/_build-and-deploy.yml
     with:
-      deploy: ${{ github.actor != 'dependabot[bot]' }}
+      deploy: true
       environment: staging
       worker-name: bike-ottawa-staging
       disable-analytics: true
-      update-screenshots: ${{ github.actor != 'dependabot[bot]' }}
+      update-screenshots: true
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+  test-dependabot:
+    if: github.actor == 'dependabot[bot]'
+    uses: ./.github/workflows/_build-and-deploy.yml
+    with:
+      deploy: false
+      update-screenshots: false
+    secrets:
+      DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
