@@ -1,0 +1,73 @@
+---
+import { imageUrl } from '../lib/image-service';
+import { hasCachedMap } from '../lib/map-thumbnails';
+import { formatDistance } from '../lib/distance';
+import { paths, assets } from '../lib/paths';
+import { makePreview } from '../lib/markdown-preview';
+
+interface Variant {
+  name: string;
+  gpx: string;
+  distance_km?: number;
+}
+
+interface Props {
+  slug: string;
+  name: string;
+  tagline?: string;
+  distance_km: number;
+  tags: string[];
+  body?: string;
+  coverKey?: string;
+  lazy?: boolean;
+  variants?: Variant[];
+}
+
+const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, variants } = Astro.props;
+
+const variantDistances = variants?.map(v => v.distance_km).filter((d): d is number => d != null) || [];
+const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
+const allTags = [distanceTag, ...tags];
+const previewParagraphs = makePreview(body);
+const hasMap = hasCachedMap(slug);
+const loading = lazy ? 'lazy' : 'eager';
+---
+
+<li class="route-card" data-tags={JSON.stringify(tags)}>
+  <a href={paths.route(slug)} class="route-card--link">
+    <div class="route-card--images">
+      {coverKey && (
+        <img
+          src={imageUrl(coverKey, { width: 375, height: 375, fit: 'cover' })}
+          srcset={`${imageUrl(coverKey, { width: 750, height: 750, fit: 'cover' })} 2x`}
+          alt={name}
+          width="300"
+          height="300"
+          loading={loading}
+          class="route-cover"
+        />
+      )}
+      {hasMap && (
+        <img
+          src={assets.mapThumbnail(slug, 375)}
+          srcset={assets.mapThumbnailSrcset(slug)}
+          alt={`map of ${name}`}
+          width="300"
+          height="300"
+          loading={loading}
+          class="route-map"
+        />
+      )}
+    </div>
+    <span class="route-card--details">
+      <span class="route-card--name">{name}</span>
+      {tagline && <span class="route-card--tagline">{tagline}</span>}
+      <ul class="route-card--tags">
+        {allTags.map(tag => <li class="tag-pill">{tag}</li>)}
+      </ul>
+      {previewParagraphs.map(p => (
+        <span class="route-card--preview">{p}</span>
+      ))}
+    </span>
+  </a>
+</li>

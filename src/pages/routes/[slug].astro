@@ -1,0 +1,254 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { imageUrl } from '../../lib/image-service';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
+import { hasCachedMap, variantKeyFromGpx } from '../../lib/map-thumbnails';
+import { routeJsonLd, breadcrumbJsonLd } from '../../lib/json-ld';
+import { formatDistance } from '../../lib/distance';
+import PhotoGallery from '../../components/PhotoGallery.astro';
+import NearbyPlaces from '../../components/NearbyPlaces.astro';
+import { elevationConclusion } from '../../lib/elevation';
+import { difficultyRanking, routeShape, placeCounts, type RouteElevationData } from '../../lib/route-insights';
+import { tElevation, tShape, tPlaceSummary } from '../../lib/i18n';
+import { findNearbyPlaces } from '../../lib/proximity';
+import { loadRouteData } from '../../lib/route-data';
+import { buildSimilarityMatrix, findSimilarRoutes } from '../../lib/route-similarity';
+import { getCityConfig } from '../../lib/city-config';
+import { paths, assets } from '../../lib/paths';
+
+const config = getCityConfig();
+
+export async function getStaticPaths() {
+  const { routes, allElevations, placeData } = await loadRouteData();
+
+  const routeElevationData: RouteElevationData[] = routes
+    .filter(r => r.data.status === 'published')
+    .map(r => {
+      const gpx = r.data.variants[0]?.gpx;
+      const track = gpx ? r.data.gpxTracks[gpx] : null;
+      const gain = track?.elevation_gain_m || 0;
+      return { id: r.id, elevationGainPerKm: gain / r.data.distance_km };
+    })
+    .filter(r => r.elevationGainPerKm > 0);
+
+  const similarityData = routes
+    .filter(r => r.data.status === 'published')
+    .map(r => {
+      const gpx = r.data.variants[0]?.gpx;
+      const track = gpx ? r.data.gpxTracks[gpx] : null;
+      return track?.polyline ? { id: r.id, polyline: track.polyline } : null;
+    })
+    .filter((r): r is { id: string; polyline: string } => r != null);
+
+  const similarityMatrix = buildSimilarityMatrix(similarityData);
+
+  const routeNames: Record<string, string> = {};
+  for (const r of routes) {
+    routeNames[r.id] = r.data.name;
+  }
+
+  return routes.map(route => ({
+    params: { slug: route.id },
+    props: { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames },
+  }));
+}
+
+const { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames } = Astro.props;
+const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
+
+const cover = media.find(m => m.cover);
+const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+const ogImageAlt = cover?.caption || `Photo from ${name}`;
+const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
+const videos = media.filter(m => m.type === 'video');
+const hasMap = hasCachedMap(route.id);
+
+const primaryGpx = variants[0]?.gpx;
+const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
+const manyVariants = variants.length > 1;
+
+const variantDistances = variants.map(v => v.distance_km).filter((d): d is number => d != null);
+const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
+
+const conclusion = primaryTrack?.elevation_gain_m
+  ? elevationConclusion(primaryTrack.elevation_gain_m, allElevations)
+  : null;
+
+const difficulty = difficultyRanking(route.id, routeElevationData);
+const shape = primaryTrack ? routeShape(primaryTrack.points) : null;
+const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
+const nearbyCategories = placeCounts(nearbyPlaces);
+const placeDesc = nearbyCategories.length > 0 ? tPlaceSummary(nearbyCategories) : null;
+
+const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
+
+const allTags = [distanceTag, ...(shape ? [tShape(shape)] : []), ...tags];
+
+const SEO_FRIENDLY_TAGS = ['gravel', 'scenic', 'easy', 'chill'];
+const seoTitle = (() => {
+  if (tagline) return `${name} - ${tagline} | ${config.display_name}`;
+  const matchingTag = tags.find((t: string) => SEO_FRIENDLY_TAGS.includes(t));
+  if (matchingTag) return `${name} - ${matchingTag.charAt(0).toUpperCase() + matchingTag.slice(1)} Bike Route | ${config.display_name}`;
+  return `${name} - Bike Route | ${config.display_name}`;
+})();
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: 'Home', url: `${config.url}/` },
+  { name: name, url: `${config.url}/routes/${route.id}` },
+]);
+---
+
+<Base title={seoTitle} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
+  <div class="route-detail">
+    {cover && (
+      <div class="route-detail--hero">
+        <img
+          src={imageUrl(cover.key, { width: 1170 })}
+          alt={cover.caption || name}
+          class="gallery-cover-photo"
+        />
+      </div>
+    )}
+
+    <div class="route-detail--content">
+      <div class="route-detail--body">
+        <h1>{name}</h1>
+        {tagline && <h2>{tagline}</h2>}
+
+        <ul class="route--tags">
+          {allTags.map(tag => <li class="tag-pill">{tag}</li>)}
+        </ul>
+
+        <div class="route-description" set:html={route.data.renderedBody} />
+
+        {primaryTrack && !manyVariants && (
+          <p>
+            <span style="font-size: 1.5em;">&#x1F6B5; </span>
+            Elevation Gain: <a href={`${paths.routeMap(route.id)}#elevation-profile`}>{primaryTrack.elevation_gain_m} meters</a>{conclusion && `, this is ${tElevation(conclusion)}`}
+          </p>
+        )}
+
+        {difficulty && (
+          <p style="font-size: 0.9em; opacity: 0.8;">
+            Difficulty: {difficulty.rank}{difficulty.rank === 1 ? 'st' : difficulty.rank === 2 ? 'nd' : difficulty.rank === 3 ? 'rd' : 'th'} hardest of {difficulty.total} routes
+          </p>
+        )}
+
+        {variants.length > 1 ? (
+          <div>
+            <h3>There's {variants.length} versions of this route</h3>
+            {variants.map((v, i) => (
+              <p>
+                <a href={paths.routeVariantMap(route.id, variantKeyFromGpx(v.gpx))} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
+                  &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
+                </a>
+                {v.strava_url && (
+                  <Fragment>
+                    {' '}
+                    <a href={v.strava_url} target="_blank" rel="noopener" class="action-button">
+                      <img src="/strava.svg" width="80" alt="Open in Strava" />
+                    </a>
+                  </Fragment>
+                )}
+                {v.rwgps_url && (
+                  <Fragment>
+                    {' '}
+                    <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button">
+                      <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+                    </a>
+                  </Fragment>
+                )}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p>
+            <a href={paths.routeMap(route.id)} class="action-button --primary --wider" style="font-weight: bold;">
+              &#x1F5FA;&#xFE0F; View Map of {name}
+            </a>
+            {variants[0]?.strava_url && (
+              <Fragment>
+                {' '}
+                <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button">
+                  <img src="/strava.svg" width="80" alt="Open in Strava" />
+                </a>
+              </Fragment>
+            )}
+            {variants[0]?.rwgps_url && (
+              <Fragment>
+                {' '}
+                <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button">
+                  <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+                </a>
+              </Fragment>
+            )}
+          </p>
+        )}
+      </div>
+
+      {hasMap && (
+        <div class="route-detail--static-map">
+          <a href={paths.routeMap(route.id)} title="View Map">
+            <img
+              src={assets.mapThumbnail(route.id)}
+              alt={`Map of ${name}`}
+            />
+          </a>
+          {nearbyPlaces.length > 0 && (
+            <NearbyPlaces nearby={nearbyPlaces} />
+          )}
+          {placeDesc && <p style="font-size: 0.9em; opacity: 0.8;">&#x1F5FA;&#xFE0F; This route {placeDesc}</p>}
+        </div>
+      )}
+    </div>
+
+    {photos.length > 0 && (
+      <PhotoGallery photos={photos} routeName={name} />
+    )}
+
+    {videos.length > 0 && (
+      <section class="route-videos">
+        <h3>Videos</h3>
+        {videos.map(video => {
+          const sources = videoPlaybackSources(video.key);
+          const size = videoDisplaySize(video.width || 640, video.height || 360);
+          return (
+            <div class="route-video">
+              <video
+                controls
+                preload="metadata"
+                width={size.width}
+                height={size.height}
+                poster={video.poster_key ? videoPosterUrl(video.poster_key) : undefined}
+                disablepictureinpicture
+              >
+                {sources.map(s => <source src={s.src} type={s.type} />)}
+                <p><a href={videoFallbackUrl(video.key)}>{video.title || 'Download video'}</a></p>
+              </video>
+              {video.title && <p><a href={paths.video(video.handle)}>{video.title}</a></p>}
+            </div>
+          );
+        })}
+      </section>
+    )}
+
+    {similarRoutes.length > 0 && (
+      <div style="margin-top: 2em;">
+        <h3>Similar Routes</h3>
+        <ul style="list-style: none; padding: 0;">
+          {similarRoutes.map(s => (
+            <li style="padding: 0.3em 0;">
+              <a href={paths.route(s.id)}>{routeNames[s.id]}</a>
+              <span style="opacity: 0.6; font-size: 0.85em;"> ({s.score}% similar)</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <p style="margin-top: 2em;">
+      <a href="/" class="go-back-button">&#x21A9; go back to all routes</a>
+    </p>
+  </div>
+</Base>

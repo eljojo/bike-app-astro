@@ -1,0 +1,64 @@
+---
+// src/components/BigMap.astro
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+
+interface RouteOnMap {
+  slug: string;
+  name: string;
+  polyline: string;
+  distance_km: number;
+}
+
+interface PlaceOnMap {
+  name: string;
+  category: string;
+  emoji: string;
+  lat: number;
+  lng: number;
+  google_maps_url?: string;
+}
+
+interface Props {
+  routes: RouteOnMap[];
+  places: PlaceOnMap[];
+  center: [number, number];
+}
+
+const { routes, places, center } = Astro.props;
+---
+
+<div
+  id="big-map"
+  class="big-map"
+  data-routes={JSON.stringify(routes)}
+  data-places={JSON.stringify(places)}
+  data-center={JSON.stringify(center)}
+  data-tiles-url={config.tiles_url}
+></div>
+
+<script>
+  import { initMap, addPolylines, addMarkers } from '../lib/leaflet-init';
+
+  const el = document.getElementById('big-map');
+  if (el) {
+    const routes = JSON.parse(el.dataset.routes || '[]');
+    const places = JSON.parse(el.dataset.places || '[]');
+    const center = JSON.parse(el.dataset.center || '[0, 0]');
+    const tilesUrl = el.dataset.tilesUrl || '';
+
+    const map = initMap({ el, center, zoom: 11, tilesUrl });
+
+    addPolylines(map, routes.map((r: any) => ({
+      encoded: r.polyline,
+      popup: `<a href="/routes/${r.slug}">${r.name}</a><br>${r.distance_km} km`,
+    })));
+
+    addMarkers(map, places.map((p: any) => {
+      let popup = `<strong>${p.name}</strong>`;
+      if (p.google_maps_url) popup += `<br><a href="${p.google_maps_url}" target="_blank">Google Maps</a>`;
+      return { lat: p.lat, lng: p.lng, emoji: p.emoji, popup };
+    }));
+  }
+</script>

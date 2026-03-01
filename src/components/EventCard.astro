@@ -1,0 +1,49 @@
+---
+// src/components/EventCard.astro
+import { getCollection } from 'astro:content';
+import { imageUrl } from '../lib/image-service';
+import { formatDateRange } from '../lib/date-utils';
+
+interface Props {
+  name: string;
+  start_date: string;
+  end_date?: string;
+  distances?: string;
+  location?: string;
+  registration_url?: string;
+  review_url?: string;
+  organizer_slug?: string;
+  poster_key?: string;
+}
+
+const props = Astro.props;
+
+let organizerName = '';
+if (props.organizer_slug) {
+  const organizers = await getCollection('organizers');
+  const org = organizers.find(o => o.id === props.organizer_slug);
+  organizerName = org?.data.name || props.organizer_slug;
+}
+
+const dateDisplay = formatDateRange(props.start_date, props.end_date);
+---
+
+<div class="event-card">
+  {organizerName && <span class="event-organizer">{organizerName}</span>}
+  {props.registration_url
+    ? <a href={props.registration_url} class="event-name" target="_blank" rel="noopener">{props.name}</a>
+    : <span class="event-name">{props.name}</span>
+  }
+  <span class="event-dates">{dateDisplay}</span>
+  {props.distances && <span class="event-distances">{props.distances}</span>}
+  {props.poster_key && (
+    <img
+      src={imageUrl(props.poster_key, { width: 600 })}
+      alt={props.name}
+      loading="lazy"
+    />
+  )}
+  {props.review_url && (
+    <a href={props.review_url} class="event-review">Read my review!</a>
+  )}
+</div>

@@ -1,0 +1,49 @@
+---
+// src/layouts/Base.astro
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import SEO from '../components/SEO.astro';
+import { getCityConfig } from '../lib/city-config';
+import { getFontPreloads } from '../lib/fonts';
+import '../styles/global.scss';
+
+const config = getCityConfig();
+const fontPreloads = getFontPreloads();
+
+interface Props {
+  title: string;
+  description?: string;
+  ogImage?: string;
+  ogImageAlt?: string;
+  jsonLd?: Record<string, any>;
+  breadcrumbs?: Record<string, any> | null;
+}
+
+const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} jsonLd={jsonLd} breadcrumbs={breadcrumbs} />
+    {fontPreloads.map(href => (
+      <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
+    ))}
+    <link rel="icon" type="image/png" href="/bicycle.png" />
+    <link rel="apple-touch-icon" href="/bicycle.png" />
+    <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
+    {import.meta.env.PROD && <script>import '../lib/analytics';</script>}
+    {import.meta.env.DISABLE_ANALYTICS === 'true' && <script>localStorage.plausible_ignore=true</script>}
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="/" class="site-title" set:html={config.site_title_html} />
+    </header>
+    <Nav />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

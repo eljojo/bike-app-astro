@@ -1,0 +1,208 @@
+name: Build and Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        type: string
+        required: false
+        default: ''
+      deploy:
+        description: 'Whether to deploy after testing'
+        type: boolean
+        required: true
+      worker-name:
+        description: 'Cloudflare Worker name'
+        type: string
+        required: false
+        default: ''
+      data-ref:
+        description: 'Git ref for bike-routes data repo'
+        type: string
+        required: false
+        default: 'main'
+      disable-analytics:
+        description: 'Disable Plausible analytics (for staging)'
+        type: boolean
+        required: false
+        default: false
+      update-screenshots:
+        description: 'Auto-commit updated screenshots on diff'
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+      DATA_REPO_DEPLOY_KEY:
+        required: true
+      GOOGLE_MAPS_STATIC_API_KEY:
+        required: true
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || null }}
+    steps:
+      - name: Checkout astro repo
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          repository: eljojo/bike-routes
+          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+          ref: ${{ inputs.data-ref }}
+          path: bike-routes
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install emoji font
+        run: sudo apt-get install -y fonts-noto-color-emoji
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Restore map cache
+        uses: actions/cache@v4
+        with:
+          path: public/maps
+          key: maps-${{ hashFiles('bike-routes/ottawa/routes/**/variants/*.gpx', 'bike-routes/ottawa/routes/**/*.gpx') }}
+          restore-keys: |
+            maps-
+
+      - name: Restore Astro content cache
+        uses: actions/cache@v4
+        with:
+          path: .astro
+          key: astro-${{ hashFiles('bike-routes/ottawa/routes/**') }}
+          restore-keys: |
+            astro-
+
+      - name: Generate map thumbnails
+        run: npx tsx scripts/generate-maps.ts
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
+          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+      - name: Build site
+        run: npx astro build
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
+          DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
+
+      - name: Validate build output
+        run: npm run validate
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
+
+      - name: Run unit tests
+        run: npx vitest run
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
+
+      - name: Run E2E tests
+        id: e2e
+        continue-on-error: ${{ inputs.update-screenshots }}
+        run: npx playwright test --config e2e/playwright.config.ts
+
+      - name: Update screenshot baselines
+        id: update-screenshots
+        if: >-
+          steps.e2e.outcome == 'failure'
+          && inputs.update-screenshots
+        run: |
+          # Guard against infinite loops
+          if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
+            echo "Latest commit is already a screenshot update, skipping"
+            exit 1
+          fi
+          npx playwright test --config e2e/playwright.config.ts --update-snapshots
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add e2e/snapshots/
+          if git diff --cached --quiet; then
+            echo "No screenshot changes — e2e failure is not screenshot-related"
+            exit 1
+          fi
+          echo "UPDATED_SCREENSHOTS<<EOF" >> "$GITHUB_ENV"
+          git diff --cached --name-only >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+          git commit -m "ci: update screenshot baselines"
+          git push
+
+      - name: Comment on PR with updated screenshots
+        if: steps.update-screenshots.outcome == 'success' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- screenshot-update-comment -->';
+            const files = process.env.UPDATED_SCREENSHOTS.trim().split('\n');
+            const list = files.map(f => `- \`${f.replace('e2e/snapshots/screenshots.spec.ts-snapshots/', '')}\``).join('\n');
+            const body = `${marker}\n📸 Screenshot baselines were automatically updated:\n\n${list}\n\nCheck the commit diff to review the visual changes.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail if E2E tests failed and screenshots were not the cause
+        if: >-
+          steps.e2e.outcome == 'failure'
+          && steps.update-screenshots.outcome != 'success'
+        run: exit 1
+
+      - name: Deploy to Cloudflare Workers
+        if: inputs.deploy
+        run: npx wrangler deploy --name ${{ inputs.worker-name }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

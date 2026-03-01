@@ -1,0 +1,36 @@
+---
+import type { NearbyPlace } from '../lib/proximity';
+import { categoryEmoji } from '../lib/place-categories';
+
+interface Props {
+  nearby: NearbyPlace[];
+}
+
+const { nearby } = Astro.props;
+---
+
+{nearby.length > 0 && (
+  <section class="nearby-places">
+    <h2>Nearby Places</h2>
+    <ul>
+      {nearby.map(place => (
+        <li itemscope itemtype="https://schema.org/Place">
+          <span class="place-emoji" set:html={categoryEmoji[place.category] || '&#x1F4CD;'} />
+          <a href={place.google_maps_url || `https://www.google.com/maps/?q=${place.lat},${place.lng}`}
+             target="_blank" rel="noopener" class="place-name" itemprop="hasMap">
+            <span itemprop="name">{place.name}</span>
+          </a>
+          {place.website && (
+            <a href={place.website} target="_blank" rel="noopener" class="place-link" itemprop="url">website</a>
+          )}
+          <div itemprop="geo" itemscope itemtype="https://schema.org/GeoCoordinates">
+            <meta itemprop="latitude" content={String(place.lat)} />
+            <meta itemprop="longitude" content={String(place.lng)} />
+          </div>
+          {place.address && <meta itemprop="address" content={place.address} />}
+          {place.phone && <meta itemprop="telephone" content={place.phone} />}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

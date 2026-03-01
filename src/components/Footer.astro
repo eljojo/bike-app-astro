@@ -1,0 +1,9 @@
+---
+// src/components/Footer.astro
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+---
+<footer class="site-footer">
+  <a href="/about">{config.display_name} is curated by {config.author.name}</a>
+</footer>

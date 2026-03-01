@@ -1,0 +1,54 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import MapPage from '../../../../components/MapPage.astro';
+import { variantKeyFromGpx } from '../../../../lib/map-thumbnails';
+import { elevationConclusion } from '../../../../lib/elevation';
+import { findNearbyPlaces } from '../../../../lib/proximity';
+import { toMapPlaces } from '../../../../lib/places';
+import { loadRouteData } from '../../../../lib/route-data';
+import { getCityConfig } from '../../../../lib/city-config';
+
+const config = getCityConfig();
+
+export async function getStaticPaths() {
+  const { routes, allElevations, placeData } = await loadRouteData();
+  const paths: { params: { slug: string; variant: string }; props: Record<string, unknown> }[] = [];
+
+  for (const route of routes) {
+    for (const v of route.data.variants) {
+      const variantKey = variantKeyFromGpx(v.gpx);
+      const track = route.data.gpxTracks[v.gpx];
+      if (!track) continue;
+
+      paths.push({
+        params: { slug: route.id, variant: variantKey },
+        props: { route, variant: v, track, allElevations, placeData },
+      });
+    }
+  }
+  return paths;
+}
+
+const { route, variant, track, allElevations, placeData } = Astro.props;
+const { name } = route.data;
+const elevation = track?.elevation_gain_m;
+const conclusion = elevation ? elevationConclusion(elevation, allElevations) : null;
+
+const nearby = findNearbyPlaces(track.points, placeData);
+const mapPlaces = toMapPlaces(nearby);
+---
+
+<Base title={`Map: ${name} — ${variant.name} | ${config.display_name}`}>
+  <MapPage
+    routeSlug={route.id}
+    routeName={name}
+    variant={variant}
+    polyline={track.polyline}
+    variantLabel={variant.name}
+    elevationGain={elevation}
+    elevationConclusion={conclusion}
+    places={mapPlaces}
+    trackPoints={track.points}
+    trackDistanceM={track.distance_m}
+  />
+</Base>

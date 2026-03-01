@@ -1,0 +1,115 @@
+---
+import LeafletMap from './LeafletMap.astro';
+import ElevationProfile from './ElevationProfile.astro';
+import { hasCachedMap, variantKeyFromGpx } from '../lib/map-thumbnails';
+import { getCityConfig } from '../lib/city-config';
+import { tElevation } from '../lib/i18n';
+import { paths, assets } from '../lib/paths';
+
+interface Variant {
+  name: string;
+  gpx: string;
+  strava_url?: string;
+  rwgps_url?: string;
+}
+
+interface MapPlace {
+  name: string;
+  emoji: string;
+  lat: number;
+  lng: number;
+  description?: string;
+  link?: string;
+  google_maps_url?: string;
+}
+
+interface GpxPoint {
+  lat: number;
+  lon: number;
+  ele?: number;
+}
+
+interface Props {
+  routeSlug: string;
+  routeName: string;
+  variant: Variant;
+  polyline: string;
+  variantLabel?: string;
+  elevationGain?: number | null;
+  elevationConclusion?: string | null;
+  places?: MapPlace[];
+  trackPoints?: GpxPoint[];
+  trackDistanceM?: number;
+}
+
+const { routeSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], trackPoints, trackDistanceM } = Astro.props;
+const siteUrl = import.meta.env.SITE || getCityConfig().url;
+const variantKey = variantKeyFromGpx(variant.gpx);
+
+function gpxStudioUrl(gpxUrl: string): string {
+  const urlParam = encodeURIComponent(gpxUrl);
+  return `https://gpx.studio/?state=%7B%22urls%22:%5B%22${urlParam}%22%5D%7D&distance&slope`;
+}
+
+const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, variantKey)}`;
+const exploreUrl = gpxStudioUrl(gpxUrl);
+const hasVariantMap = hasCachedMap(routeSlug, variantKey);
+
+const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
+---
+
+<h1>&#x1F5FA;&#xFE0F; {title}</h1>
+
+{elevationGain && (
+  <p>
+    <span style="font-size: 1.5em;">&#x1F6B5; </span>
+    Elevation Gain: <a href={`${paths.routeMap(routeSlug)}#elevation-profile`}>{elevationGain} meters</a>{elevationConclusion && `, this is ${tElevation(elevationConclusion)}`}
+  </p>
+)}
+
+<p>
+  <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
+    &#x1F5FA;&#xFE0F; Explore GPX
+  </a>
+  {' '}
+  <a href={gpxUrl} class="action-button" target="_blank" rel="nofollow" download>
+    &#x1F4E1; Download GPX
+  </a>
+  {variant.strava_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.strava_url} class="action-button" target="_blank" rel="noopener">
+        <img src="/strava.svg" width="80" alt="Open in Strava" />
+      </a>
+    </Fragment>
+  )}
+  {variant.rwgps_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.rwgps_url} class="action-button" target="_blank" rel="noopener">
+        <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+      </a>
+    </Fragment>
+  )}
+  {hasVariantMap && (
+    <Fragment>
+      {' '}
+      <a href={assets.mapPng(routeSlug, variantKey)} class="action-button" target="_blank" rel="noopener">
+        &#x1F5FA;&#xFE0F; PNG
+      </a>
+    </Fragment>
+  )}
+</p>
+
+<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} />
+
+{trackPoints && trackPoints.length > 0 && trackDistanceM && (
+  <div id="elevation-profile" style="margin-top: 1.5em;">
+    <h2>Elevation Profile</h2>
+    <ElevationProfile points={trackPoints} distance_m={trackDistanceM} />
+  </div>
+)}
+
+<p style="margin-top: 1em;">
+  <a href={paths.route(routeSlug)} class="go-back-button">&#x21A9; back to {routeName}</a>
+</p>

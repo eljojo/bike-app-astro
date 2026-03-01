@@ -1,0 +1,65 @@
+---
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+
+interface Place {
+  name: string;
+  emoji: string;
+  lat: number;
+  lng: number;
+  description?: string;
+  link?: string;
+  google_maps_url?: string;
+}
+
+interface Props {
+  polylines: { name: string; encoded: string }[];
+  places?: Place[];
+  center?: [number, number];
+  zoom?: number;
+}
+
+const { polylines, places = [], center, zoom } = Astro.props;
+---
+
+<div
+  id="route-map"
+  class="leaflet-map"
+  data-polylines={JSON.stringify(polylines)}
+  data-places={JSON.stringify(places)}
+  data-center={JSON.stringify(center)}
+  data-zoom={zoom?.toString() || '12'}
+  data-tiles-url={config.tiles_url}
+></div>
+
+<script>
+  import { initMap, addPolylines, addMarkers } from '../lib/leaflet-init';
+
+  const el = document.getElementById('route-map');
+  if (el) {
+    const polylines = JSON.parse(el.dataset.polylines || '[]');
+    const places = JSON.parse(el.dataset.places || '[]');
+    const center = JSON.parse(el.dataset.center || '[0, 0]');
+    const zoom = parseInt(el.dataset.zoom || '12');
+    const tilesUrl = el.dataset.tilesUrl || '';
+
+    const map = initMap({ el, center, zoom, tilesUrl });
+
+    const bounds = addPolylines(map, polylines.map((pl: any) => ({
+      encoded: pl.encoded,
+      popup: pl.name,
+    })));
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    addMarkers(map, places.map((p: any) => {
+      let popup = `<strong>${p.name}</strong>`;
+      if (p.description) popup += `<br>${p.description}`;
+      if (p.link) popup += `<br><a href="${p.link}" target="_blank">See more</a>`;
+      if (p.google_maps_url) popup += `<br><a href="${p.google_maps_url}" target="_blank">Google Maps</a>`;
+      return { lat: p.lat, lng: p.lng, emoji: p.emoji, popup };
+    }));
+  }
+</script>

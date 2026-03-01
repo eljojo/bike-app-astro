@@ -1,0 +1,52 @@
+---
+// src/components/SEO.astro
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+
+interface Props {
+  title: string;
+  description?: string;
+  canonical?: string;
+  ogImage?: string;
+  ogImageAlt?: string;
+  jsonLd?: Record<string, any>;
+  breadcrumbs?: Record<string, any> | null;
+}
+
+const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.props;
+const siteUrl = config.url;
+const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
+---
+
+<title>{title}</title>
+{description && <meta name="description" content={description} />}
+<link rel="canonical" href={fullCanonical} />
+
+<!-- Open Graph -->
+<meta property="og:title" content={title} />
+<meta property="og:url" content={fullCanonical} />
+{description && <meta property="og:description" content={description} />}
+{ogImage && <meta property="og:image" content={ogImage} />}
+{ogImage && <meta property="og:image:secure_url" content={ogImage} />}
+<meta property="og:type" content="website" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+{description && <meta name="twitter:description" content={description} />}
+{ogImage && <meta name="twitter:image" content={ogImage} />}
+{ogImageAlt && <meta name="twitter:image:alt" content={ogImageAlt} />}
+
+<!-- Site-level -->
+<meta property="og:site_name" content={config.display_name} />
+<meta name="twitter:creator" content={config.author.twitter} />
+<meta name="twitter:site" content={config.author.twitter} />
+
+{jsonLd && (
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+)}
+
+{breadcrumbs && (
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} />
+)}

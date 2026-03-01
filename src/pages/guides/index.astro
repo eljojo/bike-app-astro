@@ -1,0 +1,26 @@
+---
+// src/pages/guides/index.astro
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '../../lib/city-config';
+import { paths } from '../../lib/paths';
+
+const config = getCityConfig();
+
+const guides = await getCollection('guides');
+const published = guides
+  .filter(g => g.data.status === 'published')
+  .sort((a, b) => a.data.name.localeCompare(b.data.name));
+---
+
+<Base title={`Guides | ${config.display_name}`}>
+  <h1>📖 Guides</h1>
+  <ul class="guides-list">
+    {published.map(guide => (
+      <li class="guides-list--guide">
+        <a href={paths.guide(guide.id)} class="guide--name">{guide.data.name}</a>
+        {guide.data.tagline && <span class="guide--tagline">{guide.data.tagline}</span>}
+      </li>
+    ))}
+  </ul>
+</Base>

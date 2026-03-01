@@ -1,0 +1,42 @@
+---
+// src/pages/map.astro
+import Base from '../layouts/Base.astro';
+import BigMap from '../components/BigMap.astro';
+import { getCollection } from 'astro:content';
+import { categoryEmoji } from '../lib/place-categories';
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+
+const routes = await getCollection('routes');
+const places = await getCollection('places');
+
+const routeData = routes
+  .filter(r => r.data.status === 'published')
+  .map(r => {
+    const firstVariant = r.data.variants[0];
+    const track = firstVariant ? r.data.gpxTracks[firstVariant.gpx] : null;
+    return {
+      slug: r.id,
+      name: r.data.name,
+      polyline: track?.polyline || '',
+      distance_km: r.data.distance_km,
+    };
+  })
+  .filter(r => r.polyline);
+
+const placeData = places
+  .filter(p => p.data.status === 'published')
+  .map(p => ({
+    name: p.data.name,
+    category: p.data.category,
+    emoji: categoryEmoji[p.data.category] || '📍',
+    lat: p.data.lat,
+    lng: p.data.lng,
+    google_maps_url: p.data.google_maps_url || `https://www.google.com/maps/?q=${p.data.lat},${p.data.lng}`,
+  }));
+---
+
+<Base title={`Map | ${config.display_name}`}>
+  <BigMap routes={routeData} places={placeData} center={[config.center.lat, config.center.lng]} />
+</Base>
