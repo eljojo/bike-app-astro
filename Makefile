@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-e2e test-update test-all screenshots maps maps-rebuild validate fonts clean
+.PHONY: help install dev build preview test test-e2e test-e2e-only test-update test-all full screenshots maps maps-rebuild validate fonts clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -25,6 +25,11 @@ test-update: build ## Update screenshot baselines
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
 test-all: test test-e2e ## Run all tests (unit + e2e)
+
+full: build validate test test-e2e-only ## Run full CI pipeline (build, validate, unit tests, e2e)
+
+test-e2e-only: ## Run e2e tests without rebuilding (use after make build)
+	npx playwright test --config e2e/playwright.config.ts
 
 screenshots: ## Capture production screenshots
 	npx playwright test --config e2e/capture-production.config.ts
