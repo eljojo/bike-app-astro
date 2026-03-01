@@ -1,0 +1,76 @@
+---
+// src/pages/about.astro
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="About | Ottawa by Bike" description="About Ottawa by Bike and José Albornoz">
+  <div class="about-page">
+    <h1 style="font-size: 1.7em;">Heyo 👋 Welcome to Ottawa by Bike!</h1>
+
+    <div class="about-content">
+      <div class="about-text">
+        <h3>I'm <a href="https://eljojo.net">José Albornoz</a>, a passionate cyclist who loves exploring new routes and discovering the world on two wheels.</h3>
+
+        <p>I started cycling in 2019, being new to Ottawa I didn't know where to go. I took my bike and started discovering beautiful routes, but had a snag - <em>how do I share them?</em></p>
+
+        <p>So, I created this site - a curated map of my favourite cycling paths in the National Capital Region. It's an easy-to-use guide to help everyone enjoy cycling as much as I do!</p>
+
+        <p><strong>Here, you'll find routes for all - whether you're a seasoned cyclist or just starting out.</strong>
+        Get a feel for the ride with photos and videos, and enjoy my personal tips, like the best snack spots and detour alerts.</p>
+
+        <p>So go ahead, explore, and let's make Ottawa a cycling haven together! If you want to get in touch, my email is <a href="mailto:jose@ottawabybike.ca"><strong>jose@ottawabybike.ca</strong></a>.</p>
+
+        <p><strong>Thanks for stopping by, and happy cycling!</strong></p>
+
+        <h3>Other useful Links</h3>
+        <ul>
+          <li><a href="/guides/local-communities">List of Local Cycling Communities</a></li>
+          <li><a href="https://bikeottawa.ca">Bike Ottawa</a> - Community dedicated to promoting cycling in Ottawa</li>
+          <li><a href="https://ncc-ccn.maps.arcgis.com/apps/View/index.html?appid=d69460c2d8df472db1a456183bc62fcf">Official NCC Biking Map</a></li>
+          <li><a href="https://web.archive.org/web/20230525133452/https://www.cbc.ca/listen/live-radio/1-100-ottawa-morning/clip/15986562-cyclist-created-website-finding-bike-routes-easier">Interview by CBC Ottawa Morning</a></li>
+        </ul>
+
+        <p style="font-size: 0.85em; opacity: 0.7;">the bicycle icon is from <a href="https://www.flaticon.com/free-icon/bicycle_2972185#">flaticon</a> - <a href="/sitemap.xml">sitemap</a></p>
+      </div>
+
+      <div class="about-photo">
+        <img src="https://cdn.ottawabybike.ca/assets/me-8efeeb32.jpg" alt="José Albornoz" width="300" loading="lazy" />
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style lang="scss">
+  .about-page {
+    max-width: 900px;
+    line-height: 1.7;
+    h3 { margin: 1.5em 0 0.5em; font-size: 1.1em; }
+    p { margin: 0.8em 0; }
+    ul { margin: 0.5em 0; padding-left: 1.5em; }
+    a { color: inherit; text-decoration: underline; }
+  }
+  .about-content {
+    display: flex;
+    gap: 2em;
+    align-items: flex-start;
+  }
+  .about-text {
+    flex: 1;
+  }
+  .about-photo {
+    width: 300px;
+    flex-shrink: 0;
+    img {
+      width: 100%;
+      border-radius: 8px;
+    }
+  }
+  @media (max-width: 800px) {
+    .about-content {
+      flex-direction: column;
+    }
+    .about-photo {
+      width: 100%;
+    }
+  }
+</style>

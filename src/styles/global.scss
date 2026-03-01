@@ -1,0 +1,86 @@
+@use 'variables' as *;
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:wght@400;700&display=swap');
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: $font-body;
+  font-weight: 400;
+  color: $color-text;
+  background: $color-bg;
+
+  @media (min-width: $breakpoint-mobile) {
+    width: $content-width; // route card image placeholder height (calc(85vw/2 - 8px)) depends on this value
+    margin: 1em auto;
+  }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-heading;
+  font-weight: 700;
+}
+
+a { color: inherit; }
+
+img { max-width: 100%; height: auto; }
+
+// Global tag pill styles
+.tag-pill {
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  padding: 3px;
+  border-radius: 7px;
+  font-family: $font-mono;
+  font-size: 1.05em;
+  letter-spacing: 1px;
+  list-style: none;
+  margin: 3px 7px 3px 0;
+  display: inline-block;
+}
+
+// Global action button styles
+.action-button {
+  height: 38px;
+  user-select: none;
+  vertical-align: middle;
+  display: inline-block;
+  border-radius: 3px;
+  border: 1px solid $color-btn-border;
+  margin-right: 0.5em;
+  transition: all 0.3s ease;
+}
+
+a.action-button {
+  border-radius: 5px;
+  padding: 5px;
+  line-height: 26px;
+  text-decoration: none;
+
+  &.--wider {
+    height: auto;
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    &:hover, &.--primary {
+      border: 1px solid $color-btn-primary-border;
+      background-color: $color-btn-primary-bg;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    &:hover, &.--primary {
+      background-color: #333;
+    }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body { background: $color-bg-dark; color: $color-text-dark; }
+  a { color: white; }
+  .tag-pill { background: gray; color: white; }
+  .action-button {
+    border-color: #aaa;
+    color: #ddd;
+  }
+}

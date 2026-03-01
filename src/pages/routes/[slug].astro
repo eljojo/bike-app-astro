@@ -1,0 +1,242 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { imageUrl } from '../../lib/image-service';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
+import { hasCachedMap, variantKeyFromGpx } from '../../lib/map-thumbnails';
+import { routeJsonLd } from '../../lib/json-ld';
+import { formatDistance } from '../../lib/distance';
+import PhotoGallery from '../../components/PhotoGallery.astro';
+
+import NearbyPlaces from '../../components/NearbyPlaces.astro';
+
+const ELEVATION_LABELS: [number, string][] = [
+  [0.05, "a flat route 👍"],
+  [0.1, "flatter than most routes 👍"],
+  [0.2, "a fairly flat route 🚴"],
+  [0.4, "about average elevation 👀"],
+  [0.5, "harder than average elevation 📈"],
+  [0.8, "very hard elevation ⚠️⛰️"],
+  [0.9, "very very hard elevation ⚠️🌋"],
+];
+
+function quantiles(data: number[], probs: number[]): number[] {
+  const values = [...data].sort((a, b) => a - b);
+  return probs.map(prob => {
+    const h = 1 + (values.length - 1) * prob;
+    const mod = h % 1;
+    return Math.round((1 - mod) * values[Math.floor(h) - 1] + mod * values[Math.ceil(h) - 1]);
+  });
+}
+
+function elevationConclusion(elevation: number, allElevations: number[]): string {
+  const thresholds = ELEVATION_LABELS.map(([p]) => p);
+  const q = quantiles(allElevations, thresholds);
+  for (let i = 0; i < q.length; i++) {
+    if (q[i] >= elevation) return ELEVATION_LABELS[i][1];
+  }
+  return ELEVATION_LABELS[ELEVATION_LABELS.length - 1][1];
+}
+
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  // Compute all routes' elevation gains for percentile comparison
+  const allElevations = routes
+    .filter(r => r.data.status === 'published')
+    .map(r => {
+      const gpx = r.data.variants[0]?.gpx;
+      return gpx ? r.data.gpxTracks[gpx]?.elevation_gain_m : null;
+    })
+    .filter((e): e is number => e != null && e > 0);
+
+  return routes.map(route => ({
+    params: { slug: route.id },
+    props: { route, allElevations },
+  }));
+}
+
+const { route, allElevations } = Astro.props;
+const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
+
+const cover = media.find(m => m.cover);
+const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
+const videos = media.filter(m => m.type === 'video');
+const hasMap = hasCachedMap(route.id);
+
+const primaryGpx = variants[0]?.gpx;
+const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
+const manyVariants = variants.length > 1;
+
+const variantDistances = variants.map(v => v.distance_km).filter((d): d is number => d != null);
+const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
+const allTags = [distanceTag, ...tags];
+if (primaryTrack?.elevation_gain_m) {
+  allTags.push(`${primaryTrack.elevation_gain_m}m elevation`);
+}
+
+const conclusion = primaryTrack?.elevation_gain_m
+  ? elevationConclusion(primaryTrack.elevation_gain_m, allElevations)
+  : null;
+---
+
+<Base title={`${name} | Ottawa by Bike`} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)}>
+  <div class="route-detail">
+    {cover && (
+      <div class="route-detail--hero">
+        <img
+          src={imageUrl(cover.key, { width: 1170 })}
+          alt={cover.caption || name}
+          class="gallery-cover-photo"
+        />
+      </div>
+    )}
+
+    <div class="route-detail--content">
+      <div class="route-detail--body">
+        <h1>{name}</h1>
+        {tagline && <h2>{tagline}</h2>}
+
+        <ul class="route--tags">
+          {allTags.map(tag => <li class="tag-pill">{tag}</li>)}
+        </ul>
+
+        <div class="route-description" set:html={route.data.renderedBody} />
+
+        {primaryTrack && !manyVariants && (
+          <p>
+            <span style="font-size: 1.5em;">&#x1F6B5; </span>
+            Elevation Gain: <a href={`/routes/${route.id}/map#elevation-profile`}>{primaryTrack.elevation_gain_m} meters</a>{conclusion && `, this is ${conclusion}`}
+          </p>
+        )}
+
+        {variants.length > 1 ? (
+          <div>
+            <h3>There's {variants.length} versions of this route</h3>
+            {variants.map((v, i) => (
+              <a href={`/routes/${route.id}/map/${variantKeyFromGpx(v.gpx)}`} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
+                &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p>
+            <a href={`/routes/${route.id}/map`} class="action-button --primary --wider" style="font-weight: bold;">
+              &#x1F5FA;&#xFE0F; View Map of {name}
+            </a>
+          </p>
+        )}
+      </div>
+
+      {hasMap && (
+        <div class="route-detail--static-map">
+          <a href={`/routes/${route.id}/map`} title="View Map">
+            <img
+              src={`/_cache/maps/${route.id}/map-750.webp`}
+              alt={`Map of ${name}`}
+            />
+          </a>
+          {primaryTrack && (
+            <NearbyPlaces trackPoints={primaryTrack.points} />
+          )}
+        </div>
+      )}
+    </div>
+
+    {photos.length > 0 && (
+      <PhotoGallery photos={photos} routeName={name} />
+    )}
+
+    {videos.length > 0 && (
+      <section class="route-videos">
+        <h3>Videos</h3>
+        {videos.map(video => {
+          const sources = videoPlaybackSources(video.key);
+          const size = videoDisplaySize(video.width || 640, video.height || 360);
+          return (
+            <div class="route-video">
+              <video
+                controls
+                preload="metadata"
+                width={size.width}
+                height={size.height}
+                poster={video.poster_key ? videoPosterUrl(video.poster_key) : undefined}
+                disablepictureinpicture
+              >
+                {sources.map(s => <source src={s.src} type={s.type} />)}
+                <p><a href={videoFallbackUrl(video.key)}>{video.title || 'Download video'}</a></p>
+              </video>
+              {video.title && <p>{video.title}</p>}
+            </div>
+          );
+        })}
+      </section>
+    )}
+
+    <p style="margin-top: 2em;">
+      <a href="/" class="go-back-button">&#x21A9; go back to all routes</a>
+    </p>
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+
+  .route-detail--hero {
+    width: 100%;
+    max-height: 400px;
+    overflow: hidden;
+    margin-bottom: 1em;
+    img { width: 100%; object-fit: cover; cursor: pointer; }
+    @media (min-width: 800px) {
+      display: none;
+    }
+  }
+
+  .route-detail--content {
+    display: flex;
+    @media (max-width: 799px) { flex-direction: column; }
+  }
+  .route-detail--body {
+    flex: 1;
+    font-size: 1.05em;
+    padding-right: 1em;
+    @media (min-width: 800px) {
+      max-width: 60%;
+    }
+    p {
+      line-height: 1.45em;
+    }
+  }
+
+  .route-detail {
+    h1 { font-size: 24px; }
+    h2 { font-size: 18.72px; }
+  }
+  .route-detail--static-map {
+    min-width: 300px;
+    max-width: 600px;
+    img { width: 100%; height: auto; border-radius: 8px; }
+    @media (max-width: 800px) { width: 100%; }
+  }
+
+
+  .route--tags {
+    list-style: none;
+    padding: 0;
+  }
+
+  .route-description {
+    :global(a) { color: inherit; text-decoration: underline; }
+  }
+
+  .go-back-button {
+    text-decoration: none;
+    padding: 5px 0;
+    border-top: 1px solid black;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .go-back-button { border-top-color: white; }
+  }
+</style>

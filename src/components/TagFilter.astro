@@ -1,0 +1,172 @@
+---
+interface Props {
+  tags: string[];
+}
+const { tags } = Astro.props;
+---
+
+<ul class="tag-filter">
+  <span class="tag-filter--label">choose a tag to filter:</span>
+  {tags.map(tag => (
+    <li>
+      <button class="tag-filter--btn" data-tag={tag}>{tag}</button>
+    </li>
+  ))}
+</ul>
+
+<script>
+  function setupTagFiltering() {
+    const tagList = document.querySelector('.tag-filter');
+    const routeCards = document.querySelectorAll('.route-card');
+    if (!tagList || !routeCards.length) return;
+
+    // Restore filters from URL
+    const params = new URL(window.location.href).searchParams;
+    const initialTags = params.get('tags')?.split(',').filter(Boolean) || [];
+    initialTags.forEach(tagName => {
+      const btn = tagList.querySelector(`[data-tag="${tagName}"]`);
+      if (btn) btn.classList.add('active');
+    });
+    if (initialTags.length) filterRoutes();
+
+    tagList.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.tag-filter--btn') as HTMLElement;
+      if (!btn) return;
+
+      btn.classList.toggle('active');
+      filterRoutes();
+
+      // Update URL
+      const activeTags = getActiveTags();
+      const url = window.location.pathname;
+      if (activeTags.length > 0) {
+        window.history.pushState({}, '', `${url}?tags=${activeTags.join(',')}`);
+      } else {
+        window.history.replaceState({}, '', url);
+      }
+    });
+
+    function getActiveTags(): string[] {
+      return Array.from(tagList!.querySelectorAll('.tag-filter--btn.active'))
+        .map(b => b.getAttribute('data-tag')!);
+    }
+
+    function filterRoutes() {
+      const activeTags = getActiveTags();
+
+      // Show/hide route cards (AND logic)
+      routeCards.forEach(card => {
+        const cardTags = JSON.parse(card.getAttribute('data-tags') || '[]');
+        if (activeTags.length === 0 || activeTags.every(t => cardTags.includes(t))) {
+          (card as HTMLElement).style.display = '';
+        } else {
+          (card as HTMLElement).style.display = 'none';
+        }
+      });
+
+      // Collect tags from visible routes
+      const visibleCards = document.querySelectorAll('.route-card:not([style*="display: none"])');
+      const availableTags = new Set<string>();
+      visibleCards.forEach(card => {
+        JSON.parse(card.getAttribute('data-tags') || '[]').forEach((t: string) => availableTags.add(t));
+      });
+
+      // Tags common to ALL visible routes
+      const commonTags = new Set(
+        [...availableTags].filter(tag =>
+          Array.from(visibleCards).every(card =>
+            JSON.parse(card.getAttribute('data-tags') || '[]').includes(tag)
+          )
+        )
+      );
+
+      // Show/hide/dim tag buttons
+      tagList!.querySelectorAll('.tag-filter--btn').forEach(btn => {
+        const tag = btn.getAttribute('data-tag')!;
+        const el = btn as HTMLElement;
+        if (activeTags.length === 0) {
+          el.style.display = '';
+          el.style.opacity = '';
+        } else if (availableTags.has(tag)) {
+          el.style.display = '';
+          el.style.opacity = (commonTags.has(tag) && !btn.classList.contains('active')) ? '0.5' : '';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  // Hide welcome message after 3+ visits
+  function setupHomeMessageHider() {
+    const messages = document.querySelectorAll('.welcome-message, .tag-filter--label');
+    if (!messages.length) return;
+    const key = 'welcomeMessageShownV2';
+    let visits = parseInt(localStorage.getItem(key) || '0');
+    if (visits >= 3) {
+      messages.forEach(el => (el as HTMLElement).style.display = 'none');
+    }
+    localStorage.setItem(key, String(visits + 1));
+  }
+
+  setupTagFiltering();
+  setupHomeMessageHider();
+</script>
+
+<style lang="scss">
+  @use '../styles/variables' as *;
+
+  .tag-filter {
+    list-style: none;
+    padding: 0;
+    margin-top: 0;
+
+    li { list-style: none; display: inline-block; }
+  }
+
+  .tag-filter--label {
+    @media (max-width: $breakpoint-tablet - 1px) {
+      display: block;
+      margin-bottom: 0.5em;
+    }
+    @media (min-width: $breakpoint-tablet) {
+      display: inline-block;
+      margin-right: 1em;
+    }
+  }
+
+  .tag-filter--btn {
+    cursor: pointer;
+    border: none;
+    font-size: 1.05em;
+    background: $color-tag-bg;
+    color: $color-tag-text;
+    padding: 3px;
+    border-radius: 7px;
+    font-family: $font-mono;
+    letter-spacing: 1px;
+    margin: 3px 7px 3px 0;
+    display: inline-block;
+    transition: background 0.15s, color 0.15s;
+    &.active {
+      background: orange;
+      color: white;
+    }
+    @media (hover: hover) {
+      &:hover:not(.active) {
+        background: orange;
+      }
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tag-filter--btn {
+      background: gray;
+      color: white;
+      &.active { background: orange; color: white; }
+      @media (hover: hover) {
+        &:hover:not(.active) { background: orange; }
+      }
+    }
+  }
+</style>

@@ -1,0 +1,32 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import MapPage from '../../../../components/MapPage.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  return routes.map(route => ({
+    params: { slug: route.id },
+    props: { route },
+  }));
+}
+
+const { route } = Astro.props;
+const { name, variants, gpxTracks } = route.data;
+
+const variant = variants[0];
+const track = variant ? gpxTracks[variant.gpx] : null;
+---
+
+<Base title={`Map: ${name} | Ottawa by Bike`}>
+  {variant && track ? (
+    <MapPage
+      routeSlug={route.id}
+      routeName={name}
+      variant={variant}
+      polyline={track.polyline}
+    />
+  ) : (
+    <p>No map available for this route.</p>
+  )}
+</Base>

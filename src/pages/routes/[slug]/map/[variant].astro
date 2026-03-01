@@ -1,0 +1,38 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import MapPage from '../../../../components/MapPage.astro';
+import { getCollection } from 'astro:content';
+import { variantKeyFromGpx } from '../../../../lib/map-thumbnails';
+
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  const paths: any[] = [];
+
+  for (const route of routes) {
+    for (const v of route.data.variants) {
+      const variantKey = variantKeyFromGpx(v.gpx);
+      const track = route.data.gpxTracks[v.gpx];
+      if (!track) continue;
+
+      paths.push({
+        params: { slug: route.id, variant: variantKey },
+        props: { route, variant: v, track },
+      });
+    }
+  }
+  return paths;
+}
+
+const { route, variant, track } = Astro.props;
+const { name } = route.data;
+---
+
+<Base title={`Map: ${name} — ${variant.name} | Ottawa by Bike`}>
+  <MapPage
+    routeSlug={route.id}
+    routeName={name}
+    variant={variant}
+    polyline={track.polyline}
+    variantLabel={variant.name}
+  />
+</Base>

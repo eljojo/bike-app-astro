@@ -1,0 +1,76 @@
+---
+import Base from '../layouts/Base.astro';
+import RouteCard from '../components/RouteCard.astro';
+import TagFilter from '../components/TagFilter.astro';
+import { getCollection } from 'astro:content';
+
+const routes = await getCollection('routes');
+const published = routes
+  .filter(r => r.data.status === 'published')
+  .sort((a, b) => a.data.distance_km - b.data.distance_km);
+
+const TAGS_TO_AVOID = ['kinburn', 'easy'];
+const TAGS_TO_FORCE = ['bikepacking', 'snacks'];
+
+// Count tag popularity (how many routes use each tag)
+const tagCounts = new Map<string, number>();
+for (const route of published) {
+  for (const tag of route.data.tags) {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  }
+}
+
+// Sort by popularity, take top 14, union with forced, remove avoided
+const tagsByPopularity = [...tagCounts.entries()]
+  .sort((a, b) => a[1] - b[1])
+  .map(([tag]) => tag);
+
+const topTags = tagsByPopularity.slice(-14);
+const allTags = [...new Set([...topTags, ...TAGS_TO_FORCE])]
+  .filter(tag => !TAGS_TO_AVOID.includes(tag))
+  .sort();
+---
+
+<Base title="Ottawa by Bike" description="Curated cycling routes in Ottawa and Gatineau">
+  <div class="welcome-message">
+    <h3>New to biking? Experienced rider? Find your new favourite ride and explore nature!</h3>
+  </div>
+  <TagFilter tags={allTags} />
+  <ul class="routes-grid">
+    {published.map((route, i) => {
+      const cover = route.data.media.find(m => m.cover);
+      return (
+        <RouteCard
+          slug={route.id}
+          name={route.data.name}
+          tagline={route.data.tagline}
+          distance_km={route.data.distance_km}
+          tags={route.data.tags}
+          body={route.body}
+          coverKey={cover?.key}
+          lazy={i >= 5}
+          variants={route.data.variants}
+        />
+      );
+    })}
+  </ul>
+</Base>
+
+<style lang="scss">
+  @use '../styles/variables' as *;
+
+  .welcome-message {
+    h3 {
+      font-family: $font-heading;
+    }
+  }
+
+  .routes-grid {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    padding: 0;
+    margin: 0;
+  }
+</style>

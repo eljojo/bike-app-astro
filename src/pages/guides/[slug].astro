@@ -1,0 +1,45 @@
+---
+// src/pages/guides/[slug].astro
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+import { guideJsonLd } from '../../lib/json-ld';
+
+export async function getStaticPaths() {
+  const guides = await getCollection('guides');
+  return guides.map(guide => ({
+    params: { slug: guide.id },
+    props: { guide },
+  }));
+}
+
+const { guide } = Astro.props;
+const { Content } = await render(guide);
+---
+
+<Base title={`${guide.data.name} | Ottawa by Bike`} description={guide.data.tagline} jsonLd={guideJsonLd({...guide.data, id: guide.id})}>
+  <div class="guide-detail">
+    <h1>{guide.data.name}</h1>
+    {guide.data.tagline && <p class="guide-tagline">{guide.data.tagline}</p>}
+    <div class="guide-body">
+      <Content />
+    </div>
+  </div>
+  <p style="margin-top: 2em;">
+    <a href="/guides" class="go-back-button">&#x21A9; go back to all guides</a>
+  </p>
+</Base>
+
+<style lang="scss">
+  .guide-tagline {
+    font-size: 1.1em;
+    opacity: 0.8;
+    margin: 0.3em 0 1em;
+  }
+  .guide-body {
+    line-height: 1.7;
+    :global(h2, h3) { margin-top: 1.5em; }
+    :global(p) { margin: 0.8em 0; }
+    :global(a) { color: inherit; text-decoration: underline; }
+    :global(ul, ol) { margin: 0.5em 0; padding-left: 1.5em; }
+  }
+</style>

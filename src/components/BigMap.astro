@@ -1,0 +1,90 @@
+---
+// src/components/BigMap.astro
+interface RouteOnMap {
+  slug: string;
+  name: string;
+  polyline: string;
+  distance_km: number;
+}
+
+interface PlaceOnMap {
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+}
+
+interface Props {
+  routes: RouteOnMap[];
+  places: PlaceOnMap[];
+  center: [number, number];
+}
+
+const { routes, places, center } = Astro.props;
+---
+
+<div
+  id="big-map"
+  class="big-map"
+  data-routes={JSON.stringify(routes)}
+  data-places={JSON.stringify(places)}
+  data-center={JSON.stringify(center)}
+></div>
+
+<script>
+  import L from 'leaflet';
+  import 'leaflet/dist/leaflet.css';
+  import polylineCodec from '@mapbox/polyline';
+
+  const el = document.getElementById('big-map');
+  if (el) {
+    const routes = JSON.parse(el.dataset.routes || '[]');
+    const places = JSON.parse(el.dataset.places || '[]');
+    const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
+
+    const map = L.map(el).setView(center, 11);
+
+    L.tileLayer('https://tiles.ottawabybike.ca/cycle/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20,
+      attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+    }).addTo(map);
+
+    // Add route polylines
+    routes.forEach((r: any) => {
+      const coords = polylineCodec.decode(r.polyline);
+      L.polyline(coords, { color: '#350091', weight: 6, opacity: 0.9 })
+        .bindPopup(`<a href="/routes/${r.slug}">${r.name}</a><br>${r.distance_km} km`)
+        .addTo(map);
+    });
+
+    // Add place markers
+    const categoryColors: Record<string, string> = {
+      park: '#228B22', beach: '#FFD700', 'bike-trail': '#32CD32',
+      'camping-spot': '#006400', 'water-fountain': '#4682B4', 'chill-spot': '#20B2AA',
+      lookout: '#8B4513', bridge: '#708090',
+      poutine: '#8B0000', beer: '#DAA520', pizza: '#FF6347',
+      'ice-cream': '#FF69B4', cafe: '#A0522D', restaurant: '#FF4500',
+      'meeting-point': '#9370DB', 'bike-shop': '#4169E1', parking: '#808080',
+      ferry: '#1E90FF', wc: '#778899', 'bike-rental': '#6495ED',
+      detour: '#FF8C00', flooding: '#4682B4',
+    };
+
+    places.forEach((p: any) => {
+      const color = categoryColors[p.category] || '#666';
+      L.circleMarker([p.lat, p.lng], {
+        radius: 5, fillColor: color, color: '#fff',
+        weight: 1, fillOpacity: 0.8,
+      })
+        .bindPopup(`${p.name}<br><small>${p.category}</small>`)
+        .addTo(map);
+    });
+  }
+</script>
+
+<style>
+  .big-map {
+    width: 100%;
+    height: 85vh;
+    min-height: 500px;
+  }
+</style>

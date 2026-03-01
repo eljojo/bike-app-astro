@@ -1,0 +1,29 @@
+---
+// src/components/Nav.astro
+---
+<nav class="top-nav">
+  <ul>
+    <li><a href="/about">👋 About</a></li>
+    <li><a href="/calendar">📅 Calendar</a></li>
+    <li><a href="/map">🗺️ Map</a></li>
+  </ul>
+</nav>
+
+<style lang="scss">
+  .top-nav ul {
+    font-size: 1.3em;
+    font-family: "Merriweather", serif;
+    margin: 0 0 10px 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      margin: 0 0.5em 0 0;
+      display: inline-block;
+    }
+  }
+  .top-nav a {
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+</style>

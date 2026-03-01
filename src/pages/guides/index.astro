@@ -1,0 +1,41 @@
+---
+// src/pages/guides/index.astro
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+const guides = await getCollection('guides');
+const published = guides.filter(g => g.data.status === 'published');
+---
+
+<Base title="Guides | Ottawa by Bike">
+  <h1>📖 Guides</h1>
+  <ul class="guides-list">
+    {published.map(guide => (
+      <li class="guides-list--guide">
+        <a href={`/guides/${guide.id}`} class="guide--name">{guide.data.name}</a>
+        {guide.data.tagline && <span class="guide--tagline">{guide.data.tagline}</span>}
+      </li>
+    ))}
+  </ul>
+</Base>
+
+<style lang="scss">
+  .guides-list {
+    list-style: none;
+    padding: 0;
+  }
+  .guides-list--guide {
+    padding: 0.8em 0;
+    border-bottom: 1px solid #dee2e6;
+  }
+  .guide--name {
+    display: block;
+    font-size: 1.4em;
+    font-weight: 600;
+  }
+  .guide--tagline {
+    display: block;
+    opacity: 0.7;
+    font-size: 0.9em;
+  }
+</style>

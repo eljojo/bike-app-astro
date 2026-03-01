@@ -1,0 +1,171 @@
+---
+import { imageUrl } from '../lib/image-service';
+import { hasCachedMap } from '../lib/map-thumbnails';
+import { formatDistance } from '../lib/distance';
+
+interface Variant {
+  name: string;
+  gpx: string;
+  distance_km?: number;
+}
+
+interface Props {
+  slug: string;
+  name: string;
+  tagline?: string;
+  distance_km: number;
+  tags: string[];
+  body?: string;
+  coverKey?: string;
+  lazy?: boolean;
+  variants?: Variant[];
+}
+
+const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, variants } = Astro.props;
+
+const variantDistances = variants?.map(v => v.distance_km).filter((d): d is number => d != null) || [];
+const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
+const allTags = [distanceTag, ...tags];
+function makePreview(body?: string): string[] {
+  if (!body) return [];
+  const stripped = body.replace(/[#*_\[\]()]/g, '');
+  return stripped.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .slice(0, 2);
+}
+
+const previewParagraphs = makePreview(body);
+const hasMap = hasCachedMap(slug);
+const loading = lazy ? 'lazy' : 'eager';
+---
+
+<li class="route-card" data-tags={JSON.stringify(tags)}>
+  <a href={`/routes/${slug}`} class="route-card--link">
+    <div class="route-card--images">
+      {coverKey && (
+        <img
+          src={imageUrl(coverKey, { width: 375, height: 375, fit: 'cover' })}
+          srcset={`${imageUrl(coverKey, { width: 750, height: 750, fit: 'cover' })} 2x`}
+          alt={name}
+          width="300"
+          height="300"
+          loading={loading}
+          class="route-cover"
+        />
+      )}
+      {hasMap && (
+        <img
+          src={`/_cache/maps/${slug}/map-375.webp`}
+          srcset={`/_cache/maps/${slug}/map-375.webp 1x, /_cache/maps/${slug}/map-750.webp 2x`}
+          alt={`map of ${name}`}
+          width="300"
+          height="300"
+          loading={loading}
+          class="route-map"
+        />
+      )}
+    </div>
+    <span class="route-card--details">
+      <span class="route-card--name">{name}</span>
+      {tagline && <span class="route-card--tagline">{tagline}</span>}
+      <ul class="route-card--tags">
+        {allTags.map(tag => <li class="tag-pill">{tag}</li>)}
+      </ul>
+      {previewParagraphs.map(p => (
+        <span class="route-card--preview">{p}</span>
+      ))}
+    </span>
+  </a>
+</li>
+
+<style lang="scss">
+  @use '../styles/variables' as *;
+
+  .route-card {
+    list-style: none;
+    width: 100%;
+    margin-bottom: 1em;
+  }
+
+  .route-card--link {
+    display: flex;
+    text-decoration: none;
+    color: inherit;
+    background-color: $color-card-bg;
+    &:hover { background-color: $color-card-hover; }
+    @media (max-width: $breakpoint-desktop) {
+      flex-direction: column;
+    }
+  }
+
+  .route-card--images {
+    display: flex;
+    min-width: 300px;
+    flex-shrink: 0;
+    @media (min-width: $breakpoint-desktop) {
+      width: 600px;
+      height: 300px;
+    }
+    // Reserve min-height to prevent CLS while images load.
+    // Below 600px the body is full-width; above 600px body is 85% width (used in the calc).
+    @media (min-width: $breakpoint-mobile) and (max-width: $breakpoint-desktop - 1px) {
+      min-height: calc(85vw / 2 - 8px);
+    }
+    @media (max-width: $breakpoint-mobile - 1px) {
+      min-height: calc(50vw - 16px);
+    }
+    img {
+      // !important overrides width/height HTML attributes (needed for CLS/Lighthouse)
+      // so images still display at 50% side-by-side
+      width: 50% !important;
+      height: auto;
+      display: inline-block;
+      vertical-align: top; // prevents the 4px descender gap that inline-block adds below images
+    }
+    img:only-child { width: 100% !important; }
+  }
+
+  .route-card--details {
+    display: block;
+    padding: 1em;
+    min-height: 6em;
+    vertical-align: top;
+    flex-shrink: 3;
+  }
+
+  .route-card--name {
+    display: block;
+    font-family: $font-heading;
+    font-size: 1.6em;
+  }
+
+  .route-card--tagline {
+    display: block;
+    font-family: $font-heading;
+    font-size: 1.2em;
+  }
+
+  .route-card--tags {
+    padding: 0;
+    .tag-pill { font-size: 1em !important; } // override global 1.05em; pills look too large in route cards at the bigger size
+  }
+
+  .route-card--preview {
+    display: block;
+    margin-top: 0.5em;
+    margin-bottom: 1em;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .route-card--link {
+      background-color: $color-card-bg-dark;
+      &:hover { background-color: $color-card-hover-dark; }
+    }
+    .route-card--preview { color: #ddd; }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .route-card--preview { color: $color-text-muted; }
+  }
+</style>

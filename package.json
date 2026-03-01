@@ -1,0 +1,44 @@
+{
+  "name": "bike-app-astro",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "maps:generate": "npx tsx scripts/generate-maps.ts",
+    "maps:rebuild": "npx tsx scripts/generate-maps.ts --force",
+    "test": "npx vitest run",
+    "test:e2e": "npx playwright test --config e2e/playwright.config.ts",
+    "test:update": "npx playwright test --config e2e/playwright.config.ts --update-snapshots",
+    "validate": "npx tsx scripts/validate.ts",
+    "capture:production": "npx playwright test --config e2e/capture-production.config.ts"
+  },
+  "dependencies": {
+    "@mapbox/polyline": "^1.2.1",
+    "@turf/boolean-point-in-polygon": "^7.3.4",
+    "@turf/helpers": "^7.3.4",
+    "@turf/nearest-point-on-line": "^7.3.4",
+    "@vovayatsyuk/photoswipe-object-position": "^1.0.0",
+    "astro": "^5.17.1",
+    "dotenv": "^17.3.1",
+    "fast-xml-parser": "^5.4.1",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.1",
+    "leaflet": "^1.9.4",
+    "marked": "^17.0.3",
+    "photoswipe": "^5.4.4",
+    "photoswipe-dynamic-caption-plugin": "^1.2.7",
+    "sass": "^1.97.3",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/leaflet": "^1.9.21",
+    "serve": "^14.2.5",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.18"
+  }
+}

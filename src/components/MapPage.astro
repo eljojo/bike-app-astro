@@ -1,0 +1,76 @@
+---
+import LeafletMap from './LeafletMap.astro';
+import { hasCachedMap, variantKeyFromGpx } from '../lib/map-thumbnails';
+
+interface Variant {
+  name: string;
+  gpx: string;
+  strava_url?: string;
+  rwgps_url?: string;
+}
+
+interface Props {
+  routeSlug: string;
+  routeName: string;
+  variant: Variant;
+  polyline: string;
+  variantLabel?: string;
+}
+
+const { routeSlug, routeName, variant, polyline, variantLabel } = Astro.props;
+const siteUrl = import.meta.env.SITE || 'https://ottawabybike.ca';
+const variantKey = variantKeyFromGpx(variant.gpx);
+
+function gpxStudioUrl(gpxUrl: string): string {
+  const urlParam = encodeURIComponent(gpxUrl);
+  return `https://gpx.studio/?state=%7B%22urls%22:%5B%22${urlParam}%22%5D%7D&distance&slope`;
+}
+
+const gpxUrl = `${siteUrl}/routes/${routeSlug}/${variantKey}.gpx`;
+const exploreUrl = gpxStudioUrl(gpxUrl);
+const hasVariantMap = hasCachedMap(routeSlug, variantKey);
+
+const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
+---
+
+<h1>&#x1F5FA;&#xFE0F; {title}</h1>
+
+<p>
+  <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
+    &#x1F5FA;&#xFE0F; Explore GPX
+  </a>
+  {' '}
+  <a href={gpxUrl} class="action-button" target="_blank" rel="nofollow" download>
+    &#x1F4E1; Download GPX
+  </a>
+  {variant.strava_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.strava_url} class="action-button" target="_blank" rel="noopener">
+        Open in Strava
+      </a>
+    </Fragment>
+  )}
+  {variant.rwgps_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.rwgps_url} class="action-button" target="_blank" rel="noopener">
+        Open in Ride With GPS
+      </a>
+    </Fragment>
+  )}
+  {hasVariantMap && (
+    <Fragment>
+      {' '}
+      <a href={`/_cache/maps/${routeSlug}/${variantKey}/map.png`} class="action-button" target="_blank" rel="noopener">
+        &#x1F5FA;&#xFE0F; PNG
+      </a>
+    </Fragment>
+  )}
+</p>
+
+<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} />
+
+<p style="margin-top: 1em;">
+  <a href={`/routes/${routeSlug}`} class="go-back-button">&#x21A9; back to {routeName}</a>
+</p>

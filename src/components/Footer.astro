@@ -1,0 +1,27 @@
+---
+// src/components/Footer.astro
+---
+<footer class="site-footer">
+  <a href="/about">Ottawa by Bike is curated by José Albornoz</a>
+</footer>
+
+<style lang="scss">
+  .site-footer {
+    padding-top: 3px;
+    margin-top: 2em;
+    a { padding: 4px; text-decoration: none; }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .site-footer {
+      border-top: 1px solid black;
+      a { background: black; color: white; }
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    .site-footer {
+      border-top: 1px solid white;
+      a { background: white; color: black; }
+    }
+  }
+</style>

@@ -1,0 +1,115 @@
+---
+// src/pages/calendar.astro
+import Base from '../layouts/Base.astro';
+import EventCard from '../components/EventCard.astro';
+import { getCollection } from 'astro:content';
+import { parseLocalDate, formatMonthName } from '../lib/date-utils';
+
+const events = await getCollection('events');
+const now = new Date();
+const currentYear = now.getFullYear();
+
+const upcoming = events
+  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
+  .sort((a, b) => parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime());
+
+const past = events
+  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
+  .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime());
+
+function groupByMonth(evts: typeof events) {
+  const groups: Record<string, typeof events> = {};
+  for (const e of evts) {
+    const month = formatMonthName(e.data.start_date);
+    if (!groups[month]) groups[month] = [];
+    groups[month].push(e);
+  }
+  return groups;
+}
+
+const upcomingByMonth = groupByMonth(upcoming);
+---
+
+<Base title={`Cycling events for ${currentYear} | Ottawa by Bike`}>
+  <h1 style="font-size: 1.7em;">📅 Cycling events for {currentYear}</h1>
+  <a href="/calendar.ics" class="action-button">&#x1F4C5; Subscribe to iCal feed</a>
+
+  {Object.keys(upcomingByMonth).length === 0 && (
+    <p><strong>That's a wrap! See you next year!</strong></p>
+  )}
+
+  {Object.entries(upcomingByMonth).map(([month, evts]) => (
+    <div>
+      <h2 class="month-header">{month}</h2>
+      <div class="events-grid">
+        {evts.map(e => (
+          <EventCard
+            name={e.data.name}
+            start_date={e.data.start_date}
+            end_date={e.data.end_date}
+            distances={e.data.distances}
+            location={e.data.location}
+            registration_url={e.data.registration_url}
+            review_url={e.data.review_url}
+            organizer_slug={e.data.organizer}
+            poster_key={e.data.poster_key}
+          />
+        ))}
+      </div>
+    </div>
+  ))}
+
+  {past.length > 0 && (
+    <div>
+      <h2>Past events</h2>
+      <button class="action-button" id="show-past-events">Show Past Events</button>
+      <div class="past-events" style="display: none;">
+        <div class="events-grid">
+          {past.map(e => (
+            <EventCard
+              name={e.data.name}
+              start_date={e.data.start_date}
+              end_date={e.data.end_date}
+              distances={e.data.distances}
+              location={e.data.location}
+              registration_url={e.data.registration_url}
+              review_url={e.data.review_url}
+              organizer_slug={e.data.organizer}
+              poster_key={e.data.poster_key}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  <script>
+    document.getElementById('show-past-events')?.addEventListener('click', (e) => {
+      const target = (e.target as HTMLElement);
+      const pastEl = document.querySelector('.past-events') as HTMLElement;
+      if (pastEl) {
+        pastEl.style.display = pastEl.style.display === 'none' ? '' : 'none';
+        target.textContent = pastEl.style.display === 'none' ? 'Show Past Events' : 'Hide Past Events';
+      }
+    });
+  </script>
+</Base>
+
+<style lang="scss">
+  .month-header {
+    margin: 1.5em 0 0.5em;
+    font-size: 1.8em;
+    font-weight: bold;
+  }
+  .events-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    margin: 1em 0;
+  }
+  :global(.action-button) {
+    cursor: pointer;
+    font-size: 1em;
+    background: none;
+  }
+</style>
