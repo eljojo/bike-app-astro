@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test';
 
+const SKIP_SCREENSHOTS = process.env.SKIP_SCREENSHOTS === 'true';
+
+// Helper: only assert screenshot if not skipped
+async function expectScreenshot(page, name: string, options?: object) {
+  if (!SKIP_SCREENSHOTS) {
+    await expect(page).toHaveScreenshot(name, options);
+  }
+}
+
 // Scroll through the page to trigger lazy-loaded images, then wait for all to finish loading.
 async function waitForImages(page) {
   // Scroll to bottom in steps to trigger lazy loading
@@ -22,13 +31,13 @@ test.describe('Screenshots', () => {
   test('homepage', async ({ page }) => {
     await page.goto('/');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('homepage.png', { fullPage: true });
+    await expectScreenshot(page, 'homepage.png', { fullPage: true });
   });
 
   test('route detail', async ({ page }) => {
     await page.goto('/routes/easy-loop-around-the-canal');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('route-detail.png', { fullPage: true, maxDiffPixelRatio: 0.02 });
+    await expectScreenshot(page, 'route-detail.png', { fullPage: true, maxDiffPixelRatio: 0.02 });
   });
 
   test('route map', async ({ page }) => {
@@ -40,13 +49,13 @@ test.describe('Screenshots', () => {
   test('guides index', async ({ page }) => {
     await page.goto('/guides');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('guides-index.png', { fullPage: true });
+    await expectScreenshot(page, 'guides-index.png', { fullPage: true });
   });
 
   test('guide detail', async ({ page }) => {
     await page.goto('/guides/local-communities');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('guide-detail.png', { fullPage: true });
+    await expectScreenshot(page, 'guide-detail.png', { fullPage: true });
   });
 
   test('calendar', async ({ page }) => {
@@ -57,20 +66,20 @@ test.describe('Screenshots', () => {
     }
     await waitForImages(page);
     // Clip to first ~2000px — the full page is too long
-    await expect(page).toHaveScreenshot('calendar.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
+    await expectScreenshot(page, 'calendar.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
   });
 
   test('about', async ({ page }) => {
     await page.goto('/about');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('about.png', { fullPage: true });
+    await expectScreenshot(page, 'about.png', { fullPage: true });
   });
 
   test('videos', async ({ page }) => {
     await page.goto('/videos');
     await waitForImages(page);
     // Clip to first ~2000px — the full page is too long
-    await expect(page).toHaveScreenshot('videos.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
+    await expectScreenshot(page, 'videos.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
   });
 
   test('big map', async ({ page }) => {

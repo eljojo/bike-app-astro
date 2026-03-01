@@ -23,6 +23,7 @@ const { title, description, ogImage, jsonLd } = Astro.props;
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="alternate" type="application/rss+xml" title="Ottawa by Bike" href="/rss.xml" />
     {import.meta.env.PROD && <script defer data-domain="ottawabybike.ca" src="https://plausible.io/js/script.js" />}
+    {import.meta.env.DISABLE_ANALYTICS === 'true' && <script>localStorage.plausible_ignore=true</script>}
   </head>
   <body>
     <header class="site-header">

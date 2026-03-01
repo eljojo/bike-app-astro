@@ -2,7 +2,10 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'screenshots.spec.ts',
+  testMatch: '*.spec.ts',
+  fullyParallel: true,
+  workers: '100%',
+  testIgnore: 'capture-production.spec.ts',
   outputDir: './test-results',
   snapshotDir: './snapshots',
   snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
