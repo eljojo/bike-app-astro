@@ -75,7 +75,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('package-lock.json') }}
@@ -92,7 +92,7 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Restore map cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: public/maps
           key: maps-${{ hashFiles('bike-routes/ottawa/routes/**/variants/*.gpx', 'bike-routes/ottawa/routes/**/*.gpx') }}
@@ -100,7 +100,7 @@ jobs:
             maps-
 
       - name: Restore Astro content cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .astro
           key: astro-${{ hashFiles('bike-routes/ottawa/routes/**') }}
