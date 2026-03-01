@@ -1,4 +1,6 @@
 ---
+import { computeElevationProfile } from '../lib/elevation-profile';
+
 interface GpxPoint {
   lat: number;
   lon: number;
@@ -11,45 +13,17 @@ interface Props {
 }
 
 const { points, distance_m } = Astro.props;
-
-const step = Math.max(1, Math.floor(points.length / 200));
-const sampled = points.filter((_, i) => i % step === 0 || i === points.length - 1);
-
-const elevations = sampled.map(p => p.ele ?? 0);
-const minEle = Math.min(...elevations);
-const maxEle = Math.max(...elevations);
-const eleRange = maxEle - minEle || 1;
-
-const svgWidth = 800;
-const svgHeight = 150;
-const padding = 2;
-
-const pathPoints = sampled.map((p, i) => {
-  const x = padding + (i / (sampled.length - 1)) * (svgWidth - 2 * padding);
-  const y = svgHeight - padding - ((((p.ele ?? 0) - minEle) / eleRange) * (svgHeight - 2 * padding));
-  return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-}).join(' ');
-
-const areaPath = pathPoints
-  + ` L${(svgWidth - padding).toFixed(1)},${svgHeight - padding}`
-  + ` L${padding},${svgHeight - padding} Z`;
-
-const elevGain = sampled.reduce((gain, p, i) => {
-  if (i === 0) return 0;
-  const prev = sampled[i - 1].ele ?? 0;
-  const curr = p.ele ?? 0;
-  return gain + (curr > prev ? curr - prev : 0);
-}, 0);
+const profile = computeElevationProfile(points, distance_m);
 ---
 
 <div class="elevation-profile">
   <div class="elevation-stats">
-    <span>&#x2197; {Math.round(elevGain)}m gain</span>
-    <span>&#x2195; {Math.round(minEle)}m &ndash; {Math.round(maxEle)}m</span>
-    <span>&#x1F4CF; {(distance_m / 1000).toFixed(1)} km</span>
+    <span>&#x2197; {profile.elevGain}m gain</span>
+    <span>&#x2195; {profile.minEle}m &ndash; {profile.maxEle}m</span>
+    <span>&#x1F4CF; {profile.distanceKm} km</span>
   </div>
-  <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="none" class="elevation-svg">
-    <path d={areaPath} fill="rgba(0,102,204,0.15)" />
-    <path d={pathPoints} fill="none" stroke="#0066cc" stroke-width="2" />
+  <svg viewBox="0 0 800 150" preserveAspectRatio="none" class="elevation-svg">
+    <path d={profile.svgArea} fill="rgba(0,102,204,0.15)" />
+    <path d={profile.svgPath} fill="none" stroke="#0066cc" stroke-width="2" />
   </svg>
 </div>

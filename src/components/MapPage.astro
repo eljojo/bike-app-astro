@@ -1,5 +1,6 @@
 ---
 import LeafletMap from './LeafletMap.astro';
+import ElevationProfile from './ElevationProfile.astro';
 import { hasCachedMap, variantKeyFromGpx } from '../lib/map-thumbnails';
 import { getCityConfig } from '../lib/city-config';
 import { tElevation } from '../lib/i18n';
@@ -22,6 +23,12 @@ interface MapPlace {
   google_maps_url?: string;
 }
 
+interface GpxPoint {
+  lat: number;
+  lon: number;
+  ele?: number;
+}
+
 interface Props {
   routeSlug: string;
   routeName: string;
@@ -31,9 +38,11 @@ interface Props {
   elevationGain?: number | null;
   elevationConclusion?: string | null;
   places?: MapPlace[];
+  trackPoints?: GpxPoint[];
+  trackDistanceM?: number;
 }
 
-const { routeSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [] } = Astro.props;
+const { routeSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], trackPoints, trackDistanceM } = Astro.props;
 const siteUrl = import.meta.env.SITE || getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
 
@@ -93,6 +102,13 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 </p>
 
 <LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} />
+
+{trackPoints && trackPoints.length > 0 && trackDistanceM && (
+  <div id="elevation-profile" style="margin-top: 1.5em;">
+    <h2>Elevation Profile</h2>
+    <ElevationProfile points={trackPoints} distance_m={trackDistanceM} />
+  </div>
+)}
 
 <p style="margin-top: 1em;">
   <a href={paths.route(routeSlug)} class="go-back-button">&#x21A9; back to {routeName}</a>

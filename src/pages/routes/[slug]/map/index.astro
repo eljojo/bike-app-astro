@@ -56,6 +56,8 @@ const breadcrumbs = breadcrumbJsonLd([
       elevationGain={elevation}
       elevationConclusion={conclusion}
       places={mapPlaces}
+      trackPoints={track.points}
+      trackDistanceM={track.distance_m}
     />
   ) : (
     <p>No map available for this route.</p>
