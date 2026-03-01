@@ -1,5 +1,9 @@
 ---
 // src/components/BigMap.astro
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+
 interface RouteOnMap {
   slug: string;
   name: string;
@@ -31,6 +35,7 @@ const { routes, places, center } = Astro.props;
   data-routes={JSON.stringify(routes)}
   data-places={JSON.stringify(places)}
   data-center={JSON.stringify(center)}
+  data-tiles-url={config.tiles_url}
 ></div>
 
 <script>
@@ -42,11 +47,12 @@ const { routes, places, center } = Astro.props;
   if (el) {
     const routes = JSON.parse(el.dataset.routes || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
-    const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
+    const center = JSON.parse(el.dataset.center || '[0, 0]');
 
     const map = L.map(el).setView(center, 11);
+    const tilesUrl = el.dataset.tilesUrl || '';
 
-    L.tileLayer('https://tiles.ottawabybike.ca/cycle/{z}/{x}/{y}{r}.png', {
+    L.tileLayer(tilesUrl, {
       maxZoom: 20,
       attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
     }).addTo(map);

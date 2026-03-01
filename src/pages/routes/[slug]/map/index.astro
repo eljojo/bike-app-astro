@@ -6,6 +6,9 @@ import { elevationConclusion, getAllElevations } from '../../../../lib/elevation
 import { findNearbyPlaces, type PlaceData } from '../../../../lib/proximity';
 import { categoryEmoji } from '../../../../lib/place-categories';
 import { breadcrumbJsonLd } from '../../../../lib/json-ld';
+import { getCityConfig } from '../../../../lib/city-config';
+
+const config = getCityConfig();
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
@@ -38,13 +41,13 @@ const mapPlaces = nearby.map(p => ({
 }));
 
 const breadcrumbs = breadcrumbJsonLd([
-  { name: 'Home', url: 'https://ottawabybike.ca/' },
-  { name: route.data.name, url: `https://ottawabybike.ca/routes/${route.id}` },
-  { name: 'Map', url: `https://ottawabybike.ca/routes/${route.id}/map` },
+  { name: 'Home', url: `${config.url}/` },
+  { name: route.data.name, url: `${config.url}/routes/${route.id}` },
+  { name: 'Map', url: `${config.url}/routes/${route.id}/map` },
 ]);
 ---
 
-<Base title={`Map: ${name} | Ottawa by Bike`} breadcrumbs={breadcrumbs}>
+<Base title={`Map: ${name} | ${config.display_name}`} breadcrumbs={breadcrumbs}>
   {variant && track ? (
     <MapPage
       routeSlug={route.id}

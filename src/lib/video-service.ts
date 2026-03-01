@@ -1,6 +1,7 @@
 import { imageUrl } from './image-service';
+import { getCityConfig } from './city-config';
 
-const VIDEOS_CDN = 'https://videos.ottawabybike.ca';
+const VIDEOS_CDN = getCityConfig().videos_cdn_url;
 
 interface VideoSource {
   src: string;

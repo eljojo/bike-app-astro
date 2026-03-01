@@ -1,4 +1,6 @@
-const R2_PUBLIC_URL = import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
+import { getCityConfig } from './city-config';
+
+const R2_PUBLIC_URL = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
 export interface ImageOptions {
   width?: number;

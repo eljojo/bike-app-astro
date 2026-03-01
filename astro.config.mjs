@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
+  site: 'https://ottawabybike.ca',
   output: 'static',
   build: {
     concurrency: 4,

@@ -1,6 +1,7 @@
 ---
 import LeafletMap from './LeafletMap.astro';
 import { hasCachedMap, variantKeyFromGpx } from '../lib/map-thumbnails';
+import { getCityConfig } from '../lib/city-config';
 
 interface Variant {
   name: string;
@@ -31,7 +32,7 @@ interface Props {
 }
 
 const { routeSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [] } = Astro.props;
-const siteUrl = import.meta.env.SITE || 'https://ottawabybike.ca';
+const siteUrl = import.meta.env.SITE || getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
 
 function gpxStudioUrl(gpxUrl: string): string {

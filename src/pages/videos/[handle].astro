@@ -3,6 +3,9 @@
 import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
+import { getCityConfig } from '../../lib/city-config';
+
+const config = getCityConfig();
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
@@ -28,7 +31,7 @@ const sources = videoPlaybackSources(video.key);
 const title = video.title || 'Video';
 ---
 
-<Base title={`${title} | Ottawa by Bike`}>
+<Base title={`${title} | ${config.display_name}`}>
   <h1>{title}</h1>
   <div class="video-show main-video">
     <video

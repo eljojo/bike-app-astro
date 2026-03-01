@@ -3,7 +3,12 @@
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import SEO from '../components/SEO.astro';
+import { getCityConfig } from '../lib/city-config';
+import { getFontPreloads } from '../lib/fonts';
 import '../styles/global.scss';
+
+const config = getCityConfig();
+const fontPreloads = getFontPreloads();
 
 interface Props {
   title: string;
@@ -22,18 +27,18 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.p
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} jsonLd={jsonLd} breadcrumbs={breadcrumbs} />
-    <link rel="preload" href="/fonts/u-4e0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiSeqqJ-k.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/6xK3dSBYKcSV-LCoeQqfX1RYOo3qOK7l.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/6xKydSBYKcSV-LCoeQqfX1RYOo3ig4vwlxdu.woff2" as="font" type="font/woff2" crossorigin />
+    {fontPreloads.map(href => (
+      <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
+    ))}
     <link rel="icon" type="image/png" href="/bicycle.png" />
     <link rel="apple-touch-icon" href="/bicycle.png" />
-    <link rel="alternate" type="application/rss+xml" title="Ottawa by Bike" href="/rss.xml" />
-    {import.meta.env.PROD && <script defer data-domain="ottawabybike.ca" src="https://plausible.io/js/script.js" />}
+    <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
+    {import.meta.env.PROD && <script>import '../lib/analytics';</script>}
     {import.meta.env.DISABLE_ANALYTICS === 'true' && <script>localStorage.plausible_ignore=true</script>}
   </head>
   <body>
     <header class="site-header">
-      <a href="/" class="site-title"><em>Ottawa</em> by <em>Bike</em></a>
+      <a href="/" class="site-title" set:html={config.site_title_html} />
     </header>
     <Nav />
     <main>

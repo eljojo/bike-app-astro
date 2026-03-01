@@ -4,6 +4,9 @@ import Base from '../layouts/Base.astro';
 import EventCard from '../components/EventCard.astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate, formatMonthName } from '../lib/date-utils';
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
 
 const events = await getCollection('events');
 const now = new Date();
@@ -30,7 +33,7 @@ function groupByMonth(evts: typeof events) {
 const upcomingByMonth = groupByMonth(upcoming);
 ---
 
-<Base title={`Cycling events for ${currentYear} | Ottawa by Bike`}>
+<Base title={`Cycling events for ${currentYear} | ${config.display_name}`}>
   <h1 style="font-size: 1.7em;">📅 Cycling events for {currentYear}</h1>
   <a href="/calendar.ics" class="action-button">&#x1F4C5; Subscribe to iCal feed</a>
 

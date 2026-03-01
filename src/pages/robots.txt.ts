@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { getCityConfig } from '../lib/city-config';
 
 const disallow = import.meta.env.DISABLE_ANALYTICS === 'true';
 
@@ -9,9 +10,10 @@ Disallow: /
 `);
   }
 
+  const config = getCityConfig();
   return new Response(`User-agent: *
 Allow: /
 
-Sitemap: https://ottawabybike.ca/sitemap.xml
+Sitemap: ${config.url}/sitemap.xml
 `);
 };

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate } from '../lib/date-utils';
+import { getCityConfig } from '../lib/city-config';
 
 function escapeIcal(text: string): string {
   return text.replace(/[\\;,\n]/g, (m) => {
@@ -23,20 +24,21 @@ function foldLine(line: string): string {
 }
 
 export const GET: APIRoute = async () => {
+  const config = getCityConfig();
   const events = await getCollection('events');
 
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Ottawa by Bike//Calendar//EN',
+    `PRODID:-//${config.display_name}//Calendar//EN`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:Ottawa by Bike - Cycling Events',
-    'X-WR-TIMEZONE:America/Toronto',
-    'X-WR-CALDESC:Cycling events in Ottawa and Gatineau',
+    `X-WR-CALNAME:${config.display_name} - Cycling Events`,
+    `X-WR-TIMEZONE:${config.timezone}`,
+    `X-WR-CALDESC:${config.tagline}`,
     'X-PUBLISHED-TTL:PT1D',
     'BEGIN:VTIMEZONE',
-    'TZID:America/Toronto',
+    `TZID:${config.timezone}`,
     'BEGIN:DAYLIGHT',
     'TZOFFSETFROM:-0500',
     'TZOFFSETTO:-0400',
@@ -58,7 +60,7 @@ export const GET: APIRoute = async () => {
 
   for (const event of events) {
     const e = event.data;
-    const uid = `${event.id}@ottawabybike.ca`;
+    const uid = `${event.id}@${config.domain}`;
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${uid}`);
     lines.push(`DTSTAMP:${dtstamp}`);

@@ -4,6 +4,9 @@ import Base from '../layouts/Base.astro';
 import BigMap from '../components/BigMap.astro';
 import { getCollection } from 'astro:content';
 import { categoryEmoji } from '../lib/place-categories';
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
 
 const routes = await getCollection('routes');
 const places = await getCollection('places');
@@ -34,6 +37,6 @@ const placeData = places
   }));
 ---
 
-<Base title="Map | Ottawa by Bike">
-  <BigMap routes={routeData} places={placeData} center={[45.42, -75.69]} />
+<Base title={`Map | ${config.display_name}`}>
+  <BigMap routes={routeData} places={placeData} center={[config.center.lat, config.center.lng]} />
 </Base>

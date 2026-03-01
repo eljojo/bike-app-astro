@@ -6,6 +6,9 @@ import { variantKeyFromGpx } from '../../../../lib/map-thumbnails';
 import { elevationConclusion, getAllElevations } from '../../../../lib/elevation';
 import { findNearbyPlaces, type PlaceData } from '../../../../lib/proximity';
 import { categoryEmoji } from '../../../../lib/place-categories';
+import { getCityConfig } from '../../../../lib/city-config';
+
+const config = getCityConfig();
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
@@ -45,7 +48,7 @@ const mapPlaces = nearby.map(p => ({
 }));
 ---
 
-<Base title={`Map: ${name} — ${variant.name} | Ottawa by Bike`}>
+<Base title={`Map: ${name} — ${variant.name} | ${config.display_name}`}>
   <MapPage
     routeSlug={route.id}
     routeName={name}

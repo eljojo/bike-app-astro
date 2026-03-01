@@ -1,7 +1,11 @@
+import { getCityConfig } from './city-config';
+
+const config = getCityConfig();
+
 export const AUTHOR = [{
   '@type': 'Person' as const,
-  name: 'José Albornoz',
-  url: 'https://ottawabybike.ca/about',
+  name: config.author.name,
+  url: config.author.url,
 }];
 
 export function routeJsonLd(
@@ -12,8 +16,8 @@ export function routeJsonLd(
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: route.name,
-    description: route.tagline || `${route.name} — ${route.distance_km}km cycling route in Ottawa`,
-    url: `https://ottawabybike.ca/routes/${route.id}`,
+    description: route.tagline || `${route.name} — ${route.distance_km}km cycling route in ${config.name}`,
+    url: `${config.url}/routes/${route.id}`,
     datePublished: route.created_at,
     dateModified: route.updated_at,
     author: AUTHOR,
@@ -40,8 +44,8 @@ export function guideJsonLd(guide: { name: string; tagline?: string; id: string 
     '@type': 'Article',
     headline: guide.name,
     ...(guide.tagline && { description: guide.tagline }),
-    url: `https://ottawabybike.ca/guides/${guide.id}`,
-    publisher: { '@type': 'Organization', name: 'Ottawa by Bike' },
+    url: `${config.url}/guides/${guide.id}`,
+    publisher: { '@type': 'Organization', name: config.display_name },
     author: AUTHOR,
   };
 }

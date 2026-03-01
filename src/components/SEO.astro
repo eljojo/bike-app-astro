@@ -1,5 +1,9 @@
 ---
 // src/components/SEO.astro
+import { getCityConfig } from '../lib/city-config';
+
+const config = getCityConfig();
+
 interface Props {
   title: string;
   description?: string;
@@ -11,7 +15,7 @@ interface Props {
 }
 
 const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.props;
-const siteUrl = 'https://ottawabybike.ca';
+const siteUrl = config.url;
 const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
 ---
 
@@ -35,9 +39,9 @@ const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString
 {ogImageAlt && <meta name="twitter:image:alt" content={ogImageAlt} />}
 
 <!-- Site-level -->
-<meta property="og:site_name" content="Ottawa by Bike" />
-<meta name="twitter:creator" content="@eljojo" />
-<meta name="twitter:site" content="@eljojo" />
+<meta property="og:site_name" content={config.display_name} />
+<meta name="twitter:creator" content={config.author.twitter} />
+<meta name="twitter:site" content={config.author.twitter} />
 
 {jsonLd && (
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

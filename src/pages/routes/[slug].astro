@@ -12,6 +12,9 @@ import { elevationConclusion, getAllElevations } from '../../lib/elevation';
 import { difficultyRanking, routeShape, placeSummary, type RouteElevationData } from '../../lib/route-insights';
 import { findNearbyPlaces, type PlaceData } from '../../lib/proximity';
 import { buildSimilarityMatrix, findSimilarRoutes } from '../../lib/route-similarity';
+import { getCityConfig } from '../../lib/city-config';
+
+const config = getCityConfig();
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
@@ -85,12 +88,12 @@ const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 const allTags = [distanceTag, ...(shape ? [shape] : []), ...tags];
 
 const breadcrumbs = breadcrumbJsonLd([
-  { name: 'Home', url: 'https://ottawabybike.ca/' },
-  { name: name, url: `https://ottawabybike.ca/routes/${route.id}` },
+  { name: 'Home', url: `${config.url}/` },
+  { name: name, url: `${config.url}/routes/${route.id}` },
 ]);
 ---
 
-<Base title={`${name} | Ottawa by Bike`} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
+<Base title={`${name} | ${config.display_name}`} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
   <div class="route-detail">
     {cover && (
       <div class="route-detail--hero">

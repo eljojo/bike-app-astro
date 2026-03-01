@@ -2,6 +2,9 @@
 // src/pages/guides/index.astro
 import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
+import { getCityConfig } from '../../lib/city-config';
+
+const config = getCityConfig();
 
 const guides = await getCollection('guides');
 const published = guides
@@ -9,7 +12,7 @@ const published = guides
   .sort((a, b) => a.data.name.localeCompare(b.data.name));
 ---
 
-<Base title="Guides | Ottawa by Bike">
+<Base title={`Guides | ${config.display_name}`}>
   <h1>📖 Guides</h1>
   <ul class="guides-list">
     {published.map(guide => (

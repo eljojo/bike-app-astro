@@ -1,4 +1,6 @@
-const BASE = 'https://ottawabybike.ca';
+import { getCityConfig } from './city-config';
+
+const BASE = getCityConfig().url;
 
 interface SitemapEntry {
   url: string;

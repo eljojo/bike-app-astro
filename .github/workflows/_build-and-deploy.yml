@@ -112,6 +112,12 @@ jobs:
           CITY: ottawa
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
 
+      - name: Validate build output
+        run: npm run validate
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
+
       - name: Run unit tests
         run: npx vitest run
 

@@ -1,11 +1,13 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
+import { getCityConfig } from '../lib/city-config';
 
 function stripEmoji(text: string): string {
   return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?/gu, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 export const GET: APIRoute = async () => {
+  const config = getCityConfig();
   const routes = await getCollection('routes');
   const guides = await getCollection('guides');
 
@@ -18,19 +20,17 @@ export const GET: APIRoute = async () => {
 
   const routeLines = published.map(r => {
     const desc = stripEmoji(r.data.tagline || `${r.data.distance_km}km cycling route`);
-    return `- [${stripEmoji(r.data.name)}](https://ottawabybike.ca/routes/${r.id}): ${desc}`;
+    return `- [${stripEmoji(r.data.name)}](${config.url}/routes/${r.id}): ${desc}`;
   });
 
   const guideLines = pubGuides.map(g => {
     const desc = stripEmoji(g.data.tagline || 'Cycling guide');
-    return `- [${stripEmoji(g.data.name)}](https://ottawabybike.ca/guides/${g.id}): ${desc}`;
+    return `- [${stripEmoji(g.data.name)}](${config.url}/guides/${g.id}): ${desc}`;
   });
 
-  const text = `# Ottawa by Bike
+  const text = `# ${config.display_name}
 
-> Ottawa by Bike is a curated guide to cycling routes in Ottawa and Gatineau, Canada.
-> It covers road routes, gravel routes, and multi-use pathways across the National
-> Capital Region, with GPS tracks, elevation profiles, photos, and local tips.
+> ${config.description}
 
 ## Routes
 
@@ -42,10 +42,10 @@ ${guideLines.join('\n')}
 
 ## Pages
 
-- [Interactive Map](https://ottawabybike.ca/map): Map of all routes and points of interest
-- [Calendar](https://ottawabybike.ca/calendar): Upcoming cycling events in the region
-- [Videos](https://ottawabybike.ca/videos): Cycling videos from Ottawa and beyond
-- [About](https://ottawabybike.ca/about): About Ottawa by Bike and José Albornoz
+- [Interactive Map](${config.url}/map): Map of all routes and points of interest
+- [Calendar](${config.url}/calendar): Upcoming cycling events in the region
+- [Videos](${config.url}/videos): Cycling videos
+- [About](${config.url}/about): About ${config.display_name} and ${config.author.name}
 `;
 
   return new Response(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });

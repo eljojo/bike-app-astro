@@ -4,6 +4,9 @@ import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { videoPosterUrl } from '../../lib/video-service';
 import { imageUrl } from '../../lib/image-service';
+import { getCityConfig } from '../../lib/city-config';
+
+const config = getCityConfig();
 
 const routes = await getCollection('routes');
 const routesWithVideos = routes
@@ -12,7 +15,7 @@ const routesWithVideos = routes
   .sort((a, b) => a.data.name.localeCompare(b.data.name));
 ---
 
-<Base title="Videos | Ottawa by Bike">
+<Base title={`Videos | ${config.display_name}`}>
   <h1>&#x1F3A5; Videos</h1>
 
   {routesWithVideos.map(route => {
