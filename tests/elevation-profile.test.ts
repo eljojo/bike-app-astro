@@ -13,7 +13,7 @@ const hillTrack = [
 describe('computeElevationProfile', () => {
   it('computes elevation gain (uphill segments only)', () => {
     const result = computeElevationProfile(hillTrack, 5000);
-    // Gain: 0→50 (20) + 50→100 (30) = 50m. Downhill segments ignored.
+    // Gain: 50→70 (20) + 70→100 (30) = 50m. Downhill segments ignored.
     expect(result.elevGain).toBe(50);
   });
 
@@ -71,9 +71,29 @@ describe('computeElevationProfile', () => {
       ele: 50 + Math.sin(i / 50) * 30,
     }));
     const result = computeElevationProfile(largeTrack, 50000);
-    // SVG path should have ~200 points, not 1000
     const pointCount = result.svgPath.split('L').length;
     expect(pointCount).toBeGreaterThan(100);
     expect(pointCount).toBeLessThanOrEqual(202);
+  });
+
+  it('generates Y-axis ticks with elevation labels', () => {
+    const result = computeElevationProfile(hillTrack, 5000);
+    expect(result.yTicks.length).toBeGreaterThan(0);
+    for (const tick of result.yTicks) {
+      expect(tick.label).toMatch(/^\d+m$/);
+      expect(tick.value).toBeGreaterThanOrEqual(result.minEle);
+      expect(tick.value).toBeLessThanOrEqual(result.maxEle);
+      expect(tick.position).toBeGreaterThan(0);
+    }
+  });
+
+  it('generates X-axis ticks with distance labels', () => {
+    const result = computeElevationProfile(hillTrack, 5000);
+    expect(result.xTicks.length).toBeGreaterThan(0);
+    expect(result.xTicks[0].value).toBe(0);
+    for (const tick of result.xTicks) {
+      expect(tick.value).toBeLessThanOrEqual(5);
+      expect(tick.position).toBeGreaterThan(0);
+    }
   });
 });
