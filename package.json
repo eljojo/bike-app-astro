@@ -32,7 +32,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "^1.58.2",
     "@types/js-yaml": "^4.0.9",
     "@types/leaflet": "^1.9.21",
     "serve": "^14.2.5",
