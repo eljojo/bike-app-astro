@@ -37,10 +37,16 @@ export const routeSchema = z.object({
     polyline: z.string(),
   })).default({}),
   renderedBody: z.string().default(''),
+  translations: z.record(z.string(), z.object({
+    name: z.string().optional(),
+    tagline: z.string().optional(),
+    renderedBody: z.string().optional(),
+  }).passthrough()).default({}),
 });
 
 export const placeSchema = z.object({
   name: z.string(),
+  name_fr: z.string().optional(),
   category: z.string(),
   lat: z.number(),
   lng: z.number(),
@@ -61,6 +67,15 @@ export const organizerSchema = z.object({
   name: z.string(),
   website: z.string().optional(),
   instagram: z.string().optional(),
+});
+
+export const pageSchema = z.object({
+  title: z.string(),
+  renderedBody: z.string().default(''),
+  translations: z.record(z.string(), z.object({
+    title: z.string().optional(),
+    renderedBody: z.string(),
+  })).default({}),
 });
 
 export const eventSchema = z.object({

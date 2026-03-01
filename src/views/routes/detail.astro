@@ -1,23 +1,26 @@
 ---
-import Base from '../../layouts/Base.astro';
+import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { imageUrl } from '../../lib/image-service';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
-import { hasCachedMap, variantKeyFromGpx } from '../../lib/map-thumbnails';
-import { routeJsonLd, breadcrumbJsonLd } from '../../lib/json-ld';
-import { formatDistance } from '../../lib/distance';
-import PhotoGallery from '../../components/PhotoGallery.astro';
-import NearbyPlaces from '../../components/NearbyPlaces.astro';
-import { elevationConclusion } from '../../lib/elevation';
-import { difficultyRanking, routeShape, placeCounts, type RouteElevationData } from '../../lib/route-insights';
-import { tElevation, tShape, tPlaceSummary } from '../../lib/i18n';
-import { findNearbyPlaces } from '../../lib/proximity';
-import { loadRouteData } from '../../lib/route-data';
-import { buildSimilarityMatrix, findSimilarRoutes } from '../../lib/route-similarity';
-import { getCityConfig } from '../../lib/city-config';
-import { paths, assets } from '../../lib/paths';
+import { imageUrl } from '@/lib/image-service';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/video-service';
+import { hasCachedMap, variantKeyFromGpx } from '@/lib/map-thumbnails';
+import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
+import { formatDistance } from '@/lib/distance';
+import PhotoGallery from '@/components/PhotoGallery.astro';
+import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import { elevationConclusion } from '@/lib/elevation';
+import { difficultyRanking, routeShape, placeCounts, adjustedElevationGainPerKm, type RouteElevationData } from '@/lib/route-insights';
+import { t, tCategory, tOrdinal, localePath, formatLocale } from '@/i18n';
+import { findNearbyPlaces } from '@/lib/proximity';
+import { loadRouteData } from '@/lib/route-data';
+import { buildSimilarityMatrix, findSimilarRoutes } from '@/lib/route-similarity';
+import { getCityConfig } from '@/lib/city-config';
+import { paths, assets, routeSlug } from '@/lib/paths';
+import { supportedLocales } from '@/lib/locale-utils';
+import { tTag } from '@/lib/tag-translations';
 
 const config = getCityConfig();
+const locale = Astro.currentLocale;
 
 export async function getStaticPaths() {
   const { routes, allElevations, placeData } = await loadRouteData();
@@ -28,7 +31,11 @@ export async function getStaticPaths() {
       const gpx = r.data.variants[0]?.gpx;
       const track = gpx ? r.data.gpxTracks[gpx] : null;
       const gain = track?.elevation_gain_m || 0;
-      return { id: r.id, elevationGainPerKm: gain / r.data.distance_km };
+      const points = track?.points || [];
+      const startEle = points[0]?.ele ?? 0;
+      const endEle = points[points.length - 1]?.ele ?? 0;
+      const netElevation = endEle - startEle;
+      return { id: r.id, elevationGainPerKm: adjustedElevationGainPerKm(gain, netElevation, r.data.distance_km) };
     })
     .filter(r => r.elevationGainPerKm > 0);
 
@@ -57,9 +64,20 @@ export async function getStaticPaths() {
 const { route, allElevations, routeElevationData, placeData, similarityMatrix, routeNames } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
+// Get translated route content
+const trans = route.data.translations?.[locale!];
+const localeName = trans?.name || name;
+const localeTagline = trans?.tagline || tagline;
+const localeBody = trans?.renderedBody || route.data.renderedBody;
+const slug = routeSlug(route, locale);
+const alternateUrls: Record<string, string> = {};
+for (const loc of supportedLocales()) {
+  alternateUrls[loc] = paths.route(routeSlug(route, loc), loc);
+}
+
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
-const ogImageAlt = cover?.caption || `Photo from ${name}`;
+const ogImageAlt = cover?.caption || t('route.photo_from', locale, { name: localeName });
 const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
 const videos = media.filter(m => m.type === 'video');
 const hasMap = hasCachedMap(route.id);
@@ -76,36 +94,43 @@ const conclusion = primaryTrack?.elevation_gain_m
   : null;
 
 const difficulty = difficultyRanking(route.id, routeElevationData);
-const shape = primaryTrack ? routeShape(primaryTrack.points) : null;
+const shape = primaryTrack ? routeShape(primaryTrack.points, primaryTrack.distance_m) : null;
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
-const placeDesc = nearbyCategories.length > 0 ? tPlaceSummary(nearbyCategories) : null;
+
+// Build place description using new i18n functions
+function buildPlaceDesc(categories: { category: string; count: number }[]): string | null {
+  if (categories.length === 0) return null;
+  const parts = categories.map(p => `${p.count} ${tCategory(p.category, p.count, locale)}`);
+  return t('places.summary_prefix', locale) + ' ' + parts.join(', ');
+}
+const placeDesc = buildPlaceDesc(nearbyCategories);
 
 const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 
-const allTags = [distanceTag, ...(shape ? [tShape(shape)] : []), ...tags];
+const allTags = [distanceTag, ...(shape ? [t('shape.' + shape, locale)] : []), ...tags];
 
 const SEO_FRIENDLY_TAGS = ['gravel', 'scenic', 'easy', 'chill'];
 const seoTitle = (() => {
-  if (tagline) return `${name} - ${tagline} | ${config.display_name}`;
+  if (localeTagline) return `${localeName} - ${localeTagline} | ${config.display_name}`;
   const matchingTag = tags.find((t: string) => SEO_FRIENDLY_TAGS.includes(t));
-  if (matchingTag) return `${name} - ${matchingTag.charAt(0).toUpperCase() + matchingTag.slice(1)} Bike Route | ${config.display_name}`;
-  return `${name} - Bike Route | ${config.display_name}`;
+  if (matchingTag) return `${localeName} - ${matchingTag.charAt(0).toUpperCase() + matchingTag.slice(1)} ${t('route.bike_route', locale)} | ${config.display_name}`;
+  return `${localeName} - ${t('route.bike_route', locale)} | ${config.display_name}`;
 })();
 
 const breadcrumbs = breadcrumbJsonLd([
-  { name: 'Home', url: `${config.url}/` },
-  { name: name, url: `${config.url}/routes/${route.id}` },
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: localeName, url: `${config.url}${paths.route(slug, locale)}` },
 ]);
 ---
 
-<Base title={seoTitle} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
+<Base title={seoTitle} description={localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
   <div class="route-detail">
     {cover && (
       <div class="route-detail--hero">
         <img
           src={imageUrl(cover.key, { width: 1170 })}
-          alt={cover.caption || name}
+          alt={cover.caption || localeName}
           class="gallery-cover-photo"
         />
       </div>
@@ -113,41 +138,41 @@ const breadcrumbs = breadcrumbJsonLd([
 
     <div class="route-detail--content">
       <div class="route-detail--body">
-        <h1>{name}</h1>
-        {tagline && <h2>{tagline}</h2>}
+        <h1>{localeName}</h1>
+        {localeTagline && <h2>{localeTagline}</h2>}
 
         <ul class="route--tags">
-          {allTags.map(tag => <li class="tag-pill">{tag}</li>)}
+          {allTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
         </ul>
 
-        <div class="route-description" set:html={route.data.renderedBody} />
+        <div class="route-description" set:html={localeBody} />
 
         {primaryTrack && !manyVariants && (
           <p>
             <span style="font-size: 1.5em;">&#x1F6B5; </span>
-            Elevation Gain: <a href={`${paths.routeMap(route.id)}#elevation-profile`}>{primaryTrack.elevation_gain_m} meters</a>{conclusion && `, this is ${tElevation(conclusion)}`}
+            {t('route.elevation_gain', locale)}: <a href={`${paths.routeMap(slug, locale)}#elevation-profile`}>{primaryTrack.elevation_gain_m} {t('route.meters', locale)}</a>{conclusion && `, ${t('route.this_is', locale)} ${t('elevation.' + conclusion, locale)}`}
           </p>
         )}
 
         {difficulty && (
           <p style="font-size: 0.9em; opacity: 0.8;">
-            Difficulty: {difficulty.rank}{difficulty.rank === 1 ? 'st' : difficulty.rank === 2 ? 'nd' : difficulty.rank === 3 ? 'rd' : 'th'} hardest of {difficulty.total} routes
+            {t('route.difficulty', locale)}: {difficulty.rank}{tOrdinal(difficulty.rank, locale)} {t('route.difficulty_rank', locale, { rank: difficulty.rank, total: difficulty.total })}
           </p>
         )}
 
         {variants.length > 1 ? (
           <div>
-            <h3>There's {variants.length} versions of this route</h3>
+            <h3>{t('route.versions', locale, { count: variants.length })}</h3>
             {variants.map((v, i) => (
               <p>
-                <a href={paths.routeVariantMap(route.id, variantKeyFromGpx(v.gpx))} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
+                <a href={paths.routeVariantMap(slug, variantKeyFromGpx(v.gpx), locale)} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
                   &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
                 </a>
                 {v.strava_url && (
                   <Fragment>
                     {' '}
                     <a href={v.strava_url} target="_blank" rel="noopener" class="action-button">
-                      <img src="/strava.svg" width="80" alt="Open in Strava" />
+                      <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
                     </a>
                   </Fragment>
                 )}
@@ -155,7 +180,7 @@ const breadcrumbs = breadcrumbJsonLd([
                   <Fragment>
                     {' '}
                     <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button">
-                      <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+                      <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
                     </a>
                   </Fragment>
                 )}
@@ -164,14 +189,14 @@ const breadcrumbs = breadcrumbJsonLd([
           </div>
         ) : (
           <p>
-            <a href={paths.routeMap(route.id)} class="action-button --primary --wider" style="font-weight: bold;">
-              &#x1F5FA;&#xFE0F; View Map of {name}
+            <a href={paths.routeMap(slug, locale)} class="action-button --primary --wider" style="font-weight: bold;">
+              &#x1F5FA;&#xFE0F; {t('route.view_map', locale, { name: localeName })}
             </a>
             {variants[0]?.strava_url && (
               <Fragment>
                 {' '}
                 <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button">
-                  <img src="/strava.svg" width="80" alt="Open in Strava" />
+                  <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
                 </a>
               </Fragment>
             )}
@@ -179,7 +204,7 @@ const breadcrumbs = breadcrumbJsonLd([
               <Fragment>
                 {' '}
                 <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button">
-                  <img src="/rwgps.svg" width="78" alt="Open in Ride With GPS" />
+                  <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
                 </a>
               </Fragment>
             )}
@@ -189,27 +214,27 @@ const breadcrumbs = breadcrumbJsonLd([
 
       {hasMap && (
         <div class="route-detail--static-map">
-          <a href={paths.routeMap(route.id)} title="View Map">
+          <a href={paths.routeMap(slug, locale)} title={t('route.view_map', locale, { name: localeName })}>
             <img
               src={assets.mapThumbnail(route.id)}
-              alt={`Map of ${name}`}
+              alt={t('route.map_of', locale, { name: localeName })}
             />
           </a>
           {nearbyPlaces.length > 0 && (
             <NearbyPlaces nearby={nearbyPlaces} />
           )}
-          {placeDesc && <p style="font-size: 0.9em; opacity: 0.8;">&#x1F5FA;&#xFE0F; This route {placeDesc}</p>}
+          {placeDesc && <p style="font-size: 0.9em; opacity: 0.8;">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
         </div>
       )}
     </div>
 
     {photos.length > 0 && (
-      <PhotoGallery photos={photos} routeName={name} />
+      <PhotoGallery photos={photos} routeName={localeName} />
     )}
 
     {videos.length > 0 && (
       <section class="route-videos">
-        <h3>Videos</h3>
+        <h3>{t('videos.title', locale)}</h3>
         {videos.map(video => {
           const sources = videoPlaybackSources(video.key);
           const size = videoDisplaySize(video.width || 640, video.height || 360);
@@ -224,7 +249,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 disablepictureinpicture
               >
                 {sources.map(s => <source src={s.src} type={s.type} />)}
-                <p><a href={videoFallbackUrl(video.key)}>{video.title || 'Download video'}</a></p>
+                <p><a href={videoFallbackUrl(video.key)}>{video.title || t('videos.download', locale)}</a></p>
               </video>
               {video.title && <p><a href={paths.video(video.handle)}>{video.title}</a></p>}
             </div>
@@ -235,12 +260,12 @@ const breadcrumbs = breadcrumbJsonLd([
 
     {similarRoutes.length > 0 && (
       <div style="margin-top: 2em;">
-        <h3>Similar Routes</h3>
+        <h3>{t('route.similar', locale)}</h3>
         <ul style="list-style: none; padding: 0;">
           {similarRoutes.map(s => (
             <li style="padding: 0.3em 0;">
-              <a href={paths.route(s.id)}>{routeNames[s.id]}</a>
-              <span style="opacity: 0.6; font-size: 0.85em;"> ({s.score}% similar)</span>
+              <a href={paths.route(s.id, locale)}>{routeNames[s.id]}</a>
+              <span style="opacity: 0.6; font-size: 0.85em;"> ({t('route.similar_pct', locale, { score: s.score })})</span>
             </li>
           ))}
         </ul>
@@ -248,7 +273,7 @@ const breadcrumbs = breadcrumbJsonLd([
     )}
 
     <p style="margin-top: 2em;">
-      <a href="/" class="go-back-button">&#x21A9; go back to all routes</a>
+      <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
 </Base>

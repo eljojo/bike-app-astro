@@ -1,5 +1,8 @@
 ---
 import { imageUrl } from '../lib/image-service';
+import { t } from '../i18n';
+
+const locale = Astro.currentLocale;
 
 interface MediaItem {
   key: string;
@@ -57,7 +60,7 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
   </div>
   {hasMore && (
     <button class="action-button" id="show-all-photos">
-      Show all {allPhotos.length} photos
+      {t('photos.show_all', locale, { count: allPhotos.length })}
     </button>
   )}
 </section>

@@ -3,6 +3,7 @@ import { haversine, type GpxPoint } from './gpx';
 export interface PlaceData {
   id: string;
   name: string;
+  name_fr?: string;
   category: string;
   lat: number;
   lng: number;

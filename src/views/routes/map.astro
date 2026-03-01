@@ -1,0 +1,69 @@
+---
+import Base from '@/layouts/Base.astro';
+import MapPage from '@/components/MapPage.astro';
+import { elevationConclusion } from '@/lib/elevation';
+import { findNearbyPlaces } from '@/lib/proximity';
+import { toMapPlaces } from '@/lib/places';
+import { loadRouteData } from '@/lib/route-data';
+import { breadcrumbJsonLd } from '@/lib/json-ld';
+import { getCityConfig } from '@/lib/city-config';
+import { t, localePath } from '@/i18n';
+import { paths, routeSlug } from '@/lib/paths';
+import { supportedLocales } from '@/lib/locale-utils';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+export async function getStaticPaths() {
+  const { routes, allElevations, placeData } = await loadRouteData();
+
+  return routes.map(route => ({
+    params: { slug: route.id },
+    props: { route, allElevations, placeData },
+  }));
+}
+
+const { route, allElevations, placeData } = Astro.props;
+const { name, variants, gpxTracks } = route.data;
+
+const variant = variants[0];
+const track = variant ? gpxTracks[variant.gpx] : null;
+const elevation = track?.elevation_gain_m;
+const conclusion = elevation ? elevationConclusion(elevation, allElevations) : null;
+
+const nearby = track ? findNearbyPlaces(track.points, placeData) : [];
+const mapPlaces = toMapPlaces(nearby, locale);
+
+const trans = route.data.translations?.[locale!];
+const localeName = trans?.name || route.data.name;
+const slug = routeSlug(route, locale);
+const alternateUrls: Record<string, string> = {};
+for (const loc of supportedLocales()) {
+  alternateUrls[loc] = paths.routeMap(routeSlug(route, loc), loc);
+}
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: localeName, url: `${config.url}${paths.route(slug, locale)}` },
+  { name: t('nav.map', locale), url: `${config.url}${paths.routeMap(slug, locale)}` },
+]);
+---
+
+<Base title={`Map: ${name} | ${config.display_name}`} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
+  {variant && track ? (
+    <MapPage
+      routeSlug={route.id}
+      routeLocaleSlug={slug}
+      routeName={name}
+      variant={variant}
+      polyline={track.polyline}
+      elevationGain={elevation}
+      elevationConclusion={conclusion}
+      places={mapPlaces}
+      trackPoints={track.points}
+      trackDistanceM={track.distance_m}
+    />
+  ) : (
+    <p>No map available for this route.</p>
+  )}
+</Base>

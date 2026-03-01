@@ -1,0 +1,27 @@
+---
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+
+const locales = supportedLocales();
+const defLocale = defaultLocale();
+---
+
+{locales.length > 1 && (
+  <script define:vars={{ locales, defLocale }}>
+    (function() {
+      if (localStorage.getItem('locale-preference')) return;
+      const localePattern = new RegExp('^\/(' + locales.join('|') + ')(\/|$)');
+      if (localePattern.test(window.location.pathname)) return;
+
+      const browserLangs = navigator.languages || [navigator.language];
+      for (const lang of browserLangs) {
+        const short = lang.split('-')[0];
+        if (short !== defLocale && locales.includes(short)) {
+          localStorage.setItem('locale-preference', short);
+          window.location.replace('/' + short + window.location.pathname);
+          return;
+        }
+      }
+      localStorage.setItem('locale-preference', defLocale);
+    })();
+  </script>
+)}

@@ -2,7 +2,7 @@ import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import path from 'node:path';
-import { cityDir } from '../../../lib/config';
+import { cityDir } from '@/lib/config';
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const routes = await getCollection('routes');

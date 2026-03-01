@@ -5,10 +5,15 @@ import Footer from '../components/Footer.astro';
 import SEO from '../components/SEO.astro';
 import { getCityConfig } from '../lib/city-config';
 import { getFontPreloads } from '../lib/fonts';
+import { fullLocale, defaultLocale } from '../lib/locale-utils';
+import { localePath } from '../i18n';
+import LocaleRedirect from '../components/LocaleRedirect.astro';
 import '../styles/global.scss';
 
 const config = getCityConfig();
 const fontPreloads = getFontPreloads();
+const locale = Astro.currentLocale || defaultLocale();
+const htmlLang = fullLocale(locale);
 
 interface Props {
   title: string;
@@ -17,16 +22,18 @@ interface Props {
   ogImageAlt?: string;
   jsonLd?: Record<string, any>;
   breadcrumbs?: Record<string, any> | null;
+  alternateUrls?: Record<string, string>;
 }
 
-const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.props;
+const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls } = Astro.props;
 ---
 <!DOCTYPE html>
-<html lang="en">
+<html lang={htmlLang}>
   <head>
+    <LocaleRedirect />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} jsonLd={jsonLd} breadcrumbs={breadcrumbs} />
+    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls} />
     {fontPreloads.map(href => (
       <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
     ))}
@@ -38,12 +45,18 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.p
   </head>
   <body>
     <header class="site-header">
-      <a href="/" class="site-title" set:html={config.site_title_html} />
+      <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
     </header>
-    <Nav />
+    <Nav alternateUrls={alternateUrls} />
     <main>
       <slot />
     </main>
-    <Footer />
+    <Footer alternateUrls={alternateUrls} />
+    <script>
+      document.addEventListener('click', (e) => {
+        const target = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null;
+        if (target) localStorage.setItem('locale-preference', target.dataset.locale || '');
+      });
+    </script>
   </body>
 </html>

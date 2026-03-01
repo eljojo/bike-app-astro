@@ -5,7 +5,7 @@ describe('parseLocalDate', () => {
   it('parses date-only string without timezone shift', () => {
     const d = parseLocalDate('2025-05-03');
     expect(d.getFullYear()).toBe(2025);
-    expect(d.getMonth()).toBe(4); // 0-indexed
+    expect(d.getMonth()).toBe(4);
     expect(d.getDate()).toBe(3);
   });
 
@@ -17,11 +17,20 @@ describe('parseLocalDate', () => {
 });
 
 describe('formatDate', () => {
-  it('formats as "Month Day, Year"', () => {
+  it('formats in English Canadian by default', () => {
     expect(formatDate(parseLocalDate('2025-05-03'))).toBe('May 3, 2025');
   });
-  it('formats as "Month Day" when year omitted', () => {
+
+  it('formats in French Canadian', () => {
+    expect(formatDate(parseLocalDate('2025-05-03'), { locale: 'fr-CA' })).toBe('3 mai 2025');
+  });
+
+  it('formats without year', () => {
     expect(formatDate(parseLocalDate('2025-05-03'), { includeYear: false })).toBe('May 3');
+  });
+
+  it('formats without year in French', () => {
+    expect(formatDate(parseLocalDate('2025-05-03'), { includeYear: false, locale: 'fr-CA' })).toBe('3 mai');
   });
 });
 
@@ -29,22 +38,34 @@ describe('formatDateRange', () => {
   it('returns single date for same start/end', () => {
     expect(formatDateRange('2025-05-03', '2025-05-03')).toBe('May 3, 2025');
   });
+
   it('shows compact same-month range', () => {
-    expect(formatDateRange('2025-05-23', '2025-05-25')).toBe('May 23 - 25, 2025');
+    expect(formatDateRange('2025-05-23', '2025-05-25')).toBe('May 23 – 25, 2025');
   });
+
   it('shows full cross-month range', () => {
-    expect(formatDateRange('2025-06-21', '2025-07-02')).toBe('June 21 - July 2, 2025');
+    expect(formatDateRange('2025-06-21', '2025-07-02')).toBe('June 21 – July 2, 2025');
   });
+
   it('returns single date when no end_date', () => {
     expect(formatDateRange('2025-05-03')).toBe('May 3, 2025');
+  });
+
+  it('formats same-month range in French', () => {
+    expect(formatDateRange('2025-05-23', '2025-05-25', 'fr-CA')).toBe('23 – 25 mai 2025');
+  });
+
+  it('formats cross-month range in French', () => {
+    expect(formatDateRange('2025-06-21', '2025-07-02', 'fr-CA')).toBe('21 juin – 2 juillet 2025');
   });
 });
 
 describe('formatMonthName', () => {
-  it('returns full month name for a date string', () => {
+  it('returns English month name by default', () => {
     expect(formatMonthName('2025-05-03')).toBe('May');
   });
-  it('returns correct month for January', () => {
-    expect(formatMonthName('2025-01-15')).toBe('January');
+
+  it('returns French month name', () => {
+    expect(formatMonthName('2025-05-03', 'fr-CA')).toBe('mai');
   });
 });

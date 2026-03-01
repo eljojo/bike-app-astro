@@ -1,10 +1,32 @@
 ---
 // src/components/Nav.astro
+import { t, localePath } from '../i18n';
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
+
+interface Props {
+  alternateUrls?: Record<string, string>;
+}
+
+const { alternateUrls } = Astro.props;
+const locale = Astro.currentLocale || defaultLocale();
+const locales = supportedLocales();
+const showSwitcher = locales.length > 1;
+
+const otherLocale = locales.find(l => l !== locale) || locales[0];
+const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 ---
 <nav class="top-nav">
   <ul>
-    <li><a href="/about">👋 About</a></li>
-    <li><a href="/calendar">📅 Calendar</a></li>
-    <li><a href="/map">🗺️ Map</a></li>
+    <li><a href={localePath('/about', locale)}>👋 {t('nav.about', locale)}</a></li>
+    <li><a href={localePath('/calendar', locale)}>📅 {t('nav.calendar', locale)}</a></li>
+    <li><a href={localePath('/map', locale)}>🗺️ {t('nav.map', locale)}</a></li>
+    {showSwitcher && (
+      <li class="nav-lang">
+        <a href={switchPath} data-locale={otherLocale}>
+          {t('lang.switch', locale)}
+        </a>
+      </li>
+    )}
   </ul>
 </nav>

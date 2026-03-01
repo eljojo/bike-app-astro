@@ -1,12 +1,15 @@
 ---
-// src/pages/calendar.astro
-import Base from '../layouts/Base.astro';
-import EventCard from '../components/EventCard.astro';
+// src/views/calendar.astro
+import Base from '@/layouts/Base.astro';
+import EventCard from '@/components/EventCard.astro';
 import { getCollection } from 'astro:content';
-import { parseLocalDate, formatMonthName } from '../lib/date-utils';
-import { getCityConfig } from '../lib/city-config';
+import { parseLocalDate, formatMonthName } from '@/lib/date-utils';
+import { getCityConfig } from '@/lib/city-config';
+import { t, localePath, formatLocale } from '@/i18n';
 
 const config = getCityConfig();
+const locale = Astro.currentLocale;
+const fmtLocale = formatLocale(locale);
 
 const icalUrl = `${config.url.replace(/\/$/, '')}/calendar.ics`;
 const icalUrlHttp = icalUrl.replace(/^https:\/\//, 'http://');
@@ -27,7 +30,7 @@ const past = events
 function groupByMonth(evts: typeof events) {
   const groups: Record<string, typeof events> = {};
   for (const e of evts) {
-    const month = formatMonthName(e.data.start_date);
+    const month = formatMonthName(e.data.start_date, fmtLocale);
     if (!groups[month]) groups[month] = [];
     groups[month].push(e);
   }
@@ -37,13 +40,13 @@ function groupByMonth(evts: typeof events) {
 const upcomingByMonth = groupByMonth(upcoming);
 ---
 
-<Base title={`Cycling events for ${currentYear} | ${config.display_name}`}>
-  <h1 style="font-size: 1.7em;">📅 Cycling events for {currentYear}</h1>
-  <a href="/calendar.ics" class="action-button">&#x1F4C5; Subscribe to iCal feed</a>
-  <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
+<Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`}>
+  <h1 style="font-size: 1.7em;">{t('calendar.title', locale, { year: currentYear })}</h1>
+  <a href="/calendar.ics" class="action-button">&#x1F4C5; {t('calendar.subscribe', locale)}</a>
+  <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">{t('calendar.google', locale)}</a>
 
   {Object.keys(upcomingByMonth).length === 0 && (
-    <p><strong>That's a wrap! See you next year!</strong></p>
+    <p><strong>{t('calendar.wrap', locale)}</strong></p>
   )}
 
   {Object.entries(upcomingByMonth).map(([month, evts]) => (
@@ -69,8 +72,12 @@ const upcomingByMonth = groupByMonth(upcoming);
 
   {past.length > 0 && (
     <div>
-      <h2>Past events</h2>
-      <button class="action-button" id="show-past-events">Show Past Events</button>
+      <h2>{t('calendar.past', locale)}</h2>
+      <button class="action-button" id="show-past-events"
+        data-show={t('calendar.show_past', locale)}
+        data-hide={t('calendar.hide_past', locale)}>
+        {t('calendar.show_past', locale)}
+      </button>
       <div class="past-events" style="display: none;">
         <div class="events-grid">
           {past.map(e => (
@@ -97,7 +104,7 @@ const upcomingByMonth = groupByMonth(upcoming);
       const pastEl = document.querySelector('.past-events') as HTMLElement;
       if (pastEl) {
         pastEl.style.display = pastEl.style.display === 'none' ? '' : 'none';
-        target.textContent = pastEl.style.display === 'none' ? 'Show Past Events' : 'Hide Past Events';
+        target.textContent = pastEl.style.display === 'none' ? target.dataset.show! : target.dataset.hide!;
         if (pastEl.style.display !== 'none') {
           window.BikeApp?.tE?.('show past events in calendar page');
         }

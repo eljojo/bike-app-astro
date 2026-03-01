@@ -1,15 +1,18 @@
 ---
+import { t } from '../i18n';
+import { tTag } from '../lib/tag-translations';
 interface Props {
   tags: string[];
 }
 const { tags } = Astro.props;
+const locale = Astro.currentLocale;
 ---
 
 <ul class="tag-filter">
-  <span class="tag-filter--label">choose a tag to filter:</span>
+  <span class="tag-filter--label">{t('filter.choose_tag', locale)}</span>
   {tags.map(tag => (
     <li>
-      <button class="tag-filter--btn" data-tag={tag}>{tag}</button>
+      <button class="tag-filter--btn" data-tag={tag}>{tTag(tag, locale)}</button>
     </li>
   ))}
 </ul>

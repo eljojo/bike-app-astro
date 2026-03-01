@@ -15,6 +15,7 @@ export interface CityConfig {
   tiles_url: string;
   timezone: string;
   locale: string;
+  locales?: string[];
   author: {
     name: string;
     email: string;

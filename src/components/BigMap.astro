@@ -5,7 +5,7 @@ import { getCityConfig } from '../lib/city-config';
 const config = getCityConfig();
 
 interface RouteOnMap {
-  slug: string;
+  url: string;
   name: string;
   polyline: string;
   distance_km: number;
@@ -52,7 +52,7 @@ const { routes, places, center } = Astro.props;
 
     addPolylines(map, routes.map((r: any) => ({
       encoded: r.polyline,
-      popup: `<a href="/routes/${r.slug}">${r.name}</a><br>${r.distance_km} km`,
+      popup: `<a href="${r.url}">${r.name}</a><br>${r.distance_km} km`,
     })));
 
     addMarkers(map, places.map((p: any) => {

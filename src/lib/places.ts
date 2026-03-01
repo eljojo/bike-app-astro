@@ -1,5 +1,6 @@
 import type { PlaceData, NearbyPlace } from './proximity';
 import { categoryEmoji } from './place-categories';
+import { defaultLocale } from './locale-utils';
 
 /**
  * Convert a collection of place entries (from `getCollection('places')`)
@@ -8,13 +9,14 @@ import { categoryEmoji } from './place-categories';
  * Filters to published places only.
  */
 export function toPlaceData(
-  allPlaces: { id: string; data: { status: string; name: string; category: string; lat: number; lng: number; address?: string; website?: string; phone?: string; google_maps_url?: string } }[],
+  allPlaces: { id: string; data: { status: string; name: string; name_fr?: string; category: string; lat: number; lng: number; address?: string; website?: string; phone?: string; google_maps_url?: string } }[],
 ): PlaceData[] {
   return allPlaces
     .filter(p => p.data.status === 'published')
     .map(p => ({
       id: p.id,
       name: p.data.name,
+      name_fr: p.data.name_fr,
       category: p.data.category,
       lat: p.data.lat,
       lng: p.data.lng,
@@ -26,9 +28,9 @@ export function toPlaceData(
 }
 
 /** Convert NearbyPlace[] into the format expected by LeafletMap/BigMap components. */
-export function toMapPlaces(nearby: NearbyPlace[]) {
+export function toMapPlaces(nearby: NearbyPlace[], locale?: string) {
   return nearby.map(p => ({
-    name: p.name,
+    name: (locale && locale !== defaultLocale() && p.name_fr) ? p.name_fr : p.name,
     emoji: categoryEmoji[p.category] || '\u{1F4CD}',
     lat: p.lat,
     lng: p.lng,

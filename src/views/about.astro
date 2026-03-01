@@ -1,0 +1,30 @@
+---
+import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '@/lib/city-config';
+import { defaultLocale } from '@/lib/locale-utils';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale || defaultLocale();
+
+const pages = await getCollection('pages');
+const aboutPage = pages.find(p => p.id === 'about');
+if (!aboutPage) throw new Error('About page not found in content');
+
+const translation = aboutPage.data.translations?.[locale];
+const title = translation?.title || aboutPage.data.title;
+const body = translation?.renderedBody || aboutPage.data.renderedBody;
+
+// Replace placeholders
+const renderedBody = body
+  .replace(/\{author_email\}/g, config.author.email)
+  .replace(/\{author_photo_url\}/g, config.author.photo_url)
+  .replace(/\{author_name\}/g, config.author.name)
+  .replace(/\{display_name\}/g, config.display_name);
+---
+
+<Base title={`${title} | ${config.display_name}`} description={`${title} - ${config.display_name} and ${config.author.name}`}>
+  <div class="about-page--intro-text" set:html={renderedBody} />
+  <br />
+  <small>the <img src="/bicycle.png" alt="bicycle" width="32" height="32" style="vertical-align: middle;" /> icon is from <a href="https://www.flaticon.com/free-icon/bicycle_2972185#" target="_blank" rel="noopener">flaticon</a> - <a href="/sitemap">sitemap</a></small>
+</Base>
