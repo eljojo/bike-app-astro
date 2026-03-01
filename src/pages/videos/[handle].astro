@@ -1,0 +1,67 @@
+---
+// src/pages/videos/[handle].astro
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
+
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  const paths: { params: { handle: string }; props: any }[] = [];
+
+  for (const route of routes) {
+    if (route.data.status !== 'published') continue;
+    const videos = route.data.media.filter(m => m.type === 'video');
+    for (const video of videos) {
+      const otherVideos = videos.filter(v => v.handle !== video.handle);
+      paths.push({
+        params: { handle: video.handle },
+        props: { video, route, otherVideos },
+      });
+    }
+  }
+
+  return paths;
+}
+
+const { video, route, otherVideos } = Astro.props;
+const sources = videoPlaybackSources(video.key);
+const title = video.title || 'Video';
+---
+
+<Base title={`${title} | Ottawa by Bike`}>
+  <h1>{title}</h1>
+  <div class="video-show main-video">
+    <video
+      controls
+      preload="metadata"
+      poster={video.poster_key ? videoPosterUrl(video.poster_key) : undefined}
+      disablepictureinpicture
+    >
+      {sources.map(s => <source src={s.src} type={s.type} />)}
+      <p><a href={videoFallbackUrl(video.key)}>{title}</a></p>
+    </video>
+  </div>
+
+  {otherVideos.length > 0 && (
+    <div>
+      <h3>Other {route.data.name} Videos</h3>
+      <ul class="videos-list-internal">
+        {otherVideos.map(v => (
+          <li>
+            <a href={`/videos/${v.handle}`} title={v.title}>
+              {v.poster_key ? (
+                <img src={videoPosterUrl(v.poster_key)} alt={v.title || 'Video'} />
+              ) : (
+                <span>{v.title || 'Video'}</span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  <p style="margin-top: 2em;">
+    <a href={`/routes/${route.id}`} class="go-back-button">&#x21A9; go back to {route.data.name}</a>
+  </p>
+</Base>

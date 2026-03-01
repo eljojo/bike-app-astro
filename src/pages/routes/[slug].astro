@@ -30,7 +30,7 @@ export async function getStaticPaths() {
   const allPlaces = await getCollection('places');
   const placeData: PlaceData[] = allPlaces
     .filter(p => p.data.status === 'published')
-    .map(p => ({ id: p.id, name: p.data.name, category: p.data.category, lat: p.data.lat, lng: p.data.lng }));
+    .map(p => ({ id: p.id, name: p.data.name, category: p.data.category, lat: p.data.lat, lng: p.data.lng, address: p.data.address, website: p.data.website, phone: p.data.phone, google_maps_url: p.data.google_maps_url }));
 
   const similarityData = routes
     .filter(r => r.data.status === 'published')
@@ -186,8 +186,8 @@ const breadcrumbs = breadcrumbJsonLd([
               alt={`Map of ${name}`}
             />
           </a>
-          {primaryTrack && (
-            <NearbyPlaces trackPoints={primaryTrack.points} />
+          {nearbyPlaces.length > 0 && (
+            <NearbyPlaces nearby={nearbyPlaces} />
           )}
           {placeDesc && <p style="font-size: 0.9em; opacity: 0.8;">&#x1F5FA;&#xFE0F; This route {placeDesc}</p>}
         </div>
@@ -217,7 +217,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 {sources.map(s => <source src={s.src} type={s.type} />)}
                 <p><a href={videoFallbackUrl(video.key)}>{video.title || 'Download video'}</a></p>
               </video>
-              {video.title && <p>{video.title}</p>}
+              {video.title && <p><a href={`/videos/${video.handle}`}>{video.title}</a></p>}
             </div>
           );
         })}

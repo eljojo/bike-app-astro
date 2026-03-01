@@ -9,6 +9,9 @@ const publishedRoutes = routes
   .filter(r => r.data.status === 'published')
   .sort((a, b) => a.data.distance_km - b.data.distance_km);
 
+const allVideos = publishedRoutes
+  .flatMap(r => r.data.media.filter(m => m.type === 'video').map(v => ({ ...v, routeName: r.data.name })));
+
 const publishedGuides = guides
   .filter(g => g.data.status === 'published');
 ---
@@ -21,7 +24,13 @@ const publishedGuides = guides
         <li><a href="/about">About Ottawa by Bike</a></li>
         <li><a href="/calendar">Cycling Calendar</a></li>
         <li><a href="/map">Map with cycling routes</a></li>
-        <li><a href="/videos">Videos</a></li>
+        <li><a href="/videos">Videos</a>
+          <ul>
+            {allVideos.map(v => (
+              <li><a href={`/videos/${v.handle}`}>{v.title || v.handle}</a></li>
+            ))}
+          </ul>
+        </li>
       </ul>
     </li>
     {publishedRoutes.map(route => (

@@ -1,0 +1,39 @@
+---
+// src/pages/videos/index.astro
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { videoPosterUrl } from '../../lib/video-service';
+import { imageUrl } from '../../lib/image-service';
+
+const routes = await getCollection('routes');
+const routesWithVideos = routes
+  .filter(r => r.data.status === 'published')
+  .filter(r => r.data.media.some(m => m.type === 'video'))
+  .sort((a, b) => a.data.name.localeCompare(b.data.name));
+---
+
+<Base title="Videos | Ottawa by Bike">
+  <h1>&#x1F3A5; Videos</h1>
+
+  {routesWithVideos.map(route => {
+    const videos = route.data.media.filter(m => m.type === 'video');
+    return (
+      <section>
+        <h2><a href={`/routes/${route.id}`}>{route.data.name}</a></h2>
+        <ul class="videos-list-internal">
+          {videos.map(video => (
+            <li>
+              <a href={`/videos/${video.handle}`} title={video.title}>
+                {video.poster_key ? (
+                  <img src={videoPosterUrl(video.poster_key)} alt={video.title || 'Video'} />
+                ) : (
+                  <span>{video.title || 'Video'}</span>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  })}
+</Base>

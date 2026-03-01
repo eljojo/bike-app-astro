@@ -520,6 +520,25 @@ a.go-back-button {
   gap: 1em;
 }
 .video-title { font-size: 0.9em; margin-top: 0.3em; }
+.video-show.main-video {
+  video {
+    max-width: 100vw;
+    max-height: 90vh;
+    width: 100%;
+    height: auto;
+    margin-bottom: 1em;
+  }
+}
+.videos-list-internal {
+  padding: 0;
+  li {
+    list-style: none;
+    display: inline-block;
+    margin-right: 1em;
+    a { display: block; }
+    img { width: 200px; height: 200px; object-fit: cover; }
+  }
+}
 
 // Route detail
 .route-detail {

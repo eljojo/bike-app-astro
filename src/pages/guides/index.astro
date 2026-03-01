@@ -4,7 +4,9 @@ import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 
 const guides = await getCollection('guides');
-const published = guides.filter(g => g.data.status === 'published');
+const published = guides
+  .filter(g => g.data.status === 'published')
+  .sort((a, b) => a.data.name.localeCompare(b.data.name));
 ---
 
 <Base title="Guides | Ottawa by Bike">
