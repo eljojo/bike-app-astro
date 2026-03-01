@@ -1,17 +1,29 @@
 ---
+interface Place {
+  name: string;
+  emoji: string;
+  lat: number;
+  lng: number;
+  description?: string;
+  link?: string;
+  google_maps_url?: string;
+}
+
 interface Props {
   polylines: { name: string; encoded: string }[];
+  places?: Place[];
   center?: [number, number];
   zoom?: number;
 }
 
-const { polylines, center, zoom } = Astro.props;
+const { polylines, places = [], center, zoom } = Astro.props;
 ---
 
 <div
   id="route-map"
   class="leaflet-map"
   data-polylines={JSON.stringify(polylines)}
+  data-places={JSON.stringify(places)}
   data-center={JSON.stringify(center)}
   data-zoom={zoom?.toString() || '12'}
 ></div>
@@ -24,6 +36,7 @@ const { polylines, center, zoom } = Astro.props;
   const el = document.getElementById('route-map');
   if (el) {
     const polylines = JSON.parse(el.dataset.polylines || '[]');
+    const places = JSON.parse(el.dataset.places || '[]');
     const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
     const zoom = parseInt(el.dataset.zoom || '12');
 
@@ -35,7 +48,7 @@ const { polylines, center, zoom } = Astro.props;
     }).addTo(map);
 
     const bounds = L.latLngBounds([]);
-    polylines.forEach((pl: any, i: number) => {
+    polylines.forEach((pl: any) => {
       const coords = polylineCodec.decode(pl.encoded);
       const line = L.polyline(coords, {
         color: '#350091',
@@ -50,13 +63,28 @@ const { polylines, center, zoom } = Astro.props;
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [30, 30] });
     }
+
+    places.forEach((place: any) => {
+      const emojiIcon = L.divIcon({
+        className: 'emoji-icon',
+        html: place.emoji,
+        iconSize: [25, 25],
+      });
+
+      let popupContent = `<strong>${place.name}</strong>`;
+      if (place.description) {
+        popupContent += `<br>${place.description}`;
+      }
+      if (place.link) {
+        popupContent += `<br><a href="${place.link}" target="_blank">See more</a>`;
+      }
+      if (place.google_maps_url) {
+        popupContent += `<br><a href="${place.google_maps_url}" target="_blank">Google Maps</a>`;
+      }
+
+      L.marker([place.lat, place.lng], { icon: emojiIcon })
+        .bindPopup(popupContent)
+        .addTo(map);
+    });
   }
 </script>
-
-<style>
-  .leaflet-map {
-    width: 100%;
-    height: 80vh;
-    min-height: 400px;
-  }
-</style>

@@ -3,11 +3,22 @@ import Base from '../layouts/Base.astro';
 import RouteCard from '../components/RouteCard.astro';
 import TagFilter from '../components/TagFilter.astro';
 import { getCollection } from 'astro:content';
+import { elevationTags, getAllElevations } from '../lib/elevation';
 
 const routes = await getCollection('routes');
 const published = routes
   .filter(r => r.data.status === 'published')
   .sort((a, b) => a.data.distance_km - b.data.distance_km);
+
+const allElevations = getAllElevations(routes);
+
+// Build per-route tags including dynamic elevation tags
+const routeTags = new Map<string, string[]>();
+for (const route of published) {
+  const gpx = route.data.variants[0]?.gpx;
+  const elevation = gpx ? route.data.gpxTracks[gpx]?.elevation_gain_m : null;
+  routeTags.set(route.id, [...route.data.tags, ...elevationTags(elevation, allElevations)]);
+}
 
 const TAGS_TO_AVOID = ['kinburn', 'easy'];
 const TAGS_TO_FORCE = ['bikepacking', 'snacks'];
@@ -15,7 +26,7 @@ const TAGS_TO_FORCE = ['bikepacking', 'snacks'];
 // Count tag popularity (how many routes use each tag)
 const tagCounts = new Map<string, number>();
 for (const route of published) {
-  for (const tag of route.data.tags) {
+  for (const tag of routeTags.get(route.id)!) {
     tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
   }
 }
@@ -45,7 +56,7 @@ const allTags = [...new Set([...topTags, ...TAGS_TO_FORCE])]
           name={route.data.name}
           tagline={route.data.tagline}
           distance_km={route.data.distance_km}
-          tags={route.data.tags}
+          tags={routeTags.get(route.id)!}
           body={route.body}
           coverKey={cover?.key}
           lazy={i >= 5}
@@ -55,22 +66,3 @@ const allTags = [...new Set([...topTags, ...TAGS_TO_FORCE])]
     })}
   </ul>
 </Base>
-
-<style lang="scss">
-  @use '../styles/variables' as *;
-
-  .welcome-message {
-    h3 {
-      font-family: $font-heading;
-    }
-  }
-
-  .routes-grid {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-    padding: 0;
-    margin: 0;
-  }
-</style>

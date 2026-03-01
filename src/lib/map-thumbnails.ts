@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import polylineCodec from '@mapbox/polyline';
 
-const CACHE_DIR = path.resolve('_cache', 'maps');
+const CACHE_DIR = path.resolve('public', 'maps');
 
 export interface MapThumbPaths {
   thumb: string;

@@ -9,15 +9,28 @@ interface Variant {
   rwgps_url?: string;
 }
 
+interface MapPlace {
+  name: string;
+  emoji: string;
+  lat: number;
+  lng: number;
+  description?: string;
+  link?: string;
+  google_maps_url?: string;
+}
+
 interface Props {
   routeSlug: string;
   routeName: string;
   variant: Variant;
   polyline: string;
   variantLabel?: string;
+  elevationGain?: number | null;
+  elevationConclusion?: string | null;
+  places?: MapPlace[];
 }
 
-const { routeSlug, routeName, variant, polyline, variantLabel } = Astro.props;
+const { routeSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [] } = Astro.props;
 const siteUrl = import.meta.env.SITE || 'https://ottawabybike.ca';
 const variantKey = variantKeyFromGpx(variant.gpx);
 
@@ -34,6 +47,13 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 ---
 
 <h1>&#x1F5FA;&#xFE0F; {title}</h1>
+
+{elevationGain && (
+  <p>
+    <span style="font-size: 1.5em;">&#x1F6B5; </span>
+    Elevation Gain: <a href={`/routes/${routeSlug}/map#elevation-profile`}>{elevationGain} meters</a>{elevationConclusion && `, this is ${elevationConclusion}`}
+  </p>
+)}
 
 <p>
   <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
@@ -62,14 +82,14 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   {hasVariantMap && (
     <Fragment>
       {' '}
-      <a href={`/_cache/maps/${routeSlug}/${variantKey}/map.png`} class="action-button" target="_blank" rel="noopener">
+      <a href={`/maps/${routeSlug}/${variantKey}/map.png`} class="action-button" target="_blank" rel="noopener">
         &#x1F5FA;&#xFE0F; PNG
       </a>
     </Fragment>
   )}
 </p>
 
-<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} />
+<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} />
 
 <p style="margin-top: 1em;">
   <a href={`/routes/${routeSlug}`} class="go-back-button">&#x21A9; back to {routeName}</a>

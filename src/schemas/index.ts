@@ -48,6 +48,7 @@ export const placeSchema = z.object({
   address: z.string().optional(),
   website: z.string().optional(),
   phone: z.string().optional(),
+  google_maps_url: z.string().optional(),
 });
 
 export const guideSchema = z.object({

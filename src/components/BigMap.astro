@@ -10,8 +10,10 @@ interface RouteOnMap {
 interface PlaceOnMap {
   name: string;
   category: string;
+  emoji: string;
   lat: number;
   lng: number;
+  google_maps_url?: string;
 }
 
 interface Props {
@@ -57,34 +59,22 @@ const { routes, places, center } = Astro.props;
         .addTo(map);
     });
 
-    // Add place markers
-    const categoryColors: Record<string, string> = {
-      park: '#228B22', beach: '#FFD700', 'bike-trail': '#32CD32',
-      'camping-spot': '#006400', 'water-fountain': '#4682B4', 'chill-spot': '#20B2AA',
-      lookout: '#8B4513', bridge: '#708090',
-      poutine: '#8B0000', beer: '#DAA520', pizza: '#FF6347',
-      'ice-cream': '#FF69B4', cafe: '#A0522D', restaurant: '#FF4500',
-      'meeting-point': '#9370DB', 'bike-shop': '#4169E1', parking: '#808080',
-      ferry: '#1E90FF', wc: '#778899', 'bike-rental': '#6495ED',
-      detour: '#FF8C00', flooding: '#4682B4',
-    };
-
+    // Add place markers with emoji icons
     places.forEach((p: any) => {
-      const color = categoryColors[p.category] || '#666';
-      L.circleMarker([p.lat, p.lng], {
-        radius: 5, fillColor: color, color: '#fff',
-        weight: 1, fillOpacity: 0.8,
-      })
-        .bindPopup(`${p.name}<br><small>${p.category}</small>`)
+      const emojiIcon = L.divIcon({
+        className: 'emoji-icon',
+        html: p.emoji,
+        iconSize: [25, 25],
+      });
+
+      let popupContent = `<strong>${p.name}</strong>`;
+      if (p.google_maps_url) {
+        popupContent += `<br><a href="${p.google_maps_url}" target="_blank">Google Maps</a>`;
+      }
+
+      L.marker([p.lat, p.lng], { icon: emojiIcon })
+        .bindPopup(popupContent)
         .addTo(map);
     });
   }
 </script>
-
-<style>
-  .big-map {
-    width: 100%;
-    height: 85vh;
-    min-height: 500px;
-  }
-</style>

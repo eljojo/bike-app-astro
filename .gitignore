@@ -31,8 +31,7 @@ pnpm-debug.log*
 result
 
 # map cache (build-time generated)
-_cache/maps/
-public/_cache
+public/maps/
 
 # playwright test artifacts
 test-results/

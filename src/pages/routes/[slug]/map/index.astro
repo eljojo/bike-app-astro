@@ -2,20 +2,39 @@
 import Base from '../../../../layouts/Base.astro';
 import MapPage from '../../../../components/MapPage.astro';
 import { getCollection } from 'astro:content';
+import { elevationConclusion, getAllElevations } from '../../../../lib/elevation';
+import { findNearbyPlaces, type PlaceData } from '../../../../lib/proximity';
+import { categoryEmoji } from '../../../../lib/place-categories';
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
+  const allElevations = getAllElevations(routes);
+  const allPlaces = await getCollection('places');
+  const placeData: PlaceData[] = allPlaces
+    .filter(p => p.data.status === 'published')
+    .map(p => ({ id: p.id, name: p.data.name, category: p.data.category, lat: p.data.lat, lng: p.data.lng, address: p.data.address, website: p.data.website, phone: p.data.phone, google_maps_url: p.data.google_maps_url }));
+
   return routes.map(route => ({
     params: { slug: route.id },
-    props: { route },
+    props: { route, allElevations, placeData },
   }));
 }
 
-const { route } = Astro.props;
+const { route, allElevations, placeData } = Astro.props;
 const { name, variants, gpxTracks } = route.data;
 
 const variant = variants[0];
 const track = variant ? gpxTracks[variant.gpx] : null;
+const elevation = track?.elevation_gain_m;
+const conclusion = elevation ? elevationConclusion(elevation, allElevations) : null;
+
+const nearby = track ? findNearbyPlaces(track.points, placeData) : [];
+const mapPlaces = nearby.map(p => ({
+  name: p.name, emoji: categoryEmoji[p.category] || '📍',
+  lat: p.lat, lng: p.lng,
+  google_maps_url: p.google_maps_url || `https://www.google.com/maps/?q=${p.lat},${p.lng}`,
+  link: p.website,
+}));
 ---
 
 <Base title={`Map: ${name} | Ottawa by Bike`}>
@@ -25,6 +44,9 @@ const track = variant ? gpxTracks[variant.gpx] : null;
       routeName={name}
       variant={variant}
       polyline={track.polyline}
+      elevationGain={elevation}
+      elevationConclusion={conclusion}
+      places={mapPlaces}
     />
   ) : (
     <p>No map available for this route.</p>

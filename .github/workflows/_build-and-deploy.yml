@@ -82,7 +82,7 @@ jobs:
       - name: Restore map cache
         uses: actions/cache@v4
         with:
-          path: _cache/maps
+          path: public/maps
           key: maps-${{ hashFiles('bike-routes/ottawa/routes/**/variants/*.gpx', 'bike-routes/ottawa/routes/**/*.gpx') }}
           restore-keys: |
             maps-

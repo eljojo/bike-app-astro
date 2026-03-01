@@ -21,19 +21,12 @@ const placeData: PlaceData[] = allPlaces
     address: p.data.address,
     website: p.data.website,
     phone: p.data.phone,
+    google_maps_url: p.data.google_maps_url,
   }));
 
-const nearby = findNearbyPlaces(trackPoints, placeData);
+import { categoryEmoji } from '../lib/place-categories';
 
-const categoryEmoji: Record<string, string> = {
-  park: '&#x1F333;', beach: '&#x1F3D6;&#xFE0F;', 'bike-trail': '&#x1F6B5;', 'camping-spot': '&#x26FA;',
-  'water-fountain': '&#x1F4A7;', 'chill-spot': '&#x1F60E;', lookout: '&#x1F440;', bridge: '&#x1F309;',
-  poutine: '&#x1F35F;', beer: '&#x1F37A;', pizza: '&#x1F355;', 'ice-cream': '&#x1F366;',
-  cafe: '&#x2615;', restaurant: '&#x1F37D;&#xFE0F;',
-  'meeting-point': '&#x1F4CD;', 'bike-shop': '&#x1F527;', parking: '&#x1F17F;&#xFE0F;', ferry: '&#x26F4;&#xFE0F;',
-  wc: '&#x1F6BB;', 'bike-rental': '&#x1F6B2;', detour: '&#x26A0;&#xFE0F;', flooding: '&#x1F30A;',
-  'something-interesting': '&#x2728;', other: '&#x1F4CC;',
-};
+const nearby = findNearbyPlaces(trackPoints, placeData);
 ---
 
 {nearby.length > 0 && (
@@ -43,7 +36,7 @@ const categoryEmoji: Record<string, string> = {
       {nearby.map(place => (
         <li>
           <span class="place-emoji" set:html={categoryEmoji[place.category] || '&#x1F4CD;'} />
-          <a href={`https://www.google.com/maps/?q=${place.lat},${place.lng}`}
+          <a href={place.google_maps_url || `https://www.google.com/maps/?q=${place.lat},${place.lng}`}
              target="_blank" rel="noopener" class="place-name">{place.name}</a>
           {place.website && (
             <a href={place.website} target="_blank" rel="noopener" class="place-link">website</a>
@@ -53,27 +46,3 @@ const categoryEmoji: Record<string, string> = {
     </ul>
   </section>
 )}
-
-<style lang="scss">
-  .nearby-places ul {
-    list-style: none;
-    padding: 0;
-  }
-  .nearby-places li {
-    padding: 0.3em 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-  }
-  .place-name {
-    text-decoration: none;
-    color: inherit;
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-  .place-link {
-    font-size: 0.85em;
-    opacity: 0.7;
-  }
-</style>

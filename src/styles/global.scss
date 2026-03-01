@@ -67,20 +67,500 @@ a.action-button {
       border: 1px solid $color-btn-primary-border;
       background-color: $color-btn-primary-bg;
     }
+    &.--primary:hover {
+      background-color: darken(#ded, 10%);
+    }
   }
   @media (prefers-color-scheme: dark) {
     &:hover, &.--primary {
       background-color: #333;
     }
+    &.--primary:hover {
+      background-color: #444;
+    }
   }
+}
+
+button.action-button {
+  cursor: pointer;
+  font-size: 1em;
+  background: none;
+}
+
+a.go-back-button {
+  text-decoration: none;
+  padding: 5px 0;
+
+  @media (prefers-color-scheme: light) {
+    border-top: 1px solid black;
+  }
+  @media (prefers-color-scheme: dark) {
+    border-top: 1px solid white;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  a, a:visited { color: black; }
+  .route-card--preview { color: $color-text-muted; }
 }
 
 @media (prefers-color-scheme: dark) {
   body { background: $color-bg-dark; color: $color-text-dark; }
-  a { color: white; }
+  a, a:visited { color: white; }
+  .site-header img { filter: invert(1); }
   .tag-pill { background: gray; color: white; }
   .action-button {
     border-color: #aaa;
     color: #ddd;
   }
+}
+
+// ============================================================
+// Layout
+// ============================================================
+
+.site-header {
+  margin-bottom: 10px;
+  font-size: 2em;
+}
+.site-title {
+  font-family: $font-site-title;
+  font-style: italic;
+  text-decoration: none;
+  padding-right: 3px; // prevents the rightmost italic character from being clipped by background-clip: text
+  background: linear-gradient(45deg, #09009f, #00ff95 80%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.top-nav ul {
+  font-size: 1.3em;
+  font-family: $font-heading;
+  margin: 0 0 10px 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    margin: 0 0.5em 0 0;
+    display: inline-block;
+  }
+}
+.top-nav a {
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+.site-footer {
+  padding-top: 3px;
+  margin-top: 2em;
+  a { padding: 4px; text-decoration: none; }
+}
+@media (prefers-color-scheme: light) {
+  .site-footer {
+    border-top: 1px solid black;
+    a { background: black; color: white; }
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .site-footer {
+    border-top: 1px solid white;
+    a { background: white; color: black; }
+  }
+}
+
+// ============================================================
+// Components
+// ============================================================
+
+// Route card
+.route-card {
+  list-style: none;
+  width: 100%;
+  margin-bottom: 1em;
+}
+.route-card--link {
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+  background-color: $color-card-bg;
+  &:hover { background-color: $color-card-hover; }
+  @media (max-width: $breakpoint-desktop) {
+    flex-direction: column;
+  }
+}
+.route-card--images {
+  display: flex;
+  min-width: 300px;
+  flex-shrink: 0;
+  @media (min-width: $breakpoint-desktop) {
+    width: 600px;
+    height: 300px;
+  }
+  // Reserve min-height to prevent CLS while images load.
+  // Below 600px the body is full-width; above 600px body is 85% width (used in the calc).
+  @media (min-width: $breakpoint-mobile) and (max-width: $breakpoint-desktop - 1px) {
+    min-height: calc(85vw / 2 - 8px);
+  }
+  @media (max-width: $breakpoint-mobile - 1px) {
+    min-height: calc(50vw - 16px);
+  }
+  img {
+    // !important overrides width/height HTML attributes (needed for CLS/Lighthouse)
+    // so images still display at 50% side-by-side
+    width: 50% !important;
+    height: auto;
+    display: inline-block;
+    vertical-align: top; // prevents the 4px descender gap that inline-block adds below images
+  }
+  img:only-child { width: 100% !important; }
+}
+.route-card--details {
+  display: block;
+  padding: 1em;
+  min-height: 6em;
+  vertical-align: top;
+  flex-shrink: 3;
+}
+.route-card--name {
+  display: block;
+  font-family: $font-heading;
+  font-size: 1.6em;
+}
+.route-card--tagline {
+  display: block;
+  font-family: $font-heading;
+  font-size: 1.2em;
+}
+.route-card--tags {
+  padding: 0;
+  .tag-pill { font-size: 1em !important; } // override global 1.05em; pills look too large in route cards at the bigger size
+}
+.route-card--preview {
+  display: block;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+}
+@media (prefers-color-scheme: dark) {
+  .route-card--link {
+    background-color: $color-card-bg-dark;
+    &:hover { background-color: $color-card-hover-dark; }
+  }
+  .route-card--preview { color: #ddd; }
+}
+
+// Event card
+.event-card {
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  flex: 0 0 24%;
+  @media (max-width: $breakpoint-tablet) { flex: 0 0 49%; }
+  @media (max-width: $breakpoint-mobile) { flex: auto; }
+  img { border-radius: 4px; margin-top: 0.5em; }
+}
+.event-organizer { font-size: 1.5em; }
+.event-name { font-size: 1.5em; font-weight: bold; color: inherit; }
+.event-dates { font-size: 1.2em; }
+.event-distances { font-size: 0.9em; }
+.event-review { color: $color-accent; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .event-card { border-color: #333; }
+}
+
+// Tag filter
+.tag-filter {
+  list-style: none;
+  padding: 0;
+  margin-top: 0;
+
+  li { list-style: none; display: inline-block; }
+}
+.tag-filter--label {
+  @media (max-width: $breakpoint-tablet - 1px) {
+    display: block;
+    margin-bottom: 0.5em;
+  }
+  @media (min-width: $breakpoint-tablet) {
+    display: inline-block;
+    margin-right: 1em;
+  }
+}
+.tag-filter--btn {
+  cursor: pointer;
+  border: none;
+  font-size: 1.05em;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  padding: 3px;
+  border-radius: 7px;
+  font-family: $font-mono;
+  letter-spacing: 1px;
+  margin: 3px 7px 3px 0;
+  display: inline-block;
+  transition: background 0.15s, color 0.15s;
+  &.active {
+    background: orange;
+    color: white;
+  }
+  @media (hover: hover) {
+    &:hover:not(.active) {
+      background: orange;
+    }
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .tag-filter--btn {
+    background: gray;
+    color: white;
+    &.active { background: orange; color: white; }
+    @media (hover: hover) {
+      &:hover:not(.active) { background: orange; }
+    }
+  }
+}
+
+// Elevation profile
+.elevation-profile { margin: 1.5em 0; }
+.elevation-stats {
+  display: flex;
+  gap: 1.5em;
+  font-size: 0.9em;
+  margin-bottom: 0.3em;
+}
+.elevation-svg {
+  width: 100%;
+  height: 100px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+@media (prefers-color-scheme: dark) {
+  .elevation-svg { border-color: #333; }
+  .elevation-svg path[fill] { fill: rgba(100,180,255,0.15); }
+  .elevation-svg path[stroke] { stroke: #6ab4ff; }
+}
+
+// Photo gallery
+.photo-gallery {
+  margin: 1em 0;
+
+  @media (min-width: $breakpoint-mobile) {
+    max-width: 1300px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+  }
+
+  .photo-gallery--image {
+    display: inline-block;
+    margin: 0;
+    overflow: hidden;
+
+    @media (min-width: $breakpoint-mobile) {
+      flex-grow: 1;
+      width: 30%;
+      max-width: 300px;
+      aspect-ratio: 1 / 1;
+    }
+    @media (max-width: $breakpoint-mobile - 1px) {
+      width: 100%;
+      max-height: 70vh;
+    }
+
+    img {
+      object-position: center bottom; // anchors cropped thumbnails to bottom-center (good for landscape/cycling photos)
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Hide first photo on mobile (cover photo already shows it)
+  @media (max-width: 799px) {
+    .photo-gallery--image:first-child {
+      display: none;
+    }
+  }
+}
+.pswp-caption-content {
+  display: none;
+}
+.gallery-cover-photo { cursor: pointer; }
+
+// Nearby places
+.nearby-places ul {
+  list-style: none;
+  padding: 0;
+}
+.nearby-places li {
+  padding: 0.3em 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.place-name {
+  text-decoration: none;
+  color: inherit;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+.place-link {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+// Maps
+.big-map {
+  width: 100%;
+  height: 85vh;
+  min-height: 500px;
+}
+.leaflet-map {
+  width: 100%;
+  height: 70vh;
+  min-height: 400px;
+}
+.emoji-icon {
+  font-size: 25px;
+  text-shadow: 1px 2px 3px #444;
+  opacity: 0.8;
+  transition: opacity 0.5s ease;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// ============================================================
+// Pages
+// ============================================================
+
+// Home
+.welcome-message {
+  h3 {
+    font-family: $font-heading;
+  }
+}
+.routes-grid {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  padding: 0;
+  margin: 0;
+}
+
+// Calendar
+.month-header {
+  margin: 1.5em 0 0.5em;
+  font-size: 1.8em;
+  font-weight: bold;
+}
+.events-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin: 1em 0;
+}
+
+// About
+.about-page--intro-text {
+  display: block;
+  max-width: 1130px;
+  font-size: 1.05em;
+
+  img {
+    float: right;
+    margin-left: 10px;
+    width: 300px;
+    max-width: 50vw;
+    border-radius: 8px;
+  }
+}
+
+// Guides
+.guides-list {
+  list-style: none;
+  padding: 0;
+}
+.guides-list--guide {
+  padding: 0.8em 0;
+  border-bottom: 1px solid #dee2e6;
+}
+.guide--name {
+  display: block;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+.guide--tagline {
+  display: block;
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+.guide-tagline {
+  font-size: 1.1em;
+  opacity: 0.8;
+  margin: 0.3em 0 1em;
+}
+.guide-body {
+  line-height: 1.7;
+  h2, h3 { margin-top: 1.5em; }
+  p { margin: 0.8em 0; }
+  a { color: inherit; text-decoration: underline; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+}
+
+// Videos
+.videos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1em;
+}
+.video-title { font-size: 0.9em; margin-top: 0.3em; }
+
+// Route detail
+.route-detail {
+  h1 { font-size: 24px; }
+  h2 { font-size: 18.72px; }
+}
+.route-detail--hero {
+  width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  margin-bottom: 1em;
+  img { width: 100%; object-fit: cover; cursor: pointer; }
+  @media (min-width: 800px) {
+    display: none;
+  }
+}
+.route-detail--content {
+  display: flex;
+  @media (max-width: 799px) { flex-direction: column; }
+}
+.route-detail--body {
+  flex: 1;
+  font-size: 1.05em;
+  padding-right: 1em;
+  @media (min-width: 800px) {
+    max-width: 60%;
+  }
+  p {
+    line-height: 1.45em;
+  }
+}
+.route-detail--static-map {
+  min-width: 300px;
+  max-width: 600px;
+  img { width: 100%; height: auto; border-radius: 8px; }
+  @media (max-width: 800px) { width: 100%; }
+}
+.route--tags {
+  list-style: none;
+  padding: 0;
+}
+.route-description {
+  a { color: inherit; text-decoration: underline; }
 }

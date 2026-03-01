@@ -47,29 +47,3 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
     <a href={props.review_url} class="event-review">Read my review!</a>
   )}
 </div>
-
-<style lang="scss">
-  @use '../styles/variables' as *;
-
-  .event-card {
-    border: 1px solid $color-border;
-    border-radius: 8px;
-    padding: 1em;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3em;
-    flex: 0 0 24%;
-    @media (max-width: $breakpoint-tablet) { flex: 0 0 49%; }
-    @media (max-width: $breakpoint-mobile) { flex: auto; }
-  }
-  .event-organizer { font-size: 1.5em; }
-  .event-name { font-size: 1.5em; font-weight: bold; color: inherit; }
-  .event-dates { font-size: 1.2em; }
-  .event-distances { font-size: 0.9em; }
-  .event-review { color: $color-accent; font-weight: 600; }
-  img { border-radius: 4px; margin-top: 0.5em; }
-
-  @media (prefers-color-scheme: dark) {
-    .event-card { border-color: #333; }
-  }
-</style>

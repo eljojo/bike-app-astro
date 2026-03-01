@@ -7,47 +7,12 @@ import { hasCachedMap, variantKeyFromGpx } from '../../lib/map-thumbnails';
 import { routeJsonLd } from '../../lib/json-ld';
 import { formatDistance } from '../../lib/distance';
 import PhotoGallery from '../../components/PhotoGallery.astro';
-
 import NearbyPlaces from '../../components/NearbyPlaces.astro';
-
-const ELEVATION_LABELS: [number, string][] = [
-  [0.05, "a flat route 👍"],
-  [0.1, "flatter than most routes 👍"],
-  [0.2, "a fairly flat route 🚴"],
-  [0.4, "about average elevation 👀"],
-  [0.5, "harder than average elevation 📈"],
-  [0.8, "very hard elevation ⚠️⛰️"],
-  [0.9, "very very hard elevation ⚠️🌋"],
-];
-
-function quantiles(data: number[], probs: number[]): number[] {
-  const values = [...data].sort((a, b) => a - b);
-  return probs.map(prob => {
-    const h = 1 + (values.length - 1) * prob;
-    const mod = h % 1;
-    return Math.round((1 - mod) * values[Math.floor(h) - 1] + mod * values[Math.ceil(h) - 1]);
-  });
-}
-
-function elevationConclusion(elevation: number, allElevations: number[]): string {
-  const thresholds = ELEVATION_LABELS.map(([p]) => p);
-  const q = quantiles(allElevations, thresholds);
-  for (let i = 0; i < q.length; i++) {
-    if (q[i] >= elevation) return ELEVATION_LABELS[i][1];
-  }
-  return ELEVATION_LABELS[ELEVATION_LABELS.length - 1][1];
-}
+import { elevationConclusion, getAllElevations } from '../../lib/elevation';
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
-  // Compute all routes' elevation gains for percentile comparison
-  const allElevations = routes
-    .filter(r => r.data.status === 'published')
-    .map(r => {
-      const gpx = r.data.variants[0]?.gpx;
-      return gpx ? r.data.gpxTracks[gpx]?.elevation_gain_m : null;
-    })
-    .filter((e): e is number => e != null && e > 0);
+  const allElevations = getAllElevations(routes);
 
   return routes.map(route => ({
     params: { slug: route.id },
@@ -71,9 +36,6 @@ const manyVariants = variants.length > 1;
 const variantDistances = variants.map(v => v.distance_km).filter((d): d is number => d != null);
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
 const allTags = [distanceTag, ...tags];
-if (primaryTrack?.elevation_gain_m) {
-  allTags.push(`${primaryTrack.elevation_gain_m}m elevation`);
-}
 
 const conclusion = primaryTrack?.elevation_gain_m
   ? elevationConclusion(primaryTrack.elevation_gain_m, allElevations)
@@ -132,7 +94,7 @@ const conclusion = primaryTrack?.elevation_gain_m
         <div class="route-detail--static-map">
           <a href={`/routes/${route.id}/map`} title="View Map">
             <img
-              src={`/_cache/maps/${route.id}/map-750.webp`}
+              src={`/maps/${route.id}/map-750.webp`}
               alt={`Map of ${name}`}
             />
           </a>
@@ -178,65 +140,3 @@ const conclusion = primaryTrack?.elevation_gain_m
     </p>
   </div>
 </Base>
-
-<style lang="scss">
-  @use '../../styles/variables' as *;
-
-  .route-detail--hero {
-    width: 100%;
-    max-height: 400px;
-    overflow: hidden;
-    margin-bottom: 1em;
-    img { width: 100%; object-fit: cover; cursor: pointer; }
-    @media (min-width: 800px) {
-      display: none;
-    }
-  }
-
-  .route-detail--content {
-    display: flex;
-    @media (max-width: 799px) { flex-direction: column; }
-  }
-  .route-detail--body {
-    flex: 1;
-    font-size: 1.05em;
-    padding-right: 1em;
-    @media (min-width: 800px) {
-      max-width: 60%;
-    }
-    p {
-      line-height: 1.45em;
-    }
-  }
-
-  .route-detail {
-    h1 { font-size: 24px; }
-    h2 { font-size: 18.72px; }
-  }
-  .route-detail--static-map {
-    min-width: 300px;
-    max-width: 600px;
-    img { width: 100%; height: auto; border-radius: 8px; }
-    @media (max-width: 800px) { width: 100%; }
-  }
-
-
-  .route--tags {
-    list-style: none;
-    padding: 0;
-  }
-
-  .route-description {
-    :global(a) { color: inherit; text-decoration: underline; }
-  }
-
-  .go-back-button {
-    text-decoration: none;
-    padding: 5px 0;
-    border-top: 1px solid black;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .go-back-button { border-top-color: white; }
-  }
-</style>

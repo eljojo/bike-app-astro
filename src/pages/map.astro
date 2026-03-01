@@ -3,6 +3,7 @@
 import Base from '../layouts/Base.astro';
 import BigMap from '../components/BigMap.astro';
 import { getCollection } from 'astro:content';
+import { categoryEmoji } from '../lib/place-categories';
 
 const routes = await getCollection('routes');
 const places = await getCollection('places');
@@ -26,8 +27,10 @@ const placeData = places
   .map(p => ({
     name: p.data.name,
     category: p.data.category,
+    emoji: categoryEmoji[p.data.category] || '📍',
     lat: p.data.lat,
     lng: p.data.lng,
+    google_maps_url: p.data.google_maps_url || `https://www.google.com/maps/?q=${p.data.lat},${p.data.lng}`,
   }));
 ---
 
