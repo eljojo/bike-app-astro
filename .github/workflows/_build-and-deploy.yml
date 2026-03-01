@@ -99,6 +99,14 @@ jobs:
           restore-keys: |
             maps-
 
+      - name: Restore Astro content cache
+        uses: actions/cache@v4
+        with:
+          path: .astro
+          key: astro-${{ hashFiles('bike-routes/ottawa/routes/**') }}
+          restore-keys: |
+            astro-
+
       - name: Generate map thumbnails
         run: npx tsx scripts/generate-maps.ts
         env:
