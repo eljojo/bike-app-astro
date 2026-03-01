@@ -16,11 +16,11 @@ jobs:
   test:
     uses: ./.github/workflows/_build-and-deploy.yml
     with:
-      deploy: true
+      deploy: ${{ github.actor != 'dependabot[bot]' }}
       environment: staging
       worker-name: bike-ottawa-staging
       disable-analytics: true
-      update-screenshots: true
+      update-screenshots: ${{ github.actor != 'dependabot[bot]' }}
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
