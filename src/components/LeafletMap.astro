@@ -34,10 +34,7 @@ const { polylines, places = [], center, zoom } = Astro.props;
 ></div>
 
 <script>
-  import L from 'leaflet';
-  import 'leaflet/dist/leaflet.css';
-  import polylineCodec from '@mapbox/polyline';
-  import { addGpsControl } from '../lib/leaflet-controls';
+  import { initMap, addPolylines, addMarkers } from '../lib/leaflet-init';
 
   const el = document.getElementById('route-map');
   if (el) {
@@ -45,56 +42,24 @@ const { polylines, places = [], center, zoom } = Astro.props;
     const places = JSON.parse(el.dataset.places || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const zoom = parseInt(el.dataset.zoom || '12');
-
-    const map = L.map(el).setView(center, zoom);
     const tilesUrl = el.dataset.tilesUrl || '';
 
-    L.tileLayer(tilesUrl, {
-      maxZoom: 20,
-      attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-    }).addTo(map);
+    const map = initMap({ el, center, zoom, tilesUrl });
 
-    const bounds = L.latLngBounds([]);
-    polylines.forEach((pl: any) => {
-      const coords = polylineCodec.decode(pl.encoded);
-      const line = L.polyline(coords, {
-        color: '#350091',
-        weight: 6,
-        opacity: 0.9,
-      }).addTo(map);
-
-      line.bindPopup(pl.name);
-      bounds.extend(line.getBounds());
-    });
-
+    const bounds = addPolylines(map, polylines.map((pl: any) => ({
+      encoded: pl.encoded,
+      popup: pl.name,
+    })));
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [30, 30] });
     }
 
-    places.forEach((place: any) => {
-      const emojiIcon = L.divIcon({
-        className: 'emoji-icon',
-        html: place.emoji,
-        iconSize: [25, 25],
-      });
-
-      let popupContent = `<strong>${place.name}</strong>`;
-      if (place.description) {
-        popupContent += `<br>${place.description}`;
-      }
-      if (place.link) {
-        popupContent += `<br><a href="${place.link}" target="_blank">See more</a>`;
-      }
-      if (place.google_maps_url) {
-        popupContent += `<br><a href="${place.google_maps_url}" target="_blank">Google Maps</a>`;
-      }
-
-      L.marker([place.lat, place.lng], { icon: emojiIcon })
-        .bindPopup(popupContent)
-        .addTo(map);
-    });
-
-    // Geolocation "Find my location" button
-    addGpsControl(map);
+    addMarkers(map, places.map((p: any) => {
+      let popup = `<strong>${p.name}</strong>`;
+      if (p.description) popup += `<br>${p.description}`;
+      if (p.link) popup += `<br><a href="${p.link}" target="_blank">See more</a>`;
+      if (p.google_maps_url) popup += `<br><a href="${p.google_maps_url}" target="_blank">Google Maps</a>`;
+      return { lat: p.lat, lng: p.lng, emoji: p.emoji, popup };
+    }));
   }
 </script>
