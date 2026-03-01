@@ -1,4 +1,5 @@
 import { getCityConfig } from './city-config';
+import { paths } from './paths';
 
 const BASE = getCityConfig().url;
 
@@ -23,13 +24,13 @@ export function buildSitemapEntries({ routes, guides }: {
 
   const published = routes.filter(r => r.data.status === 'published');
   for (const r of published) {
-    entries.push({ url: `${BASE}/routes/${r.id}`, lastmod: r.data.updated_at, priority: 0.8 });
-    entries.push({ url: `${BASE}/routes/${r.id}/map`, lastmod: r.data.updated_at, priority: 0.2 });
+    entries.push({ url: `${BASE}${paths.route(r.id)}`, lastmod: r.data.updated_at, priority: 0.8 });
+    entries.push({ url: `${BASE}${paths.routeMap(r.id)}`, lastmod: r.data.updated_at, priority: 0.2 });
   }
 
   const pubGuides = guides.filter(g => g.data.status === 'published');
   for (const g of pubGuides) {
-    entries.push({ url: `${BASE}/guides/${g.id}`, priority: 0.7 });
+    entries.push({ url: `${BASE}${paths.guide(g.id)}`, priority: 0.7 });
   }
 
   return entries;

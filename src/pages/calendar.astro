@@ -8,6 +8,10 @@ import { getCityConfig } from '../lib/city-config';
 
 const config = getCityConfig();
 
+const icalUrl = `${config.url.replace(/\/$/, '')}/calendar.ics`;
+const icalUrlHttp = icalUrl.replace(/^https:\/\//, 'http://');
+const googleCalendarUrl = `http://www.google.com/calendar/render?cid=${encodeURIComponent(icalUrlHttp)}`;
+
 const events = await getCollection('events');
 const now = new Date();
 const currentYear = now.getFullYear();
@@ -36,6 +40,7 @@ const upcomingByMonth = groupByMonth(upcoming);
 <Base title={`Cycling events for ${currentYear} | ${config.display_name}`}>
   <h1 style="font-size: 1.7em;">📅 Cycling events for {currentYear}</h1>
   <a href="/calendar.ics" class="action-button">&#x1F4C5; Subscribe to iCal feed</a>
+  <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
 
   {Object.keys(upcomingByMonth).length === 0 && (
     <p><strong>That's a wrap! See you next year!</strong></p>

@@ -1,3 +1,13 @@
+/**
+ * Video service — Cloudflare R2 implementation.
+ *
+ * Generates video source URLs for HLS, AV1, and H.264 formats.
+ * Videos are stored in R2 under CDN_URL/videos/{blobKey}/ with
+ * transcoded outputs from AWS MediaConvert.
+ *
+ * To swap providers: replace these functions with equivalents that
+ * return video source arrays for your transcoding/storage service.
+ */
 import { imageUrl } from './image-service';
 import { getCityConfig } from './city-config';
 

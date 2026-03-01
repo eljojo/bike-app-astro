@@ -120,6 +120,9 @@ jobs:
 
       - name: Run unit tests
         run: npx vitest run
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
 
       - name: Run E2E tests
         id: e2e

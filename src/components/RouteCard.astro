@@ -2,6 +2,7 @@
 import { imageUrl } from '../lib/image-service';
 import { hasCachedMap } from '../lib/map-thumbnails';
 import { formatDistance } from '../lib/distance';
+import { paths, assets } from '../lib/paths';
 
 interface Variant {
   name: string;
@@ -41,7 +42,7 @@ const loading = lazy ? 'lazy' : 'eager';
 ---
 
 <li class="route-card" data-tags={JSON.stringify(tags)}>
-  <a href={`/routes/${slug}`} class="route-card--link">
+  <a href={paths.route(slug)} class="route-card--link">
     <div class="route-card--images">
       {coverKey && (
         <img
@@ -56,8 +57,8 @@ const loading = lazy ? 'lazy' : 'eager';
       )}
       {hasMap && (
         <img
-          src={`/maps/${slug}/map-375.webp`}
-          srcset={`/maps/${slug}/map-375.webp 1x, /maps/${slug}/map-750.webp 2x`}
+          src={assets.mapThumbnail(slug, 375)}
+          srcset={assets.mapThumbnailSrcset(slug)}
           alt={`map of ${name}`}
           width="300"
           height="300"

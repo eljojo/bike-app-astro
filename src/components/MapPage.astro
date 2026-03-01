@@ -2,6 +2,8 @@
 import LeafletMap from './LeafletMap.astro';
 import { hasCachedMap, variantKeyFromGpx } from '../lib/map-thumbnails';
 import { getCityConfig } from '../lib/city-config';
+import { tElevation } from '../lib/i18n';
+import { paths, assets } from '../lib/paths';
 
 interface Variant {
   name: string;
@@ -40,7 +42,7 @@ function gpxStudioUrl(gpxUrl: string): string {
   return `https://gpx.studio/?state=%7B%22urls%22:%5B%22${urlParam}%22%5D%7D&distance&slope`;
 }
 
-const gpxUrl = `${siteUrl}/routes/${routeSlug}/${variantKey}.gpx`;
+const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, variantKey)}`;
 const exploreUrl = gpxStudioUrl(gpxUrl);
 const hasVariantMap = hasCachedMap(routeSlug, variantKey);
 
@@ -52,7 +54,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 {elevationGain && (
   <p>
     <span style="font-size: 1.5em;">&#x1F6B5; </span>
-    Elevation Gain: <a href={`/routes/${routeSlug}/map#elevation-profile`}>{elevationGain} meters</a>{elevationConclusion && `, this is ${elevationConclusion}`}
+    Elevation Gain: <a href={`${paths.routeMap(routeSlug)}#elevation-profile`}>{elevationGain} meters</a>{elevationConclusion && `, this is ${tElevation(elevationConclusion)}`}
   </p>
 )}
 
@@ -83,7 +85,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   {hasVariantMap && (
     <Fragment>
       {' '}
-      <a href={`/maps/${routeSlug}/${variantKey}/map.png`} class="action-button" target="_blank" rel="noopener">
+      <a href={assets.mapPng(routeSlug, variantKey)} class="action-button" target="_blank" rel="noopener">
         &#x1F5FA;&#xFE0F; PNG
       </a>
     </Fragment>
@@ -93,5 +95,5 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 <LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} />
 
 <p style="margin-top: 1em;">
-  <a href={`/routes/${routeSlug}`} class="go-back-button">&#x21A9; back to {routeName}</a>
+  <a href={paths.route(routeSlug)} class="go-back-button">&#x21A9; back to {routeName}</a>
 </p>

@@ -1,4 +1,5 @@
 import { getCityConfig } from './city-config';
+import { originalUrl } from './image-service';
 
 const config = getCityConfig();
 
@@ -25,15 +26,43 @@ export function routeJsonLd(
   };
 }
 
-export function eventJsonLd(event: { name: string; start_date: string; end_date?: string; location?: string; registration_url?: string }) {
+export function eventJsonLd(event: {
+  name: string;
+  start_date: string;
+  start_time?: string;
+  end_date?: string;
+  end_time?: string;
+  location?: string;
+  registration_url?: string;
+  organizer_name?: string;
+  organizer_url?: string;
+  poster_key?: string;
+}) {
+  const startDate = event.start_time
+    ? `${event.start_date}T${event.start_time}`
+    : event.start_date;
+  const endDate = event.end_time && event.end_date
+    ? `${event.end_date}T${event.end_time}`
+    : event.end_date;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
     name: event.name,
-    startDate: event.start_date,
-    ...(event.end_date && { endDate: event.end_date }),
+    startDate,
+    ...(endDate && { endDate }),
     ...(event.location && { location: { '@type': 'Place', name: event.location } }),
     ...(event.registration_url && { url: event.registration_url }),
+    ...(event.organizer_name && {
+      organizer: {
+        '@type': 'Organization',
+        name: event.organizer_name,
+        ...(event.organizer_url && { url: event.organizer_url }),
+      },
+    }),
+    ...(event.poster_key && { image: originalUrl(event.poster_key) }),
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    eventStatus: 'https://schema.org/EventScheduled',
     sport: 'Cycling',
   };
 }

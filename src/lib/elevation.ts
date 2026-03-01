@@ -1,11 +1,11 @@
-const ELEVATION_LABELS: [number, string][] = [
-  [0.05, "a flat route 👍"],
-  [0.1, "flatter than most routes 👍"],
-  [0.2, "a fairly flat route 🚴"],
-  [0.4, "about average elevation 👀"],
-  [0.5, "harder than average elevation 📈"],
-  [0.8, "very hard elevation ⚠️⛰️"],
-  [0.9, "very very hard elevation ⚠️🌋"],
+const ELEVATION_KEYS: [number, string][] = [
+  [0.05, 'flat'],
+  [0.1, 'mostly_flat'],
+  [0.2, 'fairly_flat'],
+  [0.4, 'average'],
+  [0.5, 'above_average'],
+  [0.8, 'hard'],
+  [0.9, 'very_hard'],
 ];
 
 export function quantiles(data: number[], probs: number[]): number[] {
@@ -18,12 +18,12 @@ export function quantiles(data: number[], probs: number[]): number[] {
 }
 
 export function elevationConclusion(elevation: number, allElevations: number[]): string {
-  const thresholds = ELEVATION_LABELS.map(([p]) => p);
+  const thresholds = ELEVATION_KEYS.map(([p]) => p);
   const q = quantiles(allElevations, thresholds);
   for (let i = 0; i < q.length; i++) {
-    if (q[i] >= elevation) return ELEVATION_LABELS[i][1];
+    if (q[i] >= elevation) return ELEVATION_KEYS[i][1];
   }
-  return ELEVATION_LABELS[ELEVATION_LABELS.length - 1][1];
+  return ELEVATION_KEYS[ELEVATION_KEYS.length - 1][1];
 }
 
 export function elevationTags(elevationGain: number | null, allElevations: number[]): string[] {

@@ -9,10 +9,13 @@ import { formatDistance } from '../../lib/distance';
 import PhotoGallery from '../../components/PhotoGallery.astro';
 import NearbyPlaces from '../../components/NearbyPlaces.astro';
 import { elevationConclusion, getAllElevations } from '../../lib/elevation';
-import { difficultyRanking, routeShape, placeSummary, type RouteElevationData } from '../../lib/route-insights';
-import { findNearbyPlaces, type PlaceData } from '../../lib/proximity';
+import { difficultyRanking, routeShape, placeCounts, type RouteElevationData } from '../../lib/route-insights';
+import { tElevation, tShape, tPlaceSummary } from '../../lib/i18n';
+import { findNearbyPlaces } from '../../lib/proximity';
+import { toPlaceData } from '../../lib/places';
 import { buildSimilarityMatrix, findSimilarRoutes } from '../../lib/route-similarity';
 import { getCityConfig } from '../../lib/city-config';
+import { paths, assets } from '../../lib/paths';
 
 const config = getCityConfig();
 
@@ -31,9 +34,7 @@ export async function getStaticPaths() {
     .filter(r => r.elevationGainPerKm > 0);
 
   const allPlaces = await getCollection('places');
-  const placeData: PlaceData[] = allPlaces
-    .filter(p => p.data.status === 'published')
-    .map(p => ({ id: p.id, name: p.data.name, category: p.data.category, lat: p.data.lat, lng: p.data.lng, address: p.data.address, website: p.data.website, phone: p.data.phone, google_maps_url: p.data.google_maps_url }));
+  const placeData = toPlaceData(allPlaces);
 
   const similarityData = routes
     .filter(r => r.data.status === 'published')
@@ -81,11 +82,20 @@ const conclusion = primaryTrack?.elevation_gain_m
 const difficulty = difficultyRanking(route.id, routeElevationData);
 const shape = primaryTrack ? routeShape(primaryTrack.points) : null;
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
-const placeDesc = placeSummary(nearbyPlaces);
+const nearbyCategories = placeCounts(nearbyPlaces);
+const placeDesc = nearbyCategories.length > 0 ? tPlaceSummary(nearbyCategories) : null;
 
 const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 
-const allTags = [distanceTag, ...(shape ? [shape] : []), ...tags];
+const allTags = [distanceTag, ...(shape ? [tShape(shape)] : []), ...tags];
+
+const SEO_FRIENDLY_TAGS = ['gravel', 'scenic', 'easy', 'chill'];
+const seoTitle = (() => {
+  if (tagline) return `${name} - ${tagline} | ${config.display_name}`;
+  const matchingTag = tags.find((t: string) => SEO_FRIENDLY_TAGS.includes(t));
+  if (matchingTag) return `${name} - ${matchingTag.charAt(0).toUpperCase() + matchingTag.slice(1)} Bike Route | ${config.display_name}`;
+  return `${name} - Bike Route | ${config.display_name}`;
+})();
 
 const breadcrumbs = breadcrumbJsonLd([
   { name: 'Home', url: `${config.url}/` },
@@ -93,7 +103,7 @@ const breadcrumbs = breadcrumbJsonLd([
 ]);
 ---
 
-<Base title={`${name} | ${config.display_name}`} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
+<Base title={seoTitle} description={tagline || `${name} — ${distanceTag} cycling route`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs}>
   <div class="route-detail">
     {cover && (
       <div class="route-detail--hero">
@@ -119,7 +129,7 @@ const breadcrumbs = breadcrumbJsonLd([
         {primaryTrack && !manyVariants && (
           <p>
             <span style="font-size: 1.5em;">&#x1F6B5; </span>
-            Elevation Gain: <a href={`/routes/${route.id}/map#elevation-profile`}>{primaryTrack.elevation_gain_m} meters</a>{conclusion && `, this is ${conclusion}`}
+            Elevation Gain: <a href={`${paths.routeMap(route.id)}#elevation-profile`}>{primaryTrack.elevation_gain_m} meters</a>{conclusion && `, this is ${tElevation(conclusion)}`}
           </p>
         )}
 
@@ -134,7 +144,7 @@ const breadcrumbs = breadcrumbJsonLd([
             <h3>There's {variants.length} versions of this route</h3>
             {variants.map((v, i) => (
               <p>
-                <a href={`/routes/${route.id}/map/${variantKeyFromGpx(v.gpx)}`} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
+                <a href={paths.routeVariantMap(route.id, variantKeyFromGpx(v.gpx))} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
                   &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
                 </a>
                 {v.strava_url && (
@@ -158,7 +168,7 @@ const breadcrumbs = breadcrumbJsonLd([
           </div>
         ) : (
           <p>
-            <a href={`/routes/${route.id}/map`} class="action-button --primary --wider" style="font-weight: bold;">
+            <a href={paths.routeMap(route.id)} class="action-button --primary --wider" style="font-weight: bold;">
               &#x1F5FA;&#xFE0F; View Map of {name}
             </a>
             {variants[0]?.strava_url && (
@@ -183,9 +193,9 @@ const breadcrumbs = breadcrumbJsonLd([
 
       {hasMap && (
         <div class="route-detail--static-map">
-          <a href={`/routes/${route.id}/map`} title="View Map">
+          <a href={paths.routeMap(route.id)} title="View Map">
             <img
-              src={`/maps/${route.id}/map-750.webp`}
+              src={assets.mapThumbnail(route.id)}
               alt={`Map of ${name}`}
             />
           </a>
@@ -220,7 +230,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 {sources.map(s => <source src={s.src} type={s.type} />)}
                 <p><a href={videoFallbackUrl(video.key)}>{video.title || 'Download video'}</a></p>
               </video>
-              {video.title && <p><a href={`/videos/${video.handle}`}>{video.title}</a></p>}
+              {video.title && <p><a href={paths.video(video.handle)}>{video.title}</a></p>}
             </div>
           );
         })}
@@ -233,7 +243,7 @@ const breadcrumbs = breadcrumbJsonLd([
         <ul style="list-style: none; padding: 0;">
           {similarRoutes.map(s => (
             <li style="padding: 0.3em 0;">
-              <a href={`/routes/${s.id}`}>{routeNames[s.id]}</a>
+              <a href={paths.route(s.id)}>{routeNames[s.id]}</a>
               <span style="opacity: 0.6; font-size: 0.85em;"> ({s.score}% similar)</span>
             </li>
           ))}

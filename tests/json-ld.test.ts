@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeJsonLd, guideJsonLd, breadcrumbJsonLd } from '../src/lib/json-ld';
+import { routeJsonLd, eventJsonLd, guideJsonLd, breadcrumbJsonLd } from '../src/lib/json-ld';
 
 describe('routeJsonLd', () => {
   it('returns BlogPosting with dates and author', () => {
@@ -34,6 +34,44 @@ describe('routeJsonLd', () => {
       updated_at: '2024-01-01',
     });
     expect(result.image).toBeUndefined();
+  });
+});
+
+describe('eventJsonLd', () => {
+  it('returns basic event schema', () => {
+    const result = eventJsonLd({ name: 'Ottawa Marathon', start_date: '2025-05-25' });
+    expect(result['@context']).toBe('https://schema.org');
+    expect(result['@type']).toBe('SportsEvent');
+    expect(result.name).toBe('Ottawa Marathon');
+    expect(result.startDate).toBe('2025-05-25');
+    expect(result.sport).toBe('Cycling');
+  });
+
+  it('includes organizer when provided', () => {
+    const result = eventJsonLd({
+      name: 'Race', start_date: '2025-06-01',
+      organizer_name: 'Bike Club', organizer_url: 'https://bikeclub.ca',
+    });
+    expect(result.organizer).toEqual({
+      '@type': 'Organization', name: 'Bike Club', url: 'https://bikeclub.ca',
+    });
+  });
+
+  it('includes start time in startDate when provided', () => {
+    const result = eventJsonLd({ name: 'Race', start_date: '2025-06-01', start_time: '08:00' });
+    expect(result.startDate).toBe('2025-06-01T08:00');
+  });
+
+  it('includes image when poster_key provided', () => {
+    const result = eventJsonLd({ name: 'Race', start_date: '2025-06-01', poster_key: 'events/poster.jpg' });
+    expect(result.image).toBeDefined();
+    expect(result.image).toContain('events/poster.jpg');
+  });
+
+  it('sets eventAttendanceMode and eventStatus', () => {
+    const result = eventJsonLd({ name: 'Race', start_date: '2025-06-01' });
+    expect(result.eventAttendanceMode).toBe('https://schema.org/OfflineEventAttendanceMode');
+    expect(result.eventStatus).toBe('https://schema.org/EventScheduled');
   });
 });
 

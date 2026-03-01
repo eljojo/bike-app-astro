@@ -4,12 +4,13 @@ import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../../lib/video-service';
 import { getCityConfig } from '../../lib/city-config';
+import { paths } from '../../lib/paths';
 
 const config = getCityConfig();
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
-  const paths: { params: { handle: string }; props: any }[] = [];
+  const paths: { params: { handle: string }; props: Record<string, unknown> }[] = [];
 
   for (const route of routes) {
     if (route.data.status !== 'published') continue;
@@ -51,7 +52,7 @@ const title = video.title || 'Video';
       <ul class="videos-list-internal">
         {otherVideos.map(v => (
           <li>
-            <a href={`/videos/${v.handle}`} title={v.title}>
+            <a href={paths.video(v.handle)} title={v.title}>
               {v.poster_key ? (
                 <img src={videoPosterUrl(v.poster_key)} alt={v.title || 'Video'} />
               ) : (
@@ -65,6 +66,6 @@ const title = video.title || 'Video';
   )}
 
   <p style="margin-top: 2em;">
-    <a href={`/routes/${route.id}`} class="go-back-button">&#x21A9; go back to {route.data.name}</a>
+    <a href={paths.route(route.id)} class="go-back-button">&#x21A9; go back to {route.data.name}</a>
   </p>
 </Base>

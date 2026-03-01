@@ -14,13 +14,21 @@ const { nearby } = Astro.props;
     <h2>Nearby Places</h2>
     <ul>
       {nearby.map(place => (
-        <li>
+        <li itemscope itemtype="https://schema.org/Place">
           <span class="place-emoji" set:html={categoryEmoji[place.category] || '&#x1F4CD;'} />
           <a href={place.google_maps_url || `https://www.google.com/maps/?q=${place.lat},${place.lng}`}
-             target="_blank" rel="noopener" class="place-name">{place.name}</a>
+             target="_blank" rel="noopener" class="place-name" itemprop="hasMap">
+            <span itemprop="name">{place.name}</span>
+          </a>
           {place.website && (
-            <a href={place.website} target="_blank" rel="noopener" class="place-link">website</a>
+            <a href={place.website} target="_blank" rel="noopener" class="place-link" itemprop="url">website</a>
           )}
+          <div itemprop="geo" itemscope itemtype="https://schema.org/GeoCoordinates">
+            <meta itemprop="latitude" content={String(place.lat)} />
+            <meta itemprop="longitude" content={String(place.lng)} />
+          </div>
+          {place.address && <meta itemprop="address" content={place.address} />}
+          {place.phone && <meta itemprop="telephone" content={place.phone} />}
         </li>
       ))}
     </ul>

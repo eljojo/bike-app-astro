@@ -20,46 +20,23 @@ export function routeShape(points: { lat: number; lon: number }[]): string | nul
   const start = points[0];
   const end = points[points.length - 1];
   const dist = haversine(start, end);
-  return dist < 1000 ? 'loop' : 'out & back';
+  return dist < 1000 ? 'loop' : 'out-and-back';
 }
 
-const CATEGORY_NAMES: Record<string, [string, string]> = {
-  cafe: ['cafe', 'cafes'],
-  restaurant: ['restaurant', 'restaurants'],
-  park: ['park', 'parks'],
-  beach: ['beach', 'beaches'],
-  'bike-shop': ['bike shop', 'bike shops'],
-  'bike-trail': ['trail', 'trails'],
-  'water-fountain': ['water fountain', 'water fountains'],
-  'chill-spot': ['chill spot', 'chill spots'],
-  lookout: ['lookout', 'lookouts'],
-  bridge: ['bridge', 'bridges'],
-  poutine: ['poutine spot', 'poutine spots'],
-  beer: ['brewery', 'breweries'],
-  pizza: ['pizza spot', 'pizza spots'],
-  'ice-cream': ['ice cream spot', 'ice cream spots'],
-  'bike-rental': ['bike rental', 'bike rentals'],
-  ferry: ['ferry', 'ferries'],
-  parking: ['parking lot', 'parking lots'],
-  'meeting-point': ['meeting point', 'meeting points'],
-  'camping-spot': ['campsite', 'campsites'],
-  wc: ['restroom', 'restrooms'],
-};
+export interface CategoryCount {
+  category: string;
+  count: number;
+}
 
-export function placeSummary(places: { category: string }[]): string | null {
-  if (places.length === 0) return null;
+export function placeCounts(places: { category: string }[]): CategoryCount[] {
+  if (places.length === 0) return [];
 
   const counts = new Map<string, number>();
   for (const p of places) {
     counts.set(p.category, (counts.get(p.category) || 0) + 1);
   }
 
-  const parts = [...counts.entries()]
+  return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([cat, count]) => {
-      const names = CATEGORY_NAMES[cat] || [cat, cat + 's'];
-      return `${count} ${count === 1 ? names[0] : names[1]}`;
-    });
-
-  return 'passes ' + parts.join(', ');
+    .map(([category, count]) => ({ category, count }));
 }

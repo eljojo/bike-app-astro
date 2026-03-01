@@ -14,6 +14,22 @@ function formatIcalDate(dateStr: string): string {
   return dateStr.replace(/-/g, '');
 }
 
+function formatIcalTime(timeStr: string): string {
+  return timeStr.replace(/:/g, '') + '00';
+}
+
+function addOneHour(dateStr: string, timeStr: string): { date: string; time: string } {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const d = new Date(year, month - 1, day, hours + 1, minutes);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return { date: `${y}-${m}-${dd}`, time: `${hh}:${mm}` };
+}
+
 function foldLine(line: string): string {
   if (line.length <= 75) return line;
   const parts: string[] = [line.slice(0, 75)];
@@ -64,14 +80,24 @@ export const GET: APIRoute = async () => {
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${uid}`);
     lines.push(`DTSTAMP:${dtstamp}`);
-    lines.push(`DTSTART;VALUE=DATE:${formatIcalDate(e.start_date)}`);
-    if (e.end_date) {
-      const endDate = parseLocalDate(e.end_date);
-      endDate.setDate(endDate.getDate() + 1);
-      const ny = endDate.getFullYear();
-      const nm = String(endDate.getMonth() + 1).padStart(2, '0');
-      const nd = String(endDate.getDate()).padStart(2, '0');
-      lines.push(`DTEND;VALUE=DATE:${ny}${nm}${nd}`);
+    if (e.start_time) {
+      lines.push(`DTSTART;TZID=${config.timezone}:${formatIcalDate(e.start_date)}T${formatIcalTime(e.start_time)}`);
+      if (e.end_date && e.end_time) {
+        lines.push(`DTEND;TZID=${config.timezone}:${formatIcalDate(e.end_date)}T${formatIcalTime(e.end_time)}`);
+      } else {
+        const fallback = addOneHour(e.start_date, e.start_time);
+        lines.push(`DTEND;TZID=${config.timezone}:${formatIcalDate(fallback.date)}T${formatIcalTime(fallback.time)}`);
+      }
+    } else {
+      lines.push(`DTSTART;VALUE=DATE:${formatIcalDate(e.start_date)}`);
+      if (e.end_date) {
+        const endDate = parseLocalDate(e.end_date);
+        endDate.setDate(endDate.getDate() + 1);
+        const ny = endDate.getFullYear();
+        const nm = String(endDate.getMonth() + 1).padStart(2, '0');
+        const nd = String(endDate.getDate()).padStart(2, '0');
+        lines.push(`DTEND;VALUE=DATE:${ny}${nm}${nd}`);
+      }
     }
     lines.push(`SUMMARY:${escapeIcal(e.name)}`);
     if (e.location) lines.push(`LOCATION:${escapeIcal(e.location)}`);

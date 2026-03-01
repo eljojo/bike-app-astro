@@ -27,19 +27,19 @@ describe('elevationConclusion', () => {
   // Use a spread of elevations to produce meaningful quantiles
   const allElevations = [10, 30, 50, 80, 100, 150, 200, 300, 400, 500];
 
-  it('returns flat label for very low elevation', () => {
+  it('returns flat key for very low elevation', () => {
     const result = elevationConclusion(10, allElevations);
-    expect(result).toContain('flat');
+    expect(result).toBe('flat');
   });
 
-  it('returns hard label for very high elevation', () => {
+  it('returns very_hard key for very high elevation', () => {
     const result = elevationConclusion(500, allElevations);
-    expect(result).toContain('hard');
+    expect(result).toBe('very_hard');
   });
 
-  it('returns the last label when elevation exceeds all quantiles', () => {
+  it('returns the last key when elevation exceeds all quantiles', () => {
     const result = elevationConclusion(9999, allElevations);
-    expect(result).toBe('very very hard elevation ⚠️🌋');
+    expect(result).toBe('very_hard');
   });
 });
 
