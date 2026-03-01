@@ -3,6 +3,7 @@ import { imageUrl } from '../lib/image-service';
 import { hasCachedMap } from '../lib/map-thumbnails';
 import { formatDistance } from '../lib/distance';
 import { paths, assets } from '../lib/paths';
+import { makePreview } from '../lib/markdown-preview';
 
 interface Variant {
   name: string;
@@ -27,15 +28,6 @@ const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, var
 const variantDistances = variants?.map(v => v.distance_km).filter((d): d is number => d != null) || [];
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
 const allTags = [distanceTag, ...tags];
-function makePreview(body?: string): string[] {
-  if (!body) return [];
-  const stripped = body.replace(/[#*_\[\]()]/g, '');
-  return stripped.split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .slice(0, 2);
-}
-
 const previewParagraphs = makePreview(body);
 const hasMap = hasCachedMap(slug);
 const loading = lazy ? 'lazy' : 'eager';
