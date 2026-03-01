@@ -46,9 +46,23 @@ export function computeElevationProfile(points: GpxPoint[], distance_m: number):
   const sampled = points.filter((_, i) => i % step === 0 || i === points.length - 1);
 
   const elevations = sampled.map(p => p.ele ?? 0);
-  const minEle = Math.min(...elevations);
-  const maxEle = Math.max(...elevations);
-  const eleRange = maxEle - minEle || 1;
+  const rawMin = Math.min(...elevations);
+  const rawMax = Math.max(...elevations);
+  const rawRange = rawMax - rawMin;
+
+  // Enforce a minimum 50m range so flat routes don't look exaggerated
+  const MIN_RANGE = 50;
+  let minEle: number, maxEle: number, eleRange: number;
+  if (rawRange >= MIN_RANGE) {
+    minEle = rawMin;
+    maxEle = rawMax;
+    eleRange = rawRange;
+  } else {
+    const mid = (rawMin + rawMax) / 2;
+    minEle = mid - MIN_RANGE / 2;
+    maxEle = mid + MIN_RANGE / 2;
+    eleRange = MIN_RANGE;
+  }
 
   const plotLeft = LEFT_PAD;
   const plotRight = SVG_WIDTH - RIGHT_PAD;
@@ -95,8 +109,8 @@ export function computeElevationProfile(points: GpxPoint[], distance_m: number):
   return {
     svgPath,
     svgArea,
-    minEle: Math.round(minEle),
-    maxEle: Math.round(maxEle),
+    minEle: Math.round(rawMin),
+    maxEle: Math.round(rawMax),
     elevGain: Math.round(elevGain),
     distanceKm: distKm.toFixed(1),
     yTicks,

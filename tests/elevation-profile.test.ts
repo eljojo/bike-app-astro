@@ -76,6 +76,22 @@ describe('computeElevationProfile', () => {
     expect(pointCount).toBeLessThanOrEqual(202);
   });
 
+  it('enforces minimum 50m Y-axis range for flat routes', () => {
+    const flatTrack = [
+      { lat: 45.0, lon: -75.0, ele: 80 },
+      { lat: 45.001, lon: -75.0, ele: 82 },
+      { lat: 45.002, lon: -75.0, ele: 81 },
+    ];
+    const result = computeElevationProfile(flatTrack, 3000);
+    // Stats should show real min/max
+    expect(result.minEle).toBe(80);
+    expect(result.maxEle).toBe(82);
+    // Y-axis ticks should span at least 50m, centered around the data
+    const tickMin = Math.min(...result.yTicks.map(t => t.value));
+    const tickMax = Math.max(...result.yTicks.map(t => t.value));
+    expect(tickMax - tickMin).toBeGreaterThanOrEqual(20);
+  });
+
   it('generates Y-axis ticks with elevation labels', () => {
     const result = computeElevationProfile(hillTrack, 5000);
     expect(result.yTicks.length).toBeGreaterThan(0);
