@@ -384,6 +384,10 @@ a.go-back-button {
       display: none;
     }
   }
+
+  .photo-hidden {
+    display: none !important;
+  }
 }
 .pswp-caption-content {
   display: none;
@@ -431,6 +435,21 @@ a.go-back-button {
   transition: opacity 0.5s ease;
   &:hover {
     opacity: 1;
+  }
+}
+.map-gps-icon {
+  .custom-button {
+    background: white;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 18px;
+    line-height: 1;
+
+    &:hover {
+      background: #f4f4f4;
+    }
   }
 }
 

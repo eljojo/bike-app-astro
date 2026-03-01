@@ -93,6 +93,9 @@ const upcomingByMonth = groupByMonth(upcoming);
       if (pastEl) {
         pastEl.style.display = pastEl.style.display === 'none' ? '' : 'none';
         target.textContent = pastEl.style.display === 'none' ? 'Show Past Events' : 'Hide Past Events';
+        if (pastEl.style.display !== 'none') {
+          window.BikeApp?.tE?.('show past events in calendar page');
+        }
       }
     });
   </script>

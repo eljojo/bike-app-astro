@@ -34,6 +34,9 @@ const { tags } = Astro.props;
       if (!btn) return;
 
       btn.classList.toggle('active');
+      if (btn.classList.contains('active')) {
+        window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: btn.getAttribute('data-tag') || '' } });
+      }
       filterRoutes();
 
       // Update URL

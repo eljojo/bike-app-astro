@@ -70,7 +70,7 @@ function computeElevationGain(points: GpxPoint[]): number {
   return Math.round(gain);
 }
 
-function haversine(a: GpxPoint, b: GpxPoint): number {
+export function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const R = 6371000;
   const dLat = toRad(b.lat - a.lat);
   const dLon = toRad(b.lon - a.lon);

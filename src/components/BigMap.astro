@@ -82,5 +82,27 @@ const { routes, places, center } = Astro.props;
         .bindPopup(popupContent)
         .addTo(map);
     });
+
+    // Geolocation "Find my location" button
+    if ('geolocation' in navigator) {
+      const GpsControl = L.Control.extend({
+        options: { position: 'topleft' as L.ControlPosition },
+        onAdd() {
+          const container = L.DomUtil.create('div', 'map-gps-icon');
+          const button = L.DomUtil.create('button', 'custom-button', container);
+          button.innerHTML = '<span class="custom-icon">📍</span>';
+          L.DomEvent.on(button, 'click', () => {
+            navigator.geolocation.getCurrentPosition((pos) => {
+              const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+              L.marker(latlng).addTo(map);
+              map.panTo(latlng);
+              window.BikeApp?.tE?.('Find my Location in Map');
+            });
+          });
+          return container;
+        },
+      });
+      new GpsControl().addTo(map);
+    }
   }
 </script>

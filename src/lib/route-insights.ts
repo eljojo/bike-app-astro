@@ -1,3 +1,5 @@
+import { haversine } from './gpx';
+
 export interface RouteElevationData {
   id: string;
   elevationGainPerKm: number;
@@ -17,22 +19,8 @@ export function routeShape(points: { lat: number; lon: number }[]): string | nul
   if (points.length < 2) return null;
   const start = points[0];
   const end = points[points.length - 1];
-  const dist = haversineDistance(start, end);
+  const dist = haversine(start, end);
   return dist < 1000 ? 'loop' : 'out & back';
-}
-
-function haversineDistance(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
-  const R = 6371000;
-  const dLat = toRad(b.lat - a.lat);
-  const dLon = toRad(b.lon - a.lon);
-  const sinLat = Math.sin(dLat / 2);
-  const sinLon = Math.sin(dLon / 2);
-  const h = sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLon * sinLon;
-  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
-
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180;
 }
 
 const CATEGORY_NAMES: Record<string, [string, string]> = {
