@@ -17,17 +17,20 @@ export function slugRedirectLines(
 ): string[] {
   if (localeSlug === slug) return [];
 
-  const routeBase = translatePath(`/routes/${localeSlug}`, locale);
-  const routeBaseEn = translatePath(`/routes/${slug}`, locale);
-  const mapBase = translatePath(`/routes/${localeSlug}/map`, locale);
-  const mapBaseEn = translatePath(`/routes/${slug}/map`, locale);
+  // Both URLs use locale-translated path segments (e.g. "parcours" not "routes"
+  // in French). The only difference is the slug portion — one uses the translated
+  // slug, the other uses the default slug (which matches the built HTML filename).
+  const localeRoute = translatePath(`/routes/${localeSlug}`, locale);
+  const defaultRoute = translatePath(`/routes/${slug}`, locale);
+  const localeMap = translatePath(`/routes/${localeSlug}/map`, locale);
+  const defaultMap = translatePath(`/routes/${slug}/map`, locale);
 
   return [
-    // Rewrite: translated slug URL serves default-slug page (200 = invisible proxy)
-    `/${locale}${routeBase}  /${locale}${routeBaseEn}/  200`,
-    `/${locale}${mapBase}  /${locale}${mapBaseEn}/  200`,
-    // Redirect: default slug on locale path → translated slug (301 = permanent)
-    `/${locale}${routeBaseEn}  /${locale}${routeBase}  301`,
-    `/${locale}${mapBaseEn}  /${locale}${mapBase}  301`,
+    // 200 rewrite: locale slug URL silently serves the default-slug page
+    `/${locale}${localeRoute}  /${locale}${defaultRoute}/  200`,
+    `/${locale}${localeMap}  /${locale}${defaultMap}/  200`,
+    // 301 redirect: default slug on locale prefix → locale slug
+    `/${locale}${defaultRoute}  /${locale}${localeRoute}  301`,
+    `/${locale}${defaultMap}  /${locale}${localeMap}  301`,
   ];
 }

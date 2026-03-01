@@ -10,11 +10,11 @@ describe('slugRedirectLines', () => {
     const lines = slugRedirectLines('easy-loop-around-the-canal', 'boucle-facile-autour-du-canal', 'fr');
     expect(lines).toHaveLength(4);
 
-    // 200 rewrite: French slug → English slug page (invisible proxy)
+    // 200 rewrite: locale slug → default slug page (invisible proxy)
     expect(lines[0]).toBe('/fr/parcours/boucle-facile-autour-du-canal  /fr/parcours/easy-loop-around-the-canal/  200');
     // 200 rewrite for map subpage
     expect(lines[1]).toBe('/fr/parcours/boucle-facile-autour-du-canal/carte  /fr/parcours/easy-loop-around-the-canal/carte/  200');
-    // 301 redirect: English slug → French slug
+    // 301 redirect: default slug → locale slug
     expect(lines[2]).toBe('/fr/parcours/easy-loop-around-the-canal  /fr/parcours/boucle-facile-autour-du-canal  301');
     // 301 redirect for map subpage
     expect(lines[3]).toBe('/fr/parcours/easy-loop-around-the-canal/carte  /fr/parcours/boucle-facile-autour-du-canal/carte  301');
