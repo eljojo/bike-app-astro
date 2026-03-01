@@ -17,7 +17,8 @@ export function addGpsControl(map: L.Map) {
       L.DomEvent.on(button, 'click', () => {
         navigator.geolocation.getCurrentPosition((pos) => {
           const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
-          L.marker(latlng).addTo(map);
+          const icon = L.divIcon({ className: 'emoji-icon', html: '\u{1F4CD}', iconSize: [25, 25] });
+          L.marker(latlng, { icon }).addTo(map);
           map.panTo(latlng);
           (window as any).BikeApp?.tE?.('Find my Location in Map');
         });
