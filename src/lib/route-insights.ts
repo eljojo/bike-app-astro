@@ -15,12 +15,24 @@ export function difficultyRanking(
   return { rank: index + 1, total: sorted.length };
 }
 
-export function routeShape(points: { lat: number; lon: number }[]): string | null {
+export function routeShape(points: { lat: number; lon: number }[], distance_m: number): string | null {
   if (points.length < 2) return null;
   const start = points[0];
   const end = points[points.length - 1];
   const dist = haversine(start, end);
-  return dist < 1000 ? 'loop' : 'out-and-back';
+  if (dist < 1000) return 'loop';
+  if (distance_m > 0 && dist / distance_m > 0.4) return 'one-way';
+  return 'out-and-back';
+}
+
+export function adjustedElevationGainPerKm(
+  elevationGainM: number, netElevationM: number, distanceKm: number
+): number {
+  if (distanceKm <= 0) return 0;
+  const effectiveGain = netElevationM < 0
+    ? Math.max(0, elevationGainM + netElevationM)
+    : elevationGainM;
+  return effectiveGain / distanceKm;
 }
 
 export interface CategoryCount {

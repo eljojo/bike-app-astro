@@ -1,6 +1,8 @@
 ---
 // src/components/SEO.astro
 import { getCityConfig } from '../lib/city-config';
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+import { translatePath, reverseTranslatePath } from '../lib/path-translations';
 
 const config = getCityConfig();
 
@@ -12,16 +14,59 @@ interface Props {
   ogImageAlt?: string;
   jsonLd?: Record<string, any>;
   breadcrumbs?: Record<string, any> | null;
+  alternateUrls?: Record<string, string>;
 }
 
-const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs } = Astro.props;
+const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls } = Astro.props;
 const siteUrl = config.url;
 const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
+
+// Build hreflang alternate URLs for all supported locales
+const locales = supportedLocales();
+const defLocale = defaultLocale();
+const pathname = Astro.url.pathname;
+
+// Strip the locale prefix (e.g. /fr/) from the pathname to get the base path
+function stripLocalePrefix(p: string): string {
+  for (const locale of locales) {
+    if (locale !== defLocale && (p === `/${locale}` || p.startsWith(`/${locale}/`))) {
+      const stripped = p.slice(`/${locale}`.length) || '/';
+      return reverseTranslatePath(stripped, locale);
+    }
+  }
+  return p;
+}
+
+const basePath = stripLocalePrefix(pathname);
+
+// Build the URL for each locale
+function urlForLocale(locale: string): string {
+  if (alternateUrls?.[locale]) {
+    return new URL(alternateUrls[locale], siteUrl).toString();
+  }
+  if (locale === defLocale) {
+    return new URL(basePath, siteUrl).toString();
+  }
+  const translated = translatePath(basePath, locale);
+  const prefixed = translated === '/' ? `/${locale}/` : `/${locale}${translated}`;
+  return new URL(prefixed, siteUrl).toString();
+}
+
+const hreflangEntries = locales.map(locale => ({
+  locale,
+  url: urlForLocale(locale),
+}));
 ---
 
 <title>{title}</title>
 {description && <meta name="description" content={description} />}
 <link rel="canonical" href={fullCanonical} />
+
+<!-- hreflang alternates -->
+{hreflangEntries.map(({ locale, url }) => (
+  <link rel="alternate" hreflang={locale} href={url} />
+))}
+<link rel="alternate" hreflang="x-default" href={urlForLocale(defLocale)} />
 
 <!-- Open Graph -->
 <meta property="og:title" content={title} />

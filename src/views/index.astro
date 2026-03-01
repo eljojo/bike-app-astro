@@ -1,12 +1,15 @@
 ---
-import Base from '../layouts/Base.astro';
-import RouteCard from '../components/RouteCard.astro';
-import TagFilter from '../components/TagFilter.astro';
+import Base from '@/layouts/Base.astro';
+import RouteCard from '@/components/RouteCard.astro';
+import TagFilter from '@/components/TagFilter.astro';
 import { getCollection } from 'astro:content';
-import { elevationTags, getAllElevations } from '../lib/elevation';
-import { getCityConfig } from '../lib/city-config';
+import { elevationTags, getAllElevations } from '@/lib/elevation';
+import { getCityConfig } from '@/lib/city-config';
+import { t } from '@/i18n';
+import { routeSlug } from '@/lib/paths';
 
 const config = getCityConfig();
+const locale = Astro.currentLocale;
 
 const routes = await getCollection('routes');
 const published = routes
@@ -47,20 +50,22 @@ const allTags = [...new Set([...topTags, ...TAGS_TO_FORCE])]
 
 <Base title={config.display_name} description={config.tagline}>
   <div class="welcome-message">
-    <h3>New to biking? Experienced rider? Find your new favourite ride and explore nature!</h3>
+    <h3>{t('home.welcome', locale)}</h3>
   </div>
   <TagFilter tags={allTags} />
   <ul class="routes-grid">
     {published.map((route, i) => {
       const cover = route.data.media.find(m => m.cover);
+      const trans = route.data.translations?.[locale!];
       return (
         <RouteCard
           slug={route.id}
-          name={route.data.name}
-          tagline={route.data.tagline}
+          localeSlug={routeSlug(route, locale)}
+          name={trans?.name || route.data.name}
+          tagline={trans?.tagline || route.data.tagline}
           distance_km={route.data.distance_km}
           tags={routeTags.get(route.id)!}
-          body={route.body}
+          body={trans?.body || route.body}
           coverKey={cover?.key}
           lazy={i >= 5}
           variants={route.data.variants}

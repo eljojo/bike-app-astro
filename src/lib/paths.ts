@@ -1,14 +1,32 @@
 /** Centralized URL path construction. One place to change if URL patterns evolve. */
+import { defaultLocale } from './locale-utils';
+import { translatePath } from './path-translations';
+
+/** When a locale is provided and differs from the default, translate path segments and add locale prefix. */
+function localize(path: string, locale?: string): string {
+  if (!locale || locale === defaultLocale()) return path;
+  const translated = translatePath(path, locale);
+  return `/${locale}${translated}`;
+}
 
 // Page paths
 export const paths = {
-  route: (slug: string) => `/routes/${slug}`,
-  routeMap: (slug: string) => `/routes/${slug}/map`,
-  routeVariantMap: (slug: string, variant: string) => `/routes/${slug}/map/${variant}`,
-  routeGpx: (slug: string, variant: string) => `/routes/${slug}/${variant}.gpx`,
-  guide: (slug: string) => `/guides/${slug}`,
-  video: (handle: string) => `/videos/${handle}`,
+  route: (slug: string, locale?: string) => localize(`/routes/${slug}`, locale),
+  routeMap: (slug: string, locale?: string) => localize(`/routes/${slug}/map`, locale),
+  routeVariantMap: (slug: string, variant: string, locale?: string) => localize(`/routes/${slug}/map/${variant}`, locale),
+  routeGpx: (slug: string, variant: string) => `/routes/${slug}/${variant}.gpx`,  // GPX never localized
+  guide: (slug: string, locale?: string) => localize(`/guides/${slug}`, locale),
+  video: (handle: string, locale?: string) => localize(`/videos/${handle}`, locale),
 };
+
+/** Get the correct slug for a route in the given locale. Uses translated slug if available. */
+export function routeSlug(route: { id: string; data: { translations?: Record<string, { slug?: string }> } }, locale: string | undefined): string {
+  if (locale && locale !== defaultLocale()) {
+    const slug = route.data.translations?.[locale]?.slug;
+    if (slug) return slug;
+  }
+  return route.id;
+}
 
 // Static asset paths (map thumbnails)
 export const assets = {

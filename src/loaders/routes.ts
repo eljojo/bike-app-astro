@@ -7,6 +7,8 @@ import yaml from 'js-yaml';
 import { marked } from 'marked';
 import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { cityDir } from '../lib/config';
+import { loadLocaleTranslations } from './locale-content';
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 
 /** A media entry (photo or video) attached to a route. */
 export interface RouteMedia {
@@ -112,9 +114,13 @@ export function routeLoader(): Loader {
         }
 
         const renderedBody = await marked.parse(body);
+
+        const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
+        const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);
+
         store.set({
           id: slug,
-          data: { ...frontmatter, media, gpxTracks, renderedBody },
+          data: { ...frontmatter, media, gpxTracks, renderedBody, translations },
           body,
           digest,
         });

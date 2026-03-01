@@ -1,18 +1,31 @@
 import { defineConfig } from 'astro/config';
+import { i18nRoutes } from './src/integrations/i18n-routes';
+import { slugRedirectLines } from './src/lib/slug-redirects.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
+
+const i18nConfig = {
+  defaultLocale: 'en',
+  locales: ['en', 'fr'],
+  routing: {
+    prefixDefaultLocale: false,
+  },
+};
 
 export default defineConfig({
   site: 'https://ottawabybike.ca',
   output: 'static',
+  i18n: i18nConfig,
   build: {
     concurrency: 4,
   },
   integrations: [
+    i18nRoutes(),
     {
       name: 'copy-map-cache',
       hooks: {
         'astro:build:done': async ({ dir }) => {
-          const fs = await import('node:fs');
-          const path = await import('node:path');
           const cacheDir = path.resolve('_cache', 'maps');
           const outDir = path.join(dir.pathname, '_cache', 'maps');
           if (!fs.existsSync(cacheDir)) return;
@@ -24,9 +37,6 @@ export default defineConfig({
       name: 'generate-redirects',
       hooks: {
         'astro:build:done': async ({ dir }) => {
-          const fs = await import('node:fs');
-          const path = await import('node:path');
-          const yaml = await import('js-yaml');
           const contentDir = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
           const city = process.env.CITY || 'ottawa';
           const redirectsPath = path.join(contentDir, city, 'redirects.yml');
@@ -58,6 +68,33 @@ export default defineConfig({
               }
             }
           }
+
+          // Translated slug rewrites for non-default locales.
+          // For each locale, scan for index.{locale}.md with a slug: field.
+          // Generate rewrites (200) and redirects (301).
+          const locales = i18nConfig.locales;
+          const defaultLoc = i18nConfig.defaultLocale;
+          const translatedRedirects = [];
+          if (fs.existsSync(routesDir)) {
+            for (const slug of fs.readdirSync(routesDir)) {
+              for (const locale of locales) {
+                if (locale === defaultLoc) continue;
+                const localePath = path.join(routesDir, slug, `index.${locale}.md`);
+                if (!fs.existsSync(localePath)) continue;
+                const raw = fs.readFileSync(localePath, 'utf-8');
+                const match = raw.match(/^slug:\s*(.+)$/m);
+                if (!match) continue;
+                const localeSlug = match[1].trim().replace(/^["']|["']$/g, '');
+                translatedRedirects.push(...slugRedirectLines(slug, localeSlug, locale));
+              }
+            }
+          }
+          if (translatedRedirects.length > 0) {
+            lines.push('');
+            lines.push('# Translated slug rewrites and redirects');
+            lines.push(...translatedRedirects);
+          }
+
           const content = lines.join('\n');
           if (content) {
             fs.writeFileSync(path.join(dir.pathname, '_redirects'), content);

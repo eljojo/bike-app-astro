@@ -4,6 +4,7 @@ import { hasCachedMap } from '../lib/map-thumbnails';
 import { formatDistance } from '../lib/distance';
 import { paths, assets } from '../lib/paths';
 import { makePreview } from '../lib/markdown-preview';
+import { tTag } from '../lib/tag-translations';
 
 interface Variant {
   name: string;
@@ -21,9 +22,13 @@ interface Props {
   coverKey?: string;
   lazy?: boolean;
   variants?: Variant[];
+  /** Translated slug for locale-aware links (falls back to slug if not provided) */
+  localeSlug?: string;
 }
 
-const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, variants } = Astro.props;
+const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, variants, localeSlug } = Astro.props;
+const linkSlug = localeSlug || slug;
+const locale = Astro.currentLocale;
 
 const variantDistances = variants?.map(v => v.distance_km).filter((d): d is number => d != null) || [];
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
@@ -34,7 +39,7 @@ const loading = lazy ? 'lazy' : 'eager';
 ---
 
 <li class="route-card" data-tags={JSON.stringify(tags)}>
-  <a href={paths.route(slug)} class="route-card--link">
+  <a href={paths.route(linkSlug, locale)} class="route-card--link">
     <div class="route-card--images">
       {coverKey && (
         <img
@@ -63,7 +68,7 @@ const loading = lazy ? 'lazy' : 'eager';
       <span class="route-card--name">{name}</span>
       {tagline && <span class="route-card--tagline">{tagline}</span>}
       <ul class="route-card--tags">
-        {allTags.map(tag => <li class="tag-pill">{tag}</li>)}
+        {allTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
       </ul>
       {previewParagraphs.map(p => (
         <span class="route-card--preview">{p}</span>

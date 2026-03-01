@@ -1,11 +1,14 @@
 ---
-// src/pages/guides/[slug].astro
-import Base from '../../layouts/Base.astro';
+// src/views/guides/detail.astro
+import Base from '@/layouts/Base.astro';
 import { getCollection, render } from 'astro:content';
-import { guideJsonLd, breadcrumbJsonLd } from '../../lib/json-ld';
-import { getCityConfig } from '../../lib/city-config';
+import { guideJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
+import { getCityConfig } from '@/lib/city-config';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
 
 const config = getCityConfig();
+const locale = Astro.currentLocale;
 
 export async function getStaticPaths() {
   const guides = await getCollection('guides');
@@ -19,9 +22,9 @@ const { guide } = Astro.props;
 const { Content } = await render(guide);
 
 const breadcrumbs = breadcrumbJsonLd([
-  { name: 'Home', url: `${config.url}/` },
-  { name: 'Guides', url: `${config.url}/guides` },
-  { name: guide.data.name, url: `${config.url}/guides/${guide.id}` },
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('nav.guides', locale), url: `${config.url}${localePath('/guides', locale)}` },
+  { name: guide.data.name, url: `${config.url}${paths.guide(guide.id, locale)}` },
 ]);
 ---
 
@@ -34,6 +37,6 @@ const breadcrumbs = breadcrumbJsonLd([
     </div>
   </div>
   <p style="margin-top: 2em;">
-    <a href="/guides" class="go-back-button">&#x21A9; go back to all guides</a>
+    <a href={localePath('/guides', locale)} class="go-back-button">&#x21A9; {t('guides.go_back', locale)}</a>
   </p>
 </Base>

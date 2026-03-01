@@ -1,9 +1,10 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { routeLoader } from './loaders/routes';
+import { pageLoader } from './loaders/pages';
 import {
   routeSchema, placeSchema, guideSchema,
-  eventSchema, organizerSchema,
+  eventSchema, organizerSchema, pageSchema,
 } from './schemas/index';
 
 const CITY_DIR = `${process.env.CONTENT_DIR || '../bike-routes'}/${process.env.CITY || 'ottawa'}`;
@@ -36,4 +37,9 @@ const organizers = defineCollection({
   schema: organizerSchema,
 });
 
-export const collections = { routes, places, guides, events, organizers };
+const pages = defineCollection({
+  loader: pageLoader(),
+  schema: pageSchema,
+});
+
+export const collections = { routes, places, guides, events, organizers, pages };

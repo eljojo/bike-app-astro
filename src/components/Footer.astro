@@ -1,9 +1,29 @@
 ---
 // src/components/Footer.astro
 import { getCityConfig } from '../lib/city-config';
+import { t, localePath } from '../i18n';
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
 
+interface Props {
+  alternateUrls?: Record<string, string>;
+}
+
+const { alternateUrls } = Astro.props;
 const config = getCityConfig();
+const locale = Astro.currentLocale || defaultLocale();
+const locales = supportedLocales();
+const showSwitcher = locales.length > 1;
+
+const otherLocale = locales.find(l => l !== locale) || locales[0];
+const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 ---
 <footer class="site-footer">
-  <a href="/about">{config.display_name} is curated by {config.author.name}</a>
+  <a href={localePath('/about', locale)}>{t('footer.curated_by', locale, { display_name: config.display_name, author: config.author.name })}</a>
+  {showSwitcher && (
+    <a href={switchPath} class="lang-switcher"
+       data-locale={otherLocale}>
+      {t('lang.switch', locale)}
+    </a>
+  )}
 </footer>

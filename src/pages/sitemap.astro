@@ -2,9 +2,13 @@
 import Base from '../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '../lib/city-config';
-import { paths } from '../lib/paths';
+import { paths, routeSlug } from '../lib/paths';
+import { localePath, t } from '../i18n/index';
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 
 const config = getCityConfig();
+const locales = supportedLocales();
+const defLocale = defaultLocale();
 
 const routes = await getCollection('routes');
 const guides = await getCollection('guides');
@@ -18,17 +22,19 @@ const allVideos = publishedRoutes
 
 const publishedGuides = guides
   .filter(g => g.data.status === 'published');
+
+const nonDefaultLocales = locales.filter(l => l !== defLocale);
 ---
 
-<Base title={`Sitemap | ${config.display_name}`} description={`Sitemap for ${config.display_name}`}>
-  <h1>Sitemap</h1>
+<Base title={`${t('sitemap.title', defLocale)} | ${config.display_name}`} description={`Sitemap for ${config.display_name}`}>
+  <h1>{t('sitemap.title', defLocale)}</h1>
   <ul>
-    <li><a href="/">{config.display_name}</a>
+    <li><a href={localePath('/', defLocale)}>{config.display_name}</a>
       <ul>
-        <li><a href="/about">About {config.display_name}</a></li>
-        <li><a href="/calendar">Cycling Calendar</a></li>
-        <li><a href="/map">Map with cycling routes</a></li>
-        <li><a href="/videos">Videos</a>
+        <li><a href="/about">{t('nav.about', defLocale)} {config.display_name}</a></li>
+        <li><a href="/calendar">{t('sitemap.cycling_calendar', defLocale)}</a></li>
+        <li><a href="/map">{t('sitemap.map_description', defLocale)}</a></li>
+        <li><a href="/videos">{t('videos.title', defLocale)}</a>
           <ul>
             {allVideos.map(v => (
               <li><a href={paths.video(v.handle)}>{v.title || v.handle}</a></li>
@@ -39,19 +45,55 @@ const publishedGuides = guides
     </li>
     {publishedRoutes.map(route => (
       <li>
-        <a href={paths.route(route.id)}>{route.data.name}</a>
+        <a href={paths.route(route.id, defLocale)}>{route.data.name}</a>
         <ul>
-          <li><a href={paths.routeMap(route.id)}>Map</a></li>
+          <li><a href={paths.routeMap(route.id, defLocale)}>{t('nav.map', defLocale)}</a></li>
         </ul>
       </li>
     ))}
-    <li><a href="/guides">Guides</a>
+    <li><a href="/guides">{t('guides.title', defLocale)}</a>
       <ul>
         {publishedGuides.map(guide => (
-          <li><a href={paths.guide(guide.id)}>{guide.data.name}</a></li>
+          <li><a href={paths.guide(guide.id, defLocale)}>{guide.data.name}</a></li>
         ))}
       </ul>
     </li>
   </ul>
+
+  {nonDefaultLocales.map(locale => (
+    <h2>/{locale}/</h2>
+    <ul>
+      <li><a href={localePath('/', locale)}>{config.display_name} ({locale})</a>
+        <ul>
+          <li><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
+          <li><a href={localePath('/calendar', locale)}>{t('nav.calendar', locale)}</a></li>
+          <li><a href={localePath('/map', locale)}>{t('nav.map', locale)}</a></li>
+          <li><a href={localePath('/videos', locale)}>{t('videos.title', locale)}</a>
+            <ul>
+              {allVideos.map(v => (
+                <li><a href={paths.video(v.handle, locale)}>{v.title || v.handle}</a></li>
+              ))}
+            </ul>
+          </li>
+        </ul>
+      </li>
+      {publishedRoutes.map(route => (
+        <li>
+          <a href={paths.route(routeSlug(route, locale), locale)}>{route.data.name}</a>
+          <ul>
+            <li><a href={paths.routeMap(routeSlug(route, locale), locale)}>{t('nav.map', locale)}</a></li>
+          </ul>
+        </li>
+      ))}
+      <li><a href={localePath('/guides', locale)}>{t('guides.title', locale)}</a>
+        <ul>
+          {publishedGuides.map(guide => (
+            <li><a href={paths.guide(guide.id, locale)}>{guide.data.name}</a></li>
+          ))}
+        </ul>
+      </li>
+    </ul>
+  ))}
+
   <p><a href="/sitemap.xml">sitemap.xml</a></p>
 </Base>
