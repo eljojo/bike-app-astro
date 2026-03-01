@@ -27,9 +27,8 @@ test.describe('Screenshots', () => {
 
   test('route detail', async ({ page }) => {
     await page.goto('/routes/easy-loop-around-the-canal');
-    await waitForImages(page);
-    // Clip to first ~4000px — fullPage crashes Chromium on CI for tall route pages
-    await expect(page).toHaveScreenshot('route-detail.png', { clip: { x: 0, y: 0, width: 1280, height: 4000 }, maxDiffPixelRatio: 0.02 });
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveScreenshot('route-detail.png', { fullPage: true, maxDiffPixelRatio: 0.02 });
   });
 
   test('route map', async ({ page }) => {
