@@ -10,6 +10,10 @@
   "env": {
     "staging": {
       "name": "bike-ottawa-staging",
+      "vars": {
+        "GIT_BRANCH": "staging",
+        "ENVIRONMENT": "staging"
+      },
       "d1_databases": [
         {
           "binding": "DB",
@@ -27,6 +31,10 @@
     },
     "production": {
       "name": "bike-ottawa-production",
+      "vars": {
+        "GIT_BRANCH": "main",
+        "ENVIRONMENT": "production"
+      },
       "d1_databases": [
         {
           "binding": "DB",

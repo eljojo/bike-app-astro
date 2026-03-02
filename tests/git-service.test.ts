@@ -120,7 +120,7 @@ describe('GitService', () => {
       // Verify correct API call
       expect(fetchMock).toHaveBeenCalledOnce();
       const [url, options] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes/my-route/index.md');
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes/my-route/index.md?ref=main');
       expect(options.headers['Authorization']).toBe('Bearer ghp_test_token_123');
       expect(options.headers['X-GitHub-Api-Version']).toBe('2022-11-28');
 
@@ -402,6 +402,126 @@ describe('GitService', () => {
       expect(options.headers['Accept']).toBe('application/vnd.github+json');
       expect(options.headers['X-GitHub-Api-Version']).toBe('2022-11-28');
       expect(options.headers['Content-Type']).toBe('application/json');
+
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe('branch config', () => {
+    it('defaults to main when branch is not specified', async () => {
+      const fetchMock = mockFetch([{ status: 200, body: { content: btoa('test'), sha: 'abc' } }]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await service.readFile('test/file.md');
+
+      const [url] = fetchMock.mock.calls[0];
+      expect(url).toContain('?ref=main');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('uses custom branch in readFile URL', async () => {
+      const stagingService = new GitService({ ...TEST_CONFIG, branch: 'staging' });
+      const fetchMock = mockFetch([{ status: 200, body: { content: btoa('test'), sha: 'abc' } }]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await stagingService.readFile('ottawa/routes/test/index.md');
+
+      const [url] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes/test/index.md?ref=staging');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('uses custom branch in listDirectory URL', async () => {
+      const stagingService = new GitService({ ...TEST_CONFIG, branch: 'staging' });
+      const fetchMock = mockFetch([{ status: 200, body: [] }]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await stagingService.listDirectory('ottawa/routes');
+
+      const [url] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes?ref=staging');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('includes branch in single-file commit body', async () => {
+      const stagingService = new GitService({ ...TEST_CONFIG, branch: 'staging' });
+      const fetchMock = mockFetch([
+        { status: 404 },
+        { status: 201, body: { commit: { sha: 'newsha' } } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await stagingService.writeFiles(
+        [{ path: 'test.md', content: 'content' }],
+        'Test commit',
+        TEST_AUTHOR
+      );
+
+      const putBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(putBody.branch).toBe('staging');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('uses custom branch in multi-file ref lookups', async () => {
+      const stagingService = new GitService({ ...TEST_CONFIG, branch: 'staging' });
+      const fetchMock = mockFetch([
+        { status: 200, body: { object: { sha: 'basesha' } } },
+        { status: 200, body: { tree: { sha: 'treesha' } } },
+        { status: 201, body: { sha: 'blob1' } },
+        { status: 201, body: { sha: 'blob2' } },
+        { status: 201, body: { sha: 'newtree' } },
+        { status: 201, body: { sha: 'newcommit' } },
+        { status: 200, body: { object: { sha: 'newcommit' } } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await stagingService.writeFiles(
+        [
+          { path: 'a.md', content: 'a' },
+          { path: 'b.md', content: 'b' },
+        ],
+        'Multi-file staging commit',
+        TEST_AUTHOR
+      );
+
+      // GET ref uses staging branch
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://api.github.com/repos/eljojo/bike-routes/git/ref/heads/staging'
+      );
+
+      // Update ref uses staging branch
+      expect(fetchMock.mock.calls[6][0]).toBe(
+        'https://api.github.com/repos/eljojo/bike-routes/git/refs/heads/staging'
+      );
+
+      vi.unstubAllGlobals();
+    });
+
+    it('dispatches staging-data-updated for non-main branches', async () => {
+      const stagingService = new GitService({ ...TEST_CONFIG, branch: 'staging' });
+      const fetchMock = mockFetch([{ status: 204 }]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await stagingService.triggerRebuild();
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.event_type).toBe('staging-data-updated');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('dispatches data-updated for main branch', async () => {
+      const fetchMock = mockFetch([{ status: 204 }]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await service.triggerRebuild();
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.event_type).toBe('data-updated');
 
       vi.unstubAllGlobals();
     });

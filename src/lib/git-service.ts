@@ -11,6 +11,7 @@ export interface GitServiceConfig {
   token: string;
   owner: string;  // 'eljojo'
   repo: string;   // 'bike-routes'
+  branch?: string; // defaults to 'main'
 }
 
 export interface FileChange {
@@ -39,14 +40,18 @@ function formatCommitMessage(message: string): string {
 }
 
 export class GitService {
-  constructor(private config: GitServiceConfig) {}
+  private branch: string;
+
+  constructor(private config: GitServiceConfig) {
+    this.branch = config.branch || 'main';
+  }
 
   /**
    * Read a file from the repo. Returns content + sha, or null if not found.
    */
   async readFile(path: string): Promise<{ content: string; sha: string } | null> {
     const response = await this.githubFetch(
-      `/repos/${this.config.owner}/${this.config.repo}/contents/${path}`
+      `/repos/${this.config.owner}/${this.config.repo}/contents/${path}?ref=${this.branch}`
     );
 
     if (response.status === 404) {
@@ -67,7 +72,7 @@ export class GitService {
    */
   async listDirectory(path: string): Promise<Array<{ name: string; type: string; path: string }>> {
     const response = await this.githubFetch(
-      `/repos/${this.config.owner}/${this.config.repo}/contents/${path}`
+      `/repos/${this.config.owner}/${this.config.repo}/contents/${path}?ref=${this.branch}`
     );
 
     if (!response.ok) {
@@ -102,14 +107,15 @@ export class GitService {
 
   /**
    * Trigger site rebuild via repository_dispatch on the Astro repo.
-   * The production.yml workflow in bike-app-astro listens for 'data-updated'.
+   * Production dispatches 'data-updated', staging dispatches 'staging-data-updated'.
    */
   async triggerRebuild(): Promise<void> {
+    const eventType = this.branch === 'main' ? 'data-updated' : 'staging-data-updated';
     const response = await this.githubFetch(
       `/repos/${this.config.owner}/bike-app-astro/dispatches`,
       {
         method: 'POST',
-        body: JSON.stringify({ event_type: 'data-updated' }),
+        body: JSON.stringify({ event_type: eventType }),
       }
     );
 
@@ -134,6 +140,7 @@ export class GitService {
       content: encodeBase64Content(file.content),
       committer: COMMITTER,
       author: { name: author.name, email: author.email },
+      branch: this.branch,
     };
 
     if (existing) {
@@ -161,11 +168,11 @@ export class GitService {
    * Multi-file atomic commit using the Git Trees API.
    *
    * Steps:
-   * 1. Get current commit SHA from refs/heads/main
+   * 1. Get current commit SHA from refs/heads/{branch}
    * 2. Create a blob for each file
    * 3. Create a tree with all blobs
    * 4. Create a commit pointing to the tree
-   * 5. Update refs/heads/main to the new commit
+   * 5. Update refs/heads/{branch} to the new commit
    */
   private async writeMultipleFiles(
     files: FileChange[],
@@ -174,7 +181,7 @@ export class GitService {
   ): Promise<string> {
     // 1. Get current commit SHA
     const refResponse = await this.githubFetch(
-      `/repos/${this.config.owner}/${this.config.repo}/git/ref/heads/main`
+      `/repos/${this.config.owner}/${this.config.repo}/git/ref/heads/${this.branch}`
     );
     if (!refResponse.ok) {
       throw new Error(`Failed to get ref: ${refResponse.status} ${refResponse.statusText}`);
@@ -256,7 +263,7 @@ export class GitService {
 
     // 6. Update ref to point to new commit
     const updateRefResponse = await this.githubFetch(
-      `/repos/${this.config.owner}/${this.config.repo}/git/refs/heads/main`,
+      `/repos/${this.config.owner}/${this.config.repo}/git/refs/heads/${this.branch}`,
       {
         method: 'PATCH',
         body: JSON.stringify({ sha: newCommitSha }),
