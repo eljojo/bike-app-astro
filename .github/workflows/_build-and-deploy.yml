@@ -127,6 +127,7 @@ jobs:
           CONTENT_DIR: ./bike-routes
           CITY: ottawa
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Validate build output
         run: npm run validate

@@ -73,9 +73,9 @@
   text-align: center;
 
   @media (prefers-color-scheme: dark) {
-    background: darken($color-btn-primary-bg, 40%);
+    background: #2a4a2a;
     color: $color-text-dark;
-    border-color: darken($color-btn-primary-border, 10%);
+    border-color: #005a00;
   }
 
   &:hover {
