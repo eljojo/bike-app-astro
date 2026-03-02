@@ -36,3 +36,6 @@ public/maps/
 # playwright test artifacts
 test-results/
 e2e/test-results/
+
+# worktrees
+.worktrees/
