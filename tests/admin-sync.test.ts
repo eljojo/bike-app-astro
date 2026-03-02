@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GitService } from '../src/lib/git-service';
 
 const TEST_CONFIG = {
@@ -29,6 +29,10 @@ describe('GitService ref operations', () => {
     service = new GitService(TEST_CONFIG);
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   describe('getRef', () => {
     it('returns the commit SHA for an existing branch', async () => {
       const fetchMock = mockFetch([
@@ -42,7 +46,6 @@ describe('GitService ref operations', () => {
       const [url] = fetchMock.mock.calls[0];
       expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/git/ref/heads/main');
 
-      vi.unstubAllGlobals();
     });
 
     it('returns null when branch does not exist (404)', async () => {
@@ -52,7 +55,6 @@ describe('GitService ref operations', () => {
       const sha = await service.getRef('nonexistent');
 
       expect(sha).toBeNull();
-      vi.unstubAllGlobals();
     });
 
     it('throws on non-404 API errors', async () => {
@@ -61,7 +63,6 @@ describe('GitService ref operations', () => {
 
       await expect(service.getRef('main')).rejects.toThrow('GitHub API error: 500');
 
-      vi.unstubAllGlobals();
     });
   });
 
@@ -80,7 +81,6 @@ describe('GitService ref operations', () => {
       expect(body.sha).toBe('newsha123');
       expect(body.force).toBe(true);
 
-      vi.unstubAllGlobals();
     });
 
     it('defaults force to false', async () => {
@@ -92,7 +92,6 @@ describe('GitService ref operations', () => {
       const body = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(body.force).toBe(false);
 
-      vi.unstubAllGlobals();
     });
 
     it('throws on API errors', async () => {
@@ -101,7 +100,6 @@ describe('GitService ref operations', () => {
 
       await expect(service.updateRef('staging', 'sha')).rejects.toThrow('GitHub API error: 422');
 
-      vi.unstubAllGlobals();
     });
   });
 
@@ -120,7 +118,6 @@ describe('GitService ref operations', () => {
       expect(body.ref).toBe('refs/heads/staging');
       expect(body.sha).toBe('abc123');
 
-      vi.unstubAllGlobals();
     });
 
     it('throws on API errors', async () => {
@@ -129,7 +126,6 @@ describe('GitService ref operations', () => {
 
       await expect(service.createRef('staging', 'sha')).rejects.toThrow('GitHub API error: 422');
 
-      vi.unstubAllGlobals();
     });
   });
 });
@@ -138,6 +134,10 @@ describe('admin-sync endpoint logic', () => {
   // Test the sync workflow logic: the sequence of getRef, updateRef/createRef, and triggerRebuild
   // Since the endpoint depends on Astro's APIContext and cloudflare env, we test the
   // GitService call sequence that the endpoint orchestrates.
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('sync workflow: updates existing staging branch to main SHA', async () => {
     const service = new GitService(TEST_CONFIG);
