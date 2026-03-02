@@ -129,24 +129,6 @@ jobs:
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
 
-      - name: Prepare wrangler config for deploy
-        run: |
-          # The Astro Cloudflare adapter generates dist/server/wrangler.json
-          # with its own config that lacks our env definitions (D1 bindings,
-          # worker names). Remove it and .wrangler/deploy so wrangler can't
-          # auto-discover it. Then patch our config with the worker entry
-          # point and correct assets path (can't be present at build time
-          # because the Vite plugin validates the file exists).
-          rm -f dist/server/wrangler.json
-          rm -rf .wrangler/deploy
-          node -e "
-            const fs = require('fs');
-            const c = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
-            c.main = './dist/server/entry.mjs';
-            c.assets.directory = './dist/client';
-            fs.writeFileSync('wrangler.jsonc', JSON.stringify(c, null, 2));
-          "
-
       - name: Validate build output
         run: npm run validate
         env:
@@ -234,6 +216,27 @@ jobs:
           && steps.e2e.outcome == 'failure'
           && steps.update-screenshots.outcome != 'success'
         run: exit 1
+
+      - name: Prepare wrangler config for deploy
+        if: inputs.deploy
+        run: |
+          # The Astro Cloudflare adapter generates dist/server/wrangler.json
+          # with its own config that lacks our env definitions (D1 bindings,
+          # worker names). Remove it and .wrangler/deploy so wrangler can't
+          # auto-discover it. Then patch our config with the worker entry
+          # point and correct assets path (can't be present at build time
+          # because the Vite plugin validates the file exists).
+          # NOTE: this must run AFTER E2E tests — astro preview needs these
+          # files to start the local Cloudflare worker for screenshot tests.
+          rm -f dist/server/wrangler.json
+          rm -rf .wrangler/deploy
+          node -e "
+            const fs = require('fs');
+            const c = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+            c.main = './dist/server/entry.mjs';
+            c.assets.directory = './dist/client';
+            fs.writeFileSync('wrangler.jsonc', JSON.stringify(c, null, 2));
+          "
 
       - name: Run D1 migrations
         if: inputs.deploy && inputs.wrangler-env
