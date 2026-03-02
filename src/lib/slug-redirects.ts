@@ -28,9 +28,11 @@ export function slugRedirectLines(
   return [
     // 200 rewrite: locale slug URL silently serves the default-slug page
     `/${locale}${localeRoute}  /${locale}${defaultRoute}/  200`,
+    `/${locale}${localeMap}/*  /${locale}${defaultMap}/:splat  200`,
     `/${locale}${localeMap}  /${locale}${defaultMap}/  200`,
     // 301 redirect: default slug on locale prefix → locale slug
     `/${locale}${defaultRoute}  /${locale}${localeRoute}  301`,
+    `/${locale}${defaultMap}/*  /${locale}${localeMap}/:splat  301`,
     `/${locale}${defaultMap}  /${locale}${localeMap}  301`,
   ];
 }
