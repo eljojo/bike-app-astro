@@ -1,0 +1,61 @@
+---
+import Base from '@/layouts/Base.astro';
+import { getCityConfig } from '@/lib/city-config';
+
+const config = getCityConfig();
+---
+
+<Base title={`Page Not Found | ${config.display_name}`} description="The page you're looking for doesn't exist.">
+  <div class="not-found">
+    <p class="not-found--emoji">🚴‍♂️💨</p>
+    <h1>Wrong Turn!</h1>
+    <p>Looks like this route doesn't exist. Maybe it was moved, or perhaps you pedaled past it.</p>
+    <p>Here are some places to get back on track:</p>
+    <ul>
+      <li><a href="/">🏠 Home — browse all routes</a></li>
+      <li><a href="/map">🗺️ Map — explore the city</a></li>
+      <li><a href="/calendar">📅 Calendar — upcoming rides</a></li>
+    </ul>
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../styles/variables' as *;
+
+  .not-found {
+    text-align: center;
+    padding: 3em 1em;
+    max-width: 500px;
+    margin: 0 auto;
+
+    h1 {
+      font-family: $font-heading;
+      font-size: 2em;
+      margin: 0 0 0.5em;
+    }
+
+    p {
+      font-size: 1.1em;
+      line-height: 1.5;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 1.5em;
+      text-align: left;
+      display: inline-block;
+
+      li {
+        padding: 0.4em 0;
+        font-size: 1.1em;
+      }
+    }
+  }
+
+  .not-found--emoji {
+    font-size: 4em;
+    margin: 0;
+    line-height: 1.2;
+  }
+</style>

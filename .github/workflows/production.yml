@@ -18,6 +18,7 @@ jobs:
       environment: production
       deploy: true
       worker-name: bike-ottawa-production
+      skip-e2e: true
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
