@@ -64,13 +64,6 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 
 <h1>&#x1F5FA;&#xFE0F; {title}</h1>
 
-{elevationGain && (
-  <p>
-    <span style="font-size: 1.5em;">&#x1F6B5; </span>
-    {t('route.elevation_gain', locale)}: <a href={`${paths.routeMap(linkSlug, locale)}#elevation-profile`}>{elevationGain} {t('route.meters', locale)}</a>{elevationConclusion && `, ${t('route.this_is', locale)} ${t('elevation.' + elevationConclusion, locale)}`}
-  </p>
-)}
-
 <p>
   <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
     &#x1F5FA;&#xFE0F; {t('map.explore_gpx', locale)}
@@ -109,7 +102,14 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 
 {trackPoints && trackPoints.length > 0 && trackDistanceM && (
   <div id="elevation-profile" style="margin-top: 1.5em;">
-    <h2>{t('map.elevation_profile', locale)}</h2>
+    <h3>
+      <span style="font-size: 1.2em;">&#x1F6B5; </span>
+      {elevationGain && (
+        <Fragment>
+          {t('route.elevation_gain', locale)}: {elevationGain} {t('route.meters', locale)}{elevationConclusion && `, ${t('route.this_is', locale)} ${t('elevation.' + elevationConclusion, locale)}`}
+        </Fragment>
+      )}
+    </h3>
     <ElevationProfile points={trackPoints} distance_m={trackDistanceM} />
   </div>
 )}
