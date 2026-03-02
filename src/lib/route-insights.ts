@@ -1,20 +1,5 @@
 import { haversine } from './gpx';
 
-export interface RouteElevationData {
-  id: string;
-  elevationGainPerKm: number;
-}
-
-export function difficultyRanking(
-  routeId: string,
-  routes: RouteElevationData[],
-): { rank: number; total: number } | null {
-  const sorted = [...routes].sort((a, b) => b.elevationGainPerKm - a.elevationGainPerKm);
-  const index = sorted.findIndex(r => r.id === routeId);
-  if (index === -1) return null;
-  return { rank: index + 1, total: sorted.length };
-}
-
 export function routeShape(points: { lat: number; lon: number }[], distance_m: number): string | null {
   if (points.length < 2) return null;
   const start = points[0];
