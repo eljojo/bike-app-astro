@@ -191,6 +191,9 @@ const breadcrumbs = breadcrumbJsonLd([
             )}
           </p>
         )}
+        {photos.length > 0 && (
+          <PhotoGallery photos={photos} routeName={localeName} />
+        )}
       </div>
 
       {hasMap && (
@@ -208,10 +211,6 @@ const breadcrumbs = breadcrumbJsonLd([
         </div>
       )}
     </div>
-
-    {photos.length > 0 && (
-      <PhotoGallery photos={photos} routeName={localeName} />
-    )}
 
     {videos.length > 0 && (
       <section class="route-videos">
