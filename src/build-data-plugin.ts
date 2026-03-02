@@ -15,7 +15,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import matter from 'gray-matter';
 import yaml from 'js-yaml';
+import { marked } from 'marked';
 import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
 
@@ -64,6 +66,98 @@ function loadCachedMaps() {
     }
   }
   return maps;
+}
+
+interface AdminRoute {
+  slug: string;
+  name: string;
+  photoCount: number;
+  status: string;
+}
+
+interface AdminMediaItem {
+  key: string;
+  caption?: string;
+  cover?: boolean;
+}
+
+interface AdminRouteDetail {
+  slug: string;
+  name: string;
+  tagline: string;
+  tags: string[];
+  distance: number;
+  status: string;
+  body: string;
+  media: AdminMediaItem[];
+}
+
+function readRouteDir(slug: string) {
+  const routeDir = path.join(CITY_DIR, 'routes', slug);
+  const mdPath = path.join(routeDir, 'index.md');
+  const mediaPath = path.join(routeDir, 'media.yml');
+
+  const { data: frontmatter, content: body } = matter(fs.readFileSync(mdPath, 'utf-8'));
+
+  const rawMedia = fs.existsSync(mediaPath)
+    ? (yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as Array<Record<string, unknown>>) || []
+    : [];
+
+  const photos: AdminMediaItem[] = rawMedia
+    .filter((m) => m.type === 'photo')
+    .map((m) => {
+      const item: AdminMediaItem = { key: m.key as string };
+      if (m.caption != null) item.caption = m.caption as string;
+      if (m.cover != null) item.cover = m.cover as boolean;
+      return item;
+    });
+
+  return { frontmatter, body, photos };
+}
+
+export async function loadAdminRoutes(): Promise<AdminRoute[]> {
+  const routesDir = path.join(CITY_DIR, 'routes');
+  const slugs = fs.readdirSync(routesDir).filter((name) => {
+    return fs.statSync(path.join(routesDir, name)).isDirectory();
+  });
+
+  const routes: AdminRoute[] = slugs.map((slug) => {
+    const { frontmatter, photos } = readRouteDir(slug);
+    return {
+      slug,
+      name: frontmatter.name as string,
+      photoCount: photos.length,
+      status: frontmatter.status as string,
+    };
+  });
+
+  routes.sort((a, b) => a.name.localeCompare(b.name));
+  return routes;
+}
+
+export async function loadAdminRouteDetails(): Promise<Record<string, AdminRouteDetail>> {
+  const routesDir = path.join(CITY_DIR, 'routes');
+  const slugs = fs.readdirSync(routesDir).filter((name) => {
+    return fs.statSync(path.join(routesDir, name)).isDirectory();
+  });
+
+  const details: Record<string, AdminRouteDetail> = {};
+
+  for (const slug of slugs) {
+    const { frontmatter, body, photos } = readRouteDir(slug);
+    details[slug] = {
+      slug,
+      name: frontmatter.name as string,
+      tagline: (frontmatter.tagline as string) || '',
+      tags: (frontmatter.tags as string[]) || [],
+      distance: (frontmatter.distance_km as number) || 0,
+      status: frontmatter.status as string,
+      body: await marked.parse(body.trim()),
+      media: photos,
+    };
+  }
+
+  return details;
 }
 
 export function buildDataPlugin(): Plugin {
