@@ -146,6 +146,9 @@ jobs:
         id: e2e
         continue-on-error: ${{ inputs.update-screenshots }}
         run: npx playwright test --config e2e/playwright.config.ts
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
 
       - name: Update screenshot baselines
         id: update-screenshots
@@ -172,6 +175,9 @@ jobs:
           echo "EOF" >> "$GITHUB_ENV"
           git commit -m "ci: update screenshot baselines"
           git push
+        env:
+          CONTENT_DIR: ./bike-routes
+          CITY: ottawa
 
       - name: Comment on PR with updated screenshots
         if: ${{ !inputs.skip-e2e && steps.update-screenshots.outcome == 'success' && github.event_name == 'pull_request' }}
