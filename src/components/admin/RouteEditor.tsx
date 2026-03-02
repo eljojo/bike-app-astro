@@ -74,6 +74,9 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
       if (!res.ok) {
         const data = await res.json();
+        if (res.status === 409) {
+          throw new Error(data.error || 'Conflict: route was modified externally. Please reload the page.');
+        }
         throw new Error(data.error || 'Save failed');
       }
 
