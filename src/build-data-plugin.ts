@@ -166,16 +166,30 @@ export function buildDataPlugin(): Plugin {
   const fontPreloads = loadFontPreloads();
   const cachedMaps = loadCachedMaps();
 
+  // Load admin data eagerly (async) so it's ready when load() is called
+  const adminRoutesPromise = loadAdminRoutes();
+  const adminRouteDetailsPromise = loadAdminRouteDetails();
+
   return {
     name: 'bike-app-build-data',
 
-    // Virtual module for cached-maps (not in config import chain)
+    // Virtual modules
     resolveId(id: string) {
       if (id === 'virtual:bike-app/cached-maps') return '\0virtual:bike-app/cached-maps';
+      if (id === 'virtual:bike-app/admin-routes') return '\0virtual:bike-app/admin-routes';
+      if (id === 'virtual:bike-app/admin-route-detail') return '\0virtual:bike-app/admin-route-detail';
     },
-    load(id: string) {
+    async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
         return `export default new Set(${JSON.stringify(cachedMaps)});`;
+      }
+      if (id === '\0virtual:bike-app/admin-routes') {
+        const routes = await adminRoutesPromise;
+        return `export default ${JSON.stringify(routes)};`;
+      }
+      if (id === '\0virtual:bike-app/admin-route-detail') {
+        const details = await adminRouteDetailsPromise;
+        return `export default ${JSON.stringify(details)};`;
       }
     },
 

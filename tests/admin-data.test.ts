@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadAdminRoutes, loadAdminRouteDetails } from '../src/build-data-plugin';
+import { loadAdminRoutes, loadAdminRouteDetails, buildDataPlugin } from '../src/build-data-plugin';
 
 describe('loadAdminRoutes', () => {
   it('returns a sorted array of route summaries', async () => {
@@ -96,3 +96,57 @@ describe('loadAdminRouteDetails', () => {
   });
 });
 
+describe('buildDataPlugin virtual modules', () => {
+  it('resolves virtual:bike-app/admin-routes', () => {
+    const plugin = buildDataPlugin();
+    const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/admin-routes');
+    expect(resolved).toBe('\0virtual:bike-app/admin-routes');
+  });
+
+  it('resolves virtual:bike-app/admin-route-detail', () => {
+    const plugin = buildDataPlugin();
+    const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/admin-route-detail');
+    expect(resolved).toBe('\0virtual:bike-app/admin-route-detail');
+  });
+
+  it('does not resolve unknown virtual modules', () => {
+    const plugin = buildDataPlugin();
+    const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/unknown');
+    expect(resolved).toBeUndefined();
+  });
+
+  it('loads admin-routes as a valid JS module', async () => {
+    const plugin = buildDataPlugin();
+    const result = await (plugin.load as Function).call(plugin, '\0virtual:bike-app/admin-routes');
+    expect(typeof result).toBe('string');
+    expect(result).toContain('export default');
+    // Should be valid JSON array inside the module
+    const jsonMatch = result.match(/export default (\[[\s\S]*\]);/);
+    expect(jsonMatch).not.toBeNull();
+    const data = JSON.parse(jsonMatch![1]);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]).toHaveProperty('slug');
+  });
+
+  it('loads admin-route-detail as a valid JS module', async () => {
+    const plugin = buildDataPlugin();
+    const result = await (plugin.load as Function).call(plugin, '\0virtual:bike-app/admin-route-detail');
+    expect(typeof result).toBe('string');
+    expect(result).toContain('export default');
+    const jsonMatch = result.match(/export default (\{[\s\S]*\});/);
+    expect(jsonMatch).not.toBeNull();
+    const data = JSON.parse(jsonMatch![1]);
+    expect(typeof data).toBe('object');
+    expect(data).toHaveProperty('carp');
+  });
+
+  it('still loads cached-maps virtual module', async () => {
+    const plugin = buildDataPlugin();
+    const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/cached-maps');
+    expect(resolved).toBe('\0virtual:bike-app/cached-maps');
+    const result = await (plugin.load as Function).call(plugin, '\0virtual:bike-app/cached-maps');
+    expect(typeof result).toBe('string');
+    expect(result).toContain('export default new Set(');
+  });
+});
