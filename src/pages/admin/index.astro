@@ -1,0 +1,271 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
+import { GitService } from '../../lib/git-service';
+import '../../styles/admin.scss';
+
+const env = (Astro.locals as any).runtime.env;
+const user = (Astro.locals as any).user;
+const city = 'ottawa';
+
+// Read routes from data repo via GitHub API
+let routes: Array<{ slug: string; name: string; photoCount: number; status: string }> = [];
+let routeError = '';
+
+try {
+  const git = new GitService({
+    token: env.GITHUB_TOKEN,
+    owner: 'eljojo',
+    repo: 'bike-routes',
+  });
+
+  const dirs = await git.listDirectory(`${city}/routes`);
+  const routeDirs = dirs.filter((d) => d.type === 'dir');
+
+  // Read each route's frontmatter and media count
+  const routePromises = routeDirs.map(async (dir) => {
+    try {
+      const indexFile = await git.readFile(`${dir.path}/index.md`);
+      if (!indexFile) return null;
+
+      // Parse frontmatter
+      const fmMatch = indexFile.content.match(/^---\n([\s\S]*?)\n---/);
+      const frontmatter: Record<string, string> = {};
+      if (fmMatch) {
+        for (const line of fmMatch[1].split('\n')) {
+          const colonIdx = line.indexOf(':');
+          if (colonIdx > 0) {
+            const key = line.slice(0, colonIdx).trim();
+            const val = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
+            frontmatter[key] = val;
+          }
+        }
+      }
+
+      // Count photos from media.yml
+      let photoCount = 0;
+      const mediaFile = await git.readFile(`${dir.path}/media.yml`);
+      if (mediaFile) {
+        // Count lines starting with "- key:" as a rough photo count
+        const matches = mediaFile.content.match(/^- key:/gm);
+        photoCount = matches ? matches.length : 0;
+      }
+
+      return {
+        slug: dir.name,
+        name: frontmatter.name || frontmatter.title || dir.name,
+        photoCount,
+        status: frontmatter.status || 'published',
+      };
+    } catch {
+      return { slug: dir.name, name: dir.name, photoCount: 0, status: 'unknown' };
+    }
+  });
+
+  const results = await Promise.all(routePromises);
+  routes = results.filter((r): r is NonNullable<typeof r> => r !== null);
+  routes.sort((a, b) => a.name.localeCompare(b.name));
+} catch (err: any) {
+  routeError = err.message || 'Failed to load routes';
+}
+---
+
+<Base title="Admin">
+  <div class="admin-page">
+    <div class="admin-header">
+      <h1>Routes</h1>
+      <div class="admin-user">
+        {user.displayName}
+        <form method="POST" action="/api/auth/logout" class="logout-form">
+          <button type="submit" class="btn-logout">Sign out</button>
+        </form>
+      </div>
+    </div>
+
+    {routeError && <div class="auth-error">{routeError}</div>}
+
+    <div class="route-list">
+      {routes.map((route) => (
+        <a href={`/admin/routes/${route.slug}`} class="route-list-item">
+          <span class="route-name">{route.name}</span>
+          <span class="route-meta">
+            {route.photoCount} photo{route.photoCount !== 1 ? 's' : ''}
+            {route.status === 'draft' && <span class="route-draft">draft</span>}
+          </span>
+        </a>
+      ))}
+      {routes.length === 0 && !routeError && (
+        <p class="auth-message">No routes found.</p>
+      )}
+    </div>
+
+    {user.role === 'admin' && (
+      <div class="admin-section">
+        <h2>Invite</h2>
+        <InviteCodeGenerator client:load />
+      </div>
+    )}
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../styles/variables' as *;
+
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+
+    h1 {
+      font-family: $font-heading;
+      font-size: 1.5rem;
+      margin: 0;
+    }
+  }
+
+  .admin-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: $color-text-muted;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+  }
+
+  .logout-form {
+    display: inline;
+  }
+
+  .btn-logout {
+    background: none;
+    border: none;
+    color: $color-text-muted;
+    cursor: pointer;
+    font-size: 0.875rem;
+    text-decoration: underline;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+  }
+
+  .route-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: $color-border;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    @media (prefers-color-scheme: dark) {
+      background: #333;
+    }
+  }
+
+  .route-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: $color-card-bg;
+    color: $color-text;
+    text-decoration: none;
+
+    @media (prefers-color-scheme: dark) {
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+
+      @media (prefers-color-scheme: dark) {
+        background: $color-card-hover-dark;
+      }
+    }
+  }
+
+  .route-name {
+    font-weight: 600;
+  }
+
+  .route-meta {
+    font-size: 0.8125rem;
+    color: $color-text-muted;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+  }
+
+  .route-draft {
+    background: $color-accent;
+    color: #000;
+    padding: 0.125rem 0.375rem;
+    border-radius: $border-radius;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+  }
+
+  .admin-section {
+    margin-top: 2rem;
+
+    h2 {
+      font-family: $font-heading;
+      font-size: 1.25rem;
+      margin: 0 0 0.75rem;
+    }
+  }
+
+  .invite-generator {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 300px;
+  }
+
+  .invite-result {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .invite-code {
+    font-family: $font-mono;
+    font-size: 1rem;
+    padding: 0.25rem 0.5rem;
+    background: $color-card-bg;
+    border-radius: $border-radius;
+
+    @media (prefers-color-scheme: dark) {
+      background: $color-card-bg-dark;
+    }
+  }
+
+  .btn-copy {
+    font-size: 0.8125rem;
+    background: none;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    color: $color-text;
+
+    @media (prefers-color-scheme: dark) {
+      color: $color-text-dark;
+      border-color: #444;
+    }
+  }
+</style>
