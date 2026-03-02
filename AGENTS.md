@@ -83,6 +83,14 @@ make validate      # validate content data
 
 The build produces ~62 static pages. Map thumbnails are generated separately and copied into `dist/` during build via a custom Astro integration in `astro.config.mjs`.
 
+## Vendor Isolation (MANDATORY)
+
+NEVER import platform-specific modules (e.g. `cloudflare:workers`, AWS SDK, Vercel helpers) directly in application code. All platform APIs must be accessed through a single wrapper file in `src/lib/`. Application code imports from OUR modules only.
+
+If a feature requires a non-portable cloud API, stop and raise it. Find a portable alternative or isolate it behind an abstraction first. One wrapper file per vendor concern — if they rename or break their API, only one file changes.
+
+This applies to ALL cloud vendors equally. No exceptions.
+
 ## Git Conventions
 
 - Never add `Co-Authored-By` lines to commits
