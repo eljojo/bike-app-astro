@@ -3,7 +3,7 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import RouteEditor from '../../components/admin/RouteEditor.tsx';
-import { getCollection } from 'astro:content';
+import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env';
 import '../../styles/admin.scss';
 
@@ -13,31 +13,13 @@ if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 
-const allRoutes = await getCollection('routes');
-const route = allRoutes.find((r) => r.id === slug);
+const routeData = adminRouteDetails[slug];
 
-if (!route) {
+if (!routeData) {
   return new Response(null, { status: 404 });
 }
 
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
-
-const routeData = {
-  slug,
-  name: route.data.name,
-  tagline: route.data.tagline || '',
-  tags: route.data.tags,
-  distance: route.data.distance_km,
-  status: route.data.status,
-  body: route.data.renderedBody,
-  media: route.data.media
-    .filter((m) => m.type === 'photo')
-    .map((m) => ({
-      key: m.key,
-      caption: m.caption,
-      cover: m.cover,
-    })),
-};
 ---
 
 <Base title={`Edit: ${routeData.name}`}>
