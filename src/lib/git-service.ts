@@ -125,6 +125,61 @@ export class GitService {
   }
 
   /**
+   * Get the commit SHA that a branch ref points to.
+   * Returns null if the branch doesn't exist (404).
+   */
+  async getRef(branch: string): Promise<string | null> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/git/ref/heads/${branch}`
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.object.sha;
+  }
+
+  /**
+   * Force-update a branch ref to point to a new commit SHA.
+   */
+  async updateRef(branch: string, sha: string, force = false): Promise<void> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/git/refs/heads/${branch}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ sha, force }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Create a new branch ref pointing to a commit SHA.
+   */
+  async createRef(branch: string, sha: string): Promise<void> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/git/refs`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  /**
    * Single-file commit using the Contents API (simpler path).
    */
   private async writeSingleFile(
