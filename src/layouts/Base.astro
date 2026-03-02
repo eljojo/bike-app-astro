@@ -57,6 +57,9 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
         const target = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null;
         if (target) localStorage.setItem('locale-preference', target.dataset.locale || '');
       });
+      if (document.cookie.includes('logged_in=1')) {
+        document.body.classList.add('admin-visible');
+      }
     </script>
   </body>
 </html>

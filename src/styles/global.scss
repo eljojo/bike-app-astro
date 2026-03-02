@@ -626,3 +626,19 @@ a.go-back-button {
 .route-description {
   a { color: inherit; text-decoration: underline; }
 }
+
+// Admin edit link (hidden unless logged in)
+.admin-edit-link {
+  display: none;
+  font-size: 0.5em;
+  font-weight: normal;
+  font-family: $font-body;
+  vertical-align: middle;
+  margin-left: 0.5em;
+  opacity: 0.4;
+  text-decoration: none;
+  &:hover { opacity: 0.8; }
+}
+.admin-visible .admin-edit-link {
+  display: inline;
+}
