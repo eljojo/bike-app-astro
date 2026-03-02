@@ -4,10 +4,27 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
+import { env } from '../../lib/env';
+import { getDb } from '../../db';
+import { routeEdits } from '../../db/schema';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 
-const routes = adminRoutes;
+// Check D1 cache for fresher data, fall back to virtual module
+const db = getDb(env.DB);
+const cachedEdits = await db.select().from(routeEdits).all();
+const cacheMap = new Map(cachedEdits.map(e => [e.slug, JSON.parse(e.data)]));
+
+const routes = adminRoutes.map(r => {
+  const cached = cacheMap.get(r.slug);
+  if (!cached) return r;
+  return {
+    slug: r.slug,
+    name: cached.name ?? r.name,
+    photoCount: cached.media?.length ?? r.photoCount,
+    status: cached.status ?? r.status,
+  };
+}).sort((a, b) => a.name.localeCompare(b.name));
 ---
 
 <Base title="Admin">
