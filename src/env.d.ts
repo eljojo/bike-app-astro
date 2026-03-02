@@ -25,3 +25,34 @@ declare module 'cloudflare:workers' {
     R2_PUBLIC_URL: string;
   }
 }
+
+// Virtual modules provided by buildDataPlugin
+declare module 'virtual:bike-app/admin-routes' {
+  const routes: Array<{
+    slug: string;
+    name: string;
+    photoCount: number;
+    status: string;
+  }>;
+  export default routes;
+}
+
+declare module 'virtual:bike-app/admin-route-detail' {
+  interface AdminMediaItem {
+    key: string;
+    caption?: string;
+    cover?: boolean;
+  }
+  interface AdminRouteDetail {
+    slug: string;
+    name: string;
+    tagline: string;
+    tags: string[];
+    distance: number;
+    status: string;
+    body: string;
+    media: AdminMediaItem[];
+  }
+  const details: Record<string, AdminRouteDetail>;
+  export default details;
+}
