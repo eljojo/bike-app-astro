@@ -32,10 +32,7 @@ export async function POST({ locals }: APIContext) {
       branch: 'staging',
     });
 
-    console.log('sync: token length:', env.GITHUB_TOKEN?.length ?? 'undefined');
-
     // 1. Get main's commit SHA
-    console.log('sync: step 1 — getting main ref');
     const mainSha = await git.getRef('main');
     if (!mainSha) {
       return new Response(JSON.stringify({ error: 'Could not find main branch' }), {
@@ -43,33 +40,23 @@ export async function POST({ locals }: APIContext) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    console.log('sync: step 1 done, main sha:', mainSha.slice(0, 8));
 
     // 2. Check if staging branch exists
-    console.log('sync: step 2 — checking staging ref');
     const stagingSha = await git.getRef('staging');
-    console.log('sync: step 2 done, staging exists:', stagingSha !== null);
 
     // 3/4. Update or create staging branch
     if (stagingSha !== null) {
-      console.log('sync: step 3 — updating staging ref');
       await git.updateRef('staging', mainSha, true);
     } else {
-      console.log('sync: step 4 — creating staging ref');
       await git.createRef('staging', mainSha);
     }
-    console.log('sync: step 3/4 done');
 
     // 5. Clear D1 scratchpad
-    console.log('sync: step 5 — clearing scratchpad');
     const db = getDb(env.DB);
     await db.delete(routeEdits);
-    console.log('sync: step 5 done');
 
     // 6. Trigger staging rebuild
-    console.log('sync: step 6 — triggering rebuild');
     await git.triggerRebuild();
-    console.log('sync: step 6 done');
 
     return new Response(JSON.stringify({ success: true, sha: mainSha }), {
       status: 200,
