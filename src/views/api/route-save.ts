@@ -1,6 +1,10 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { GitService } from '../../lib/git-service';
+import { getDb } from '../../db';
+import { routeEdits } from '../../db/schema';
+import { eq } from 'drizzle-orm';
+import { marked } from 'marked';
 import yaml from 'js-yaml';
 
 export const prerender = false;
@@ -62,6 +66,24 @@ export async function POST({ params, request, locals }: APIContext) {
 
     const city = 'ottawa';
     const basePath = `${city}/routes/${slug}`;
+    const db = getDb(env.DB);
+
+    // Compare-and-swap: read current file SHA from GitHub
+    const currentFile = await git.readFile(`${basePath}/index.md`);
+
+    // Check for concurrent edits (only if this route already exists)
+    if (currentFile) {
+      const cached = await db.select().from(routeEdits).where(eq(routeEdits.slug, slug)).get();
+      if (cached && cached.githubSha !== currentFile.sha) {
+        return new Response(JSON.stringify({
+          error: 'This route was modified since you last edited it. Please reload to get the latest version.',
+        }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const files: Array<{ path: string; content: string }> = [];
 
     // Build index.md content
@@ -101,6 +123,36 @@ export async function POST({ params, request, locals }: APIContext) {
       name: user.displayName,
       email: user.email,
     });
+
+    // Cache the edit with the new SHA for future compare-and-swap checks
+    const newFile = await git.readFile(`${basePath}/index.md`);
+    if (newFile) {
+      const renderedBody = await marked.parse(update.body);
+      const cacheData = JSON.stringify({
+        slug,
+        name: update.frontmatter.name,
+        tagline: update.frontmatter.tagline || '',
+        tags: update.frontmatter.tags || [],
+        distance: update.frontmatter.distance,
+        status: update.frontmatter.status,
+        body: renderedBody,
+        media: update.media || [],
+      });
+
+      await db.insert(routeEdits).values({
+        slug,
+        data: cacheData,
+        githubSha: newFile.sha,
+        updatedAt: new Date().toISOString(),
+      }).onConflictDoUpdate({
+        target: routeEdits.slug,
+        set: {
+          data: cacheData,
+          githubSha: newFile.sha,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    }
 
     // Trigger rebuild
     await git.triggerRebuild();
