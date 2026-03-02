@@ -108,6 +108,40 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     }
   }
 
+  .conflict-notice {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: $border-radius;
+    padding: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #664d03;
+
+    @media (prefers-color-scheme: dark) {
+      background: #332701;
+      border-color: #664d03;
+      color: #ffda6a;
+    }
+
+    strong {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      margin: 0.5rem 0;
+    }
+
+    ol {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    li {
+      margin-bottom: 0.25rem;
+    }
+  }
+
   textarea {
     font-family: $font-mono;
     font-size: 0.875rem;

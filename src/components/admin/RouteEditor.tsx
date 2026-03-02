@@ -182,14 +182,25 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
       </section>
 
       <div class="editor-actions">
-        {error && (
-          <div class="auth-error">
-            {error}
-            {githubUrl && (
-              <div style="margin-top: 0.5rem">
-                <a href={githubUrl} target="_blank" rel="noopener">View file on GitHub</a>
-              </div>
-            )}
+        {error && !githubUrl && (
+          <div class="auth-error">{error}</div>
+        )}
+        {githubUrl && (
+          <div class="conflict-notice">
+            <strong>Save blocked — this route was changed on GitHub</strong>
+            <p>
+              Someone (or an automated process) modified this route's files on GitHub
+              since you started editing. Your changes are still in the form above — nothing was lost.
+            </p>
+            <p><strong>To resolve this:</strong></p>
+            <ol>
+              <li>Open the file on GitHub to see what changed</li>
+              <li>Copy your edits from the form above (they're safe until you navigate away)</li>
+              <li>Either apply your changes directly on GitHub, or wait for the site to rebuild, then reload this page and re-enter your edits</li>
+            </ol>
+            <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary" style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
+              View file on GitHub
+            </a>
           </div>
         )}
         {saved && <div class="save-success">Saved! Site rebuild triggered.</div>}
