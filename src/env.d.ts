@@ -36,6 +36,7 @@ declare module 'virtual:bike-app/admin-routes' {
     photoCount: number;
     status: string;
     contentHash: string;
+    difficultyScore: number | null;
   }>;
   export default routes;
 }

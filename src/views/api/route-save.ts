@@ -6,7 +6,6 @@ import { getDb } from '../../db';
 import { routeEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import matter from 'gray-matter';
-import { marked } from 'marked';
 import yaml from 'js-yaml';
 
 export const prerender = false;
@@ -97,7 +96,6 @@ export async function POST({ params, request, locals }: APIContext) {
       if (hasConflict) {
         // Sync scratchpad with fresh GitHub data so reload shows current state
         const { data: ghFrontmatter, content: ghBody } = matter(currentFile.content);
-        const ghRenderedBody = await marked.parse(ghBody);
 
         let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
         if (currentMedia) {
@@ -119,7 +117,7 @@ export async function POST({ params, request, locals }: APIContext) {
           tags: ghFrontmatter.tags || [],
           distance: ghFrontmatter.distance_km,
           status: ghFrontmatter.status,
-          body: ghRenderedBody,
+          body: ghBody.trim(),
           media: ghMedia,
         });
 
@@ -191,7 +189,6 @@ export async function POST({ params, request, locals }: APIContext) {
     // Cache the edit with the new SHA for future compare-and-swap checks
     const newFile = await git.readFile(`${basePath}/index.md`);
     if (newFile) {
-      const renderedBody = await marked.parse(update.body);
       const cacheData = JSON.stringify({
         slug,
         name: update.frontmatter.name,
@@ -199,7 +196,7 @@ export async function POST({ params, request, locals }: APIContext) {
         tags: update.frontmatter.tags || [],
         distance: update.frontmatter.distance,
         status: update.frontmatter.status,
-        body: renderedBody,
+        body: update.body,
         media: update.media || [],
       });
 

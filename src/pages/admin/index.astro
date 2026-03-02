@@ -11,6 +11,7 @@ import { routeEdits } from '../../db/schema';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const isStaging = env.ENVIRONMENT === 'staging';
+const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha';
 
 // Check D1 cache for fresher data, fall back to virtual module
 const db = getDb(env.DB);
@@ -21,12 +22,21 @@ const routes = adminRoutes.map(r => {
   const cached = cacheMap.get(r.slug);
   if (!cached) return r;
   return {
-    slug: r.slug,
+    ...r,
     name: cached.name ?? r.name,
     photoCount: cached.media?.length ?? r.photoCount,
     status: cached.status ?? r.status,
   };
-}).sort((a, b) => a.name.localeCompare(b.name));
+}).sort((a, b) => {
+  if (sortBy === 'score') {
+    // Routes with scores first (ascending = easiest first), then routes without scores alphabetically
+    if (a.difficultyScore != null && b.difficultyScore != null) return a.difficultyScore - b.difficultyScore;
+    if (a.difficultyScore != null) return -1;
+    if (b.difficultyScore != null) return 1;
+    return a.name.localeCompare(b.name);
+  }
+  return a.name.localeCompare(b.name);
+});
 ---
 
 <Base title="Admin">
@@ -44,11 +54,18 @@ const routes = adminRoutes.map(r => {
       </div>
     </div>
 
+    <div class="sort-controls">
+      <span class="sort-label">Sort:</span>
+      <a href="/admin" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
+      <a href="/admin?sort=score" class:list={['sort-option', { active: sortBy === 'score' }]}>Difficulty</a>
+    </div>
+
     <div class="route-list">
       {routes.map((route) => (
         <a href={`/admin/routes/${route.slug}`} class="route-list-item">
           <span class="route-name">{route.name}</span>
           <span class="route-meta">
+            {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
             {route.photoCount} photo{route.photoCount !== 1 ? 's' : ''}
             {route.status === 'draft' && <span class="route-draft">draft</span>}
           </span>
@@ -143,6 +160,42 @@ const routes = adminRoutes.map(r => {
     }
   }
 
+  .sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .sort-label {
+    color: $color-text-muted;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+  }
+
+  .sort-option {
+    color: $color-text-muted;
+    text-decoration: none;
+    padding: 0.125rem 0.5rem;
+    border-radius: $border-radius;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+
+    &.active {
+      background: $color-tag-bg;
+      color: $color-tag-text;
+    }
+
+    &:hover:not(.active) {
+      text-decoration: underline;
+    }
+  }
+
   .route-list {
     display: flex;
     flex-direction: column;
@@ -186,6 +239,17 @@ const routes = adminRoutes.map(r => {
   .route-meta {
     font-size: 0.8125rem;
     color: $color-text-muted;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+  }
+
+  .route-score {
+    font-family: $font-mono;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+    margin-right: 0.25rem;
 
     @media (prefers-color-scheme: dark) {
       color: #aaa;

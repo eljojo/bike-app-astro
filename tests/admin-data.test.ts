@@ -27,7 +27,7 @@ describe('loadAdminRoutes', () => {
       expect(typeof route.status).toBe('string');
       expect(typeof route.contentHash).toBe('string');
       // Should not have extra fields
-      expect(Object.keys(route).sort()).toEqual(['contentHash', 'name', 'photoCount', 'slug', 'status']);
+      expect(Object.keys(route).sort()).toEqual(['contentHash', 'difficultyScore', 'name', 'photoCount', 'slug', 'status']);
     }
   });
 
@@ -69,12 +69,13 @@ describe('loadAdminRouteDetails', () => {
     }
   });
 
-  it('renders markdown body as HTML', async () => {
+  it('stores body as raw markdown (not rendered HTML)', async () => {
     const details = await loadAdminRouteDetails();
     const carp = details['carp'];
-    // Carp's body has markdown links and list items
-    expect(carp.body).toContain('<');
-    expect(carp.body).toMatch(/<[a-z]+/);
+    // Carp's body has markdown links and list items — should be raw markdown
+    expect(carp.body.length).toBeGreaterThan(0);
+    expect(carp.body).toContain('[');  // markdown link syntax
+    expect(carp.body).not.toMatch(/^<p>/); // should NOT be rendered HTML
   });
 
   it('media items only include key, caption, and cover fields', async () => {

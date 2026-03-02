@@ -18,9 +18,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { marked } from 'marked';
 import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
+import { parseGpx } from './lib/gpx';
+import { scoreRoute } from './lib/difficulty';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -75,6 +76,7 @@ interface AdminRoute {
   photoCount: number;
   status: string;
   contentHash: string;
+  difficultyScore: number | null;
 }
 
 interface AdminMediaItem {
@@ -130,12 +132,37 @@ export async function loadAdminRoutes(): Promise<AdminRoute[]> {
 
   const routes: AdminRoute[] = slugs.map((slug) => {
     const { frontmatter, photos, contentHash } = readRouteDir(slug);
+    const routeDir = path.join(routesDir, slug);
+
+    // Parse GPX files to compute difficulty score
+    const variants = (frontmatter.variants as Array<{ gpx: string; distance_km?: number }>) || [];
+    const gpxTracks: Record<string, { elevation_gain_m: number; max_gradient_pct: number; points: { ele: number }[] }> = {};
+    for (const v of variants) {
+      const gpxPath = path.join(routeDir, v.gpx);
+      if (fs.existsSync(gpxPath)) {
+        try {
+          const parsed = parseGpx(fs.readFileSync(gpxPath, 'utf-8'));
+          gpxTracks[v.gpx] = parsed;
+        } catch { /* skip unparseable GPX */ }
+      }
+    }
+
+    const scores = scoreRoute({
+      data: {
+        distance_km: (frontmatter.distance_km as number) || 0,
+        tags: (frontmatter.tags as string[]) || [],
+        variants,
+        gpxTracks,
+      },
+    });
+
     return {
       slug,
       name: frontmatter.name as string,
       photoCount: photos.length,
       status: frontmatter.status as string,
       contentHash,
+      difficultyScore: scores.length > 0 ? Math.min(...scores) : null,
     };
   });
 
@@ -160,7 +187,7 @@ export async function loadAdminRouteDetails(): Promise<Record<string, AdminRoute
       tags: (frontmatter.tags as string[]) || [],
       distance: (frontmatter.distance_km as number) || 0,
       status: frontmatter.status as string,
-      body: await marked.parse(body.trim()),
+      body: body.trim(),
       media: photos,
       contentHash,
     };
