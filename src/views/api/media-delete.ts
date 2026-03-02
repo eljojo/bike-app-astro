@@ -1,8 +1,8 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
-import { deleteMedia } from '../../../lib/storage';
+import { env } from '../../lib/env';
+import { deleteMedia } from '../../lib/storage';
 
 export async function DELETE({ params, locals }: APIContext) {
   const { key } = params;

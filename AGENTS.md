@@ -83,6 +83,12 @@ make validate      # validate content data
 
 The build produces ~62 static pages. Map thumbnails are generated separately and copied into `dist/` during build via a custom Astro integration in `astro.config.mjs`.
 
+## No Bracket Filenames (MANDATORY)
+
+NEVER create files with `[` or `]` in their names (e.g. `[slug].astro`, `[id].ts`). Astro's file-based routing convention of bracket filenames is forbidden in this project.
+
+Dynamic routes are registered via `injectRoute()` in Astro integrations. View files live in `src/views/` with plain names. See `src/integrations/i18n-routes.ts` for public routes and `src/integrations/admin-routes.ts` for admin/API routes.
+
 ## Vendor Isolation (MANDATORY)
 
 NEVER import platform-specific modules (e.g. `cloudflare:workers`, AWS SDK, Vercel helpers) directly in application code. All platform APIs must be accessed through a single wrapper file in `src/lib/`. Application code imports from OUR modules only.

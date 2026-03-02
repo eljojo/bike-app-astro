@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
-import { GitService } from '../../../lib/git-service';
+import { env } from '../../lib/env';
+import { GitService } from '../../lib/git-service';
 import yaml from 'js-yaml';
 
 export const prerender = false;

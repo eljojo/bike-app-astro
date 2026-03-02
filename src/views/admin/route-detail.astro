@@ -1,11 +1,11 @@
 ---
 export const prerender = false;
 
-import Base from '../../../layouts/Base.astro';
-import RouteEditor from '../../../components/admin/RouteEditor.tsx';
+import Base from '../../layouts/Base.astro';
+import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import { getCollection } from 'astro:content';
-import { env } from '../../../lib/env';
-import '../../../styles/admin.scss';
+import { env } from '../../lib/env';
+import '../../styles/admin.scss';
 
 const { slug } = Astro.params;
 
@@ -52,7 +52,7 @@ const routeData = {
 </Base>
 
 <style lang="scss">
-  @use '../../../styles/variables' as *;
+  @use '../../styles/variables' as *;
 
   .editor-header {
     display: flex;

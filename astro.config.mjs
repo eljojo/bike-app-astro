@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
 import preact from '@astrojs/preact';
 import { i18nRoutes } from './src/integrations/i18n-routes';
+import { adminRoutesIntegration } from './src/integrations/admin-routes';
 import { slugRedirectLines } from './src/lib/slug-redirects.ts';
 import { buildDataPlugin } from './src/build-data-plugin';
 import fs from 'node:fs';
@@ -26,6 +27,7 @@ export default defineConfig({
   integrations: [
     preact(),
     i18nRoutes(),
+    adminRoutesIntegration(),
     {
       name: 'copy-map-cache',
       hooks: {
