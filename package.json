@@ -18,8 +18,10 @@
   "dependencies": {
     "@astrojs/cloudflare": "^13.0.0-beta.11",
     "@mapbox/polyline": "^1.2.1",
+    "@simplewebauthn/server": "^13.2.3",
     "@vovayatsyuk/photoswipe-object-position": "^1.0.0",
     "astro": "^6.0.0-beta.17",
+    "aws4fetch": "^1.0.20",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.1",
     "fast-xml-parser": "^5.4.1",
