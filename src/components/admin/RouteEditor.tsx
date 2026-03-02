@@ -126,7 +126,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
               {tags.map((tag) => (
                 <span key={tag} class="tag-pill">
                   {tag}
-                  <button type="button" onClick={() => removeTag(tag)}>\u00d7</button>
+                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
                 </span>
               ))}
               <input

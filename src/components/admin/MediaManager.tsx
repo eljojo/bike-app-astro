@@ -173,7 +173,7 @@ export default function MediaManager({ media, onChange, cdnUrl }: Props) {
                 onClick={() => removePhoto(idx)}
                 title="Remove"
               >
-                \u00d7
+                {'×'}
               </button>
             </div>
             <input
