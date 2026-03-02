@@ -3,7 +3,7 @@ import cloudflare from '@astrojs/cloudflare';
 import preact from '@astrojs/preact';
 import { i18nRoutes } from './src/integrations/i18n-routes';
 import { slugRedirectLines } from './src/lib/slug-redirects.ts';
-import { buildDataPlugin, CONTENT_DIR, CITY } from './src/build-data-plugin';
+import { buildDataPlugin } from './src/build-data-plugin';
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -34,37 +34,6 @@ export default defineConfig({
           const outDir = path.join(dir.pathname, '_cache', 'maps');
           if (!fs.existsSync(cacheDir)) return;
           fs.cpSync(cacheDir, outDir, { recursive: true });
-        }
-      }
-    },
-    {
-      name: 'copy-gpx-files',
-      hooks: {
-        'astro:build:done': async ({ dir }) => {
-          const routesDir = path.join(CONTENT_DIR, CITY, 'routes');
-          if (!fs.existsSync(routesDir)) return;
-          for (const slug of fs.readdirSync(routesDir)) {
-            const routeDir = path.join(routesDir, slug);
-            if (!fs.statSync(routeDir).isDirectory()) continue;
-            // Copy main GPX files
-            for (const file of fs.readdirSync(routeDir)) {
-              if (!file.endsWith('.gpx')) continue;
-              const outDir2 = path.join(dir.pathname, 'routes', slug);
-              fs.mkdirSync(outDir2, { recursive: true });
-              fs.copyFileSync(path.join(routeDir, file), path.join(outDir2, file));
-            }
-            // Copy variant GPX files
-            const variantsDir = path.join(routeDir, 'variants');
-            if (fs.existsSync(variantsDir)) {
-              for (const file of fs.readdirSync(variantsDir)) {
-                if (!file.endsWith('.gpx')) continue;
-                const variantName = file.replace(/\.gpx$/, '');
-                const outDir2 = path.join(dir.pathname, 'routes', slug, variantName);
-                fs.mkdirSync(outDir2, { recursive: true });
-                fs.copyFileSync(path.join(variantsDir, file), path.join(outDir2, `${variantName}.gpx`));
-              }
-            }
-          }
         }
       }
     },
