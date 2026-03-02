@@ -61,11 +61,12 @@ export async function POST({ params, request, locals }: APIContext) {
   }
 
   try {
+    const branch = env.GIT_BRANCH || 'main';
     const git = new GitService({
       token: env.GITHUB_TOKEN,
       owner: 'eljojo',
       repo: 'bike-routes',
-      branch: env.GIT_BRANCH || 'main',
+      branch,
     });
 
     const city = 'ottawa';
@@ -136,7 +137,6 @@ export async function POST({ params, request, locals }: APIContext) {
           },
         });
 
-        const branch = env.GIT_BRANCH || 'main';
         return new Response(JSON.stringify({
           error: 'This route was modified on GitHub since you started editing. Your edits are preserved in the form — review the changes on GitHub and re-apply.',
           githubUrl: `https://github.com/eljojo/bike-routes/blob/${branch}/ottawa/routes/${slug}/index.md`,
