@@ -3,73 +3,19 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
-import { env } from '../../lib/env';
-import { GitService } from '../../lib/git-service';
-import yaml from 'js-yaml';
+import { getCollection } from 'astro:content';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
-const city = 'ottawa';
 
-// Read routes from data repo via GitHub API
-let routes: Array<{ slug: string; name: string; photoCount: number; status: string }> = [];
-let routeError = '';
-
-try {
-  const git = new GitService({
-    token: env.GITHUB_TOKEN,
-    owner: 'eljojo',
-    repo: 'bike-routes',
-  });
-
-  const dirs = await git.listDirectory(`${city}/routes`);
-  const routeDirs = dirs.filter((d) => d.type === 'dir');
-
-  // Read each route's frontmatter and media count
-  const routePromises = routeDirs.map(async (dir) => {
-    try {
-      const indexFile = await git.readFile(`${dir.path}/index.md`);
-      if (!indexFile) return null;
-
-      // Parse frontmatter
-      const fmMatch = indexFile.content.match(/^---\n([\s\S]*?)\n---/);
-      let frontmatter: Record<string, any> = {};
-      if (fmMatch) {
-        try {
-          const parsed = yaml.load(fmMatch[1]);
-          if (parsed && typeof parsed === 'object') {
-            frontmatter = parsed as Record<string, any>;
-          }
-        } catch {
-          // Fall through with empty frontmatter
-        }
-      }
-
-      // Count photos from media.yml
-      let photoCount = 0;
-      const mediaFile = await git.readFile(`${dir.path}/media.yml`);
-      if (mediaFile) {
-        // Count lines starting with "- key:" as a rough photo count
-        const matches = mediaFile.content.match(/^- key:/gm);
-        photoCount = matches ? matches.length : 0;
-      }
-
-      return {
-        slug: dir.name,
-        name: frontmatter.name || frontmatter.title || dir.name,
-        photoCount,
-        status: frontmatter.status || 'published',
-      };
-    } catch {
-      return { slug: dir.name, name: dir.name, photoCount: 0, status: 'unknown' };
-    }
-  });
-
-  const results = await Promise.all(routePromises);
-  routes = results.filter((r): r is NonNullable<typeof r> => r !== null);
-  routes.sort((a, b) => a.name.localeCompare(b.name));
-} catch (err: any) {
-  routeError = err.message || 'Failed to load routes';
-}
+const allRoutes = await getCollection('routes');
+const routes = allRoutes
+  .map((r) => ({
+    slug: r.id,
+    name: r.data.name,
+    photoCount: r.data.media.filter((m) => m.type === 'photo').length,
+    status: r.data.status,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 ---
 
 <Base title="Admin">
@@ -84,8 +30,6 @@ try {
       </div>
     </div>
 
-    {routeError && <div class="auth-error">{routeError}</div>}
-
     <div class="route-list">
       {routes.map((route) => (
         <a href={`/admin/routes/${route.slug}`} class="route-list-item">
@@ -96,7 +40,7 @@ try {
           </span>
         </a>
       ))}
-      {routes.length === 0 && !routeError && (
+      {routes.length === 0 && (
         <p class="auth-message">No routes found.</p>
       )}
     </div>

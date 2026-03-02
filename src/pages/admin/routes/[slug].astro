@@ -3,81 +3,40 @@ export const prerender = false;
 
 import Base from '../../../layouts/Base.astro';
 import RouteEditor from '../../../components/admin/RouteEditor.tsx';
+import { getCollection } from 'astro:content';
 import { env } from '../../../lib/env';
-import { GitService } from '../../../lib/git-service';
-import yaml from 'js-yaml';
 import '../../../styles/admin.scss';
 
 const { slug } = Astro.params;
-const city = 'ottawa';
 
 if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 
-const git = new GitService({
-  token: env.GITHUB_TOKEN,
-  owner: 'eljojo',
-  repo: 'bike-routes',
-});
+const allRoutes = await getCollection('routes');
+const route = allRoutes.find((r) => r.id === slug);
 
-// Read index.md
-const indexFile = await git.readFile(`${city}/routes/${slug}/index.md`);
-if (!indexFile) {
+if (!route) {
   return new Response(null, { status: 404 });
-}
-
-// Parse frontmatter and body
-const fmMatch = indexFile.content.match(/^---\n([\s\S]*?)\n---\n*([\s\S]*)$/);
-const frontmatter: Record<string, any> = {};
-let body = '';
-
-if (fmMatch) {
-  // Parse YAML frontmatter
-  try {
-    const parsed = yaml.load(fmMatch[1]);
-    if (parsed && typeof parsed === 'object') {
-      Object.assign(frontmatter, parsed);
-    }
-  } catch {
-    // Fall back to simple line parsing
-    for (const line of fmMatch[1].split('\n')) {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0) {
-        const key = line.slice(0, colonIdx).trim();
-        const val = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
-        frontmatter[key] = val;
-      }
-    }
-  }
-  body = fmMatch[2].trim();
-}
-
-// Read media.yml
-let media: Array<{ key: string; caption?: string; cover?: boolean }> = [];
-const mediaFile = await git.readFile(`${city}/routes/${slug}/media.yml`);
-if (mediaFile) {
-  try {
-    const parsed = yaml.load(mediaFile.content);
-    if (Array.isArray(parsed)) {
-      media = parsed;
-    }
-  } catch {
-    // Ignore parse errors
-  }
 }
 
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 
 const routeData = {
   slug,
-  name: frontmatter.name || frontmatter.title || slug,
-  tagline: frontmatter.tagline || '',
-  tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
-  distance: parseFloat(frontmatter.distance) || 0,
-  status: frontmatter.status || 'published',
-  body,
-  media,
+  name: route.data.name,
+  tagline: route.data.tagline || '',
+  tags: route.data.tags,
+  distance: route.data.distance_km,
+  status: route.data.status,
+  body: route.data.renderedBody,
+  media: route.data.media
+    .filter((m) => m.type === 'photo')
+    .map((m) => ({
+      key: m.key,
+      caption: m.caption,
+      cover: m.cover,
+    })),
 };
 ---
 
