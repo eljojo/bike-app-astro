@@ -19,7 +19,7 @@ jobs:
     with:
       deploy: true
       environment: staging
-      worker-name: bike-ottawa-staging
+      wrangler-env: staging
       disable-analytics: true
       update-screenshots: true
     secrets:

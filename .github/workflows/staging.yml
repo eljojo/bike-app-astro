@@ -9,7 +9,7 @@ jobs:
     with:
       environment: staging
       deploy: true
-      worker-name: bike-ottawa-staging
+      wrangler-env: staging
       disable-analytics: true
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
