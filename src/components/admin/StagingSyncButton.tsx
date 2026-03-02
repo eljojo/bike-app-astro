@@ -27,7 +27,7 @@ export default function StagingSyncButton() {
 
   return (
     <div>
-      <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>
+      <p class="auth-message" style={{ marginBottom: '0.75rem' }}>
         Reset staging data to match production. This will overwrite all staging edits.
       </p>
       <button
