@@ -82,10 +82,22 @@ export async function POST({ request, cookies, locals }: APIContext) {
 
     const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
 
-    // Create user
     const userId = generateId();
     const now = new Date().toISOString();
 
+    // Claim invite code FIRST — before creating any user data.
+    // If another request races us, we fail cleanly with no orphaned rows.
+    if (inviteId) {
+      const claimed = await markInviteCodeUsed(db, inviteId, userId);
+      if (!claimed) {
+        return new Response(JSON.stringify({ error: 'Invite code was already used' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Create user
     await db.insert(users).values({
       id: userId,
       email,
@@ -100,24 +112,13 @@ export async function POST({ request, cookies, locals }: APIContext) {
       id: generateId(),
       userId,
       credentialId: credential.id,
-      publicKey: Buffer.from(credential.publicKey),
+      publicKey: new Uint8Array(credential.publicKey),
       counter: credential.counter,
       transports: credentialResponse.response?.transports
         ? JSON.stringify(credentialResponse.response.transports)
         : null,
       createdAt: now,
     });
-
-    // Atomically mark invite code as used (prevents race condition)
-    if (inviteId) {
-      const claimed = await markInviteCodeUsed(db, inviteId, userId);
-      if (!claimed) {
-        return new Response(JSON.stringify({ error: 'Invite code was already used' }), {
-          status: 409,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    }
 
     // Create session
     const token = await createSession(db, userId);

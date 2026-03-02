@@ -11,7 +11,7 @@ const { slug } = Astro.params;
 const env = Astro.locals.runtime.env;
 const city = 'ottawa';
 
-if (!slug) {
+if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 

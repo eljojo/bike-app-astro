@@ -11,7 +11,7 @@ export const users = sqliteTable('users', {
 
 export const credentials = sqliteTable('credentials', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   credentialId: text('credential_id').notNull().unique(),
   publicKey: blob('public_key', { mode: 'buffer' }).notNull(),
   counter: integer('counter').notNull().default(0),
@@ -21,7 +21,7 @@ export const credentials = sqliteTable('credentials', {
 
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
   expiresAt: text('expires_at').notNull(),
   createdAt: text('created_at').notNull(),

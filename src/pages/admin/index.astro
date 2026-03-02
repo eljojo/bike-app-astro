@@ -4,6 +4,7 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
 import { GitService } from '../../lib/git-service';
+import yaml from 'js-yaml';
 import '../../styles/admin.scss';
 
 const env = Astro.locals.runtime.env;
@@ -32,15 +33,15 @@ try {
 
       // Parse frontmatter
       const fmMatch = indexFile.content.match(/^---\n([\s\S]*?)\n---/);
-      const frontmatter: Record<string, string> = {};
+      let frontmatter: Record<string, any> = {};
       if (fmMatch) {
-        for (const line of fmMatch[1].split('\n')) {
-          const colonIdx = line.indexOf(':');
-          if (colonIdx > 0) {
-            const key = line.slice(0, colonIdx).trim();
-            const val = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
-            frontmatter[key] = val;
+        try {
+          const parsed = yaml.load(fmMatch[1]);
+          if (parsed && typeof parsed === 'object') {
+            frontmatter = parsed as Record<string, any>;
           }
+        } catch {
+          // Fall through with empty frontmatter
         }
       }
 

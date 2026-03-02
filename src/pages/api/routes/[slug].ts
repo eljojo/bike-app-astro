@@ -19,8 +19,15 @@ export async function POST({ params, request, locals }: APIContext) {
   const user = locals.user;
   const env = locals.runtime.env;
 
-  if (!slug) {
-    return new Response(JSON.stringify({ error: 'Missing slug' }), {
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
+    return new Response(JSON.stringify({ error: 'Invalid slug' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -31,6 +38,16 @@ export async function POST({ params, request, locals }: APIContext) {
     update = await request.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Validate frontmatter keys
+  const allowedKeys = new Set(['name', 'tagline', 'tags', 'distance', 'status', 'difficulty', 'surface', 'title']);
+  const unknownKeys = Object.keys(update.frontmatter || {}).filter(k => !allowedKeys.has(k));
+  if (unknownKeys.length > 0) {
+    return new Response(JSON.stringify({ error: `Unknown frontmatter keys: ${unknownKeys.join(', ')}` }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });

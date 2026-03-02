@@ -35,11 +35,16 @@ export async function generateMediaKey(r2: R2Bucket): Promise<string> {
  */
 export function randomKey(): string {
   const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+  const limit = 252; // 36 * 7 — largest multiple of 36 that fits in a byte
   let result = '';
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  for (const byte of bytes) {
-    result += chars[byte % 36];
+  while (result.length < 8) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    for (const b of bytes) {
+      if (b < limit && result.length < 8) {
+        result += chars[b % 36];
+      }
+    }
   }
   return result;
 }

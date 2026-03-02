@@ -7,9 +7,18 @@ export const prerender = false;
 
 function randomCode(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => chars[b % 36]).join('');
+  const limit = 252; // 36 * 7 — largest multiple of 36 that fits in a byte
+  let result = '';
+  while (result.length < 8) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    for (const b of bytes) {
+      if (b < limit && result.length < 8) {
+        result += chars[b % 36];
+      }
+    }
+  }
+  return result;
 }
 
 export async function POST({ locals }: APIContext) {

@@ -8,6 +8,13 @@
       "when": 1772423015921,
       "tag": "0000_breezy_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1772429357594,
+      "tag": "0001_chemical_changeling",
+      "breakpoints": true
     }
   ]
 }
