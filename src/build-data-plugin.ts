@@ -18,7 +18,12 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
 
-export const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
+// Resolve project root from this file's location (src/build-data-plugin.ts → project root)
+const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
+
+export const CONTENT_DIR = process.env.CONTENT_DIR
+  ? path.resolve(PROJECT_ROOT, process.env.CONTENT_DIR)
+  : path.resolve(PROJECT_ROOT, '..', 'bike-routes');
 export const CITY = process.env.CITY || 'ottawa';
 export const CITY_DIR = path.join(CONTENT_DIR, CITY);
 
@@ -33,7 +38,7 @@ function loadTagTranslations() {
 }
 
 function loadFontPreloads() {
-  const content = fs.readFileSync(path.resolve('src/styles/_webfonts.scss'), 'utf-8');
+  const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
   const urls = new Set<string>();
   let match;
@@ -44,7 +49,7 @@ function loadFontPreloads() {
 }
 
 function loadCachedMaps() {
-  const cacheDir = path.resolve('public', 'maps');
+  const cacheDir = path.join(PROJECT_ROOT, 'public', 'maps');
   const maps: string[] = [];
   if (!fs.existsSync(cacheDir)) return maps;
   for (const slug of fs.readdirSync(cacheDir)) {
