@@ -5,15 +5,15 @@ import { deleteMedia } from '../../../lib/storage';
 
 export async function DELETE({ params, locals }: APIContext) {
   const { key } = params;
-  if (!key || typeof key !== 'string') {
-    return new Response(JSON.stringify({ error: 'Missing or invalid key' }), {
+  if (!key || !/^[0-9a-z]{8}$/.test(key)) {
+    return new Response(JSON.stringify({ error: 'Invalid key format' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
   try {
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     await deleteMedia(env.R2, key);
     return new Response(JSON.stringify({ deleted: true, key }), {
       status: 200,

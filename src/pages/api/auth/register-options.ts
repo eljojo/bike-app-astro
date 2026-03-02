@@ -25,7 +25,7 @@ export async function POST({ request, cookies, locals }: APIContext) {
       });
     }
 
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
 
@@ -58,8 +58,8 @@ export async function POST({ request, cookies, locals }: APIContext) {
       .limit(1);
 
     if (existingUser.length > 0) {
-      return new Response(JSON.stringify({ error: 'Email is already registered' }), {
-        status: 409,
+      return new Response(JSON.stringify({ error: 'Unable to register with this email' }), {
+        status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }

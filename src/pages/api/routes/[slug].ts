@@ -16,8 +16,8 @@ interface RouteUpdate {
 
 export async function POST({ params, request, locals }: APIContext) {
   const { slug } = params;
-  const user = (locals as any).user;
-  const env = (locals as any).runtime.env;
+  const user = locals.user;
+  const env = locals.runtime.env;
 
   if (!slug) {
     return new Response(JSON.stringify({ error: 'Missing slug' }), {
@@ -48,18 +48,11 @@ export async function POST({ params, request, locals }: APIContext) {
     const files: Array<{ path: string; content: string }> = [];
 
     // Build index.md content
-    const fm = update.frontmatter;
-    const frontmatterStr = Object.entries(fm)
-      .map(([key, val]) => {
-        if (Array.isArray(val)) {
-          return `${key}:\n${val.map((v) => `  - ${v}`).join('\n')}`;
-        }
-        if (typeof val === 'string' && (val.includes(':') || val.includes('#') || val.includes('"'))) {
-          return `${key}: "${val.replace(/"/g, '\\"')}"`;
-        }
-        return `${key}: ${val}`;
-      })
-      .join('\n');
+    const frontmatterStr = yaml.dump(update.frontmatter, {
+      lineWidth: -1,
+      quotingType: '"',
+      forceQuotes: false,
+    }).trimEnd();
 
     const indexContent = `---\n${frontmatterStr}\n---\n\n${update.body}\n`;
     files.push({ path: `${basePath}/index.md`, content: indexContent });

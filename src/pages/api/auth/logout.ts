@@ -4,9 +4,9 @@ import { destroySession, clearSessionCookies } from '../../../lib/auth';
 
 export const prerender = false;
 
-export async function POST({ cookies, locals }: APIContext) {
+export async function POST({ request, cookies, locals }: APIContext) {
   try {
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const token = cookies.get('session_token')?.value;
 
@@ -16,9 +16,17 @@ export async function POST({ cookies, locals }: APIContext) {
 
     clearSessionCookies(cookies);
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    // Support both HTML form submissions (redirect) and fetch API (JSON)
+    const accept = request.headers.get('accept') || '';
+    if (accept.includes('application/json')) {
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response(null, {
+      status: 302,
+      headers: { Location: '/login' },
     });
   } catch (err) {
     console.error('logout error:', err);

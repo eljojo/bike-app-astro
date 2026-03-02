@@ -8,7 +8,7 @@ import yaml from 'js-yaml';
 import '../../../styles/admin.scss';
 
 const { slug } = Astro.params;
-const env = (Astro.locals as any).runtime.env;
+const env = Astro.locals.runtime.env;
 const city = 'ottawa';
 
 if (!slug) {

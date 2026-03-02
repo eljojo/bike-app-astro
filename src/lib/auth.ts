@@ -1,4 +1,4 @@
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, isNull, lt } from 'drizzle-orm';
 import { sessions, users, inviteCodes } from '../db/schema';
 import type { Database } from '../db';
 
@@ -33,11 +33,14 @@ export function generateId(): string {
   return randomHex(16);
 }
 
-/** Create a new session for a user, returning the token. */
+/** Create a new session for a user, returning the token. Also cleans up expired sessions. */
 export async function createSession(db: Database, userId: string): Promise<string> {
   const token = randomHex(32);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+  // Clean up expired sessions (fire-and-forget, don't block login)
+  await db.delete(sessions).where(lt(sessions.expiresAt, now.toISOString()));
 
   await db.insert(sessions).values({
     id: generateId(),
@@ -165,16 +168,17 @@ export async function validateInviteCode(
   return { id: invite.id, createdBy: invite.createdBy };
 }
 
-/** Mark an invite code as used by a specific user. */
+/** Atomically mark an invite code as used. Returns false if already claimed. */
 export async function markInviteCodeUsed(
   db: Database,
   inviteId: string,
   userId: string
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const result = await db
     .update(inviteCodes)
     .set({ usedBy: userId })
-    .where(eq(inviteCodes.id, inviteId));
+    .where(and(eq(inviteCodes.id, inviteId), isNull(inviteCodes.usedBy)));
+  return (result as any).rowsAffected === 1;
 }
 
 /** Check if the users table is empty (for /setup flow). */

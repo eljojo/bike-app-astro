@@ -23,7 +23,7 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const metadata = await confirmUpload(env.R2, key);
     return new Response(JSON.stringify(metadata), {
       status: 200,

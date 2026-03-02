@@ -101,11 +101,12 @@ export class GitService {
   }
 
   /**
-   * Trigger site rebuild via repository_dispatch.
+   * Trigger site rebuild via repository_dispatch on the Astro repo.
+   * The production.yml workflow in bike-app-astro listens for 'data-updated'.
    */
   async triggerRebuild(): Promise<void> {
     const response = await this.githubFetch(
-      `/repos/${this.config.owner}/${this.config.repo}/dispatches`,
+      `/repos/${this.config.owner}/bike-app-astro/dispatches`,
       {
         method: 'POST',
         body: JSON.stringify({ event_type: 'data-updated' }),
@@ -292,17 +293,24 @@ export class GitService {
 /**
  * Decode base64-encoded file content from GitHub API.
  * GitHub returns content with newlines inserted, so strip those first.
+ * Handles UTF-8 content (e.g. French accents: é, à, ç).
  */
 export function decodeBase64Content(encoded: string): string {
   const cleaned = encoded.replace(/\n/g, '');
-  return atob(cleaned);
+  const binary = atob(cleaned);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 /**
  * Encode file content to base64 for GitHub API.
+ * Handles UTF-8 content (e.g. French accents: é, à, ç).
  */
 export function encodeBase64Content(content: string): string {
-  return btoa(content);
+  const bytes = new TextEncoder().encode(content);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 /**

@@ -13,7 +13,7 @@ function randomCode(): string {
 }
 
 export async function POST({ locals }: APIContext) {
-  const user = (locals as any).user;
+  const user = locals.user;
 
   if (!user || user.role !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), {
@@ -23,7 +23,7 @@ export async function POST({ locals }: APIContext) {
   }
 
   try {
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const code = randomCode();
     const now = new Date();

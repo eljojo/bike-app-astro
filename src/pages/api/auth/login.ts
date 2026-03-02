@@ -9,7 +9,7 @@ import {
   retrieveChallenge,
   getWebAuthnConfig,
 } from '../../../lib/auth';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export const prerender = false;
 
@@ -25,7 +25,7 @@ export async function POST({ request, cookies, locals }: APIContext) {
       });
     }
 
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(env);
@@ -47,19 +47,22 @@ export async function POST({ request, cookies, locals }: APIContext) {
       .limit(1);
 
     if (userResult.length === 0) {
-      return new Response(JSON.stringify({ error: 'No account found with that email' }), {
-        status: 404,
+      return new Response(JSON.stringify({ error: 'Invalid email or credentials' }), {
+        status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
     const user = userResult[0];
 
-    // Find the matching credential
+    // Find the matching credential — must belong to this user
     const credResult = await db
       .select()
       .from(credentials)
-      .where(eq(credentials.credentialId, authResponse.id))
+      .where(and(
+        eq(credentials.credentialId, authResponse.id),
+        eq(credentials.userId, user.id)
+      ))
       .limit(1);
 
     if (credResult.length === 0) {

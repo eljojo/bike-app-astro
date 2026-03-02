@@ -29,7 +29,7 @@ export async function POST({ request, cookies, locals }: APIContext) {
       });
     }
 
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(env);
@@ -108,9 +108,15 @@ export async function POST({ request, cookies, locals }: APIContext) {
       createdAt: now,
     });
 
-    // Mark invite code as used
+    // Atomically mark invite code as used (prevents race condition)
     if (inviteId) {
-      await markInviteCodeUsed(db, inviteId, userId);
+      const claimed = await markInviteCodeUsed(db, inviteId, userId);
+      if (!claimed) {
+        return new Response(JSON.stringify({ error: 'Invite code was already used' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Create session

@@ -12,7 +12,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!isProtected) return next();
 
-  const env = (context.locals as any).runtime.env;
+  const env = context.locals.runtime.env;
   const db = getDb(env.DB);
   const token = context.cookies.get('session_token')?.value;
 
@@ -43,6 +43,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   // Make user available to page/API handlers
-  (context.locals as any).user = user;
+  context.locals.user = user;
   return next();
 });

@@ -6,8 +6,8 @@ import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx'
 import { GitService } from '../../lib/git-service';
 import '../../styles/admin.scss';
 
-const env = (Astro.locals as any).runtime.env;
-const user = (Astro.locals as any).user;
+const env = Astro.locals.runtime.env;
+const user = Astro.locals.user;
 const city = 'ottawa';
 
 // Read routes from data repo via GitHub API

@@ -30,7 +30,7 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const key = await generateMediaKey(env.R2);
     const uploadUrl = await createPresignedUploadUrl(env, key, contentType);
 

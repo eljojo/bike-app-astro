@@ -19,7 +19,7 @@ export async function POST({ request, cookies, locals }: APIContext) {
       });
     }
 
-    const env = (locals as any).runtime.env;
+    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(env);
@@ -32,8 +32,8 @@ export async function POST({ request, cookies, locals }: APIContext) {
       .limit(1);
 
     if (userResult.length === 0) {
-      return new Response(JSON.stringify({ error: 'No account found with that email' }), {
-        status: 404,
+      return new Response(JSON.stringify({ error: 'Invalid email or credentials' }), {
+        status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }

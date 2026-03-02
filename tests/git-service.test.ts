@@ -80,10 +80,13 @@ describe('encodeBase64Content', () => {
   });
 
   it('round-trips with decodeBase64Content', () => {
-    const original = '# Test\n\nSome content with special chars: é, ñ';
-    // Note: btoa only works with ASCII, so this tests the ASCII subset
     const asciiOriginal = '# Test Route\n\nA description.\n';
     expect(decodeBase64Content(encodeBase64Content(asciiOriginal))).toBe(asciiOriginal);
+  });
+
+  it('round-trips Unicode content (French accents)', () => {
+    const unicode = '# Test\n\nSome content with special chars: é, ñ, à, ç, ü';
+    expect(decodeBase64Content(encodeBase64Content(unicode))).toBe(unicode);
   });
 });
 
@@ -369,7 +372,7 @@ describe('GitService', () => {
 
       expect(fetchMock).toHaveBeenCalledOnce();
       const [url, options] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/dispatches');
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-app-astro/dispatches');
       expect(options.method).toBe('POST');
       const body = JSON.parse(options.body);
       expect(body.event_type).toBe('data-updated');
