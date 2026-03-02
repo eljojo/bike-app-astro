@@ -1,4 +1,4 @@
-import { z } from 'astro:content';
+import { z } from 'astro/zod';
 
 export const variantSchema = z.object({
   name: z.string(),
@@ -38,11 +38,11 @@ export const routeSchema = z.object({
     polyline: z.string(),
   })).default({}),
   renderedBody: z.string().default(''),
-  translations: z.record(z.string(), z.object({
+  translations: z.record(z.string(), z.looseObject({
     name: z.string().optional(),
     tagline: z.string().optional(),
     renderedBody: z.string().optional(),
-  }).passthrough()).default({}),
+  })).default({}),
 });
 
 export const placeSchema = z.object({
