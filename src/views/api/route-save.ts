@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto';
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { GitService } from '../../lib/git-service';
 import { getDb } from '../../db';
 import { routeEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import matter from 'gray-matter';
 import { marked } from 'marked';
 import yaml from 'js-yaml';
 
@@ -17,6 +19,7 @@ interface RouteUpdate {
     caption?: string;
     cover?: boolean;
   }>;
+  contentHash?: string;
 }
 
 export async function POST({ params, request, locals }: APIContext) {
@@ -68,15 +71,75 @@ export async function POST({ params, request, locals }: APIContext) {
     const basePath = `${city}/routes/${slug}`;
     const db = getDb(env.DB);
 
-    // Compare-and-swap: read current file SHA from GitHub
+    // Compare-and-swap: detect if GitHub has diverged
     const currentFile = await git.readFile(`${basePath}/index.md`);
+    const currentMedia = await git.readFile(`${basePath}/media.yml`);
 
-    // Check for concurrent edits (only if this route already exists)
     if (currentFile) {
       const cached = await db.select().from(routeEdits).where(eq(routeEdits.slug, slug)).get();
-      if (cached && cached.githubSha !== currentFile.sha) {
+
+      let hasConflict = false;
+
+      if (cached) {
+        // Case A: scratchpad exists — compare SHA
+        hasConflict = cached.githubSha !== currentFile.sha;
+      } else if (update.contentHash) {
+        // Case B: first save after deploy — compare content hash
+        const currentHash = createHash('md5')
+          .update(currentFile.content)
+          .update(currentMedia?.content || '')
+          .digest('hex');
+        hasConflict = currentHash !== update.contentHash;
+      }
+
+      if (hasConflict) {
+        // Sync scratchpad with fresh GitHub data so reload shows current state
+        const { data: ghFrontmatter, content: ghBody } = matter(currentFile.content);
+        const ghRenderedBody = await marked.parse(ghBody);
+
+        let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
+        if (currentMedia) {
+          const mediaEntries = (yaml.load(currentMedia.content) as any[]) || [];
+          ghMedia = mediaEntries
+            .filter((m: any) => m.type === 'photo')
+            .map((m: any) => {
+              const item: Record<string, unknown> = { key: m.key };
+              if (m.caption) item.caption = m.caption;
+              if (m.cover) item.cover = m.cover;
+              return item;
+            }) as Array<{ key: string; caption?: string; cover?: boolean }>;
+        }
+
+        const freshData = JSON.stringify({
+          slug,
+          name: ghFrontmatter.name,
+          tagline: ghFrontmatter.tagline || '',
+          tags: ghFrontmatter.tags || [],
+          distance: ghFrontmatter.distance_km,
+          status: ghFrontmatter.status,
+          body: ghRenderedBody,
+          media: ghMedia,
+        });
+
+        await db.insert(routeEdits).values({
+          slug,
+          data: freshData,
+          githubSha: currentFile.sha,
+          updatedAt: new Date().toISOString(),
+        }).onConflictDoUpdate({
+          target: routeEdits.slug,
+          set: {
+            data: freshData,
+            githubSha: currentFile.sha,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+
+        const branch = 'main';
         return new Response(JSON.stringify({
-          error: 'This route was modified since you last edited it. Please reload to get the latest version.',
+          error: 'This route was modified on GitHub since you started editing. Your edits are preserved in the form — review the changes on GitHub and re-apply.',
+          githubUrl: `https://github.com/eljojo/bike-routes/blob/${branch}/ottawa/routes/${slug}/index.md`,
+          conflict: true,
         }), {
           status: 409,
           headers: { 'Content-Type': 'application/json' },

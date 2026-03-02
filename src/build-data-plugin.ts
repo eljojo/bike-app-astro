@@ -13,6 +13,7 @@
  * For map-thumbnails.ts, we use a virtual module since it's not in the config
  * import chain.
  */
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -73,6 +74,7 @@ interface AdminRoute {
   name: string;
   photoCount: number;
   status: string;
+  contentHash: string;
 }
 
 interface AdminMediaItem {
@@ -90,6 +92,7 @@ interface AdminRouteDetail {
   status: string;
   body: string;
   media: AdminMediaItem[];
+  contentHash: string;
 }
 
 function readRouteDir(slug: string) {
@@ -97,10 +100,14 @@ function readRouteDir(slug: string) {
   const mdPath = path.join(routeDir, 'index.md');
   const mediaPath = path.join(routeDir, 'media.yml');
 
-  const { data: frontmatter, content: body } = matter(fs.readFileSync(mdPath, 'utf-8'));
+  const indexRaw = fs.readFileSync(mdPath, 'utf-8');
+  const mediaRaw = fs.existsSync(mediaPath) ? fs.readFileSync(mediaPath, 'utf-8') : '';
+  const contentHash = createHash('md5').update(indexRaw).update(mediaRaw).digest('hex');
 
-  const rawMedia = fs.existsSync(mediaPath)
-    ? (yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as Array<Record<string, unknown>>) || []
+  const { data: frontmatter, content: body } = matter(indexRaw);
+
+  const rawMedia = mediaRaw
+    ? (yaml.load(mediaRaw) as Array<Record<string, unknown>>) || []
     : [];
 
   const photos: AdminMediaItem[] = rawMedia
@@ -112,7 +119,7 @@ function readRouteDir(slug: string) {
       return item;
     });
 
-  return { frontmatter, body, photos };
+  return { frontmatter, body, photos, contentHash };
 }
 
 export async function loadAdminRoutes(): Promise<AdminRoute[]> {
@@ -122,12 +129,13 @@ export async function loadAdminRoutes(): Promise<AdminRoute[]> {
   });
 
   const routes: AdminRoute[] = slugs.map((slug) => {
-    const { frontmatter, photos } = readRouteDir(slug);
+    const { frontmatter, photos, contentHash } = readRouteDir(slug);
     return {
       slug,
       name: frontmatter.name as string,
       photoCount: photos.length,
       status: frontmatter.status as string,
+      contentHash,
     };
   });
 
@@ -144,7 +152,7 @@ export async function loadAdminRouteDetails(): Promise<Record<string, AdminRoute
   const details: Record<string, AdminRouteDetail> = {};
 
   for (const slug of slugs) {
-    const { frontmatter, body, photos } = readRouteDir(slug);
+    const { frontmatter, body, photos, contentHash } = readRouteDir(slug);
     details[slug] = {
       slug,
       name: frontmatter.name as string,
@@ -154,6 +162,7 @@ export async function loadAdminRouteDetails(): Promise<Record<string, AdminRoute
       status: frontmatter.status as string,
       body: await marked.parse(body.trim()),
       media: photos,
+      contentHash,
     };
   }
 

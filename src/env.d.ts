@@ -33,6 +33,7 @@ declare module 'virtual:bike-app/admin-routes' {
     name: string;
     photoCount: number;
     status: string;
+    contentHash: string;
   }>;
   export default routes;
 }
@@ -52,6 +53,7 @@ declare module 'virtual:bike-app/admin-route-detail' {
     status: string;
     body: string;
     media: AdminMediaItem[];
+    contentHash: string;
   }
   const details: Record<string, AdminRouteDetail>;
   export default details;

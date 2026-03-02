@@ -20,12 +20,14 @@ describe('loadAdminRoutes', () => {
       expect(route).toHaveProperty('name');
       expect(route).toHaveProperty('photoCount');
       expect(route).toHaveProperty('status');
+      expect(route).toHaveProperty('contentHash');
       expect(typeof route.slug).toBe('string');
       expect(typeof route.name).toBe('string');
       expect(typeof route.photoCount).toBe('number');
       expect(typeof route.status).toBe('string');
+      expect(typeof route.contentHash).toBe('string');
       // Should not have extra fields
-      expect(Object.keys(route).sort()).toEqual(['name', 'photoCount', 'slug', 'status']);
+      expect(Object.keys(route).sort()).toEqual(['contentHash', 'name', 'photoCount', 'slug', 'status']);
     }
   });
 
@@ -35,6 +37,13 @@ describe('loadAdminRoutes', () => {
     const aylmer = routes.find((r) => r.slug === 'aylmer');
     expect(aylmer).toBeDefined();
     expect(aylmer!.photoCount).toBeGreaterThan(0);
+  });
+
+  it('includes contentHash in route list items', async () => {
+    const routes = await loadAdminRoutes();
+    expect(routes[0]).toHaveProperty('contentHash');
+    expect(typeof routes[0].contentHash).toBe('string');
+    expect(routes[0].contentHash.length).toBe(32); // MD5 hex length
   });
 });
 
@@ -93,6 +102,14 @@ describe('loadAdminRouteDetails', () => {
     for (const item of aylmer.media) {
       expect(item.key).toBeDefined();
     }
+  });
+
+  it('includes contentHash for each route detail', async () => {
+    const details = await loadAdminRouteDetails();
+    const slug = Object.keys(details)[0];
+    expect(details[slug]).toHaveProperty('contentHash');
+    expect(typeof details[slug].contentHash).toBe('string');
+    expect(details[slug].contentHash.length).toBe(32); // MD5 hex length
   });
 });
 

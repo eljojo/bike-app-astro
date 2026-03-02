@@ -11,6 +11,7 @@ interface RouteData {
   status: string;
   body: string;
   media: MediaItem[];
+  contentHash?: string;
 }
 
 interface Props {
@@ -29,6 +30,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
   const [saved, setSaved] = useState(false);
 
   function addTag() {
@@ -52,6 +54,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
   async function handleSave() {
     setError('');
+    setGithubUrl('');
     setSaving(true);
     setSaved(false);
 
@@ -69,13 +72,16 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
           },
           body,
           media,
+          contentHash: initialData.contentHash,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        if (res.status === 409) {
-          throw new Error(data.error || 'Conflict: route was modified externally. Please reload the page.');
+        if (res.status === 409 && data.conflict) {
+          setError(data.error);
+          setGithubUrl(data.githubUrl);
+          return;
         }
         throw new Error(data.error || 'Save failed');
       }
@@ -176,7 +182,16 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
       </section>
 
       <div class="editor-actions">
-        {error && <div class="auth-error">{error}</div>}
+        {error && (
+          <div class="auth-error">
+            {error}
+            {githubUrl && (
+              <div style="margin-top: 0.5rem">
+                <a href={githubUrl} target="_blank" rel="noopener">View file on GitHub</a>
+              </div>
+            )}
+          </div>
+        )}
         {saved && <div class="save-success">Saved! Site rebuild triggered.</div>}
         <button
           type="button"
