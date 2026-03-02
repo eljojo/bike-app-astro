@@ -138,7 +138,8 @@ export class GitService {
     }
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      const body = await response.text();
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText} — ${body}`);
     }
 
     const data = await response.json();
