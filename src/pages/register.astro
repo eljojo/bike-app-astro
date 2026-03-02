@@ -3,6 +3,9 @@ export const prerender = false;
 
 import Base from '../layouts/Base.astro';
 import RegisterForm from '../components/admin/RegisterForm.tsx';
+import { env } from '../lib/env';
+import { validateInviteCode } from '../lib/auth';
+import { getDb } from '../db';
 import '../styles/admin.scss';
 
 const code = Astro.url.searchParams.get('code');
@@ -12,9 +15,6 @@ if (!code) {
   return new Response(null, { status: 404 });
 }
 
-const { validateInviteCode } = await import('../lib/auth');
-const { getDb } = await import('../db');
-const env = (Astro.locals as any).runtime.env;
 const db = getDb(env.DB);
 
 const invite = await validateInviteCode(db, code);

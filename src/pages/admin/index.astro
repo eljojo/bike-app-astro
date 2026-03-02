@@ -3,11 +3,10 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
+import { env } from '../../lib/env';
 import { GitService } from '../../lib/git-service';
 import yaml from 'js-yaml';
 import '../../styles/admin.scss';
-
-const env = Astro.locals.runtime.env;
 const user = Astro.locals.user;
 const city = 'ottawa';
 

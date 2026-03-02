@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { env } from '../../../lib/env';
 import { GitService } from '../../../lib/git-service';
 import yaml from 'js-yaml';
 
@@ -17,7 +18,6 @@ interface RouteUpdate {
 export async function POST({ params, request, locals }: APIContext) {
   const { slug } = params;
   const user = locals.user;
-  const env = locals.runtime.env;
 
   if (!user) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {

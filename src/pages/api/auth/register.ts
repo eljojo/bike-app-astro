@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { env } from '../../../lib/env';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { getDb } from '../../../db';
 import { users, credentials } from '../../../db/schema';
@@ -17,7 +18,7 @@ import { eq } from 'drizzle-orm';
 
 export const prerender = false;
 
-export async function POST({ request, cookies, locals }: APIContext) {
+export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
     const { email: rawEmail, displayName, handle, inviteCode, credential: credentialResponse } = body;
@@ -29,7 +30,6 @@ export async function POST({ request, cookies, locals }: APIContext) {
       });
     }
 
-    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(env);

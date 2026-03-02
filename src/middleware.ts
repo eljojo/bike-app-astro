@@ -1,4 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
+import { env } from './lib/env';
 import { validateSession } from './lib/auth';
 import { getDb } from './db';
 
@@ -12,7 +13,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!isProtected) return next();
 
-  const env = context.locals.runtime.env;
   const db = getDb(env.DB);
   const token = context.cookies.get('session_token')?.value;
 

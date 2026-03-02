@@ -3,12 +3,12 @@ export const prerender = false;
 
 import Base from '../../../layouts/Base.astro';
 import RouteEditor from '../../../components/admin/RouteEditor.tsx';
+import { env } from '../../../lib/env';
 import { GitService } from '../../../lib/git-service';
 import yaml from 'js-yaml';
 import '../../../styles/admin.scss';
 
 const { slug } = Astro.params;
-const env = Astro.locals.runtime.env;
 const city = 'ottawa';
 
 if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {

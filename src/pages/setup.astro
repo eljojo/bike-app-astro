@@ -3,12 +3,11 @@ export const prerender = false;
 
 import Base from '../layouts/Base.astro';
 import RegisterForm from '../components/admin/RegisterForm.tsx';
+import { env } from '../lib/env';
+import { isFirstUser } from '../lib/auth';
+import { getDb } from '../db';
 import '../styles/admin.scss';
 
-// Only works when users table is empty
-const { isFirstUser } = await import('../lib/auth');
-const { getDb } = await import('../db');
-const env = (Astro.locals as any).runtime.env;
 const db = getDb(env.DB);
 
 const first = await isFirstUser(db);

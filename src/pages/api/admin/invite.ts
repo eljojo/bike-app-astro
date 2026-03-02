@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { env } from '../../../lib/env';
 import { getDb } from '../../../db';
 import { inviteCodes } from '../../../db/schema';
 import { generateId } from '../../../lib/auth';
@@ -32,7 +33,6 @@ export async function POST({ locals }: APIContext) {
   }
 
   try {
-    const env = locals.runtime.env;
     const db = getDb(env.DB);
     const code = randomCode();
     const now = new Date();

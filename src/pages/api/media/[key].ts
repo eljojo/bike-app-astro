@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
+import { env } from '../../../lib/env';
 import { deleteMedia } from '../../../lib/storage';
 
 export async function DELETE({ params, locals }: APIContext) {
@@ -13,7 +14,6 @@ export async function DELETE({ params, locals }: APIContext) {
   }
 
   try {
-    const env = locals.runtime.env;
     await deleteMedia(env.R2, key);
     return new Response(JSON.stringify({ deleted: true, key }), {
       status: 200,

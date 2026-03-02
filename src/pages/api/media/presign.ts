@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
+import { env } from '../../../lib/env';
 import { generateMediaKey, createPresignedUploadUrl } from '../../../lib/storage';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
@@ -30,7 +31,6 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const env = locals.runtime.env;
     const key = await generateMediaKey(env.R2);
     const uploadUrl = await createPresignedUploadUrl(env, key, contentType);
 

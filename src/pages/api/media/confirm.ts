@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
+import { env } from '../../../lib/env';
 import { confirmUpload } from '../../../lib/storage';
 
 export async function POST({ request, locals }: APIContext) {
@@ -23,7 +24,6 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const env = locals.runtime.env;
     const metadata = await confirmUpload(env.R2, key);
     return new Response(JSON.stringify(metadata), {
       status: 200,
