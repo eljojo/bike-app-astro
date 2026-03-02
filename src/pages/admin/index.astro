@@ -3,19 +3,11 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
-import { getCollection } from 'astro:content';
+import adminRoutes from 'virtual:bike-app/admin-routes';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 
-const allRoutes = await getCollection('routes');
-const routes = allRoutes
-  .map((r) => ({
-    slug: r.id,
-    name: r.data.name,
-    photoCount: r.data.media.filter((m) => m.type === 'photo').length,
-    status: r.data.status,
-  }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+const routes = adminRoutes;
 ---
 
 <Base title="Admin">
