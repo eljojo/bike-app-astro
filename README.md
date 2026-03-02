@@ -36,6 +36,10 @@ npm run dev
 
 Route data lives in the separate [`bike-routes`](https://github.com/eljojo/bike-routes) repository and is loaded via Astro content collections. The data repo path is configured in `src/content.config.ts`.
 
+## History
+
+This site was originally built as a Ruby on Rails application. The old Rails codebase is archived at [bike-app-archive](https://github.com/eljojo/bike-app-archive).
+
 ## License
 
 This application is licensed under the [Apache License 2.0](LICENSE).
