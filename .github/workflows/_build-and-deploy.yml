@@ -117,14 +117,14 @@ jobs:
       - name: Generate map thumbnails
         run: npx tsx scripts/generate-maps.ts
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
       - name: Build site
         run: npx astro build
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
@@ -132,13 +132,13 @@ jobs:
       - name: Validate build output
         run: npm run validate
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
       - name: Run unit tests
         run: npx vitest run
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
       - name: Run E2E tests
@@ -147,7 +147,7 @@ jobs:
         continue-on-error: ${{ inputs.update-screenshots }}
         run: npx playwright test --config e2e/playwright.config.ts
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
       - name: Update screenshot baselines
@@ -176,7 +176,7 @@ jobs:
           git commit -m "ci: update screenshot baselines"
           git push
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
       - name: Comment on PR with updated screenshots

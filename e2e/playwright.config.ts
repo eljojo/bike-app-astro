@@ -17,8 +17,9 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npx astro preview --port 4322 --root ..',
+    command: 'npx astro preview --port 4322',
     port: 4322,
+    cwd: '..',
     reuseExistingServer: true,
   },
 });

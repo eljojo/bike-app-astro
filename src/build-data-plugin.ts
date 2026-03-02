@@ -17,15 +17,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
+import { CONTENT_DIR, CITY, cityDir } from './lib/config';
 
-// Resolve project root from this file's location (src/build-data-plugin.ts → project root)
+// Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 
-export const CONTENT_DIR = process.env.CONTENT_DIR
-  ? path.resolve(PROJECT_ROOT, process.env.CONTENT_DIR)
-  : path.resolve(PROJECT_ROOT, '..', 'bike-routes');
-export const CITY = process.env.CITY || 'ottawa';
-export const CITY_DIR = path.join(CONTENT_DIR, CITY);
+export { CONTENT_DIR, CITY };
+const CITY_DIR = cityDir;
 
 function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
