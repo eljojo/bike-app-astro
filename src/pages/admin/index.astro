@@ -3,12 +3,14 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
+import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env';
 import { getDb } from '../../db';
 import { routeEdits } from '../../db/schema';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
+const isStaging = env.ENVIRONMENT === 'staging';
 
 // Check D1 cache for fresher data, fall back to virtual module
 const db = getDb(env.DB);
@@ -29,6 +31,9 @@ const routes = adminRoutes.map(r => {
 
 <Base title="Admin">
   <div class="admin-page">
+    {isStaging && (
+      <div class="staging-banner">Staging Environment</div>
+    )}
     <div class="admin-header">
       <h1>Routes</h1>
       <div class="admin-user">
@@ -60,11 +65,35 @@ const routes = adminRoutes.map(r => {
         <InviteCodeGenerator client:load />
       </div>
     )}
+
+    {isStaging && user.role === 'admin' && (
+      <div class="admin-section">
+        <h2>Sync from production</h2>
+        <StagingSyncButton client:load />
+      </div>
+    )}
   </div>
 </Base>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
+
+  .staging-banner {
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: $border-radius;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: #1565c0;
+    text-align: center;
+
+    @media (prefers-color-scheme: dark) {
+      background: #0d1b2a;
+      border-color: #1565c0;
+      color: #90caf9;
+    }
+  }
 
   .admin-page {
     max-width: 700px;
@@ -219,6 +248,15 @@ const routes = adminRoutes.map(r => {
     @media (prefers-color-scheme: dark) {
       color: $color-text-dark;
       border-color: #444;
+    }
+  }
+
+  .save-success {
+    color: green;
+    font-size: 0.875rem;
+
+    @media (prefers-color-scheme: dark) {
+      color: #8f8;
     }
   }
 </style>
