@@ -1,0 +1,34 @@
+---
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+import RegisterForm from '../components/admin/RegisterForm.tsx';
+import '../styles/admin.scss';
+
+const code = Astro.url.searchParams.get('code');
+
+// Validate invite code exists
+if (!code) {
+  return new Response(null, { status: 404 });
+}
+
+const { validateInviteCode } = await import('../lib/auth');
+const { getDb } = await import('../db');
+const env = (Astro.locals as any).runtime.env;
+const db = getDb(env.DB);
+
+const invite = await validateInviteCode(db, code);
+if (!invite) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<Base title="Create account">
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>Create account</h1>
+      <p class="auth-message">You've been invited to join. Create your account with a passkey.</p>
+      <RegisterForm client:load inviteCode={code} />
+    </div>
+  </div>
+</Base>

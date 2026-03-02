@@ -1,0 +1,29 @@
+---
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+import LoginForm from '../components/admin/LoginForm.tsx';
+import '../styles/admin.scss';
+
+// If already logged in, redirect to admin
+const token = Astro.cookies.get('session_token')?.value;
+if (token) {
+  const { validateSession } = await import('../lib/auth');
+  const { getDb } = await import('../db');
+  const env = (Astro.locals as any).runtime.env;
+  const db = getDb(env.DB);
+  const user = await validateSession(db, token);
+  if (user) {
+    return Astro.redirect('/admin');
+  }
+}
+---
+
+<Base title="Sign in">
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>Sign in</h1>
+      <LoginForm client:load />
+    </div>
+  </div>
+</Base>

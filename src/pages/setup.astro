@@ -1,0 +1,28 @@
+---
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+import RegisterForm from '../components/admin/RegisterForm.tsx';
+import '../styles/admin.scss';
+
+// Only works when users table is empty
+const { isFirstUser } = await import('../lib/auth');
+const { getDb } = await import('../db');
+const env = (Astro.locals as any).runtime.env;
+const db = getDb(env.DB);
+
+const first = await isFirstUser(db);
+if (!first) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<Base title="Setup">
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>Setup</h1>
+      <p class="auth-message">Create the first admin account. This page is only available once.</p>
+      <RegisterForm client:load inviteCode="" isSetup={true} />
+    </div>
+  </div>
+</Base>
