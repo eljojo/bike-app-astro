@@ -5,10 +5,10 @@ import matter from 'gray-matter';
 import sharp from 'sharp';
 import { parseGpx } from '../src/lib/gpx';
 import {
-  mapThumbPaths, gpxHash, hashPath,
-  needsRegeneration, buildStaticMapUrl,
-  variantKeyFromGpx,
-} from '../src/lib/map-thumbnails';
+  mapThumbPaths, buildStaticMapUrl,
+  variantKeyFromGpx, gpxHash, hashPath,
+  needsRegeneration,
+} from '../src/lib/map-generation';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
 const CITY = process.env.CITY || 'ottawa';

@@ -16,6 +16,7 @@
     "capture:production": "npx playwright test --config e2e/capture-production.config.ts"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^13.0.0-beta.11",
     "@mapbox/polyline": "^1.2.1",
     "@vovayatsyuk/photoswipe-object-position": "^1.0.0",
     "astro": "^6.0.0-beta.17",

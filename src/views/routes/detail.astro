@@ -23,6 +23,7 @@ import { tTag } from '@/lib/tag-translations';
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
+export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
 

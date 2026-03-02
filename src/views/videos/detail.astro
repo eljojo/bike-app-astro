@@ -10,6 +10,7 @@ import { paths, routeSlug } from '@/lib/paths';
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
+export const prerender = true;
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
   const results: { params: { handle: string }; props: Record<string, unknown> }[] = [];

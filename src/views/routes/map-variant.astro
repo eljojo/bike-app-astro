@@ -13,6 +13,7 @@ import { supportedLocales } from '@/lib/locale-utils';
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
+export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData } = await loadRouteData();
   const results: { params: { slug: string; variant: string }; props: Record<string, unknown> }[] = [];

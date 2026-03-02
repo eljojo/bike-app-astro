@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getCityConfig } from '../lib/city-config';
 
+export const prerender = true;
+
 const disallow = import.meta.env.DISABLE_ANALYTICS === 'true';
 
 export const GET: APIRoute = () => {

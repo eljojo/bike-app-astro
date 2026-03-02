@@ -3,6 +3,8 @@ import { getCollection } from 'astro:content';
 import { parseLocalDate } from '../lib/date-utils';
 import { getCityConfig } from '../lib/city-config';
 
+export const prerender = true;
+
 function escapeIcal(text: string): string {
   return text.replace(/[\\;,\n]/g, (m) => {
     if (m === '\n') return '\\n';
