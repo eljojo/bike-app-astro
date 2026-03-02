@@ -32,6 +32,8 @@ export async function POST({ locals }: APIContext) {
       branch: 'staging',
     });
 
+    console.log('sync: token length:', env.GITHUB_TOKEN?.length ?? 'undefined');
+
     // 1. Get main's commit SHA
     console.log('sync: step 1 — getting main ref');
     const mainSha = await git.getRef('main');
