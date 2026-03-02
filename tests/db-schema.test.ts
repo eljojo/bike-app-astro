@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { users, credentials, sessions, inviteCodes } from '../src/db/schema';
+import { users, credentials, sessions, inviteCodes, routeEdits } from '../src/db/schema';
 import { getTableName, getTableColumns } from 'drizzle-orm';
 
 describe('database schema', () => {
@@ -35,5 +35,16 @@ describe('database schema', () => {
   it('credentials counter defaults to 0', () => {
     const cols = getTableColumns(credentials);
     expect(cols.counter.hasDefault).toBe(true);
+  });
+
+  it('route_edits table has expected columns', () => {
+    expect(getTableName(routeEdits)).toBe('route_edits');
+    const cols = getTableColumns(routeEdits);
+    expect(Object.keys(cols)).toEqual(['slug', 'data', 'githubSha', 'updatedAt']);
+  });
+
+  it('route_edits slug is primary key', () => {
+    const cols = getTableColumns(routeEdits);
+    expect(cols.slug.primary).toBe(true);
   });
 });

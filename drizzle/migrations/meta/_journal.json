@@ -22,6 +22,13 @@
       "when": 1772432405772,
       "tag": "0002_red_starbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1772482664991,
+      "tag": "0003_next_lester",
+      "breakpoints": true
     }
   ]
 }

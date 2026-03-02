@@ -34,3 +34,10 @@ export const inviteCodes = sqliteTable('invite_codes', {
   expiresAt: text('expires_at'),
   createdAt: text('created_at').notNull(),
 });
+
+export const routeEdits = sqliteTable('route_edits', {
+  slug: text('slug').primaryKey(),
+  data: text('data').notNull(),           // JSON string of route edit data
+  githubSha: text('github_sha').notNull(), // SHA of the GitHub file at time of save
+  updatedAt: text('updated_at').notNull(), // ISO timestamp
+});
