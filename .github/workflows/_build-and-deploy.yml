@@ -129,6 +129,9 @@ jobs:
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
 
+      - name: Remove adapter-generated wrangler config
+        run: rm -f dist/server/wrangler.json && rm -rf .wrangler/deploy
+
       - name: Validate build output
         run: npm run validate
         env:
