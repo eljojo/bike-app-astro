@@ -5,6 +5,9 @@ export default function StagingSyncButton() {
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
 
   async function handleSync() {
+    if (!confirm('Reset staging to match production? All staging edits will be lost.')) {
+      return;
+    }
     setSyncing(true);
     setResult(null);
 
