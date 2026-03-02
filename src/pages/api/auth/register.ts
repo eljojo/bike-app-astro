@@ -21,7 +21,7 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, displayName, handle, inviteCode, credential: credentialResponse } = body;
+    const { email: rawEmail, displayName, inviteCode, credential: credentialResponse } = body;
 
     if (!rawEmail || !displayName || !credentialResponse) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -32,7 +32,7 @@ export async function POST({ request, cookies }: APIContext) {
 
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
-    const config = getWebAuthnConfig(env);
+    const config = getWebAuthnConfig(request.url, env);
 
     // Retrieve the stored challenge
     const expectedChallenge = retrieveChallenge(cookies);
@@ -102,7 +102,6 @@ export async function POST({ request, cookies }: APIContext) {
       id: userId,
       email,
       displayName,
-      handle: handle || null,
       role: firstUser ? 'admin' : 'editor',
       createdAt: now,
     });

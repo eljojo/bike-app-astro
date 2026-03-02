@@ -9,7 +9,6 @@ interface Props {
 export default function RegisterForm({ inviteCode, isSetup }: Props) {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [handle, setHandle] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +25,6 @@ export default function RegisterForm({ inviteCode, isSetup }: Props) {
         body: JSON.stringify({
           email,
           displayName,
-          handle: handle || undefined,
           inviteCode: isSetup ? undefined : inviteCode,
         }),
       });
@@ -48,7 +46,6 @@ export default function RegisterForm({ inviteCode, isSetup }: Props) {
         body: JSON.stringify({
           email,
           displayName,
-          handle: handle || undefined,
           inviteCode: isSetup ? undefined : inviteCode,
           credential,
         }),
@@ -94,16 +91,6 @@ export default function RegisterForm({ inviteCode, isSetup }: Props) {
           value={displayName}
           onInput={(e) => setDisplayName((e.target as HTMLInputElement).value)}
           required
-        />
-      </div>
-      <div class="form-field">
-        <label for="handle">Handle (optional)</label>
-        <input
-          id="handle"
-          type="text"
-          value={handle}
-          onInput={(e) => setHandle((e.target as HTMLInputElement).value)}
-          placeholder="e.g. jose"
         />
       </div>
       <button type="submit" class="btn-primary" disabled={loading}>

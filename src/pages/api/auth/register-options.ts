@@ -17,7 +17,7 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, displayName, handle, inviteCode } = body;
+    const { email: rawEmail, displayName, inviteCode } = body;
 
     if (!rawEmail || !displayName) {
       return new Response(JSON.stringify({ error: 'Email and display name are required' }), {
@@ -64,7 +64,7 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    const config = getWebAuthnConfig(env);
+    const config = getWebAuthnConfig(request.url, env);
 
     const options = await generateRegistrationOptions({
       rpName: config.rpName,

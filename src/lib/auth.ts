@@ -6,7 +6,6 @@ export interface SessionUser {
   id: string;
   email: string;
   displayName: string;
-  handle: string | null;
   role: 'admin' | 'editor';
 }
 
@@ -60,7 +59,6 @@ export async function validateSession(db: Database, token: string): Promise<Sess
       userId: users.id,
       email: users.email,
       displayName: users.displayName,
-      handle: users.handle,
       role: users.role,
     })
     .from(sessions)
@@ -80,7 +78,6 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     id: row.userId,
     email: row.email,
     displayName: row.displayName,
-    handle: row.handle,
     role: row.role as 'admin' | 'editor',
   };
 }
@@ -90,12 +87,14 @@ export async function destroySession(db: Database, token: string): Promise<void>
   await db.delete(sessions).where(eq(sessions.token, token));
 }
 
-/** Get WebAuthn relying party configuration from environment. */
-export function getWebAuthnConfig(env: Record<string, string>): WebAuthnConfig {
+/** Get WebAuthn relying party configuration, derived from the request URL.
+ *  Env vars WEBAUTHN_RP_ID, WEBAUTHN_RP_NAME, WEBAUTHN_ORIGIN override if set. */
+export function getWebAuthnConfig(requestUrl: string, env: Record<string, string> = {}): WebAuthnConfig {
+  const url = new URL(requestUrl);
   return {
-    rpID: env.WEBAUTHN_RP_ID || 'localhost',
+    rpID: env.WEBAUTHN_RP_ID || url.hostname,
     rpName: env.WEBAUTHN_RP_NAME || 'whereto-bike',
-    origin: env.WEBAUTHN_ORIGIN || 'http://localhost:4321',
+    origin: env.WEBAUTHN_ORIGIN || url.origin,
   };
 }
 

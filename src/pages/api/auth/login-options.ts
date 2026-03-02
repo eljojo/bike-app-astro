@@ -22,7 +22,7 @@ export async function POST({ request, cookies }: APIContext) {
 
     const db = getDb(env.DB);
     const email = normalizeEmail(rawEmail);
-    const config = getWebAuthnConfig(env);
+    const config = getWebAuthnConfig(request.url, env);
 
     // Look up user by email
     const userResult = await db

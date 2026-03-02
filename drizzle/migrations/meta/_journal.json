@@ -15,6 +15,13 @@
       "when": 1772429357594,
       "tag": "0001_chemical_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1772432405772,
+      "tag": "0002_red_starbolt",
+      "breakpoints": true
     }
   ]
 }

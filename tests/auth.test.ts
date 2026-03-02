@@ -29,22 +29,28 @@ describe('auth helpers', () => {
   });
 
   describe('getWebAuthnConfig', () => {
-    it('returns defaults when env vars are not set', () => {
-      const config = getWebAuthnConfig({});
-      expect(config.rpID).toBe('localhost');
+    it('derives rpID and origin from request URL', () => {
+      const config = getWebAuthnConfig('https://new.ottawabybike.ca/api/auth/register');
+      expect(config.rpID).toBe('new.ottawabybike.ca');
       expect(config.rpName).toBe('whereto-bike');
+      expect(config.origin).toBe('https://new.ottawabybike.ca');
+    });
+
+    it('works with localhost dev server', () => {
+      const config = getWebAuthnConfig('http://localhost:4321/api/auth/register');
+      expect(config.rpID).toBe('localhost');
       expect(config.origin).toBe('http://localhost:4321');
     });
 
-    it('reads from env vars when set', () => {
-      const config = getWebAuthnConfig({
-        WEBAUTHN_RP_ID: 'whereto.bike',
-        WEBAUTHN_RP_NAME: 'whereto-bike',
-        WEBAUTHN_ORIGIN: 'https://whereto.bike',
+    it('env vars override derived values', () => {
+      const config = getWebAuthnConfig('https://new.ottawabybike.ca/api/auth/register', {
+        WEBAUTHN_RP_ID: 'ottawabybike.ca',
+        WEBAUTHN_RP_NAME: 'Ottawa by Bike',
+        WEBAUTHN_ORIGIN: 'https://ottawabybike.ca',
       });
-      expect(config.rpID).toBe('whereto.bike');
-      expect(config.rpName).toBe('whereto-bike');
-      expect(config.origin).toBe('https://whereto.bike');
+      expect(config.rpID).toBe('ottawabybike.ca');
+      expect(config.rpName).toBe('Ottawa by Bike');
+      expect(config.origin).toBe('https://ottawabybike.ca');
     });
   });
 });

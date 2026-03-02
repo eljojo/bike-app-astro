@@ -6,7 +6,7 @@ describe('database schema', () => {
   it('users table has expected columns', () => {
     expect(getTableName(users)).toBe('users');
     const cols = getTableColumns(users);
-    expect(Object.keys(cols)).toEqual(['id', 'email', 'displayName', 'handle', 'role', 'createdAt']);
+    expect(Object.keys(cols)).toEqual(['id', 'email', 'displayName', 'role', 'createdAt']);
   });
 
   it('credentials table has expected columns', () => {
