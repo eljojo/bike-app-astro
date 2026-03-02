@@ -18,7 +18,9 @@ export interface UploadMetadata {
  * Generate an 8-character random alphanumeric key (base36).
  * Checks for collision against R2 before returning.
  */
-export async function generateMediaKey(r2: R2Bucket): Promise<string> {
+export async function generateMediaKey(
+  r2: { head: (key: string) => Promise<unknown> },
+): Promise<string> {
   const maxAttempts = 10;
   for (let i = 0; i < maxAttempts; i++) {
     const key = randomKey();
@@ -58,6 +60,10 @@ export async function createPresignedUploadUrl(
   key: string,
   contentType: string,
 ): Promise<string> {
+  if (process.env.RUNTIME === 'local') {
+    return `/api/dev/upload?key=${key}&contentType=${encodeURIComponent(contentType)}`;
+  }
+
   const client = new AwsClient({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,
@@ -88,7 +94,7 @@ export async function createPresignedUploadUrl(
  * Returns metadata about the uploaded object.
  */
 export async function confirmUpload(
-  r2: R2Bucket,
+  r2: { head: (key: string) => Promise<{ size: number; httpMetadata?: { contentType?: string } } | null> },
   key: string,
 ): Promise<UploadMetadata> {
   const object = await r2.head(`photos/${key}`);
@@ -105,6 +111,9 @@ export async function confirmUpload(
 /**
  * Delete an object from R2 at photos/{key}.
  */
-export async function deleteMedia(r2: R2Bucket, key: string): Promise<void> {
+export async function deleteMedia(
+  r2: { delete: (key: string) => Promise<void> },
+  key: string,
+): Promise<void> {
   await r2.delete(`photos/${key}`);
 }
