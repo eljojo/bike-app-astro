@@ -1,9 +1,11 @@
 /**
  * GitService — GitHub REST API integration for committing changes
- * to the data repo (eljojo/bike-routes).
+ * to the data repo.
  *
  * Uses native fetch with Bearer token auth. No external dependencies.
  */
+
+import { GIT_APP_REPO } from './config';
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -115,7 +117,7 @@ export class GitService {
   async triggerRebuild(): Promise<void> {
     const eventType = this.branch === 'main' ? 'data-updated' : 'staging-data-updated';
     const response = await this.githubFetch(
-      `/repos/${this.config.owner}/bike-app-astro/dispatches`,
+      `/repos/${this.config.owner}/${GIT_APP_REPO}/dispatches`,
       {
         method: 'POST',
         body: JSON.stringify({ event_type: eventType }),

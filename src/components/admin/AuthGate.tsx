@@ -12,10 +12,15 @@ export default function AuthGate({ returnTo }: Props) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/guest', { method: 'POST' });
+      const res = await fetch('/api/auth/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to continue as guest');
+        const text = await res.text();
+        let msg = 'Failed to continue as guest';
+        try { msg = JSON.parse(text).error || msg; } catch {}
+        throw new Error(msg);
       }
       window.location.href = returnTo;
     } catch (err: any) {

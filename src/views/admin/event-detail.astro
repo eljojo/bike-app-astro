@@ -11,6 +11,7 @@ import { contentEdits } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createGitService } from '../../lib/git-factory';
 import { findDraft, deleteDraft } from '../../lib/draft-service';
+import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import matter from 'gray-matter';
 import '../../styles/admin.scss';
 
@@ -33,7 +34,7 @@ if (user) {
 
   if (draft) {
     const git = createGitService({
-      token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes',
+      token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO,
       branch: draft.branchName,
     });
     const branchSha = await git.getRef(draft.branchName);

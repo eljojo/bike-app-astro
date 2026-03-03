@@ -85,6 +85,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
   const [location, setLocation] = useState(initialData.location || '');
   const [reviewUrl, setReviewUrl] = useState(initialData.review_url || '');
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
+  const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
   const [body, setBody] = useState(initialData.body);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -158,8 +159,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
         body: JSON.stringify({ key }),
       });
       if (!confirmRes.ok) throw new Error('Upload confirmation failed');
+      const confirmData = await confirmRes.json();
 
       setPosterKey(key);
+      setPosterContentType(confirmData.contentType || file.type);
     } catch (err: any) {
       setError(err.message || 'Poster upload failed');
     } finally {
@@ -185,7 +188,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
           ...(distances && { distances }),
           ...(location && { location }),
           ...(reviewUrl && { review_url: reviewUrl }),
-          ...(posterKey && { poster_key: posterKey, poster_content_type: 'image/jpeg' }),
+          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
         },
         body,
         contentHash: initialData.contentHash,

@@ -34,7 +34,7 @@ declare module 'virtual:bike-app/admin-routes' {
   const routes: Array<{
     slug: string;
     name: string;
-    photoCount: number;
+    mediaCount: number;
     status: string;
     contentHash: string;
     difficultyScore: number | null;

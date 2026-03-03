@@ -11,7 +11,7 @@ export function createLocalBucket(uploadsDir: string) {
       const stat = fs.statSync(filePath);
       return { size: stat.size, httpMetadata: { contentType: 'image/jpeg' } };
     },
-    async put(key: string, data: ArrayBuffer | ReadableStream | string | Uint8Array) {
+    async put(key: string, data: ArrayBuffer | string | Uint8Array) {
       const filePath = path.join(uploadsDir, key);
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -38,6 +38,7 @@ export function createLocalBucket(uploadsDir: string) {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     },
     async list() {
+      // Stub: not used by admin features. Implement if needed.
       return { objects: [] };
     },
   };

@@ -11,6 +11,7 @@ import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
 import { findDraft, createDraft, updateDraftTimestamp } from '../../lib/draft-service';
+import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 
 export const prerender = false;
 
@@ -84,8 +85,8 @@ export async function POST({ params, request, locals }: APIContext) {
 
     const git = createGitService({
       token: env.GITHUB_TOKEN,
-      owner: 'eljojo',
-      repo: 'bike-routes',
+      owner: GIT_OWNER,
+      repo: GIT_DATA_REPO,
       branch: targetBranch,
     });
 
@@ -104,7 +105,7 @@ export async function POST({ params, request, locals }: APIContext) {
     if (isFirstDraftSave) {
       // Create draft branch from main HEAD
       const mainGit = createGitService({
-        token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+        token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
       });
       const mainSha = await mainGit.getRef(baseBranch);
       if (!mainSha) throw new Error('Cannot resolve main branch');
@@ -137,6 +138,7 @@ export async function POST({ params, request, locals }: APIContext) {
         let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
         if (currentMedia) {
           const mediaEntries = (yaml.load(currentMedia.content) as any[]) || [];
+          // TODO(C7): include all media types when video management is added to admin UI
           ghMedia = mediaEntries
             .filter((m: any) => m.type === 'photo')
             .map((m: any) => {
@@ -176,7 +178,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
         return new Response(JSON.stringify({
           error: 'This route was modified on GitHub since you started editing. Your edits are preserved in the form — review the changes on GitHub and re-apply.',
-          githubUrl: `https://github.com/eljojo/bike-routes/blob/${baseBranch}/ottawa/routes/${slug}/index.md`,
+          githubUrl: `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/ottawa/routes/${slug}/index.md`,
           conflict: true,
         }), {
           status: 409,
@@ -302,7 +304,7 @@ export async function POST({ params, request, locals }: APIContext) {
     if (!isDirect) {
       if (isFirstDraftSave) {
         const mainGit = createGitService({
-          token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+          token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
         });
         const prNumber = await mainGit.createPullRequest(
           targetBranch, baseBranch,

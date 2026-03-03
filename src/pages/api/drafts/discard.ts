@@ -3,6 +3,7 @@ import { env } from '../../../lib/env';
 import { db } from '../../../lib/get-db';
 import { findDraft, deleteDraft } from '../../../lib/draft-service';
 import { createGitService } from '../../../lib/git-factory';
+import { GIT_OWNER, GIT_DATA_REPO } from '../../../lib/config';
 
 export const prerender = false;
 
@@ -26,7 +27,7 @@ export async function POST({ request, locals }: APIContext) {
 
   const baseBranch = env.GIT_BRANCH || 'main';
   const git = createGitService({
-    token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+    token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
   });
 
   // Close PR if it exists

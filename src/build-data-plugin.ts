@@ -118,7 +118,7 @@ interface AdminOrganizer {
 interface AdminRoute {
   slug: string;
   name: string;
-  photoCount: number;
+  mediaCount: number;
   status: string;
   contentHash: string;
   difficultyScore: number | null;
@@ -165,6 +165,7 @@ function readRouteDir(slug: string) {
     ? (yaml.load(mediaRaw) as Array<Record<string, unknown>>) || []
     : [];
 
+  // TODO(C7): include all media types when video management is added to admin UI
   const photos: AdminMediaItem[] = rawMedia
     .filter((m) => m.type === 'photo')
     .map((m) => {
@@ -212,7 +213,7 @@ export async function loadAdminRoutes(): Promise<AdminRoute[]> {
     return {
       slug,
       name: frontmatter.name as string,
-      photoCount: photos.length,
+      mediaCount: photos.length,
       status: frontmatter.status as string,
       contentHash,
       difficultyScore: scores.length > 0 ? Math.min(...scores) : null,

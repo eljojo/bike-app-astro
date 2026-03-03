@@ -2,13 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import { drafts } from '../db/schema';
 import { generateId } from './auth';
 
-// Use a generic type for the database to work with both D1 and local SQLite
-type DrizzleDb = {
-  select(): any;
-  insert(table: any): any;
-  delete(table: any): any;
-  update(table: any): any;
-};
+import type { Database } from '../db';
 
 export interface Draft {
   id: string;
@@ -22,7 +16,7 @@ export interface Draft {
 }
 
 export async function findDraft(
-  db: DrizzleDb,
+  db: Database,
   userId: string,
   contentType: string,
   contentSlug: string,
@@ -39,7 +33,7 @@ export async function findDraft(
 }
 
 export async function createDraft(
-  db: DrizzleDb,
+  db: Database,
   params: {
     userId: string;
     contentType: string;
@@ -65,14 +59,14 @@ export async function createDraft(
   return { id, ...params, createdAt: now, updatedAt: now };
 }
 
-export async function deleteDraft(db: DrizzleDb, draftId: string): Promise<void> {
+export async function deleteDraft(db: Database, draftId: string): Promise<void> {
   await db.delete(drafts).where(eq(drafts.id, draftId));
 }
 
-export async function updateDraftTimestamp(db: DrizzleDb, draftId: string): Promise<void> {
+export async function updateDraftTimestamp(db: Database, draftId: string): Promise<void> {
   await db.update(drafts).set({ updatedAt: new Date().toISOString() }).where(eq(drafts.id, draftId));
 }
 
-export async function listDraftsForUser(db: DrizzleDb, userId: string): Promise<Draft[]> {
+export async function listDraftsForUser(db: Database, userId: string): Promise<Draft[]> {
   return await db.select().from(drafts).where(eq(drafts.userId, userId)) as Draft[];
 }

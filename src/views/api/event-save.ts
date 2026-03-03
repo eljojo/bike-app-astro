@@ -10,6 +10,7 @@ import yaml from 'js-yaml';
 import adminEvents from 'virtual:bike-app/admin-events';
 import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
 import { findDraft, createDraft, updateDraftTimestamp } from '../../lib/draft-service';
+import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 
 export const prerender = false;
 
@@ -103,7 +104,7 @@ export async function POST({ params, request, locals }: APIContext) {
     const isDirect = isDirectCommit(user, editorMode);
 
     const git = createGitService({
-      token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: targetBranch,
+      token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: targetBranch,
     });
 
     // For draft saves, check/create the draft branch
@@ -112,7 +113,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
     if (isFirstDraftSave) {
       const mainGit = createGitService({
-        token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+        token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
       });
       const mainSha = await mainGit.getRef(baseBranch);
       if (!mainSha) throw new Error('Cannot resolve main branch');
@@ -158,7 +159,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
           return new Response(JSON.stringify({
             error: 'This event was modified on GitHub since you started editing.',
-            githubUrl: `https://github.com/eljojo/bike-routes/blob/${baseBranch}/${eventPath}`,
+            githubUrl: `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${eventPath}`,
             conflict: true,
           }), { status: 409, headers: { 'Content-Type': 'application/json' } });
         }
@@ -222,7 +223,7 @@ export async function POST({ params, request, locals }: APIContext) {
     if (!isDirect) {
       if (isFirstDraftSave) {
         const mainGit = createGitService({
-          token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+          token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
         });
         const prNumber = await mainGit.createPullRequest(
           targetBranch, baseBranch,

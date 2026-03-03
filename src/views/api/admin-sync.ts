@@ -3,6 +3,7 @@ import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
+import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 
 export const prerender = false;
 
@@ -27,8 +28,8 @@ export async function POST({ locals }: APIContext) {
   try {
     const git = createGitService({
       token: env.GITHUB_TOKEN,
-      owner: 'eljojo',
-      repo: 'bike-routes',
+      owner: GIT_OWNER,
+      repo: GIT_DATA_REPO,
       branch: 'staging',
     });
 

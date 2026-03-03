@@ -22,6 +22,7 @@ export function mergeMedia(adminPhotos: AdminPhoto[], existing: MediaEntry[]): M
   const lookup = new Map<string, MediaEntry>();
   const nonPhotos: MediaEntry[] = [];
 
+  // TODO(C7): merge all media types when video management is added to admin UI
   for (const entry of existing) {
     if (entry.type === 'photo') {
       lookup.set(entry.key as string, entry);

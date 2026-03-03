@@ -18,25 +18,25 @@ describe('loadAdminRoutes', () => {
     for (const route of routes) {
       expect(route).toHaveProperty('slug');
       expect(route).toHaveProperty('name');
-      expect(route).toHaveProperty('photoCount');
+      expect(route).toHaveProperty('mediaCount');
       expect(route).toHaveProperty('status');
       expect(route).toHaveProperty('contentHash');
       expect(typeof route.slug).toBe('string');
       expect(typeof route.name).toBe('string');
-      expect(typeof route.photoCount).toBe('number');
+      expect(typeof route.mediaCount).toBe('number');
       expect(typeof route.status).toBe('string');
       expect(typeof route.contentHash).toBe('string');
       // Should not have extra fields
-      expect(Object.keys(route).sort()).toEqual(['contentHash', 'difficultyScore', 'name', 'photoCount', 'slug', 'status']);
+      expect(Object.keys(route).sort()).toEqual(['contentHash', 'difficultyScore', 'mediaCount', 'name', 'slug', 'status']);
     }
   });
 
-  it('counts only photos (not videos)', async () => {
+  it('counts only admin-managed media (photos, not videos yet)', async () => {
+    // TODO(C7): update when video management is added
     const routes = await loadAdminRoutes();
-    // Aylmer has at least one video — its photoCount should be less than total media count
     const aylmer = routes.find((r) => r.slug === 'aylmer');
     expect(aylmer).toBeDefined();
-    expect(aylmer!.photoCount).toBeGreaterThan(0);
+    expect(aylmer!.mediaCount).toBeGreaterThan(0);
   });
 
   it('includes contentHash in route list items', async () => {

@@ -24,7 +24,7 @@ const routes = adminRoutes.map(r => {
   return {
     ...r,
     name: cached.name ?? r.name,
-    photoCount: cached.media?.length ?? r.photoCount,
+    mediaCount: cached.media?.length ?? r.mediaCount,
     status: cached.status ?? r.status,
   };
 }).sort((a, b) => {
@@ -82,7 +82,7 @@ const routes = adminRoutes.map(r => {
           <span class="route-name">{route.name}</span>
           <span class="route-meta">
             {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
-            {route.photoCount} photo{route.photoCount !== 1 ? 's' : ''}
+            {route.mediaCount} media
             {route.status === 'draft' && <span class="route-draft">draft</span>}
           </span>
         </a>

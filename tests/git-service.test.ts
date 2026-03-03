@@ -408,23 +408,123 @@ describe('GitService', () => {
   });
 
   describe('createPullRequest', () => {
-    it('has createPullRequest method', () => {
-      const git = new GitService({ token: 'test', owner: 'test', repo: 'test' });
-      expect(typeof git.createPullRequest).toBe('function');
+    it('POSTs to pulls endpoint and returns PR number', async () => {
+      const fetchMock = mockFetch([
+        { status: 201, body: { number: 42 } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      const prNumber = await service.createPullRequest(
+        'feature-branch',
+        'main',
+        'Add new route',
+        'This PR adds a new cycling route.'
+      );
+
+      expect(prNumber).toBe(42);
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/pulls');
+      expect(options.method).toBe('POST');
+
+      const body = JSON.parse(options.body);
+      expect(body.title).toBe('Add new route');
+      expect(body.body).toBe('This PR adds a new cycling route.');
+      expect(body.head).toBe('feature-branch');
+      expect(body.base).toBe('main');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('throws on API errors', async () => {
+      const fetchMock = mockFetch([
+        { status: 422, body: { message: 'Validation Failed' } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(
+        service.createPullRequest('bad-branch', 'main', 'Test', 'Test body')
+      ).rejects.toThrow('GitHub API error: 422');
+
+      vi.unstubAllGlobals();
     });
   });
 
   describe('closePullRequest', () => {
-    it('has closePullRequest method', () => {
-      const git = new GitService({ token: 'test', owner: 'test', repo: 'test' });
-      expect(typeof git.closePullRequest).toBe('function');
+    it('PATCHes pull with state closed', async () => {
+      const fetchMock = mockFetch([
+        { status: 200, body: { number: 7, state: 'closed' } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await service.closePullRequest(7);
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/pulls/7');
+      expect(options.method).toBe('PATCH');
+
+      const body = JSON.parse(options.body);
+      expect(body.state).toBe('closed');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('throws on API errors', async () => {
+      const fetchMock = mockFetch([
+        { status: 404, body: { message: 'Not Found' } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(service.closePullRequest(999)).rejects.toThrow('GitHub API error: 404');
+
+      vi.unstubAllGlobals();
     });
   });
 
   describe('deleteRef', () => {
-    it('has deleteRef method', () => {
-      const git = new GitService({ token: 'test', owner: 'test', repo: 'test' });
-      expect(typeof git.deleteRef).toBe('function');
+    it('sends DELETE to the correct ref URL', async () => {
+      const fetchMock = mockFetch([
+        { status: 204 },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await service.deleteRef('feature-branch');
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/git/refs/heads/feature-branch');
+      expect(options.method).toBe('DELETE');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('ignores 422 responses (already deleted)', async () => {
+      const fetchMock = mockFetch([
+        { status: 422, body: { message: 'Reference does not exist' } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      // Should not throw
+      await service.deleteRef('already-deleted-branch');
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      vi.unstubAllGlobals();
+    });
+
+    it('throws on other API errors', async () => {
+      const fetchMock = mockFetch([
+        { status: 500, body: { message: 'Internal Server Error' } },
+      ]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(service.deleteRef('some-branch')).rejects.toThrow('GitHub API error: 500');
+
+      vi.unstubAllGlobals();
     });
   });
 
