@@ -233,8 +233,8 @@ export async function POST({ params, request, locals }: APIContext) {
       });
     }
 
-    // Trigger rebuild
-    await git.triggerRebuild();
+    // Rebuild is triggered automatically by GitHub Actions in bike-routes
+    // (notify-astro.yml) when the commit is pushed — no manual dispatch needed.
 
     return new Response(JSON.stringify({ success: true, sha }), {
       status: 200,

@@ -55,8 +55,8 @@ export async function POST({ locals }: APIContext) {
     const database = db();
     await database.delete(routeEdits);
 
-    // 6. Trigger staging rebuild
-    await git.triggerRebuild();
+    // Staging rebuild is triggered automatically by GitHub Actions in bike-routes
+    // (notify-astro.yml) when the staging ref is updated.
 
     return new Response(JSON.stringify({ success: true, sha: mainSha }), {
       status: 200,
