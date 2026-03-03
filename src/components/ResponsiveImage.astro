@@ -1,0 +1,34 @@
+---
+import { imageUrl } from '../lib/image-service';
+
+interface Props {
+  blobKey: string;
+  alt: string;
+  widths: number[];
+  height?: number;
+  fit?: 'cover' | 'contain' | 'scale-down';
+  loading?: 'lazy' | 'eager';
+  width?: number;
+  class?: string;
+  [key: string]: unknown;
+}
+
+const { blobKey, alt, widths, height, fit, loading = 'lazy', width, class: className, ...rest } = Astro.props;
+
+const defaultWidth = widths[0];
+const srcBase = imageUrl(blobKey, { width: defaultWidth, height, fit });
+const srcsetStr = widths
+  .map(w => `${imageUrl(blobKey, { width: w, height: height ? Math.round(height * w / defaultWidth) : undefined, fit })} ${w}w`)
+  .join(', ');
+---
+
+<img
+  src={srcBase}
+  srcset={srcsetStr}
+  alt={alt}
+  loading={loading}
+  width={width}
+  height={height}
+  class={className}
+  {...rest}
+/>

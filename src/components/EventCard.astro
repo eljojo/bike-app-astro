@@ -1,7 +1,7 @@
 ---
 // src/components/EventCard.astro
 import { getCollection } from 'astro:content';
-import { imageUrl } from '../lib/image-service';
+import ResponsiveImage from './ResponsiveImage.astro';
 import { formatDateRange } from '../lib/date-utils';
 
 interface Props {
@@ -40,10 +40,10 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
   <span class="event-dates">{dateDisplay}</span>
   {props.distances && <span class="event-distances">{props.distances}</span>}
   {props.poster_key && (
-    <img
-      src={imageUrl(props.poster_key, { width: 600 })}
+    <ResponsiveImage
+      blobKey={props.poster_key}
       alt={props.name}
-      loading="lazy"
+      widths={[600]}
     />
   )}
   {props.review_url && (
