@@ -12,12 +12,23 @@ import type { FileChange, CommitAuthor } from './git-service';
 
 export class LocalGitService {
   private repoPath: string;
+  private branch: string;
 
-  constructor(repoPath: string) {
+  constructor(repoPath: string, branch?: string) {
     this.repoPath = repoPath;
+    this.branch = branch || 'main';
+  }
+
+  private async ensureBranch(): Promise<void> {
+    const git = simpleGit(this.repoPath);
+    const current = (await git.branch()).current;
+    if (current !== this.branch) {
+      await git.checkout(this.branch);
+    }
   }
 
   async readFile(filePath: string): Promise<{ content: string; sha: string } | null> {
+    await this.ensureBranch();
     const fullPath = path.join(this.repoPath, filePath);
     if (!fs.existsSync(fullPath)) return null;
 
@@ -31,6 +42,7 @@ export class LocalGitService {
   }
 
   async listDirectory(dirPath: string): Promise<Array<{ name: string; type: string; path: string }>> {
+    await this.ensureBranch();
     const fullPath = path.join(this.repoPath, dirPath);
     if (!fs.existsSync(fullPath)) return [];
 
@@ -48,6 +60,7 @@ export class LocalGitService {
     author: CommitAuthor,
     deletePaths?: string[],
   ): Promise<string> {
+    await this.ensureBranch();
     if (files.length === 0 && (!deletePaths || deletePaths.length === 0)) {
       throw new Error('No files to commit');
     }
@@ -87,17 +100,37 @@ export class LocalGitService {
     // No-op for local development
   }
 
-  async getRef(_branch: string): Promise<string | null> {
+  async getRef(branch: string): Promise<string | null> {
     const git = simpleGit(this.repoPath);
-    const log = await git.log({ maxCount: 1 });
-    return log.latest?.hash || null;
+    try {
+      const result = await git.revparse([branch]);
+      return result.trim() || null;
+    } catch {
+      return null;
+    }
   }
 
   async updateRef(_branch: string, _sha: string, _force?: boolean): Promise<void> {
     // No-op for local development
   }
 
-  async createRef(_branch: string, _sha: string): Promise<void> {
-    // No-op for local development
+  async createRef(branch: string, sha: string): Promise<void> {
+    const git = simpleGit(this.repoPath);
+    await git.branch([branch, sha]);
   }
+
+  async deleteRef(branch: string): Promise<void> {
+    const git = simpleGit(this.repoPath);
+    try {
+      await git.branch(['-D', branch]);
+    } catch {
+      // Branch doesn't exist, that's fine
+    }
+  }
+
+  async createPullRequest(_head: string, _base: string, _title: string, _body: string): Promise<number | null> {
+    return null;
+  }
+
+  async closePullRequest(_prNumber: number): Promise<void> {}
 }

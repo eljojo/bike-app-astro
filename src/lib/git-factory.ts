@@ -10,7 +10,7 @@ import { CONTENT_DIR } from './config';
  */
 export function createGitService(config: GitServiceConfig) {
   if (process.env.RUNTIME === 'local') {
-    return new LocalGitService(CONTENT_DIR);
+    return new LocalGitService(CONTENT_DIR, config.branch);
   }
   return new GitService(config);
 }

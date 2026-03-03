@@ -184,6 +184,54 @@ export class GitService {
   }
 
   /**
+   * Create a pull request. Returns the PR number.
+   */
+  async createPullRequest(head: string, base: string, title: string, body: string): Promise<number> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/pulls`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ title, body, head, base }),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText} — ${errorData}`);
+    }
+    const data = await response.json();
+    return data.number;
+  }
+
+  /**
+   * Close a pull request.
+   */
+  async closePullRequest(prNumber: number): Promise<void> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/pulls/${prNumber}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ state: 'closed' }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Delete a branch ref. Ignores 422 (already deleted).
+   */
+  async deleteRef(branch: string): Promise<void> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/git/refs/heads/${branch}`,
+      { method: 'DELETE' }
+    );
+    if (!response.ok && response.status !== 422) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  /**
    * Single-file commit using the Contents API (simpler path).
    */
   private async writeSingleFile(

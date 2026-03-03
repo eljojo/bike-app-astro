@@ -407,6 +407,27 @@ describe('GitService', () => {
     });
   });
 
+  describe('createPullRequest', () => {
+    it('has createPullRequest method', () => {
+      const git = new GitService({ token: 'test', owner: 'test', repo: 'test' });
+      expect(typeof git.createPullRequest).toBe('function');
+    });
+  });
+
+  describe('closePullRequest', () => {
+    it('has closePullRequest method', () => {
+      const git = new GitService({ token: 'test', owner: 'test', repo: 'test' });
+      expect(typeof git.closePullRequest).toBe('function');
+    });
+  });
+
+  describe('deleteRef', () => {
+    it('has deleteRef method', () => {
+      const git = new GitService({ token: 'test', owner: 'test', repo: 'test' });
+      expect(typeof git.deleteRef).toBe('function');
+    });
+  });
+
   describe('branch config', () => {
     it('defaults to main when branch is not specified', async () => {
       const fetchMock = mockFetch([{ status: 200, body: { content: btoa('test'), sha: 'abc' } }]);
