@@ -147,6 +147,19 @@ Carp is a rural community west of Ottawa. This route follows the Trans Canada Tr
 `
   );
 
+  // About page is pre-rendered and throws if missing
+  const pagesDir = path.join(FIXTURE_DIR, 'ottawa', 'pages');
+  fs.mkdirSync(pagesDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(pagesDir, 'about.md'),
+    `---
+title: About
+---
+
+About page fixture.
+`
+  );
+
   execSync('git init && git add -A && git -c user.name="test" -c user.email="test@test" commit -m "initial fixture"', {
     cwd: FIXTURE_DIR,
     stdio: 'inherit',
