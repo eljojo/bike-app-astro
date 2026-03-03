@@ -10,8 +10,8 @@ import yaml from 'js-yaml';
 import matter from 'gray-matter';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '..', '.data', 'local.db');
-const FIXTURE_DIR = path.resolve(__dirname, '..', '.data', 'e2e-content');
+const DB_PATH = path.resolve(__dirname, '..', '..', '.data', 'local.db');
+const FIXTURE_DIR = path.resolve(__dirname, '..', '..', '.data', 'e2e-content');
 
 function ensureSchema(db: InstanceType<typeof Database>) {
   db.exec(`

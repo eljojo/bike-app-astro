@@ -5,10 +5,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const FIXTURE_DIR = path.resolve(PROJECT_ROOT, '.data', 'e2e-content');
 const DB_PATH = path.resolve(PROJECT_ROOT, '.data', 'local.db');
 const UPLOADS_DIR = path.resolve(PROJECT_ROOT, '.data', 'uploads');
+
+// Clean slate: remove stale DB so the server creates tables with the current schema.
+if (fs.existsSync(DB_PATH)) {
+  fs.rmSync(DB_PATH);
+  // Also remove WAL/SHM files if present
+  for (const suffix of ['-wal', '-shm']) {
+    const p = DB_PATH + suffix;
+    if (fs.existsSync(p)) fs.rmSync(p);
+  }
+}
 
 // Self-contained fixture — no external repo dependency.
 // Creates a minimal content directory with one route, git-inits it.
@@ -25,10 +35,10 @@ fs.writeFileSync(
 display_name: Ottawa by Bike
 tagline: Cycling routes in Ottawa
 description: E2E test fixture
-url: http://localhost:4324
+url: http://localhost:4325
 domain: localhost
-cdn_url: http://localhost:4324
-videos_cdn_url: http://localhost:4324
+cdn_url: http://localhost:4325
+videos_cdn_url: http://localhost:4325
 tiles_url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
 timezone: America/Toronto
 locale: en-CA
@@ -36,7 +46,7 @@ locales: [en-CA, fr-CA]
 author:
   name: Test Author
   email: test@example.com
-  url: http://localhost:4324/about
+  url: http://localhost:4325/about
 plausible_domain: localhost
 site_title_html: <em>Ottawa</em> by <em>Bike</em>
 center:
@@ -98,7 +108,6 @@ fs.writeFileSync(
 `
 );
 
-// Second variant GPX
 const variantsDir = path.join(routeDir, 'variants');
 fs.mkdirSync(variantsDir, { recursive: true });
 fs.writeFileSync(
@@ -137,21 +146,21 @@ execSync('git init && git add -A && git commit -m "initial fixture"', {
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'admin-save.spec.ts',
+  testMatch: 'community-editing.spec.ts',
   fullyParallel: false,
   workers: 1,
-  outputDir: './test-results',
+  outputDir: '../test-results',
   use: {
     viewport: { width: 1280, height: 900 },
-    baseURL: 'http://localhost:4324',
+    baseURL: 'http://localhost:4325',
   },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: `RUNTIME=local CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="http://localhost:4324/dev-uploads" npx astro build && RUNTIME=local CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="http://localhost:4324/dev-uploads" npx astro preview --port 4324`,
-    port: 4324,
-    cwd: '..',
+    command: `RUNTIME=local CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="http://localhost:4325/dev-uploads" npx astro build && RUNTIME=local CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="http://localhost:4325/dev-uploads" npx astro preview --port 4325`,
+    port: 4325,
+    cwd: '../..',
     reuseExistingServer: false,
     timeout: 180000,
   },

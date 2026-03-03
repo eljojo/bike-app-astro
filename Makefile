@@ -32,9 +32,7 @@ test-e2e-only: ## Run e2e tests without rebuilding (use after make build)
 	npx playwright test --config e2e/playwright.config.ts
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
-	npx playwright test --config e2e/admin.config.ts
-	npx playwright test --config e2e/admin-save.config.ts
-	npx playwright test --config e2e/community-editing.config.ts
+	@for config in e2e/admin/*.config.ts; do echo "=== $$config ===" && npx playwright test --config "$$config" || exit 1; done
 
 screenshots: ## Capture production screenshots
 	npx playwright test --config e2e/capture-production.config.ts

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '..', '.data', 'local.db');
+const DB_PATH = path.resolve(__dirname, '..', '..', '.data', 'local.db');
 
 function ensureSchema(db: InstanceType<typeof Database>) {
   db.exec(`
