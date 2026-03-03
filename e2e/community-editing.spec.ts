@@ -8,10 +8,40 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '..', '.data', 'local.db');
 
+function ensureSchema(db: InstanceType<typeof Database>) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id text PRIMARY KEY NOT NULL,
+      email text UNIQUE,
+      display_name text NOT NULL,
+      role text DEFAULT 'editor' NOT NULL,
+      created_at text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token text NOT NULL UNIQUE,
+      expires_at text NOT NULL,
+      created_at text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS drafts (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content_type text NOT NULL,
+      content_slug text NOT NULL,
+      branch_name text NOT NULL,
+      pr_number integer,
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    );
+  `);
+}
+
 function seedSession(role: 'admin' | 'editor' | 'guest', displayName: string, email: string | null): string {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const db = new Database(DB_PATH);
+  ensureSchema(db);
   const userId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString('hex');
   const now = new Date().toISOString();
@@ -32,6 +62,9 @@ function seedSession(role: 'admin' | 'editor' | 'guest', displayName: string, em
 function cleanupSession(token: string) {
   if (!fs.existsSync(DB_PATH)) return;
   const db = new Database(DB_PATH);
+  // Tables may not exist if the dev server created a fresh DB
+  const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
+  if (!hasTable) { db.close(); return; }
   const session = db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token) as any;
   if (session) {
     db.prepare('DELETE FROM drafts WHERE user_id = ?').run(session.user_id);
@@ -62,7 +95,7 @@ test.describe('Community Editing — Auth Gate', () => {
     await guestButton.click();
 
     // Should redirect to the editor
-    await page.waitForURL('**/admin/routes/carp', { timeout: 10000 });
+    await page.waitForURL(url => url.pathname === '/admin/routes/carp', { timeout: 10000 });
     await expect(page.locator('h1')).toContainText('Edit:');
   });
 });
