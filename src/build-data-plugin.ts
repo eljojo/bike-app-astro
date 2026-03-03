@@ -143,7 +143,6 @@ interface AdminRouteDetail {
   name: string;
   tagline: string;
   tags: string[];
-  distance: number;
   status: string;
   body: string;
   media: AdminMediaItem[];
@@ -239,7 +238,6 @@ export async function loadAdminRouteDetails(): Promise<Record<string, AdminRoute
       name: frontmatter.name as string,
       tagline: (frontmatter.tagline as string) || '',
       tags: (frontmatter.tags as string[]) || [],
-      distance: (frontmatter.distance_km as number) || 0,
       status: frontmatter.status as string,
       body: body.trim(),
       media: photos,

@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { mergeMedia } from '../../lib/media-merge';
+import { parseGpx } from '../../lib/gpx';
 
 export const prerender = false;
 
@@ -64,7 +65,7 @@ export async function POST({ params, request, locals }: APIContext) {
   }
 
   // Validate frontmatter keys
-  const allowedKeys = new Set(['name', 'tagline', 'tags', 'distance', 'status', 'difficulty', 'surface', 'title']);
+  const allowedKeys = new Set(['name', 'tagline', 'tags', 'status', 'difficulty', 'surface', 'title']);
   const unknownKeys = Object.keys(update.frontmatter || {}).filter(k => !allowedKeys.has(k));
   if (unknownKeys.length > 0) {
     return new Response(JSON.stringify({ error: `Unknown frontmatter keys: ${unknownKeys.join(', ')}` }), {
@@ -172,10 +173,6 @@ export async function POST({ params, request, locals }: APIContext) {
     if (isNewRoute) {
       // New route — build frontmatter from scratch
       const adminFields: Record<string, unknown> = { ...update.frontmatter };
-      if ('distance' in adminFields) {
-        adminFields.distance_km = adminFields.distance;
-        delete adminFields.distance;
-      }
       adminFields.status = 'draft';
       adminFields.created_at = new Date().toISOString().split('T')[0];
       adminFields.updated_at = new Date().toISOString().split('T')[0];
@@ -185,24 +182,31 @@ export async function POST({ params, request, locals }: APIContext) {
       // so that fields the admin doesn't edit (created_at, etc.) are preserved.
       const { data } = matter(currentFile.content);
       existingFrontmatter = data;
-      const adminFields: Record<string, unknown> = { ...update.frontmatter };
-      if ('distance' in adminFields) {
-        adminFields.distance_km = adminFields.distance;
-        delete adminFields.distance;
-      }
-      mergedFrontmatter = { ...existingFrontmatter, ...adminFields };
+      mergedFrontmatter = { ...existingFrontmatter, ...update.frontmatter };
     }
 
     // Process variants — update frontmatter and commit new GPX files
     if (update.variants) {
       const variantMeta = update.variants.map(v => {
         const entry: Record<string, unknown> = { name: v.name, gpx: v.gpx };
-        if (v.distance_km) entry.distance_km = v.distance_km;
+        // Compute distance from GPX content for new uploads
+        if (v.isNew && v.gpxContent) {
+          const track = parseGpx(v.gpxContent);
+          entry.distance_km = Math.round(track.distance_m / 100) / 10;
+        } else if (v.distance_km) {
+          entry.distance_km = v.distance_km;
+        }
         if (v.strava_url) entry.strava_url = v.strava_url;
         if (v.rwgps_url) entry.rwgps_url = v.rwgps_url;
         return entry;
       });
       mergedFrontmatter.variants = variantMeta;
+
+      // Set route-level distance_km from the first variant
+      const firstDistance = (variantMeta[0] as Record<string, unknown>)?.distance_km;
+      if (firstDistance) {
+        mergedFrontmatter.distance_km = firstDistance;
+      }
 
       // Add new GPX files to the commit
       for (const v of update.variants) {
@@ -288,7 +292,7 @@ export async function POST({ params, request, locals }: APIContext) {
         name: update.frontmatter.name,
         tagline: update.frontmatter.tagline || '',
         tags: update.frontmatter.tags || [],
-        distance: update.frontmatter.distance,
+        distance: mergedFrontmatter.distance_km || 0,
         status: update.frontmatter.status,
         body: update.body,
         media: update.media || [],

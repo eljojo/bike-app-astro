@@ -127,7 +127,6 @@ export default function RouteCreator() {
     name,
     tagline: '',
     tags: [] as string[],
-    distance: 0,
     status: 'draft',
     body: '',
     media: [] as MediaItem[],

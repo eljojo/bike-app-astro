@@ -9,7 +9,6 @@ interface RouteData {
   name: string;
   tagline: string;
   tags: string[];
-  distance: number;
   status: string;
   body: string;
   media: MediaItem[];
@@ -28,7 +27,6 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
   const [tagInput, setTagInput] = useState('');
-  const [distance, setDistance] = useState(initialData.distance);
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
@@ -82,7 +80,6 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
             name,
             tagline,
             tags,
-            distance,
             status,
           },
           body,
@@ -160,17 +157,6 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
                 placeholder="Add tag..."
               />
             </div>
-          </div>
-
-          <div class="form-field">
-            <label for="route-distance">Distance (km)</label>
-            <input
-              id="route-distance"
-              type="number"
-              value={distance}
-              onInput={(e) => setDistance(parseFloat((e.target as HTMLInputElement).value) || 0)}
-              step="0.1"
-            />
           </div>
 
           <div class="form-field">

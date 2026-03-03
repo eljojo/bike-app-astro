@@ -62,7 +62,6 @@ describe('loadAdminRouteDetails', () => {
       expect(typeof detail.name).toBe('string');
       expect(typeof detail.tagline).toBe('string');
       expect(Array.isArray(detail.tags)).toBe(true);
-      expect(typeof detail.distance).toBe('number');
       expect(typeof detail.status).toBe('string');
       expect(typeof detail.body).toBe('string');
       expect(Array.isArray(detail.media)).toBe(true);

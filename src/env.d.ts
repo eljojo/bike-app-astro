@@ -60,7 +60,6 @@ declare module 'virtual:bike-app/admin-route-detail' {
     name: string;
     tagline: string;
     tags: string[];
-    distance: number;
     status: string;
     body: string;
     media: AdminMediaItem[];

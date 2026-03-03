@@ -113,15 +113,6 @@ export default function VariantManager({ variants, onChange }: Props) {
                 />
               </div>
               <div class="form-field">
-                <label>Distance (km)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={v.distance_km || ''}
-                  onInput={(e) => updateVariant(idx, { distance_km: parseFloat((e.target as HTMLInputElement).value) || undefined })}
-                />
-              </div>
-              <div class="form-field">
                 <label>Strava URL</label>
                 <input
                   type="url"
