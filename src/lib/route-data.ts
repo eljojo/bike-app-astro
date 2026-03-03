@@ -1,4 +1,5 @@
 import { getCollection } from 'astro:content';
+import { isPublished } from './content-filters';
 import { elevationTags, getAllElevations } from './elevation';
 import { toPlaceData } from './places';
 import { scoreRoute } from './difficulty';
@@ -29,7 +30,7 @@ export async function loadHomepageData() {
   const allElevations = getAllElevations(routes);
 
   const published = routes
-    .filter(r => r.data.status === 'published')
+    .filter(isPublished)
     .sort((a, b) => {
       const aMin = Math.min(...(scoreRoute(a).length ? scoreRoute(a) : [0]));
       const bMin = Math.min(...(scoreRoute(b).length ? scoreRoute(b) : [0]));
@@ -74,7 +75,7 @@ export async function loadRouteData() {
   const placeData = toPlaceData(allPlaces);
 
   const routeDifficultyScores = new Map<string, number[]>();
-  for (const r of routes.filter(r => r.data.status === 'published')) {
+  for (const r of routes.filter(isPublished)) {
     const scores = scoreRoute(r);
     if (scores.length > 0) routeDifficultyScores.set(r.id, scores);
   }
@@ -82,7 +83,7 @@ export async function loadRouteData() {
   const allScores = [...routeDifficultyScores.values()].map(s => s[0]);
 
   const similarityData = routes
-    .filter(r => r.data.status === 'published')
+    .filter(isPublished)
     .map(r => {
       const gpx = r.data.variants[0]?.gpx;
       const track = gpx ? r.data.gpxTracks[gpx] : null;
