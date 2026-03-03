@@ -11,65 +11,23 @@ import '../../styles/admin.scss';
     <div class="editor-header">
       <a href="/admin" class="back-link">&larr; Back to routes</a>
     </div>
-    <h1>New Route</h1>
+    <h1 class="editor-title">New Route</h1>
     <RouteCreator client:load />
   </div>
 </Base>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
-
-  .editor-header {
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  .back-link {
-    color: $color-text-muted;
-    text-decoration: none;
-
-    @media (prefers-color-scheme: dark) {
-      color: #aaa;
-    }
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  h1 {
-    font-family: $font-heading;
-    font-size: 1.25rem;
-    margin: 0 0 1.5rem;
-  }
+  @use '../../styles/mixins' as *;
+  @use '../../styles/editor';
 
   .route-creator {
     max-width: 500px;
   }
 
-  .drop-zone {
-    border: 2px dashed $color-border;
-    border-radius: $border-radius;
-    padding: 1.5rem;
-    text-align: center;
-    cursor: pointer;
-    color: $color-text-muted;
-    font-size: 0.875rem;
-
-    @media (prefers-color-scheme: dark) {
-      border-color: #444;
-      color: #aaa;
-    }
-  }
-
   .drop-zone--large {
     padding: 3rem 1.5rem;
     font-size: 1rem;
-  }
-
-  .drop-zone--active {
-    border-color: $color-accent;
-    background: rgba(255, 165, 0, 0.05);
   }
 
   .route-creator-setup {
@@ -80,11 +38,7 @@ import '../../styles/admin.scss';
 
     small {
       font-size: 0.75rem;
-      color: $color-text-muted;
-
-      @media (prefers-color-scheme: dark) {
-        color: #aaa;
-      }
+      @include muted-text;
     }
   }
 </style>

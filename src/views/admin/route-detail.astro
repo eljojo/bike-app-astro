@@ -95,121 +95,22 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
       <a href="/admin" class="back-link">&larr; Back to routes</a>
       <a href={`/routes/${slug}`} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>
     </div>
-    <h1>Edit: {routeData.name}</h1>
+    <h1 class="editor-title">Edit: {routeData.name}</h1>
     <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
   </div>
 </Base>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
-
-  .editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  .back-link,
-  .view-link {
-    color: $color-text-muted;
-    text-decoration: none;
-
-    @media (prefers-color-scheme: dark) {
-      color: #aaa;
-    }
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  h1 {
-    font-family: $font-heading;
-    font-size: 1.25rem;
-    margin: 0 0 1.5rem;
-  }
-
-  .editor-section {
-    margin-bottom: 2rem;
-
-    h2 {
-      font-family: $font-heading;
-      font-size: 1.1rem;
-      margin: 0 0 0.75rem;
-      border-bottom: 1px solid $color-border;
-      padding-bottom: 0.25rem;
-
-      @media (prefers-color-scheme: dark) {
-        border-color: #333;
-      }
-    }
-  }
-
-  .editor-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-    padding: 1rem 0;
-    border-top: 1px solid $color-border;
-
-    @media (prefers-color-scheme: dark) {
-      border-color: #333;
-    }
-  }
-
-  .conflict-notice {
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    border-radius: $border-radius;
-    padding: 1rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: #664d03;
-
-    @media (prefers-color-scheme: dark) {
-      background: #332701;
-      border-color: #664d03;
-      color: #ffda6a;
-    }
-
-    strong {
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    p {
-      margin: 0.5rem 0;
-    }
-
-    ol {
-      margin: 0.5rem 0;
-      padding-left: 1.5rem;
-    }
-
-    li {
-      margin-bottom: 0.25rem;
-    }
-  }
+  @use '../../styles/mixins' as *;
+  @use '../../styles/editor';
 
   textarea {
+    @include form-control;
     font-family: $font-mono;
     font-size: 0.875rem;
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid $color-border;
-    border-radius: $border-radius;
-    background: $color-bg;
-    color: $color-text;
     resize: vertical;
-
-    @media (prefers-color-scheme: dark) {
-      background: $color-bg-dark;
-      color: $color-text-dark;
-      border-color: #444;
-    }
 
     &:focus {
       outline: 2px solid $color-accent;
@@ -218,19 +119,8 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
   }
 
   select {
+    @include form-control;
     font-family: $font-body;
-    font-size: 1rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid $color-border;
-    border-radius: $border-radius;
-    background: $color-bg;
-    color: $color-text;
-
-    @media (prefers-color-scheme: dark) {
-      background: $color-bg-dark;
-      color: $color-text-dark;
-      border-color: #444;
-    }
   }
 
   .tag-editor {
@@ -243,7 +133,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     border-radius: $border-radius;
     background: $color-bg;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       background: $color-bg-dark;
       border-color: #444;
     }
@@ -280,29 +170,9 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     background: transparent;
     color: $color-text;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       color: $color-text-dark;
     }
-  }
-
-  .drop-zone {
-    border: 2px dashed $color-border;
-    border-radius: $border-radius;
-    padding: 1.5rem;
-    text-align: center;
-    cursor: pointer;
-    color: $color-text-muted;
-    font-size: 0.875rem;
-
-    @media (prefers-color-scheme: dark) {
-      border-color: #444;
-      color: #aaa;
-    }
-  }
-
-  .drop-zone--active {
-    border-color: $color-accent;
-    background: rgba(255, 165, 0, 0.05);
   }
 
   .photo-grid {
@@ -319,7 +189,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     background: $color-card-bg;
     cursor: grab;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       background: $color-card-bg-dark;
     }
 
@@ -371,7 +241,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     background: $color-card-bg;
     color: $color-text;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       background: $color-card-bg-dark;
       color: $color-text-dark;
       border-color: #333;
@@ -390,7 +260,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     background: $color-card-bg;
     padding: 0.75rem;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       background: $color-card-bg-dark;
       border-color: #333;
     }
@@ -408,12 +278,8 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 
   .variant-grip {
     cursor: grab;
-    color: $color-text-muted;
+    @include muted-text;
     user-select: none;
-
-    @media (prefers-color-scheme: dark) {
-      color: #aaa;
-    }
   }
 
   .variant-name {
@@ -422,11 +288,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 
   .variant-distance {
     font-size: 0.8125rem;
-    color: $color-text-muted;
-
-    @media (prefers-color-scheme: dark) {
-      color: #aaa;
-    }
+    @include muted-text;
   }
 
   .variant-new {
@@ -451,7 +313,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     cursor: pointer;
     color: $color-text;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       color: $color-text-dark;
       border-color: #444;
     }
@@ -465,7 +327,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
     flex-direction: column;
     gap: 0.5rem;
 
-    @media (prefers-color-scheme: dark) {
+    @include dark-mode {
       border-color: #333;
     }
 
@@ -476,11 +338,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 
       label {
         font-size: 0.75rem;
-        color: $color-text-muted;
-
-        @media (prefers-color-scheme: dark) {
-          color: #aaa;
-        }
+        @include muted-text;
       }
 
       code {

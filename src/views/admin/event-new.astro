@@ -29,35 +29,11 @@ const initialData = {
     <div class="editor-header">
       <a href="/admin/events" class="back-link">&larr; Back to events</a>
     </div>
-    <h1>New Event</h1>
+    <h1 class="editor-title">New Event</h1>
     <EventEditor client:load initialData={initialData} organizers={organizers} cdnUrl={cdnUrl} />
   </div>
 </Base>
 
 <style lang="scss">
-  @use '../../styles/variables' as *;
-
-  .editor-header {
-    margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-  }
-
-  .back-link {
-    color: $color-text-muted;
-    text-decoration: none;
-
-    @media (prefers-color-scheme: dark) {
-      color: #aaa;
-    }
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  h1 {
-    font-family: $font-heading;
-    font-size: 1.25rem;
-    margin: 0 0 1.5rem;
-  }
+  @use '../../styles/editor';
 </style>

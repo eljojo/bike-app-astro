@@ -1,0 +1,108 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.back-link,
+.view-link {
+  @include muted-text;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.editor-title {
+  font-family: $font-heading;
+  font-size: 1.25rem;
+  margin: 0 0 1.5rem;
+}
+
+.editor-section {
+  margin-bottom: 2rem;
+
+  h2 {
+    font-family: $font-heading;
+    font-size: 1.1rem;
+    margin: 0 0 0.75rem;
+    border-bottom: 1px solid $color-border;
+    padding-bottom: 0.25rem;
+
+    @include dark-mode {
+      border-color: #333;
+    }
+  }
+}
+
+.editor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 1rem 0;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: #333;
+  }
+}
+
+.conflict-notice {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: $border-radius;
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #664d03;
+
+  @include dark-mode {
+    background: #332701;
+    border-color: #664d03;
+    color: #ffda6a;
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    margin: 0.5rem 0;
+  }
+
+  ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+}
+
+.drop-zone {
+  border: 2px dashed $color-border;
+  border-radius: $border-radius;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  @include muted-text;
+  font-size: 0.875rem;
+
+  @include dark-mode {
+    border-color: #444;
+  }
+}
+
+.drop-zone--active {
+  border-color: $color-accent;
+  background: rgba(255, 165, 0, 0.05);
+}

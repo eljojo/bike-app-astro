@@ -1,6 +1,8 @@
 import { eq, and } from 'drizzle-orm';
 import { drafts } from '../db/schema';
 import { generateId } from './auth';
+import { createGitService } from './git-factory';
+import { GIT_OWNER, GIT_DATA_REPO } from './config';
 
 import type { Database } from '../db';
 
@@ -69,4 +71,78 @@ export async function updateDraftTimestamp(db: Database, draftId: string): Promi
 
 export async function listDraftsForUser(db: Database, userId: string): Promise<Draft[]> {
   return await db.select().from(drafts).where(eq(drafts.userId, userId)) as Draft[];
+}
+
+/**
+ * Create the draft branch from main HEAD, handling race conditions.
+ */
+export async function ensureDraftBranch(
+  token: string,
+  baseBranch: string,
+  targetBranch: string,
+): Promise<void> {
+  const mainGit = createGitService({
+    token, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
+  });
+  const mainSha = await mainGit.getRef(baseBranch);
+  if (!mainSha) throw new Error('Cannot resolve main branch');
+  try {
+    await mainGit.createRef(targetBranch, mainSha);
+  } catch (e: any) {
+    if (e.message?.includes('already exists') || e.message?.includes('Reference already exists')) {
+      // Branch was created by a concurrent request — proceed
+    } else {
+      throw e;
+    }
+  }
+}
+
+/**
+ * After committing to a draft branch: create PR on first save,
+ * update timestamp on subsequent saves.
+ */
+export async function handleDraftAfterCommit(
+  database: Database,
+  opts: {
+    token: string;
+    user: { id: string; displayName: string };
+    contentType: string;
+    contentSlug: string;
+    baseBranch: string;
+    targetBranch: string;
+    isFirstDraftSave: boolean;
+    existingDraft: Draft | null;
+    prTitle: string;
+  },
+): Promise<Draft | null> {
+  const { token, user, contentType, contentSlug, baseBranch, targetBranch,
+    isFirstDraftSave, existingDraft, prTitle } = opts;
+
+  if (isFirstDraftSave) {
+    // Re-check for draft in case a concurrent request created one
+    const existing = await findDraft(database, user.id, contentType, contentSlug);
+    if (existing) {
+      await updateDraftTimestamp(database, existing.id);
+      return existing;
+    }
+
+    const mainGit = createGitService({
+      token, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
+    });
+    const prNumber = await mainGit.createPullRequest(
+      targetBranch, baseBranch,
+      prTitle,
+      `Community edit by ${user.displayName}`,
+    );
+
+    return createDraft(database, {
+      userId: user.id, contentType, contentSlug,
+      branchName: targetBranch, prNumber,
+    });
+  }
+
+  if (existingDraft) {
+    await updateDraftTimestamp(database, existingDraft.id);
+  }
+  return existingDraft;
 }
