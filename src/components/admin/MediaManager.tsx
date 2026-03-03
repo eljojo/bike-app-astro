@@ -4,6 +4,8 @@ export interface MediaItem {
   key: string;
   caption?: string;
   cover?: boolean;
+  width?: number;
+  height?: number;
 }
 
 interface Props {
@@ -60,10 +62,16 @@ export default function MediaManager({ media, onChange, cdnUrl }: Props) {
         });
 
         if (!confirmRes.ok) {
-          throw new Error('Upload confirmation failed');
+          const errData = await confirmRes.json();
+          throw new Error(errData.error || 'Upload confirmation failed');
         }
 
-        newItems.push({ key });
+        const confirmed = await confirmRes.json();
+        newItems.push({
+          key,
+          width: confirmed.width,
+          height: confirmed.height,
+        });
       }
 
       onChange([...media, ...newItems]);
