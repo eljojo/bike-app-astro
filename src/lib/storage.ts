@@ -1,4 +1,5 @@
 import { AwsClient } from 'aws4fetch';
+import { parseImageDimensions } from './image-dimensions';
 
 export interface StorageEnv {
   BUCKET: R2Bucket;
@@ -8,10 +9,19 @@ export interface StorageEnv {
   R2_BUCKET_NAME: string;
 }
 
+export interface BucketLike {
+  head: (key: string) => Promise<{ size: number; httpMetadata?: { contentType?: string } } | null>;
+  get: (key: string) => Promise<{ arrayBuffer: () => Promise<ArrayBuffer> } | null>;
+  put: (key: string, data: ArrayBuffer | ReadableStream | string | Uint8Array) => Promise<unknown>;
+  delete: (key: string) => Promise<void>;
+}
+
 export interface UploadMetadata {
   key: string;
   size: number;
   contentType: string;
+  width: number;
+  height: number;
 }
 
 /**
@@ -72,7 +82,7 @@ export async function createPresignedUploadUrl(
   });
 
   const url = new URL(
-    `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/photos/${key}`,
+    `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/uploads/pending/${key}`,
   );
   url.searchParams.set('X-Amz-Expires', '3600');
 
@@ -90,21 +100,37 @@ export async function createPresignedUploadUrl(
 }
 
 /**
- * Confirm an upload exists in R2 at photos/{key}.
- * Returns metadata about the uploaded object.
+ * Confirm an upload by validating the pending image, extracting dimensions,
+ * promoting to photos/{key}, and cleaning up the pending file.
  */
 export async function confirmUpload(
-  r2: { head: (key: string) => Promise<{ size: number; httpMetadata?: { contentType?: string } } | null> },
+  bucket: BucketLike,
   key: string,
 ): Promise<UploadMetadata> {
-  const object = await r2.head(`photos/${key}`);
+  const pendingKey = `uploads/pending/${key}`;
+  const object = await bucket.get(pendingKey);
   if (!object) {
-    throw new Error(`Object not found: photos/${key}`);
+    throw new Error(`Pending upload not found: ${pendingKey}`);
   }
+
+  const buffer = await object.arrayBuffer();
+  const dimensions = parseImageDimensions(buffer);
+  if (!dimensions) {
+    // Not a valid image — clean up and reject
+    await bucket.delete(pendingKey);
+    throw new Error('Invalid image: could not parse dimensions from file header');
+  }
+
+  // Promote to photos/
+  await bucket.put(`photos/${key}`, buffer);
+  await bucket.delete(pendingKey);
+
   return {
     key,
-    size: object.size,
-    contentType: object.httpMetadata?.contentType ?? 'application/octet-stream',
+    size: buffer.byteLength,
+    contentType: `image/${dimensions.format}`,
+    width: dimensions.width,
+    height: dimensions.height,
   };
 }
 
@@ -112,8 +138,8 @@ export async function confirmUpload(
  * Delete an object from R2 at photos/{key}.
  */
 export async function deleteMedia(
-  r2: { delete: (key: string) => Promise<void> },
+  bucket: BucketLike,
   key: string,
 ): Promise<void> {
-  await r2.delete(`photos/${key}`);
+  await bucket.delete(`photos/${key}`);
 }

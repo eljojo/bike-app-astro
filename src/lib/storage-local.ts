@@ -28,7 +28,10 @@ export function createLocalBucket(uploadsDir: string) {
       const filePath = path.join(uploadsDir, key);
       if (!fs.existsSync(filePath)) return null;
       const body = fs.readFileSync(filePath);
-      return { arrayBuffer: async () => body.buffer, body };
+      return {
+        arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength),
+        body,
+      };
     },
     async delete(key: string) {
       const filePath = path.join(uploadsDir, key);
