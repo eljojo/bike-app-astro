@@ -6,6 +6,7 @@ const adminRoutes = [
   { pattern: '/api/routes/[slug]', entrypoint: './src/views/api/route-save.ts' },
   { pattern: '/api/media/[key]', entrypoint: './src/views/api/media-delete.ts' },
   { pattern: '/api/admin/sync', entrypoint: './src/views/api/admin-sync.ts' },
+  { pattern: '/dev-uploads/[...path]', entrypoint: './src/views/dev/dev-uploads.ts' },
 ];
 
 export function adminRoutesIntegration(): AstroIntegration {

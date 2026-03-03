@@ -7,6 +7,7 @@ export interface StorageEnv {
   R2_SECRET_ACCESS_KEY: string;
   R2_ACCOUNT_ID: string;
   R2_BUCKET_NAME: string;
+  STORAGE_KEY_PREFIX?: string;
 }
 
 export interface BucketLike {
@@ -30,11 +31,12 @@ export interface UploadMetadata {
  */
 export async function generateMediaKey(
   r2: { head: (key: string) => Promise<unknown> },
+  prefix = '',
 ): Promise<string> {
   const maxAttempts = 10;
   for (let i = 0; i < maxAttempts; i++) {
     const key = randomKey();
-    const existing = await r2.head(`photos/${key}`);
+    const existing = await r2.head(`${prefix}${key}`);
     if (!existing) {
       return key;
     }
@@ -62,14 +64,17 @@ export function randomKey(): string {
 }
 
 /**
- * Create a presigned URL for uploading to R2 at photos/{key}.
+ * Create a presigned URL for uploading to R2 at {prefix}uploads/pending/{key}.
  * Returns a signed PUT URL with 1-hour expiry.
+ * The prefix (from STORAGE_KEY_PREFIX) isolates staging uploads in the shared bucket.
  */
 export async function createPresignedUploadUrl(
   env: StorageEnv,
   key: string,
   contentType: string,
 ): Promise<string> {
+  const prefix = env.STORAGE_KEY_PREFIX || '';
+
   if (process.env.RUNTIME === 'local') {
     return `/api/dev/upload?key=${key}&contentType=${encodeURIComponent(contentType)}`;
   }
@@ -82,7 +87,7 @@ export async function createPresignedUploadUrl(
   });
 
   const url = new URL(
-    `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/uploads/pending/${key}`,
+    `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.R2_BUCKET_NAME}/${prefix}uploads/pending/${key}`,
   );
   url.searchParams.set('X-Amz-Expires', '3600');
 
@@ -101,13 +106,18 @@ export async function createPresignedUploadUrl(
 
 /**
  * Confirm an upload by validating the pending image, extracting dimensions,
- * promoting to photos/{key}, and cleaning up the pending file.
+ * promoting to {prefix}{key} (bucket root), and cleaning up the pending file.
+ *
+ * Returns the full R2 object path as `key` (e.g. "abc123" or
+ * "staging/abc123") so it can be used directly in CDN URLs.
+ * Files are stored at the bucket root (matching Rails ActiveStorage convention).
  */
 export async function confirmUpload(
   bucket: BucketLike,
   key: string,
+  prefix = '',
 ): Promise<UploadMetadata> {
-  const pendingKey = `uploads/pending/${key}`;
+  const pendingKey = `${prefix}uploads/pending/${key}`;
   const object = await bucket.get(pendingKey);
   if (!object) {
     throw new Error(`Pending upload not found: ${pendingKey}`);
@@ -121,12 +131,13 @@ export async function confirmUpload(
     throw new Error('Invalid image: could not parse dimensions from file header');
   }
 
-  // Promote to photos/
-  await bucket.put(`photos/${key}`, buffer);
+  // Promote to bucket root (matching Rails convention)
+  const mediaKey = `${prefix}${key}`;
+  await bucket.put(mediaKey, buffer);
   await bucket.delete(pendingKey);
 
   return {
-    key,
+    key: mediaKey,
     size: buffer.byteLength,
     contentType: `image/${dimensions.format}`,
     width: dimensions.width,
@@ -135,11 +146,12 @@ export async function confirmUpload(
 }
 
 /**
- * Delete an object from R2 at photos/{key}.
+ * Delete an object from R2 at {prefix}{key}.
  */
 export async function deleteMedia(
   bucket: BucketLike,
   key: string,
+  prefix = '',
 ): Promise<void> {
-  await bucket.delete(`photos/${key}`);
+  await bucket.delete(`${prefix}${key}`);
 }

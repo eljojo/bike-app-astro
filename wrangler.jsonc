@@ -12,7 +12,8 @@
       "name": "bike-ottawa-staging",
       "vars": {
         "GIT_BRANCH": "staging",
-        "ENVIRONMENT": "staging"
+        "ENVIRONMENT": "staging",
+        "STORAGE_KEY_PREFIX": "staging/"
       },
       "d1_databases": [
         {
@@ -25,7 +26,7 @@
       "r2_buckets": [
         {
           "binding": "BUCKET",
-          "bucket_name": "bike-ottawa-staging"
+          "bucket_name": "eljojo-bike-prod"
         }
       ]
     },
@@ -33,7 +34,8 @@
       "name": "bike-ottawa-production",
       "vars": {
         "GIT_BRANCH": "main",
-        "ENVIRONMENT": "production"
+        "ENVIRONMENT": "production",
+        "STORAGE_KEY_PREFIX": ""
       },
       "d1_databases": [
         {
@@ -46,7 +48,7 @@
       "r2_buckets": [
         {
           "binding": "BUCKET",
-          "bucket_name": "bike-ottawa-production"
+          "bucket_name": "eljojo-bike-prod"
         }
       ]
     }

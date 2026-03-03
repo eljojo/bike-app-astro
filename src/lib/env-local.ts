@@ -21,6 +21,7 @@ export function createLocalEnv() {
     R2_ACCOUNT_ID: '',
     R2_BUCKET_NAME: '',
     R2_PUBLIC_URL: process.env.R2_PUBLIC_URL || 'http://localhost:4321/dev-uploads',
+    STORAGE_KEY_PREFIX: process.env.STORAGE_KEY_PREFIX || '',
     GIT_BRANCH: process.env.GIT_BRANCH || '',
     ENVIRONMENT: process.env.ENVIRONMENT || 'local',
     ASSETS: null as unknown as Fetcher,

@@ -48,7 +48,7 @@ function serveRaw(filePath: string): Response {
 }
 
 async function serveTransformed(blobKey: string, transformStr: string): Promise<Response> {
-  const fullPath = resolveFile(`photos/${blobKey}`);
+  const fullPath = resolveFile(blobKey);
   if (!fullPath) return new Response('Not found', { status: 404 });
 
   const transforms = parseTransforms(transformStr);

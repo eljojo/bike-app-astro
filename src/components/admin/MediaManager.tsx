@@ -68,7 +68,7 @@ export default function MediaManager({ media, onChange, cdnUrl }: Props) {
 
         const confirmed = await confirmRes.json();
         newItems.push({
-          key,
+          key: confirmed.key,
           width: confirmed.width,
           height: confirmed.height,
         });

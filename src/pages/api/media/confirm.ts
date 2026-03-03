@@ -24,7 +24,8 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const metadata = await confirmUpload(env.BUCKET, key);
+    const prefix = env.STORAGE_KEY_PREFIX || '';
+    const metadata = await confirmUpload(env.BUCKET, key, prefix);
     return new Response(JSON.stringify(metadata), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

@@ -57,15 +57,15 @@ describe('staged upload flow', () => {
     // Simulate presign + upload to pending
     await bucket.put('uploads/pending/testimg1', VALID_PNG);
 
-    // Confirm should validate, move to photos/, return dimensions
+    // Confirm should validate, promote to bucket root, return key as R2 path
     const result = await confirmUpload(bucket, 'testimg1');
     expect(result.key).toBe('testimg1');
     expect(result.width).toBe(1);
     expect(result.height).toBe(1);
     expect(result.contentType).toBe('image/png');
 
-    // File should be at photos/ now, not pending/
-    const promoted = await bucket.head('photos/testimg1');
+    // File should be at bucket root now, not pending/
+    const promoted = await bucket.head('testimg1');
     expect(promoted).not.toBeNull();
     const pending = await bucket.head('uploads/pending/testimg1');
     expect(pending).toBeNull();
