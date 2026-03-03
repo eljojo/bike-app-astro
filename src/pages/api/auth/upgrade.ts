@@ -7,9 +7,13 @@ import { eq } from 'drizzle-orm';
 import {
   normalizeEmail,
   generateId,
+  createSession,
+  destroySession,
+  setSessionCookies,
   retrieveChallenge,
   getWebAuthnConfig,
 } from '../../../lib/auth';
+import { sanitizeDisplayName } from '../../../lib/draft-branch';
 
 export const prerender = false;
 
@@ -84,9 +88,18 @@ export async function POST({ request, cookies, locals }: APIContext) {
 
     // Upgrade: set email, role, optionally displayName
     const updates: Record<string, unknown> = { email, role: 'editor' };
-    if (displayName) updates.displayName = displayName;
+    if (displayName) updates.displayName = sanitizeDisplayName(displayName);
 
     await database.update(users).set(updates).where(eq(users.id, user.id));
+
+    // Re-issue session to prevent session fixation: the old guest token
+    // should not carry over into the elevated editor role.
+    const oldToken = cookies.get('session_token')?.value;
+    if (oldToken) {
+      await destroySession(database, oldToken);
+    }
+    const newToken = await createSession(database, user.id);
+    setSessionCookies(cookies, newToken);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { 'Content-Type': 'application/json' },

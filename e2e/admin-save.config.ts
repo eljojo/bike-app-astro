@@ -149,7 +149,7 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: `CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="http://localhost:4324/dev-uploads" npx astro build && CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="http://localhost:4324/dev-uploads" npx astro preview --port 4324`,
+    command: `RUNTIME=local CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="http://localhost:4324/dev-uploads" npx astro build && RUNTIME=local CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="http://localhost:4324/dev-uploads" npx astro preview --port 4324`,
     port: 4324,
     cwd: '..',
     reuseExistingServer: false,

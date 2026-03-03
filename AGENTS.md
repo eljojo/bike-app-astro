@@ -4,7 +4,7 @@ Static site rebuild of [ottawabybike.ca](https://ottawabybike.ca). Replaces a Ra
 
 ## Project Status
 
-Active development on the `astro-rebuild` branch. The `main` branch is intentionally bare (just a README) — all work gets merged via PR.
+Active development on the `admin-interface` branch. The `main` branch is intentionally bare (just a README) — all work gets merged via PR.
 
 ## Quick Start
 

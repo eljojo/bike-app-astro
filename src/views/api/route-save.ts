@@ -103,13 +103,23 @@ export async function POST({ params, request, locals }: APIContext) {
     const isFirstDraftSave = !isDirect && !draft;
 
     if (isFirstDraftSave) {
-      // Create draft branch from main HEAD
+      // Create draft branch from main HEAD.
+      // Wrap in try/catch to handle double-click race: if a concurrent request
+      // already created the branch, we proceed normally.
       const mainGit = createGitService({
         token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
       });
       const mainSha = await mainGit.getRef(baseBranch);
       if (!mainSha) throw new Error('Cannot resolve main branch');
-      await mainGit.createRef(targetBranch, mainSha);
+      try {
+        await mainGit.createRef(targetBranch, mainSha);
+      } catch (e: any) {
+        if (e.message?.includes('already exists') || e.message?.includes('Reference already exists')) {
+          // Branch was created by a concurrent request — proceed
+        } else {
+          throw e;
+        }
+      }
     }
 
     // Read current files from target branch
@@ -303,19 +313,26 @@ export async function POST({ params, request, locals }: APIContext) {
     // Draft saves: create PR on first save, update timestamp on subsequent saves
     if (!isDirect) {
       if (isFirstDraftSave) {
-        const mainGit = createGitService({
-          token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
-        });
-        const prNumber = await mainGit.createPullRequest(
-          targetBranch, baseBranch,
-          `${user.displayName}: Update ${slug}`,
-          `Community edit by ${user.displayName}`,
-        );
+        // Re-check for draft in case a concurrent request created one
+        const existingDraft = await findDraft(database, user.id, 'routes', slug);
+        if (existingDraft) {
+          await updateDraftTimestamp(database, existingDraft.id);
+          draft = existingDraft;
+        } else {
+          const mainGit = createGitService({
+            token: env.GITHUB_TOKEN, owner: GIT_OWNER, repo: GIT_DATA_REPO, branch: baseBranch,
+          });
+          const prNumber = await mainGit.createPullRequest(
+            targetBranch, baseBranch,
+            `${user.displayName}: Update ${slug}`,
+            `Community edit by ${user.displayName}`,
+          );
 
-        draft = await createDraft(database, {
-          userId: user.id, contentType: 'routes', contentSlug: slug,
-          branchName: targetBranch, prNumber,
-        });
+          draft = await createDraft(database, {
+            userId: user.id, contentType: 'routes', contentSlug: slug,
+            branchName: targetBranch, prNumber,
+          });
+        }
       } else if (draft) {
         await updateDraftTimestamp(database, draft.id);
       }

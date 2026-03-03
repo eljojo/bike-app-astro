@@ -12,6 +12,7 @@ import {
   getWebAuthnConfig,
   isFirstUser,
 } from '../../../lib/auth';
+import { sanitizeDisplayName } from '../../../lib/draft-branch';
 
 
 export const prerender = false;
@@ -30,6 +31,7 @@ export async function POST({ request, cookies }: APIContext) {
 
     const database = db();
     const email = normalizeEmail(rawEmail);
+    const safeDisplayName = sanitizeDisplayName(displayName);
     const config = getWebAuthnConfig(request.url, env);
 
     // Retrieve the stored challenge
@@ -59,7 +61,7 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    const { credential } = verification.registrationInfo;
 
     const userId = generateId();
     const now = new Date().toISOString();
@@ -68,7 +70,7 @@ export async function POST({ request, cookies }: APIContext) {
     await database.insert(users).values({
       id: userId,
       email,
-      displayName,
+      displayName: safeDisplayName,
       role: firstUser ? 'admin' : 'editor',
       createdAt: now,
     });

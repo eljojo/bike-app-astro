@@ -8,9 +8,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import simpleGit from 'simple-git';
-import type { FileChange, CommitAuthor } from './git-service';
+import type { FileChange, CommitAuthor, IGitService } from './git-service';
 
-export class LocalGitService {
+export class LocalGitService implements IGitService {
   private repoPath: string;
   private branch: string;
 

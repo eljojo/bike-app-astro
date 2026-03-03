@@ -26,6 +26,20 @@ export interface CommitAuthor {
   email: string;
 }
 
+/** Shared interface for both GitHub and local git service implementations. */
+export interface IGitService {
+  readFile(path: string): Promise<{ content: string; sha: string } | null>;
+  listDirectory(path: string): Promise<Array<{ name: string; type: string; path: string }>>;
+  writeFiles(files: FileChange[], message: string, author: CommitAuthor, deletePaths?: string[]): Promise<string>;
+  triggerRebuild(): Promise<void>;
+  getRef(branch: string): Promise<string | null>;
+  updateRef(branch: string, sha: string, force?: boolean): Promise<void>;
+  createRef(branch: string, sha: string): Promise<void>;
+  deleteRef(branch: string): Promise<void>;
+  createPullRequest(head: string, base: string, title: string, body: string): Promise<number | null>;
+  closePullRequest(prNumber: number): Promise<void>;
+}
+
 interface GitHubContentItem {
   name: string;
   type: string;
@@ -41,7 +55,7 @@ function formatCommitMessage(message: string): string {
   return `${message}\n\nvia whereto-bike`;
 }
 
-export class GitService {
+export class GitService implements IGitService {
   private branch: string;
 
   constructor(private config: GitServiceConfig) {
@@ -188,7 +202,7 @@ export class GitService {
   /**
    * Create a pull request. Returns the PR number.
    */
-  async createPullRequest(head: string, base: string, title: string, body: string): Promise<number> {
+  async createPullRequest(head: string, base: string, title: string, body: string): Promise<number | null> {
     const response = await this.githubFetch(
       `/repos/${this.config.owner}/${this.config.repo}/pulls`,
       {
