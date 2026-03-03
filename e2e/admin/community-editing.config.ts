@@ -139,7 +139,7 @@ fs.writeFileSync(
 `
 );
 
-execSync('git init && git add -A && git commit -m "initial fixture"', {
+execSync('git init && git add -A && git -c user.name="test" -c user.email="test@test" commit -m "initial fixture"', {
   cwd: FIXTURE_DIR,
   stdio: 'inherit',
 });
