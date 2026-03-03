@@ -1,81 +1,21 @@
 import { test, expect } from '@playwright/test';
-import Database from 'better-sqlite3';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import sharp from 'sharp';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
+import { FIXTURE_DIR } from './fixture.ts';
+import { seedSession, cleanupSession } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '..', '..', '.data', 'local.db');
-const FIXTURE_DIR = path.resolve(__dirname, '..', '..', '.data', 'e2e-content');
-
-function ensureSchema(db: InstanceType<typeof Database>) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id text PRIMARY KEY NOT NULL,
-      email text UNIQUE,
-      display_name text NOT NULL,
-      role text DEFAULT 'editor' NOT NULL,
-      created_at text NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id text PRIMARY KEY NOT NULL,
-      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token text NOT NULL UNIQUE,
-      expires_at text NOT NULL,
-      created_at text NOT NULL
-    );
-  `);
-}
-
-function seedTestSession(): string {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const db = new Database(DB_PATH);
-  ensureSchema(db);
-  const userId = crypto.randomUUID();
-  const token = crypto.randomBytes(32).toString('hex');
-  const now = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-  db.prepare(
-    'INSERT OR REPLACE INTO users (id, email, display_name, role, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(userId, 'playwright@test.local', 'Playwright Test', 'admin', now);
-
-  db.prepare(
-    'INSERT INTO sessions (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(crypto.randomUUID(), userId, token, expiresAt, now);
-
-  // Clear stale content edits from previous runs so conflict detection doesn't fire
-  try {
-    db.prepare('DELETE FROM content_edits').run();
-  } catch {
-    // Table may not exist yet on first run
-  }
-
-  db.close();
-  return token;
-}
-
-function cleanupTestSession(token: string) {
-  if (!fs.existsSync(DB_PATH)) return;
-  const db = new Database(DB_PATH);
-  const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
-  if (!hasTable) { db.close(); return; }
-  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-  db.prepare("DELETE FROM users WHERE email = 'playwright@test.local'").run();
-  db.close();
-}
 
 test.describe('Admin Save Flow', () => {
   let token: string;
 
   test.beforeAll(async () => {
-    token = seedTestSession();
+    token = seedSession();
 
     // Generate test photo fixture
     const fixturesDir = path.resolve(__dirname, 'fixtures');
@@ -92,7 +32,7 @@ test.describe('Admin Save Flow', () => {
   });
 
   test.afterAll(() => {
-    cleanupTestSession(token);
+    cleanupSession(token);
   });
 
   test('upload photo, edit tagline, save, verify commit and persistence', async ({ page }) => {
@@ -119,7 +59,6 @@ test.describe('Admin Save Flow', () => {
     const photoCards = page.locator('.photo-card');
     const initialPhotoCount = await photoCards.count();
     const taglineInput = page.locator('#route-tagline');
-    const originalTagline = await taglineInput.inputValue();
 
     // --- Upload a photo ---
     const fileInput = page.locator('input[type="file"]');

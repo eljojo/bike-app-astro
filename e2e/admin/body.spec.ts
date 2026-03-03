@@ -1,73 +1,15 @@
 import { test, expect } from '@playwright/test';
-import Database from 'better-sqlite3';
-import path from 'node:path';
-import crypto from 'node:crypto';
-import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '..', '..', '.data', 'local.db');
-
-function ensureSchema(db: InstanceType<typeof Database>) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id text PRIMARY KEY NOT NULL,
-      email text UNIQUE,
-      display_name text NOT NULL,
-      role text DEFAULT 'editor' NOT NULL,
-      created_at text NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id text PRIMARY KEY NOT NULL,
-      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token text NOT NULL UNIQUE,
-      expires_at text NOT NULL,
-      created_at text NOT NULL
-    );
-  `);
-}
-
-function seedTestSession(): string {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const db = new Database(DB_PATH);
-  ensureSchema(db);
-  const userId = crypto.randomUUID();
-  const token = crypto.randomBytes(32).toString('hex');
-  const now = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-  db.prepare(
-    'INSERT OR REPLACE INTO users (id, email, display_name, role, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(userId, 'playwright@test.local', 'Playwright Test', 'admin', now);
-
-  db.prepare(
-    'INSERT INTO sessions (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(crypto.randomUUID(), userId, token, expiresAt, now);
-
-  db.close();
-  return token;
-}
-
-function cleanupTestSession(token: string) {
-  if (!fs.existsSync(DB_PATH)) return;
-  const db = new Database(DB_PATH);
-  const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
-  if (!hasTable) { db.close(); return; }
-  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-  db.prepare("DELETE FROM users WHERE email = 'playwright@test.local'").run();
-  db.close();
-}
+import { seedSession, cleanupSession } from './helpers.ts';
 
 test.describe('Admin Route Editor', () => {
   let token: string;
 
   test.beforeAll(() => {
-    token = seedTestSession();
+    token = seedSession();
   });
 
   test.afterAll(() => {
-    cleanupTestSession(token);
+    cleanupSession(token);
   });
 
   // Regression test: Preact hydration removes textarea text children without
