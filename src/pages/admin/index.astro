@@ -59,6 +59,10 @@ const routes = adminRoutes.map(r => {
       <a href="/admin/events" class="admin-nav-link">Events</a>
     </nav>
 
+    <div class="admin-actions">
+      <a href="/admin/routes/new" class="btn-new-route">+ New route</a>
+    </div>
+
     <div class="sort-controls">
       <span class="sort-label">Sort:</span>
       <a href="/admin" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
@@ -195,6 +199,25 @@ const routes = adminRoutes.map(r => {
 
     @media (prefers-color-scheme: dark) {
       color: #aaa;
+    }
+  }
+
+  .admin-actions {
+    margin-bottom: 0.75rem;
+  }
+
+  .btn-new-route {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: $color-accent;
+    color: #000;
+    border-radius: $border-radius;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+
+    &:hover {
+      opacity: 0.9;
     }
   }
 

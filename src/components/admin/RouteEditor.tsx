@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
+import VariantManager from './VariantManager';
+import type { VariantItem } from './VariantManager';
 
 interface RouteData {
   slug: string;
@@ -12,6 +14,8 @@ interface RouteData {
   body: string;
   media: MediaItem[];
   contentHash?: string;
+  variants?: VariantItem[];
+  isNew?: boolean;
 }
 
 interface Props {
@@ -28,6 +32,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
+  const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Preact hydration bug: the value prop is not applied to textareas during
@@ -82,6 +87,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
           },
           body,
           media,
+          variants,
           contentHash: initialData.contentHash,
         }),
       });
@@ -94,6 +100,11 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
           return;
         }
         throw new Error(data.error || 'Save failed');
+      }
+
+      if (initialData.isNew) {
+        window.location.href = `/admin/routes/${initialData.slug}`;
+        return;
       }
 
       setSaved(true);
@@ -190,6 +201,11 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
       <section class="editor-section">
         <h2>Photos</h2>
         <MediaManager media={media} onChange={setMedia} cdnUrl={cdnUrl} />
+      </section>
+
+      <section class="editor-section">
+        <h2>Variants</h2>
+        <VariantManager variants={variants} onChange={setVariants} />
       </section>
 
       <div class="editor-actions">

@@ -130,6 +130,14 @@ interface AdminMediaItem {
   cover?: boolean;
 }
 
+interface AdminVariant {
+  name: string;
+  gpx: string;
+  distance_km?: number;
+  strava_url?: string;
+  rwgps_url?: string;
+}
+
 interface AdminRouteDetail {
   slug: string;
   name: string;
@@ -140,6 +148,7 @@ interface AdminRouteDetail {
   body: string;
   media: AdminMediaItem[];
   contentHash: string;
+  variants: AdminVariant[];
 }
 
 function readRouteDir(slug: string) {
@@ -235,6 +244,7 @@ export async function loadAdminRouteDetails(): Promise<Record<string, AdminRoute
       body: body.trim(),
       media: photos,
       contentHash,
+      variants: (frontmatter.variants as AdminVariant[]) || [],
     };
   }
 

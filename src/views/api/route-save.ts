@@ -11,6 +11,16 @@ import { mergeMedia } from '../../lib/media-merge';
 
 export const prerender = false;
 
+interface VariantPayload {
+  name: string;
+  gpx: string;
+  distance_km?: number;
+  strava_url?: string;
+  rwgps_url?: string;
+  isNew?: boolean;
+  gpxContent?: string;
+}
+
 interface RouteUpdate {
   frontmatter: Record<string, unknown>;
   body: string;
@@ -21,6 +31,7 @@ interface RouteUpdate {
     width?: number;
     height?: number;
   }>;
+  variants?: VariantPayload[];
   contentHash?: string;
 }
 
@@ -122,6 +133,7 @@ export async function POST({ params, request, locals }: APIContext) {
           status: ghFrontmatter.status,
           body: ghBody.trim(),
           media: ghMedia,
+          variants: (ghFrontmatter.variants as any[]) || [],
         });
 
         await database.insert(routeEdits).values({
@@ -150,24 +162,70 @@ export async function POST({ params, request, locals }: APIContext) {
     }
 
     const files: Array<{ path: string; content: string }> = [];
+    const deletePaths: string[] = [];
+    const isNewRoute = !currentFile;
 
-    // Build index.md: merge admin-editable fields into existing frontmatter
-    // so that fields the admin doesn't edit (variants, created_at, etc.) are preserved.
+    // Build frontmatter
+    let mergedFrontmatter: Record<string, unknown>;
     let existingFrontmatter: Record<string, unknown> = {};
-    if (currentFile) {
+
+    if (isNewRoute) {
+      // New route — build frontmatter from scratch
+      const adminFields: Record<string, unknown> = { ...update.frontmatter };
+      if ('distance' in adminFields) {
+        adminFields.distance_km = adminFields.distance;
+        delete adminFields.distance;
+      }
+      adminFields.status = 'draft';
+      adminFields.created_at = new Date().toISOString().split('T')[0];
+      adminFields.updated_at = new Date().toISOString().split('T')[0];
+      mergedFrontmatter = adminFields;
+    } else {
+      // Existing route — merge admin-editable fields into existing frontmatter
+      // so that fields the admin doesn't edit (created_at, etc.) are preserved.
       const { data } = matter(currentFile.content);
       existingFrontmatter = data;
+      const adminFields: Record<string, unknown> = { ...update.frontmatter };
+      if ('distance' in adminFields) {
+        adminFields.distance_km = adminFields.distance;
+        delete adminFields.distance;
+      }
+      mergedFrontmatter = { ...existingFrontmatter, ...adminFields };
     }
 
-    const adminFields: Record<string, unknown> = { ...update.frontmatter };
-    // The admin UI uses 'distance' but the content schema uses 'distance_km'
-    if ('distance' in adminFields) {
-      adminFields.distance_km = adminFields.distance;
-      delete adminFields.distance;
+    // Process variants — update frontmatter and commit new GPX files
+    if (update.variants) {
+      const variantMeta = update.variants.map(v => {
+        const entry: Record<string, unknown> = { name: v.name, gpx: v.gpx };
+        if (v.distance_km) entry.distance_km = v.distance_km;
+        if (v.strava_url) entry.strava_url = v.strava_url;
+        if (v.rwgps_url) entry.rwgps_url = v.rwgps_url;
+        return entry;
+      });
+      mergedFrontmatter.variants = variantMeta;
+
+      // Add new GPX files to the commit
+      for (const v of update.variants) {
+        if (v.isNew && v.gpxContent) {
+          files.push({ path: `${basePath}/${v.gpx}`, content: v.gpxContent });
+        }
+      }
+
+      // Detect removed variants — delete their GPX files
+      if (existingFrontmatter.variants) {
+        const existingGpxFiles = new Set(
+          (existingFrontmatter.variants as Array<{ gpx: string }>).map(v => v.gpx)
+        );
+        const newGpxFiles = new Set(update.variants.map(v => v.gpx));
+        for (const gpx of existingGpxFiles) {
+          if (!newGpxFiles.has(gpx)) {
+            deletePaths.push(`${basePath}/${gpx}`);
+          }
+        }
+      }
     }
 
-    const mergedFrontmatter = { ...existingFrontmatter, ...adminFields };
-
+    // Build index.md from final merged frontmatter
     const frontmatterStr = yaml.dump(mergedFrontmatter, {
       lineWidth: -1,
       quotingType: '"',
@@ -204,15 +262,23 @@ export async function POST({ params, request, locals }: APIContext) {
         parts.push(`${added} media`);
       }
     }
-    const message = parts.length > 0
-      ? `${parts.join(' + ')} for ${slug}`
-      : `Update ${slug}`;
+    if (update.variants) {
+      const newVariants = update.variants.filter(v => v.isNew);
+      if (newVariants.length > 0) {
+        parts.push(`${newVariants.length} variant${newVariants.length > 1 ? 's' : ''}`);
+      }
+    }
+    const message = isNewRoute
+      ? `Create ${slug}`
+      : parts.length > 0
+        ? `${parts.join(' + ')} for ${slug}`
+        : `Update ${slug}`;
 
     // Commit
     const sha = await git.writeFiles(files, message, {
       name: user.displayName,
       email: user.email,
-    });
+    }, deletePaths.length > 0 ? deletePaths : undefined);
 
     // Cache the edit with the new SHA for future compare-and-swap checks
     const newFile = await git.readFile(`${basePath}/index.md`);
@@ -226,6 +292,10 @@ export async function POST({ params, request, locals }: APIContext) {
         status: update.frontmatter.status,
         body: update.body,
         media: update.media || [],
+        variants: update.variants?.map(v => ({
+          name: v.name, gpx: v.gpx, distance_km: v.distance_km,
+          strava_url: v.strava_url, rwgps_url: v.rwgps_url,
+        })) || [],
       });
 
       await database.insert(routeEdits).values({

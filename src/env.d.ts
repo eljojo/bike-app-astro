@@ -48,6 +48,13 @@ declare module 'virtual:bike-app/admin-route-detail' {
     caption?: string;
     cover?: boolean;
   }
+  interface AdminVariant {
+    name: string;
+    gpx: string;
+    distance_km?: number;
+    strava_url?: string;
+    rwgps_url?: string;
+  }
   interface AdminRouteDetail {
     slug: string;
     name: string;
@@ -58,6 +65,7 @@ declare module 'virtual:bike-app/admin-route-detail' {
     body: string;
     media: AdminMediaItem[];
     contentHash: string;
+    variants: AdminVariant[];
   }
   const details: Record<string, AdminRouteDetail>;
   export default details;
