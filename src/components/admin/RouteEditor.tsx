@@ -20,9 +20,11 @@ interface RouteData {
 interface Props {
   initialData: RouteData;
   cdnUrl: string;
+  isDraft?: boolean;
+  draftPrNumber?: number | null;
 }
 
-export default function RouteEditor({ initialData, cdnUrl }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumber }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -113,8 +115,33 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
     }
   }
 
+  async function handleDiscard() {
+    if (!confirm('Discard all your changes to this route? This cannot be undone.')) return;
+    const res = await fetch('/api/drafts/discard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType: 'routes', contentSlug: initialData.slug }),
+    });
+    if (res.ok) {
+      window.location.reload();
+    }
+  }
+
   return (
     <div class="route-editor">
+      {isDraft && (
+        <div class="draft-banner">
+          <span>
+            Draft — pending review
+            {draftPrNumber && (
+              <> (<a href={`https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`} target="_blank" rel="noopener">PR #{draftPrNumber}</a>)</>
+            )}
+          </span>
+          <button type="button" class="btn-discard" onClick={handleDiscard}>
+            Discard changes
+          </button>
+        </div>
+      )}
       <section class="editor-section">
         <h2>Text</h2>
         <div class="auth-form">

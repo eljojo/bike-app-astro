@@ -38,6 +38,8 @@ interface Props {
   initialData: EventData;
   organizers: OrganizerData[];
   cdnUrl: string;
+  isDraft?: boolean;
+  draftPrNumber?: number | null;
 }
 
 function slugify(text: string): string {
@@ -72,7 +74,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, draftPrNumber }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -235,8 +237,33 @@ export default function EventEditor({ initialData, organizers, cdnUrl }: Props) 
     }
   }
 
+  async function handleDiscard() {
+    if (!confirm('Discard all your changes to this event? This cannot be undone.')) return;
+    const res = await fetch('/api/drafts/discard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType: 'events', contentSlug: initialData.id }),
+    });
+    if (res.ok) {
+      window.location.reload();
+    }
+  }
+
   return (
     <div class="event-editor">
+      {isDraft && (
+        <div class="draft-banner">
+          <span>
+            Draft — pending review
+            {draftPrNumber && (
+              <> (<a href={`https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`} target="_blank" rel="noopener">PR #{draftPrNumber}</a>)</>
+            )}
+          </span>
+          <button type="button" class="btn-discard" onClick={handleDiscard}>
+            Discard changes
+          </button>
+        </div>
+      )}
       <section class="editor-section">
         <h2>Event Details</h2>
         <div class="auth-form">
