@@ -126,6 +126,8 @@ const breadcrumbs = breadcrumbJsonLd([
 
         <div class="route-description" set:html={localeBody} />
 
+        <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">Suggest an edit</a>
+
         {primaryTrack && !manyVariants && (
           <p>
             <span style="font-size: 1.5em;">&#x1F6B5; </span>

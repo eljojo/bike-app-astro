@@ -642,3 +642,20 @@ a.go-back-button {
 .admin-visible .admin-edit-link {
   display: inline;
 }
+
+.suggest-edit-link {
+  display: inline-block;
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  text-decoration: none;
+  margin-top: 0.5rem;
+
+  @media (prefers-color-scheme: dark) {
+    color: #aaa;
+  }
+
+  &:hover {
+    text-decoration: underline;
+    color: $color-accent;
+  }
+}
