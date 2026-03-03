@@ -50,6 +50,12 @@ export function createLocalDb(dbPath: string) {
       github_sha text NOT NULL,
       updated_at text NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS event_edits (
+      id text PRIMARY KEY NOT NULL,
+      data text NOT NULL,
+      github_sha text NOT NULL,
+      updated_at text NOT NULL
+    );
   `);
 
   return drizzle(sqlite, { schema });

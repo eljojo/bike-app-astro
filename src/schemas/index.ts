@@ -90,7 +90,7 @@ export const eventSchema = z.object({
   distances: z.string().optional(),
   location: z.string().optional(),
   review_url: z.string().optional(),
-  organizer: z.string().optional(),
+  organizer: z.union([z.string(), organizerSchema]).optional(),
   poster_key: z.string().optional(),
   poster_content_type: z.string().optional(),
 });

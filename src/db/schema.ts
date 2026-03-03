@@ -41,3 +41,10 @@ export const routeEdits = sqliteTable('route_edits', {
   githubSha: text('github_sha').notNull(), // SHA of the GitHub file at time of save
   updatedAt: text('updated_at').notNull(), // ISO timestamp
 });
+
+export const eventEdits = sqliteTable('event_edits', {
+  id: text('id').primaryKey(),              // e.g. "2025/bike-fest"
+  data: text('data').notNull(),             // JSON string of event edit data
+  githubSha: text('github_sha').notNull(),  // SHA of the GitHub file at time of save
+  updatedAt: text('updated_at').notNull(),  // ISO timestamp
+});

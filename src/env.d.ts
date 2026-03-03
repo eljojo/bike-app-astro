@@ -62,3 +62,34 @@ declare module 'virtual:bike-app/admin-route-detail' {
   const details: Record<string, AdminRouteDetail>;
   export default details;
 }
+
+declare module 'virtual:bike-app/admin-events' {
+  interface OrganizerInline { name: string; website?: string; instagram?: string }
+  const events: Array<{
+    id: string; slug: string; year: string; name: string;
+    start_date: string; end_date?: string;
+    organizer?: string | OrganizerInline;
+    poster_key?: string; contentHash: string;
+  }>;
+  export default events;
+}
+
+declare module 'virtual:bike-app/admin-event-detail' {
+  interface OrganizerInline { name: string; website?: string; instagram?: string }
+  const details: Record<string, {
+    id: string; slug: string; year: string; name: string;
+    start_date: string; start_time?: string; end_date?: string; end_time?: string;
+    registration_url?: string; distances?: string; location?: string;
+    review_url?: string;
+    organizer?: string | OrganizerInline;
+    poster_key?: string; poster_content_type?: string; body: string; contentHash: string;
+  }>;
+  export default details;
+}
+
+declare module 'virtual:bike-app/admin-organizers' {
+  const organizers: Array<{
+    slug: string; name: string; website?: string; instagram?: string;
+  }>;
+  export default organizers;
+}

@@ -84,25 +84,28 @@ export class GitService {
   }
 
   /**
-   * Commit one or more files. Uses Contents API for single files,
-   * Git Trees API for multi-file atomic commits.
+   * Commit one or more files, optionally deleting others.
+   * Uses Contents API for single-file writes (no deletions),
+   * Git Trees API for multi-file atomic commits (or any deletions).
    */
   async writeFiles(
     files: FileChange[],
     message: string,
-    author: CommitAuthor
+    author: CommitAuthor,
+    deletePaths?: string[]
   ): Promise<string> {
-    if (files.length === 0) {
+    if (files.length === 0 && (!deletePaths || deletePaths.length === 0)) {
       throw new Error('No files to commit');
     }
 
     const formattedMessage = formatCommitMessage(message);
 
-    if (files.length === 1) {
+    // Deletions require the Trees API (multi-file path)
+    if (files.length === 1 && (!deletePaths || deletePaths.length === 0)) {
       return this.writeSingleFile(files[0], formattedMessage, author);
     }
 
-    return this.writeMultipleFiles(files, formattedMessage, author);
+    return this.writeMultipleFiles(files, formattedMessage, author, deletePaths);
   }
 
   /**
@@ -233,7 +236,8 @@ export class GitService {
   private async writeMultipleFiles(
     files: FileChange[],
     message: string,
-    author: CommitAuthor
+    author: CommitAuthor,
+    deletePaths?: string[]
   ): Promise<string> {
     // 1. Get current commit SHA
     const refResponse = await this.githubFetch(
@@ -280,6 +284,18 @@ export class GitService {
         };
       })
     );
+
+    // 3b. Add deletion entries (sha: null removes the file from the tree)
+    if (deletePaths && deletePaths.length > 0) {
+      for (const delPath of deletePaths) {
+        treeItems.push({
+          path: delPath,
+          mode: '100644' as const,
+          type: 'blob' as const,
+          sha: null as unknown as string,
+        });
+      }
+    }
 
     // 4. Create tree
     const treeResponse = await this.githubFetch(

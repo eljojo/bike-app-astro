@@ -46,8 +46,23 @@ export class LocalGitService {
     files: FileChange[],
     message: string,
     author: CommitAuthor,
+    deletePaths?: string[],
   ): Promise<string> {
-    if (files.length === 0) throw new Error('No files to commit');
+    if (files.length === 0 && (!deletePaths || deletePaths.length === 0)) {
+      throw new Error('No files to commit');
+    }
+
+    // Delete files first
+    if (deletePaths && deletePaths.length > 0) {
+      const git = simpleGit(this.repoPath);
+      for (const delPath of deletePaths) {
+        const fullPath = path.join(this.repoPath, delPath);
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+          await git.rm(delPath);
+        }
+      }
+    }
 
     for (const file of files) {
       const fullPath = path.join(this.repoPath, file.path);
@@ -57,7 +72,7 @@ export class LocalGitService {
     }
 
     const git = simpleGit(this.repoPath);
-    await git.add(files.map((f) => f.path));
+    if (files.length > 0) await git.add(files.map((f) => f.path));
 
     const formattedMessage = `${message}\n\nvia whereto-bike`;
     await git.commit(formattedMessage, undefined, {

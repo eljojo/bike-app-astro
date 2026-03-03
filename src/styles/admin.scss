@@ -118,3 +118,137 @@
     color: #8f8;
   }
 }
+
+// Event editor styles (used by Preact island)
+.form-row {
+  display: flex;
+  gap: 1rem;
+
+  .form-field {
+    flex: 1;
+  }
+}
+
+.form-field select {
+  font-family: $font-body;
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-bg;
+  color: $color-text;
+  width: 100%;
+
+  @media (prefers-color-scheme: dark) {
+    background: $color-bg-dark;
+    color: $color-text-dark;
+    border-color: #444;
+  }
+}
+
+.form-field textarea {
+  font-family: $font-mono;
+  font-size: 0.875rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-bg;
+  color: $color-text;
+  resize: vertical;
+
+  @media (prefers-color-scheme: dark) {
+    background: $color-bg-dark;
+    color: $color-text-dark;
+    border-color: #444;
+  }
+
+  &:focus {
+    outline: 2px solid $color-accent;
+    outline-offset: -1px;
+  }
+}
+
+.btn-secondary {
+  font-family: $font-body;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  color: $color-text;
+  cursor: pointer;
+
+  @media (prefers-color-scheme: dark) {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: #444;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  padding: 0;
+
+  @media (prefers-color-scheme: dark) {
+    color: #aaa;
+  }
+}
+
+.poster-preview {
+  margin-bottom: 0.75rem;
+
+  img {
+    max-width: 300px;
+    border-radius: $border-radius;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.btn-remove-poster {
+  font-size: 0.8125rem;
+  background: none;
+  border: 1px solid #c33;
+  border-radius: $border-radius;
+  padding: 0.25rem 0.5rem;
+  color: #c33;
+  cursor: pointer;
+
+  @media (prefers-color-scheme: dark) {
+    color: #f99;
+    border-color: #f99;
+  }
+}
+
+.organizer-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.organizer-inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid $color-border;
+
+  @media (prefers-color-scheme: dark) {
+    border-color: #333;
+  }
+}

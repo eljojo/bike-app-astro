@@ -12,17 +12,19 @@ interface Props {
   location?: string;
   registration_url?: string;
   review_url?: string;
-  organizer_slug?: string;
+  organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
 }
 
 const props = Astro.props;
 
 let organizerName = '';
-if (props.organizer_slug) {
+if (typeof props.organizer === 'string') {
   const organizers = await getCollection('organizers');
-  const org = organizers.find(o => o.id === props.organizer_slug);
-  organizerName = org?.data.name || props.organizer_slug;
+  const org = organizers.find(o => o.id === props.organizer);
+  organizerName = org?.data.name || props.organizer;
+} else if (props.organizer?.name) {
+  organizerName = props.organizer.name;
 }
 
 const dateDisplay = formatDateRange(props.start_date, props.end_date);

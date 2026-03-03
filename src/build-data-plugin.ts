@@ -70,6 +70,51 @@ function loadCachedMaps() {
   return maps;
 }
 
+interface AdminOrganizerRef {
+  name: string;
+  website?: string;
+  instagram?: string;
+}
+
+interface AdminEvent {
+  id: string;           // e.g. "2025/bike-fest"
+  slug: string;         // e.g. "bike-fest"
+  year: string;         // e.g. "2025"
+  name: string;
+  start_date: string;
+  end_date?: string;
+  organizer?: string | AdminOrganizerRef;  // slug string or inline object
+  poster_key?: string;
+  contentHash: string;
+}
+
+interface AdminEventDetail {
+  id: string;
+  slug: string;
+  year: string;
+  name: string;
+  start_date: string;
+  start_time?: string;
+  end_date?: string;
+  end_time?: string;
+  registration_url?: string;
+  distances?: string;
+  location?: string;
+  review_url?: string;
+  organizer?: string | AdminOrganizerRef;  // slug string or inline object
+  poster_key?: string;
+  poster_content_type?: string;
+  body: string;
+  contentHash: string;
+}
+
+interface AdminOrganizer {
+  slug: string;
+  name: string;
+  website?: string;
+  instagram?: string;
+}
+
 interface AdminRoute {
   slug: string;
   name: string;
@@ -196,6 +241,121 @@ export async function loadAdminRouteDetails(): Promise<Record<string, AdminRoute
   return details;
 }
 
+export async function loadAdminEvents(): Promise<AdminEvent[]> {
+  const eventsDir = path.join(CITY_DIR, 'events');
+  if (!fs.existsSync(eventsDir)) return [];
+
+  const events: AdminEvent[] = [];
+
+  for (const yearDir of fs.readdirSync(eventsDir).sort().reverse()) {
+    const yearPath = path.join(eventsDir, yearDir);
+    if (!fs.statSync(yearPath).isDirectory()) continue;
+
+    for (const file of fs.readdirSync(yearPath)) {
+      if (!file.endsWith('.md')) continue;
+      // Skip translation files like event.fr.md
+      const parts = file.replace('.md', '').split('.');
+      if (parts.length > 1) continue;
+
+      const slug = file.replace('.md', '');
+      const filePath = path.join(yearPath, file);
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const contentHash = createHash('md5').update(raw).digest('hex');
+      const { data: fm } = matter(raw);
+
+      events.push({
+        id: `${yearDir}/${slug}`,
+        slug,
+        year: yearDir,
+        name: fm.name as string,
+        start_date: fm.start_date as string,
+        end_date: fm.end_date as string | undefined,
+        organizer: fm.organizer as string | AdminOrganizerRef | undefined,
+        poster_key: fm.poster_key as string | undefined,
+        contentHash,
+      });
+    }
+  }
+
+  // Sort by start_date descending (newest first)
+  events.sort((a, b) => b.start_date.localeCompare(a.start_date));
+  return events;
+}
+
+export async function loadAdminEventDetails(): Promise<Record<string, AdminEventDetail>> {
+  const eventsDir = path.join(CITY_DIR, 'events');
+  if (!fs.existsSync(eventsDir)) return {};
+
+  const details: Record<string, AdminEventDetail> = {};
+
+  for (const yearDir of fs.readdirSync(eventsDir)) {
+    const yearPath = path.join(eventsDir, yearDir);
+    if (!fs.statSync(yearPath).isDirectory()) continue;
+
+    for (const file of fs.readdirSync(yearPath)) {
+      if (!file.endsWith('.md')) continue;
+      const parts = file.replace('.md', '').split('.');
+      if (parts.length > 1) continue;
+
+      const slug = file.replace('.md', '');
+      const id = `${yearDir}/${slug}`;
+      const filePath = path.join(yearPath, file);
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const contentHash = createHash('md5').update(raw).digest('hex');
+      const { data: fm, content: body } = matter(raw);
+
+      details[id] = {
+        id,
+        slug,
+        year: yearDir,
+        name: fm.name as string,
+        start_date: fm.start_date as string,
+        start_time: fm.start_time as string | undefined,
+        end_date: fm.end_date as string | undefined,
+        end_time: fm.end_time as string | undefined,
+        registration_url: fm.registration_url as string | undefined,
+        distances: fm.distances as string | undefined,
+        location: fm.location as string | undefined,
+        review_url: fm.review_url as string | undefined,
+        organizer: fm.organizer as string | AdminOrganizerRef | undefined,
+        poster_key: fm.poster_key as string | undefined,
+        poster_content_type: fm.poster_content_type as string | undefined,
+        body: body.trim(),
+        contentHash,
+      };
+    }
+  }
+
+  return details;
+}
+
+export async function loadAdminOrganizers(): Promise<AdminOrganizer[]> {
+  const orgDir = path.join(CITY_DIR, 'organizers');
+  if (!fs.existsSync(orgDir)) return [];
+
+  const organizers: AdminOrganizer[] = [];
+
+  for (const file of fs.readdirSync(orgDir)) {
+    if (!file.endsWith('.md')) continue;
+    const parts = file.replace('.md', '').split('.');
+    if (parts.length > 1) continue;
+
+    const slug = file.replace('.md', '');
+    const raw = fs.readFileSync(path.join(orgDir, file), 'utf-8');
+    const { data: fm } = matter(raw);
+
+    organizers.push({
+      slug,
+      name: fm.name as string,
+      website: fm.website as string | undefined,
+      instagram: fm.instagram as string | undefined,
+    });
+  }
+
+  organizers.sort((a, b) => a.name.localeCompare(b.name));
+  return organizers;
+}
+
 export function buildDataPlugin(): Plugin {
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
@@ -205,6 +365,9 @@ export function buildDataPlugin(): Plugin {
   // Load admin data eagerly (async) so it's ready when load() is called
   const adminRoutesPromise = loadAdminRoutes();
   const adminRouteDetailsPromise = loadAdminRouteDetails();
+  const adminEventsPromise = loadAdminEvents();
+  const adminEventDetailsPromise = loadAdminEventDetails();
+  const adminOrganizersPromise = loadAdminOrganizers();
 
   return {
     name: 'bike-app-build-data',
@@ -214,6 +377,9 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/cached-maps') return '\0virtual:bike-app/cached-maps';
       if (id === 'virtual:bike-app/admin-routes') return '\0virtual:bike-app/admin-routes';
       if (id === 'virtual:bike-app/admin-route-detail') return '\0virtual:bike-app/admin-route-detail';
+      if (id === 'virtual:bike-app/admin-events') return '\0virtual:bike-app/admin-events';
+      if (id === 'virtual:bike-app/admin-event-detail') return '\0virtual:bike-app/admin-event-detail';
+      if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
     },
     async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
@@ -226,6 +392,18 @@ export function buildDataPlugin(): Plugin {
       if (id === '\0virtual:bike-app/admin-route-detail') {
         const details = await adminRouteDetailsPromise;
         return `export default ${JSON.stringify(details)};`;
+      }
+      if (id === '\0virtual:bike-app/admin-events') {
+        const events = await adminEventsPromise;
+        return `export default ${JSON.stringify(events)};`;
+      }
+      if (id === '\0virtual:bike-app/admin-event-detail') {
+        const details = await adminEventDetailsPromise;
+        return `export default ${JSON.stringify(details)};`;
+      }
+      if (id === '\0virtual:bike-app/admin-organizers') {
+        const organizers = await adminOrganizersPromise;
+        return `export default ${JSON.stringify(organizers)};`;
       }
     },
 

@@ -1,0 +1,63 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import EventEditor from '../../components/admin/EventEditor.tsx';
+import adminOrganizers from 'virtual:bike-app/admin-organizers';
+import { env } from '../../lib/env';
+import '../../styles/admin.scss';
+
+const organizers = adminOrganizers;
+const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
+
+const today = new Date().toISOString().split('T')[0];
+const year = today.substring(0, 4);
+
+const initialData = {
+  id: '',
+  slug: '',
+  year,
+  name: '',
+  start_date: today,
+  body: '',
+  isNew: true,
+};
+---
+
+<Base title="New Event" admin>
+  <div class="admin-page">
+    <div class="editor-header">
+      <a href="/admin/events" class="back-link">&larr; Back to events</a>
+    </div>
+    <h1>New Event</h1>
+    <EventEditor client:load initialData={initialData} organizers={organizers} cdnUrl={cdnUrl} />
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+
+  .editor-header {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .back-link {
+    color: $color-text-muted;
+    text-decoration: none;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  h1 {
+    font-family: $font-heading;
+    font-size: 1.25rem;
+    margin: 0 0 1.5rem;
+  }
+</style>

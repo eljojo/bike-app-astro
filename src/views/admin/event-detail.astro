@@ -1,0 +1,160 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import EventEditor from '../../components/admin/EventEditor.tsx';
+import adminEventDetails from 'virtual:bike-app/admin-event-detail';
+import adminOrganizers from 'virtual:bike-app/admin-organizers';
+import { env } from '../../lib/env';
+import { db } from '../../lib/get-db';
+import { eventEdits } from '../../db/schema';
+import { eq } from 'drizzle-orm';
+import '../../styles/admin.scss';
+
+const id = Astro.params.id;
+if (!id) return new Response(null, { status: 404 });
+
+// Check D1 cache first, fall back to virtual module
+const database = db();
+const cached = await database.select().from(eventEdits).where(eq(eventEdits.id, id)).get();
+const eventData = cached ? JSON.parse(cached.data) : adminEventDetails[id];
+
+if (!eventData) return new Response(null, { status: 404 });
+
+const organizers = adminOrganizers;
+const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
+---
+
+<Base title={`Edit: ${eventData.name}`} admin>
+  <div class="admin-page">
+    <div class="editor-header">
+      <a href="/admin/events" class="back-link">&larr; Back to events</a>
+    </div>
+    <h1>Edit: {eventData.name}</h1>
+    <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} />
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .back-link {
+    color: $color-text-muted;
+    text-decoration: none;
+
+    @media (prefers-color-scheme: dark) {
+      color: #aaa;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  h1 {
+    font-family: $font-heading;
+    font-size: 1.25rem;
+    margin: 0 0 1.5rem;
+  }
+
+  .editor-section {
+    margin-bottom: 2rem;
+
+    h2 {
+      font-family: $font-heading;
+      font-size: 1.1rem;
+      margin: 0 0 0.75rem;
+      border-bottom: 1px solid $color-border;
+      padding-bottom: 0.25rem;
+
+      @media (prefers-color-scheme: dark) {
+        border-color: #333;
+      }
+    }
+  }
+
+  .editor-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 1rem 0;
+    border-top: 1px solid $color-border;
+
+    @media (prefers-color-scheme: dark) {
+      border-color: #333;
+    }
+  }
+
+  .conflict-notice {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: $border-radius;
+    padding: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #664d03;
+
+    @media (prefers-color-scheme: dark) {
+      background: #332701;
+      border-color: #664d03;
+      color: #ffda6a;
+    }
+
+    strong {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      margin: 0.5rem 0;
+    }
+  }
+
+  textarea {
+    font-family: $font-mono;
+    font-size: 0.875rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background: $color-bg;
+    color: $color-text;
+    resize: vertical;
+
+    @media (prefers-color-scheme: dark) {
+      background: $color-bg-dark;
+      color: $color-text-dark;
+      border-color: #444;
+    }
+
+    &:focus {
+      outline: 2px solid $color-accent;
+      outline-offset: -1px;
+    }
+  }
+
+  select {
+    font-family: $font-body;
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background: $color-bg;
+    color: $color-text;
+
+    @media (prefers-color-scheme: dark) {
+      background: $color-bg-dark;
+      color: $color-text-dark;
+      border-color: #444;
+    }
+  }
+</style>
