@@ -7,6 +7,7 @@ import { routeEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
+import { mergeMedia } from '../../lib/media-merge';
 
 export const prerender = false;
 
@@ -17,6 +18,8 @@ interface RouteUpdate {
     key: string;
     caption?: string;
     cover?: boolean;
+    width?: number;
+    height?: number;
   }>;
   contentHash?: string;
 }
@@ -158,18 +161,17 @@ export async function POST({ params, request, locals }: APIContext) {
     const indexContent = `---\n${frontmatterStr}\n---\n\n${update.body}\n`;
     files.push({ path: `${basePath}/index.md`, content: indexContent });
 
-    // Build media.yml if media changed
-    if (update.media && update.media.length > 0) {
-      const mediaYaml = yaml.dump(
-        update.media.map((m) => {
-          const entry: Record<string, unknown> = { key: m.key };
-          if (m.caption) entry.caption = m.caption;
-          if (m.cover) entry.cover = true;
-          return entry;
-        }),
-        { flowLevel: -1, lineWidth: -1 }
-      );
-      files.push({ path: `${basePath}/media.yml`, content: mediaYaml });
+    // Build media.yml by merging admin changes into existing entries
+    if (update.media) {
+      let existingMedia: Array<Record<string, unknown>> = [];
+      if (currentMedia) {
+        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
+      }
+      const merged = mergeMedia(update.media, existingMedia);
+      if (merged.length > 0) {
+        const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
+        files.push({ path: `${basePath}/media.yml`, content: mediaYaml });
+      }
     }
 
     // Determine commit message
