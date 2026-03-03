@@ -26,7 +26,7 @@ test-update: build ## Update screenshot baselines
 
 test-all: test test-e2e ## Run all tests (unit + e2e)
 
-full: build validate test test-e2e-only ## Run full CI pipeline (build, validate, unit tests, e2e)
+full: build validate test test-e2e-only test-admin ## Run full CI pipeline (build, validate, unit tests, e2e)
 
 test-e2e-only: ## Run e2e tests without rebuilding (use after make build)
 	npx playwright test --config e2e/playwright.config.ts

@@ -150,6 +150,16 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
+      - name: Run admin E2E tests
+        if: ${{ !inputs.skip-e2e }}
+        run: |
+          npx playwright test --config e2e/admin.config.ts
+          npx playwright test --config e2e/admin-save.config.ts
+          npx playwright test --config e2e/community-editing.config.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
       - name: Update screenshot baselines
         id: update-screenshots
         if: >-

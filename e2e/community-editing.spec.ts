@@ -119,6 +119,9 @@ test.describe('Community Editing — Guest Draft Flow', () => {
 
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
+
+    // Verify we landed on the editor (not redirected to gate)
+    await expect(page.locator('h1')).toContainText('Edit:');
     await page.waitForTimeout(2000);
 
     // Initially no draft banner
@@ -164,6 +167,9 @@ test.describe('Community Editing — Admin Direct Commit', () => {
 
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
+
+    // Verify we landed on the editor (not redirected to gate)
+    await expect(page.locator('h1')).toContainText('Edit:');
     await page.waitForTimeout(2000);
 
     // No draft banner for admin
@@ -184,6 +190,9 @@ test.describe('Community Editing — Admin Direct Commit', () => {
 
     await page.goto('/admin');
     await page.waitForLoadState('networkidle');
+
+    // Verify we landed on the admin dashboard (not redirected to gate)
+    await expect(page.locator('h1')).toContainText('Routes');
 
     // Editor mode toggle should be checked
     const checkbox = page.locator('#editor-mode-checkbox');

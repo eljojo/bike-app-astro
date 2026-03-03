@@ -8,10 +8,30 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '..', '.data', 'local.db');
 
+function ensureSchema(db: InstanceType<typeof Database>) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id text PRIMARY KEY NOT NULL,
+      email text UNIQUE,
+      display_name text NOT NULL,
+      role text DEFAULT 'editor' NOT NULL,
+      created_at text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token text NOT NULL UNIQUE,
+      expires_at text NOT NULL,
+      created_at text NOT NULL
+    );
+  `);
+}
+
 function seedTestSession(): string {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const db = new Database(DB_PATH);
+  ensureSchema(db);
   const userId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString('hex');
   const now = new Date().toISOString();
@@ -32,6 +52,8 @@ function seedTestSession(): string {
 function cleanupTestSession(token: string) {
   if (!fs.existsSync(DB_PATH)) return;
   const db = new Database(DB_PATH);
+  const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
+  if (!hasTable) { db.close(); return; }
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
   db.prepare("DELETE FROM users WHERE email = 'playwright@test.local'").run();
   db.close();
@@ -71,6 +93,9 @@ test.describe('Admin Route Editor', () => {
 
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
+
+    // Verify we landed on the editor (not redirected to gate)
+    await expect(page.locator('h1')).toContainText('Edit:');
 
     const textarea = page.locator('#route-body');
     await expect(textarea).toBeVisible({ timeout: 10000 });

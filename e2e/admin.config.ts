@@ -21,7 +21,7 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: `npx astro build && LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" npx astro preview --port 4323`,
+    command: `RUNTIME=local npx astro build && RUNTIME=local LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" npx astro preview --port 4323`,
     port: 4323,
     cwd: '..',
     reuseExistingServer: true,
