@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { users, credentials, sessions, inviteCodes, routeEdits } from '../src/db/schema';
+import { users, credentials, sessions, drafts, contentEdits } from '../src/db/schema';
 import { getTableName, getTableColumns } from 'drizzle-orm';
 
 describe('database schema', () => {
@@ -21,12 +21,6 @@ describe('database schema', () => {
     expect(Object.keys(cols)).toEqual(['id', 'userId', 'token', 'expiresAt', 'createdAt']);
   });
 
-  it('invite_codes table has expected columns', () => {
-    expect(getTableName(inviteCodes)).toBe('invite_codes');
-    const cols = getTableColumns(inviteCodes);
-    expect(Object.keys(cols)).toEqual(['id', 'code', 'createdBy', 'usedBy', 'expiresAt', 'createdAt']);
-  });
-
   it('users role defaults to editor', () => {
     const cols = getTableColumns(users);
     expect(cols.role.hasDefault).toBe(true);
@@ -37,14 +31,17 @@ describe('database schema', () => {
     expect(cols.counter.hasDefault).toBe(true);
   });
 
-  it('route_edits table has expected columns', () => {
-    expect(getTableName(routeEdits)).toBe('route_edits');
-    const cols = getTableColumns(routeEdits);
-    expect(Object.keys(cols)).toEqual(['slug', 'data', 'githubSha', 'updatedAt']);
+  it('exports drafts table', () => {
+    expect(getTableName(drafts)).toBe('drafts');
+    const cols = getTableColumns(drafts);
+    expect(Object.keys(cols)).toEqual([
+      'id', 'userId', 'contentType', 'contentSlug', 'branchName', 'prNumber', 'createdAt', 'updatedAt',
+    ]);
   });
 
-  it('route_edits slug is primary key', () => {
-    const cols = getTableColumns(routeEdits);
-    expect(cols.slug.primary).toBe(true);
+  it('exports contentEdits table', () => {
+    expect(getTableName(contentEdits)).toBe('content_edits');
+    const cols = getTableColumns(contentEdits);
+    expect(Object.keys(cols)).toEqual(['contentType', 'contentSlug', 'data', 'githubSha', 'updatedAt']);
   });
 });

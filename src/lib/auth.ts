@@ -1,12 +1,12 @@
-import { eq, and, gt, isNull, lt } from 'drizzle-orm';
-import { sessions, users, inviteCodes } from '../db/schema';
+import { eq, and, gt, lt } from 'drizzle-orm';
+import { sessions, users } from '../db/schema';
 import type { Database } from '../db';
 
 export interface SessionUser {
   id: string;
-  email: string;
+  email: string | null;
   displayName: string;
-  role: 'admin' | 'editor';
+  role: 'admin' | 'editor' | 'guest';
 }
 
 export interface WebAuthnConfig {
@@ -78,7 +78,7 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     id: row.userId,
     email: row.email,
     displayName: row.displayName,
-    role: row.role as 'admin' | 'editor',
+    role: row.role as SessionUser['role'],
   };
 }
 
@@ -145,39 +145,6 @@ export function retrieveChallenge(cookies: AstroCookies): string | null {
     cookies.delete('webauthn_challenge', { path: '/' });
   }
   return challenge;
-}
-
-/** Validate an invite code. Returns the invite code record if valid, null otherwise. */
-export async function validateInviteCode(
-  db: Database,
-  code: string
-): Promise<{ id: string; createdBy: string } | null> {
-  const result = await db
-    .select()
-    .from(inviteCodes)
-    .where(eq(inviteCodes.code, code))
-    .limit(1);
-
-  if (result.length === 0) return null;
-
-  const invite = result[0];
-  if (invite.usedBy) return null;
-  if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) return null;
-
-  return { id: invite.id, createdBy: invite.createdBy };
-}
-
-/** Atomically mark an invite code as used. Returns false if already claimed. */
-export async function markInviteCodeUsed(
-  db: Database,
-  inviteId: string,
-  userId: string
-): Promise<boolean> {
-  const result = await db
-    .update(inviteCodes)
-    .set({ usedBy: userId })
-    .where(and(eq(inviteCodes.id, inviteId), isNull(inviteCodes.usedBy)));
-  return (result as any).rowsAffected === 1;
 }
 
 /** Check if the users table is empty (for /setup flow). */

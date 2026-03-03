@@ -15,7 +15,7 @@ export function createLocalDb(dbPath: string) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id text PRIMARY KEY NOT NULL,
-      email text NOT NULL UNIQUE,
+      email text UNIQUE,
       display_name text NOT NULL,
       role text DEFAULT 'editor' NOT NULL,
       created_at text NOT NULL
@@ -36,25 +36,23 @@ export function createLocalDb(dbPath: string) {
       expires_at text NOT NULL,
       created_at text NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS invite_codes (
+    CREATE TABLE IF NOT EXISTS drafts (
       id text PRIMARY KEY NOT NULL,
-      code text NOT NULL UNIQUE,
-      created_by text NOT NULL REFERENCES users(id),
-      used_by text REFERENCES users(id),
-      expires_at text,
-      created_at text NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS route_edits (
-      slug text PRIMARY KEY NOT NULL,
-      data text NOT NULL,
-      github_sha text NOT NULL,
+      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content_type text NOT NULL,
+      content_slug text NOT NULL,
+      branch_name text NOT NULL,
+      pr_number integer,
+      created_at text NOT NULL,
       updated_at text NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS event_edits (
-      id text PRIMARY KEY NOT NULL,
+    CREATE TABLE IF NOT EXISTS content_edits (
+      content_type text NOT NULL,
+      content_slug text NOT NULL,
       data text NOT NULL,
       github_sha text NOT NULL,
-      updated_at text NOT NULL
+      updated_at text NOT NULL,
+      PRIMARY KEY (content_type, content_slug)
     );
   `);
 

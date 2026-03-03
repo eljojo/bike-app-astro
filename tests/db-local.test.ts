@@ -18,7 +18,7 @@ describe('local SQLite database', () => {
     const { createLocalDb } = await import('../src/db/local');
     const db = createLocalDb(dbPath);
 
-    const { users, sessions, credentials, inviteCodes, routeEdits } = await import('../src/db/schema');
+    const { users, sessions, credentials, drafts, contentEdits } = await import('../src/db/schema');
 
     const userRows = await db.select().from(users).all();
     expect(Array.isArray(userRows)).toBe(true);
@@ -29,10 +29,10 @@ describe('local SQLite database', () => {
     const credRows = await db.select().from(credentials).all();
     expect(Array.isArray(credRows)).toBe(true);
 
-    const inviteRows = await db.select().from(inviteCodes).all();
-    expect(Array.isArray(inviteRows)).toBe(true);
+    const draftRows = await db.select().from(drafts).all();
+    expect(Array.isArray(draftRows)).toBe(true);
 
-    const editRows = await db.select().from(routeEdits).all();
+    const editRows = await db.select().from(contentEdits).all();
     expect(Array.isArray(editRows)).toBe(true);
   });
 

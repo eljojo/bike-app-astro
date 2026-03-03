@@ -1,10 +1,10 @@
-import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
-  email: text('email').notNull().unique(),
+  email: text('email').unique(),
   displayName: text('display_name').notNull(),
-  role: text('role', { enum: ['admin', 'editor'] }).notNull().default('editor'),
+  role: text('role', { enum: ['admin', 'editor', 'guest'] }).notNull().default('editor'),
   createdAt: text('created_at').notNull(),
 });
 
@@ -26,25 +26,23 @@ export const sessions = sqliteTable('sessions', {
   createdAt: text('created_at').notNull(),
 });
 
-export const inviteCodes = sqliteTable('invite_codes', {
+export const drafts = sqliteTable('drafts', {
   id: text('id').primaryKey(),
-  code: text('code').notNull().unique(),
-  createdBy: text('created_by').notNull().references(() => users.id),
-  usedBy: text('used_by').references(() => users.id),
-  expiresAt: text('expires_at'),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(),
+  contentSlug: text('content_slug').notNull(),
+  branchName: text('branch_name').notNull(),
+  prNumber: integer('pr_number'),
   createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });
 
-export const routeEdits = sqliteTable('route_edits', {
-  slug: text('slug').primaryKey(),
-  data: text('data').notNull(),           // JSON string of route edit data
-  githubSha: text('github_sha').notNull(), // SHA of the GitHub file at time of save
-  updatedAt: text('updated_at').notNull(), // ISO timestamp
-});
-
-export const eventEdits = sqliteTable('event_edits', {
-  id: text('id').primaryKey(),              // e.g. "2025/bike-fest"
-  data: text('data').notNull(),             // JSON string of event edit data
-  githubSha: text('github_sha').notNull(),  // SHA of the GitHub file at time of save
-  updatedAt: text('updated_at').notNull(),  // ISO timestamp
-});
+export const contentEdits = sqliteTable('content_edits', {
+  contentType: text('content_type').notNull(),
+  contentSlug: text('content_slug').notNull(),
+  data: text('data').notNull(),
+  githubSha: text('github_sha').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.contentType, table.contentSlug] }),
+]);
