@@ -47,6 +47,13 @@ const routes = adminRoutes.map(r => {
     <div class="admin-header">
       <h1>Routes</h1>
       <div class="admin-user">
+        {user.role === 'admin' && (
+          <label class="editor-mode-toggle">
+            <input type="checkbox" id="editor-mode-checkbox"
+              checked={Astro.cookies.get('editor_mode')?.value === '1'} />
+            Draft mode
+          </label>
+        )}
         {user.displayName}
         <form method="POST" action="/api/auth/logout" class="logout-form">
           <button type="submit" class="btn-logout">Sign out</button>
@@ -93,6 +100,20 @@ const routes = adminRoutes.map(r => {
     )}
   </div>
 </Base>
+
+<script>
+  const checkbox = document.getElementById('editor-mode-checkbox') as HTMLInputElement | null;
+  if (checkbox) {
+    checkbox.addEventListener('change', async (e) => {
+      await fetch('/api/auth/editor-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: (e.target as HTMLInputElement).checked }),
+      });
+      window.location.reload();
+    });
+  }
+</script>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
@@ -329,5 +350,15 @@ const routes = adminRoutes.map(r => {
     }
   }
 
+  .editor-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
 
+    input {
+      cursor: pointer;
+    }
+  }
 </style>
