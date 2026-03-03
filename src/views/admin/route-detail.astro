@@ -8,6 +8,10 @@ import { env } from '../../lib/env';
 import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { createGitService } from '../../lib/git-factory';
+import { findDraft, deleteDraft } from '../../lib/draft-service';
+import matter from 'gray-matter';
+import yaml from 'js-yaml';
 import '../../styles/admin.scss';
 
 const { slug } = Astro.params;
@@ -16,10 +20,66 @@ if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 
-// Check D1 cache first, fall back to virtual module
 const database = db();
-const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'routes'), eq(contentEdits.contentSlug, slug))).get();
-const routeData = cached ? JSON.parse(cached.data) : adminRouteDetails[slug];
+const user = Astro.locals.user;
+const city = 'ottawa';
+const basePath = `${city}/routes/${slug}`;
+
+let routeData: any = null;
+let isDraft = false;
+let draftPrNumber: number | null = null;
+
+// Check if user has an existing draft for this route
+if (user) {
+  const draft = await findDraft(database, user.id, 'routes', slug);
+
+  if (draft) {
+    const git = createGitService({
+      token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes',
+      branch: draft.branchName,
+    });
+    const branchSha = await git.getRef(draft.branchName);
+
+    if (branchSha) {
+      const file = await git.readFile(`${basePath}/index.md`);
+      if (file) {
+        const { data: fm, content: body } = matter(file.content);
+        const mediaFile = await git.readFile(`${basePath}/media.yml`);
+        let media: any[] = [];
+        if (mediaFile) {
+          media = ((yaml.load(mediaFile.content) as any[]) || []).map((m: any) => {
+            const item: Record<string, unknown> = { key: m.key };
+            if (m.caption) item.caption = m.caption;
+            if (m.cover) item.cover = m.cover;
+            return item;
+          });
+        }
+        routeData = {
+          slug,
+          name: fm.name,
+          tagline: fm.tagline || '',
+          tags: fm.tags || [],
+          distance: fm.distance_km,
+          status: fm.status,
+          body: body.trim(),
+          media,
+          variants: (fm.variants as any[]) || [],
+        };
+        isDraft = true;
+        draftPrNumber = draft.prNumber;
+      }
+    } else {
+      // Branch gone (merged or deleted) — clean up draft row
+      await deleteDraft(database, draft.id);
+    }
+  }
+}
+
+// Fall back to D1 cache → virtual module
+if (!routeData) {
+  const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'routes'), eq(contentEdits.contentSlug, slug))).get();
+  routeData = cached ? JSON.parse(cached.data) : adminRouteDetails[slug];
+}
 
 if (!routeData) {
   return new Response(null, { status: 404 });
@@ -35,7 +95,7 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
       <a href={`/routes/${slug}`} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>
     </div>
     <h1>Edit: {routeData.name}</h1>
-    <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} />
+    <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
   </div>
 </Base>
 

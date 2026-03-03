@@ -9,6 +9,8 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
+import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
+import { findDraft, createDraft, updateDraftTimestamp } from '../../lib/draft-service';
 
 export const prerender = false;
 
@@ -75,32 +77,53 @@ export async function POST({ params, request, locals }: APIContext) {
   }
 
   try {
-    const branch = env.GIT_BRANCH || 'main';
+    const baseBranch = env.GIT_BRANCH || 'main';
+    const editorMode = request.headers.get('cookie')?.includes('editor_mode=1') ?? false;
+    const targetBranch = resolveBranch(user, editorMode, baseBranch, 'routes', slug);
+    const isDirect = isDirectCommit(user, editorMode);
+
     const git = createGitService({
       token: env.GITHUB_TOKEN,
       owner: 'eljojo',
       repo: 'bike-routes',
-      branch,
+      branch: targetBranch,
     });
 
     const city = 'ottawa';
     const basePath = `${city}/routes/${slug}`;
     const database = db();
+    const authorInfo = {
+      name: user.displayName,
+      email: user.email || `${user.displayName}@users.ottawabybike.ca`,
+    };
 
-    // Compare-and-swap: detect if GitHub has diverged
+    // For draft saves, check/create the draft branch before reading files
+    let draft = isDirect ? null : await findDraft(database, user.id, 'routes', slug);
+    const isFirstDraftSave = !isDirect && !draft;
+
+    if (isFirstDraftSave) {
+      // Create draft branch from main HEAD
+      const mainGit = createGitService({
+        token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+      });
+      const mainSha = await mainGit.getRef(baseBranch);
+      if (!mainSha) throw new Error('Cannot resolve main branch');
+      await mainGit.createRef(targetBranch, mainSha);
+    }
+
+    // Read current files from target branch
     const currentFile = await git.readFile(`${basePath}/index.md`);
     const currentMedia = await git.readFile(`${basePath}/media.yml`);
 
-    if (currentFile) {
+    // Compare-and-swap conflict detection (direct commits only)
+    if (isDirect && currentFile) {
       const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'routes'), eq(contentEdits.contentSlug, slug))).get();
 
       let hasConflict = false;
 
       if (cached) {
-        // Case A: scratchpad exists — compare SHA
         hasConflict = cached.githubSha !== currentFile.sha;
       } else if (update.contentHash) {
-        // Case B: first save after deploy — compare content hash
         const currentHash = createHash('md5')
           .update(currentFile.content)
           .update(currentMedia?.content || '')
@@ -109,7 +132,6 @@ export async function POST({ params, request, locals }: APIContext) {
       }
 
       if (hasConflict) {
-        // Sync scratchpad with fresh GitHub data so reload shows current state
         const { data: ghFrontmatter, content: ghBody } = matter(currentFile.content);
 
         let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
@@ -154,7 +176,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
         return new Response(JSON.stringify({
           error: 'This route was modified on GitHub since you started editing. Your edits are preserved in the form — review the changes on GitHub and re-apply.',
-          githubUrl: `https://github.com/eljojo/bike-routes/blob/${branch}/ottawa/routes/${slug}/index.md`,
+          githubUrl: `https://github.com/eljojo/bike-routes/blob/${baseBranch}/ottawa/routes/${slug}/index.md`,
           conflict: true,
         }), {
           status: 409,
@@ -172,15 +194,12 @@ export async function POST({ params, request, locals }: APIContext) {
     let existingFrontmatter: Record<string, unknown> = {};
 
     if (isNewRoute) {
-      // New route — build frontmatter from scratch
       const adminFields: Record<string, unknown> = { ...update.frontmatter };
       adminFields.status = 'draft';
       adminFields.created_at = new Date().toISOString().split('T')[0];
       adminFields.updated_at = new Date().toISOString().split('T')[0];
       mergedFrontmatter = adminFields;
     } else {
-      // Existing route — merge admin-editable fields into existing frontmatter
-      // so that fields the admin doesn't edit (created_at, etc.) are preserved.
       const { data } = matter(currentFile.content);
       existingFrontmatter = data;
       mergedFrontmatter = { ...existingFrontmatter, ...update.frontmatter };
@@ -190,7 +209,6 @@ export async function POST({ params, request, locals }: APIContext) {
     if (update.variants) {
       const variantMeta = update.variants.map(v => {
         const entry: Record<string, unknown> = { name: v.name, gpx: v.gpx };
-        // Compute distance from GPX content for new uploads
         if (v.isNew && v.gpxContent) {
           const track = parseGpx(v.gpxContent);
           entry.distance_km = Math.round(track.distance_m / 100) / 10;
@@ -203,20 +221,17 @@ export async function POST({ params, request, locals }: APIContext) {
       });
       mergedFrontmatter.variants = variantMeta;
 
-      // Set route-level distance_km from the first variant
       const firstDistance = (variantMeta[0] as Record<string, unknown>)?.distance_km;
       if (firstDistance) {
         mergedFrontmatter.distance_km = firstDistance;
       }
 
-      // Add new GPX files to the commit
       for (const v of update.variants) {
         if (v.isNew && v.gpxContent) {
           files.push({ path: `${basePath}/${v.gpx}`, content: v.gpxContent });
         }
       }
 
-      // Detect removed variants — delete their GPX files
       if (existingFrontmatter.variants) {
         const existingGpxFiles = new Set(
           (existingFrontmatter.variants as Array<{ gpx: string }>).map(v => v.gpx)
@@ -279,13 +294,37 @@ export async function POST({ params, request, locals }: APIContext) {
         ? `${parts.join(' + ')} for ${slug}`
         : `Update ${slug}`;
 
-    // Commit
-    const sha = await git.writeFiles(files, message, {
-      name: user.displayName,
-      email: user.email || `${user.displayName}@users.ottawabybike.ca`,
-    }, deletePaths.length > 0 ? deletePaths : undefined);
+    // Commit to target branch
+    const sha = await git.writeFiles(files, message, authorInfo,
+      deletePaths.length > 0 ? deletePaths : undefined);
 
-    // Cache the edit with the new SHA for future compare-and-swap checks
+    // Draft saves: create PR on first save, update timestamp on subsequent saves
+    if (!isDirect) {
+      if (isFirstDraftSave) {
+        const mainGit = createGitService({
+          token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+        });
+        const prNumber = await mainGit.createPullRequest(
+          targetBranch, baseBranch,
+          `${user.displayName}: Update ${slug}`,
+          `Community edit by ${user.displayName}`,
+        );
+
+        draft = await createDraft(database, {
+          userId: user.id, contentType: 'routes', contentSlug: slug,
+          branchName: targetBranch, prNumber,
+        });
+      } else if (draft) {
+        await updateDraftTimestamp(database, draft.id);
+      }
+
+      return new Response(JSON.stringify({ success: true, sha, draft: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Direct commits: cache the edit for future compare-and-swap checks
     const newFile = await git.readFile(`${basePath}/index.md`);
     if (newFile) {
       const cacheData = JSON.stringify({
@@ -318,9 +357,6 @@ export async function POST({ params, request, locals }: APIContext) {
         },
       });
     }
-
-    // Rebuild is triggered automatically by GitHub Actions in bike-routes
-    // (notify-astro.yml) when the commit is pushed — no manual dispatch needed.
 
     return new Response(JSON.stringify({ success: true, sha }), {
       status: 200,
