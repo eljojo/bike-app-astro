@@ -4,6 +4,8 @@ export const prerender = false;
 import Base from '../layouts/Base.astro';
 import RegisterForm from '../components/admin/RegisterForm.tsx';
 import '../styles/admin.scss';
+
+const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
 ---
 
 <Base title="Create account">
@@ -11,7 +13,7 @@ import '../styles/admin.scss';
     <div class="auth-card">
       <h1>Create account</h1>
       <p class="auth-message">Create your account with a passkey to start editing.</p>
-      <RegisterForm client:load />
+      <RegisterForm client:load returnTo={returnTo} />
       <p class="auth-link">Already have an account? <a href="/login">Sign in</a></p>
     </div>
   </div>

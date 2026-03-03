@@ -1,7 +1,11 @@
 import { useState } from 'preact/hooks';
 import { startAuthentication } from '@simplewebauthn/browser';
 
-export default function LoginForm() {
+interface Props {
+  returnTo?: string;
+}
+
+export default function LoginForm({ returnTo = '/admin' }: Props) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,8 +45,8 @@ export default function LoginForm() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Success — redirect to admin
-      window.location.href = '/admin';
+      // Success — redirect
+      window.location.href = returnTo;
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
         setError('Passkey authentication was cancelled');

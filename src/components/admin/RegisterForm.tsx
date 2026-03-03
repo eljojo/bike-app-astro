@@ -3,9 +3,10 @@ import { startRegistration } from '@simplewebauthn/browser';
 
 interface Props {
   isSetup?: boolean;
+  returnTo?: string;
 }
 
-export default function RegisterForm({ isSetup }: Props) {
+export default function RegisterForm({ isSetup, returnTo = '/admin' }: Props) {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
@@ -46,8 +47,8 @@ export default function RegisterForm({ isSetup }: Props) {
         throw new Error(data.error || 'Registration failed');
       }
 
-      // Success — redirect to admin
-      window.location.href = '/admin';
+      // Success — redirect
+      window.location.href = returnTo;
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
         setError('Passkey registration was cancelled');

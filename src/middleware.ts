@@ -23,7 +23,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    return context.redirect('/login');
+    const returnTo = encodeURIComponent(pathname);
+    return context.redirect(`/gate?returnTo=${returnTo}`);
   }
 
   const user = await validateSession(database, token);
@@ -38,7 +39,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    return context.redirect('/login');
+    const returnTo = encodeURIComponent(pathname);
+    return context.redirect(`/gate?returnTo=${returnTo}`);
   }
 
   // Make user available to page/API handlers
