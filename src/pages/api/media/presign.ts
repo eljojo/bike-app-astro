@@ -30,6 +30,9 @@ export async function POST({ request, locals }: APIContext) {
     );
   }
 
+  // TODO: add rate limiting for guest uploads (max 10 per hour)
+  // For v1, trust UI friction (auth gate + drag-and-drop)
+
   try {
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const key = await generateMediaKey(env.BUCKET, prefix);
