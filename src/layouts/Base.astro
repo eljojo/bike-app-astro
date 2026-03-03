@@ -23,9 +23,10 @@ interface Props {
   jsonLd?: Record<string, any>;
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
+  admin?: boolean;
 }
 
-const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls } = Astro.props;
+const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls, admin } = Astro.props;
 ---
 <!DOCTYPE html>
 <html lang={htmlLang}>
@@ -47,7 +48,17 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
     <header class="site-header">
       <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
     </header>
-    <Nav alternateUrls={alternateUrls} />
+    {admin ? (
+      <nav class="top-nav admin-nav">
+        <ul>
+          <li><a href="/admin">Routes</a></li>
+          <li><a href="/">View site</a></li>
+          <li><a href="/api/auth/logout">Log out</a></li>
+        </ul>
+      </nav>
+    ) : (
+      <Nav alternateUrls={alternateUrls} />
+    )}
     <main>
       <slot />
     </main>
