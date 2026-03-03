@@ -8,6 +8,8 @@ import { eq, and } from 'drizzle-orm';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import adminEvents from 'virtual:bike-app/admin-events';
+import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
+import { findDraft, createDraft, updateDraftTimestamp } from '../../lib/draft-service';
 
 export const prerender = false;
 
@@ -61,20 +63,21 @@ export async function POST({ params, request, locals }: APIContext) {
   }
 
   try {
-    const branch = env.GIT_BRANCH || 'main';
-    const git = createGitService({
-      token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch,
-    });
-
+    const baseBranch = env.GIT_BRANCH || 'main';
     const city = 'ottawa';
     const database = db();
     const files: Array<{ path: string; content: string }> = [];
     const deletePaths: string[] = [];
+    const authorInfo = {
+      name: user.displayName,
+      email: user.email || `${user.displayName}@users.ottawabybike.ca`,
+    };
 
     let eventId: string;
     let eventPath: string;
     let isNew = false;
 
+    // Resolve eventId and eventPath first (needed for branch resolution)
     if (id === 'new') {
       isNew = true;
       const startDate = update.frontmatter.start_date as string;
@@ -89,8 +92,35 @@ export async function POST({ params, request, locals }: APIContext) {
 
       eventId = `${year}/${slug}`;
       eventPath = `${city}/events/${year}/${slug}.md`;
+    } else {
+      eventId = id!;
+      const [year, slug] = eventId.split('/');
+      eventPath = `${city}/events/${year}/${slug}.md`;
+    }
 
-      // Check if file already exists
+    const editorMode = request.headers.get('cookie')?.includes('editor_mode=1') ?? false;
+    const targetBranch = resolveBranch(user, editorMode, baseBranch, 'events', eventId);
+    const isDirect = isDirectCommit(user, editorMode);
+
+    const git = createGitService({
+      token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: targetBranch,
+    });
+
+    // For draft saves, check/create the draft branch
+    let draft = isDirect ? null : await findDraft(database, user.id, 'events', eventId);
+    const isFirstDraftSave = !isDirect && !draft;
+
+    if (isFirstDraftSave) {
+      const mainGit = createGitService({
+        token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+      });
+      const mainSha = await mainGit.getRef(baseBranch);
+      if (!mainSha) throw new Error('Cannot resolve main branch');
+      await mainGit.createRef(targetBranch, mainSha);
+    }
+
+    if (isNew) {
+      // Check if file already exists on the target branch
       const existing = await git.readFile(eventPath);
       if (existing) {
         return new Response(JSON.stringify({ error: `Event ${eventId} already exists` }), {
@@ -98,14 +128,9 @@ export async function POST({ params, request, locals }: APIContext) {
         });
       }
     } else {
-      // Existing event
-      eventId = id!;
-      const [year, slug] = eventId.split('/');
-      eventPath = `${city}/events/${year}/${slug}.md`;
-
-      // Conflict detection
+      // Existing event — conflict detection (direct commits only)
       const currentFile = await git.readFile(eventPath);
-      if (currentFile) {
+      if (isDirect && currentFile) {
         const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'events'), eq(contentEdits.contentSlug, eventId))).get();
 
         let hasConflict = false;
@@ -117,7 +142,6 @@ export async function POST({ params, request, locals }: APIContext) {
         }
 
         if (hasConflict) {
-          // Sync scratchpad with fresh data
           const { data: ghFm, content: ghBody } = matter(currentFile.content);
           const freshData = JSON.stringify({
             id: eventId, slug: eventId.split('/')[1], year: eventId.split('/')[0],
@@ -134,7 +158,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
           return new Response(JSON.stringify({
             error: 'This event was modified on GitHub since you started editing.',
-            githubUrl: `https://github.com/eljojo/bike-routes/blob/${branch}/${eventPath}`,
+            githubUrl: `https://github.com/eljojo/bike-routes/blob/${baseBranch}/${eventPath}`,
             conflict: true,
           }), { status: 409, headers: { 'Content-Type': 'application/json' } });
         }
@@ -189,13 +213,37 @@ export async function POST({ params, request, locals }: APIContext) {
     // Event file goes first in the commit
     files.unshift({ path: eventPath, content: eventContent });
 
-    // Commit
+    // Commit to target branch
     const message = isNew ? `Create event ${eventId}` : `Update event ${eventId}`;
-    const sha = await git.writeFiles(files, message, {
-      name: user.displayName, email: user.email || `${user.displayName}@users.ottawabybike.ca`,
-    }, deletePaths.length > 0 ? deletePaths : undefined);
+    const sha = await git.writeFiles(files, message, authorInfo,
+      deletePaths.length > 0 ? deletePaths : undefined);
 
-    // Cache for conflict detection
+    // Draft saves: create PR on first save, update timestamp on subsequent saves
+    if (!isDirect) {
+      if (isFirstDraftSave) {
+        const mainGit = createGitService({
+          token: env.GITHUB_TOKEN, owner: 'eljojo', repo: 'bike-routes', branch: baseBranch,
+        });
+        const prNumber = await mainGit.createPullRequest(
+          targetBranch, baseBranch,
+          `${user.displayName}: ${isNew ? 'Create' : 'Update'} event ${eventId}`,
+          `Community edit by ${user.displayName}`,
+        );
+
+        draft = await createDraft(database, {
+          userId: user.id, contentType: 'events', contentSlug: eventId,
+          branchName: targetBranch, prNumber,
+        });
+      } else if (draft) {
+        await updateDraftTimestamp(database, draft.id);
+      }
+
+      return new Response(JSON.stringify({ success: true, sha, id: eventId, draft: true }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Direct commits: cache for conflict detection
     const newFile = await git.readFile(eventPath);
     if (newFile) {
       const cacheData = JSON.stringify({
