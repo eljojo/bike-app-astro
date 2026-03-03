@@ -193,7 +193,17 @@ export async function POST({ params, request, locals }: APIContext) {
     // Determine commit message
     const parts: string[] = [];
     if (update.frontmatter) parts.push('Update');
-    if (update.media) parts.push(`${update.media.length} photo${update.media.length !== 1 ? 's' : ''}`);
+    if (update.media) {
+      let existingCount = 0;
+      if (currentMedia) {
+        const entries = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
+        existingCount = entries.length;
+      }
+      const added = update.media.length - existingCount;
+      if (added > 0) {
+        parts.push(`${added} media`);
+      }
+    }
     const message = parts.length > 0
       ? `${parts.join(' + ')} for ${slug}`
       : `Update ${slug}`;
