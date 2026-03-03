@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { defineConfig } from 'astro/config';
 import { getAdapter } from './src/lib/adapter';
 import preact from '@astrojs/preact';
