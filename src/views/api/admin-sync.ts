@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
-import { routeEdits } from '../../db/schema';
+import { contentEdits } from '../../db/schema';
 
 export const prerender = false;
 
@@ -53,7 +53,7 @@ export async function POST({ locals }: APIContext) {
 
     // 5. Clear D1 scratchpad
     const database = db();
-    await database.delete(routeEdits);
+    await database.delete(contentEdits);
 
     // Staging rebuild is triggered automatically by GitHub Actions in bike-routes
     // (notify-astro.yml) when the staging ref is updated.

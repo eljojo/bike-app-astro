@@ -7,7 +7,8 @@ import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env';
 import { db } from '../../lib/get-db';
-import { routeEdits } from '../../db/schema';
+import { contentEdits } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const isStaging = env.ENVIRONMENT === 'staging';
@@ -15,8 +16,8 @@ const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha
 
 // Check D1 cache for fresher data, fall back to virtual module
 const database = db();
-const cachedEdits = await database.select().from(routeEdits).all();
-const cacheMap = new Map(cachedEdits.map(e => [e.slug, JSON.parse(e.data)]));
+const cachedEdits = await database.select().from(contentEdits).where(eq(contentEdits.contentType, 'routes')).all();
+const cacheMap = new Map(cachedEdits.map(e => [e.contentSlug, JSON.parse(e.data)]));
 
 const routes = adminRoutes.map(r => {
   const cached = cacheMap.get(r.slug);

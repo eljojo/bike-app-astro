@@ -6,8 +6,8 @@ import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env';
 import { db } from '../../lib/get-db';
-import { routeEdits } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { contentEdits } from '../../db/schema';
+import { eq, and } from 'drizzle-orm';
 import '../../styles/admin.scss';
 
 const { slug } = Astro.params;
@@ -18,7 +18,7 @@ if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
 
 // Check D1 cache first, fall back to virtual module
 const database = db();
-const cached = await database.select().from(routeEdits).where(eq(routeEdits.slug, slug)).get();
+const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'routes'), eq(contentEdits.contentSlug, slug))).get();
 const routeData = cached ? JSON.parse(cached.data) : adminRouteDetails[slug];
 
 if (!routeData) {

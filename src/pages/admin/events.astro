@@ -5,13 +5,14 @@ import Base from '../../layouts/Base.astro';
 import adminEvents from 'virtual:bike-app/admin-events';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { db } from '../../lib/get-db';
-import { eventEdits } from '../../db/schema';
+import { contentEdits } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 import { env } from '../../lib/env';
 import '../../styles/admin.scss';
 
 const database = db();
-const cachedEdits = await database.select().from(eventEdits).all();
-const cacheMap = new Map(cachedEdits.map(e => [e.id, JSON.parse(e.data)]));
+const cachedEdits = await database.select().from(contentEdits).where(eq(contentEdits.contentType, 'events')).all();
+const cacheMap = new Map(cachedEdits.map(e => [e.contentSlug, JSON.parse(e.data)]));
 const orgMap = new Map(adminOrganizers.map(o => [o.slug, o.name]));
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 

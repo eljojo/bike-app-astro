@@ -3,8 +3,8 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
-import { eventEdits } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { contentEdits } from '../../db/schema';
+import { eq, and } from 'drizzle-orm';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import adminEvents from 'virtual:bike-app/admin-events';
@@ -106,7 +106,7 @@ export async function POST({ params, request, locals }: APIContext) {
       // Conflict detection
       const currentFile = await git.readFile(eventPath);
       if (currentFile) {
-        const cached = await database.select().from(eventEdits).where(eq(eventEdits.id, eventId)).get();
+        const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'events'), eq(contentEdits.contentSlug, eventId))).get();
 
         let hasConflict = false;
         if (cached) {
@@ -124,11 +124,11 @@ export async function POST({ params, request, locals }: APIContext) {
             ...ghFm, body: ghBody.trim(),
           });
 
-          await database.insert(eventEdits).values({
-            id: eventId, data: freshData, githubSha: currentFile.sha,
+          await database.insert(contentEdits).values({
+            contentType: 'events', contentSlug: eventId, data: freshData, githubSha: currentFile.sha,
             updatedAt: new Date().toISOString(),
           }).onConflictDoUpdate({
-            target: eventEdits.id,
+            target: [contentEdits.contentType, contentEdits.contentSlug],
             set: { data: freshData, githubSha: currentFile.sha, updatedAt: new Date().toISOString() },
           });
 
@@ -192,7 +192,7 @@ export async function POST({ params, request, locals }: APIContext) {
     // Commit
     const message = isNew ? `Create event ${eventId}` : `Update event ${eventId}`;
     const sha = await git.writeFiles(files, message, {
-      name: user.displayName, email: user.email,
+      name: user.displayName, email: user.email || `${user.displayName}@users.ottawabybike.ca`,
     }, deletePaths.length > 0 ? deletePaths : undefined);
 
     // Cache for conflict detection
@@ -203,11 +203,11 @@ export async function POST({ params, request, locals }: APIContext) {
         ...fm, body: update.body,
       });
 
-      await database.insert(eventEdits).values({
-        id: eventId, data: cacheData, githubSha: newFile.sha,
+      await database.insert(contentEdits).values({
+        contentType: 'events', contentSlug: eventId, data: cacheData, githubSha: newFile.sha,
         updatedAt: new Date().toISOString(),
       }).onConflictDoUpdate({
-        target: eventEdits.id,
+        target: [contentEdits.contentType, contentEdits.contentSlug],
         set: { data: cacheData, githubSha: newFile.sha, updatedAt: new Date().toISOString() },
       });
     }

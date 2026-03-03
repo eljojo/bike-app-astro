@@ -3,8 +3,8 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
-import { routeEdits } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { contentEdits } from '../../db/schema';
+import { eq, and } from 'drizzle-orm';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { mergeMedia } from '../../lib/media-merge';
@@ -92,7 +92,7 @@ export async function POST({ params, request, locals }: APIContext) {
     const currentMedia = await git.readFile(`${basePath}/media.yml`);
 
     if (currentFile) {
-      const cached = await database.select().from(routeEdits).where(eq(routeEdits.slug, slug)).get();
+      const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'routes'), eq(contentEdits.contentSlug, slug))).get();
 
       let hasConflict = false;
 
@@ -137,13 +137,14 @@ export async function POST({ params, request, locals }: APIContext) {
           variants: (ghFrontmatter.variants as any[]) || [],
         });
 
-        await database.insert(routeEdits).values({
-          slug,
+        await database.insert(contentEdits).values({
+          contentType: 'routes',
+          contentSlug: slug,
           data: freshData,
           githubSha: currentFile.sha,
           updatedAt: new Date().toISOString(),
         }).onConflictDoUpdate({
-          target: routeEdits.slug,
+          target: [contentEdits.contentType, contentEdits.contentSlug],
           set: {
             data: freshData,
             githubSha: currentFile.sha,
@@ -281,7 +282,7 @@ export async function POST({ params, request, locals }: APIContext) {
     // Commit
     const sha = await git.writeFiles(files, message, {
       name: user.displayName,
-      email: user.email,
+      email: user.email || `${user.displayName}@users.ottawabybike.ca`,
     }, deletePaths.length > 0 ? deletePaths : undefined);
 
     // Cache the edit with the new SHA for future compare-and-swap checks
@@ -302,13 +303,14 @@ export async function POST({ params, request, locals }: APIContext) {
         })) || [],
       });
 
-      await database.insert(routeEdits).values({
-        slug,
+      await database.insert(contentEdits).values({
+        contentType: 'routes',
+        contentSlug: slug,
         data: cacheData,
         githubSha: newFile.sha,
         updatedAt: new Date().toISOString(),
       }).onConflictDoUpdate({
-        target: routeEdits.slug,
+        target: [contentEdits.contentType, contentEdits.contentSlug],
         set: {
           data: cacheData,
           githubSha: newFile.sha,
