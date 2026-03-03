@@ -30,9 +30,9 @@ function seedTestSession(): string {
     'INSERT INTO sessions (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'
   ).run(crypto.randomUUID(), userId, token, expiresAt, now);
 
-  // Clear stale route edits from previous runs so conflict detection doesn't fire
+  // Clear stale content edits from previous runs so conflict detection doesn't fire
   try {
-    db.prepare('DELETE FROM route_edits').run();
+    db.prepare('DELETE FROM content_edits').run();
   } catch {
     // Table may not exist yet on first run
   }
