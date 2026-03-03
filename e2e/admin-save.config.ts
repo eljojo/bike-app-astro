@@ -66,9 +66,14 @@ tagline: Keep going west
 created_at: '2022-11-19'
 updated_at: '2023-06-26'
 variants:
-  - name: From Britannia
+  - name: 2024 Detour
     gpx: main.gpx
-    distance_km: 67.7
+    distance_km: 34.3
+    strava_url: https://www.strava.com/activities/11458503483
+  - name: Normal Route
+    gpx: variants/main.gpx
+    distance_km: 40.8
+    strava_url: https://www.strava.com/activities/7907456752
 ---
 
 Carp is a rural community west of Ottawa. This route follows the Trans Canada Trail through Stittsville and on to Carp along quiet rural roads.
@@ -86,6 +91,25 @@ fs.writeFileSync(
       <trkpt lat="45.3600" lon="-75.8300"><ele>70</ele></trkpt>
       <trkpt lat="45.3700" lon="-75.8500"><ele>75</ele></trkpt>
       <trkpt lat="45.3800" lon="-75.8700"><ele>80</ele></trkpt>
+      <trkpt lat="45.3900" lon="-75.9000"><ele>85</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+`
+);
+
+// Second variant GPX
+const variantsDir = path.join(routeDir, 'variants');
+fs.mkdirSync(variantsDir, { recursive: true });
+fs.writeFileSync(
+  path.join(variantsDir, 'main.gpx'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+  <trk>
+    <name>Normal Route</name>
+    <trkseg>
+      <trkpt lat="45.3485" lon="-75.8154"><ele>64</ele></trkpt>
+      <trkpt lat="45.3700" lon="-75.8500"><ele>75</ele></trkpt>
       <trkpt lat="45.3900" lon="-75.9000"><ele>85</ele></trkpt>
     </trkseg>
   </trk>

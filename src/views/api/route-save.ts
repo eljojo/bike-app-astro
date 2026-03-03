@@ -151,8 +151,24 @@ export async function POST({ params, request, locals }: APIContext) {
 
     const files: Array<{ path: string; content: string }> = [];
 
-    // Build index.md content
-    const frontmatterStr = yaml.dump(update.frontmatter, {
+    // Build index.md: merge admin-editable fields into existing frontmatter
+    // so that fields the admin doesn't edit (variants, created_at, etc.) are preserved.
+    let existingFrontmatter: Record<string, unknown> = {};
+    if (currentFile) {
+      const { data } = matter(currentFile.content);
+      existingFrontmatter = data;
+    }
+
+    const adminFields: Record<string, unknown> = { ...update.frontmatter };
+    // The admin UI uses 'distance' but the content schema uses 'distance_km'
+    if ('distance' in adminFields) {
+      adminFields.distance_km = adminFields.distance;
+      delete adminFields.distance;
+    }
+
+    const mergedFrontmatter = { ...existingFrontmatter, ...adminFields };
+
+    const frontmatterStr = yaml.dump(mergedFrontmatter, {
       lineWidth: -1,
       quotingType: '"',
       forceQuotes: false,

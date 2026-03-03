@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import sharp from 'sharp';
 import yaml from 'js-yaml';
+import matter from 'gray-matter';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '..', '.data', 'local.db');
@@ -138,6 +139,22 @@ test.describe('Admin Save Flow', () => {
       'utf-8'
     );
     expect(indexMd).toContain(testTagline);
+
+    // Verify frontmatter preserves fields the admin doesn't edit
+    const { data: savedFrontmatter } = matter(indexMd);
+    // Admin-editable fields should be present
+    expect(savedFrontmatter.name).toBe('Towards Carp');
+    expect(savedFrontmatter.distance_km).toBe(67.7);
+    expect(savedFrontmatter.status).toBe('published');
+    expect(savedFrontmatter.tags).toContain('road');
+    // Non-admin fields must survive the save
+    expect(savedFrontmatter.created_at).toBe('2022-11-19');
+    expect(savedFrontmatter.updated_at).toBe('2023-06-26');
+    expect(savedFrontmatter.variants).toHaveLength(2);
+    expect(savedFrontmatter.variants[0].strava_url).toBe('https://www.strava.com/activities/11458503483');
+    expect(savedFrontmatter.variants[1].gpx).toBe('variants/main.gpx');
+    // 'distance' (admin key) should NOT appear — only 'distance_km' (content key)
+    expect(savedFrontmatter).not.toHaveProperty('distance');
 
     // Verify media.yml contains the uploaded photo
     const mediaYaml = fs.readFileSync(
