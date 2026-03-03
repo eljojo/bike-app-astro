@@ -1,5 +1,5 @@
 import { defineConfig } from 'astro/config';
-import cloudflare from '@astrojs/cloudflare';
+import { getAdapter } from './src/lib/adapter';
 import preact from '@astrojs/preact';
 import { i18nRoutes } from './src/integrations/i18n-routes';
 import { adminRoutesIntegration } from './src/integrations/admin-routes';
@@ -19,7 +19,7 @@ const i18nConfig = {
 
 export default defineConfig({
   site: 'https://ottawabybike.ca',
-  adapter: cloudflare(),
+  adapter: await getAdapter(process.env.RUNTIME),
   i18n: i18nConfig,
   build: {
     concurrency: 4,
