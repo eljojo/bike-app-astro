@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
-import { getDb } from '../../../db';
+import { db } from '../../../lib/get-db';
 import { users, credentials } from '../../../db/schema';
 import { normalizeEmail, getWebAuthnConfig, storeChallenge } from '../../../lib/auth';
 import { eq } from 'drizzle-orm';
@@ -20,12 +20,12 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    const db = getDb(env.DB);
+    const database = db();
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(request.url, env);
 
     // Look up user by email
-    const userResult = await db
+    const userResult = await database
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email))
@@ -41,7 +41,7 @@ export async function POST({ request, cookies }: APIContext) {
     const userId = userResult[0].id;
 
     // Get user's credentials
-    const userCredentials = await db
+    const userCredentials = await database
       .select()
       .from(credentials)
       .where(eq(credentials.userId, userId));

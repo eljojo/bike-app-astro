@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { getDb } from '../../../db';
+import { db } from '../../../lib/get-db';
 import { users, credentials } from '../../../db/schema';
 import {
   normalizeEmail,
@@ -26,7 +26,7 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    const db = getDb(env.DB);
+    const database = db();
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(request.url, env);
 
@@ -40,7 +40,7 @@ export async function POST({ request, cookies }: APIContext) {
     }
 
     // Look up user
-    const userResult = await db
+    const userResult = await database
       .select()
       .from(users)
       .where(eq(users.email, email))
@@ -56,7 +56,7 @@ export async function POST({ request, cookies }: APIContext) {
     const user = userResult[0];
 
     // Find the matching credential — must belong to this user
-    const credResult = await db
+    const credResult = await database
       .select()
       .from(credentials)
       .where(and(
@@ -98,13 +98,13 @@ export async function POST({ request, cookies }: APIContext) {
     }
 
     // Update credential counter
-    await db
+    await database
       .update(credentials)
       .set({ counter: verification.authenticationInfo.newCounter })
       .where(eq(credentials.id, storedCredential.id));
 
     // Create session
-    const token = await createSession(db, user.id);
+    const token = await createSession(database, user.id);
     setSessionCookies(cookies, token);
 
     return new Response(JSON.stringify({ success: true }), {

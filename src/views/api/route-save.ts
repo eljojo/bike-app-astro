@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
-import { GitService } from '../../lib/git-service';
-import { getDb } from '../../db';
+import { createGitService } from '../../lib/git-factory';
+import { db } from '../../lib/get-db';
 import { routeEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import matter from 'gray-matter';
@@ -61,7 +61,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
   try {
     const branch = env.GIT_BRANCH || 'main';
-    const git = new GitService({
+    const git = createGitService({
       token: env.GITHUB_TOKEN,
       owner: 'eljojo',
       repo: 'bike-routes',
@@ -70,14 +70,14 @@ export async function POST({ params, request, locals }: APIContext) {
 
     const city = 'ottawa';
     const basePath = `${city}/routes/${slug}`;
-    const db = getDb(env.DB);
+    const database = db();
 
     // Compare-and-swap: detect if GitHub has diverged
     const currentFile = await git.readFile(`${basePath}/index.md`);
     const currentMedia = await git.readFile(`${basePath}/media.yml`);
 
     if (currentFile) {
-      const cached = await db.select().from(routeEdits).where(eq(routeEdits.slug, slug)).get();
+      const cached = await database.select().from(routeEdits).where(eq(routeEdits.slug, slug)).get();
 
       let hasConflict = false;
 
@@ -121,7 +121,7 @@ export async function POST({ params, request, locals }: APIContext) {
           media: ghMedia,
         });
 
-        await db.insert(routeEdits).values({
+        await database.insert(routeEdits).values({
           slug,
           data: freshData,
           githubSha: currentFile.sha,
@@ -200,7 +200,7 @@ export async function POST({ params, request, locals }: APIContext) {
         media: update.media || [],
       });
 
-      await db.insert(routeEdits).values({
+      await database.insert(routeEdits).values({
         slug,
         data: cacheData,
         githubSha: newFile.sha,

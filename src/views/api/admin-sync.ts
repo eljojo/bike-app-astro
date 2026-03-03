@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
-import { GitService } from '../../lib/git-service';
-import { getDb } from '../../db';
+import { createGitService } from '../../lib/git-factory';
+import { db } from '../../lib/get-db';
 import { routeEdits } from '../../db/schema';
 
 export const prerender = false;
@@ -25,7 +25,7 @@ export async function POST({ locals }: APIContext) {
   }
 
   try {
-    const git = new GitService({
+    const git = createGitService({
       token: env.GITHUB_TOKEN,
       owner: 'eljojo',
       repo: 'bike-routes',
@@ -52,8 +52,8 @@ export async function POST({ locals }: APIContext) {
     }
 
     // 5. Clear D1 scratchpad
-    const db = getDb(env.DB);
-    await db.delete(routeEdits);
+    const database = db();
+    await database.delete(routeEdits);
 
     // 6. Trigger staging rebuild
     await git.triggerRebuild();

@@ -1,6 +1,5 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
-import { getDb } from '../../../db';
+import { db } from '../../../lib/get-db';
 import { inviteCodes } from '../../../db/schema';
 import { generateId } from '../../../lib/auth';
 
@@ -33,12 +32,12 @@ export async function POST({ locals }: APIContext) {
   }
 
   try {
-    const db = getDb(env.DB);
+    const database = db();
     const code = randomCode();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    await db.insert(inviteCodes).values({
+    await database.insert(inviteCodes).values({
       id: generateId(),
       code,
       createdBy: user.id,

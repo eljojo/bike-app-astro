@@ -1,17 +1,16 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
-import { getDb } from '../../../db';
+import { db } from '../../../lib/get-db';
 import { destroySession, clearSessionCookies } from '../../../lib/auth';
 
 export const prerender = false;
 
 export async function POST({ request, cookies }: APIContext) {
   try {
-    const db = getDb(env.DB);
+    const database = db();
     const token = cookies.get('session_token')?.value;
 
     if (token) {
-      await destroySession(db, token);
+      await destroySession(database, token);
     }
 
     clearSessionCookies(cookies);

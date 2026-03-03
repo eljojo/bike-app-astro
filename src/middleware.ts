@@ -1,7 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
-import { env } from './lib/env';
 import { validateSession } from './lib/auth';
-import { getDb } from './db';
+import { db } from './lib/get-db';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
@@ -13,7 +12,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!isProtected) return next();
 
-  const db = getDb(env.DB);
+  const database = db();
   const token = context.cookies.get('session_token')?.value;
 
   if (!token) {
@@ -27,7 +26,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect('/login');
   }
 
-  const user = await validateSession(db, token);
+  const user = await validateSession(database, token);
   if (!user) {
     // Clear stale cookies
     context.cookies.delete('session_token', { path: '/' });

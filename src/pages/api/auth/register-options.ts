@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
-import { getDb } from '../../../db';
+import { db } from '../../../lib/get-db';
 import { users, credentials } from '../../../db/schema';
 import {
   normalizeEmail,
@@ -26,11 +26,11 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    const db = getDb(env.DB);
+    const database = db();
     const email = normalizeEmail(rawEmail);
 
     // Check if this is the first user (setup flow) or invite-based registration
-    const firstUser = await isFirstUser(db);
+    const firstUser = await isFirstUser(database);
 
     if (!firstUser) {
       // Require invite code for non-first users
@@ -41,7 +41,7 @@ export async function POST({ request, cookies }: APIContext) {
         });
       }
 
-      const invite = await validateInviteCode(db, inviteCode);
+      const invite = await validateInviteCode(database, inviteCode);
       if (!invite) {
         return new Response(JSON.stringify({ error: 'Invalid or expired invite code' }), {
           status: 400,
@@ -51,7 +51,7 @@ export async function POST({ request, cookies }: APIContext) {
     }
 
     // Check if email is already registered
-    const existingUser = await db
+    const existingUser = await database
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email))

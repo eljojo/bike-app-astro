@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
-import { getDb } from '../../../db';
+import { db } from '../../../lib/get-db';
 import { users, credentials } from '../../../db/schema';
 import {
   normalizeEmail,
@@ -30,7 +30,7 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    const db = getDb(env.DB);
+    const database = db();
     const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(request.url, env);
 
@@ -44,7 +44,7 @@ export async function POST({ request, cookies }: APIContext) {
     }
 
     // Check if this is the first user or invite-based
-    const firstUser = await isFirstUser(db);
+    const firstUser = await isFirstUser(database);
     let inviteId: string | null = null;
 
     if (!firstUser) {
@@ -55,7 +55,7 @@ export async function POST({ request, cookies }: APIContext) {
         });
       }
 
-      const invite = await validateInviteCode(db, inviteCode);
+      const invite = await validateInviteCode(database, inviteCode);
       if (!invite) {
         return new Response(JSON.stringify({ error: 'Invalid or expired invite code' }), {
           status: 400,
@@ -88,7 +88,7 @@ export async function POST({ request, cookies }: APIContext) {
     // Claim invite code FIRST — before creating any user data.
     // If another request races us, we fail cleanly with no orphaned rows.
     if (inviteId) {
-      const claimed = await markInviteCodeUsed(db, inviteId, userId);
+      const claimed = await markInviteCodeUsed(database, inviteId, userId);
       if (!claimed) {
         return new Response(JSON.stringify({ error: 'Invite code was already used' }), {
           status: 409,
@@ -98,7 +98,7 @@ export async function POST({ request, cookies }: APIContext) {
     }
 
     // Create user
-    await db.insert(users).values({
+    await database.insert(users).values({
       id: userId,
       email,
       displayName,
@@ -107,7 +107,7 @@ export async function POST({ request, cookies }: APIContext) {
     });
 
     // Store credential
-    await db.insert(credentials).values({
+    await database.insert(credentials).values({
       id: generateId(),
       userId,
       credentialId: credential.id,
@@ -120,7 +120,7 @@ export async function POST({ request, cookies }: APIContext) {
     });
 
     // Create session
-    const token = await createSession(db, userId);
+    const token = await createSession(database, userId);
     setSessionCookies(cookies, token);
 
     return new Response(JSON.stringify({ success: true }), {
