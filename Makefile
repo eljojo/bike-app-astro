@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-e2e test-e2e-only test-update test-all test-admin full screenshots maps maps-rebuild validate fonts clean
+.PHONY: help install dev build preview test test-e2e test-update test-admin full screenshots maps maps-rebuild validate fonts clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -24,12 +24,7 @@ test-e2e: build ## Run Playwright screenshot tests
 test-update: build ## Update screenshot baselines
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-test-all: test test-e2e ## Run all tests (unit + e2e)
-
-full: build validate test test-e2e-only test-admin ## Run full CI pipeline (build, validate, unit tests, e2e)
-
-test-e2e-only: ## Run e2e tests without rebuilding (use after make build)
-	npx playwright test --config e2e/playwright.config.ts
+full: build validate test test-e2e test-admin ## Run full CI pipeline (build, validate, unit tests, all e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	@for config in e2e/admin/*.config.ts; do echo "=== $$config ===" && npx playwright test --config "$$config" || exit 1; done
