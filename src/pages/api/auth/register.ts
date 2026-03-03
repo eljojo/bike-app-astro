@@ -6,22 +6,20 @@ import { users, credentials } from '../../../db/schema';
 import {
   normalizeEmail,
   generateId,
-  validateInviteCode,
-  markInviteCodeUsed,
   createSession,
   setSessionCookies,
   retrieveChallenge,
   getWebAuthnConfig,
   isFirstUser,
 } from '../../../lib/auth';
-import { eq } from 'drizzle-orm';
+
 
 export const prerender = false;
 
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, displayName, inviteCode, credential: credentialResponse } = body;
+    const { email: rawEmail, displayName, credential: credentialResponse } = body;
 
     if (!rawEmail || !displayName || !credentialResponse) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -43,27 +41,8 @@ export async function POST({ request, cookies }: APIContext) {
       });
     }
 
-    // Check if this is the first user or invite-based
+    // Check if this is the first user (first user = admin, others = editor)
     const firstUser = await isFirstUser(database);
-    let inviteId: string | null = null;
-
-    if (!firstUser) {
-      if (!inviteCode) {
-        return new Response(JSON.stringify({ error: 'Invite code is required' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      const invite = await validateInviteCode(database, inviteCode);
-      if (!invite) {
-        return new Response(JSON.stringify({ error: 'Invalid or expired invite code' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      inviteId = invite.id;
-    }
 
     // Verify the registration response
     const verification = await verifyRegistrationResponse({
@@ -84,18 +63,6 @@ export async function POST({ request, cookies }: APIContext) {
 
     const userId = generateId();
     const now = new Date().toISOString();
-
-    // Claim invite code FIRST — before creating any user data.
-    // If another request races us, we fail cleanly with no orphaned rows.
-    if (inviteId) {
-      const claimed = await markInviteCodeUsed(database, inviteId, userId);
-      if (!claimed) {
-        return new Response(JSON.stringify({ error: 'Invite code was already used' }), {
-          status: 409,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    }
 
     // Create user
     await database.insert(users).values({

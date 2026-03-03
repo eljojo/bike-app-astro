@@ -2,11 +2,10 @@ import { useState } from 'preact/hooks';
 import { startRegistration } from '@simplewebauthn/browser';
 
 interface Props {
-  inviteCode: string;
   isSetup?: boolean;
 }
 
-export default function RegisterForm({ inviteCode, isSetup }: Props) {
+export default function RegisterForm({ isSetup }: Props) {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
@@ -22,11 +21,7 @@ export default function RegisterForm({ inviteCode, isSetup }: Props) {
       const optionsRes = await fetch('/api/auth/register-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          displayName,
-          inviteCode: isSetup ? undefined : inviteCode,
-        }),
+        body: JSON.stringify({ email, displayName }),
       });
 
       if (!optionsRes.ok) {
@@ -43,12 +38,7 @@ export default function RegisterForm({ inviteCode, isSetup }: Props) {
       const registerRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          displayName,
-          inviteCode: isSetup ? undefined : inviteCode,
-          credential,
-        }),
+        body: JSON.stringify({ email, displayName, credential }),
       });
 
       if (!registerRes.ok) {

@@ -2,7 +2,6 @@
 export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
-import InviteCodeGenerator from '../../components/admin/InviteCodeGenerator.tsx';
 import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env';
@@ -85,13 +84,6 @@ const routes = adminRoutes.map(r => {
         <p class="auth-message">No routes found.</p>
       )}
     </div>
-
-    {user.role === 'admin' && (
-      <div class="admin-section">
-        <h2>Invite</h2>
-        <InviteCodeGenerator client:load />
-      </div>
-    )}
 
     {isStaging && user.role === 'admin' && (
       <div class="admin-section">
@@ -337,44 +329,5 @@ const routes = adminRoutes.map(r => {
     }
   }
 
-  .invite-generator {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    max-width: 300px;
-  }
-
-  .invite-result {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .invite-code {
-    font-family: $font-mono;
-    font-size: 1rem;
-    padding: 0.25rem 0.5rem;
-    background: $color-card-bg;
-    border-radius: $border-radius;
-
-    @media (prefers-color-scheme: dark) {
-      background: $color-card-bg-dark;
-    }
-  }
-
-  .btn-copy {
-    font-size: 0.8125rem;
-    background: none;
-    border: 1px solid $color-border;
-    border-radius: $border-radius;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-    color: $color-text;
-
-    @media (prefers-color-scheme: dark) {
-      color: $color-text-dark;
-      border-color: #444;
-    }
-  }
 
 </style>
