@@ -112,6 +112,13 @@ export default defineConfig({
   ],
   vite: {
     plugins: [buildDataPlugin()],
+    build: {
+      rollupOptions: {
+        // When RUNTIME=local, the 'cloudflare:workers' dynamic import in env.ts
+        // is dead code, but Rollup still tries to resolve it. Mark it external.
+        external: process.env.RUNTIME === 'local' ? ['cloudflare:workers'] : [],
+      },
+    },
     css: {
       preprocessorOptions: {
         scss: {

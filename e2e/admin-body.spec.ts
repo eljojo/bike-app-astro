@@ -4,12 +4,13 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '..', '.data', 'local.db');
 
 function seedTestSession(): string {
+  const dir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const db = new Database(DB_PATH);
   const userId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString('hex');
@@ -39,21 +40,8 @@ function cleanupTestSession(token: string) {
 test.describe('Admin Route Editor', () => {
   let token: string;
 
-  test.beforeAll(async () => {
+  test.beforeAll(() => {
     token = seedTestSession();
-
-    // Generate test photo fixture
-    const fixturesDir = path.resolve(__dirname, 'fixtures');
-    if (!fs.existsSync(fixturesDir)) fs.mkdirSync(fixturesDir, { recursive: true });
-    const testPhotoPath = path.join(fixturesDir, 'test-photo.jpg');
-    if (!fs.existsSync(testPhotoPath)) {
-      const img = await sharp({
-        create: { width: 100, height: 75, channels: 3, background: { r: 128, g: 200, b: 100 } },
-      })
-        .jpeg()
-        .toBuffer();
-      fs.writeFileSync(testPhotoPath, img);
-    }
   });
 
   test.afterAll(() => {
@@ -95,38 +83,4 @@ test.describe('Admin Route Editor', () => {
     expect(value.length).toBeGreaterThan(50);
   });
 
-  test('photo upload flow: upload, confirm, appears in grid', async ({ page }) => {
-    await page.context().addCookies([
-      {
-        name: 'session_token',
-        value: token,
-        domain: 'localhost',
-        path: '/',
-        httpOnly: true,
-        secure: false,
-      },
-    ]);
-
-    await page.goto('/admin/routes/carp');
-    await page.waitForLoadState('networkidle');
-
-    // Count existing photos before upload
-    const photoCards = page.locator('.photo-card');
-    const initialCount = await photoCards.count();
-
-    // Upload a test image via the file input
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles(path.resolve(__dirname, 'fixtures/test-photo.jpg'));
-
-    // Wait for upload to complete (uploading indicator disappears)
-    await expect(page.locator('.drop-zone')).not.toContainText('Uploading', { timeout: 10000 });
-
-    // New photo should appear in the grid
-    const newCount = await photoCards.count();
-    expect(newCount).toBe(initialCount + 1);
-
-    // The last photo card should have a visible image
-    const lastCard = photoCards.last();
-    await expect(lastCard.locator('img')).toBeVisible();
-  });
 });

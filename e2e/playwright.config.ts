@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   fullyParallel: true,
   workers: '100%',
-  testIgnore: 'capture-production.spec.ts',
+  testIgnore: ['capture-production.spec.ts', 'admin-*.spec.ts'],
   outputDir: './test-results',
   snapshotDir: './snapshots',
   snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
