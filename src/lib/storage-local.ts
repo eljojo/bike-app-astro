@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export function createLocalR2(uploadsDir: string) {
+export function createLocalBucket(uploadsDir: string) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
   return {

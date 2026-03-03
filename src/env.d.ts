@@ -12,7 +12,7 @@ declare namespace App {
 declare module 'cloudflare:workers' {
   interface Env {
     DB: D1Database;
-    R2: R2Bucket;
+    BUCKET: R2Bucket;
     ASSETS: Fetcher;
     GITHUB_TOKEN: string;
     WEBAUTHN_RP_ID: string;

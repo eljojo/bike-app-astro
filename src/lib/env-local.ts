@@ -1,17 +1,17 @@
 import path from 'node:path';
 import { createLocalDb } from '../db/local';
-import { createLocalR2 } from './storage-local';
+import { createLocalBucket } from './storage-local';
 
 const LOCAL_DB_PATH = path.resolve(import.meta.dirname, '..', '..', '.data', 'local.db');
 const LOCAL_UPLOADS_DIR = path.resolve(import.meta.dirname, '..', '..', '.data', 'uploads');
 
 export function createLocalEnv() {
   const db = createLocalDb(process.env.LOCAL_DB_PATH || LOCAL_DB_PATH);
-  const r2 = createLocalR2(process.env.LOCAL_UPLOADS_DIR || LOCAL_UPLOADS_DIR);
+  const bucket = createLocalBucket(process.env.LOCAL_UPLOADS_DIR || LOCAL_UPLOADS_DIR);
 
   return {
     DB: db,
-    R2: r2,
+    BUCKET: bucket,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
     WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || 'localhost',
     WEBAUTHN_RP_NAME: process.env.WEBAUTHN_RP_NAME || 'whereto-bike',

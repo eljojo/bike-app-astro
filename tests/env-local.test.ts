@@ -26,15 +26,15 @@ describe('local environment', () => {
     expect(typeof localEnv.DB.insert).toBe('function');
   });
 
-  it('creates an env object with R2 (local storage)', async () => {
+  it('creates an env object with BUCKET (local storage)', async () => {
     process.env.LOCAL_DB_PATH = TEST_DB_PATH;
     process.env.LOCAL_UPLOADS_DIR = TEST_UPLOADS_DIR;
     const { createLocalEnv } = await import('../src/lib/env-local');
     const localEnv = createLocalEnv();
-    expect(localEnv).toHaveProperty('R2');
-    expect(typeof localEnv.R2.head).toBe('function');
-    expect(typeof localEnv.R2.put).toBe('function');
-    expect(typeof localEnv.R2.delete).toBe('function');
+    expect(localEnv).toHaveProperty('BUCKET');
+    expect(typeof localEnv.BUCKET.head).toBe('function');
+    expect(typeof localEnv.BUCKET.put).toBe('function');
+    expect(typeof localEnv.BUCKET.delete).toBe('function');
   });
 
   it('reads string env vars from process.env', async () => {

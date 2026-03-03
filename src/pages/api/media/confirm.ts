@@ -24,7 +24,7 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const metadata = await confirmUpload(env.R2, key);
+    const metadata = await confirmUpload(env.BUCKET, key);
     return new Response(JSON.stringify(metadata), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

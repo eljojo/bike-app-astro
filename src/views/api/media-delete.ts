@@ -14,7 +14,7 @@ export async function DELETE({ params, locals }: APIContext) {
   }
 
   try {
-    await deleteMedia(env.R2, key);
+    await deleteMedia(env.BUCKET, key);
     return new Response(JSON.stringify({ deleted: true, key }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

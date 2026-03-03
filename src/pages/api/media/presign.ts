@@ -31,7 +31,7 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const key = await generateMediaKey(env.R2);
+    const key = await generateMediaKey(env.BUCKET);
     const uploadUrl = await createPresignedUploadUrl(env, key, contentType);
 
     return new Response(JSON.stringify({ key, uploadUrl }), {

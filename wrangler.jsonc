@@ -24,7 +24,7 @@
       ],
       "r2_buckets": [
         {
-          "binding": "R2",
+          "binding": "BUCKET",
           "bucket_name": "bike-ottawa-staging"
         }
       ]
@@ -45,7 +45,7 @@
       ],
       "r2_buckets": [
         {
-          "binding": "R2",
+          "binding": "BUCKET",
           "bucket_name": "bike-ottawa-production"
         }
       ]
