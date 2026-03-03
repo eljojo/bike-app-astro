@@ -11,6 +11,7 @@ import adminEvents from 'virtual:bike-app/admin-events';
 import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
 import { findDraft, createDraft, updateDraftTimestamp } from '../../lib/draft-service';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;
 
@@ -47,9 +48,7 @@ function countOrganizerReferences(orgSlug: string, excludeEventId: string): numb
 export async function POST({ params, request, locals }: APIContext) {
   const user = locals.user;
   if (!user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Unauthorized', 401);
   }
 
   const id = params.id;  // e.g. "2025/bike-fest" or "new"
@@ -58,9 +57,7 @@ export async function POST({ params, request, locals }: APIContext) {
   try {
     update = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid JSON body');
   }
 
   try {
@@ -86,9 +83,7 @@ export async function POST({ params, request, locals }: APIContext) {
       const slug = update.slug || slugify(update.frontmatter.name as string);
 
       if (!slug || slug.length < 2) {
-        return new Response(JSON.stringify({ error: 'Invalid slug' }), {
-          status: 400, headers: { 'Content-Type': 'application/json' },
-        });
+        return jsonError('Invalid slug');
       }
 
       eventId = `${year}/${slug}`;
@@ -134,9 +129,7 @@ export async function POST({ params, request, locals }: APIContext) {
       // Check if file already exists on the target branch
       const existing = await git.readFile(eventPath);
       if (existing) {
-        return new Response(JSON.stringify({ error: `Event ${eventId} already exists` }), {
-          status: 409, headers: { 'Content-Type': 'application/json' },
-        });
+        return jsonError(`Event ${eventId} already exists`, 409);
       }
     } else {
       // Existing event — conflict detection (direct commits only)
@@ -167,11 +160,11 @@ export async function POST({ params, request, locals }: APIContext) {
             set: { data: freshData, githubSha: currentFile.sha, updatedAt: new Date().toISOString() },
           });
 
-          return new Response(JSON.stringify({
+          return jsonResponse({
             error: 'This event was modified on GitHub since you started editing.',
             githubUrl: `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${eventPath}`,
             conflict: true,
-          }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+          }, 409);
         }
       }
     }
@@ -256,9 +249,7 @@ export async function POST({ params, request, locals }: APIContext) {
         await updateDraftTimestamp(database, draft.id);
       }
 
-      return new Response(JSON.stringify({ success: true, sha, id: eventId, draft: true }), {
-        status: 200, headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ success: true, sha, id: eventId, draft: true });
     }
 
     // Direct commits: cache for conflict detection
@@ -278,13 +269,9 @@ export async function POST({ params, request, locals }: APIContext) {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, sha, id: eventId }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true, sha, id: eventId });
   } catch (err: any) {
     console.error('save event error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Failed to save' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(err.message || 'Failed to save', 500);
   }
 }

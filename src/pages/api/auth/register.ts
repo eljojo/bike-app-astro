@@ -13,6 +13,7 @@ import {
   isFirstUser,
 } from '../../../lib/auth';
 import { sanitizeDisplayName } from '../../../lib/draft-branch';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 
 export const prerender = false;
@@ -23,10 +24,7 @@ export async function POST({ request, cookies }: APIContext) {
     const { email: rawEmail, displayName, credential: credentialResponse } = body;
 
     if (!rawEmail || !displayName || !credentialResponse) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Missing required fields');
     }
 
     const database = db();
@@ -37,10 +35,7 @@ export async function POST({ request, cookies }: APIContext) {
     // Retrieve the stored challenge
     const expectedChallenge = retrieveChallenge(cookies);
     if (!expectedChallenge) {
-      return new Response(JSON.stringify({ error: 'Challenge expired, please try again' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Challenge expired, please try again');
     }
 
     // Check if this is the first user (first user = admin, others = editor)
@@ -55,10 +50,7 @@ export async function POST({ request, cookies }: APIContext) {
     });
 
     if (!verification.verified || !verification.registrationInfo) {
-      return new Response(JSON.stringify({ error: 'Registration verification failed' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Registration verification failed');
     }
 
     const { credential } = verification.registrationInfo;
@@ -92,15 +84,9 @@ export async function POST({ request, cookies }: APIContext) {
     const token = await createSession(database, userId);
     setSessionCookies(cookies, token);
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true });
   } catch (err) {
     console.error('register error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

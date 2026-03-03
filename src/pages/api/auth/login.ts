@@ -11,6 +11,7 @@ import {
   getWebAuthnConfig,
 } from '../../../lib/auth';
 import { eq, and } from 'drizzle-orm';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
@@ -20,10 +21,7 @@ export async function POST({ request, cookies }: APIContext) {
     const { email: rawEmail, credential: authResponse } = body;
 
     if (!rawEmail || !authResponse) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Missing required fields');
     }
 
     const database = db();
@@ -33,10 +31,7 @@ export async function POST({ request, cookies }: APIContext) {
     // Retrieve the stored challenge
     const expectedChallenge = retrieveChallenge(cookies);
     if (!expectedChallenge) {
-      return new Response(JSON.stringify({ error: 'Challenge expired, please try again' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Challenge expired, please try again');
     }
 
     // Look up user
@@ -47,10 +42,7 @@ export async function POST({ request, cookies }: APIContext) {
       .limit(1);
 
     if (userResult.length === 0) {
-      return new Response(JSON.stringify({ error: 'Invalid email or credentials' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Invalid email or credentials');
     }
 
     const user = userResult[0];
@@ -66,10 +58,7 @@ export async function POST({ request, cookies }: APIContext) {
       .limit(1);
 
     if (credResult.length === 0) {
-      return new Response(JSON.stringify({ error: 'Credential not found' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Credential not found');
     }
 
     const storedCredential = credResult[0];
@@ -91,10 +80,7 @@ export async function POST({ request, cookies }: APIContext) {
     });
 
     if (!verification.verified) {
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Authentication failed');
     }
 
     // Update credential counter
@@ -107,15 +93,9 @@ export async function POST({ request, cookies }: APIContext) {
     const token = await createSession(database, user.id);
     setSessionCookies(cookies, token);
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true });
   } catch (err) {
     console.error('login error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

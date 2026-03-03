@@ -3,6 +3,7 @@ export const prerender = false;
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { generateMediaKey, createPresignedUploadUrl } from '../../../lib/storage';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
@@ -11,23 +12,12 @@ export async function POST({ request, locals }: APIContext) {
   try {
     body = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid JSON body');
   }
 
   const { contentType } = body;
   if (!contentType || !ALLOWED_TYPES.includes(contentType)) {
-    return new Response(
-      JSON.stringify({
-        error: `Invalid content type. Allowed: ${ALLOWED_TYPES.join(', ')}`,
-      }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+    return jsonError(`Invalid content type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
   }
 
   // TODO: add rate limiting for guest uploads (max 10 per hour)
@@ -38,15 +28,9 @@ export async function POST({ request, locals }: APIContext) {
     const key = await generateMediaKey(env.BUCKET, prefix);
     const uploadUrl = await createPresignedUploadUrl(env, key, contentType);
 
-    return new Response(JSON.stringify({ key, uploadUrl }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ key, uploadUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(message, 500);
   }
 }

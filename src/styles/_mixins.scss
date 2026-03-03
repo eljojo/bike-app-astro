@@ -1,0 +1,42 @@
+@use 'variables' as *;
+
+@mixin dark-mode {
+  @media (prefers-color-scheme: dark) {
+    @content;
+  }
+}
+
+@mixin tag-base {
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  padding: 3px;
+  border-radius: 7px;
+  font-family: $font-mono;
+  font-size: 1.05em;
+  letter-spacing: 1px;
+  margin: 3px 7px 3px 0;
+  display: inline-block;
+}
+
+@mixin form-control {
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-bg;
+  color: $color-text;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    color: $color-text-dark;
+    border-color: #444;
+  }
+}
+
+@mixin muted-text {
+  color: $color-text-muted;
+
+  @include dark-mode {
+    color: #aaa;
+  }
+}

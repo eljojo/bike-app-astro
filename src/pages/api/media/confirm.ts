@@ -3,38 +3,27 @@ export const prerender = false;
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { confirmUpload } from '../../../lib/storage';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export async function POST({ request, locals }: APIContext) {
   let body: { key?: string };
   try {
     body = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid JSON body');
   }
 
   const { key } = body;
   if (!key || typeof key !== 'string') {
-    return new Response(JSON.stringify({ error: 'Missing or invalid key' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Missing or invalid key');
   }
 
   try {
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const metadata = await confirmUpload(env.BUCKET, key, prefix);
-    return new Response(JSON.stringify(metadata), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(metadata as Record<string, unknown>);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(message, 404);
   }
 }

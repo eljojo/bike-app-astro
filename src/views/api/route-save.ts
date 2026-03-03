@@ -12,6 +12,7 @@ import { parseGpx } from '../../lib/gpx';
 import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
 import { findDraft, createDraft, updateDraftTimestamp } from '../../lib/draft-service';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;
 
@@ -44,37 +45,25 @@ export async function POST({ params, request, locals }: APIContext) {
   const user = locals.user;
 
   if (!user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Unauthorized', 401);
   }
 
   if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
-    return new Response(JSON.stringify({ error: 'Invalid slug' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid slug');
   }
 
   let update: RouteUpdate;
   try {
     update = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid JSON body');
   }
 
   // Validate frontmatter keys
   const allowedKeys = new Set(['name', 'tagline', 'tags', 'status', 'difficulty', 'surface', 'title']);
   const unknownKeys = Object.keys(update.frontmatter || {}).filter(k => !allowedKeys.has(k));
   if (unknownKeys.length > 0) {
-    return new Response(JSON.stringify({ error: `Unknown frontmatter keys: ${unknownKeys.join(', ')}` }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(`Unknown frontmatter keys: ${unknownKeys.join(', ')}`);
   }
 
   try {
@@ -186,14 +175,11 @@ export async function POST({ params, request, locals }: APIContext) {
           },
         });
 
-        return new Response(JSON.stringify({
+        return jsonResponse({
           error: 'This route was modified on GitHub since you started editing. Your edits are preserved in the form — review the changes on GitHub and re-apply.',
           githubUrl: `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/ottawa/routes/${slug}/index.md`,
           conflict: true,
-        }), {
-          status: 409,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        }, 409);
       }
     }
 
@@ -337,10 +323,7 @@ export async function POST({ params, request, locals }: APIContext) {
         await updateDraftTimestamp(database, draft.id);
       }
 
-      return new Response(JSON.stringify({ success: true, sha, draft: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ success: true, sha, draft: true });
     }
 
     // Direct commits: cache the edit for future compare-and-swap checks
@@ -377,15 +360,9 @@ export async function POST({ params, request, locals }: APIContext) {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, sha }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true, sha });
   } catch (err: any) {
     console.error('save route error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Failed to save' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(err.message || 'Failed to save', 500);
   }
 }
