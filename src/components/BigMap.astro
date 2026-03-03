@@ -40,6 +40,7 @@ const { routes, places, center } = Astro.props;
 
 <script>
   import { initMap, addPolylines, addMarkers } from '../lib/leaflet-init';
+  import { buildPlacePopup } from '../lib/map-helpers';
 
   const el = document.getElementById('big-map');
   if (el) {
@@ -55,10 +56,9 @@ const { routes, places, center } = Astro.props;
       popup: `<a href="${r.url}">${r.name}</a><br>${r.distance_km} km`,
     })));
 
-    addMarkers(map, places.map((p: any) => {
-      let popup = `<strong>${p.name}</strong>`;
-      if (p.google_maps_url) popup += `<br><a href="${p.google_maps_url}" target="_blank">Google Maps</a>`;
-      return { lat: p.lat, lng: p.lng, emoji: p.emoji, popup };
-    }));
+    addMarkers(map, places.map((p: any) => ({
+      lat: p.lat, lng: p.lng, emoji: p.emoji,
+      popup: buildPlacePopup(p),
+    })));
   }
 </script>
