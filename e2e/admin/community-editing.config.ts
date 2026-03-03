@@ -1,6 +1,5 @@
-import { cleanDatabase, createFixture, adminConfig } from './fixture.ts';
+import { prepareFixture, adminConfig } from './fixture.ts';
 
-cleanDatabase();
-createFixture();
+prepareFixture();
 
 export default adminConfig('community-editing.spec.ts', 4325);

@@ -1,6 +1,5 @@
-import { cleanDatabase, createFixture, adminConfig } from './fixture.ts';
+import { prepareFixture, adminConfig } from './fixture.ts';
 
-cleanDatabase();
-createFixture();
+prepareFixture();
 
 export default adminConfig('body.spec.ts', 4323);

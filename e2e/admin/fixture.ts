@@ -18,8 +18,22 @@ export const FIXTURE_DIR = path.resolve(PROJECT_ROOT, '.data', 'e2e-content');
 export const DB_PATH = path.resolve(PROJECT_ROOT, '.data', 'local.db');
 export const UPLOADS_DIR = path.resolve(PROJECT_ROOT, '.data', 'uploads');
 
+/**
+ * Prepare the fixture environment (content dir + clean DB).
+ * Guarded so it only runs once per process — Playwright imports the
+ * config file twice (server setup + test runner) and re-running would
+ * wipe the DB while the server is already connected to it.
+ */
+let prepared = false;
+export function prepareFixture() {
+  if (prepared) return;
+  prepared = true;
+  cleanDatabase();
+  createFixture();
+}
+
 /** Remove the local DB and WAL/SHM files so the server starts with a clean schema. */
-export function cleanDatabase() {
+function cleanDatabase() {
   if (!fs.existsSync(DB_PATH)) return;
   fs.rmSync(DB_PATH);
   for (const suffix of ['-wal', '-shm']) {
@@ -29,7 +43,7 @@ export function cleanDatabase() {
 }
 
 /** Create (or recreate) the fixture content directory with one route and git-init it. */
-export function createFixture() {
+function createFixture() {
   if (fs.existsSync(FIXTURE_DIR)) {
     fs.rmSync(FIXTURE_DIR, { recursive: true });
   }
@@ -160,7 +174,7 @@ About page fixture.
 `
   );
 
-  execSync('git init && git add -A && git -c user.name="test" -c user.email="test@test" commit -m "initial fixture"', {
+  execSync('git init -b main && git add -A && git -c user.name="test" -c user.email="test@test" commit -m "initial fixture"', {
     cwd: FIXTURE_DIR,
     stdio: 'inherit',
   });
