@@ -3,15 +3,22 @@ import { parseRwgpsUrl } from '../src/views/api/gpx/import-rwgps';
 
 describe('parseRwgpsUrl', () => {
   it('extracts route ID from standard URL', () => {
-    expect(parseRwgpsUrl('https://ridewithgps.com/routes/12345')).toBe('12345');
+    expect(parseRwgpsUrl('https://ridewithgps.com/routes/12345')).toEqual({
+      routeId: '12345',
+      privacyCode: undefined,
+    });
   });
 
   it('extracts route ID from URL with trailing slash', () => {
-    expect(parseRwgpsUrl('https://ridewithgps.com/routes/12345/')).toBe('12345');
+    const result = parseRwgpsUrl('https://ridewithgps.com/routes/12345/');
+    expect(result?.routeId).toBe('12345');
   });
 
-  it('extracts route ID from URL with query params', () => {
-    expect(parseRwgpsUrl('https://ridewithgps.com/routes/12345?privacy=1')).toBe('12345');
+  it('extracts privacy code from URL', () => {
+    expect(parseRwgpsUrl('https://ridewithgps.com/routes/41290515?privacy_code=QYzdfhB5D7M8D4qZ')).toEqual({
+      routeId: '41290515',
+      privacyCode: 'QYzdfhB5D7M8D4qZ',
+    });
   });
 
   it('returns null for non-RWGPS URL', () => {

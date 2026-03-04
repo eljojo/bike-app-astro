@@ -4,12 +4,13 @@ import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
-const RWGPS_ROUTE_PATTERN = /ridewithgps\.com\/routes\/(\d+)/;
+const RWGPS_ROUTE_PATTERN = /ridewithgps\.com\/routes\/(\d+)(?:\?privacy_code=([\w\d]+))?/;
 
-/** Extract route ID from a RideWithGPS URL. Exported for testing. */
-export function parseRwgpsUrl(url: string): string | null {
+/** Extract route ID and optional privacy code from a RideWithGPS URL. Exported for testing. */
+export function parseRwgpsUrl(url: string): { routeId: string; privacyCode?: string } | null {
   const match = url.match(RWGPS_ROUTE_PATTERN);
-  return match ? match[1] : null;
+  if (!match) return null;
+  return { routeId: match[1], privacyCode: match[2] || undefined };
 }
 
 export async function POST({ request, locals }: APIContext) {
@@ -24,12 +25,18 @@ export async function POST({ request, locals }: APIContext) {
     return jsonError('Missing url', 400);
   }
 
-  const routeId = parseRwgpsUrl(url);
-  if (!routeId) {
+  const parsed = parseRwgpsUrl(url);
+  if (!parsed) {
     return jsonError('Invalid RideWithGPS URL. Expected: https://ridewithgps.com/routes/12345', 400);
   }
 
-  const gpxUrl = `https://ridewithgps.com/routes/${routeId}.gpx`;
+  // sub_format=track ensures RWGPS returns <trkpt> (track points) instead of <rtept> (route waypoints)
+  const params = new URLSearchParams({ sub_format: 'track' });
+  if (parsed.privacyCode) {
+    params.set('privacy_code', parsed.privacyCode);
+  }
+
+  const gpxUrl = `https://ridewithgps.com/routes/${parsed.routeId}.gpx?${params}`;
 
   const gpxResponse = await fetch(gpxUrl, {
     headers: {
@@ -39,7 +46,7 @@ export async function POST({ request, locals }: APIContext) {
 
   if (!gpxResponse.ok) {
     return jsonError(
-      `Failed to fetch GPX from RideWithGPS (${gpxResponse.status}). Make sure the route is public.`,
+      `Failed to fetch GPX from RideWithGPS (${gpxResponse.status}). Make sure the route is public or include the privacy code.`,
       gpxResponse.status === 404 ? 404 : 502,
     );
   }
@@ -48,6 +55,6 @@ export async function POST({ request, locals }: APIContext) {
 
   return jsonResponse({
     gpxContent,
-    rwgpsUrl: `https://ridewithgps.com/routes/${routeId}`,
+    rwgpsUrl: `https://ridewithgps.com/routes/${parsed.routeId}`,
   });
 }
