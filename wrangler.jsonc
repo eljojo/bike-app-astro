@@ -18,7 +18,7 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "whereto-bike-staging",
+          "database_name": "bike-admin-staging",
           "database_id": "eeca7adc-87e0-4219-bd54-90e31985e1e4",
           "migrations_dir": "./drizzle/migrations"
         }
@@ -40,7 +40,7 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "whereto-bike-production",
+          "database_name": "bike-admin-production",
           "database_id": "9bec7997-6dbb-4099-875c-6be0681b6aea",
           "migrations_dir": "./drizzle/migrations"
         }
