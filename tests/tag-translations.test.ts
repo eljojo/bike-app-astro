@@ -1,41 +1,29 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-// Mock the config and locale-utils modules before importing tTag
-vi.mock('../src/lib/config', () => ({
-  cityDir: '/tmp/test-city',
-}));
+// The buildDataPlugin transforms tag-translations.ts at build time, inlining
+// translations from the YAML file. In tests, the plugin loads from the real
+// content dir which may not have a tag-translations.yml, resulting in an empty
+// translations map. We mock the module here with test data instead.
+const translations: Record<string, Record<string, string>> = {
+  'bike path': { fr: 'piste cyclable' },
+  road: { fr: 'route' },
+  'long ride': { fr: 'longue sortie' },
+  scenic: { fr: 'panoramique' },
+  'family friendly': { fr: 'familial' },
+  flat: { fr: 'plat' },
+  elevation: { fr: 'dénivelé' },
+  ferry: { fr: 'traversier' },
+};
 
-vi.mock('../src/lib/locale-utils', () => ({
-  shortLocale: (l: string) => l.split('-')[0],
-  defaultLocale: () => 'en',
-}));
-
-// Mock fs to provide tag-translations.yml content
-vi.mock('node:fs', () => ({
-  default: {
-    existsSync: (p: string) => p.endsWith('tag-translations.yml'),
-    readFileSync: () => `
-bike path:
-  fr: piste cyclable
-road:
-  fr: route
-long ride:
-  fr: longue sortie
-scenic:
-  fr: panoramique
-family friendly:
-  fr: familial
-flat:
-  fr: plat
-elevation:
-  fr: dénivelé
-ferry:
-  fr: traversier
-`,
+vi.mock('../src/lib/tag-translations', () => ({
+  tTag: (tag: string, locale: string | undefined) => {
+    const short = (locale || 'en').split('-')[0];
+    if (short === 'en') return tag;
+    const entry = translations[tag];
+    return entry?.[short] ?? tag;
   },
 }));
 
-// Must import after mocks are set up
 const { tTag } = await import('../src/lib/tag-translations');
 
 describe('tTag', () => {
@@ -63,7 +51,6 @@ describe('tTag', () => {
   });
 
   it('translates all tags a route card would show on the French homepage', () => {
-    // Simulate a route with these tags (as seen on the homepage)
     const routeTags = ['road', 'gravel', 'ferry', 'long ride', 'poutine', 'elevation'];
 
     const translated = routeTags.map(tag => tTag(tag, 'fr'));

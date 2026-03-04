@@ -1,4 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../src/lib/city-config', () => ({
+  getCityConfig: vi.fn(() => ({
+    name: 'Ottawa',
+    display_name: 'Ottawa by Bike',
+    url: 'https://ottawabybike.ca',
+    author: {
+      name: 'José Albornoz',
+      url: 'https://ottawabybike.ca/about',
+    },
+  })),
+}));
+
 import { routeJsonLd, eventJsonLd, guideJsonLd, breadcrumbJsonLd } from '../src/lib/json-ld';
 
 describe('routeJsonLd', () => {
