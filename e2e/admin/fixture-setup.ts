@@ -1,11 +1,20 @@
 /**
  * Playwright globalSetup — runs exactly once before the web server starts.
  * Cleans the DB and creates the fixture content directory.
+ *
+ * Also called at config-import time (via prepareFixture) to guarantee the
+ * fixture exists before the webServer command evaluates astro.config.mjs.
  */
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DB_PATH, FIXTURE_DIR } from './fixture.ts';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+export const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
+export const FIXTURE_DIR = path.resolve(PROJECT_ROOT, '.data', 'e2e-content');
+export const DB_PATH = path.resolve(PROJECT_ROOT, '.data', 'local.db');
+export const UPLOADS_DIR = path.resolve(PROJECT_ROOT, '.data', 'uploads');
 
 export default function setup() {
   // Clean slate: remove stale DB so the server creates tables with the current schema.
@@ -171,4 +180,15 @@ About page fixture.
   if (fs.existsSync(astroCache)) fs.rmSync(astroCache);
   const nmAstroCache = path.resolve(path.dirname(DB_PATH), '..', 'node_modules', '.astro', 'data-store.json');
   if (fs.existsSync(nmAstroCache)) fs.rmSync(nmAstroCache);
+}
+
+/**
+ * Guard-wrapped setup — safe to call multiple times (Playwright imports
+ * config files twice: once for the test runner, once for the web server).
+ */
+let prepared = false;
+export function prepareFixture() {
+  if (prepared) return;
+  prepared = true;
+  setup();
 }
