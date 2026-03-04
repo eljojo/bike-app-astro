@@ -217,8 +217,12 @@ jobs:
           && steps.update-screenshots.outcome != 'success'
         run: exit 1
 
-      # Admin E2E tests run after screenshot steps because they rebuild
-      # dist/ with RUNTIME=local, which overwrites the Cloudflare build.
+      # Admin E2E tests rebuild dist/ with RUNTIME=local (Node adapter),
+      # which overwrites the Cloudflare build. Save it first for deploy.
+      - name: Save Cloudflare build for deploy
+        if: ${{ inputs.deploy && !inputs.skip-e2e }}
+        run: cp -r dist dist-cloudflare
+
       - name: Run admin E2E tests
         if: ${{ !inputs.skip-e2e }}
         run: |
@@ -229,6 +233,12 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
+
+      - name: Restore Cloudflare build for deploy
+        if: ${{ inputs.deploy && !inputs.skip-e2e }}
+        run: |
+          rm -rf dist
+          mv dist-cloudflare dist
 
       - name: Prepare wrangler config for deploy
         if: inputs.deploy
