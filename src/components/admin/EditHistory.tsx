@@ -100,11 +100,6 @@ export default function EditHistory({ contentPath }: Props) {
     });
   }
 
-  // Strip the "via whereto-bike" trailer from commit messages
-  function cleanMessage(msg: string) {
-    return msg.replace(/\n\nvia whereto-bike$/, '');
-  }
-
   return (
     <div class="edit-history">
       <h3>Edit History</h3>
@@ -113,7 +108,7 @@ export default function EditHistory({ contentPath }: Props) {
         {commits.map(c => (
           <div key={c.sha} class="commit-item">
             <div class="commit-info">
-              <span class="commit-message">{cleanMessage(c.message)}</span>
+              <span class="commit-message">{c.message}</span>
               <span class="commit-meta">
                 {c.resolvedUser ? (
                   <span class={c.resolvedUser.bannedAt ? 'user-banned' : ''}>

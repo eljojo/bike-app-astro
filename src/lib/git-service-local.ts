@@ -87,8 +87,7 @@ export class LocalGitService implements IGitService {
     const git = simpleGit(this.repoPath);
     if (files.length > 0) await git.add(files.map((f) => f.path));
 
-    const formattedMessage = `${message}\n\nvia whereto-bike`;
-    await git.commit(formattedMessage, undefined, {
+    await git.commit(message, undefined, {
       '--author': `${author.name} <${author.email}>`,
     });
 

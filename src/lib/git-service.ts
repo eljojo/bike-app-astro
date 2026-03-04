@@ -57,10 +57,6 @@ const COMMITTER = {
   email: 'bike-bot@eljojo.bike',
 };
 
-function formatCommitMessage(message: string): string {
-  return `${message}\n\nvia whereto-bike`;
-}
-
 export class GitService implements IGitService {
   private branch: string;
 
@@ -120,14 +116,12 @@ export class GitService implements IGitService {
       throw new Error('No files to commit');
     }
 
-    const formattedMessage = formatCommitMessage(message);
-
     // Deletions require the Trees API (multi-file path)
     if (files.length === 1 && (!deletePaths || deletePaths.length === 0)) {
-      return this.writeSingleFile(files[0], formattedMessage, author);
+      return this.writeSingleFile(files[0], message, author);
     }
 
-    return this.writeMultipleFiles(files, formattedMessage, author, deletePaths);
+    return this.writeMultipleFiles(files, message, author, deletePaths);
   }
 
   async listCommits(opts: { path?: string; perPage?: number; page?: number } = {}): Promise<CommitInfo[]> {
@@ -481,4 +475,4 @@ export function encodeBase64Content(content: string): string {
 /**
  * Exported for testing.
  */
-export { formatCommitMessage, COMMITTER };
+export { COMMITTER };

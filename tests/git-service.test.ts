@@ -3,7 +3,6 @@ import {
   GitService,
   decodeBase64Content,
   encodeBase64Content,
-  formatCommitMessage,
   COMMITTER,
 } from '../src/lib/git-service';
 import type { FileChange, CommitAuthor } from '../src/lib/git-service';
@@ -32,18 +31,6 @@ function mockFetch(responses: Array<{ status: number; body?: unknown }>): Return
     };
   });
 }
-
-describe('formatCommitMessage', () => {
-  it('appends "via whereto-bike" suffix', () => {
-    const msg = formatCommitMessage('Update route info');
-    expect(msg).toBe('Update route info\n\nvia whereto-bike');
-  });
-
-  it('works with multiline messages', () => {
-    const msg = formatCommitMessage('Fix typo\n\nCorrected the description');
-    expect(msg).toBe('Fix typo\n\nCorrected the description\n\nvia whereto-bike');
-  });
-});
 
 describe('COMMITTER', () => {
   it('is always bike-bot', () => {
@@ -207,7 +194,7 @@ describe('GitService', () => {
       // Verify the PUT request
       const putCall = fetchMock.mock.calls[1];
       const putBody = JSON.parse(putCall[1].body);
-      expect(putBody.message).toBe('Add new route\n\nvia whereto-bike');
+      expect(putBody.message).toBe('Add new route');
       expect(putBody.author.name).toBe('Jane Cyclist');
       expect(putBody.author.email).toBe('jane@example.com');
       expect(putBody.committer.name).toBe('bike-bot');
@@ -314,7 +301,7 @@ describe('GitService', () => {
       // Verify commit creation
       const commitCall = fetchMock.mock.calls[5];
       const commitBody = JSON.parse(commitCall[1].body);
-      expect(commitBody.message).toBe('Add route with media\n\nvia whereto-bike');
+      expect(commitBody.message).toBe('Add route with media');
       expect(commitBody.tree).toBe('newtreesha');
       expect(commitBody.parents).toEqual(['basecommitsha']);
       expect(commitBody.author.name).toBe('Jane Cyclist');
