@@ -10,6 +10,7 @@
   "env": {
     "staging": {
       "name": "bike-ottawa-staging",
+      "observability": { "enabled": true },
       "vars": {
         "GIT_BRANCH": "staging",
         "ENVIRONMENT": "staging",
@@ -32,6 +33,7 @@
     },
     "production": {
       "name": "bike-ottawa-production",
+      "observability": { "enabled": true },
       "vars": {
         "GIT_BRANCH": "main",
         "ENVIRONMENT": "production",
