@@ -6,26 +6,9 @@ import { contentEdits } from '../../db/schema';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { requireAdmin } from '../../lib/auth';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { buildAuthorEmail, buildResourcePathRegex } from '../../lib/commit-author';
+import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
 
 export const prerender = false;
-
-/**
- * Parse a content path to extract contentType and contentSlug for D1 cache.
- * E.g. "ottawa/routes/pink-aylmer/index.md" → { contentType: 'routes', contentSlug: 'pink-aylmer' }
- * E.g. "ottawa/events/2026/bike-fest.md" → { contentType: 'events', contentSlug: '2026/bike-fest' }
- */
-function parseContentPath(contentPath: string): { contentType: string; contentSlug: string } | null {
-  const re = buildResourcePathRegex(CITY);
-  const match = contentPath.match(re);
-  if (!match) return null;
-
-  const resourcePath = match[0];
-  const parts = resourcePath.split('/');
-  const contentType = parts[1];
-  const contentSlug = parts.slice(2).join('/');
-  return { contentType, contentSlug };
-}
 
 export async function POST({ request, locals }: APIContext) {
   try {
@@ -55,7 +38,7 @@ export async function POST({ request, locals }: APIContext) {
     }
 
     const user = locals.user!;
-    const parsed = parseContentPath(contentPath);
+    const parsed = parseContentPath(CITY, contentPath);
     const resourceLabel = parsed ? `${CITY}/${parsed.contentType}/${parsed.contentSlug}` : contentPath;
     const restoreMessage = `Restore ${resourceLabel} to ${commitSha.slice(0, 7)}`;
     const authorInfo = {

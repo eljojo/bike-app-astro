@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAuthorEmail, parseAuthorEmail, buildResourcePathRegex } from '../src/lib/commit-author';
+import { buildAuthorEmail, parseAuthorEmail, buildResourcePathRegex, parseContentPath } from '../src/lib/commit-author';
 
 describe('buildAuthorEmail', () => {
   it('uses custom email when provided', () => {
@@ -57,5 +57,32 @@ describe('buildResourcePathRegex', () => {
     const re = buildResourcePathRegex('montreal');
     expect('Update montreal/routes/lachine'.match(re)?.[0]).toBe('montreal/routes/lachine');
     expect('Update ottawa/routes/pink-aylmer'.match(re)).toBeNull();
+  });
+});
+
+describe('parseContentPath', () => {
+  it('parses route paths with /index.md', () => {
+    expect(parseContentPath('ottawa', 'ottawa/routes/pink-aylmer/index.md'))
+      .toEqual({ contentType: 'routes', contentSlug: 'pink-aylmer' });
+  });
+
+  it('parses event paths with year subdirectory', () => {
+    expect(parseContentPath('ottawa', 'ottawa/events/2026/bike-fest.md'))
+      .toEqual({ contentType: 'events', contentSlug: '2026/bike-fest' });
+  });
+
+  it('parses paths without file extensions', () => {
+    expect(parseContentPath('ottawa', 'ottawa/guides/getting-started'))
+      .toEqual({ contentType: 'guides', contentSlug: 'getting-started' });
+  });
+
+  it('returns null for unrecognized paths', () => {
+    expect(parseContentPath('ottawa', 'unrelated/path/file.txt')).toBeNull();
+  });
+
+  it('uses the provided city name', () => {
+    expect(parseContentPath('montreal', 'montreal/routes/lachine/index.md'))
+      .toEqual({ contentType: 'routes', contentSlug: 'lachine' });
+    expect(parseContentPath('montreal', 'ottawa/routes/pink-aylmer/index.md')).toBeNull();
   });
 });
