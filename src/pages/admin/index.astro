@@ -88,11 +88,27 @@ const routes = adminRoutes.map(r => {
   const checkbox = document.getElementById('editor-mode-checkbox') as HTMLInputElement | null;
   if (checkbox) {
     checkbox.addEventListener('change', async (e) => {
-      await fetch('/api/auth/editor-mode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: (e.target as HTMLInputElement).checked }),
-      });
+      const enabled = (e.target as HTMLInputElement).checked;
+      try {
+        const res = await fetch('/api/auth/editor-mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        });
+        if (!res.ok) {
+          (e.target as HTMLInputElement).checked = !enabled;
+          return;
+        }
+      } catch {
+        (e.target as HTMLInputElement).checked = !enabled;
+        return;
+      }
+      // Set cookie client-side to guarantee it's available before reload
+      if (enabled) {
+        document.cookie = 'editor_mode=1;path=/;max-age=2592000;SameSite=Lax';
+      } else {
+        document.cookie = 'editor_mode=;path=/;max-age=0;path=/';
+      }
       window.location.reload();
     });
   }

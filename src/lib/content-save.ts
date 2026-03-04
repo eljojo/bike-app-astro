@@ -172,6 +172,41 @@ export async function saveContent<T extends { contentHash?: string }>(
 
     // Phase 4: Build and commit
     const { files, deletePaths, isNew } = await handlers.buildFileChanges(update, contentId, currentFiles, git);
+
+    // Skip commit if nothing actually changed
+    if (!isNew && deletePaths.length === 0) {
+      const knownContent = new Map<string, string>();
+      if (currentFiles.primaryFile) {
+        knownContent.set(filePaths.primary, currentFiles.primaryFile.content);
+      }
+      if (currentFiles.auxiliaryFiles) {
+        for (const [p, f] of Object.entries(currentFiles.auxiliaryFiles)) {
+          if (f) knownContent.set(p, f.content);
+        }
+      }
+
+      let hasChanges = false;
+      for (const f of files) {
+        let current = knownContent.get(f.path);
+        if (current === undefined) {
+          const gitFile = await git.readFile(f.path);
+          current = gitFile?.content;
+        }
+        if (current === undefined || current !== f.content) {
+          hasChanges = true;
+          break;
+        }
+      }
+
+      if (!hasChanges) {
+        if (isDirect) {
+          const currentHash = handlers.computeContentHash(currentFiles);
+          return jsonResponse({ success: true, id: contentId, contentHash: currentHash });
+        }
+        return jsonResponse({ success: true, id: contentId, draft: true });
+      }
+    }
+
     const message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
