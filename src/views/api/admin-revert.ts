@@ -1,4 +1,6 @@
 import type { APIContext } from 'astro';
+import matter from 'gray-matter';
+import yaml from 'js-yaml';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
@@ -57,20 +59,52 @@ export async function POST({ request, locals }: APIContext) {
       const database = db();
       const newFile = await git.readFile(contentPath);
       if (newFile) {
-        await database.insert(contentEdits).values({
-          contentType: parsed.contentType,
-          contentSlug: parsed.contentSlug,
-          data: fileAtCommit.content,
-          githubSha: newFile.sha,
-          updatedAt: new Date().toISOString(),
-        }).onConflictDoUpdate({
-          target: [contentEdits.contentType, contentEdits.contentSlug],
-          set: {
-            data: fileAtCommit.content,
+        const { data: fm, content: body } = matter(fileAtCommit.content);
+        let cacheData: string | null = null;
+
+        if (parsed.contentType === 'routes') {
+          // Revert only touches index.md — read current media.yml separately
+          const basePath = contentPath.replace(/\/index\.md$/, '').replace(/\.md$/, '');
+          const mediaFile = await git.readFile(`${basePath}/media.yml`);
+          const mediaEntries = mediaFile ? (yaml.load(mediaFile.content) as unknown[]) ?? [] : [];
+          cacheData = JSON.stringify({
+            slug: parsed.contentSlug,
+            name: fm.name,
+            tagline: fm.tagline || '',
+            tags: fm.tags || [],
+            distance: fm.distance_km || 0,
+            status: fm.status,
+            body,
+            media: mediaEntries,
+            variants: fm.variants || [],
+          });
+        } else if (parsed.contentType === 'events') {
+          const [year, slug] = parsed.contentSlug.split('/');
+          cacheData = JSON.stringify({
+            id: parsed.contentSlug,
+            slug,
+            year,
+            ...fm,
+            body,
+          });
+        }
+
+        if (cacheData !== null) {
+          await database.insert(contentEdits).values({
+            contentType: parsed.contentType,
+            contentSlug: parsed.contentSlug,
+            data: cacheData,
             githubSha: newFile.sha,
             updatedAt: new Date().toISOString(),
-          },
-        });
+          }).onConflictDoUpdate({
+            target: [contentEdits.contentType, contentEdits.contentSlug],
+            set: {
+              data: cacheData,
+              githubSha: newFile.sha,
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        }
       }
     }
 
