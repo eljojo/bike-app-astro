@@ -9,6 +9,8 @@ import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
+import { uploadToLfs } from '../../lib/git-lfs';
+import { env } from '../../lib/env';
 
 export const prerender = false;
 
@@ -154,7 +156,15 @@ const routeHandlers: SaveHandlers<RouteUpdate> = {
 
       for (const v of update.variants) {
         if (v.isNew && v.gpxContent) {
-          files.push({ path: `${basePath}/${v.gpx}`, content: v.gpxContent });
+          // Upload GPX to LFS and commit pointer file instead of raw content
+          const token = env.GITHUB_TOKEN;
+          if (token && typeof token === 'string') {
+            const pointer = await uploadToLfs(token, GIT_OWNER, GIT_DATA_REPO, v.gpxContent);
+            files.push({ path: `${basePath}/${v.gpx}`, content: pointer });
+          } else {
+            // Local dev: commit raw GPX (local git handles LFS via .gitattributes)
+            files.push({ path: `${basePath}/${v.gpx}`, content: v.gpxContent });
+          }
         }
       }
 
