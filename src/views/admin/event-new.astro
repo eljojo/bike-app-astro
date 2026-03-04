@@ -1,11 +1,10 @@
 ---
 export const prerender = false;
 
-import Base from '../../layouts/Base.astro';
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventEditor from '../../components/admin/EventEditor.tsx';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env';
-import '../../styles/admin.scss';
 
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
@@ -24,16 +23,6 @@ const initialData = {
 };
 ---
 
-<Base title="New Event" admin>
-  <div class="admin-page">
-    <div class="editor-header">
-      <a href="/admin/events" class="back-link">&larr; Back to events</a>
-    </div>
-    <h1 class="editor-title">New Event</h1>
-    <EventEditor client:load initialData={initialData} organizers={organizers} cdnUrl={cdnUrl} />
-  </div>
-</Base>
-
-<style lang="scss">
-  @use '../../styles/editor';
-</style>
+<AdminEditorLayout title="New Event" backLink="/admin/events" backLabel="Back to events">
+  <EventEditor client:load initialData={initialData} organizers={organizers} cdnUrl={cdnUrl} />
+</AdminEditorLayout>

@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 
-import Base from '../../layouts/Base.astro';
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env';
@@ -13,7 +13,6 @@ import { findDraft, deleteDraft } from '../../lib/draft-service';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import '../../styles/admin.scss';
 
 const { slug } = Astro.params;
 
@@ -89,17 +88,11 @@ if (!routeData) {
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 ---
 
-<Base title={`Edit: ${routeData.name}`} admin>
-  <div class="admin-page">
-    <div class="editor-header">
-      <a href="/admin" class="back-link">&larr; Back to routes</a>
-      <a href={`/routes/${slug}`} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>
-    </div>
-    <h1 class="editor-title">Edit: {routeData.name}</h1>
-    <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
-  </div>
-</Base>
-
-<style lang="scss">
-  @use '../../styles/editor';
-</style>
+<AdminEditorLayout
+  title={`Edit: ${routeData.name}`}
+  backLink="/admin"
+  backLabel="Back to routes"
+  viewLink={`/routes/${slug}`}
+>
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
+</AdminEditorLayout>

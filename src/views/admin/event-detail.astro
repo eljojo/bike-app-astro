@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 
-import Base from '../../layouts/Base.astro';
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventEditor from '../../components/admin/EventEditor.tsx';
 import adminEventDetails from 'virtual:bike-app/admin-event-detail';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
@@ -13,7 +13,6 @@ import { createGitService } from '../../lib/git-factory';
 import { findDraft, deleteDraft } from '../../lib/draft-service';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import matter from 'gray-matter';
-import '../../styles/admin.scss';
 
 const id = Astro.params.id;
 if (!id) return new Response(null, { status: 404 });
@@ -68,16 +67,6 @@ const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 ---
 
-<Base title={`Edit: ${eventData.name}`} admin>
-  <div class="admin-page">
-    <div class="editor-header">
-      <a href="/admin/events" class="back-link">&larr; Back to events</a>
-    </div>
-    <h1 class="editor-title">Edit: {eventData.name}</h1>
-    <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
-  </div>
-</Base>
-
-<style lang="scss">
-  @use '../../styles/editor';
-</style>
+<AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events">
+  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
+</AdminEditorLayout>

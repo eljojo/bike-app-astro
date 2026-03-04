@@ -1,21 +1,10 @@
 ---
 export const prerender = false;
 
-import Base from '../../layouts/Base.astro';
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteCreator from '../../components/admin/RouteCreator.tsx';
-import '../../styles/admin.scss';
 ---
 
-<Base title="New Route" admin>
-  <div class="admin-page">
-    <div class="editor-header">
-      <a href="/admin" class="back-link">&larr; Back to routes</a>
-    </div>
-    <h1 class="editor-title">New Route</h1>
-    <RouteCreator client:load />
-  </div>
-</Base>
-
-<style lang="scss">
-  @use '../../styles/editor';
-</style>
+<AdminEditorLayout title="New Route" backLink="/admin" backLabel="Back to routes">
+  <RouteCreator client:load />
+</AdminEditorLayout>
