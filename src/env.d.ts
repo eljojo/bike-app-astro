@@ -1,6 +1,7 @@
 /// <reference types="astro/client" />
 
 import type { SessionUser } from './lib/auth';
+import type { AdminRoute, AdminRouteDetail, AdminEvent, AdminEventDetail, AdminOrganizer, AdminOrganizerRef } from './types/admin';
 
 declare namespace App {
   interface Locals {
@@ -31,72 +32,26 @@ declare module 'cloudflare:workers' {
 
 // Virtual modules provided by buildDataPlugin
 declare module 'virtual:bike-app/admin-routes' {
-  const routes: Array<{
-    slug: string;
-    name: string;
-    mediaCount: number;
-    status: string;
-    contentHash: string;
-    difficultyScore: number | null;
-  }>;
+  const routes: AdminRoute[];
   export default routes;
 }
 
 declare module 'virtual:bike-app/admin-route-detail' {
-  interface AdminMediaItem {
-    key: string;
-    caption?: string;
-    cover?: boolean;
-  }
-  interface AdminVariant {
-    name: string;
-    gpx: string;
-    distance_km?: number;
-    strava_url?: string;
-    rwgps_url?: string;
-  }
-  interface AdminRouteDetail {
-    slug: string;
-    name: string;
-    tagline: string;
-    tags: string[];
-    status: string;
-    body: string;
-    media: AdminMediaItem[];
-    contentHash: string;
-    variants: AdminVariant[];
-  }
   const details: Record<string, AdminRouteDetail>;
   export default details;
 }
 
 declare module 'virtual:bike-app/admin-events' {
-  interface OrganizerInline { name: string; website?: string; instagram?: string }
-  const events: Array<{
-    id: string; slug: string; year: string; name: string;
-    start_date: string; end_date?: string;
-    organizer?: string | OrganizerInline;
-    poster_key?: string; contentHash: string;
-  }>;
+  const events: AdminEvent[];
   export default events;
 }
 
 declare module 'virtual:bike-app/admin-event-detail' {
-  interface OrganizerInline { name: string; website?: string; instagram?: string }
-  const details: Record<string, {
-    id: string; slug: string; year: string; name: string;
-    start_date: string; start_time?: string; end_date?: string; end_time?: string;
-    registration_url?: string; distances?: string; location?: string;
-    review_url?: string;
-    organizer?: string | OrganizerInline;
-    poster_key?: string; poster_content_type?: string; body: string; contentHash: string;
-  }>;
+  const details: Record<string, AdminEventDetail>;
   export default details;
 }
 
 declare module 'virtual:bike-app/admin-organizers' {
-  const organizers: Array<{
-    slug: string; name: string; website?: string; instagram?: string;
-  }>;
+  const organizers: AdminOrganizer[];
   export default organizers;
 }

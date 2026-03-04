@@ -22,6 +22,7 @@ import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
 import { parseGpx } from './lib/gpx';
 import { scoreRoute } from './lib/difficulty';
+import type { AdminRoute, AdminRouteDetail, AdminMediaItem, AdminVariant, AdminEvent, AdminEventDetail, AdminOrganizer, AdminOrganizerRef } from './types/admin';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -68,86 +69,6 @@ function loadCachedMaps() {
     }
   }
   return maps;
-}
-
-interface AdminOrganizerRef {
-  name: string;
-  website?: string;
-  instagram?: string;
-}
-
-interface AdminEvent {
-  id: string;           // e.g. "2025/bike-fest"
-  slug: string;         // e.g. "bike-fest"
-  year: string;         // e.g. "2025"
-  name: string;
-  start_date: string;
-  end_date?: string;
-  organizer?: string | AdminOrganizerRef;  // slug string or inline object
-  poster_key?: string;
-  contentHash: string;
-}
-
-interface AdminEventDetail {
-  id: string;
-  slug: string;
-  year: string;
-  name: string;
-  start_date: string;
-  start_time?: string;
-  end_date?: string;
-  end_time?: string;
-  registration_url?: string;
-  distances?: string;
-  location?: string;
-  review_url?: string;
-  organizer?: string | AdminOrganizerRef;  // slug string or inline object
-  poster_key?: string;
-  poster_content_type?: string;
-  body: string;
-  contentHash: string;
-}
-
-interface AdminOrganizer {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
-
-interface AdminRoute {
-  slug: string;
-  name: string;
-  mediaCount: number;
-  status: string;
-  contentHash: string;
-  difficultyScore: number | null;
-}
-
-interface AdminMediaItem {
-  key: string;
-  caption?: string;
-  cover?: boolean;
-}
-
-interface AdminVariant {
-  name: string;
-  gpx: string;
-  distance_km?: number;
-  strava_url?: string;
-  rwgps_url?: string;
-}
-
-interface AdminRouteDetail {
-  slug: string;
-  name: string;
-  tagline: string;
-  tags: string[];
-  status: string;
-  body: string;
-  media: AdminMediaItem[];
-  contentHash: string;
-  variants: AdminVariant[];
 }
 
 function readRouteDir(slug: string) {
