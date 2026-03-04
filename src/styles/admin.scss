@@ -260,6 +260,14 @@
   padding: 0.625rem 1.25rem;
 }
 
+.gate-btn-hint {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.8;
+  margin-top: 0.125rem;
+}
+
 .gate-divider {
   text-align: center;
   color: $color-text-muted;
