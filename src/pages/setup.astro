@@ -1,26 +1,15 @@
 ---
 export const prerender = false;
 
-import Base from '../layouts/Base.astro';
+import AuthCardLayout from '../components/AuthCardLayout.astro';
 import RegisterForm from '../components/admin/RegisterForm.tsx';
 import { isFirstUser } from '../lib/auth';
 import { db } from '../lib/get-db';
-import '../styles/admin.scss';
 
-const database = db();
-
-const first = await isFirstUser(database);
-if (!first) {
-  return new Response(null, { status: 404 });
-}
+const first = await isFirstUser(db());
+if (!first) return new Response(null, { status: 404 });
 ---
 
-<Base title="Setup">
-  <div class="auth-page">
-    <div class="auth-card">
-      <h1>Setup</h1>
-      <p class="auth-message">Create the first admin account. This page is only available once.</p>
-      <RegisterForm client:load isSetup={true} />
-    </div>
-  </div>
-</Base>
+<AuthCardLayout title="Setup" subtitle="Create the first admin account.">
+  <RegisterForm client:load isSetup returnTo="/admin" />
+</AuthCardLayout>

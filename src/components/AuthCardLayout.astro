@@ -1,0 +1,21 @@
+---
+import Base from '../layouts/Base.astro';
+import '../styles/admin.scss';
+
+interface Props {
+  title: string;
+  subtitle?: string;
+}
+
+const { title, subtitle } = Astro.props;
+---
+
+<Base title={title}>
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1>{title}</h1>
+      {subtitle && <p class="auth-subtitle">{subtitle}</p>}
+      <slot />
+    </div>
+  </div>
+</Base>

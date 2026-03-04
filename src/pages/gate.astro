@@ -1,19 +1,12 @@
 ---
 export const prerender = false;
 
-import Base from '../layouts/Base.astro';
+import AuthCardLayout from '../components/AuthCardLayout.astro';
 import AuthGate from '../components/admin/AuthGate.tsx';
-import '../styles/admin.scss';
 
 const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
 ---
 
-<Base title="Continue to edit">
-  <div class="auth-page">
-    <div class="auth-card">
-      <h1>Edit this page</h1>
-      <p class="auth-subtitle">Choose how to continue</p>
-      <AuthGate client:load returnTo={returnTo} />
-    </div>
-  </div>
-</Base>
+<AuthCardLayout title="Edit this page" subtitle="Choose how to continue:">
+  <AuthGate client:load returnTo={returnTo} />
+</AuthCardLayout>
