@@ -1,4 +1,15 @@
 import 'dotenv/config';
+// E2E test guard: if CONTENT_DIR is a git repo, reset working tree to the
+// initial commit. Prevents stale modifications from previous test runs whose
+// async git operations may race with the next build.
+import { execSync as _execSync } from 'node:child_process';
+import { existsSync as _existsSync } from 'node:fs';
+if (process.env.CONTENT_DIR && _existsSync(process.env.CONTENT_DIR + '/.git')) {
+  try {
+    const _root = _execSync('git rev-list --max-parents=0 HEAD', { cwd: process.env.CONTENT_DIR }).toString().trim();
+    _execSync(`git reset --hard ${_root}`, { cwd: process.env.CONTENT_DIR, stdio: 'ignore' });
+  } catch { /* not a git repo or no HEAD */ }
+}
 import { defineConfig } from 'astro/config';
 import { getAdapter } from './src/lib/adapter';
 import preact from '@astrojs/preact';

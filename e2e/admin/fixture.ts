@@ -2,9 +2,8 @@
  * Shared fixture setup for admin E2E tests.
  *
  * Creates a self-contained content directory with one route (carp),
- * git-inits it, and optionally cleans the local DB. Each admin config
- * calls `createFixture()` at import time so the fixture is ready before
- * Playwright starts the web server.
+ * git-inits it, and cleans the local DB. Setup runs via Playwright's
+ * globalSetup so it executes exactly once before the web server starts.
  */
 import { defineConfig } from '@playwright/test';
 import { execSync } from 'node:child_process';
@@ -19,174 +18,15 @@ export const DB_PATH = path.resolve(PROJECT_ROOT, '.data', 'local.db');
 export const UPLOADS_DIR = path.resolve(PROJECT_ROOT, '.data', 'uploads');
 
 /**
- * Prepare the fixture environment (content dir + clean DB).
- * Guarded so it only runs once per process — Playwright imports the
- * config file twice (server setup + test runner) and re-running would
- * wipe the DB while the server is already connected to it.
- */
-let prepared = false;
-export function prepareFixture() {
-  if (prepared) return;
-  prepared = true;
-  cleanDatabase();
-  createFixture();
-}
-
-/** Remove the local DB and WAL/SHM files so the server starts with a clean schema. */
-function cleanDatabase() {
-  if (!fs.existsSync(DB_PATH)) return;
-  fs.rmSync(DB_PATH);
-  for (const suffix of ['-wal', '-shm']) {
-    const p = DB_PATH + suffix;
-    if (fs.existsSync(p)) fs.rmSync(p);
-  }
-}
-
-/** Create (or recreate) the fixture content directory with one route and git-init it. */
-function createFixture() {
-  if (fs.existsSync(FIXTURE_DIR)) {
-    fs.rmSync(FIXTURE_DIR, { recursive: true });
-  }
-
-  const routeDir = path.join(FIXTURE_DIR, 'ottawa', 'routes', 'carp');
-  fs.mkdirSync(routeDir, { recursive: true });
-
-  fs.writeFileSync(
-    path.join(FIXTURE_DIR, 'ottawa', 'config.yml'),
-    `name: Ottawa
-display_name: Ottawa by Bike
-tagline: Cycling routes in Ottawa
-description: E2E test fixture
-url: http://localhost
-domain: localhost
-cdn_url: http://localhost
-videos_cdn_url: http://localhost
-tiles_url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
-timezone: America/Toronto
-locale: en-CA
-locales: [en-CA, fr-CA]
-author:
-  name: Test Author
-  email: test@example.com
-  url: http://localhost/about
-plausible_domain: localhost
-site_title_html: <em>Ottawa</em> by <em>Bike</em>
-center:
-  lat: 45.42
-  lng: -75.69
-bounds:
-  north: 45.6
-  south: 45.2
-  east: -75.4
-  west: -76.0
-place_categories:
-  adventure: [park]
-  food: [cafe]
-  utility: [bike-shop]
-`
-  );
-
-  fs.writeFileSync(
-    path.join(routeDir, 'index.md'),
-    `---
-name: Towards Carp
-status: published
-distance_km: 67.7
-tags:
-  - road
-tagline: Keep going west
-created_at: '2022-11-19'
-updated_at: '2023-06-26'
-variants:
-  - name: 2024 Detour
-    gpx: main.gpx
-    distance_km: 34.3
-    strava_url: https://www.strava.com/activities/11458503483
-  - name: Normal Route
-    gpx: variants/main.gpx
-    distance_km: 40.8
-    strava_url: https://www.strava.com/activities/7907456752
----
-
-Carp is a rural community west of Ottawa. This route follows the Trans Canada Trail through Stittsville and on to Carp along quiet rural roads.
-`
-  );
-
-  fs.writeFileSync(
-    path.join(routeDir, 'main.gpx'),
-    `<?xml version="1.0" encoding="UTF-8"?>
-<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
-  <trk>
-    <name>Towards Carp</name>
-    <trkseg>
-      <trkpt lat="45.3485" lon="-75.8154"><ele>64</ele></trkpt>
-      <trkpt lat="45.3600" lon="-75.8300"><ele>70</ele></trkpt>
-      <trkpt lat="45.3700" lon="-75.8500"><ele>75</ele></trkpt>
-      <trkpt lat="45.3800" lon="-75.8700"><ele>80</ele></trkpt>
-      <trkpt lat="45.3900" lon="-75.9000"><ele>85</ele></trkpt>
-    </trkseg>
-  </trk>
-</gpx>
-`
-  );
-
-  const variantsDir = path.join(routeDir, 'variants');
-  fs.mkdirSync(variantsDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(variantsDir, 'main.gpx'),
-    `<?xml version="1.0" encoding="UTF-8"?>
-<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
-  <trk>
-    <name>Normal Route</name>
-    <trkseg>
-      <trkpt lat="45.3485" lon="-75.8154"><ele>64</ele></trkpt>
-      <trkpt lat="45.3700" lon="-75.8500"><ele>75</ele></trkpt>
-      <trkpt lat="45.3900" lon="-75.9000"><ele>85</ele></trkpt>
-    </trkseg>
-  </trk>
-</gpx>
-`
-  );
-
-  fs.writeFileSync(
-    path.join(routeDir, 'media.yml'),
-    `---
-- type: photo
-  key: e2e-test-cover-photo-key
-  caption: Test cover photo
-  width: 1200
-  height: 800
-  cover: true
-  handle: cover
-`
-  );
-
-  // About page is pre-rendered and throws if missing
-  const pagesDir = path.join(FIXTURE_DIR, 'ottawa', 'pages');
-  fs.mkdirSync(pagesDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(pagesDir, 'about.md'),
-    `---
-title: About
----
-
-About page fixture.
-`
-  );
-
-  execSync('git init -b main && git add -A && git -c user.name="test" -c user.email="test@test" commit -m "initial fixture"', {
-    cwd: FIXTURE_DIR,
-    stdio: 'inherit',
-  });
-}
-
-/**
  * Return a Playwright config for an admin E2E test suite.
  * Each suite gets its own port to avoid collisions.
+ * Uses globalSetup to run fixture preparation exactly once,
+ * before the web server starts.
  */
 export function adminConfig(testMatch: string, port: number) {
   const baseURL = `http://localhost:${port}`;
   return defineConfig({
+    globalSetup: path.resolve(__dirname, 'fixture-setup.ts'),
     testDir: '.',
     testMatch,
     fullyParallel: false,
