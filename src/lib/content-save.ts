@@ -201,31 +201,36 @@ export async function saveContent<T extends { contentHash?: string }>(
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
 
-    // Phase 5: Post-commit — update D1 cache
-    const newPrimary = await git.readFile(filePaths.primary);
-    if (newPrimary) {
-      const newAuxiliary: Record<string, { content: string; sha: string } | null> = {};
+    // Phase 5: Post-commit — update D1 cache using in-memory committed content
+    const committedPrimary = files.find(f => f.path === filePaths.primary);
+    if (committedPrimary) {
+      const committedFiles: CurrentFiles = {
+        primaryFile: { content: committedPrimary.content, sha },
+        auxiliaryFiles: {},
+      };
       if (filePaths.auxiliary) {
         for (const auxPath of filePaths.auxiliary) {
-          newAuxiliary[auxPath] = await git.readFile(auxPath);
+          const auxFile = files.find(f => f.path === auxPath);
+          committedFiles.auxiliaryFiles![auxPath] = auxFile
+            ? { content: auxFile.content, sha }
+            : currentFiles.auxiliaryFiles?.[auxPath] ?? null;
         }
       }
-      const newFiles: CurrentFiles = { primaryFile: newPrimary, auxiliaryFiles: newAuxiliary };
 
-      const cacheData = handlers.buildCacheData(update, contentId, newFiles);
-      const newContentHash = handlers.computeContentHash(newFiles);
+      const cacheData = handlers.buildCacheData(update, contentId, committedFiles);
+      const newContentHash = handlers.computeContentHash(committedFiles);
 
       await database.insert(contentEdits).values({
         contentType,
         contentSlug: contentId,
         data: cacheData,
-        githubSha: newPrimary.sha,
+        githubSha: sha,
         updatedAt: new Date().toISOString(),
       }).onConflictDoUpdate({
         target: [contentEdits.contentType, contentEdits.contentSlug],
         set: {
           data: cacheData,
-          githubSha: newPrimary.sha,
+          githubSha: sha,
           updatedAt: new Date().toISOString(),
         },
       });
