@@ -1,4 +1,4 @@
-import { useState, useRef } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
 
 interface OrganizerData {
@@ -108,6 +108,9 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   // Poster upload
   const posterUpload = useFileUpload();
   const posterInputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+  const dropHandlerRef = useRef<(file: File) => void>(() => {});
 
   // Save state
   const [saving, setSaving] = useState(false);
@@ -149,6 +152,48 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
       setError(posterUpload.error);
     }
   }
+
+  // Full-page drag-and-drop for poster upload
+  dropHandlerRef.current = (file: File) => uploadPoster(file);
+
+  useEffect(() => {
+    function handleDragEnter(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current++;
+      if (e.dataTransfer?.types.includes('Files')) {
+        setDragging(true);
+      }
+    }
+    function handleDragLeave(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current--;
+      if (dragCounterRef.current === 0) {
+        setDragging(false);
+      }
+    }
+    function handleDragOver(e: DragEvent) {
+      e.preventDefault();
+    }
+    function handleDrop(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragging(false);
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) {
+        dropHandlerRef.current(file);
+      }
+    }
+    document.addEventListener('dragenter', handleDragEnter);
+    document.addEventListener('dragleave', handleDragLeave);
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+    return () => {
+      document.removeEventListener('dragenter', handleDragEnter);
+      document.removeEventListener('dragleave', handleDragLeave);
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
+  }, []);
 
   async function handleSave() {
     setError('');
@@ -221,6 +266,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   }
 
   return (
+    <div class="event-editor-wrapper">
+      {dragging && (
+        <div class="drop-overlay">
+          <div class="drop-overlay-content">Drop image to upload poster</div>
+        </div>
+      )}
     <fieldset class="event-editor" disabled={readOnly}>
       <section class="editor-section">
         <h2>Event Details</h2>
@@ -429,5 +480,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
         </button>
       </div>
     </fieldset>
+    </div>
   );
 }
