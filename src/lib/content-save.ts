@@ -8,6 +8,7 @@ import { GIT_OWNER, GIT_DATA_REPO } from './config';
 import { jsonResponse, jsonError } from './api-response';
 import type { IGitService, FileChange } from './git-service';
 import type { SessionUser } from './auth';
+import { buildAuthorEmail } from './commit-author';
 
 export interface CurrentFiles {
   primaryFile: { content: string; sha: string } | null;
@@ -102,7 +103,7 @@ export async function saveContent<T extends { contentHash?: string }>(
 
     const authorInfo = {
       name: user.username,
-      email: user.email || `${user.username}@whereto.bike`,
+      email: buildAuthorEmail(user),
     };
 
     // Phase 1b: Check existence for new content
