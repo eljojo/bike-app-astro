@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState } from 'preact/hooks';
+import { useTextareaValue } from '../../lib/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
@@ -34,16 +35,8 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = useTextareaValue(body);
 
-  // Preact hydration bug: the value prop is not applied to textareas during
-  // hydration, and child diffing removes the SSR text content, leaving the
-  // textarea empty. Re-apply the value after mount.
-  useEffect(() => {
-    if (bodyRef.current && body && !bodyRef.current.value) {
-      bodyRef.current.value = body;
-    }
-  }, []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');

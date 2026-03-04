@@ -10,14 +10,16 @@
  * local git.
  */
 
-let _env: any;
+import type { AppEnv } from './app-env';
+
+let _env: AppEnv;
 
 if (process.env.RUNTIME === 'local') {
   const { createLocalEnv } = await import('./env-local');
   _env = createLocalEnv();
 } else {
   const cf = await import('cloudflare:workers');
-  _env = cf.env;
+  _env = cf.env as AppEnv;
 }
 
-export const env = _env;
+export const env: AppEnv = _env;

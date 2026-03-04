@@ -1,4 +1,5 @@
 import { useState, useRef } from 'preact/hooks';
+import { useDragReorder } from '../../lib/hooks';
 
 export interface VariantItem {
   name: string;
@@ -16,7 +17,7 @@ interface Props {
 }
 
 export default function VariantManager({ variants, onChange }: Props) {
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const drag = useDragReorder(variants, onChange);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,19 +30,6 @@ export default function VariantManager({ variants, onChange }: Props) {
   function removeVariant(idx: number) {
     onChange(variants.filter((_, i) => i !== idx));
   }
-
-  // Drag reorder
-  function handleDragStart(idx: number) { setDragIdx(idx); }
-  function handleDragOver(e: DragEvent, idx: number) {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) return;
-    const updated = [...variants];
-    const [moved] = updated.splice(dragIdx, 1);
-    updated.splice(idx, 0, moved);
-    onChange(updated);
-    setDragIdx(idx);
-  }
-  function handleDragEnd() { setDragIdx(null); }
 
   function handleGpxUpload(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -81,11 +69,11 @@ export default function VariantManager({ variants, onChange }: Props) {
       {variants.map((v, idx) => (
         <div
           key={`${v.gpx}-${idx}`}
-          class={`variant-card ${dragIdx === idx ? 'variant-card--dragging' : ''}`}
+          class={`variant-card ${drag.dragIdx === idx ? 'variant-card--dragging' : ''}`}
           draggable
-          onDragStart={() => handleDragStart(idx)}
-          onDragOver={(e: DragEvent) => handleDragOver(e, idx)}
-          onDragEnd={handleDragEnd}
+          onDragStart={() => drag.handleDragStart(idx)}
+          onDragOver={(e: DragEvent) => drag.handleDragOver(e, idx)}
+          onDragEnd={drag.handleDragEnd}
         >
           <div class="variant-header">
             <span class="variant-grip">{'⠿'}</span>

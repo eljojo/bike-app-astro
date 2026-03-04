@@ -2,12 +2,12 @@ import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
-import { users, credentials } from '../../../db/schema';
+import { users } from '../../../db/schema';
 import {
   normalizeEmail,
   generateId,
-  createSession,
-  setSessionCookies,
+  createSessionWithCookies,
+  storeCredential,
   retrieveChallenge,
   getWebAuthnConfig,
   isFirstUser,
@@ -68,21 +68,10 @@ export async function POST({ request, cookies }: APIContext) {
     });
 
     // Store credential
-    await database.insert(credentials).values({
-      id: generateId(),
-      userId,
-      credentialId: credential.id,
-      publicKey: new Uint8Array(credential.publicKey),
-      counter: credential.counter,
-      transports: credentialResponse.response?.transports
-        ? JSON.stringify(credentialResponse.response.transports)
-        : null,
-      createdAt: now,
-    });
+    await storeCredential(database, userId, credential, credentialResponse.response?.transports);
 
     // Create session
-    const token = await createSession(database, userId);
-    setSessionCookies(cookies, token);
+    await createSessionWithCookies(database, userId, cookies);
 
     return jsonResponse({ success: true });
   } catch (err) {

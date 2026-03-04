@@ -5,23 +5,20 @@ import {
   getWebAuthnConfig,
   storeChallenge,
 } from '../../../lib/auth';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
 export async function POST({ request, cookies, locals }: APIContext) {
   const user = locals.user;
   if (!user || user.role !== 'guest') {
-    return new Response(JSON.stringify({ error: 'Only guests can upgrade' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Only guests can upgrade');
   }
 
   try {
     const { email } = await request.json();
     if (!email) {
-      return new Response(JSON.stringify({ error: 'Email is required' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Email is required');
     }
 
     const config = getWebAuthnConfig(request.url, env);
@@ -40,13 +37,9 @@ export async function POST({ request, cookies, locals }: APIContext) {
 
     storeChallenge(cookies, options.challenge);
 
-    return new Response(JSON.stringify(options), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(options as unknown as Record<string, unknown>);
   } catch (err) {
     console.error('upgrade-options error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

@@ -5,8 +5,7 @@ import { db } from '../../../lib/get-db';
 import { users, credentials } from '../../../db/schema';
 import {
   normalizeEmail,
-  createSession,
-  setSessionCookies,
+  createSessionWithCookies,
   retrieveChallenge,
   getWebAuthnConfig,
 } from '../../../lib/auth';
@@ -90,8 +89,7 @@ export async function POST({ request, cookies }: APIContext) {
       .where(eq(credentials.id, storedCredential.id));
 
     // Create session
-    const token = await createSession(database, user.id);
-    setSessionCookies(cookies, token);
+    await createSessionWithCookies(database, user.id, cookies);
 
     return jsonResponse({ success: true });
   } catch (err) {

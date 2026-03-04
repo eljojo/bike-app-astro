@@ -1,13 +1,14 @@
 import type { APIContext } from 'astro';
+import { requireAdmin } from '../../../lib/auth';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
 export async function POST({ request, cookies, locals }: APIContext) {
-  const user = locals.user;
-  if (!user || user.role !== 'admin') {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { 'Content-Type': 'application/json' },
-    });
+  try {
+    requireAdmin(locals.user);
+  } catch {
+    return jsonError('Unauthorized', 401);
   }
 
   const { enabled } = await request.json();
@@ -24,7 +25,5 @@ export async function POST({ request, cookies, locals }: APIContext) {
     cookies.delete('editor_mode', { path: '/' });
   }
 
-  return new Response(JSON.stringify({ success: true, editorMode: !!enabled }), {
-    status: 200, headers: { 'Content-Type': 'application/json' },
-  });
+  return jsonResponse({ success: true, editorMode: !!enabled });
 }

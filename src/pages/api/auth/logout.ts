@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import { db } from '../../../lib/get-db';
 import { destroySession, clearSessionCookies } from '../../../lib/auth';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
@@ -18,10 +19,7 @@ export async function POST({ request, cookies }: APIContext) {
     // Support both HTML form submissions (redirect) and fetch API (JSON)
     const accept = request.headers.get('accept') || '';
     if (accept.includes('application/json')) {
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ success: true });
     }
     return new Response(null, {
       status: 302,
@@ -29,9 +27,6 @@ export async function POST({ request, cookies }: APIContext) {
     });
   } catch (err) {
     console.error('logout error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

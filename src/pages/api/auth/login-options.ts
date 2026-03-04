@@ -5,6 +5,7 @@ import { db } from '../../../lib/get-db';
 import { users, credentials } from '../../../db/schema';
 import { normalizeEmail, getWebAuthnConfig, storeChallenge } from '../../../lib/auth';
 import { eq } from 'drizzle-orm';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
@@ -14,10 +15,7 @@ export async function POST({ request, cookies }: APIContext) {
     const { email: rawEmail } = body;
 
     if (!rawEmail) {
-      return new Response(JSON.stringify({ error: 'Email is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Email is required');
     }
 
     const database = db();
@@ -32,10 +30,7 @@ export async function POST({ request, cookies }: APIContext) {
       .limit(1);
 
     if (userResult.length === 0) {
-      return new Response(JSON.stringify({ error: 'Invalid email or credentials' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Invalid email or credentials');
     }
 
     const userId = userResult[0].id;
@@ -58,15 +53,9 @@ export async function POST({ request, cookies }: APIContext) {
     // Store challenge in cookie
     storeChallenge(cookies, options.challenge);
 
-    return new Response(JSON.stringify(options), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(options as unknown as Record<string, unknown>);
   } catch (err) {
     console.error('login-options error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

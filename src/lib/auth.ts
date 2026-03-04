@@ -153,6 +153,49 @@ export async function isFirstUser(db: Database): Promise<boolean> {
   return result.length === 0;
 }
 
+/** Require an authenticated user. Throws if not logged in. */
+export function requireUser(user: SessionUser | null | undefined): SessionUser {
+  if (!user) throw new Error('Unauthorized');
+  return user;
+}
+
+/** Require an admin user. Throws if not admin. */
+export function requireAdmin(user: SessionUser | null | undefined): SessionUser {
+  const u = requireUser(user);
+  if (u.role !== 'admin') throw new Error('Admin access required');
+  return u;
+}
+
+/** Store a WebAuthn credential for a user. */
+export async function storeCredential(
+  database: Database,
+  userId: string,
+  credential: { id: string; publicKey: ArrayBuffer; counter: number },
+  transports?: string[],
+): Promise<void> {
+  const { credentials } = await import('../db/schema');
+  await database.insert(credentials).values({
+    id: generateId(),
+    userId,
+    credentialId: credential.id,
+    publicKey: new Uint8Array(credential.publicKey),
+    counter: credential.counter,
+    transports: transports ? JSON.stringify(transports) : null,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+/** Create session and set cookies in one call. */
+export async function createSessionWithCookies(
+  database: Database,
+  userId: string,
+  cookies: AstroCookies,
+): Promise<string> {
+  const token = await createSession(database, userId);
+  setSessionCookies(cookies, token);
+  return token;
+}
+
 // Re-export AstroCookies type reference for use in auth.ts
 // The actual type comes from astro at runtime
 type AstroCookies = {

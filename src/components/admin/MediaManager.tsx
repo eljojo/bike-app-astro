@@ -1,4 +1,5 @@
 import { useState, useRef } from 'preact/hooks';
+import { useDragReorder, useFileUpload } from '../../lib/hooks';
 
 export interface MediaItem {
   key: string;
@@ -15,70 +16,24 @@ interface Props {
 }
 
 export default function MediaManager({ media, onChange, cdnUrl }: Props) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
+  const fileUpload = useFileUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const drag = useDragReorder(media, onChange);
 
   function thumbnailUrl(key: string): string {
     return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
   }
 
   async function uploadFiles(files: FileList | File[]) {
-    setError('');
-    setUploading(true);
-
-    try {
-      const newItems: MediaItem[] = [];
-
-      for (const file of Array.from(files)) {
-        // Get presigned URL
-        const presignRes = await fetch('/api/media/presign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contentType: file.type }),
-        });
-
-        if (!presignRes.ok) {
-          const data = await presignRes.json();
-          throw new Error(data.error || 'Failed to get upload URL');
-        }
-
-        const { key, uploadUrl } = await presignRes.json();
-
-        // Upload to R2
-        await fetch(uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        });
-
-        // Confirm upload
-        const confirmRes = await fetch('/api/media/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key }),
-        });
-
-        if (!confirmRes.ok) {
-          const errData = await confirmRes.json();
-          throw new Error(errData.error || 'Upload confirmation failed');
-        }
-
-        const confirmed = await confirmRes.json();
-        newItems.push({
-          key: confirmed.key,
-          width: confirmed.width,
-          height: confirmed.height,
-        });
-      }
-
+    const results = await fileUpload.upload(Array.from(files));
+    if (results.length > 0) {
+      const newItems: MediaItem[] = results.map(r => ({
+        key: r.key,
+        width: r.width,
+        height: r.height,
+      }));
       onChange([...media, ...newItems]);
-    } catch (err: any) {
-      setError(err.message || 'Upload failed');
-    } finally {
-      setUploading(false);
     }
   }
 
@@ -113,26 +68,6 @@ export default function MediaManager({ media, onChange, cdnUrl }: Props) {
     onChange(updated);
   }
 
-  // Drag reorder handlers
-  function handleDragStart(idx: number) {
-    setDragIdx(idx);
-  }
-
-  function handleDragOver(e: DragEvent, idx: number) {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) return;
-
-    const updated = [...media];
-    const [moved] = updated.splice(dragIdx, 1);
-    updated.splice(idx, 0, moved);
-    onChange(updated);
-    setDragIdx(idx);
-  }
-
-  function handleDragEnd() {
-    setDragIdx(null);
-  }
-
   return (
     <div class="media-manager">
       <div
@@ -142,7 +77,7 @@ export default function MediaManager({ media, onChange, cdnUrl }: Props) {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        {uploading ? 'Uploading...' : 'Drop photos here or click to add'}
+        {fileUpload.uploading ? 'Uploading...' : 'Drop photos here or click to add'}
         <input
           ref={fileInputRef}
           type="file"
@@ -153,17 +88,17 @@ export default function MediaManager({ media, onChange, cdnUrl }: Props) {
         />
       </div>
 
-      {error && <div class="auth-error">{error}</div>}
+      {fileUpload.error && <div class="auth-error">{fileUpload.error}</div>}
 
       <div class="photo-grid">
         {media.map((item, idx) => (
           <div
             key={item.key}
-            class={`photo-card ${dragIdx === idx ? 'photo-card--dragging' : ''}`}
+            class={`photo-card ${drag.dragIdx === idx ? 'photo-card--dragging' : ''}`}
             draggable
-            onDragStart={() => handleDragStart(idx)}
-            onDragOver={(e: DragEvent) => handleDragOver(e, idx)}
-            onDragEnd={handleDragEnd}
+            onDragStart={() => drag.handleDragStart(idx)}
+            onDragOver={(e: DragEvent) => drag.handleDragOver(e, idx)}
+            onDragEnd={drag.handleDragEnd}
           >
             <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />
             <div class="photo-actions">

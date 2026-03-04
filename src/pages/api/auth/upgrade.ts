@@ -2,39 +2,33 @@ import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
-import { users, credentials } from '../../../db/schema';
+import { users } from '../../../db/schema';
 import { eq } from 'drizzle-orm';
 import {
   normalizeEmail,
-  generateId,
-  createSession,
+  createSessionWithCookies,
+  storeCredential,
   destroySession,
-  setSessionCookies,
   retrieveChallenge,
   getWebAuthnConfig,
 } from '../../../lib/auth';
 import { sanitizeDisplayName } from '../../../lib/draft-branch';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
 export async function POST({ request, cookies, locals }: APIContext) {
   const user = locals.user;
   if (!user || user.role !== 'guest') {
-    return new Response(JSON.stringify({ error: 'Only guests can upgrade' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Only guests can upgrade');
   }
 
   const { email: rawEmail, displayName, credential: credentialResponse } = await request.json();
   if (!rawEmail) {
-    return new Response(JSON.stringify({ error: 'Email is required' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Email is required');
   }
   if (!credentialResponse) {
-    return new Response(JSON.stringify({ error: 'Passkey registration is required to upgrade' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Passkey registration is required to upgrade');
   }
 
   const database = db();
@@ -44,17 +38,13 @@ export async function POST({ request, cookies, locals }: APIContext) {
   // Check email not already taken
   const existing = await database.select().from(users).where(eq(users.email, email)).limit(1);
   if (existing.length > 0) {
-    return new Response(JSON.stringify({ error: 'Email already registered' }), {
-      status: 409, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Email already registered', 409);
   }
 
   // Retrieve and consume the stored challenge
   const expectedChallenge = retrieveChallenge(cookies);
   if (!expectedChallenge) {
-    return new Response(JSON.stringify({ error: 'Challenge expired, please try again' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Challenge expired, please try again');
   }
 
   try {
@@ -66,25 +56,13 @@ export async function POST({ request, cookies, locals }: APIContext) {
     });
 
     if (!verification.verified || !verification.registrationInfo) {
-      return new Response(JSON.stringify({ error: 'Passkey verification failed' }), {
-        status: 400, headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Passkey verification failed');
     }
 
     const { credential } = verification.registrationInfo;
 
     // Store credential for the existing user
-    await database.insert(credentials).values({
-      id: generateId(),
-      userId: user.id,
-      credentialId: credential.id,
-      publicKey: new Uint8Array(credential.publicKey),
-      counter: credential.counter,
-      transports: credentialResponse.response?.transports
-        ? JSON.stringify(credentialResponse.response.transports)
-        : null,
-      createdAt: new Date().toISOString(),
-    });
+    await storeCredential(database, user.id, credential, credentialResponse.response?.transports);
 
     // Upgrade: set email, role, optionally displayName
     const updates: Record<string, unknown> = { email, role: 'editor' };
@@ -98,16 +76,11 @@ export async function POST({ request, cookies, locals }: APIContext) {
     if (oldToken) {
       await destroySession(database, oldToken);
     }
-    const newToken = await createSession(database, user.id);
-    setSessionCookies(cookies, newToken);
+    await createSessionWithCookies(database, user.id, cookies);
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true });
   } catch (err) {
     console.error('upgrade error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

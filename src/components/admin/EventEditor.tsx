@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useRef } from 'preact/hooks';
+import { useTextareaValue, useFileUpload } from '../../lib/hooks';
 
 interface OrganizerData {
   slug: string;
@@ -87,7 +88,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
   const [body, setBody] = useState(initialData.body);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = useTextareaValue(body);
 
   // Organizer state
   const initOrg = resolveOrganizer(initialData.organizer, organizers);
@@ -98,7 +99,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
   const [showOrgForm, setShowOrgForm] = useState(initOrg.name !== '');
 
   // Poster upload
-  const [uploadingPoster, setUploadingPoster] = useState(false);
+  const posterUpload = useFileUpload();
   const posterInputRef = useRef<HTMLInputElement>(null);
 
   // Save state
@@ -106,13 +107,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
-
-  // Preact hydration bug workaround (same as RouteEditor)
-  useEffect(() => {
-    if (bodyRef.current && body && !bodyRef.current.value) {
-      bodyRef.current.value = body;
-    }
-  }, []);
 
   function selectOrganizer(slug: string) {
     setOrgSlug(slug);
@@ -140,33 +134,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
 
   async function uploadPoster(file: File) {
     setError('');
-    setUploadingPoster(true);
-
-    try {
-      const presignRes = await fetch('/api/media/presign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType: file.type }),
-      });
-      if (!presignRes.ok) throw new Error('Failed to get upload URL');
-      const { key, uploadUrl } = await presignRes.json();
-
-      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-
-      const confirmRes = await fetch('/api/media/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key }),
-      });
-      if (!confirmRes.ok) throw new Error('Upload confirmation failed');
-      const confirmData = await confirmRes.json();
-
-      setPosterKey(key);
-      setPosterContentType(confirmData.contentType || file.type);
-    } catch (err: any) {
-      setError(err.message || 'Poster upload failed');
-    } finally {
-      setUploadingPoster(false);
+    const results = await posterUpload.upload(file);
+    if (results.length > 0) {
+      setPosterKey(results[0].key);
+      setPosterContentType(results[0].contentType || file.type);
+    } else if (posterUpload.error) {
+      setError(posterUpload.error);
     }
   }
 
@@ -345,8 +318,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
         )}
         <button type="button" class="btn-secondary"
           onClick={() => posterInputRef.current?.click()}
-          disabled={uploadingPoster}>
-          {uploadingPoster ? 'Uploading...' : posterKey ? 'Replace poster' : 'Upload poster'}
+          disabled={posterUpload.uploading}>
+          {posterUpload.uploading ? 'Uploading...' : posterKey ? 'Replace poster' : 'Upload poster'}
         </button>
         <input ref={posterInputRef} type="file" accept="image/jpeg,image/png,image/webp"
           style="display:none"

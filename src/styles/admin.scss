@@ -298,3 +298,257 @@
   cursor: pointer;
   color: inherit;
 }
+
+// Tag editor (RouteEditor island)
+.tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  padding: 0.375rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-bg;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    border-color: #444;
+  }
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  border-radius: $border-radius;
+  font-size: 0.8125rem;
+
+  button {
+    background: none;
+    border: none;
+    color: $color-tag-text;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1;
+  }
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  padding: 0.125rem;
+  flex: 1;
+  min-width: 80px;
+  background: transparent;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+}
+
+// Media grid (MediaManager island)
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.photo-card {
+  position: relative;
+  border-radius: $border-radius;
+  overflow: hidden;
+  background: $color-card-bg;
+  cursor: grab;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.photo-card--dragging {
+  opacity: 0.5;
+}
+
+.photo-actions {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-star,
+.btn-remove {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-star--active {
+  background: rgba(255, 165, 0, 0.8);
+}
+
+.photo-caption {
+  width: 100%;
+  border: none;
+  border-top: 1px solid $color-border;
+  padding: 0.25rem 0.375rem;
+  font-size: 0.75rem;
+  background: $color-card-bg;
+  color: $color-text;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: #333;
+  }
+}
+
+// Variant manager (VariantManager island)
+.variant-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.variant-card {
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  padding: 0.75rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: #333;
+  }
+}
+
+.variant-card--dragging {
+  opacity: 0.5;
+}
+
+.variant-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-grip {
+  cursor: grab;
+  @include muted-text;
+  user-select: none;
+}
+
+.variant-name {
+  flex: 1;
+}
+
+.variant-distance {
+  font-size: 0.8125rem;
+  @include muted-text;
+}
+
+.variant-new {
+  background: $color-accent;
+  color: #000;
+  padding: 0.125rem 0.375rem;
+  border-radius: $border-radius;
+  font-size: 0.75rem;
+}
+
+.variant-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-edit-variant {
+  background: none;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+    border-color: #444;
+  }
+}
+
+.variant-edit-form {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid $color-border;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  @include dark-mode {
+    border-color: #333;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    label {
+      font-size: 0.75rem;
+      @include muted-text;
+    }
+
+    code {
+      font-family: $font-mono;
+      font-size: 0.8125rem;
+    }
+  }
+}
+
+.variant-add {
+  margin-top: 0.25rem;
+}
+
+// Route creator (RouteCreator island)
+.route-creator {
+  max-width: 500px;
+}
+
+.drop-zone--large {
+  padding: 3rem 1.5rem;
+  font-size: 1rem;
+}
+
+.route-creator-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+
+  small {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}

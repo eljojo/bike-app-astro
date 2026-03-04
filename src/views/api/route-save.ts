@@ -1,18 +1,14 @@
 import { createHash } from 'node:crypto';
 import type { APIContext } from 'astro';
-import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
-import { db } from '../../lib/get-db';
-import { contentEdits } from '../../db/schema';
-import { eq, and } from 'drizzle-orm';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { resolveBranch, isDirectCommit } from '../../lib/draft-branch';
-import { findDraft, ensureDraftBranch, handleDraftAfterCommit } from '../../lib/draft-service';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
-import { jsonResponse, jsonError } from '../../lib/api-response';
+import { jsonError } from '../../lib/api-response';
+import { saveContent } from '../../lib/content-save';
+import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
+import type { FileChange } from '../../lib/git-service';
 
 export const prerender = false;
 
@@ -40,154 +36,102 @@ interface RouteUpdate {
   contentHash?: string;
 }
 
-export async function POST({ params, request, locals }: APIContext) {
-  const { slug } = params;
-  const user = locals.user;
+const CITY = 'ottawa';
 
-  if (!user) {
-    return jsonError('Unauthorized', 401);
-  }
+const routeHandlers: SaveHandlers<RouteUpdate> = {
+  parseRequest(body: unknown): RouteUpdate {
+    const update = body as RouteUpdate;
+    // Validate frontmatter keys
+    const allowedKeys = new Set(['name', 'tagline', 'tags', 'status', 'difficulty', 'surface', 'title']);
+    const unknownKeys = Object.keys(update.frontmatter || {}).filter(k => !allowedKeys.has(k));
+    if (unknownKeys.length > 0) {
+      throw new Error(`Unknown frontmatter keys: ${unknownKeys.join(', ')}`);
+    }
+    return update;
+  },
 
-  if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
-    return jsonError('Invalid slug');
-  }
+  resolveContentId(params): string {
+    return params.slug!;
+  },
 
-  let update: RouteUpdate;
-  try {
-    update = await request.json();
-  } catch {
-    return jsonError('Invalid JSON body');
-  }
+  validateSlug(slug: string): string | null {
+    if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
+      return 'Invalid slug';
+    }
+    return null;
+  },
 
-  // Validate frontmatter keys
-  const allowedKeys = new Set(['name', 'tagline', 'tags', 'status', 'difficulty', 'surface', 'title']);
-  const unknownKeys = Object.keys(update.frontmatter || {}).filter(k => !allowedKeys.has(k));
-  if (unknownKeys.length > 0) {
-    return jsonError(`Unknown frontmatter keys: ${unknownKeys.join(', ')}`);
-  }
-
-  try {
-    const baseBranch = env.GIT_BRANCH || 'main';
-    const editorMode = request.headers.get('cookie')?.includes('editor_mode=1') ?? false;
-    const targetBranch = resolveBranch(user, editorMode, baseBranch, 'routes', slug);
-    const isDirect = isDirectCommit(user, editorMode);
-
-    const git = createGitService({
-      token: env.GITHUB_TOKEN,
-      owner: GIT_OWNER,
-      repo: GIT_DATA_REPO,
-      branch: targetBranch,
-    });
-
-    const city = 'ottawa';
-    const basePath = `${city}/routes/${slug}`;
-    const database = db();
-    const authorInfo = {
-      name: user.displayName,
-      email: user.email || `${user.displayName}@users.ottawabybike.ca`,
+  getFilePaths(slug: string) {
+    const basePath = `${CITY}/routes/${slug}`;
+    return {
+      primary: `${basePath}/index.md`,
+      auxiliary: [`${basePath}/media.yml`],
     };
+  },
 
-    // For draft saves, check/create the draft branch before reading files
-    let draft = isDirect ? null : await findDraft(database, user.id, 'routes', slug);
-    const isFirstDraftSave = !isDirect && !draft;
+  computeContentHash(currentFiles: CurrentFiles): string {
+    const hash = createHash('md5').update(currentFiles.primaryFile!.content);
+    const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
+    if (mediaPath && currentFiles.auxiliaryFiles![mediaPath]) {
+      hash.update(currentFiles.auxiliaryFiles![mediaPath]!.content);
+    }
+    return hash.digest('hex');
+  },
 
-    if (isFirstDraftSave) {
-      await ensureDraftBranch(env.GITHUB_TOKEN, baseBranch, targetBranch);
+  buildFreshData(slug: string, currentFiles: CurrentFiles): string {
+    const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile!.content);
+    const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
+    const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
+
+    let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
+    if (currentMedia) {
+      const mediaEntries = (yaml.load(currentMedia.content) as any[]) || [];
+      ghMedia = mediaEntries
+        .filter((m: any) => m.type === 'photo')
+        .map((m: any) => {
+          const item: Record<string, unknown> = { key: m.key };
+          if (m.caption) item.caption = m.caption;
+          if (m.cover) item.cover = m.cover;
+          return item;
+        }) as Array<{ key: string; caption?: string; cover?: boolean }>;
     }
 
-    // Read current files from target branch
-    const currentFile = await git.readFile(`${basePath}/index.md`);
-    const currentMedia = await git.readFile(`${basePath}/media.yml`);
+    return JSON.stringify({
+      slug,
+      name: ghFrontmatter.name,
+      tagline: ghFrontmatter.tagline || '',
+      tags: ghFrontmatter.tags || [],
+      distance: ghFrontmatter.distance_km,
+      status: ghFrontmatter.status,
+      body: ghBody.trim(),
+      media: ghMedia,
+      variants: (ghFrontmatter.variants as any[]) || [],
+    });
+  },
 
-    // Compare-and-swap conflict detection (direct commits only)
-    if (isDirect && currentFile) {
-      const cached = await database.select().from(contentEdits).where(and(eq(contentEdits.contentType, 'routes'), eq(contentEdits.contentSlug, slug))).get();
-
-      let hasConflict = false;
-
-      if (cached) {
-        hasConflict = cached.githubSha !== currentFile.sha;
-      } else if (update.contentHash) {
-        const currentHash = createHash('md5')
-          .update(currentFile.content)
-          .update(currentMedia?.content || '')
-          .digest('hex');
-        hasConflict = currentHash !== update.contentHash;
-      }
-
-      if (hasConflict) {
-        const { data: ghFrontmatter, content: ghBody } = matter(currentFile.content);
-
-        let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
-        if (currentMedia) {
-          const mediaEntries = (yaml.load(currentMedia.content) as any[]) || [];
-          // TODO(C7): include all media types when video management is added to admin UI
-          ghMedia = mediaEntries
-            .filter((m: any) => m.type === 'photo')
-            .map((m: any) => {
-              const item: Record<string, unknown> = { key: m.key };
-              if (m.caption) item.caption = m.caption;
-              if (m.cover) item.cover = m.cover;
-              return item;
-            }) as Array<{ key: string; caption?: string; cover?: boolean }>;
-        }
-
-        const freshData = JSON.stringify({
-          slug,
-          name: ghFrontmatter.name,
-          tagline: ghFrontmatter.tagline || '',
-          tags: ghFrontmatter.tags || [],
-          distance: ghFrontmatter.distance_km,
-          status: ghFrontmatter.status,
-          body: ghBody.trim(),
-          media: ghMedia,
-          variants: (ghFrontmatter.variants as any[]) || [],
-        });
-
-        await database.insert(contentEdits).values({
-          contentType: 'routes',
-          contentSlug: slug,
-          data: freshData,
-          githubSha: currentFile.sha,
-          updatedAt: new Date().toISOString(),
-        }).onConflictDoUpdate({
-          target: [contentEdits.contentType, contentEdits.contentSlug],
-          set: {
-            data: freshData,
-            githubSha: currentFile.sha,
-            updatedAt: new Date().toISOString(),
-          },
-        });
-
-        return jsonResponse({
-          error: 'This route was modified on GitHub since you started editing. Your edits are preserved in the form — review the changes on GitHub and re-apply.',
-          githubUrl: `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/ottawa/routes/${slug}/index.md`,
-          conflict: true,
-        }, 409);
-      }
-    }
-
-    const files: Array<{ path: string; content: string }> = [];
+  async buildFileChanges(update, slug, currentFiles): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
+    const basePath = `${CITY}/routes/${slug}`;
+    const files: FileChange[] = [];
     const deletePaths: string[] = [];
-    const isNewRoute = !currentFile;
+    const isNew = !currentFiles.primaryFile;
 
     // Build frontmatter
     let mergedFrontmatter: Record<string, unknown>;
     let existingFrontmatter: Record<string, unknown> = {};
 
-    if (isNewRoute) {
+    if (isNew) {
       const adminFields: Record<string, unknown> = { ...update.frontmatter };
       adminFields.status = 'draft';
       adminFields.created_at = new Date().toISOString().split('T')[0];
       adminFields.updated_at = new Date().toISOString().split('T')[0];
       mergedFrontmatter = adminFields;
     } else {
-      const { data } = matter(currentFile.content);
+      const { data } = matter(currentFiles.primaryFile!.content);
       existingFrontmatter = data;
       mergedFrontmatter = { ...existingFrontmatter, ...update.frontmatter };
     }
 
-    // Process variants — update frontmatter and commit new GPX files
+    // Process variants
     if (update.variants) {
       const variantMeta = update.variants.map(v => {
         const entry: Record<string, unknown> = { name: v.name, gpx: v.gpx };
@@ -227,18 +171,17 @@ export async function POST({ params, request, locals }: APIContext) {
       }
     }
 
-    // Build index.md from final merged frontmatter
+    // Build index.md
     const frontmatterStr = yaml.dump(mergedFrontmatter, {
-      lineWidth: -1,
-      quotingType: '"',
-      forceQuotes: false,
+      lineWidth: -1, quotingType: '"', forceQuotes: false,
     }).trimEnd();
 
-    const indexContent = `---\n${frontmatterStr}\n---\n\n${update.body}\n`;
-    files.push({ path: `${basePath}/index.md`, content: indexContent });
+    files.push({ path: `${basePath}/index.md`, content: `---\n${frontmatterStr}\n---\n\n${update.body}\n` });
 
-    // Build media.yml by merging admin changes into existing entries
+    // Build media.yml
     if (update.media) {
+      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
+      const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
       let existingMedia: Array<Record<string, unknown>> = [];
       if (currentMedia) {
         existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
@@ -250,10 +193,17 @@ export async function POST({ params, request, locals }: APIContext) {
       }
     }
 
-    // Determine commit message
+    return { files, deletePaths, isNew };
+  },
+
+  buildCommitMessage(update, slug, isNew, currentFiles): string {
+    if (isNew) return `Create ${slug}`;
+
     const parts: string[] = [];
     if (update.frontmatter) parts.push('Update');
     if (update.media) {
+      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
+      const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
       let existingCount = 0;
       if (currentMedia) {
         const entries = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
@@ -270,76 +220,36 @@ export async function POST({ params, request, locals }: APIContext) {
         parts.push(`${newVariants.length} variant${newVariants.length > 1 ? 's' : ''}`);
       }
     }
-    const message = isNewRoute
-      ? `Create ${slug}`
-      : parts.length > 0
-        ? `${parts.join(' + ')} for ${slug}`
-        : `Update ${slug}`;
+    return parts.length > 0 ? `${parts.join(' + ')} for ${slug}` : `Update ${slug}`;
+  },
 
-    // Commit to target branch
-    const sha = await git.writeFiles(files, message, authorInfo,
-      deletePaths.length > 0 ? deletePaths : undefined);
+  buildCacheData(update, slug, currentFiles): string {
+    // Extract distance from the committed file's frontmatter
+    const { data: fm } = currentFiles.primaryFile
+      ? matter(currentFiles.primaryFile.content)
+      : { data: {} as Record<string, unknown> };
 
-    // Draft saves: create PR on first save, update timestamp on subsequent saves
-    if (!isDirect) {
-      await handleDraftAfterCommit(database, {
-        token: env.GITHUB_TOKEN,
-        user,
-        contentType: 'routes',
-        contentSlug: slug,
-        baseBranch,
-        targetBranch,
-        isFirstDraftSave,
-        existingDraft: draft,
-        prTitle: `${user.displayName}: Update ${slug}`,
-      });
+    return JSON.stringify({
+      slug,
+      name: update.frontmatter.name,
+      tagline: update.frontmatter.tagline || '',
+      tags: update.frontmatter.tags || [],
+      distance: fm.distance_km || 0,
+      status: update.frontmatter.status,
+      body: update.body,
+      media: update.media || [],
+      variants: update.variants?.map(v => ({
+        name: v.name, gpx: v.gpx, distance_km: v.distance_km,
+        strava_url: v.strava_url, rwgps_url: v.rwgps_url,
+      })) || [],
+    });
+  },
 
-      return jsonResponse({ success: true, sha, draft: true });
-    }
+  buildGitHubUrl(slug: string, baseBranch: string): string {
+    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/ottawa/routes/${slug}/index.md`;
+  },
+};
 
-    // Direct commits: cache the edit for future compare-and-swap checks
-    const newFile = await git.readFile(`${basePath}/index.md`);
-    const newMedia = await git.readFile(`${basePath}/media.yml`);
-    if (newFile) {
-      const cacheData = JSON.stringify({
-        slug,
-        name: update.frontmatter.name,
-        tagline: update.frontmatter.tagline || '',
-        tags: update.frontmatter.tags || [],
-        distance: mergedFrontmatter.distance_km || 0,
-        status: update.frontmatter.status,
-        body: update.body,
-        media: update.media || [],
-        variants: update.variants?.map(v => ({
-          name: v.name, gpx: v.gpx, distance_km: v.distance_km,
-          strava_url: v.strava_url, rwgps_url: v.rwgps_url,
-        })) || [],
-      });
-
-      await database.insert(contentEdits).values({
-        contentType: 'routes',
-        contentSlug: slug,
-        data: cacheData,
-        githubSha: newFile.sha,
-        updatedAt: new Date().toISOString(),
-      }).onConflictDoUpdate({
-        target: [contentEdits.contentType, contentEdits.contentSlug],
-        set: {
-          data: cacheData,
-          githubSha: newFile.sha,
-          updatedAt: new Date().toISOString(),
-        },
-      });
-    }
-
-    // Return new contentHash so client can use it for subsequent saves
-    const newContentHash = newFile
-      ? createHash('md5').update(newFile.content).update(newMedia?.content || '').digest('hex')
-      : undefined;
-
-    return jsonResponse({ success: true, sha, contentHash: newContentHash });
-  } catch (err: any) {
-    console.error('save route error:', err);
-    return jsonError(err.message || 'Failed to save', 500);
-  }
+export async function POST({ params, request, locals }: APIContext) {
+  return saveContent(request, locals, params, 'routes', routeHandlers);
 }

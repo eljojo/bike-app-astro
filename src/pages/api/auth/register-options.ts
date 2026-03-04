@@ -2,14 +2,14 @@ import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
-import { users, credentials } from '../../../db/schema';
+import { users } from '../../../db/schema';
 import {
   normalizeEmail,
   getWebAuthnConfig,
   storeChallenge,
-  isFirstUser,
 } from '../../../lib/auth';
 import { eq } from 'drizzle-orm';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
@@ -19,10 +19,7 @@ export async function POST({ request, cookies }: APIContext) {
     const { email: rawEmail, displayName } = body;
 
     if (!rawEmail || !displayName) {
-      return new Response(JSON.stringify({ error: 'Email and display name are required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Email and display name are required');
     }
 
     const database = db();
@@ -36,10 +33,7 @@ export async function POST({ request, cookies }: APIContext) {
       .limit(1);
 
     if (existingUser.length > 0) {
-      return new Response(JSON.stringify({ error: 'Unable to register with this email' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError('Unable to register with this email');
     }
 
     const config = getWebAuthnConfig(request.url, env);
@@ -59,15 +53,9 @@ export async function POST({ request, cookies }: APIContext) {
     // Store challenge in cookie for verification
     storeChallenge(cookies, options.challenge);
 
-    return new Response(JSON.stringify(options), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(options as unknown as Record<string, unknown>);
   } catch (err) {
     console.error('register-options error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Internal server error', 500);
   }
 }

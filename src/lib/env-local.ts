@@ -1,11 +1,12 @@
 import path from 'node:path';
 import { createLocalDb } from '../db/local';
 import { createLocalBucket } from './storage-local';
+import type { AppEnv } from './app-env';
 
 const LOCAL_DB_PATH = path.resolve(import.meta.dirname, '..', '..', '.data', 'local.db');
 const LOCAL_UPLOADS_DIR = path.resolve(import.meta.dirname, '..', '..', '.data', 'uploads');
 
-export function createLocalEnv() {
+export function createLocalEnv(): AppEnv {
   const db = createLocalDb(process.env.LOCAL_DB_PATH || LOCAL_DB_PATH);
   const bucket = createLocalBucket(process.env.LOCAL_UPLOADS_DIR || LOCAL_UPLOADS_DIR);
 
@@ -24,8 +25,6 @@ export function createLocalEnv() {
     STORAGE_KEY_PREFIX: process.env.STORAGE_KEY_PREFIX || '',
     GIT_BRANCH: process.env.GIT_BRANCH || '',
     ENVIRONMENT: process.env.ENVIRONMENT || 'local',
-    ASSETS: null as unknown as Fetcher,
+    ASSETS: null as unknown,
   };
 }
-
-export type LocalEnv = ReturnType<typeof createLocalEnv>;
