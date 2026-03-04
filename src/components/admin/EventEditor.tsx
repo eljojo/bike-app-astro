@@ -210,7 +210,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
         setDraftSaved(true);
       } else {
         setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        setTimeout(() => setSaved(false), 8000);
       }
     } catch (err: any) {
       setError(err.message || 'Save failed');
@@ -389,7 +389,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
             </a>
           </div>
         )}
-        {saved && <div class="save-success">Saved! Site rebuild triggered.</div>}
+        {saved && (
+          <div class="save-success">
+            Saved! Your edit will be live in a few minutes.
+            {' '}<a href={`/events/${initialData.id}`}>View live</a>
+          </div>
+        )}
         {draftSaved && (
           <SaveSuccessModal
             prUrl={draftPrNumber

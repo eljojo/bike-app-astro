@@ -104,6 +104,11 @@
   color: $color-success;
   font-size: 0.875rem;
 
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
   @include dark-mode {
     color: $color-success-dark;
   }
