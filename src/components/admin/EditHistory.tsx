@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useMemo } from 'preact/hooks';
 
 interface CommitUser {
   id: string;
@@ -18,14 +18,30 @@ interface Commit {
 
 interface Props {
   contentPath?: string;
+  city?: string;
 }
 
-export default function EditHistory({ contentPath }: Props) {
+export default function EditHistory({ contentPath, city = 'ottawa' }: Props) {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const resourcePathRegex = useMemo(
+    () => new RegExp(`${city}/(?:routes|events|guides|places|organizers)/[\\w/-]+`),
+    [city],
+  );
+
+  function resolveContentPath(commit: Commit): string | null {
+    if (contentPath) return contentPath;
+    const match = commit.message.match(resourcePathRegex);
+    if (!match) return null;
+    const parts = match[0].split('/');
+    const contentType = parts[1];
+    if (contentType === 'routes') return `${match[0]}/index.md`;
+    return `${match[0]}.md`;
+  }
 
   async function fetchCommits(pageNum: number, append = false) {
     setLoading(true);
@@ -53,21 +69,15 @@ export default function EditHistory({ contentPath }: Props) {
     fetchCommits(next, true);
   }
 
-  async function handleRevert(sha: string) {
-    if (!confirm('Revert this commit? This will restore the previous version.')) return;
+  async function handleRestore(sha: string, filePath: string) {
+    if (!confirm('Restore this version? This will overwrite the current version with the content from this commit.')) return;
 
     setActionLoading(sha);
     try {
-      // Extract contentType and contentId from contentPath
-      const match = contentPath?.match(/ottawa\/(routes|events)\/(.+)/);
-      if (!match) return;
-      const contentType = match[1];
-      const contentId = match[2].replace(/\/index\.md$/, '').replace(/\.md$/, '');
-
       const res = await fetch('/api/admin/revert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commitSha: sha, contentType, contentId }),
+        body: JSON.stringify({ commitSha: sha, contentPath: filePath }),
       });
       if (res.ok) {
         fetchCommits(1);
@@ -100,53 +110,66 @@ export default function EditHistory({ contentPath }: Props) {
     });
   }
 
+  function extractResourceLabel(commit: Commit): string | null {
+    if (contentPath) return null;
+    const match = commit.message.match(resourcePathRegex);
+    return match ? match[0] : null;
+  }
+
   return (
     <div class="edit-history">
       <h3>Edit History</h3>
       {commits.length === 0 && !loading && <p class="muted">No commits found.</p>}
       <div class="commit-list">
-        {commits.map(c => (
-          <div key={c.sha} class="commit-item">
-            <div class="commit-info">
-              <span class="commit-message">{c.message}</span>
-              <span class="commit-meta">
-                {c.resolvedUser ? (
-                  <span class={c.resolvedUser.bannedAt ? 'user-banned' : ''}>
-                    {c.resolvedUser.username}
-                    {c.resolvedUser.wasGuest && ' (former guest)'}
-                    {c.resolvedUser.bannedAt && ' [banned]'}
-                  </span>
-                ) : (
-                  <span>{c.author.name}</span>
+        {commits.map(c => {
+          const filePath = resolveContentPath(c);
+          const resourceLabel = extractResourceLabel(c);
+          return (
+            <div key={c.sha} class="commit-item">
+              <div class="commit-info">
+                <span class="commit-message">{c.message}</span>
+                {resourceLabel && (
+                  <span class="commit-resource">{resourceLabel}</span>
                 )}
-                {' · '}
-                <time>{formatDate(c.date)}</time>
-              </span>
+                <span class="commit-meta">
+                  {c.resolvedUser ? (
+                    <span class={c.resolvedUser.bannedAt ? 'user-banned' : ''}>
+                      {c.resolvedUser.username}
+                      {c.resolvedUser.wasGuest && ' (former guest)'}
+                      {c.resolvedUser.bannedAt && ' [banned]'}
+                    </span>
+                  ) : (
+                    <span>{c.author.name}</span>
+                  )}
+                  {' · '}
+                  <time>{formatDate(c.date)}</time>
+                </span>
+              </div>
+              <div class="commit-actions">
+                {filePath && (
+                  <button
+                    type="button"
+                    class="btn-small"
+                    onClick={() => handleRestore(c.sha, filePath)}
+                    disabled={actionLoading === c.sha}
+                  >
+                    {actionLoading === c.sha ? '...' : 'Restore'}
+                  </button>
+                )}
+                {c.resolvedUser && c.resolvedUser.role !== 'admin' && !c.resolvedUser.bannedAt && (
+                  <button
+                    type="button"
+                    class="btn-small btn-danger"
+                    onClick={() => handleBan(c.resolvedUser!.id)}
+                    disabled={actionLoading === c.resolvedUser.id}
+                  >
+                    Ban
+                  </button>
+                )}
+              </div>
             </div>
-            <div class="commit-actions">
-              {contentPath && (
-                <button
-                  type="button"
-                  class="btn-small"
-                  onClick={() => handleRevert(c.sha)}
-                  disabled={actionLoading === c.sha}
-                >
-                  {actionLoading === c.sha ? '...' : 'Revert'}
-                </button>
-              )}
-              {c.resolvedUser && c.resolvedUser.role !== 'admin' && !c.resolvedUser.bannedAt && (
-                <button
-                  type="button"
-                  class="btn-small btn-danger"
-                  onClick={() => handleBan(c.resolvedUser!.id)}
-                  disabled={actionLoading === c.resolvedUser.id}
-                >
-                  Ban
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {loading && <p class="muted">Loading...</p>}
       {hasMore && !loading && commits.length > 0 && (

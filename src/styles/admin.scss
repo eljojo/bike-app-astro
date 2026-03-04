@@ -715,6 +715,13 @@
   word-break: break-word;
 }
 
+.commit-resource {
+  display: block;
+  font-size: 0.8em;
+  color: var(--muted-color, #888);
+  font-family: monospace;
+}
+
 .commit-meta {
   font-size: 0.75rem;
   @include muted-text;
