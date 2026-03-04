@@ -41,19 +41,19 @@ const isStaging = env.ENVIRONMENT === 'staging';
   @use '../styles/mixins' as *;
 
   .staging-banner {
-    background: #e3f2fd;
-    border: 1px solid #90caf9;
+    background: $color-info-bg;
+    border: 1px solid $color-info-border;
     border-radius: $border-radius;
     padding: 0.5rem 1rem;
     margin-bottom: 1rem;
     font-size: 0.875rem;
-    color: #1565c0;
+    color: $color-info;
     text-align: center;
 
     @include dark-mode {
-      background: #0d1b2a;
-      border-color: #1565c0;
-      color: #90caf9;
+      background: $color-info-bg-dark;
+      border-color: $color-info-border-dark;
+      color: $color-info-dark;
     }
   }
 
@@ -78,7 +78,7 @@ const isStaging = env.ENVIRONMENT === 'staging';
     padding-bottom: 0.5rem;
 
     @include dark-mode {
-      border-color: #333;
+      border-color: $color-border-subtle-dark;
     }
   }
 

@@ -36,7 +36,7 @@
     padding-bottom: 0.25rem;
 
     @include dark-mode {
-      border-color: #333;
+      border-color: $color-border-subtle-dark;
     }
   }
 }
@@ -50,23 +50,23 @@
   border-top: 1px solid $color-border;
 
   @include dark-mode {
-    border-color: #333;
+    border-color: $color-border-subtle-dark;
   }
 }
 
 .conflict-notice {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: $color-warning-bg;
+  border: 1px solid $color-warning-border;
   border-radius: $border-radius;
   padding: 1rem;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: #664d03;
+  color: $color-warning;
 
   @include dark-mode {
-    background: #332701;
-    border-color: #664d03;
-    color: #ffda6a;
+    background: $color-warning-bg-dark;
+    border-color: $color-warning-border-dark;
+    color: $color-warning-dark;
   }
 
   strong {
@@ -98,7 +98,7 @@
   font-size: 0.875rem;
 
   @include dark-mode {
-    border-color: #444;
+    border-color: $color-border-dark;
   }
 }
 

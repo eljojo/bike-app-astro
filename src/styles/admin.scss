@@ -79,15 +79,15 @@
 }
 
 .auth-error {
-  color: #c33;
+  color: $color-error;
   font-size: 0.875rem;
   padding: 0.5rem 0.75rem;
-  background: #fdd;
+  background: $color-error-bg;
   border-radius: $border-radius;
 
   @include dark-mode {
-    background: #411;
-    color: #f99;
+    background: $color-error-bg-dark;
+    color: $color-error-dark;
   }
 }
 
@@ -96,16 +96,16 @@
   color: $color-text-muted;
 
   @include dark-mode {
-    color: #aaa;
+    color: $color-text-muted-dark;
   }
 }
 
 .save-success {
-  color: green;
+  color: $color-success;
   font-size: 0.875rem;
 
   @include dark-mode {
-    color: #8f8;
+    color: $color-success-dark;
   }
 }
 
@@ -151,7 +151,7 @@
   @include dark-mode {
     background: $color-card-bg-dark;
     color: $color-text-dark;
-    border-color: #444;
+    border-color: $color-border-dark;
   }
 
   &:hover {
@@ -174,7 +174,7 @@
   padding: 0;
 
   @include dark-mode {
-    color: #aaa;
+    color: $color-text-muted-dark;
   }
 }
 
@@ -192,15 +192,15 @@
 .btn-remove-poster {
   font-size: 0.8125rem;
   background: none;
-  border: 1px solid #c33;
+  border: 1px solid $color-error;
   border-radius: $border-radius;
   padding: 0.25rem 0.5rem;
-  color: #c33;
+  color: $color-error;
   cursor: pointer;
 
   @include dark-mode {
-    color: #f99;
-    border-color: #f99;
+    color: $color-error-dark;
+    border-color: $color-error-dark;
   }
 }
 
@@ -218,7 +218,7 @@
   border-left: 2px solid $color-border;
 
   @include dark-mode {
-    border-color: #333;
+    border-color: $color-border-subtle-dark;
   }
 }
 
@@ -228,7 +228,7 @@
   margin: 0 0 1.5rem;
 
   @include dark-mode {
-    color: #aaa;
+    color: $color-text-muted-dark;
   }
 }
 
@@ -238,7 +238,7 @@
   color: $color-text-muted;
 
   @include dark-mode {
-    color: #aaa;
+    color: $color-text-muted-dark;
   }
 
   a {
@@ -266,7 +266,7 @@
   font-size: 0.8125rem;
 
   @include dark-mode {
-    color: #aaa;
+    color: $color-text-muted-dark;
   }
 }
 
@@ -275,17 +275,17 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 1rem;
-  background: #e3f2fd;
-  border: 1px solid #90caf9;
+  background: $color-info-bg;
+  border: 1px solid $color-info-border;
   border-radius: $border-radius;
   margin-bottom: 1rem;
   font-size: 0.875rem;
-  color: #1565c0;
+  color: $color-info;
 
   @include dark-mode {
-    background: #0d1b2a;
-    border-color: #1565c0;
-    color: #90caf9;
+    background: $color-info-bg-dark;
+    border-color: $color-info-border-dark;
+    color: $color-info-dark;
   }
 }
 
@@ -312,7 +312,7 @@
 
   @include dark-mode {
     background: $color-bg-dark;
-    border-color: #444;
+    border-color: $color-border-dark;
   }
 }
 
@@ -422,7 +422,7 @@
   @include dark-mode {
     background: $color-card-bg-dark;
     color: $color-text-dark;
-    border-color: #333;
+    border-color: $color-border-subtle-dark;
   }
 }
 
@@ -441,7 +441,7 @@
 
   @include dark-mode {
     background: $color-card-bg-dark;
-    border-color: #333;
+    border-color: $color-border-subtle-dark;
   }
 }
 
@@ -494,7 +494,7 @@
 
   @include dark-mode {
     color: $color-text-dark;
-    border-color: #444;
+    border-color: $color-border-dark;
   }
 }
 
@@ -507,7 +507,7 @@
   gap: 0.5rem;
 
   @include dark-mode {
-    border-color: #333;
+    border-color: $color-border-subtle-dark;
   }
 
   .form-field {

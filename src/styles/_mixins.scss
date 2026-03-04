@@ -29,7 +29,7 @@
   @include dark-mode {
     background: $color-bg-dark;
     color: $color-text-dark;
-    border-color: #444;
+    border-color: $color-border-dark;
   }
 }
 
@@ -37,6 +37,6 @@
   color: $color-text-muted;
 
   @include dark-mode {
-    color: #aaa;
+    color: $color-text-muted-dark;
   }
 }
