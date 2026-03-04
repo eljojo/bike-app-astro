@@ -106,6 +106,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
   // Save state
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
 
@@ -206,7 +207,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
       }
 
       if (result.draft) {
-        setSaved(true);
+        setDraftSaved(true);
       } else {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -388,14 +389,14 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
             </a>
           </div>
         )}
-        {saved && !isDraft && <div class="save-success">Saved! Site rebuild triggered.</div>}
-        {saved && isDraft && (
+        {saved && <div class="save-success">Saved! Site rebuild triggered.</div>}
+        {draftSaved && (
           <SaveSuccessModal
             prUrl={draftPrNumber
               ? `https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`
               : undefined}
             isGuest={true}
-            onClose={() => setSaved(false)}
+            onClose={() => setDraftSaved(false)}
           />
         )}
         <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>

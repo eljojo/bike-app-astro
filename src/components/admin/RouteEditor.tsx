@@ -42,6 +42,7 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [saved, setSaved] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
 
   function addTag() {
     const tag = tagInput.trim().toLowerCase();
@@ -107,7 +108,7 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
       }
 
       if (data.draft) {
-        setSaved(true);
+        setDraftSaved(true);
       } else {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -247,14 +248,14 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
             </a>
           </div>
         )}
-        {saved && !isDraft && <div class="save-success">Saved! Site rebuild triggered.</div>}
-        {saved && isDraft && (
+        {saved && <div class="save-success">Saved! Site rebuild triggered.</div>}
+        {draftSaved && (
           <SaveSuccessModal
             prUrl={draftPrNumber
               ? `https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`
               : undefined}
             isGuest={true}
-            onClose={() => setSaved(false)}
+            onClose={() => setDraftSaved(false)}
           />
         )}
         <button
