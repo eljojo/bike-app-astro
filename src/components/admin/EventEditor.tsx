@@ -1,5 +1,6 @@
 import { useState, useRef } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
+import SaveSuccessModal from './SaveSuccessModal';
 
 interface OrganizerData {
   slug: string;
@@ -204,8 +205,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
         return;
       }
 
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      if (result.draft) {
+        setSaved(true);
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
     } catch (err: any) {
       setError(err.message || 'Save failed');
     } finally {
@@ -383,7 +388,16 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
             </a>
           </div>
         )}
-        {saved && <div class="save-success">Saved! Site rebuild triggered.</div>}
+        {saved && !isDraft && <div class="save-success">Saved! Site rebuild triggered.</div>}
+        {saved && isDraft && (
+          <SaveSuccessModal
+            prUrl={draftPrNumber
+              ? `https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`
+              : undefined}
+            isGuest={true}
+            onClose={() => setSaved(false)}
+          />
+        )}
         <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save'}
         </button>
