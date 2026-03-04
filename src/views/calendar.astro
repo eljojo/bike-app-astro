@@ -45,6 +45,7 @@ const upcomingByMonth = groupByMonth(upcoming);
   <h1 style="font-size: 1.7em;">{t('calendar.title', locale, { year: currentYear })}</h1>
   <a href="/calendar.ics" class="action-button">&#x1F4C5; {t('calendar.subscribe', locale)}</a>
   <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">{t('calendar.google', locale)}</a>
+  <a href="/admin/events/new" class="action-button">Add your event</a>
 
   {Object.keys(upcomingByMonth).length === 0 && (
     <p><strong>{t('calendar.wrap', locale)}</strong></p>
