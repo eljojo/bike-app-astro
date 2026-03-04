@@ -19,7 +19,7 @@ const database = db();
 const cachedEdits = await database.select().from(contentEdits).where(eq(contentEdits.contentType, 'routes')).all();
 const cacheMap = new Map(cachedEdits.map(e => [e.contentSlug, JSON.parse(e.data)]));
 
-const routes = adminRoutes.map(r => {
+let routes = adminRoutes.map(r => {
   const cached = cacheMap.get(r.slug);
   if (!cached) return r;
   return {
@@ -28,7 +28,24 @@ const routes = adminRoutes.map(r => {
     mediaCount: cached.media?.length ?? r.mediaCount,
     status: cached.status ?? r.status,
   };
-}).sort((a, b) => {
+});
+
+// Append D1-only routes (created since last deploy)
+const existingSlugs = new Set(adminRoutes.map(r => r.slug));
+for (const [slug, cached] of cacheMap) {
+  if (!existingSlugs.has(slug)) {
+    routes.push({
+      slug,
+      name: cached.name || slug,
+      mediaCount: cached.media?.length ?? 0,
+      status: cached.status || 'draft',
+      contentHash: '',
+      difficultyScore: null,
+    });
+  }
+}
+
+routes = routes.sort((a, b) => {
   if (sortBy === 'score') {
     // Routes with scores first (ascending = easiest first), then routes without scores alphabetically
     if (a.difficultyScore != null && b.difficultyScore != null) return a.difficultyScore - b.difficultyScore;
@@ -65,6 +82,7 @@ const routes = adminRoutes.map(r => {
             {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
             {route.mediaCount} media
             {route.status === 'draft' && <span class="route-draft">draft</span>}
+            {cacheMap.has(route.slug) && <span class="route-pending">pending</span>}
           </span>
         </a>
       ))}
@@ -194,6 +212,15 @@ const routes = adminRoutes.map(r => {
   .route-draft {
     background: $color-accent;
     color: #000;
+    padding: 0.125rem 0.375rem;
+    border-radius: $border-radius;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+  }
+
+  .route-pending {
+    background: $color-tag-bg;
+    color: $color-tag-text;
     padding: 0.125rem 0.375rem;
     border-radius: $border-radius;
     font-size: 0.75rem;

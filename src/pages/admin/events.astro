@@ -18,11 +18,30 @@ const orgMap = new Map(adminOrganizers.map(o => [o.slug, o.name]));
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 
 // Merge cached data over build-time data
-const events = adminEvents.map(e => {
+let events = adminEvents.map(e => {
   const cached = cacheMap.get(e.id);
   if (!cached) return e;
   return { ...e, name: cached.name ?? e.name, start_date: cached.start_date ?? e.start_date };
 });
+
+// Append D1-only events (created since last deploy)
+const existingIds = new Set(adminEvents.map(e => e.id));
+for (const [id, cached] of cacheMap) {
+  if (!existingIds.has(id)) {
+    const [year, slug] = id.split('/');
+    events.push({
+      id,
+      slug: slug || id,
+      year: year || '',
+      name: cached.name || id,
+      start_date: cached.start_date || '',
+      end_date: cached.end_date,
+      organizer: cached.organizer,
+      poster_key: cached.poster_key,
+      contentHash: '',
+    });
+  }
+}
 
 // Resolve organizer display name from either slug or inline object
 function orgName(organizer?: string | { name: string }) {
@@ -81,6 +100,7 @@ const user = Astro.locals.user;
                 <span class="event-card-meta">
                   {e.start_date}
                   {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
+                  {cacheMap.has(e.id) && <span class="event-pending">pending</span>}
                 </span>
               </div>
             </a>
@@ -178,5 +198,14 @@ const user = Astro.locals.user;
   .event-card-meta {
     font-size: 0.8125rem;
     @include muted-text;
+  }
+
+  .event-pending {
+    background: $color-tag-bg;
+    color: $color-tag-text;
+    padding: 0.125rem 0.375rem;
+    border-radius: $border-radius;
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
   }
 </style>
