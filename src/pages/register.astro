@@ -11,7 +11,7 @@ const isUpgrade = Astro.url.searchParams.get('upgrade') === '1';
 <AuthCardLayout title={isUpgrade ? 'Create your account' : 'Create account'}>
   <p class="auth-message">
     {isUpgrade
-      ? 'Register to get credit for your contributions and get notified when they are published.'
+      ? 'Register to get credit for your contributions.'
       : 'Create an account to suggest edits to routes and events.'}
   </p>
   <RegisterForm client:load returnTo={returnTo} isUpgrade={isUpgrade} />
