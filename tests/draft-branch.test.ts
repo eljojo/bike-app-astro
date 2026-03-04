@@ -24,9 +24,14 @@ describe('isDirectCommit', () => {
     expect(isDirectCommit(user, true)).toBe(false);
   });
 
-  it('returns false for editor', () => {
+  it('returns true for editor in normal mode', () => {
     const user = { id: '1', email: 'a@b.com', displayName: 'cyclist-ab12', role: 'editor' as const };
-    expect(isDirectCommit(user, false)).toBe(false);
+    expect(isDirectCommit(user, false)).toBe(true);
+  });
+
+  it('returns false for editor in editor mode', () => {
+    const user = { id: '1', email: 'a@b.com', displayName: 'cyclist-ab12', role: 'editor' as const };
+    expect(isDirectCommit(user, true)).toBe(false);
   });
 
   it('returns false for guest', () => {
@@ -47,9 +52,14 @@ describe('resolveBranch', () => {
       .toBe('drafts/Admin/routes/rideau-canal');
   });
 
-  it('returns draft branch for editor', () => {
+  it('returns main branch for editor in normal mode', () => {
     const user = { id: '1', email: 'a@b.com', displayName: 'cyclist-ab12', role: 'editor' as const };
-    expect(resolveBranch(user, false, 'main', 'routes', 'rideau-canal'))
+    expect(resolveBranch(user, false, 'main', 'routes', 'rideau-canal')).toBe('main');
+  });
+
+  it('returns draft branch for editor in editor mode', () => {
+    const user = { id: '1', email: 'a@b.com', displayName: 'cyclist-ab12', role: 'editor' as const };
+    expect(resolveBranch(user, true, 'main', 'routes', 'rideau-canal'))
       .toBe('drafts/cyclist-ab12/routes/rideau-canal');
   });
 

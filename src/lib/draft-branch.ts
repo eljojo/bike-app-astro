@@ -20,7 +20,7 @@ export function buildBranchName(displayName: string, contentType: string, conten
 }
 
 export function isDirectCommit(user: SessionUser, editorMode: boolean): boolean {
-  return user.role === 'admin' && !editorMode;
+  return user.role !== 'guest' && !editorMode;
 }
 
 export function resolveBranch(
