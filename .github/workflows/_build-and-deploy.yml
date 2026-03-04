@@ -150,17 +150,6 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
-      - name: Run admin E2E tests
-        if: ${{ !inputs.skip-e2e }}
-        run: |
-          for config in e2e/admin/*.config.ts; do
-            echo "=== $config ==="
-            npx playwright test --config "$config"
-          done
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
-
       - name: Update screenshot baselines
         id: update-screenshots
         if: >-
@@ -227,6 +216,19 @@ jobs:
           && steps.e2e.outcome == 'failure'
           && steps.update-screenshots.outcome != 'success'
         run: exit 1
+
+      # Admin E2E tests run after screenshot steps because they rebuild
+      # dist/ with RUNTIME=local, which overwrites the Cloudflare build.
+      - name: Run admin E2E tests
+        if: ${{ !inputs.skip-e2e }}
+        run: |
+          for config in e2e/admin/*.config.ts; do
+            echo "=== $config ==="
+            npx playwright test --config "$config"
+          done
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
 
       - name: Prepare wrangler config for deploy
         if: inputs.deploy
