@@ -39,7 +39,7 @@ function serveRaw(filePath: string): Response {
   if (!fullPath) return new Response('Not found', { status: 404 });
 
   const data = fs.readFileSync(fullPath);
-  return new Response(data, {
+  return new Response(data as unknown as BodyInit, {
     headers: {
       'Content-Type': mimeType(fullPath),
       'Cache-Control': 'no-cache',
@@ -60,13 +60,13 @@ async function serveTransformed(blobKey: string, transformStr: string): Promise<
     pipeline = pipeline.resize({
       width: transforms.width,
       height: transforms.height,
-      fit: transforms.fit || 'cover',
+      fit: (transforms.fit || 'cover') as keyof import('sharp').FitEnum,
     });
   }
 
   const buffer = await pipeline.webp({ quality: 80 }).toBuffer();
 
-  return new Response(buffer, {
+  return new Response(buffer as unknown as BodyInit, {
     headers: {
       'Content-Type': 'image/webp',
       'Cache-Control': 'no-cache',

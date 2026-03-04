@@ -4,7 +4,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { cityDir } from '../lib/config';
-import { parseGpx } from '../lib/gpx';
+import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { scoreRoute } from '../lib/difficulty';
 import type { AdminRoute, AdminRouteDetail, AdminMediaItem, AdminVariant } from '../types/admin';
 
@@ -50,7 +50,7 @@ export async function loadAdminRoutes(): Promise<AdminRoute[]> {
 
     // Parse GPX files to compute difficulty score
     const variants = (frontmatter.variants as Array<{ gpx: string; distance_km?: number }>) || [];
-    const gpxTracks: Record<string, { elevation_gain_m: number; max_gradient_pct: number; points: { ele: number }[] }> = {};
+    const gpxTracks: Record<string, GpxTrack> = {};
     for (const v of variants) {
       const gpxPath = path.join(routeDir, v.gpx);
       if (fs.existsSync(gpxPath)) {

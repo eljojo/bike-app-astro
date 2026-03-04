@@ -10,5 +10,5 @@ export function db(): Database {
   if (process.env.RUNTIME === 'local') {
     return env.DB as Database;
   }
-  return getD1Db(env.DB);
+  return getD1Db(env.DB as D1Database);
 }

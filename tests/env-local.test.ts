@@ -22,8 +22,8 @@ describe('local environment', () => {
     const localEnv = createLocalEnv();
     expect(localEnv).toHaveProperty('DB');
     // DB should be a drizzle instance (has select, insert, etc.)
-    expect(typeof localEnv.DB.select).toBe('function');
-    expect(typeof localEnv.DB.insert).toBe('function');
+    expect(typeof (localEnv.DB as Record<string, unknown>).select).toBe('function');
+    expect(typeof (localEnv.DB as Record<string, unknown>).insert).toBe('function');
   });
 
   it('creates an env object with BUCKET (local storage)', async () => {

@@ -2,7 +2,7 @@ import { AwsClient } from 'aws4fetch';
 import { parseImageDimensions } from './image-dimensions';
 
 export interface StorageEnv {
-  BUCKET: R2Bucket;
+  BUCKET: BucketLike;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_ACCOUNT_ID: string;

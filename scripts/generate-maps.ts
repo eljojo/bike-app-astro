@@ -89,7 +89,7 @@ async function main() {
         continue;
       }
 
-      const url = buildStaticMapUrl(track.polyline, API_KEY);
+      const url = buildStaticMapUrl(track.polyline, API_KEY!);
       const response = await fetch(url);
       if (!response.ok) {
         console.error(`[maps] ${slug}/${variantKey}: HTTP ${response.status}`);

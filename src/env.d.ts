@@ -1,57 +1,81 @@
 /// <reference types="astro/client" />
 
 import type { SessionUser } from './lib/auth';
-import type { AdminRoute, AdminRouteDetail, AdminEvent, AdminEventDetail, AdminOrganizer, AdminOrganizerRef } from './types/admin';
 
-declare namespace App {
-  interface Locals {
-    user?: SessionUser;
+/**
+ * Cloudflare Workers runtime type stubs.
+ *
+ * These types exist at runtime on Cloudflare Workers but are not available
+ * during local development without @cloudflare/workers-types. We declare
+ * only the subset of methods our code (and drizzle-orm/d1) actually uses.
+ */
+declare global {
+  namespace App {
+    interface Locals {
+      user?: SessionUser;
+    }
+  }
+
+  // -- D1 (SQL database) types used by drizzle-orm/d1 --
+
+  interface D1Result<T = unknown> {
+    results: T[];
+    success: boolean;
+    meta: Record<string, unknown>;
+    error?: string;
+  }
+
+  interface D1Response {
+    success: boolean;
+    error?: string;
+    meta: Record<string, unknown>;
+  }
+
+  interface D1PreparedStatement {
+    bind(...values: unknown[]): D1PreparedStatement;
+    first<T = unknown>(colName?: string): Promise<T | null>;
+    run(): Promise<D1Response>;
+    all<T = unknown>(): Promise<D1Result<T>>;
+    raw<T = unknown[]>(): Promise<T[]>;
+  }
+
+  interface D1Database {
+    prepare(query: string): D1PreparedStatement;
+    batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
+    exec(query: string): Promise<D1Result>;
+    dump(): Promise<ArrayBuffer>;
+  }
+
+  // -- R2 (object storage) types used by storage.ts --
+
+  interface R2ObjectBody {
+    readonly key: string;
+    readonly size: number;
+    readonly httpMetadata?: { contentType?: string };
+    arrayBuffer(): Promise<ArrayBuffer>;
+    text(): Promise<string>;
+    json<T = unknown>(): Promise<T>;
+    body: ReadableStream;
+  }
+
+  interface R2Object {
+    readonly key: string;
+    readonly size: number;
+    readonly httpMetadata?: { contentType?: string };
+  }
+
+  interface R2Bucket {
+    head(key: string): Promise<R2Object | null>;
+    get(key: string): Promise<R2ObjectBody | null>;
+    put(key: string, value: ArrayBuffer | ReadableStream | string | Uint8Array | null): Promise<R2Object>;
+    delete(key: string | string[]): Promise<void>;
+    list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{
+      objects: R2Object[];
+      truncated: boolean;
+      cursor?: string;
+    }>;
   }
 }
 
-// Type the cloudflare:workers env bindings
-declare module 'cloudflare:workers' {
-  interface Env {
-    DB: D1Database;
-    BUCKET: R2Bucket;
-    ASSETS: Fetcher;
-    GITHUB_TOKEN: string;
-    WEBAUTHN_RP_ID: string;
-    WEBAUTHN_RP_NAME: string;
-    WEBAUTHN_ORIGIN: string;
-    R2_ACCESS_KEY_ID: string;
-    R2_SECRET_ACCESS_KEY: string;
-    R2_ACCOUNT_ID: string;
-    R2_BUCKET_NAME: string;
-    R2_PUBLIC_URL: string;
-    STORAGE_KEY_PREFIX?: string;
-    GIT_BRANCH?: string;
-    ENVIRONMENT?: string;
-  }
-}
-
-// Virtual modules provided by buildDataPlugin
-declare module 'virtual:bike-app/admin-routes' {
-  const routes: AdminRoute[];
-  export default routes;
-}
-
-declare module 'virtual:bike-app/admin-route-detail' {
-  const details: Record<string, AdminRouteDetail>;
-  export default details;
-}
-
-declare module 'virtual:bike-app/admin-events' {
-  const events: AdminEvent[];
-  export default events;
-}
-
-declare module 'virtual:bike-app/admin-event-detail' {
-  const details: Record<string, AdminEventDetail>;
-  export default details;
-}
-
-declare module 'virtual:bike-app/admin-organizers' {
-  const organizers: AdminOrganizer[];
-  export default organizers;
-}
+// cloudflare:workers module is declared in cloudflare.d.ts (must be ambient, no imports)
+// Virtual modules are declared in virtual-modules.d.ts (must be ambient, no imports)

@@ -1,6 +1,7 @@
 import { eq, and, gt, lt } from 'drizzle-orm';
 import { sessions, users } from '../db/schema';
 import type { Database } from '../db';
+import type { AppEnv } from './app-env';
 
 export interface SessionUser {
   id: string;
@@ -89,7 +90,7 @@ export async function destroySession(db: Database, token: string): Promise<void>
 
 /** Get WebAuthn relying party configuration, derived from the request URL.
  *  Env vars WEBAUTHN_RP_ID, WEBAUTHN_RP_NAME, WEBAUTHN_ORIGIN override if set. */
-export function getWebAuthnConfig(requestUrl: string, env: Record<string, string> = {}): WebAuthnConfig {
+export function getWebAuthnConfig(requestUrl: string, env: Partial<AppEnv> = {}): WebAuthnConfig {
   const url = new URL(requestUrl);
   return {
     rpID: env.WEBAUTHN_RP_ID || url.hostname,
@@ -170,15 +171,18 @@ export function requireAdmin(user: SessionUser | null | undefined): SessionUser 
 export async function storeCredential(
   database: Database,
   userId: string,
-  credential: { id: string; publicKey: ArrayBuffer; counter: number },
+  credential: { id: string; publicKey: Uint8Array | ArrayBuffer; counter: number },
   transports?: string[],
 ): Promise<void> {
   const { credentials } = await import('../db/schema');
+  const keyBytes = credential.publicKey instanceof Uint8Array
+    ? credential.publicKey
+    : new Uint8Array(credential.publicKey);
   await database.insert(credentials).values({
     id: generateId(),
     userId,
     credentialId: credential.id,
-    publicKey: new Uint8Array(credential.publicKey),
+    publicKey: Buffer.from(keyBytes),
     counter: credential.counter,
     transports: transports ? JSON.stringify(transports) : null,
     createdAt: new Date().toISOString(),

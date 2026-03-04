@@ -102,7 +102,7 @@ export function scoreRoute(route: {
     gpxTracks: Record<string, {
       elevation_gain_m: number;
       max_gradient_pct: number;
-      points: { ele: number }[];
+      points: { ele?: number }[];
     }>;
   };
 }): number[] {

@@ -47,8 +47,8 @@ function localizedEntryPerLocale(pathFn: (locale: string) => string, priority: n
 }
 
 export function buildSitemapEntries({ routes, guides }: {
-  routes: { id: string; data: { status: string; updated_at: string; variants?: { name: string; gpx: string }[]; translations?: Record<string, { slug?: string }> } }[];
-  guides: { id: string; data: { status: string } }[];
+  routes: { id: string; data: { status: string; updated_at: string; variants?: { name: string; gpx: string; [k: string]: unknown }[]; translations?: Record<string, { slug?: string; [k: string]: unknown }>; [k: string]: unknown } }[];
+  guides: { id: string; data: { status: string; [k: string]: unknown } }[];
 }): SitemapEntry[] {
   const entries: SitemapEntry[] = [
     ...localizedEntry('/', 1.0),

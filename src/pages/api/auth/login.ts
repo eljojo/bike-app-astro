@@ -70,7 +70,7 @@ export async function POST({ request, cookies }: APIContext) {
       expectedRPID: config.rpID,
       credential: {
         id: storedCredential.credentialId,
-        publicKey: new Uint8Array(storedCredential.publicKey as ArrayBuffer),
+        publicKey: new Uint8Array(storedCredential.publicKey),
         counter: storedCredential.counter,
         transports: storedCredential.transports
           ? JSON.parse(storedCredential.transports)

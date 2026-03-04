@@ -40,7 +40,7 @@ describe('routeSlug()', () => {
 
   const routeWithoutFrSlug = {
     id: 'aylmer',
-    data: { translations: { fr: { name: 'Aylmer' } } },
+    data: { translations: { fr: { name: 'Aylmer' } } } as { translations: Record<string, { slug?: string }> },
   };
 
   const routeNoTranslations = {

@@ -54,7 +54,7 @@ export function buildStaticMapUrl(polyline: string, apiKey: string): string {
   const end = points[points.length - 1];
 
   // Sample every 5th point to keep URL under Google's 8192 char limit
-  const sampled = points.filter((_, i) => i % 5 === 0);
+  const sampled = points.filter((_: number[], i: number) => i % 5 === 0);
   if (sampled[sampled.length - 1] !== end) sampled.push(end);
   const simplifiedPolyline = polylineCodec.encode(sampled);
 

@@ -113,15 +113,15 @@ describe('breadcrumbJsonLd', () => {
       { name: 'Ottawa River Pathway', url: 'https://ottawabybike.ca/routes/ottawa-river-pathway' },
     ]);
 
-    expect(result['@type']).toBe('BreadcrumbList');
-    expect(result.itemListElement).toHaveLength(2);
-    expect(result.itemListElement[0]).toEqual({
+    expect(result!['@type']).toBe('BreadcrumbList');
+    expect(result!.itemListElement).toHaveLength(2);
+    expect(result!.itemListElement[0]).toEqual({
       '@type': 'ListItem',
       position: 1,
       name: 'Home',
       item: 'https://ottawabybike.ca/',
     });
-    expect(result.itemListElement[1].position).toBe(2);
+    expect(result!.itemListElement[1].position).toBe(2);
   });
 
   it('returns null for single breadcrumb', () => {

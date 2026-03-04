@@ -8,6 +8,7 @@ import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
+import type { AdminEvent } from '../../types/admin';
 
 export const prerender = false;
 
@@ -33,7 +34,7 @@ function slugify(text: string): string {
 }
 
 function countOrganizerReferences(orgSlug: string, excludeEventId: string): number {
-  return adminEvents.filter(e => {
+  return adminEvents.filter((e: AdminEvent) => {
     if (e.id === excludeEventId) return false;
     return typeof e.organizer === 'string' && e.organizer === orgSlug;
   }).length;
