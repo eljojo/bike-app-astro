@@ -89,6 +89,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   const [body, setBody] = useState(initialData.body);
   const bodyRef = useTextareaValue(body);
 
+  // Progressive disclosure — show fields when data exists or user clicks link
+  const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
+  const [showEndDate, setShowEndDate] = useState(!!initialData.end_date);
+
   // Organizer state
   const initOrg = resolveOrganizer(initialData.organizer, organizers);
   const [orgSlug, setOrgSlug] = useState(initOrg.slug);
@@ -223,30 +227,51 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
               onInput={(e) => setName((e.target as HTMLInputElement).value)} />
           </div>
 
-          <div class="form-row">
+          <div class="form-field">
+            <label for="event-start-date">{showEndDate ? 'Start date' : 'Date'}</label>
+            <input id="event-start-date" type="date" value={startDate}
+              onInput={(e) => setStartDate((e.target as HTMLInputElement).value)} />
+          </div>
+
+          {showTime && (
             <div class="form-field">
-              <label for="event-start-date">Start Date</label>
-              <input id="event-start-date" type="date" value={startDate}
-                onInput={(e) => setStartDate((e.target as HTMLInputElement).value)} />
-            </div>
-            <div class="form-field">
-              <label for="event-start-time">Start Time</label>
+              <label for="event-start-time">{showEndDate ? 'Start time' : 'Time'}</label>
               <input id="event-start-time" type="time" value={startTime}
                 onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
             </div>
-          </div>
+          )}
 
-          <div class="form-row">
-            <div class="form-field">
-              <label for="event-end-date">End Date</label>
-              <input id="event-end-date" type="date" value={endDate}
-                onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
-            </div>
-            <div class="form-field">
-              <label for="event-end-time">End Time</label>
-              <input id="event-end-time" type="time" value={endTime}
-                onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
-            </div>
+          {showEndDate && (
+            <>
+              <div class="form-field">
+                <label for="event-end-date">End date</label>
+                <input id="event-end-date" type="date" value={endDate}
+                  onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
+              </div>
+              {showTime && (
+                <div class="form-field">
+                  <label for="event-end-time">End time</label>
+                  <input id="event-end-time" type="time" value={endTime}
+                    onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
+                </div>
+              )}
+            </>
+          )}
+
+          <div class="disclosure-links">
+            {!showTime && (
+              <button type="button" class="btn-link" onClick={() => setShowTime(true)}>Set time</button>
+            )}
+            {!showEndDate && (
+              <button type="button" class="btn-link" onClick={() => {
+                setShowEndDate(true);
+                if (!endDate) {
+                  const next = new Date(startDate);
+                  next.setDate(next.getDate() + 1);
+                  setEndDate(next.toISOString().split('T')[0]);
+                }
+              }}>Ends on a different day</button>
+            )}
           </div>
 
           <div class="form-field">
