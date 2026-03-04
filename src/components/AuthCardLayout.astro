@@ -15,6 +15,7 @@ const { title, subtitle } = Astro.props;
     <div class="auth-card">
       <h1>{title}</h1>
       {subtitle && <p class="auth-subtitle">{subtitle}</p>}
+      <slot name="description" />
       <slot />
     </div>
   </div>
