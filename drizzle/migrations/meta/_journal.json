@@ -6,42 +6,7 @@
       "idx": 0,
       "version": "6",
       "when": 1772423015921,
-      "tag": "0000_breezy_banshee",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1772429357594,
-      "tag": "0001_chemical_changeling",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1772432405772,
-      "tag": "0002_red_starbolt",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1772482664991,
-      "tag": "0003_next_lester",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1772726400000,
-      "tag": "0004_lovely_wolf",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1772726500000,
-      "tag": "0005_broad_hawk",
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]
