@@ -30,12 +30,14 @@ const { data: routeData, isDraft, draftPrNumber } = await loadAdminContent({
     const mediaFile = await git.readFile(`${basePath}/media.yml`);
     let media: any[] = [];
     if (mediaFile) {
-      media = ((yaml.load(mediaFile.content) as any[]) || []).map((m: any) => {
-        const item: Record<string, unknown> = { key: m.key };
-        if (m.caption) item.caption = m.caption;
-        if (m.cover) item.cover = m.cover;
-        return item;
-      });
+      media = ((yaml.load(mediaFile.content) as any[]) || [])
+        .filter((m: any) => m.type === 'photo')
+        .map((m: any) => {
+          const item: Record<string, unknown> = { key: m.key };
+          if (m.caption) item.caption = m.caption;
+          if (m.cover) item.cover = m.cover;
+          return item;
+        });
     }
     return {
       slug, name: fm.name, tagline: fm.tagline || '', tags: fm.tags || [],

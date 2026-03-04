@@ -5,10 +5,15 @@ import AuthCardLayout from '../components/AuthCardLayout.astro';
 import RegisterForm from '../components/admin/RegisterForm.tsx';
 
 const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
+const isUpgrade = Astro.url.searchParams.get('upgrade') === '1';
 ---
 
-<AuthCardLayout title="Create account">
-  <p class="auth-message">Create an account to suggest edits to routes and events.</p>
-  <RegisterForm client:load returnTo={returnTo} />
-  <p class="auth-link">Already have an account? <a href="/login">Sign in</a></p>
+<AuthCardLayout title={isUpgrade ? 'Create your account' : 'Create account'}>
+  <p class="auth-message">
+    {isUpgrade
+      ? 'Register to get credit for your contributions and get notified when they are published.'
+      : 'Create an account to suggest edits to routes and events.'}
+  </p>
+  <RegisterForm client:load returnTo={returnTo} isUpgrade={isUpgrade} />
+  {!isUpgrade && <p class="auth-link">Already have an account? <a href="/login">Sign in</a></p>}
 </AuthCardLayout>

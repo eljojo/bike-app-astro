@@ -3,10 +3,11 @@ import { startRegistration } from '@simplewebauthn/browser';
 
 interface Props {
   isSetup?: boolean;
+  isUpgrade?: boolean;
   returnTo?: string;
 }
 
-export default function RegisterForm({ isSetup, returnTo = '/admin' }: Props) {
+export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }: Props) {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +20,8 @@ export default function RegisterForm({ isSetup, returnTo = '/admin' }: Props) {
 
     try {
       // Step 1: Get registration options
-      const optionsRes = await fetch('/api/auth/register-options', {
+      const optionsUrl = isUpgrade ? '/api/auth/upgrade-options' : '/api/auth/register-options';
+      const optionsRes = await fetch(optionsUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, displayName }),
@@ -36,7 +38,8 @@ export default function RegisterForm({ isSetup, returnTo = '/admin' }: Props) {
       const credential = await startRegistration({ optionsJSON: options });
 
       // Step 3: Complete registration
-      const registerRes = await fetch('/api/auth/register', {
+      const completeUrl = isUpgrade ? '/api/auth/upgrade' : '/api/auth/register';
+      const registerRes = await fetch(completeUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, displayName, credential }),

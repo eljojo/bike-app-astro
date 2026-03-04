@@ -24,8 +24,8 @@ export default function SaveSuccessModal({ onClose, prUrl, isGuest }: Props) {
         )}
         {isGuest && (
           <p class="modal-cta">
-            <a href="/register" class="btn-primary">Create an account</a>
-            <span class="modal-cta-hint">Track your contributions and get notified</span>
+            <a href="/register?upgrade=1" class="btn-primary">Create an account</a>
+            <span class="modal-cta-hint">Get credit for your contributions</span>
           </p>
         )}
         <button type="button" class="btn-secondary" onClick={onClose}>
