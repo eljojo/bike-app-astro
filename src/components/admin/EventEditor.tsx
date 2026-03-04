@@ -92,6 +92,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   // Progressive disclosure — show fields when data exists or user clicks link
   const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
   const [showEndDate, setShowEndDate] = useState(!!initialData.end_date);
+  const [showLocation, setShowLocation] = useState(!!initialData.location);
+  const [showDistances, setShowDistances] = useState(!!initialData.distances);
+  const [showRegistration, setShowRegistration] = useState(!!initialData.registration_url);
+  const [showReview, setShowReview] = useState(!!initialData.review_url);
 
   // Organizer state
   const initOrg = resolveOrganizer(initialData.organizer, organizers);
@@ -274,33 +278,65 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
             )}
           </div>
 
-          <div class="form-field">
-            <label for="event-location">Location</label>
-            <input id="event-location" type="text" value={location}
-              onInput={(e) => setLocation((e.target as HTMLInputElement).value)} />
+          {showLocation && (
+            <div class="form-field">
+              <label for="event-location">Location</label>
+              <input id="event-location" type="text" value={location}
+                placeholder="111 Wellington St, K1A 0A6"
+                onInput={(e) => setLocation((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          {showDistances && (
+            <div class="form-field">
+              <label for="event-distances">Distances</label>
+              <input id="event-distances" type="text" value={distances}
+                placeholder="e.g. 10km loop, 25km and 50km options"
+                onInput={(e) => setDistances((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          {showRegistration && (
+            <div class="form-field">
+              <label for="event-registration">Registration URL</label>
+              <input id="event-registration" type="url" value={registrationUrl}
+                placeholder="https://"
+                onInput={(e) => setRegistrationUrl((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          {showReview && (
+            <div class="form-field">
+              <label for="event-review">Review URL</label>
+              <input id="event-review" type="url" value={reviewUrl}
+                placeholder="https://"
+                onInput={(e) => setReviewUrl((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          <div class="disclosure-links">
+            {!showLocation && (
+              <button type="button" class="btn-link" onClick={() => setShowLocation(true)}>Add location</button>
+            )}
+            {!showDistances && (
+              <button type="button" class="btn-link" onClick={() => setShowDistances(true)}>Add distance info</button>
+            )}
+            {!showRegistration && (
+              <button type="button" class="btn-link" onClick={() => setShowRegistration(true)}>Add registration link</button>
+            )}
+            {!showReview && (
+              <button type="button" class="btn-link" onClick={() => setShowReview(true)}>Add review link</button>
+            )}
           </div>
 
           <div class="form-field">
-            <label for="event-distances">Distances</label>
-            <input id="event-distances" type="text" value={distances}
-              placeholder="e.g. 10km loop, 25km and 50km options"
-              onInput={(e) => setDistances((e.target as HTMLInputElement).value)} />
-          </div>
-
-          <div class="form-field">
-            <label for="event-registration">Registration URL</label>
-            <input id="event-registration" type="url" value={registrationUrl}
-              onInput={(e) => setRegistrationUrl((e.target as HTMLInputElement).value)} />
-          </div>
-
-          <div class="form-field">
-            <label for="event-review">Review URL</label>
-            <input id="event-review" type="url" value={reviewUrl}
-              onInput={(e) => setReviewUrl((e.target as HTMLInputElement).value)} />
-          </div>
-
-          <div class="form-field">
-            <label for="event-body">Description (markdown)</label>
+            <label for="event-body">
+              Description (markdown)
+              {' · '}
+              <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" class="btn-link">
+                formatting help
+              </a>
+            </label>
             <textarea id="event-body" ref={bodyRef} value={body}
               onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)} rows={6} />
           </div>
