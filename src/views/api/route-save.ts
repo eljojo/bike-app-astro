@@ -299,6 +299,7 @@ export async function POST({ params, request, locals }: APIContext) {
 
     // Direct commits: cache the edit for future compare-and-swap checks
     const newFile = await git.readFile(`${basePath}/index.md`);
+    const newMedia = await git.readFile(`${basePath}/media.yml`);
     if (newFile) {
       const cacheData = JSON.stringify({
         slug,
@@ -331,7 +332,12 @@ export async function POST({ params, request, locals }: APIContext) {
       });
     }
 
-    return jsonResponse({ success: true, sha });
+    // Return new contentHash so client can use it for subsequent saves
+    const newContentHash = newFile
+      ? createHash('md5').update(newFile.content).update(newMedia?.content || '').digest('hex')
+      : undefined;
+
+    return jsonResponse({ success: true, sha, contentHash: newContentHash });
   } catch (err: any) {
     console.error('save route error:', err);
     return jsonError(err.message || 'Failed to save', 500);

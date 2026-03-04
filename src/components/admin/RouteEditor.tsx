@@ -28,6 +28,7 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
+  const [contentHash, setContentHash] = useState(initialData.contentHash);
   const [tagInput, setTagInput] = useState('');
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
@@ -87,7 +88,7 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
           body,
           media,
           variants,
-          contentHash: initialData.contentHash,
+          contentHash,
         }),
       });
 
@@ -99,6 +100,11 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
           return;
         }
         throw new Error(data.error || 'Save failed');
+      }
+
+      const data = await res.json();
+      if (data.contentHash) {
+        setContentHash(data.contentHash);
       }
 
       if (initialData.isNew) {
