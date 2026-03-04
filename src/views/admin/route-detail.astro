@@ -3,11 +3,10 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteEditor from '../../components/admin/RouteEditor.tsx';
+import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env';
 import { loadAdminContent } from '../../lib/load-admin-content';
-import matter from 'gray-matter';
-import yaml from 'js-yaml';
 
 const { slug } = Astro.params;
 
@@ -15,36 +14,9 @@ if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 
-const city = 'ottawa';
-const basePath = `${city}/routes/${slug}`;
-
-const { data: routeData, isDraft, draftPrNumber } = await loadAdminContent({
-  user: Astro.locals.user,
+const { data: routeData } = await loadAdminContent({
   contentType: 'routes',
   contentSlug: slug,
-  gitFilePath: `${basePath}/index.md`,
-  async parseGitFile(git, filePath) {
-    const file = await git.readFile(filePath);
-    if (!file) return null;
-    const { data: fm, content: body } = matter(file.content);
-    const mediaFile = await git.readFile(`${basePath}/media.yml`);
-    let media: any[] = [];
-    if (mediaFile) {
-      media = ((yaml.load(mediaFile.content) as any[]) || [])
-        .filter((m: any) => m.type === 'photo')
-        .map((m: any) => {
-          const item: Record<string, unknown> = { key: m.key };
-          if (m.caption) item.caption = m.caption;
-          if (m.cover) item.cover = m.cover;
-          return item;
-        });
-    }
-    return {
-      slug, name: fm.name, tagline: fm.tagline || '', tags: fm.tags || [],
-      distance: fm.distance_km, status: fm.status, body: body.trim(), media,
-      variants: (fm.variants as any[]) || [],
-    };
-  },
   virtualModuleData: adminRouteDetails,
 });
 
@@ -61,5 +33,6 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
   backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} />
+  <EditHistory client:load contentPath={`ottawa/routes/${slug}/index.md`} />
 </AdminEditorLayout>

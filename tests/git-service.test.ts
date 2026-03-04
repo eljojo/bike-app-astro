@@ -363,33 +363,6 @@ describe('GitService', () => {
     });
   });
 
-  describe('triggerRebuild', () => {
-    it('sends repository_dispatch event', async () => {
-      const fetchMock = mockFetch([{ status: 204 }]);
-      vi.stubGlobal('fetch', fetchMock);
-
-      await service.triggerRebuild();
-
-      expect(fetchMock).toHaveBeenCalledOnce();
-      const [url, options] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://api.github.com/repos/eljojo/bike-app-astro/dispatches');
-      expect(options.method).toBe('POST');
-      const body = JSON.parse(options.body);
-      expect(body.event_type).toBe('data-updated');
-
-      vi.unstubAllGlobals();
-    });
-
-    it('throws on API errors', async () => {
-      const fetchMock = mockFetch([{ status: 403 }]);
-      vi.stubGlobal('fetch', fetchMock);
-
-      await expect(service.triggerRebuild()).rejects.toThrow('GitHub API error: 403');
-
-      vi.unstubAllGlobals();
-    });
-  });
-
   describe('githubFetch headers', () => {
     it('includes auth and version headers on every request', async () => {
       const fetchMock = mockFetch([{ status: 200, body: [] }]);
@@ -622,27 +595,63 @@ describe('GitService', () => {
       vi.unstubAllGlobals();
     });
 
-    it('dispatches staging-data-updated for non-main branches', async () => {
-      const stagingService = new GitService({ ...TEST_CONFIG, branch: 'staging' });
-      const fetchMock = mockFetch([{ status: 204 }]);
+  });
+
+  describe('listCommits', () => {
+    it('returns commits for a file path', async () => {
+      const fetchMock = mockFetch([{
+        status: 200,
+        body: [{
+          sha: 'abc123',
+          commit: {
+            message: 'Update route',
+            author: { name: 'jane', email: 'jane@whereto.bike', date: '2026-01-01T00:00:00Z' },
+          },
+        }],
+      }]);
       vi.stubGlobal('fetch', fetchMock);
 
-      await stagingService.triggerRebuild();
+      const commits = await service.listCommits({ path: 'ottawa/routes/test/index.md', perPage: 10 });
+      expect(commits).toHaveLength(1);
+      expect(commits[0]).toEqual({
+        sha: 'abc123',
+        message: 'Update route',
+        author: { name: 'jane', email: 'jane@whereto.bike' },
+        date: '2026-01-01T00:00:00Z',
+      });
 
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-      expect(body.event_type).toBe('staging-data-updated');
+      const [url] = fetchMock.mock.calls[0];
+      expect(url).toContain('/commits?');
+      expect(url).toContain('path=ottawa%2Froutes%2Ftest%2Findex.md');
+      expect(url).toContain('per_page=10');
+
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe('getFileAtCommit', () => {
+    it('reads file content at a specific commit SHA', async () => {
+      const fetchMock = mockFetch([{
+        status: 200,
+        body: { content: btoa('hello world') },
+      }]);
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await service.getFileAtCommit('abc123', 'test/file.md');
+      expect(result).toEqual({ content: 'hello world' });
+
+      const [url] = fetchMock.mock.calls[0];
+      expect(url).toContain('/contents/test/file.md?ref=abc123');
 
       vi.unstubAllGlobals();
     });
 
-    it('dispatches data-updated for main branch', async () => {
-      const fetchMock = mockFetch([{ status: 204 }]);
+    it('returns null for 404', async () => {
+      const fetchMock = mockFetch([{ status: 404 }]);
       vi.stubGlobal('fetch', fetchMock);
 
-      await service.triggerRebuild();
-
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-      expect(body.event_type).toBe('data-updated');
+      const result = await service.getFileAtCommit('abc123', 'missing.md');
+      expect(result).toBeNull();
 
       vi.unstubAllGlobals();
     });

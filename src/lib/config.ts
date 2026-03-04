@@ -7,4 +7,3 @@ export const cityDir = path.join(CONTENT_DIR, CITY);
 // Git repository configuration
 export const GIT_OWNER = 'eljojo';
 export const GIT_DATA_REPO = 'bike-routes';
-export const GIT_APP_REPO = 'bike-app-astro';

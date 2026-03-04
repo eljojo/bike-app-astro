@@ -43,6 +43,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`/gate?returnTo=${returnTo}`);
   }
 
+  // Ban enforcement
+  if (user.bannedAt) {
+    if (pathname.startsWith('/api/')) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return context.redirect('/gate');
+  }
+
   // Make user available to page/API handlers
   context.locals.user = user;
   return next();

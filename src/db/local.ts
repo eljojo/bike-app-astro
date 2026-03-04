@@ -16,9 +16,12 @@ export function createLocalDb(dbPath: string) {
     CREATE TABLE IF NOT EXISTS users (
       id text PRIMARY KEY NOT NULL,
       email text UNIQUE,
-      display_name text NOT NULL,
+      username text NOT NULL,
       role text DEFAULT 'editor' NOT NULL,
-      created_at text NOT NULL
+      created_at text NOT NULL,
+      banned_at text,
+      ip_address text,
+      previous_usernames text
     );
     CREATE TABLE IF NOT EXISTS credentials (
       id text PRIMARY KEY NOT NULL,
@@ -36,15 +39,10 @@ export function createLocalDb(dbPath: string) {
       expires_at text NOT NULL,
       created_at text NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS drafts (
-      id text PRIMARY KEY NOT NULL,
-      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      content_type text NOT NULL,
-      content_slug text NOT NULL,
-      branch_name text NOT NULL,
-      pr_number integer,
-      created_at text NOT NULL,
-      updated_at text NOT NULL
+    CREATE TABLE IF NOT EXISTS banned_ips (
+      ip text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      banned_at text NOT NULL
     );
     CREATE TABLE IF NOT EXISTS content_edits (
       content_type text NOT NULL,

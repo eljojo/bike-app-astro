@@ -10,6 +10,11 @@ const adminRoutes = [
   { pattern: '/api/events/[...id]', entrypoint: './src/views/api/event-save.ts' },
   { pattern: '/api/media/[key]', entrypoint: './src/views/api/media-delete.ts' },
   { pattern: '/api/admin/sync', entrypoint: './src/views/api/admin-sync.ts' },
+  { pattern: '/api/admin/users', entrypoint: './src/views/api/admin-users.ts' },
+  { pattern: '/api/admin/history', entrypoint: './src/views/api/admin-history.ts' },
+  { pattern: '/api/admin/revert', entrypoint: './src/views/api/admin-revert.ts' },
+  { pattern: '/admin/history', entrypoint: './src/views/admin/history.astro' },
+  { pattern: '/admin/users', entrypoint: './src/views/admin/users.astro' },
   { pattern: '/api/gpx/import-rwgps', entrypoint: './src/views/api/gpx/import-rwgps.ts' },
   { pattern: '/dev-uploads/[...path]', entrypoint: './src/views/dev/dev-uploads.ts' },
 ];

@@ -3,30 +3,20 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventEditor from '../../components/admin/EventEditor.tsx';
+import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminEventDetails from 'virtual:bike-app/admin-event-detail';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env';
 import { loadAdminContent } from '../../lib/load-admin-content';
-import matter from 'gray-matter';
 
 const id = Astro.params.id;
 if (!id) return new Response(null, { status: 404 });
 
 const [year, slug] = id.split('/');
-const city = 'ottawa';
-const eventPath = `${city}/events/${year}/${slug}.md`;
 
-const { data: eventData, isDraft, draftPrNumber } = await loadAdminContent({
-  user: Astro.locals.user,
+const { data: eventData } = await loadAdminContent({
   contentType: 'events',
   contentSlug: id,
-  gitFilePath: eventPath,
-  async parseGitFile(git, filePath) {
-    const file = await git.readFile(filePath);
-    if (!file) return null;
-    const { data: fm, content: body } = matter(file.content);
-    return { id, slug, year, ...fm, body: body.trim() };
-  },
   virtualModuleData: adminEventDetails,
 });
 
@@ -37,5 +27,6 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
 ---
 
 <AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events">
-  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} isDraft={isDraft} draftPrNumber={draftPrNumber} />
+  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} />
+  <EditHistory client:load contentPath={`ottawa/events/${id}.md`} />
 </AdminEditorLayout>

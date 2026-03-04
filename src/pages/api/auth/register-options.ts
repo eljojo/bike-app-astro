@@ -16,10 +16,10 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, displayName } = body;
+    const { email: rawEmail, username } = body;
 
-    if (!rawEmail || !displayName) {
-      return jsonError('Email and display name are required');
+    if (!rawEmail || !username) {
+      return jsonError('Email and username are required');
     }
 
     const database = db();
@@ -42,7 +42,7 @@ export async function POST({ request, cookies }: APIContext) {
       rpName: config.rpName,
       rpID: config.rpID,
       userName: email,
-      userDisplayName: displayName,
+      userDisplayName: username,
       attestationType: 'none',
       authenticatorSelection: {
         residentKey: 'preferred',

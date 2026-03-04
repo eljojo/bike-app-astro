@@ -9,7 +9,7 @@ interface Props {
 
 export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }: Props) {
   const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [username, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +24,7 @@ export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }
       const optionsRes = await fetch(optionsUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, displayName }),
+        body: JSON.stringify({ email, username }),
       });
 
       if (!optionsRes.ok) {
@@ -42,7 +42,7 @@ export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }
       const registerRes = await fetch(completeUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, displayName, credential }),
+        body: JSON.stringify({ email, username, credential }),
       });
 
       if (!registerRes.ok) {
@@ -78,11 +78,11 @@ export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }
         />
       </div>
       <div class="form-field">
-        <label for="displayName">Display name</label>
+        <label for="username">Username</label>
         <input
-          id="displayName"
+          id="username"
           type="text"
-          value={displayName}
+          value={username}
           onInput={(e) => setDisplayName((e.target as HTMLInputElement).value)}
           required
         />

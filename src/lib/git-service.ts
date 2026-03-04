@@ -5,8 +5,6 @@
  * Uses native fetch with Bearer token auth. No external dependencies.
  */
 
-import { GIT_APP_REPO } from './config';
-
 const GITHUB_API = 'https://api.github.com';
 
 export interface GitServiceConfig {
@@ -26,12 +24,20 @@ export interface CommitAuthor {
   email: string;
 }
 
+export interface CommitInfo {
+  sha: string;
+  message: string;
+  author: { name: string; email: string };
+  date: string;
+}
+
 /** Shared interface for both GitHub and local git service implementations. */
 export interface IGitService {
   readFile(path: string): Promise<{ content: string; sha: string } | null>;
   listDirectory(path: string): Promise<Array<{ name: string; type: string; path: string }>>;
   writeFiles(files: FileChange[], message: string, author: CommitAuthor, deletePaths?: string[]): Promise<string>;
-  triggerRebuild(): Promise<void>;
+  listCommits(opts?: { path?: string; perPage?: number; page?: number }): Promise<CommitInfo[]>;
+  getFileAtCommit(commitSha: string, path: string): Promise<{ content: string } | null>;
   getRef(branch: string): Promise<string | null>;
   updateRef(branch: string, sha: string, force?: boolean): Promise<void>;
   createRef(branch: string, sha: string): Promise<void>;
@@ -124,23 +130,38 @@ export class GitService implements IGitService {
     return this.writeMultipleFiles(files, formattedMessage, author, deletePaths);
   }
 
-  /**
-   * Trigger site rebuild via repository_dispatch on the Astro repo.
-   * Production dispatches 'data-updated', staging dispatches 'staging-data-updated'.
-   */
-  async triggerRebuild(): Promise<void> {
-    const eventType = this.branch === 'main' ? 'data-updated' : 'staging-data-updated';
-    const response = await this.githubFetch(
-      `/repos/${this.config.owner}/${GIT_APP_REPO}/dispatches`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ event_type: eventType }),
-      }
-    );
+  async listCommits(opts: { path?: string; perPage?: number; page?: number } = {}): Promise<CommitInfo[]> {
+    const params = new URLSearchParams({ sha: this.branch });
+    if (opts.path) params.set('path', opts.path);
+    if (opts.perPage) params.set('per_page', String(opts.perPage));
+    if (opts.page) params.set('page', String(opts.page));
 
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-    }
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/commits?${params}`
+    );
+    if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+
+    const data = await response.json();
+    return data.map((c: any) => ({
+      sha: c.sha,
+      message: c.commit.message,
+      author: {
+        name: c.commit.author.name,
+        email: c.commit.author.email,
+      },
+      date: c.commit.author.date,
+    }));
+  }
+
+  async getFileAtCommit(commitSha: string, path: string): Promise<{ content: string } | null> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/contents/${path}?ref=${commitSha}`
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+
+    const data = await response.json();
+    return { content: decodeBase64Content(data.content) };
   }
 
   /**

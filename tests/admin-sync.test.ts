@@ -131,7 +131,7 @@ describe('GitService ref operations', () => {
 });
 
 describe('admin-sync endpoint logic', () => {
-  // Test the sync workflow logic: the sequence of getRef, updateRef/createRef, and triggerRebuild
+  // Test the sync workflow logic: the sequence of getRef, updateRef/createRef
   // Since the endpoint depends on Astro's APIContext and cloudflare env, we test the
   // GitService call sequence that the endpoint orchestrates.
 
@@ -149,8 +149,6 @@ describe('admin-sync endpoint logic', () => {
       { status: 200, body: { object: { sha: 'old-staging-sha' } } },
       // updateRef('staging', 'main-sha-abc', true)
       { status: 200, body: { object: { sha: 'main-sha-abc' } } },
-      // triggerRebuild -> dispatches
-      { status: 204 },
     ]);
     vi.stubGlobal('fetch', fetchMock);
 
@@ -165,14 +163,7 @@ describe('admin-sync endpoint logic', () => {
     // Step 3: force-update staging
     await service.updateRef('staging', mainSha!, true);
 
-    // Step 6: trigger rebuild
-    await service.triggerRebuild();
-
-    // Verify the dispatch event type is staging-data-updated
-    const dispatchBody = JSON.parse(fetchMock.mock.calls[3][1].body);
-    expect(dispatchBody.event_type).toBe('staging-data-updated');
-
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     vi.unstubAllGlobals();
   });
@@ -187,8 +178,6 @@ describe('admin-sync endpoint logic', () => {
       { status: 404 },
       // createRef('staging', 'main-sha-xyz')
       { status: 201, body: { ref: 'refs/heads/staging' } },
-      // triggerRebuild
-      { status: 204 },
     ]);
     vi.stubGlobal('fetch', fetchMock);
 
@@ -208,10 +197,7 @@ describe('admin-sync endpoint logic', () => {
     expect(createBody.ref).toBe('refs/heads/staging');
     expect(createBody.sha).toBe('main-sha-xyz');
 
-    // Step 6: trigger rebuild
-    await service.triggerRebuild();
-
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     vi.unstubAllGlobals();
   });

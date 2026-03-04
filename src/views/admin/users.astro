@@ -1,0 +1,28 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import UserList from '../../components/admin/UserList.tsx';
+import '../../styles/admin.scss';
+const user = Astro.locals.user;
+
+if (user?.role !== 'admin') {
+  return Astro.redirect('/admin');
+}
+---
+
+<Base title="Users" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="users" />
+    <UserList client:load />
+  </div>
+</Base>
+
+<style lang="scss">
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+</style>

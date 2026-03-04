@@ -27,7 +27,7 @@ export async function POST({ request, cookies, locals }: APIContext) {
       rpName: config.rpName,
       rpID: config.rpID,
       userName: email,
-      userDisplayName: user.displayName,
+      userDisplayName: user.username,
       attestationType: 'none',
       authenticatorSelection: {
         residentKey: 'preferred',

@@ -1,12 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { users, credentials, sessions, drafts, contentEdits } from '../src/db/schema';
+import { users, credentials, sessions, contentEdits, bannedIps } from '../src/db/schema';
 import { getTableName, getTableColumns } from 'drizzle-orm';
 
 describe('database schema', () => {
   it('users table has expected columns', () => {
     expect(getTableName(users)).toBe('users');
     const cols = getTableColumns(users);
-    expect(Object.keys(cols)).toEqual(['id', 'email', 'displayName', 'role', 'createdAt']);
+    expect(Object.keys(cols)).toEqual([
+      'id', 'email', 'username', 'role', 'createdAt',
+      'bannedAt', 'ipAddress', 'previousUsernames',
+    ]);
+  });
+
+  it('users table has username column (not displayName)', () => {
+    const cols = getTableColumns(users);
+    expect(cols.username).toBeDefined();
+    expect((cols as any).displayName).toBeUndefined();
+  });
+
+  it('users table has moderation columns', () => {
+    const cols = getTableColumns(users);
+    expect(cols.bannedAt).toBeDefined();
+    expect(cols.ipAddress).toBeDefined();
+    expect(cols.previousUsernames).toBeDefined();
   });
 
   it('credentials table has expected columns', () => {
@@ -31,12 +47,12 @@ describe('database schema', () => {
     expect(cols.counter.hasDefault).toBe(true);
   });
 
-  it('exports drafts table', () => {
-    expect(getTableName(drafts)).toBe('drafts');
-    const cols = getTableColumns(drafts);
-    expect(Object.keys(cols)).toEqual([
-      'id', 'userId', 'contentType', 'contentSlug', 'branchName', 'prNumber', 'createdAt', 'updatedAt',
-    ]);
+  it('bannedIps table exists', () => {
+    expect(getTableName(bannedIps)).toBe('banned_ips');
+    const cols = getTableColumns(bannedIps);
+    expect(cols.ip).toBeDefined();
+    expect(cols.userId).toBeDefined();
+    expect(cols.bannedAt).toBeDefined();
   });
 
   it('exports contentEdits table', () => {

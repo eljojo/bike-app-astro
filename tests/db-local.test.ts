@@ -18,7 +18,7 @@ describe('local SQLite database', () => {
     const { createLocalDb } = await import('../src/db/local');
     const db = createLocalDb(dbPath);
 
-    const { users, sessions, credentials, drafts, contentEdits } = await import('../src/db/schema');
+    const { users, sessions, credentials, bannedIps, contentEdits } = await import('../src/db/schema');
 
     const userRows = await db.select().from(users).all();
     expect(Array.isArray(userRows)).toBe(true);
@@ -29,8 +29,8 @@ describe('local SQLite database', () => {
     const credRows = await db.select().from(credentials).all();
     expect(Array.isArray(credRows)).toBe(true);
 
-    const draftRows = await db.select().from(drafts).all();
-    expect(Array.isArray(draftRows)).toBe(true);
+    const bannedIpRows = await db.select().from(bannedIps).all();
+    expect(Array.isArray(bannedIpRows)).toBe(true);
 
     const editRows = await db.select().from(contentEdits).all();
     expect(Array.isArray(editRows)).toBe(true);
@@ -45,7 +45,7 @@ describe('local SQLite database', () => {
     await db.insert(users).values({
       id: 'test-1',
       email: 'test@example.com',
-      displayName: 'Test User',
+      username: 'test-user',
       role: 'admin',
       createdAt: new Date().toISOString(),
     });
@@ -53,6 +53,6 @@ describe('local SQLite database', () => {
     const result = await db.select().from(users).where(eq(users.id, 'test-1')).get();
     expect(result).toBeDefined();
     expect(result!.email).toBe('test@example.com');
-    expect(result!.displayName).toBe('Test User');
+    expect(result!.username).toBe('test-user');
   });
 });

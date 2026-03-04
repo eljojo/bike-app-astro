@@ -3,9 +3,12 @@ import { sqliteTable, text, integer, blob, primaryKey, index } from 'drizzle-orm
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').unique(),
-  displayName: text('display_name').notNull(),
+  username: text('username').notNull(),
   role: text('role', { enum: ['admin', 'editor', 'guest'] }).notNull().default('editor'),
   createdAt: text('created_at').notNull(),
+  bannedAt: text('banned_at'),
+  ipAddress: text('ip_address'),
+  previousUsernames: text('previous_usernames'),
 });
 
 export const credentials = sqliteTable('credentials', {
@@ -30,18 +33,11 @@ export const sessions = sqliteTable('sessions', {
   index('sessions_expires_at_idx').on(table.expiresAt),
 ]);
 
-export const drafts = sqliteTable('drafts', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  contentType: text('content_type').notNull(),
-  contentSlug: text('content_slug').notNull(),
-  branchName: text('branch_name').notNull(),
-  prNumber: integer('pr_number'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
-}, (table) => [
-  index('drafts_user_content_idx').on(table.userId, table.contentType, table.contentSlug),
-]);
+export const bannedIps = sqliteTable('banned_ips', {
+  ip: text('ip').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  bannedAt: text('banned_at').notNull(),
+});
 
 export const contentEdits = sqliteTable('content_edits', {
   contentType: text('content_type').notNull(),

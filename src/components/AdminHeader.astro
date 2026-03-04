@@ -2,13 +2,11 @@
 import { env } from '../lib/env';
 
 interface Props {
-  user: { displayName: string; role: string };
-  currentTab: 'routes' | 'events';
-  showEditorMode?: boolean;
-  editorModeChecked?: boolean;
+  user: { username: string; role: string };
+  currentTab: 'routes' | 'events' | 'history' | 'users';
 }
 
-const { user, currentTab, showEditorMode = false, editorModeChecked = false } = Astro.props;
+const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
 ---
 
@@ -16,15 +14,9 @@ const isStaging = env.ENVIRONMENT === 'staging';
   <div class="staging-banner">Staging Environment</div>
 )}
 <div class="admin-header">
-  <h1>{currentTab === 'routes' ? 'Routes' : 'Events'}</h1>
+  <h1>{currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'history' ? 'History' : 'Users'}</h1>
   <div class="admin-user">
-    {showEditorMode && (
-      <label class="editor-mode-toggle">
-        <input type="checkbox" id="editor-mode-checkbox" checked={editorModeChecked} />
-        Draft mode
-      </label>
-    )}
-    {user.displayName}
+    {user.username}
     <form method="POST" action="/api/auth/logout" class="logout-form">
       <button type="submit" class="btn-logout">Sign out</button>
     </form>
@@ -34,6 +26,12 @@ const isStaging = env.ENVIRONMENT === 'staging';
 <nav class="admin-nav">
   <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
   <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>
+  {user.role === 'admin' && (
+    <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
+  )}
+  {user.role === 'admin' && (
+    <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
+  )}
 </nav>
 
 <style lang="scss">
@@ -120,15 +118,4 @@ const isStaging = env.ENVIRONMENT === 'staging';
     @include muted-text;
   }
 
-  .editor-mode-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.8125rem;
-    cursor: pointer;
-
-    input {
-      cursor: pointer;
-    }
-  }
 </style>

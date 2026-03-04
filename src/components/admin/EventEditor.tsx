@@ -1,6 +1,5 @@
 import { useState, useRef } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
-import SaveSuccessModal from './SaveSuccessModal';
 
 interface OrganizerData {
   slug: string;
@@ -40,8 +39,6 @@ interface Props {
   initialData: EventData;
   organizers: OrganizerData[];
   cdnUrl: string;
-  isDraft?: boolean;
-  draftPrNumber?: number | null;
 }
 
 function slugify(text: string): string {
@@ -76,7 +73,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, draftPrNumber }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -106,7 +103,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
   // Save state
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
 
@@ -206,12 +202,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
         return;
       }
 
-      if (result.draft) {
-        setDraftSaved(true);
-      } else {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 8000);
-      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 8000);
     } catch (err: any) {
       setError(err.message || 'Save failed');
     } finally {
@@ -219,33 +211,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
     }
   }
 
-  async function handleDiscard() {
-    if (!confirm('Discard all your changes to this event? This cannot be undone.')) return;
-    const res = await fetch('/api/drafts/discard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentType: 'events', contentSlug: initialData.id }),
-    });
-    if (res.ok) {
-      window.location.reload();
-    }
-  }
-
   return (
     <div class="event-editor">
-      {isDraft && (
-        <div class="draft-banner">
-          <span>
-            Draft — pending review
-            {draftPrNumber && (
-              <> (<a href={`https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`} target="_blank" rel="noopener">PR #{draftPrNumber}</a>)</>
-            )}
-          </span>
-          <button type="button" class="btn-discard" onClick={handleDiscard}>
-            Discard changes
-          </button>
-        </div>
-      )}
       <section class="editor-section">
         <h2>Event Details</h2>
         <div class="auth-form">
@@ -394,15 +361,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, isDraft, 
             Saved! Your edit will be live in a few minutes.
             {' '}<a href={`/events/${initialData.id}`}>View live</a>
           </div>
-        )}
-        {draftSaved && (
-          <SaveSuccessModal
-            prUrl={draftPrNumber
-              ? `https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`
-              : undefined}
-            isGuest={true}
-            onClose={() => setDraftSaved(false)}
-          />
         )}
         <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save'}

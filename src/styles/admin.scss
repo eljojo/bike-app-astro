@@ -356,35 +356,6 @@
   }
 }
 
-.draft-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background: $color-info-bg;
-  border: 1px solid $color-info-border;
-  border-radius: $border-radius;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  color: $color-info;
-
-  @include dark-mode {
-    background: $color-info-bg-dark;
-    border-color: $color-info-border-dark;
-    color: $color-info-dark;
-  }
-}
-
-.btn-discard {
-  background: none;
-  border: 1px solid currentColor;
-  border-radius: $border-radius;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  color: inherit;
-}
-
 // Tag editor (RouteEditor island)
 .tag-editor {
   display: flex;
@@ -627,6 +598,143 @@
   flex: 1;
   @include form-control;
   font-size: 0.875rem;
+}
+
+// Admin table (UserList island)
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid $color-border;
+    font-weight: 600;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+
+  .row-banned td {
+    opacity: 0.6;
+  }
+}
+
+.ip-hint {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.btn-small {
+  font-family: $font-body;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  color: $color-text;
+  cursor: pointer;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-danger {
+  border-color: $color-error;
+  color: $color-error;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+}
+
+// Edit history (EditHistory island)
+.edit-history {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  h3 {
+    font-size: 1rem;
+    margin: 0 0 0.75rem;
+  }
+}
+
+.commit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commit-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid $color-border;
+  font-size: 0.875rem;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+.commit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.commit-message {
+  word-break: break-word;
+}
+
+.commit-meta {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.commit-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.user-banned {
+  text-decoration: line-through;
+}
+
+.user-list {
+  .muted {
+    @include muted-text;
+    font-size: 0.875rem;
+  }
 }
 
 // Route creator (RouteCreator island)

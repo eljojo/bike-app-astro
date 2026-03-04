@@ -6,8 +6,9 @@ import type { AppEnv } from './app-env';
 export interface SessionUser {
   id: string;
   email: string | null;
-  displayName: string;
+  username: string;
   role: 'admin' | 'editor' | 'guest';
+  bannedAt: string | null;
 }
 
 export interface WebAuthnConfig {
@@ -59,8 +60,9 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     .select({
       userId: users.id,
       email: users.email,
-      displayName: users.displayName,
+      username: users.username,
       role: users.role,
+      bannedAt: users.bannedAt,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -78,8 +80,9 @@ export async function validateSession(db: Database, token: string): Promise<Sess
   return {
     id: row.userId,
     email: row.email,
-    displayName: row.displayName,
+    username: row.username,
     role: row.role as SessionUser['role'],
+    bannedAt: row.bannedAt,
   };
 }
 

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import simpleGit from 'simple-git';
-import type { FileChange, CommitAuthor, IGitService } from './git-service';
+import type { FileChange, CommitAuthor, IGitService, CommitInfo } from './git-service';
 
 export class LocalGitService implements IGitService {
   private repoPath: string;
@@ -96,8 +96,28 @@ export class LocalGitService implements IGitService {
     return log.latest?.hash || '';
   }
 
-  async triggerRebuild(): Promise<void> {
-    // No-op for local development
+  async listCommits(opts: { path?: string; perPage?: number; page?: number } = {}): Promise<CommitInfo[]> {
+    const git = simpleGit(this.repoPath);
+    const logOpts: any = { maxCount: opts.perPage || 20 };
+    if (opts.path) logOpts.file = opts.path;
+
+    const log = await git.log(logOpts);
+    return log.all.map(entry => ({
+      sha: entry.hash,
+      message: entry.message,
+      author: { name: entry.author_name, email: entry.author_email },
+      date: entry.date,
+    }));
+  }
+
+  async getFileAtCommit(commitSha: string, filePath: string): Promise<{ content: string } | null> {
+    const git = simpleGit(this.repoPath);
+    try {
+      const content = await git.show([`${commitSha}:${filePath}`]);
+      return { content };
+    } catch {
+      return null;
+    }
   }
 
   async getRef(branch: string): Promise<string | null> {

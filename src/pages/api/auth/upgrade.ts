@@ -12,7 +12,7 @@ import {
   retrieveChallenge,
   getWebAuthnConfig,
 } from '../../../lib/auth';
-import { sanitizeDisplayName } from '../../../lib/draft-branch';
+import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
@@ -23,7 +23,7 @@ export async function POST({ request, cookies, locals }: APIContext) {
     return jsonError('Only guests can upgrade');
   }
 
-  const { email: rawEmail, displayName, credential: credentialResponse } = await request.json();
+  const { email: rawEmail, username: rawUsername, credential: credentialResponse } = await request.json();
   if (!rawEmail) {
     return jsonError('Email is required');
   }
@@ -64,9 +64,14 @@ export async function POST({ request, cookies, locals }: APIContext) {
     // Store credential for the existing user
     await storeCredential(database, user.id, credential, credentialResponse.response?.transports);
 
-    // Upgrade: set email, role, optionally displayName
-    const updates: Record<string, unknown> = { email, role: 'editor' };
-    if (displayName) updates.displayName = sanitizeDisplayName(displayName);
+    // Upgrade: set email, role, optionally username
+    const updates: Record<string, unknown> = { email, role: 'editor', ipAddress: null };
+    if (rawUsername) {
+      updates.username = sanitizeUsername(rawUsername);
+      // Store old pseudonym in previousUsernames
+      const prev = [user.username];
+      updates.previousUsernames = JSON.stringify(prev);
+    }
 
     await database.update(users).set(updates).where(eq(users.id, user.id));
 

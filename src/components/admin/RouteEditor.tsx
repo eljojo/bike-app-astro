@@ -4,7 +4,6 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
-import SaveSuccessModal from './SaveSuccessModal';
 
 interface RouteData {
   slug: string;
@@ -22,11 +21,9 @@ interface RouteData {
 interface Props {
   initialData: RouteData;
   cdnUrl: string;
-  isDraft?: boolean;
-  draftPrNumber?: number | null;
 }
 
-export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumber }: Props) {
+export default function RouteEditor({ initialData, cdnUrl }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -42,7 +39,6 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [saved, setSaved] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
 
   function addTag() {
     const tag = tagInput.trim().toLowerCase();
@@ -107,12 +103,8 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
         return;
       }
 
-      if (data.draft) {
-        setDraftSaved(true);
-      } else {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 8000);
-      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 8000);
     } catch (err: any) {
       setError(err.message || 'Save failed');
     } finally {
@@ -120,33 +112,8 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
     }
   }
 
-  async function handleDiscard() {
-    if (!confirm('Discard all your changes to this route? This cannot be undone.')) return;
-    const res = await fetch('/api/drafts/discard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentType: 'routes', contentSlug: initialData.slug }),
-    });
-    if (res.ok) {
-      window.location.reload();
-    }
-  }
-
   return (
     <div class="route-editor">
-      {isDraft && (
-        <div class="draft-banner">
-          <span>
-            Draft — pending review
-            {draftPrNumber && (
-              <> (<a href={`https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`} target="_blank" rel="noopener">PR #{draftPrNumber}</a>)</>
-            )}
-          </span>
-          <button type="button" class="btn-discard" onClick={handleDiscard}>
-            Discard changes
-          </button>
-        </div>
-      )}
       <section class="editor-section">
         <h2>Text</h2>
         <div class="auth-form">
@@ -253,15 +220,6 @@ export default function RouteEditor({ initialData, cdnUrl, isDraft, draftPrNumbe
             Saved! Your edit will be live in a few minutes.
             {' '}<a href={`/routes/${initialData.slug}`}>View live</a>
           </div>
-        )}
-        {draftSaved && (
-          <SaveSuccessModal
-            prUrl={draftPrNumber
-              ? `https://github.com/eljojo/bike-routes/pull/${draftPrNumber}`
-              : undefined}
-            isGuest={true}
-            onClose={() => setDraftSaved(false)}
-          />
         )}
         <button
           type="button"

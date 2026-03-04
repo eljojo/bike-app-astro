@@ -12,7 +12,7 @@ import {
   getWebAuthnConfig,
   isFirstUser,
 } from '../../../lib/auth';
-import { sanitizeDisplayName } from '../../../lib/draft-branch';
+import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 
@@ -21,15 +21,15 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, displayName, credential: credentialResponse } = body;
+    const { email: rawEmail, username: rawUsername, credential: credentialResponse } = body;
 
-    if (!rawEmail || !displayName || !credentialResponse) {
+    if (!rawEmail || !rawUsername || !credentialResponse) {
       return jsonError('Missing required fields');
     }
 
     const database = db();
     const email = normalizeEmail(rawEmail);
-    const safeDisplayName = sanitizeDisplayName(displayName);
+    const username = sanitizeUsername(rawUsername);
     const config = getWebAuthnConfig(request.url, env);
 
     // Retrieve the stored challenge
@@ -62,7 +62,7 @@ export async function POST({ request, cookies }: APIContext) {
     await database.insert(users).values({
       id: userId,
       email,
-      displayName: safeDisplayName,
+      username,
       role: firstUser ? 'admin' : 'editor',
       createdAt: now,
     });

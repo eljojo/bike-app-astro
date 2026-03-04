@@ -27,18 +27,18 @@ test.describe('Community Editing — Auth Gate', () => {
   });
 });
 
-test.describe('Community Editing — Guest Draft Flow', () => {
+test.describe('Community Editing — Guest Direct Commit', () => {
   let token: string;
 
   test.beforeAll(() => {
-    token = seedSession({ role: 'guest', displayName: 'cyclist-e2e1', email: null });
+    token = seedSession({ role: 'guest', username: 'cyclist-e2e1', email: null });
   });
 
   test.afterAll(() => {
     cleanupSession(token);
   });
 
-  test('guest save creates draft branch and shows banner on reload', async ({ page }) => {
+  test('guest saves directly to main branch', async ({ page }) => {
     await page.context().addCookies([{
       name: 'session_token', value: token,
       domain: 'localhost', path: '/', httpOnly: true, secure: false,
@@ -50,9 +50,6 @@ test.describe('Community Editing — Guest Draft Flow', () => {
     // Verify we landed on the editor (not redirected to gate)
     await expect(page.locator('h1')).toContainText('Edit:');
     await page.waitForTimeout(2000);
-
-    // Initially no draft banner
-    await expect(page.locator('.draft-banner')).not.toBeVisible();
 
     // Make an edit
     const taglineInput = page.locator('#route-tagline');
@@ -62,16 +59,8 @@ test.describe('Community Editing — Guest Draft Flow', () => {
     const saveButton = page.getByRole('button', { name: /save/i });
     await saveButton.click();
 
-    // Wait for save response
+    // Wait for save response — saves directly, shows success
     await expect(page.locator('.save-success')).toBeVisible({ timeout: 15000 });
-
-    // Reload and verify draft banner appears
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
-
-    await expect(page.locator('.draft-banner')).toBeVisible();
-    await expect(page.locator('.draft-banner')).toContainText('Draft');
   });
 });
 
@@ -79,14 +68,14 @@ test.describe('Community Editing — Admin Direct Commit', () => {
   let token: string;
 
   test.beforeAll(() => {
-    token = seedSession({ role: 'admin', displayName: 'Admin User', email: 'admin@test.local' });
+    token = seedSession({ role: 'admin', username: 'Admin User', email: 'admin@test.local' });
   });
 
   test.afterAll(() => {
     cleanupSession(token);
   });
 
-  test('admin without editor mode saves directly (no draft banner)', async ({ page }) => {
+  test('admin saves directly', async ({ page }) => {
     await page.context().addCookies([{
       name: 'session_token', value: token,
       domain: 'localhost', path: '/', httpOnly: true, secure: false,
@@ -95,34 +84,7 @@ test.describe('Community Editing — Admin Direct Commit', () => {
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
 
-    // Verify we landed on the editor (not redirected to gate)
+    // Verify we landed on the editor
     await expect(page.locator('h1')).toContainText('Edit:');
-    await page.waitForTimeout(2000);
-
-    // No draft banner for admin
-    await expect(page.locator('.draft-banner')).not.toBeVisible();
-  });
-
-  test('admin with editor mode creates draft branch', async ({ page }) => {
-    await page.context().addCookies([
-      {
-        name: 'session_token', value: token,
-        domain: 'localhost', path: '/', httpOnly: true, secure: false,
-      },
-      {
-        name: 'editor_mode', value: '1',
-        domain: 'localhost', path: '/', httpOnly: false, secure: false,
-      },
-    ]);
-
-    await page.goto('/admin');
-    await page.waitForLoadState('networkidle');
-
-    // Verify we landed on the admin dashboard (not redirected to gate)
-    await expect(page.locator('h1')).toContainText('Routes');
-
-    // Editor mode toggle should be checked
-    const checkbox = page.locator('#editor-mode-checkbox');
-    await expect(checkbox).toBeChecked();
   });
 });

@@ -1,12 +1,9 @@
-import { createHash } from 'node:crypto';
 import type { APIContext } from 'astro';
 import { env } from './env';
 import { createGitService } from './git-factory';
 import { db } from './get-db';
 import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { resolveBranch, isDirectCommit } from './draft-branch';
-import { findDraft, ensureDraftBranch, handleDraftAfterCommit } from './draft-service';
 import { GIT_OWNER, GIT_DATA_REPO } from './config';
 import { jsonResponse, jsonError } from './api-response';
 import type { IGitService, FileChange } from './git-service';
@@ -70,6 +67,11 @@ export async function saveContent<T extends { contentHash?: string }>(
     return jsonError('Unauthorized', 401);
   }
 
+  // Phase 0a: Ban check
+  if (user.bannedAt) {
+    return jsonError('Unable to save', 403);
+  }
+
   // Phase 0b: Parse request
   let update: T;
   try {
@@ -88,9 +90,7 @@ export async function saveContent<T extends { contentHash?: string }>(
 
   try {
     const baseBranch = env.GIT_BRANCH || 'main';
-    const editorMode = request.headers.get('cookie')?.includes('editor_mode=1') ?? false;
-    const targetBranch = resolveBranch(user, editorMode, baseBranch, contentType, contentId);
-    const isDirect = isDirectCommit(user, editorMode);
+    const targetBranch = baseBranch;
     const database = db();
 
     const git = createGitService({
@@ -101,17 +101,9 @@ export async function saveContent<T extends { contentHash?: string }>(
     });
 
     const authorInfo = {
-      name: user.displayName,
-      email: user.email || `${user.displayName}@users.ottawabybike.ca`,
+      name: user.username,
+      email: user.email || `${user.username}@whereto.bike`,
     };
-
-    // Phase 1: Draft branch setup
-    let draft = isDirect ? null : await findDraft(database, user.id, contentType, contentId);
-    const isFirstDraftSave = !isDirect && !draft;
-
-    if (isFirstDraftSave) {
-      await ensureDraftBranch(env.GITHUB_TOKEN, baseBranch, targetBranch);
-    }
 
     // Phase 1b: Check existence for new content
     if (handlers.checkExistence) {
@@ -130,8 +122,8 @@ export async function saveContent<T extends { contentHash?: string }>(
     }
     const currentFiles: CurrentFiles = { primaryFile, auxiliaryFiles };
 
-    // Phase 3: Conflict detection (direct commits only)
-    if (isDirect && currentFiles.primaryFile) {
+    // Phase 3: Conflict detection
+    if (currentFiles.primaryFile) {
       const cached = await database.select().from(contentEdits)
         .where(and(eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
         .get();
@@ -199,11 +191,8 @@ export async function saveContent<T extends { contentHash?: string }>(
       }
 
       if (!hasChanges) {
-        if (isDirect) {
-          const currentHash = handlers.computeContentHash(currentFiles);
-          return jsonResponse({ success: true, id: contentId, contentHash: currentHash });
-        }
-        return jsonResponse({ success: true, id: contentId, draft: true });
+        const currentHash = handlers.computeContentHash(currentFiles);
+        return jsonResponse({ success: true, id: contentId, contentHash: currentHash });
       }
     }
 
@@ -211,23 +200,7 @@ export async function saveContent<T extends { contentHash?: string }>(
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
 
-    // Phase 5: Post-commit
-    if (!isDirect) {
-      await handleDraftAfterCommit(database, {
-        token: env.GITHUB_TOKEN,
-        user,
-        contentType,
-        contentSlug: contentId,
-        baseBranch,
-        targetBranch,
-        isFirstDraftSave,
-        existingDraft: draft,
-        prTitle: `${user.displayName}: ${isNew ? 'Create' : 'Update'} ${contentId}`,
-      });
-      return jsonResponse({ success: true, sha, id: contentId, draft: true });
-    }
-
-    // Direct commit: update D1 cache and return new contentHash
+    // Phase 5: Post-commit — update D1 cache
     const newPrimary = await git.readFile(filePaths.primary);
     if (newPrimary) {
       const newAuxiliary: Record<string, { content: string; sha: string } | null> = {};
