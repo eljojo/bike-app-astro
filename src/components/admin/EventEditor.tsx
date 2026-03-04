@@ -39,6 +39,7 @@ interface Props {
   initialData: EventData;
   organizers: OrganizerData[];
   cdnUrl: string;
+  readOnly?: boolean;
 }
 
 function slugify(text: string): string {
@@ -73,7 +74,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -212,7 +213,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl }: Props) 
   }
 
   return (
-    <div class="event-editor">
+    <fieldset class="event-editor" disabled={readOnly}>
       <section class="editor-section">
         <h2>Event Details</h2>
         <div class="auth-form">
@@ -362,10 +363,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl }: Props) 
             {' '}<a href={`/events/${initialData.id}`}>View live</a>
           </div>
         )}
-        <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>
+        <button type="button" class="btn-primary" onClick={handleSave} disabled={saving || readOnly}>
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }

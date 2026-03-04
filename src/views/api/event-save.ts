@@ -180,7 +180,23 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
   },
 };
 
+function isPastEvent(startDate: string | undefined): boolean {
+  if (!startDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return startDate < today;
+}
+
 export async function POST({ params, request, locals }: APIContext) {
+  const user = locals.user;
+
+  // For existing past events, only admins can edit
+  if (params.id && params.id !== 'new') {
+    const existing = adminEvents.find((e: AdminEvent) => e.id === params.id);
+    if (existing && isPastEvent(existing.start_date) && user?.role !== 'admin') {
+      return jsonError('Only admins can edit past events', 403);
+    }
+  }
+
   // For new events, checkExistence should run; for existing events, it shouldn't
   const id = params.id;
   const handlers = id === 'new'

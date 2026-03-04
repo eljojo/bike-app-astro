@@ -24,9 +24,14 @@ if (!eventData) return new Response(null, { status: 404 });
 
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
+const user = Astro.locals.user;
+const today = new Date().toISOString().slice(0, 10);
+const isPast = eventData.start_date < today;
+const readOnly = isPast && user?.role !== 'admin';
 ---
 
 <AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events">
-  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} />
+  {readOnly && <p class="admin-notice">This event is in the past. Only admins can edit past events.</p>}
+  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} readOnly={readOnly} />
   <EditHistory client:load contentPath={`ottawa/events/${id}.md`} />
 </AdminEditorLayout>

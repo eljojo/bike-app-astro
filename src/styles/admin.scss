@@ -91,6 +91,15 @@
   }
 }
 
+.admin-notice {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  border-radius: $border-radius;
+  margin-bottom: 1rem;
+}
+
 .auth-message {
   font-size: 0.875rem;
   color: $color-text-muted;
