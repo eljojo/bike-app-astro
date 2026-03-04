@@ -151,7 +151,8 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
   },
 
   buildCommitMessage(_update, eventId, isNew): string {
-    return isNew ? `Create event ${eventId}` : `Update event ${eventId}`;
+    const resourcePath = `${CITY}/events/${eventId}`;
+    return isNew ? `Create ${resourcePath}` : `Update ${resourcePath}`;
   },
 
   buildCacheData(update, eventId): string {

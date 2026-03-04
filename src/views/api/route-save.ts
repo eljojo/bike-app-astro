@@ -207,7 +207,8 @@ const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
-    if (isNew) return `Create ${slug}`;
+    const resourcePath = `${CITY}/routes/${slug}`;
+    if (isNew) return `Create ${resourcePath}`;
 
     const parts: string[] = [];
     if (update.frontmatter) parts.push('Update');
@@ -230,7 +231,7 @@ const routeHandlers: SaveHandlers<RouteUpdate> = {
         parts.push(`${newVariants.length} variant${newVariants.length > 1 ? 's' : ''}`);
       }
     }
-    return parts.length > 0 ? `${parts.join(' + ')} for ${slug}` : `Update ${slug}`;
+    return parts.length > 0 ? `${parts.join(' + ')} for ${resourcePath}` : `Update ${resourcePath}`;
   },
 
   buildCacheData(update, slug, currentFiles): string {
