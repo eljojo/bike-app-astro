@@ -90,7 +90,7 @@ const routes = adminRoutes.map(r => {
     checkbox.addEventListener('change', async (e) => {
       const enabled = (e.target as HTMLInputElement).checked;
       try {
-        const res = await fetch('/api/auth/editor-mode', {
+        const res = await fetch('/api/admin/editor-mode', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled }),
