@@ -1,5 +1,6 @@
 import { useState, useRef } from 'preact/hooks';
 import { useDragReorder } from '../../lib/hooks';
+import { extractRwgpsUrl } from '../../lib/gpx';
 
 export interface VariantItem {
   name: string;
@@ -21,6 +22,8 @@ export default function VariantManager({ variants, onChange }: Props) {
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [rwgpsUrl, setRwgpsUrl] = useState('');
+  const [importing, setImporting] = useState(false);
 
   function updateVariant(idx: number, updates: Partial<VariantItem>) {
     const updated = variants.map((v, i) => i === idx ? { ...v, ...updates } : v);
@@ -51,17 +54,62 @@ export default function VariantManager({ variants, onChange }: Props) {
         ? 'main.gpx'
         : `variants/${file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-')}`;
 
+      // Auto-detect RWGPS URL from GPX metadata
+      const detectedRwgpsUrl = extractRwgpsUrl(content);
+
       onChange([...variants, {
         name: baseName,
         gpx: gpxFileName,
         isNew: true,
         gpxContent: content,
+        ...(detectedRwgpsUrl && { rwgps_url: detectedRwgpsUrl }),
       }]);
     };
 
     reader.onerror = () => setError('Failed to read GPX file');
     reader.readAsText(file);
     input.value = '';
+  }
+
+  async function handleRwgpsImport() {
+    if (!rwgpsUrl.trim()) return;
+    setError('');
+    setImporting(true);
+
+    try {
+      const res = await fetch('/api/gpx/import-rwgps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: rwgpsUrl }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Import failed');
+      }
+
+      const { gpxContent, rwgpsUrl: resolvedUrl } = await res.json();
+
+      // Derive variant name from RWGPS URL
+      const routeId = rwgpsUrl.match(/routes\/(\d+)/)?.[1] || 'imported';
+      const gpxFileName = variants.length === 0
+        ? 'main.gpx'
+        : `variants/rwgps-${routeId}.gpx`;
+
+      onChange([...variants, {
+        name: `RWGPS ${routeId}`,
+        gpx: gpxFileName,
+        isNew: true,
+        gpxContent,
+        rwgps_url: resolvedUrl,
+      }]);
+
+      setRwgpsUrl('');
+    } catch (err: any) {
+      setError(err.message || 'Import failed');
+    } finally {
+      setImporting(false);
+    }
   }
 
   return (
@@ -135,6 +183,24 @@ export default function VariantManager({ variants, onChange }: Props) {
           style="display:none"
           onChange={handleGpxUpload}
         />
+        <div class="rwgps-import">
+          <input
+            type="url"
+            class="rwgps-input"
+            placeholder="https://ridewithgps.com/routes/..."
+            value={rwgpsUrl}
+            onInput={(e) => setRwgpsUrl((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRwgpsImport(); } }}
+          />
+          <button
+            type="button"
+            class="btn-secondary"
+            onClick={handleRwgpsImport}
+            disabled={importing || !rwgpsUrl.trim()}
+          >
+            {importing ? 'Importing...' : 'Import from RWGPS'}
+          </button>
+        </div>
       </div>
 
       {error && <div class="auth-error">{error}</div>}

@@ -604,6 +604,18 @@
   margin-top: 0.25rem;
 }
 
+.rwgps-import {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rwgps-input {
+  flex: 1;
+  @include form-control;
+  font-size: 0.875rem;
+}
+
 // Route creator (RouteCreator island)
 .route-creator {
   max-width: 500px;
