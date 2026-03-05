@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs } from './helpers.ts';
 
 test.describe('Community Editing — Auth Gate', () => {
   test('unauthenticated user sees auth gate on admin pages', async ({ page }) => {
@@ -39,10 +39,7 @@ test.describe('Community Editing — Guest Direct Commit', () => {
   });
 
   test('guest saves directly to main branch', async ({ page }) => {
-    await page.context().addCookies([{
-      name: 'session_token', value: token,
-      domain: 'localhost', path: '/', httpOnly: true, secure: false,
-    }]);
+    await loginAs(page, token);
 
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
@@ -76,10 +73,7 @@ test.describe('Community Editing — Admin Direct Commit', () => {
   });
 
   test('admin saves directly', async ({ page }) => {
-    await page.context().addCookies([{
-      name: 'session_token', value: token,
-      domain: 'localhost', path: '/', httpOnly: true, secure: false,
-    }]);
+    await loginAs(page, token);
 
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');

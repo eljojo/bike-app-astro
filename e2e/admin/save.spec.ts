@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture.ts';
-import { seedSession, cleanupSession } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,17 +36,7 @@ test.describe('Admin Save Flow', () => {
   });
 
   test('upload photo, edit tagline, save, verify commit and persistence', async ({ page }) => {
-    // Authenticate
-    await page.context().addCookies([
-      {
-        name: 'session_token',
-        value: token,
-        domain: 'localhost',
-        path: '/',
-        httpOnly: true,
-        secure: false,
-      },
-    ]);
+    await loginAs(page, token);
 
     // Navigate to route editor
     await page.goto('/admin/routes/carp');

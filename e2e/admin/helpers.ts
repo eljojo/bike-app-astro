@@ -74,6 +74,14 @@ export function seedSession(opts: SeedOptions = {}): string {
   return token;
 }
 
+/** Set session cookie on a Playwright page. */
+export async function loginAs(page: import('@playwright/test').Page, token: string) {
+  await page.context().addCookies([{
+    name: 'session_token', value: token,
+    domain: 'localhost', path: '/', httpOnly: true, secure: false,
+  }]);
+}
+
 /** Remove the user and session created by seedSession. */
 export function cleanupSession(token: string) {
   if (!fs.existsSync(DB_PATH)) return;
