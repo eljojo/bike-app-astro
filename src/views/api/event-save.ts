@@ -10,6 +10,7 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
 import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
+import { slugify } from '../../lib/slug';
 
 export const prerender = false;
 
@@ -29,10 +30,6 @@ interface EventUpdate {
 }
 
 const CITY = 'ottawa';
-
-function slugify(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
 
 function countOrganizerReferences(orgSlug: string, excludeEventId: string): number {
   return adminEvents.filter((e: AdminEvent) => {

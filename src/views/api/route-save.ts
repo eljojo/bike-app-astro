@@ -12,6 +12,7 @@ import type { FileChange } from '../../lib/git-service';
 import { uploadToLfs } from '../../lib/git-lfs';
 import { env } from '../../lib/env';
 import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
+import { validateSlug } from '../../lib/slug';
 
 export const prerender = false;
 
@@ -57,12 +58,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     return params.slug!;
   },
 
-  validateSlug(slug: string): string | null {
-    if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
-      return 'Invalid slug';
-    }
-    return null;
-  },
+  validateSlug,
 
   getFilePaths(slug: string) {
     const basePath = `${CITY}/routes/${slug}`;

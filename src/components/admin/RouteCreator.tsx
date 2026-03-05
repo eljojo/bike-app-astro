@@ -2,12 +2,7 @@ import { useState, useRef } from 'preact/hooks';
 import RouteEditor from './RouteEditor';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
-
-function slugify(text: string): string {
-  return text.toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+import { slugify } from '../../lib/slug';
 
 export default function RouteCreator() {
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');

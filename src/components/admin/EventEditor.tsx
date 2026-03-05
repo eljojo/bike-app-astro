@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
 import type { EventDetail } from '../../lib/models/event-model';
+import { slugify } from '../../lib/slug';
 
 interface OrganizerData {
   slug: string;
@@ -14,10 +15,6 @@ interface Props {
   organizers: OrganizerData[];
   cdnUrl: string;
   readOnly?: boolean;
-}
-
-function slugify(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 /** Resolve the initial organizer state from the union field */
