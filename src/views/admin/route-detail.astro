@@ -37,5 +37,5 @@ const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
   viewLink={`/routes/${slug}`}
 >
   <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} />
-  <EditHistory client:load contentPath={`ottawa/routes/${slug}/index.md`} gitRepo="eljojo/bike-routes" />
+  <EditHistory client:load contentPath={`ottawa/routes/${slug}`} gitRepo="eljojo/bike-routes" />
 </AdminEditorLayout>

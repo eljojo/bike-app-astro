@@ -41,7 +41,11 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
   );
 
   function resolveContentPath(commit: Commit): string | null {
-    if (contentPath) return contentPath;
+    if (contentPath) {
+      // If contentPath is a directory (routes), append index.md for the revert endpoint
+      if (!contentPath.endsWith('.md')) return `${contentPath}/index.md`;
+      return contentPath;
+    }
     const match = commit.message.match(resourcePathRegex);
     if (!match) return null;
     const parts = match[0].split('/');
