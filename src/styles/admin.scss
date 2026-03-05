@@ -821,6 +821,25 @@
   }
 }
 
+.commit-diff {
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  margin: 0 0 0.5rem;
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-subtle-dark;
+  }
+}
+
 // Toast notifications
 .toast-container {
   position: fixed;

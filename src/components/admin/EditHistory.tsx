@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';
 
 interface CommitUser {
@@ -29,6 +30,9 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expandedDiff, setExpandedDiff] = useState<string | null>(null);
+  const [diffContent, setDiffContent] = useState<Record<string, string>>({});
+  const [diffLoading, setDiffLoading] = useState<string | null>(null);
 
   const resourcePathRegex = useMemo(
     () => new RegExp(`${city}/(?:routes|events|guides|places|organizers)/[\\w/-]+`),
@@ -111,6 +115,34 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
     }
   }
 
+  async function handleShowDiff(sha: string) {
+    if (expandedDiff === sha) {
+      setExpandedDiff(null);
+      return;
+    }
+
+    if (diffContent[sha]) {
+      setExpandedDiff(sha);
+      return;
+    }
+
+    setDiffLoading(sha);
+    try {
+      const res = await fetch('/api/admin/diff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commitSha: sha, contentPath }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDiffContent(prev => ({ ...prev, [sha]: data.diff }));
+        setExpandedDiff(sha);
+      }
+    } finally {
+      setDiffLoading(null);
+    }
+  }
+
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-CA', {
       year: 'numeric', month: 'short', day: 'numeric',
@@ -134,7 +166,8 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
           const resourceLabel = extractResourceLabel(c);
           const isCurrentVersion = idx === 0;
           return (
-            <div key={c.sha} class="commit-item">
+            <Fragment key={c.sha}>
+            <div class="commit-item">
               <div class="commit-info">
                 <span class="commit-message">{c.message}</span>
                 {gitRepo && (
@@ -165,6 +198,14 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
                 </span>
               </div>
               <div class="commit-actions">
+                <button
+                  type="button"
+                  class="btn-small btn-secondary"
+                  onClick={() => handleShowDiff(c.sha)}
+                  disabled={diffLoading === c.sha}
+                >
+                  {diffLoading === c.sha ? '...' : expandedDiff === c.sha ? 'Hide diff' : 'Diff'}
+                </button>
                 {filePath && (
                   <button
                     type="button"
@@ -188,6 +229,10 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
                 )}
               </div>
             </div>
+            {expandedDiff === c.sha && diffContent[c.sha] && (
+              <pre class="commit-diff">{diffContent[c.sha]}</pre>
+            )}
+            </Fragment>
           );
         })}
       </div>
