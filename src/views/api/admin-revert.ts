@@ -99,7 +99,17 @@ export async function POST({ request, locals }: APIContext) {
         if (parsed.contentType === 'routes') {
           const basePath = `${CITY}/routes/${parsed.contentSlug}`;
           const mediaFile = await git.readFile(`${basePath}/media.yml`);
-          const detail = routeDetailFromGit(parsed.contentSlug, fm, body, mediaFile?.content);
+          const frFile = await git.readFile(`${basePath}/index.fr.md`);
+          const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
+          if (frFile) {
+            const { data: frFm, content: frBody } = matter(frFile.content);
+            translations['fr'] = {
+              name: frFm.name as string | undefined,
+              tagline: frFm.tagline as string | undefined,
+              body: frBody.trim() || undefined,
+            };
+          }
+          const detail = routeDetailFromGit(parsed.contentSlug, fm, body, mediaFile?.content, translations);
           cacheData = routeDetailToCache(detail);
         } else if (parsed.contentType === 'events') {
           const detail = eventDetailFromGit(parsed.contentSlug, fm, body);
