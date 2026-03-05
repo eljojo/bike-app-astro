@@ -9,6 +9,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
+import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
 
 export const prerender = false;
 
@@ -77,10 +78,8 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
 
   buildFreshData(eventId: string, currentFiles: CurrentFiles): string {
     const { data: ghFm, content: ghBody } = matter(currentFiles.primaryFile!.content);
-    return JSON.stringify({
-      id: eventId, slug: eventId.split('/')[1], year: eventId.split('/')[0],
-      ...ghFm, body: ghBody.trim(),
-    });
+    const detail = eventDetailFromGit(eventId, ghFm, ghBody);
+    return eventDetailToCache(detail);
   },
 
   async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {
@@ -169,10 +168,8 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
         fm.organizer = orgSlug;
       }
     }
-    return JSON.stringify({
-      id: eventId, slug: eventId.split('/')[1], year: eventId.split('/')[0],
-      ...fm, body: update.body,
-    });
+    const detail = eventDetailFromGit(eventId, fm, update.body);
+    return eventDetailToCache(detail);
   },
 
   buildGitHubUrl(eventId: string, baseBranch: string): string {
