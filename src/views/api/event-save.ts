@@ -22,7 +22,7 @@ interface OrganizerPayload {
 }
 
 const eventUpdateSchema = z.object({
-  frontmatter: z.record(z.unknown()),
+  frontmatter: z.record(z.string(), z.unknown()),
   body: z.string(),
   contentHash: z.string().optional(),
   organizer: z.object({
