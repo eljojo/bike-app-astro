@@ -9,6 +9,7 @@ import { env } from '../../lib/env';
 import { CDN_FALLBACK_URL } from '../../lib/config';
 import { loadAdminContent } from '../../lib/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
+import { loadTagTranslations } from '../../lib/tag-translations';
 
 const { slug } = Astro.params;
 
@@ -28,6 +29,7 @@ if (!routeData) {
 }
 
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const tagTranslations = loadTagTranslations();
 ---
 
 <AdminEditorLayout
@@ -36,6 +38,6 @@ const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
   backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} />
   <EditHistory client:load contentPath={`ottawa/routes/${slug}`} gitRepo="eljojo/bike-routes" />
 </AdminEditorLayout>

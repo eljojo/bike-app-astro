@@ -20,6 +20,14 @@ function load(): TagTranslations {
 }
 
 /**
+ * Load the raw tag translations map.
+ * Used to pass translations to client-side components.
+ */
+export function loadTagTranslations(): TagTranslations {
+  return load();
+}
+
+/**
  * Translate a route tag for the given locale.
  * Returns the original tag if no translation exists.
  */

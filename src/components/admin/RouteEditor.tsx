@@ -8,9 +8,10 @@ import type { RouteDetail } from '../../lib/models/route-model';
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  tagTranslations?: Record<string, Record<string, string>>;
 }
 
-export default function RouteEditor({ initialData, cdnUrl }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -112,6 +113,11 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
         [field]: value,
       },
     }));
+  }
+
+  function displayTag(tag: string): string {
+    if (activeLocale === 'en') return tag;
+    return tagTranslations[tag]?.[activeLocale] ?? tag;
   }
 
   function addTag() {
@@ -240,41 +246,39 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
             />
           </div>
 
-          {activeLocale === 'en' && (
-            <>
-              <div class="form-field">
-                <label>Tags</label>
-                <div class="tag-editor">
-                  {tags.map((tag) => (
-                    <span key={tag} class="tag-pill">
-                      {tag}
-                      <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    class="tag-input"
-                    value={tagInput}
-                    onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-                    onKeyDown={handleTagKeyDown}
-                    onBlur={addTag}
-                    placeholder="Add tag..."
-                  />
-                </div>
-              </div>
+          <div class="form-field">
+            <label>Tags</label>
+            <div class="tag-editor">
+              {tags.map((tag) => (
+                <span key={tag} class="tag-pill">
+                  {displayTag(tag)}
+                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
+                </span>
+              ))}
+              <input
+                type="text"
+                class="tag-input"
+                value={tagInput}
+                onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={addTag}
+                placeholder="Add tag..."
+              />
+            </div>
+          </div>
 
-              <div class="form-field">
-                <label for="route-status">Status</label>
-                <select
-                  id="route-status"
-                  value={status}
-                  onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
-                >
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
-            </>
+          {activeLocale === 'en' && (
+            <div class="form-field">
+              <label for="route-status">Status</label>
+              <select
+                id="route-status"
+                value={status}
+                onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
+              >
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
           )}
 
           <div class="form-field">

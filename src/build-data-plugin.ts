@@ -142,6 +142,9 @@ export function getCityConfig() { return _data; }
           code: `
 import { shortLocale, defaultLocale } from './locale-utils';
 const _translations = ${JSON.stringify(tagTranslations)};
+export function loadTagTranslations() {
+  return _translations;
+}
 export function tTag(tag, locale) {
   const short = shortLocale(locale || defaultLocale());
   const entry = _translations[tag];
