@@ -13,6 +13,7 @@ import { uploadToLfs } from '../../lib/git-lfs';
 import { env } from '../../lib/env';
 import { routeDetailFromGit, routeDetailToCache, computeRouteContentHash } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
+import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 
 export const prerender = false;
 
@@ -89,9 +90,13 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
 
   getFilePaths(slug: string) {
     const basePath = `${CITY}/routes/${slug}`;
+    const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
     return {
       primary: `${basePath}/index.md`,
-      auxiliary: [`${basePath}/media.yml`, `${basePath}/index.fr.md`],
+      auxiliary: [
+        `${basePath}/media.yml`,
+        ...secondaryLocales.map(l => `${basePath}/index.${l}.md`),
+      ],
     };
   },
 
