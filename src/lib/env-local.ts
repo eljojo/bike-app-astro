@@ -25,6 +25,7 @@ export function createLocalEnv(): AppEnv {
     STORAGE_KEY_PREFIX: process.env.STORAGE_KEY_PREFIX || '',
     GIT_BRANCH: process.env.GIT_BRANCH || '',
     ENVIRONMENT: process.env.ENVIRONMENT || 'local',
+    RWGPS_API_KEY: process.env.RWGPS_API_KEY || '',
     ASSETS: null as unknown,
   };
 }

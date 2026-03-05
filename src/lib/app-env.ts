@@ -20,4 +20,5 @@ export interface AppEnv {
   STORAGE_KEY_PREFIX: string;
   GIT_BRANCH: string;
   ENVIRONMENT: string;
+  RWGPS_API_KEY?: string;
 }

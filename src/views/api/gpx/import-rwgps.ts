@@ -38,15 +38,24 @@ export async function POST({ request, locals }: APIContext) {
 
   const gpxUrl = `https://ridewithgps.com/routes/${parsed.routeId}.gpx?${params}`;
 
-  const gpxResponse = await fetch(gpxUrl, {
-    headers: {
-      'User-Agent': `${new URL(import.meta.env.SITE).hostname} route importer`,
-    },
-  });
+  const headers: Record<string, string> = {
+    'User-Agent': `${new URL(import.meta.env.SITE).hostname} route importer`,
+  };
+
+  const { env } = await import('../../../lib/env');
+  const apiKey = env.RWGPS_API_KEY;
+  if (apiKey) {
+    headers['x-rwgps-api-key'] = apiKey;
+  }
+
+  const gpxResponse = await fetch(gpxUrl, { headers });
 
   if (!gpxResponse.ok) {
+    const hint = apiKey
+      ? 'Make sure the route is public or include the privacy code.'
+      : 'RWGPS_API_KEY is not configured — set it to enable authenticated GPX downloads.';
     return jsonError(
-      `Failed to fetch GPX from RideWithGPS (${gpxResponse.status}). Make sure the route is public or include the privacy code.`,
+      `Failed to fetch GPX from RideWithGPS (${gpxResponse.status}). ${hint}`,
       gpxResponse.status === 404 ? 404 : 502,
     );
   }
