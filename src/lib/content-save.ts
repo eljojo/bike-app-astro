@@ -9,6 +9,7 @@ import { jsonResponse, jsonError } from './api-response';
 import type { IGitService, FileChange } from './git-service';
 import type { SessionUser } from './auth';
 import { buildAuthorEmail } from './commit-author';
+import { upsertContentCache } from './cache';
 
 export interface CurrentFiles {
   primaryFile: { content: string; sha: string } | null;
@@ -140,19 +141,11 @@ export async function saveContent<T extends { contentHash?: string }>(
       if (hasConflict) {
         const freshData = handlers.buildFreshData(contentId, currentFiles);
 
-        await database.insert(contentEdits).values({
+        await upsertContentCache(database, {
           contentType,
           contentSlug: contentId,
           data: freshData,
           githubSha: currentFiles.primaryFile.sha,
-          updatedAt: new Date().toISOString(),
-        }).onConflictDoUpdate({
-          target: [contentEdits.contentType, contentEdits.contentSlug],
-          set: {
-            data: freshData,
-            githubSha: currentFiles.primaryFile.sha,
-            updatedAt: new Date().toISOString(),
-          },
         });
 
         return jsonResponse({
@@ -220,19 +213,11 @@ export async function saveContent<T extends { contentHash?: string }>(
       const cacheData = handlers.buildCacheData(update, contentId, committedFiles);
       const newContentHash = handlers.computeContentHash(committedFiles);
 
-      await database.insert(contentEdits).values({
+      await upsertContentCache(database, {
         contentType,
         contentSlug: contentId,
         data: cacheData,
         githubSha: sha,
-        updatedAt: new Date().toISOString(),
-      }).onConflictDoUpdate({
-        target: [contentEdits.contentType, contentEdits.contentSlug],
-        set: {
-          data: cacheData,
-          githubSha: sha,
-          updatedAt: new Date().toISOString(),
-        },
       });
 
       return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });

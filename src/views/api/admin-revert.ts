@@ -3,8 +3,8 @@ import matter from 'gray-matter';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
-import { contentEdits } from '../../db/schema';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { upsertContentCache } from '../../lib/cache';
 import { requireAdmin } from '../../lib/auth';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
@@ -74,19 +74,11 @@ export async function POST({ request, locals }: APIContext) {
         }
 
         if (cacheData !== null) {
-          await database.insert(contentEdits).values({
+          await upsertContentCache(database, {
             contentType: parsed.contentType,
             contentSlug: parsed.contentSlug,
             data: cacheData,
             githubSha: newFile.sha,
-            updatedAt: new Date().toISOString(),
-          }).onConflictDoUpdate({
-            target: [contentEdits.contentType, contentEdits.contentSlug],
-            set: {
-              data: cacheData,
-              githubSha: newFile.sha,
-              updatedAt: new Date().toISOString(),
-            },
           });
         }
       }
