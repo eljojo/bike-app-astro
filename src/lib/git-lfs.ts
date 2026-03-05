@@ -97,6 +97,7 @@ export async function uploadToLfs(
       const verifyHeaders: Record<string, string> = {
         'Accept': 'application/vnd.git-lfs+json',
         'Content-Type': 'application/vnd.git-lfs+json',
+        'Authorization': `Basic ${basicAuth}`,
         ...(verifyAction.header || {}),
       };
 

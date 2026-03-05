@@ -94,6 +94,10 @@ describe('uploadToLfs', () => {
     expect(pointer).toContain('oid sha256:');
     expect(pointer).toContain('size ');
     expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+
+    // Verify request includes Basic auth
+    const verifyCall = (globalThis.fetch as any).mock.calls[2];
+    expect(verifyCall[1].headers['Authorization']).toBe(`Basic ${btoa('owner:token')}`);
   });
 
   it('happy path without verify endpoint → 2 fetches', async () => {
