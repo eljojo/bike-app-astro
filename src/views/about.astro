@@ -26,6 +26,13 @@ const renderedBody = body
 
 <Base title={`${title} | ${config.display_name}`} description={`${title} - ${config.display_name} and ${config.author.name}`}>
   <div class="about-page--intro-text" set:html={renderedBody} />
+  <div class="about-contribute">
+    <p>
+      This is a community project — anyone can contribute.
+      If you know a cycling route that's not listed, <a href="/admin/routes/new">suggest a new route</a>.
+      You can also <a href="/admin">suggest edits</a> to existing routes and events.
+    </p>
+  </div>
   <br />
   <small>the <img src="/bicycle.png" alt="bicycle" width="32" height="32" style="vertical-align: middle;" /> icon is from <a href="https://www.flaticon.com/free-icon/bicycle_2972185#" target="_blank" rel="noopener">flaticon</a> - <a href="/sitemap">sitemap</a></small>
 </Base>

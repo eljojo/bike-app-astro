@@ -660,3 +660,19 @@ a.go-back-button {
     border-color: $color-accent;
   }
 }
+
+.about-contribute {
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  font-size: 0.9rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  a {
+    color: $color-accent;
+  }
+}
