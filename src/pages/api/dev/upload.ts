@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
+import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export async function PUT({ request, url }: APIContext) {
   if (process.env.RUNTIME !== 'local') {
@@ -9,10 +10,7 @@ export async function PUT({ request, url }: APIContext) {
 
   const key = url.searchParams.get('key');
   if (!key) {
-    return new Response(JSON.stringify({ error: 'Missing key' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Missing key');
   }
 
   try {
@@ -21,15 +19,9 @@ export async function PUT({ request, url }: APIContext) {
     const body = await request.arrayBuffer();
     await env.BUCKET.put(`${prefix}uploads/pending/${key}`, body);
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(message, 500);
   }
 }
