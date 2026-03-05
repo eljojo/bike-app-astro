@@ -34,10 +34,42 @@ export async function POST({ request, locals }: APIContext) {
   });
 
   try {
-    // Read the file at the target commit SHA (restore to this version)
-    const fileAtCommit = await git.getFileAtCommit(commitSha, contentPath);
-    if (!fileAtCommit) {
-      return jsonError('Could not read file at this commit');
+    // Determine which files this commit changed
+    const changedFiles = await git.getCommitFiles(commitSha);
+    if (changedFiles.length === 0) {
+      return jsonError('No files found in this commit');
+    }
+
+    // For content-scoped restores, filter to files under the content path's directory
+    const contentDir = contentPath.replace(/\/[^/]+$/, '/');
+    const relevantFiles = changedFiles.filter(f => f.startsWith(contentDir) || f === contentPath);
+    const filesToRestore = relevantFiles.length > 0 ? relevantFiles : [contentPath];
+
+    // Read each file at the target commit
+    const restoreFiles: { path: string; content: string }[] = [];
+    for (const filePath of filesToRestore) {
+      const fileAtCommit = await git.getFileAtCommit(commitSha, filePath);
+      if (fileAtCommit) {
+        restoreFiles.push({ path: filePath, content: fileAtCommit.content });
+      }
+    }
+
+    if (restoreFiles.length === 0) {
+      return jsonError('Could not read files at this commit');
+    }
+
+    // Check if content already matches HEAD (avoid empty commit)
+    let hasChanges = false;
+    for (const file of restoreFiles) {
+      const current = await git.readFile(file.path);
+      if (!current || current.content !== file.content) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    if (!hasChanges) {
+      return jsonResponse({ success: true, message: 'Content already matches this version' });
     }
 
     const user = locals.user!;
@@ -49,22 +81,23 @@ export async function POST({ request, locals }: APIContext) {
       email: buildAuthorEmail(user),
     };
 
-    const sha = await git.writeFiles(
-      [{ path: contentPath, content: fileAtCommit.content }],
-      restoreMessage,
-      authorInfo,
-    );
+    const sha = await git.writeFiles(restoreFiles, restoreMessage, authorInfo);
 
     // Update D1 cache if this is a known content type
     if (parsed) {
       const database = db();
-      const newFile = await git.readFile(contentPath);
+      const primaryPath = parsed.contentType === 'routes'
+        ? `${CITY}/routes/${parsed.contentSlug}/index.md`
+        : `${CITY}/events/${parsed.contentSlug}.md`;
+      const newFile = await git.readFile(primaryPath);
       if (newFile) {
-        const { data: fm, content: body } = matter(fileAtCommit.content);
+        const primaryRestore = restoreFiles.find(f => f.path === primaryPath);
+        const primaryContent = primaryRestore?.content || newFile.content;
+        const { data: fm, content: body } = matter(primaryContent);
         let cacheData: string | null = null;
 
         if (parsed.contentType === 'routes') {
-          const basePath = contentPath.replace(/\/index\.md$/, '').replace(/\.md$/, '');
+          const basePath = `${CITY}/routes/${parsed.contentSlug}`;
           const mediaFile = await git.readFile(`${basePath}/media.yml`);
           const detail = routeDetailFromGit(parsed.contentSlug, fm, body, mediaFile?.content);
           cacheData = routeDetailToCache(detail);
