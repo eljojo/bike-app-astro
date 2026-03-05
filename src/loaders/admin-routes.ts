@@ -13,13 +13,29 @@ function readRouteDir(slug: string) {
   const routeDir = path.join(CITY_DIR, 'routes', slug);
   const mdPath = path.join(routeDir, 'index.md');
   const mediaPath = path.join(routeDir, 'media.yml');
+  const frPath = path.join(routeDir, 'index.fr.md');
 
   const indexRaw = fs.readFileSync(mdPath, 'utf-8');
   const mediaRaw = fs.existsSync(mediaPath) ? fs.readFileSync(mediaPath, 'utf-8') : '';
-  const contentHash = computeRouteContentHash(indexRaw, mediaRaw || undefined);
+  const frRaw = fs.existsSync(frPath) ? fs.readFileSync(frPath, 'utf-8') : undefined;
+
+  const translationContents: Record<string, string> = {};
+  if (frRaw) translationContents['fr'] = frRaw;
+  const contentHash = computeRouteContentHash(indexRaw, mediaRaw || undefined, Object.keys(translationContents).length > 0 ? translationContents : undefined);
 
   const { data: frontmatter, content: body } = matter(indexRaw);
-  const detail = routeDetailFromGit(slug, frontmatter, body, mediaRaw || undefined);
+
+  const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
+  if (frRaw) {
+    const { data: frFm, content: frBody } = matter(frRaw);
+    translations['fr'] = {
+      name: frFm.name as string | undefined,
+      tagline: frFm.tagline as string | undefined,
+      body: frBody.trim() || undefined,
+    };
+  }
+
+  const detail = routeDetailFromGit(slug, frontmatter, body, mediaRaw || undefined, translations);
 
   return { frontmatter, detail, contentHash };
 }
