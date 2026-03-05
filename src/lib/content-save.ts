@@ -64,18 +64,61 @@ export async function saveContent<T extends { contentHash?: string }>(
   contentType: string,
   handlers: SaveHandlers<T>,
 ): Promise<Response> {
-  // Phase 0: Auth
+  const auth = await authenticateAndParse(request, locals, params, handlers);
+  if (auth instanceof Response) return auth;
+  const { user, update, contentId } = auth;
+
+  try {
+    const baseBranch = env.GIT_BRANCH || 'main';
+    const database = db();
+    const git = createGitService({
+      token: env.GITHUB_TOKEN,
+      owner: GIT_OWNER,
+      repo: GIT_DATA_REPO,
+      branch: baseBranch,
+    });
+
+    if (handlers.checkExistence) {
+      const err = await handlers.checkExistence(git, contentId);
+      if (err) return err;
+    }
+
+    const filePaths = handlers.getFilePaths(contentId);
+    const currentFiles = await readCurrentState(git, filePaths);
+
+    const conflict = await detectConflict(database, contentType, contentId, currentFiles, update, handlers, baseBranch);
+    if (conflict) return conflict;
+
+    const { files, deletePaths, isNew } = await handlers.buildFileChanges(update, contentId, currentFiles, git);
+
+    if (await hasNoChanges(files, deletePaths, isNew, currentFiles, filePaths, git)) {
+      const currentHash = handlers.computeContentHash(currentFiles);
+      return jsonResponse({ success: true, id: contentId, contentHash: currentHash });
+    }
+
+    const authorInfo = { name: user.username, email: buildAuthorEmail(user) };
+    const message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
+    const sha = await git.writeFiles(files, message, authorInfo,
+      deletePaths.length > 0 ? deletePaths : undefined);
+
+    return updateCacheAfterCommit(database, contentType, contentId, filePaths, files, currentFiles, handlers, update, sha);
+  } catch (err: unknown) {
+    console.error(`save ${contentType} error:`, err);
+    const message = err instanceof Error ? err.message : 'Failed to save';
+    return jsonError(message, 500);
+  }
+}
+
+async function authenticateAndParse<T>(
+  request: Request,
+  locals: APIContext['locals'],
+  params: Record<string, string | undefined>,
+  handlers: SaveHandlers<T>,
+): Promise<{ user: SessionUser; update: T; contentId: string } | Response> {
   const user = locals.user as SessionUser | undefined;
-  if (!user) {
-    return jsonError('Unauthorized', 401);
-  }
+  if (!user) return jsonError('Unauthorized', 401);
+  if (user.bannedAt) return jsonError('Unable to save', 403);
 
-  // Phase 0a: Ban check
-  if (user.bannedAt) {
-    return jsonError('Unable to save', 403);
-  }
-
-  // Phase 0b: Parse request
   let update: T;
   try {
     const body = await request.json();
@@ -85,7 +128,6 @@ export async function saveContent<T extends { contentHash?: string }>(
     return jsonError(message);
   }
 
-  // Phase 0b2: Strip admin-only fields from non-admin saves
   if (user.role !== 'admin') {
     const u = update as Record<string, unknown>;
     if (u.frontmatter && typeof u.frontmatter === 'object') {
@@ -93,152 +135,140 @@ export async function saveContent<T extends { contentHash?: string }>(
     }
   }
 
-  // Phase 0c: Resolve content ID
   const contentId = handlers.resolveContentId(params, update);
   if (handlers.validateSlug) {
     const slugError = handlers.validateSlug(contentId);
     if (slugError) return jsonError(slugError);
   }
 
-  try {
-    const baseBranch = env.GIT_BRANCH || 'main';
-    const targetBranch = baseBranch;
-    const database = db();
+  return { user, update, contentId };
+}
 
-    const git = createGitService({
-      token: env.GITHUB_TOKEN,
-      owner: GIT_OWNER,
-      repo: GIT_DATA_REPO,
-      branch: targetBranch,
-    });
-
-    const authorInfo = {
-      name: user.username,
-      email: buildAuthorEmail(user),
-    };
-
-    // Phase 1b: Check existence for new content
-    if (handlers.checkExistence) {
-      const existenceError = await handlers.checkExistence(git, contentId);
-      if (existenceError) return existenceError;
+async function readCurrentState(
+  git: IGitService,
+  filePaths: { primary: string; auxiliary?: string[] },
+): Promise<CurrentFiles> {
+  const primaryFile = await git.readFile(filePaths.primary);
+  const auxiliaryFiles: Record<string, { content: string; sha: string } | null> = {};
+  if (filePaths.auxiliary) {
+    for (const auxPath of filePaths.auxiliary) {
+      auxiliaryFiles[auxPath] = await git.readFile(auxPath);
     }
-
-    // Phase 2: Read current files
-    const filePaths = handlers.getFilePaths(contentId);
-    const primaryFile = await git.readFile(filePaths.primary);
-    const auxiliaryFiles: Record<string, { content: string; sha: string } | null> = {};
-    if (filePaths.auxiliary) {
-      for (const auxPath of filePaths.auxiliary) {
-        auxiliaryFiles[auxPath] = await git.readFile(auxPath);
-      }
-    }
-    const currentFiles: CurrentFiles = { primaryFile, auxiliaryFiles };
-
-    // Phase 3: Conflict detection
-    if (currentFiles.primaryFile) {
-      const cached = await database.select().from(contentEdits)
-        .where(and(eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
-        .get();
-
-      let hasConflict = false;
-      if (cached) {
-        hasConflict = cached.githubSha !== currentFiles.primaryFile.sha;
-      } else if (update.contentHash) {
-        const currentHash = handlers.computeContentHash(currentFiles);
-        hasConflict = currentHash !== update.contentHash;
-      }
-
-      if (hasConflict) {
-        const freshData = handlers.buildFreshData(contentId, currentFiles);
-
-        await upsertContentCache(database, {
-          contentType,
-          contentSlug: contentId,
-          data: freshData,
-          githubSha: currentFiles.primaryFile.sha,
-        });
-
-        return jsonResponse({
-          error: `This ${contentType.replace(/s$/, '')} was modified on GitHub since you started editing.`,
-          githubUrl: handlers.buildGitHubUrl(contentId, baseBranch),
-          conflict: true,
-        }, 409);
-      }
-    }
-
-    // Phase 4: Build and commit
-    const { files, deletePaths, isNew } = await handlers.buildFileChanges(update, contentId, currentFiles, git);
-
-    // Skip commit if nothing actually changed
-    if (!isNew && deletePaths.length === 0) {
-      const knownContent = new Map<string, string>();
-      if (currentFiles.primaryFile) {
-        knownContent.set(filePaths.primary, currentFiles.primaryFile.content);
-      }
-      if (currentFiles.auxiliaryFiles) {
-        for (const [p, f] of Object.entries(currentFiles.auxiliaryFiles)) {
-          if (f) knownContent.set(p, f.content);
-        }
-      }
-
-      let hasChanges = false;
-      for (const f of files) {
-        let current = knownContent.get(f.path);
-        if (current === undefined) {
-          const gitFile = await git.readFile(f.path);
-          current = gitFile?.content;
-        }
-        if (current === undefined || current !== f.content) {
-          hasChanges = true;
-          break;
-        }
-      }
-
-      if (!hasChanges) {
-        const currentHash = handlers.computeContentHash(currentFiles);
-        return jsonResponse({ success: true, id: contentId, contentHash: currentHash });
-      }
-    }
-
-    const message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
-    const sha = await git.writeFiles(files, message, authorInfo,
-      deletePaths.length > 0 ? deletePaths : undefined);
-
-    // Phase 5: Post-commit — update D1 cache using in-memory committed content
-    const committedPrimary = files.find(f => f.path === filePaths.primary);
-    if (committedPrimary) {
-      // Compute blob SHA (not commit SHA) so it matches readFile() on next request
-      const primaryBlobSha = computeBlobSha(committedPrimary.content);
-      const committedFiles: CurrentFiles = {
-        primaryFile: { content: committedPrimary.content, sha: primaryBlobSha },
-        auxiliaryFiles: {},
-      };
-      if (filePaths.auxiliary) {
-        for (const auxPath of filePaths.auxiliary) {
-          const auxFile = files.find(f => f.path === auxPath);
-          committedFiles.auxiliaryFiles![auxPath] = auxFile
-            ? { content: auxFile.content, sha: computeBlobSha(auxFile.content) }
-            : currentFiles.auxiliaryFiles?.[auxPath] ?? null;
-        }
-      }
-
-      const cacheData = handlers.buildCacheData(update, contentId, committedFiles);
-      const newContentHash = handlers.computeContentHash(committedFiles);
-
-      await upsertContentCache(database, {
-        contentType,
-        contentSlug: contentId,
-        data: cacheData,
-        githubSha: primaryBlobSha,
-      });
-
-      return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });
-    }
-
-    return jsonResponse({ success: true, sha, id: contentId });
-  } catch (err: unknown) {
-    console.error(`save ${contentType} error:`, err);
-    const message = err instanceof Error ? err.message : 'Failed to save';
-    return jsonError(message, 500);
   }
+  return { primaryFile, auxiliaryFiles };
+}
+
+async function detectConflict<T extends { contentHash?: string }>(
+  database: ReturnType<typeof db>,
+  contentType: string,
+  contentId: string,
+  currentFiles: CurrentFiles,
+  update: T,
+  handlers: SaveHandlers<T>,
+  baseBranch: string,
+): Promise<Response | null> {
+  if (!currentFiles.primaryFile) return null;
+
+  const cached = await database.select().from(contentEdits)
+    .where(and(eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
+    .get();
+
+  let hasConflict = false;
+  if (cached) {
+    hasConflict = cached.githubSha !== currentFiles.primaryFile.sha;
+  } else if (update.contentHash) {
+    const currentHash = handlers.computeContentHash(currentFiles);
+    hasConflict = currentHash !== update.contentHash;
+  }
+
+  if (!hasConflict) return null;
+
+  const freshData = handlers.buildFreshData(contentId, currentFiles);
+  await upsertContentCache(database, {
+    contentType,
+    contentSlug: contentId,
+    data: freshData,
+    githubSha: currentFiles.primaryFile.sha,
+  });
+
+  return jsonResponse({
+    error: `This ${contentType.replace(/s$/, '')} was modified on GitHub since you started editing.`,
+    githubUrl: handlers.buildGitHubUrl(contentId, baseBranch),
+    conflict: true,
+  }, 409);
+}
+
+async function hasNoChanges(
+  files: FileChange[],
+  deletePaths: string[],
+  isNew: boolean,
+  currentFiles: CurrentFiles,
+  filePaths: { primary: string; auxiliary?: string[] },
+  git: IGitService,
+): Promise<boolean> {
+  if (isNew || deletePaths.length > 0) return false;
+
+  const knownContent = new Map<string, string>();
+  if (currentFiles.primaryFile) {
+    knownContent.set(filePaths.primary, currentFiles.primaryFile.content);
+  }
+  if (currentFiles.auxiliaryFiles) {
+    for (const [p, f] of Object.entries(currentFiles.auxiliaryFiles)) {
+      if (f) knownContent.set(p, f.content);
+    }
+  }
+
+  for (const f of files) {
+    let current = knownContent.get(f.path);
+    if (current === undefined) {
+      const gitFile = await git.readFile(f.path);
+      current = gitFile?.content;
+    }
+    if (current === undefined || current !== f.content) return false;
+  }
+
+  return true;
+}
+
+async function updateCacheAfterCommit<T extends { contentHash?: string }>(
+  database: ReturnType<typeof db>,
+  contentType: string,
+  contentId: string,
+  filePaths: { primary: string; auxiliary?: string[] },
+  files: FileChange[],
+  currentFiles: CurrentFiles,
+  handlers: SaveHandlers<T>,
+  update: T,
+  sha: string,
+): Promise<Response> {
+  const committedPrimary = files.find(f => f.path === filePaths.primary);
+  if (!committedPrimary) {
+    return jsonResponse({ success: true, sha, id: contentId });
+  }
+
+  const primaryBlobSha = computeBlobSha(committedPrimary.content);
+  const committedFiles: CurrentFiles = {
+    primaryFile: { content: committedPrimary.content, sha: primaryBlobSha },
+    auxiliaryFiles: {},
+  };
+  if (filePaths.auxiliary) {
+    for (const auxPath of filePaths.auxiliary) {
+      const auxFile = files.find(f => f.path === auxPath);
+      committedFiles.auxiliaryFiles![auxPath] = auxFile
+        ? { content: auxFile.content, sha: computeBlobSha(auxFile.content) }
+        : currentFiles.auxiliaryFiles?.[auxPath] ?? null;
+    }
+  }
+
+  const cacheData = handlers.buildCacheData(update, contentId, committedFiles);
+  const newContentHash = handlers.computeContentHash(committedFiles);
+
+  await upsertContentCache(database, {
+    contentType,
+    contentSlug: contentId,
+    data: cacheData,
+    githubSha: primaryBlobSha,
+  });
+
+  return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });
 }
