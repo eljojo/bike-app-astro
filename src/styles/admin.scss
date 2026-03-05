@@ -615,6 +615,20 @@
   }
 }
 
+.btn-link-muted {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+    color: $color-accent;
+  }
+}
+
 .rwgps-import {
   display: flex;
   gap: 0.5rem;
