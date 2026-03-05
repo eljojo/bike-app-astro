@@ -88,6 +88,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
+  const [contentHash, setContentHash] = useState(initialData.contentHash);
 
   function selectOrganizer(slug: string) {
     setOrgSlug(slug);
@@ -187,7 +188,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
         },
         body,
-        contentHash: initialData.contentHash,
+        contentHash,
       };
 
       // Include organizer data if set
@@ -221,6 +222,9 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
       }
 
       const result = await res.json();
+      if (result.contentHash) {
+        setContentHash(result.contentHash);
+      }
 
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/events/${result.id}`;
