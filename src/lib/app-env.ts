@@ -21,4 +21,5 @@ export interface AppEnv {
   GIT_BRANCH: string;
   ENVIRONMENT: string;
   RWGPS_API_KEY?: string;
+  RWGPS_AUTH_TOKEN?: string;
 }

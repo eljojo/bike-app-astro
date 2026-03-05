@@ -26,6 +26,7 @@ export function createLocalEnv(): AppEnv {
     GIT_BRANCH: process.env.GIT_BRANCH || '',
     ENVIRONMENT: process.env.ENVIRONMENT || 'local',
     RWGPS_API_KEY: process.env.RWGPS_API_KEY || '',
+    RWGPS_AUTH_TOKEN: process.env.RWGPS_AUTH_TOKEN || '',
     ASSETS: null as unknown,
   };
 }

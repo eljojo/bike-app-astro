@@ -44,16 +44,21 @@ export async function POST({ request, locals }: APIContext) {
 
   const { env } = await import('../../../lib/env');
   const apiKey = env.RWGPS_API_KEY;
+  const authToken = env.RWGPS_AUTH_TOKEN;
   if (apiKey) {
     headers['x-rwgps-api-key'] = apiKey;
+  }
+  if (authToken) {
+    headers['x-rwgps-auth-token'] = authToken;
   }
 
   const gpxResponse = await fetch(gpxUrl, { headers });
 
   if (!gpxResponse.ok) {
-    const hint = apiKey
+    const hasAuth = apiKey && authToken;
+    const hint = hasAuth
       ? 'Make sure the route is public or include the privacy code.'
-      : 'RWGPS_API_KEY is not configured — set it to enable authenticated GPX downloads.';
+      : 'RWGPS_API_KEY and RWGPS_AUTH_TOKEN must both be configured for authenticated GPX downloads.';
     return jsonError(
       `Failed to fetch GPX from RideWithGPS (${gpxResponse.status}). ${hint}`,
       gpxResponse.status === 404 ? 404 : 502,
