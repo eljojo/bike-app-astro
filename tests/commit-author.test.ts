@@ -85,4 +85,11 @@ describe('parseContentPath', () => {
       .toEqual({ contentType: 'routes', contentSlug: 'lachine' });
     expect(parseContentPath('montreal', 'ottawa/routes/pink-aylmer/index.md')).toBeNull();
   });
+
+  it('extension stripping is load-bearing (regex rejects dots)', () => {
+    // Without extension stripping, the regex [\w/-]+ would not match .md or .yml
+    const re = buildResourcePathRegex('ottawa');
+    expect('ottawa/routes/pink-aylmer/index.md'.match(re)?.[0])
+      .toBe('ottawa/routes/pink-aylmer/index');  // stops at dot
+  });
 });

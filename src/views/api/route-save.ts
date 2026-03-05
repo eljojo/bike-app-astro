@@ -24,7 +24,7 @@ interface VariantPayload {
   gpxContent?: string;
 }
 
-interface RouteUpdate {
+export interface RouteUpdate {
   frontmatter: Record<string, unknown>;
   body: string;
   media: Array<{
@@ -40,7 +40,7 @@ interface RouteUpdate {
 
 const CITY = 'ottawa';
 
-const routeHandlers: SaveHandlers<RouteUpdate> = {
+export const routeHandlers: SaveHandlers<RouteUpdate> = {
   parseRequest(body: unknown): RouteUpdate {
     const update = body as RouteUpdate;
     // Validate frontmatter keys

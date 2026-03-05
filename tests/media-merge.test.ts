@@ -83,4 +83,18 @@ describe('mergeMedia', () => {
     expect(result[0].cover).toBeUndefined();
     expect(result[1].cover).toBe(true);
   });
+
+  it('empty photos array preserves video entries', () => {
+    const existing = [
+      { type: 'video', key: 'v1', title: 'My Video' },
+    ];
+    const result = mergeMedia([], existing);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: 'video', key: 'v1' });
+  });
+
+  it('empty photos + empty existing returns empty array', () => {
+    const result = mergeMedia([], []);
+    expect(result).toEqual([]);
+  });
 });
