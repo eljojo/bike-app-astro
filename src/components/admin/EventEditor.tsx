@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
+import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
 
 interface OrganizerData {
   slug: string;
@@ -188,7 +189,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
     setSaved(false);
 
     try {
-      const payload: Record<string, unknown> = {
+      const payload: EventUpdate = {
         frontmatter: {
           name,
           start_date: startDate,

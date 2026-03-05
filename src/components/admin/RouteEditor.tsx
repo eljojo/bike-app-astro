@@ -4,6 +4,7 @@ import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
 import type { RouteDetail } from '../../lib/models/route-model';
+import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
@@ -165,22 +166,24 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
     setSaved(false);
 
     try {
+      const payload: RouteUpdate = {
+        frontmatter: {
+          name,
+          tagline,
+          tags,
+          status,
+        },
+        body,
+        media,
+        variants,
+        contentHash,
+        translations,
+      };
+
       const res = await fetch(`/api/routes/${initialData.slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frontmatter: {
-            name,
-            tagline,
-            tags,
-            status,
-          },
-          body,
-          media,
-          variants,
-          contentHash,
-          translations,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

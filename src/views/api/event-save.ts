@@ -34,7 +34,7 @@ const eventUpdateSchema = z.object({
   slug: z.string().optional(),
 });
 
-interface EventUpdate {
+export interface EventUpdate {
   frontmatter: Record<string, unknown>;
   body: string;
   contentHash?: string;
