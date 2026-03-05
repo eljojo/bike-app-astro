@@ -146,7 +146,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
 
     if (isNew) {
       const adminFields: Record<string, unknown> = { ...update.frontmatter };
-      adminFields.status = 'draft';
+      if (!adminFields.status) adminFields.status = 'published';
       adminFields.created_at = new Date().toISOString().split('T')[0];
       adminFields.updated_at = new Date().toISOString().split('T')[0];
       mergedFrontmatter = adminFields;

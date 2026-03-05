@@ -85,6 +85,14 @@ export async function saveContent<T extends { contentHash?: string }>(
     return jsonError(message);
   }
 
+  // Phase 0b2: Strip admin-only fields from non-admin saves
+  if (user.role !== 'admin') {
+    const u = update as Record<string, unknown>;
+    if (u.frontmatter && typeof u.frontmatter === 'object') {
+      delete (u.frontmatter as Record<string, unknown>).status;
+    }
+  }
+
   // Phase 0c: Resolve content ID
   const contentId = handlers.resolveContentId(params, update);
   if (handlers.validateSlug) {

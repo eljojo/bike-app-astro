@@ -39,6 +39,6 @@ const tagTranslations = loadTagTranslations();
   backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} defaultLocale={defaultLocale()} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
   <EditHistory client:load contentPath={`ottawa/routes/${slug}`} gitRepo="eljojo/bike-routes" />
 </AdminEditorLayout>

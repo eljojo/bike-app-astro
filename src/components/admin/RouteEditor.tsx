@@ -10,9 +10,10 @@ interface Props {
   cdnUrl: string;
   tagTranslations?: Record<string, Record<string, string>>;
   defaultLocale?: string;
+  userRole?: string;
 }
 
-export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {}, defaultLocale = 'en' }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {}, defaultLocale = 'en', userRole }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -274,7 +275,7 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
             </div>
           </div>
 
-          {activeLocale === defaultLocale && (
+          {userRole === 'admin' && (
             <div class="form-field">
               <label for="route-status">Status</label>
               <select
