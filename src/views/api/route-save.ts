@@ -4,7 +4,7 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
@@ -39,8 +39,6 @@ export interface RouteUpdate {
   variants?: VariantPayload[];
   contentHash?: string;
 }
-
-const CITY = 'ottawa';
 
 export const routeHandlers: SaveHandlers<RouteUpdate> = {
   parseRequest(body: unknown): RouteUpdate {
@@ -232,7 +230,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   buildGitHubUrl(slug: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/ottawa/routes/${slug}/index.md`;
+    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
   },
 };
 

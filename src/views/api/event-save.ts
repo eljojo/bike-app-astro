@@ -3,7 +3,7 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import adminEvents from 'virtual:bike-app/admin-events';
-import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
@@ -28,8 +28,6 @@ interface EventUpdate {
   organizer?: OrganizerPayload;
   slug?: string;   // for new events
 }
-
-const CITY = 'ottawa';
 
 function countOrganizerReferences(orgSlug: string, excludeEventId: string): number {
   return adminEvents.filter((e: AdminEvent) => {
