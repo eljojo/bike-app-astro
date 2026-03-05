@@ -1,6 +1,6 @@
 /** Build the commit author email with embedded userId for lookup. */
 export function buildAuthorEmail(user: { username: string; id: string; email?: string | null }): string {
-  return user.email || `${user.username}+${user.id}@whereto.bike`;
+  return `${user.username}+${user.id}@whereto.bike`;
 }
 
 /** Parse author email to extract userId (new format) or username (old format). */

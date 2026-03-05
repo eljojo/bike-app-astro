@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { buildAuthorEmail, parseAuthorEmail, buildResourcePathRegex, parseContentPath } from '../src/lib/commit-author';
 
 describe('buildAuthorEmail', () => {
-  it('uses custom email when provided', () => {
+  it('doesnt use custom email even if provided', () => {
     expect(buildAuthorEmail({ username: 'jane', id: 'abc123', email: 'jane@example.com' }))
-      .toBe('jane@example.com');
+      .toBe('jane+abc123@whereto.bike');
   });
 
   it('builds username+id@whereto.bike when no custom email', () => {
