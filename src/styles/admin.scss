@@ -798,6 +798,40 @@
   font-size: 1rem;
 }
 
+.locale-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid $color-border;
+
+  @include dark-mode {
+    border-bottom-color: $color-border-dark;
+  }
+}
+
+.locale-tab {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  @include muted-text;
+
+  &--active {
+    color: $color-accent;
+    border-bottom-color: $color-accent;
+    opacity: 1;
+  }
+
+  &:hover:not(&--active) {
+    opacity: 0.8;
+  }
+}
+
 .route-creator-setup {
   display: flex;
   flex-direction: column;

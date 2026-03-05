@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { useTextareaValue } from '../../lib/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
@@ -21,7 +20,16 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
-  const bodyRef = useTextareaValue(body);
+
+  const [activeLocale, setActiveLocale] = useState('en');
+  const [translations, setTranslations] = useState<Record<string, { name: string; tagline: string; body: string }>>(
+    Object.fromEntries(
+      Object.entries(initialData.translations || {}).map(([locale, t]) => [
+        locale,
+        { name: t.name || '', tagline: t.tagline || '', body: t.body || '' },
+      ])
+    )
+  );
 
   const [dragging, setDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -74,6 +82,29 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
     };
   }, []);
 
+  function getField(field: 'name' | 'tagline' | 'body'): string {
+    if (activeLocale === 'en') {
+      return field === 'name' ? name : field === 'tagline' ? tagline : body;
+    }
+    return translations[activeLocale]?.[field] || '';
+  }
+
+  function setField(field: 'name' | 'tagline' | 'body', value: string) {
+    if (activeLocale === 'en') {
+      if (field === 'name') setName(value);
+      else if (field === 'tagline') setTagline(value);
+      else setBody(value);
+      return;
+    }
+    setTranslations(prev => ({
+      ...prev,
+      [activeLocale]: {
+        ...(prev[activeLocale] || { name: '', tagline: '', body: '' }),
+        [field]: value,
+      },
+    }));
+  }
+
   function addTag() {
     const tag = tagInput.trim().toLowerCase();
     if (tag && !tags.includes(tag)) {
@@ -121,6 +152,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
           media,
           variants,
           contentHash,
+          translations,
         }),
       });
 
@@ -162,14 +194,30 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
       )}
       <section class="editor-section">
         <h2>Text</h2>
+        <div class="locale-tabs">
+          <button
+            type="button"
+            class={`locale-tab ${activeLocale === 'en' ? 'locale-tab--active' : ''}`}
+            onClick={() => setActiveLocale('en')}
+          >
+            English
+          </button>
+          <button
+            type="button"
+            class={`locale-tab ${activeLocale === 'fr' ? 'locale-tab--active' : ''}`}
+            onClick={() => setActiveLocale('fr')}
+          >
+            {'Fran\u00e7ais'}
+          </button>
+        </div>
         <div class="auth-form">
           <div class="form-field">
             <label for="route-name">Name</label>
             <input
               id="route-name"
               type="text"
-              value={name}
-              onInput={(e) => setName((e.target as HTMLInputElement).value)}
+              value={getField('name')}
+              onInput={(e) => setField('name', (e.target as HTMLInputElement).value)}
             />
           </div>
 
@@ -178,51 +226,55 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
             <input
               id="route-tagline"
               type="text"
-              value={tagline}
-              onInput={(e) => setTagline((e.target as HTMLInputElement).value)}
+              value={getField('tagline')}
+              onInput={(e) => setField('tagline', (e.target as HTMLInputElement).value)}
             />
           </div>
 
-          <div class="form-field">
-            <label>Tags</label>
-            <div class="tag-editor">
-              {tags.map((tag) => (
-                <span key={tag} class="tag-pill">
-                  {tag}
-                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-                </span>
-              ))}
-              <input
-                type="text"
-                class="tag-input"
-                value={tagInput}
-                onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={addTag}
-                placeholder="Add tag..."
-              />
-            </div>
-          </div>
+          {activeLocale === 'en' && (
+            <>
+              <div class="form-field">
+                <label>Tags</label>
+                <div class="tag-editor">
+                  {tags.map((tag) => (
+                    <span key={tag} class="tag-pill">
+                      {tag}
+                      <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    class="tag-input"
+                    value={tagInput}
+                    onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
+                    onKeyDown={handleTagKeyDown}
+                    onBlur={addTag}
+                    placeholder="Add tag..."
+                  />
+                </div>
+              </div>
 
-          <div class="form-field">
-            <label for="route-status">Status</label>
-            <select
-              id="route-status"
-              value={status}
-              onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
-            >
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-          </div>
+              <div class="form-field">
+                <label for="route-status">Status</label>
+                <select
+                  id="route-status"
+                  value={status}
+                  onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
+                >
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <div class="form-field">
             <label for="route-body">Body (markdown)</label>
             <textarea
+              key={`body-${activeLocale}`}
               id="route-body"
-              ref={bodyRef}
-              value={body}
-              onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
+              value={getField('body')}
+              onInput={(e) => setField('body', (e.target as HTMLTextAreaElement).value)}
               rows={12}
             />
           </div>
