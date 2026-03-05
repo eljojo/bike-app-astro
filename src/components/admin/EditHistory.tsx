@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
+import { showToast } from '../../lib/toast';
 
 interface CommitUser {
   id: string;
@@ -80,8 +81,14 @@ export default function EditHistory({ contentPath, city = 'ottawa' }: Props) {
         body: JSON.stringify({ commitSha: sha, contentPath: filePath }),
       });
       if (res.ok) {
+        showToast('Version restored successfully');
         fetchCommits(1);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Failed to restore version', 'error');
       }
+    } catch {
+      showToast('Failed to restore version', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -121,9 +128,10 @@ export default function EditHistory({ contentPath, city = 'ottawa' }: Props) {
       <h3>Edit History</h3>
       {commits.length === 0 && !loading && <p class="muted">No commits found.</p>}
       <div class="commit-list">
-        {commits.map(c => {
+        {commits.map((c, idx) => {
           const filePath = resolveContentPath(c);
           const resourceLabel = extractResourceLabel(c);
+          const isCurrentVersion = idx === 0;
           return (
             <div key={c.sha} class="commit-item">
               <div class="commit-info">
@@ -151,7 +159,8 @@ export default function EditHistory({ contentPath, city = 'ottawa' }: Props) {
                     type="button"
                     class="btn-small"
                     onClick={() => handleRestore(c.sha, filePath)}
-                    disabled={actionLoading === c.sha}
+                    disabled={isCurrentVersion || actionLoading === c.sha}
+                    title={isCurrentVersion ? 'This is the current version' : 'Restore this version'}
                   >
                     {actionLoading === c.sha ? '...' : 'Restore'}
                   </button>
