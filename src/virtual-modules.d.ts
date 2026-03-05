@@ -18,6 +18,7 @@ interface _AdminRoute {
   difficultyScore?: number;
 }
 
+/** Mirrors RouteDetail from src/lib/models/route-model.ts + contentHash */
 interface _AdminRouteDetail {
   slug: string;
   name: string;
@@ -42,6 +43,7 @@ interface _AdminEvent {
   contentHash: string;
 }
 
+/** Mirrors EventDetail from src/lib/models/event-model.ts + contentHash */
 interface _AdminEventDetail {
   id: string;
   slug: string;

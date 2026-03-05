@@ -9,6 +9,7 @@ import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { env } from '../../lib/env';
+import { CDN_FALLBACK_URL } from '../../lib/config';
 import { eventDetailFromCache } from '../../lib/models/event-model';
 import '../../styles/admin.scss';
 
@@ -22,7 +23,7 @@ const cacheMap = new Map(cachedEdits.flatMap(e => {
   }
 }));
 const orgMap = new Map(adminOrganizers.map(o => [o.slug, o.name]));
-const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
+const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
 
 // Merge cached data over build-time data
 let events = adminEvents.map(e => {
