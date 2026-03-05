@@ -140,6 +140,7 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
+          GIT_BRANCH: ${{ inputs.data-ref }}
 
       - name: Run E2E tests
         if: ${{ !inputs.skip-e2e }}
