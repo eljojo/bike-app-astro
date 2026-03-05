@@ -6,6 +6,7 @@ import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { scoreRoute } from '../lib/difficulty';
 import type { AdminRoute } from '../types/admin';
 import { routeDetailFromGit, computeRouteContentHash, type RouteDetail } from '../lib/models/route-model';
+import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 
 const CITY_DIR = cityDir;
 
@@ -13,25 +14,29 @@ function readRouteDir(slug: string) {
   const routeDir = path.join(CITY_DIR, 'routes', slug);
   const mdPath = path.join(routeDir, 'index.md');
   const mediaPath = path.join(routeDir, 'media.yml');
-  const frPath = path.join(routeDir, 'index.fr.md');
 
   const indexRaw = fs.readFileSync(mdPath, 'utf-8');
   const mediaRaw = fs.existsSync(mediaPath) ? fs.readFileSync(mediaPath, 'utf-8') : '';
-  const frRaw = fs.existsSync(frPath) ? fs.readFileSync(frPath, 'utf-8') : undefined;
 
+  const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
   const translationContents: Record<string, string> = {};
-  if (frRaw) translationContents['fr'] = frRaw;
+  for (const locale of secondaryLocales) {
+    const localePath = path.join(routeDir, `index.${locale}.md`);
+    if (fs.existsSync(localePath)) {
+      translationContents[locale] = fs.readFileSync(localePath, 'utf-8');
+    }
+  }
   const contentHash = computeRouteContentHash(indexRaw, mediaRaw || undefined, Object.keys(translationContents).length > 0 ? translationContents : undefined);
 
   const { data: frontmatter, content: body } = matter(indexRaw);
 
   const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
-  if (frRaw) {
-    const { data: frFm, content: frBody } = matter(frRaw);
-    translations['fr'] = {
-      name: frFm.name as string | undefined,
-      tagline: frFm.tagline as string | undefined,
-      body: frBody.trim() || undefined,
+  for (const [locale, raw] of Object.entries(translationContents)) {
+    const { data: fm, content: localeBody } = matter(raw);
+    translations[locale] = {
+      name: fm.name as string | undefined,
+      tagline: fm.tagline as string | undefined,
+      body: localeBody.trim() || undefined,
     };
   }
 
