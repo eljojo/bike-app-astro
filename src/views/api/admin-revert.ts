@@ -1,6 +1,5 @@
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
@@ -9,6 +8,8 @@ import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { requireAdmin } from '../../lib/auth';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
+import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
+import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
 
 export const prerender = false;
 
@@ -63,30 +64,13 @@ export async function POST({ request, locals }: APIContext) {
         let cacheData: string | null = null;
 
         if (parsed.contentType === 'routes') {
-          // Revert only touches index.md — read current media.yml separately
           const basePath = contentPath.replace(/\/index\.md$/, '').replace(/\.md$/, '');
           const mediaFile = await git.readFile(`${basePath}/media.yml`);
-          const mediaEntries = mediaFile ? (yaml.load(mediaFile.content) as unknown[]) ?? [] : [];
-          cacheData = JSON.stringify({
-            slug: parsed.contentSlug,
-            name: fm.name,
-            tagline: fm.tagline || '',
-            tags: fm.tags || [],
-            distance: fm.distance_km || 0,
-            status: fm.status,
-            body,
-            media: mediaEntries,
-            variants: fm.variants || [],
-          });
+          const detail = routeDetailFromGit(parsed.contentSlug, fm, body, mediaFile?.content);
+          cacheData = routeDetailToCache(detail);
         } else if (parsed.contentType === 'events') {
-          const [year, slug] = parsed.contentSlug.split('/');
-          cacheData = JSON.stringify({
-            id: parsed.contentSlug,
-            slug,
-            year,
-            ...fm,
-            body,
-          });
+          const detail = eventDetailFromGit(parsed.contentSlug, fm, body);
+          cacheData = eventDetailToCache(detail);
         }
 
         if (cacheData !== null) {
