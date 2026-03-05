@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Toast from './admin/Toast.tsx';
 import '../styles/admin.scss';
 
 interface Props {
@@ -13,6 +14,7 @@ const { title, backLink, backLabel = 'Back', viewLink } = Astro.props;
 ---
 
 <Base title={title} admin>
+  <Toast client:load />
   <div class="admin-page">
     <div class="editor-header">
       <a href={backLink} class="back-link">&larr; {backLabel}</a>
