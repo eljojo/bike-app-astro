@@ -2,8 +2,8 @@ import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
-import { users, credentials } from '../../../db/schema';
-import { normalizeEmail, getWebAuthnConfig, storeChallenge } from '../../../lib/auth';
+import { credentials } from '../../../db/schema';
+import { findUserByIdentifier, getWebAuthnConfig, storeChallenge } from '../../../lib/auth';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
@@ -12,28 +12,23 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail } = body;
+    const identifier = body.identifier || body.email;
 
-    if (!rawEmail) {
-      return jsonError('Email is required');
+    if (!identifier) {
+      return jsonError('Email or username is required');
     }
 
     const database = db();
-    const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(request.url, env);
 
-    // Look up user by email
-    const userResult = await database
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    // Look up user by email or username
+    const user = await findUserByIdentifier(database, identifier);
 
-    if (userResult.length === 0) {
+    if (!user) {
       return jsonError('Invalid email or credentials');
     }
 
-    const userId = userResult[0].id;
+    const userId = user.id;
 
     // Get user's credentials
     const userCredentials = await database

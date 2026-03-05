@@ -67,7 +67,19 @@ export async function POST({ request, cookies, locals }: APIContext) {
     // Upgrade: set email, role, optionally username
     const updates: Record<string, unknown> = { email, role: 'editor', ipAddress: null };
     if (rawUsername) {
-      updates.username = sanitizeUsername(rawUsername);
+      const newUsername = sanitizeUsername(rawUsername);
+      // Check new username not already taken (unless it's the same as current)
+      if (newUsername !== user.username) {
+        const existingUsername = await database
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.username, newUsername))
+          .limit(1);
+        if (existingUsername.length > 0) {
+          return jsonError('Username is already taken', 409);
+        }
+      }
+      updates.username = newUsername;
       // Store old pseudonym in previousUsernames
       const prev = [user.username];
       updates.previousUsernames = JSON.stringify(prev);

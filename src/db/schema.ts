@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, blob, primaryKey, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -10,7 +10,7 @@ export const users = sqliteTable('users', {
   ipAddress: text('ip_address'),
   previousUsernames: text('previous_usernames'),
 }, (table) => [
-  index('users_username_idx').on(table.username),
+  uniqueIndex('users_username_idx').on(table.username),
 ]);
 
 export const credentials = sqliteTable('credentials', {

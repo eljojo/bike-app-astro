@@ -13,6 +13,7 @@ import {
   isFirstUser,
 } from '../../../lib/auth';
 import { sanitizeUsername } from '../../../lib/username';
+import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 
@@ -36,6 +37,17 @@ export async function POST({ request, cookies }: APIContext) {
     const expectedChallenge = retrieveChallenge(cookies);
     if (!expectedChallenge) {
       return jsonError('Challenge expired, please try again');
+    }
+
+    // Check username not already taken
+    const existingUsername = await database
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+
+    if (existingUsername.length > 0) {
+      return jsonError('Username is already taken', 409);
     }
 
     // Check if this is the first user (first user = admin, others = editor)

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { normalizeEmail, generateId, getWebAuthnConfig } from '../src/lib/auth';
+import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier } from '../src/lib/auth';
 
 describe('auth helpers', () => {
   describe('normalizeEmail', () => {
@@ -135,5 +135,67 @@ describe('session lifecycle', () => {
 
     const allSessions = await database.select().from(sessions);
     expect(allSessions.every((s: any) => s.token !== 'old-token')).toBe(true);
+  });
+});
+
+describe('findUserByIdentifier', () => {
+  const dbPath = path.join(import.meta.dirname, '.test-auth-identifier.db');
+  let database: any;
+
+  beforeEach(async () => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    const { createLocalDb } = await import('../src/db/local');
+    database = createLocalDb(dbPath);
+
+    const { users } = await import('../src/db/schema');
+    await database.insert(users).values({
+      id: 'user-1', email: 'alice@example.com', username: 'alice', role: 'editor',
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  afterAll(() => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+  });
+
+  it('finds user by email when identifier contains @', async () => {
+    const user = await findUserByIdentifier(database, 'alice@example.com');
+    expect(user).not.toBeNull();
+    expect(user!.id).toBe('user-1');
+    expect(user!.username).toBe('alice');
+  });
+
+  it('normalizes email (case-insensitive)', async () => {
+    const user = await findUserByIdentifier(database, 'Alice@Example.COM');
+    expect(user).not.toBeNull();
+    expect(user!.id).toBe('user-1');
+  });
+
+  it('finds user by username when no @', async () => {
+    const user = await findUserByIdentifier(database, 'alice');
+    expect(user).not.toBeNull();
+    expect(user!.id).toBe('user-1');
+  });
+
+  it('sanitizes username input', async () => {
+    const user = await findUserByIdentifier(database, 'Alice');
+    expect(user).not.toBeNull();
+    expect(user!.id).toBe('user-1');
+  });
+
+  it('returns null for unknown email', async () => {
+    const user = await findUserByIdentifier(database, 'nobody@example.com');
+    expect(user).toBeNull();
+  });
+
+  it('returns null for unknown username', async () => {
+    const user = await findUserByIdentifier(database, 'nobody');
+    expect(user).toBeNull();
   });
 });

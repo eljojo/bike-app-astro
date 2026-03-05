@@ -22,6 +22,28 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/** Look up a user by email (if identifier contains @) or username (otherwise). */
+export async function findUserByIdentifier(database: Database, identifier: string) {
+  if (identifier.includes('@')) {
+    const email = normalizeEmail(identifier);
+    const result = await database
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    return result[0] ?? null;
+  }
+
+  const { sanitizeUsername } = await import('./username');
+  const username = sanitizeUsername(identifier);
+  const result = await database
+    .select()
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+  return result[0] ?? null;
+}
+
 /** Generate a random hex string of the given byte length. */
 function randomHex(bytes: number): string {
   const buf = new Uint8Array(bytes);

@@ -8,6 +8,7 @@ import {
   getWebAuthnConfig,
   storeChallenge,
 } from '../../../lib/auth';
+import { sanitizeUsername } from '../../../lib/username';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
@@ -16,14 +17,15 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, username } = body;
+    const { email: rawEmail, username: rawUsername } = body;
 
-    if (!rawEmail || !username) {
+    if (!rawEmail || !rawUsername) {
       return jsonError('Email and username are required');
     }
 
     const database = db();
     const email = normalizeEmail(rawEmail);
+    const username = sanitizeUsername(rawUsername);
 
     // Check if email is already registered
     const existingUser = await database
@@ -34,6 +36,17 @@ export async function POST({ request, cookies }: APIContext) {
 
     if (existingUser.length > 0) {
       return jsonError('Unable to register with this email');
+    }
+
+    // Check if username is already taken
+    const existingUsername = await database
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+
+    if (existingUsername.length > 0) {
+      return jsonError('Username is already taken');
     }
 
     const config = getWebAuthnConfig(request.url, env);

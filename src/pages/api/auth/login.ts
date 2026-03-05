@@ -2,9 +2,9 @@ import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
-import { users, credentials } from '../../../db/schema';
+import { credentials } from '../../../db/schema';
 import {
-  normalizeEmail,
+  findUserByIdentifier,
   createSessionWithCookies,
   retrieveChallenge,
   getWebAuthnConfig,
@@ -17,14 +17,14 @@ export const prerender = false;
 export async function POST({ request, cookies }: APIContext) {
   try {
     const body = await request.json();
-    const { email: rawEmail, credential: authResponse } = body;
+    const identifier = body.identifier || body.email;
+    const { credential: authResponse } = body;
 
-    if (!rawEmail || !authResponse) {
+    if (!identifier || !authResponse) {
       return jsonError('Missing required fields');
     }
 
     const database = db();
-    const email = normalizeEmail(rawEmail);
     const config = getWebAuthnConfig(request.url, env);
 
     // Retrieve the stored challenge
@@ -33,18 +33,12 @@ export async function POST({ request, cookies }: APIContext) {
       return jsonError('Challenge expired, please try again');
     }
 
-    // Look up user
-    const userResult = await database
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    // Look up user by email or username
+    const user = await findUserByIdentifier(database, identifier);
 
-    if (userResult.length === 0) {
+    if (!user) {
       return jsonError('Invalid email or credentials');
     }
-
-    const user = userResult[0];
 
     // Find the matching credential — must belong to this user
     const credResult = await database

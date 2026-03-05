@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function LoginForm({ returnTo = '/admin' }: Props) {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,7 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
       const optionsRes = await fetch('/api/auth/login-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ identifier }),
       });
 
       if (!optionsRes.ok) {
@@ -37,7 +37,7 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
       const verifyRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, credential }),
+        body: JSON.stringify({ identifier, credential }),
       });
 
       if (!verifyRes.ok) {
@@ -62,14 +62,14 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
     <form class="auth-form" onSubmit={handleSubmit}>
       {error && <div class="auth-error">{error}</div>}
       <div class="form-field">
-        <label for="email">Email</label>
+        <label for="identifier">Email or username</label>
         <input
-          id="email"
-          type="email"
-          value={email}
-          onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
+          id="identifier"
+          type="text"
+          value={identifier}
+          onInput={(e) => setIdentifier((e.target as HTMLInputElement).value)}
           required
-          autoComplete="email webauthn"
+          autoComplete="username webauthn"
           autoFocus
         />
       </div>
