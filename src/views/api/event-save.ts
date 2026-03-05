@@ -180,7 +180,7 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
   },
 };
 
-function isPastEvent(startDate: string | undefined): boolean {
+export function isPastEvent(startDate: string | undefined): boolean {
   if (!startDate) return false;
   const today = new Date().toISOString().slice(0, 10);
   return startDate < today;
