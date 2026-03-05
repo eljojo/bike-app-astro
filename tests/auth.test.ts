@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { normalizeEmail, generateId, getWebAuthnConfig } from '../src/lib/auth';
 
 describe('auth helpers', () => {
@@ -52,5 +52,88 @@ describe('auth helpers', () => {
       expect(config.rpName).toBe('Ottawa by Bike');
       expect(config.origin).toBe('https://ottawabybike.ca');
     });
+  });
+});
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+describe('session lifecycle', () => {
+  const dbPath = path.join(import.meta.dirname, '.test-auth.db');
+  let database: any;
+
+  beforeEach(async () => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    const { createLocalDb } = await import('../src/db/local');
+    database = createLocalDb(dbPath);
+
+    const { users } = await import('../src/db/schema');
+    await database.insert(users).values({
+      id: 'user-1', email: 'test@test.com', username: 'testuser', role: 'editor',
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  afterAll(() => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+  });
+
+  it('createSession + validateSession returns correct user', async () => {
+    const { createSession, validateSession } = await import('../src/lib/auth');
+
+    const token = await createSession(database, 'user-1');
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+
+    const user = await validateSession(database, token);
+    expect(user).not.toBeNull();
+    expect(user!.id).toBe('user-1');
+    expect(user!.username).toBe('testuser');
+    expect(user!.role).toBe('editor');
+  });
+
+  it('validateSession returns null for expired session', async () => {
+    const { validateSession } = await import('../src/lib/auth');
+    const { sessions } = await import('../src/db/schema');
+
+    await database.insert(sessions).values({
+      id: 'sess-expired',
+      userId: 'user-1',
+      token: 'expired-token-abc',
+      expiresAt: '2020-01-01T00:00:00.000Z',
+      createdAt: new Date().toISOString(),
+    });
+
+    const user = await validateSession(database, 'expired-token-abc');
+    expect(user).toBeNull();
+  });
+
+  it('validateSession returns null for invalid token', async () => {
+    const { validateSession } = await import('../src/lib/auth');
+    const user = await validateSession(database, 'nonexistent-token');
+    expect(user).toBeNull();
+  });
+
+  it('createSession cleans up expired sessions', async () => {
+    const { createSession } = await import('../src/lib/auth');
+    const { sessions } = await import('../src/db/schema');
+
+    await database.insert(sessions).values({
+      id: 'sess-old',
+      userId: 'user-1',
+      token: 'old-token',
+      expiresAt: '2020-01-01T00:00:00.000Z',
+      createdAt: '2020-01-01T00:00:00.000Z',
+    });
+
+    await createSession(database, 'user-1');
+
+    const allSessions = await database.select().from(sessions);
+    expect(allSessions.every((s: any) => s.token !== 'old-token')).toBe(true);
   });
 });
