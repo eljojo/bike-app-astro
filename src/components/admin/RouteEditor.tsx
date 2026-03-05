@@ -31,6 +31,13 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
     )
   );
 
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (bodyRef.current && !bodyRef.current.value) {
+      bodyRef.current.value = getField('body');
+    }
+  }, [activeLocale]);
+
   const [dragging, setDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
@@ -274,6 +281,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
             <label for="route-body">Body (markdown)</label>
             <textarea
               key={`body-${activeLocale}`}
+              ref={bodyRef}
               id="route-body"
               value={getField('body')}
               onInput={(e) => setField('body', (e.target as HTMLTextAreaElement).value)}
