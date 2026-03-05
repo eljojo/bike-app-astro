@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config';
-import type { AdminEvent, AdminEventDetail, AdminOrganizerRef } from '../types/admin';
+import type { AdminEvent, AdminOrganizerRef } from '../types/admin';
+import { eventDetailFromGit, type EventDetail } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
 
@@ -48,11 +49,11 @@ export async function loadAdminEvents(): Promise<AdminEvent[]> {
   return events;
 }
 
-export async function loadAdminEventDetails(): Promise<Record<string, AdminEventDetail>> {
+export async function loadAdminEventDetails(): Promise<Record<string, EventDetail & { contentHash: string }>> {
   const eventsDir = path.join(CITY_DIR, 'events');
   if (!fs.existsSync(eventsDir)) return {};
 
-  const details: Record<string, AdminEventDetail> = {};
+  const details: Record<string, EventDetail & { contentHash: string }> = {};
 
   for (const yearDir of fs.readdirSync(eventsDir)) {
     const yearPath = path.join(eventsDir, yearDir);
@@ -70,25 +71,8 @@ export async function loadAdminEventDetails(): Promise<Record<string, AdminEvent
       const contentHash = createHash('md5').update(raw).digest('hex');
       const { data: fm, content: body } = matter(raw);
 
-      details[id] = {
-        id,
-        slug,
-        year: yearDir,
-        name: fm.name as string,
-        start_date: fm.start_date as string,
-        start_time: fm.start_time as string | undefined,
-        end_date: fm.end_date as string | undefined,
-        end_time: fm.end_time as string | undefined,
-        registration_url: fm.registration_url as string | undefined,
-        distances: fm.distances as string | undefined,
-        location: fm.location as string | undefined,
-        review_url: fm.review_url as string | undefined,
-        organizer: fm.organizer as string | AdminOrganizerRef | undefined,
-        poster_key: fm.poster_key as string | undefined,
-        poster_content_type: fm.poster_content_type as string | undefined,
-        body: body.trim(),
-        contentHash,
-      };
+      const detail = eventDetailFromGit(id, fm, body.trim());
+      details[id] = { ...detail, contentHash };
     }
   }
 
