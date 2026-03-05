@@ -25,7 +25,7 @@ interface Props {
   gitRepo?: string;
 }
 
-export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: Props) {
+export default function EditHistory({ contentPath, city, gitRepo }: Props) {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);

@@ -1,5 +1,6 @@
 ---
 import { env } from '../lib/env';
+import { CONTACT_EMAIL } from '../lib/config';
 
 interface Props {
   user: { username: string; role: string };
@@ -16,7 +17,7 @@ const isStaging = env.ENVIRONMENT === 'staging';
 <div class="community-banner" id="community-banner">
   This is a community wiki — feel free to browse and edit routes and events.
   Your changes go live within a few minutes.
-  Questions? Email <a href="mailto:bike@eljojo.net">bike@eljojo.net</a>
+  Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
   <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
 </div>
 <script>

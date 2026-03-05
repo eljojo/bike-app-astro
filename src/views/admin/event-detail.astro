@@ -7,7 +7,7 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminEventDetails from 'virtual:bike-app/admin-event-detail';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL } from '../../lib/config';
+import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
 import { loadAdminContent } from '../../lib/load-admin-content';
 import { eventDetailFromCache } from '../../lib/models/event-model';
 
@@ -36,5 +36,5 @@ const readOnly = isPast && user?.role !== 'admin';
 <AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events">
   {readOnly && <p class="admin-notice">This event is in the past. Only admins can edit past events.</p>}
   <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} readOnly={readOnly} />
-  <EditHistory client:load contentPath={`ottawa/events/${id}.md`} gitRepo="eljojo/bike-routes" />
+  <EditHistory client:load contentPath={`${CITY}/events/${id}.md`} gitRepo={GIT_REPO} />
 </AdminEditorLayout>

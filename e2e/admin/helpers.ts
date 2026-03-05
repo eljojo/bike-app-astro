@@ -9,33 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DB_PATH } from './fixture.ts';
-
-function ensureSchema(db: InstanceType<typeof Database>) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id text PRIMARY KEY NOT NULL,
-      email text UNIQUE,
-      username text NOT NULL,
-      role text DEFAULT 'editor' NOT NULL,
-      created_at text NOT NULL,
-      banned_at text,
-      ip_address text,
-      previous_usernames text
-    );
-    CREATE TABLE IF NOT EXISTS sessions (
-      id text PRIMARY KEY NOT NULL,
-      user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token text NOT NULL UNIQUE,
-      expires_at text NOT NULL,
-      created_at text NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS banned_ips (
-      ip text PRIMARY KEY NOT NULL,
-      user_id text NOT NULL REFERENCES users(id),
-      banned_at text NOT NULL
-    );
-  `);
-}
+import { initSchema } from '../../src/db/init-schema';
 
 interface SeedOptions {
   role?: 'admin' | 'editor' | 'guest';
@@ -49,7 +23,7 @@ export function seedSession(opts: SeedOptions = {}): string {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const db = new Database(DB_PATH);
-  ensureSchema(db);
+  initSchema(db);
   const userId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString('hex');
   const now = new Date().toISOString();

@@ -1,6 +1,6 @@
 import Plausible from 'plausible-tracker';
 
-const { trackPageview, trackEvent } = Plausible({ apiHost: 'https://ottawabybike.ca' });
+const { trackPageview, trackEvent } = Plausible({ apiHost: import.meta.env.SITE });
 
 trackPageview();
 

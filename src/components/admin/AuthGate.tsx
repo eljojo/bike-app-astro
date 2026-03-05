@@ -38,7 +38,7 @@ export default function AuthGate({ returnTo }: Props) {
       </a>
       <a href={`/register?returnTo=${encodeURIComponent(returnTo)}`} class="btn-primary gate-btn">
         Create account
-        <span class="gate-btn-hint">Your edits go live right away</span>
+        <span class="gate-btn-hint">Get credit for your contributions</span>
       </a>
       <div class="gate-divider">or</div>
       <button
@@ -48,7 +48,7 @@ export default function AuthGate({ returnTo }: Props) {
         disabled={loading}
       >
         {loading ? 'Setting up...' : 'Continue as guest'}
-        <span class="gate-btn-hint">Edits are reviewed before going live</span>
+        <span class="gate-btn-hint">Edits go live right away, no account needed</span>
       </button>
     </div>
   );

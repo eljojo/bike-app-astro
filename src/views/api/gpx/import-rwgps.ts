@@ -40,7 +40,7 @@ export async function POST({ request, locals }: APIContext) {
 
   const gpxResponse = await fetch(gpxUrl, {
     headers: {
-      'User-Agent': 'ottawabybike.ca route importer',
+      'User-Agent': `${new URL(import.meta.env.SITE).hostname} route importer`,
     },
   });
 

@@ -30,7 +30,7 @@ const i18nConfig = {
 };
 
 export default defineConfig({
-  site: 'https://ottawabybike.ca',
+  site: process.env.SITE_URL || 'https://ottawabybike.ca',
   adapter: await getAdapter(process.env.RUNTIME),
   i18n: i18nConfig,
   build: {

@@ -6,7 +6,7 @@ import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL } from '../../lib/config';
+import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
 import { loadAdminContent } from '../../lib/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/tag-translations';
@@ -40,5 +40,5 @@ const tagTranslations = loadTagTranslations();
   viewLink={`/routes/${slug}`}
 >
   <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
-  <EditHistory client:load contentPath={`ottawa/routes/${slug}`} gitRepo="eljojo/bike-routes" />
+  <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={GIT_REPO} />
 </AdminEditorLayout>
