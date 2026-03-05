@@ -8,13 +8,14 @@ export interface AdminContentResult<T> {
 
 /**
  * Two-tier data loading for admin detail pages:
- * 1. D1 content_edits cache
+ * 1. D1 content_edits cache (with optional validated parsing)
  * 2. Build-time virtual module data
  */
 export async function loadAdminContent<T>(opts: {
   contentType: string;
   contentSlug: string;
   virtualModuleData: Record<string, T>;
+  fromCache?: (blob: string) => T;
 }): Promise<AdminContentResult<T>> {
   const database = getDb();
   let data: T | null = null;
@@ -28,7 +29,16 @@ export async function loadAdminContent<T>(opts: {
     .get();
 
   if (cached) {
-    data = JSON.parse(cached.data) as T;
+    if (opts.fromCache) {
+      try {
+        data = opts.fromCache(cached.data);
+      } catch {
+        console.warn(`Invalid cache for ${opts.contentType}/${opts.contentSlug}, falling back to virtual module`);
+        data = null;
+      }
+    } else {
+      data = JSON.parse(cached.data) as T;
+    }
   }
 
   // Tier 2: Virtual module fallback
