@@ -80,7 +80,7 @@ describe('uploadToLfs', () => {
           objects: [{
             actions: {
               upload: { href: 'https://lfs.example.com/upload', header: { 'X-Custom': 'val' } },
-              verify: { href: 'https://lfs.example.com/verify' },
+              verify: { href: 'https://lfs.example.com/verify', header: { 'Authorization': 'RemoteAuth xyz' } },
             },
           }],
         },
@@ -95,9 +95,30 @@ describe('uploadToLfs', () => {
     expect(pointer).toContain('size ');
     expect(globalThis.fetch).toHaveBeenCalledTimes(3);
 
-    // Verify request includes Basic auth
+    // Verify uses only headers from batch response (not our Basic auth)
     const verifyCall = (globalThis.fetch as any).mock.calls[2];
-    expect(verifyCall[1].headers['Authorization']).toBe(`Basic ${btoa('owner:token')}`);
+    expect(verifyCall[1].headers['Authorization']).toBe('RemoteAuth xyz');
+  });
+
+  it('verify failure → throws', async () => {
+    mockFetch([
+      {
+        ok: true,
+        body: {
+          objects: [{
+            actions: {
+              upload: { href: 'https://lfs.example.com/upload' },
+              verify: { href: 'https://lfs.example.com/verify' },
+            },
+          }],
+        },
+      },
+      { ok: true },
+      { ok: false, status: 403 },
+    ]);
+
+    await expect(uploadToLfs('token', 'owner', 'repo', 'gpx-content'))
+      .rejects.toThrow('LFS verify failed: 403');
   });
 
   it('happy path without verify endpoint → 2 fetches', async () => {
