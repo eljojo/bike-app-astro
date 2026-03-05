@@ -59,6 +59,9 @@ export function buildSitemapEntries({ routes, guides }: {
     ...localizedEntry('/guides', 0.8),
   ];
 
+  // LLM-readable site description (not localized)
+  entries.push({ url: `${BASE}/llms.txt`, priority: 0.3 });
+
   const published = routes.filter(r => r.data.status === 'published');
   for (const r of published) {
     entries.push(...localizedEntryPerLocale(l => paths.route(routeSlug(r, l)), 0.8, r.data.updated_at));

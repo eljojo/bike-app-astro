@@ -16,6 +16,10 @@ Disallow: /
   return new Response(`User-agent: *
 Allow: /
 
+# LLM-readable site description
+# See https://llmstxt.org/ for the specification
+Allow: /llms.txt
+
 Sitemap: ${config.url}/sitemap.xml
 `);
 };
