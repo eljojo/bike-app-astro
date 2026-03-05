@@ -6,6 +6,7 @@ import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { GIT_OWNER, GIT_DATA_REPO } from './config';
 import { jsonResponse, jsonError } from './api-response';
+import { computeBlobSha } from './git-service';
 import type { IGitService, FileChange } from './git-service';
 import type { SessionUser } from './auth';
 import { buildAuthorEmail } from './commit-author';
@@ -198,15 +199,17 @@ export async function saveContent<T extends { contentHash?: string }>(
     // Phase 5: Post-commit — update D1 cache using in-memory committed content
     const committedPrimary = files.find(f => f.path === filePaths.primary);
     if (committedPrimary) {
+      // Compute blob SHA (not commit SHA) so it matches readFile() on next request
+      const primaryBlobSha = computeBlobSha(committedPrimary.content);
       const committedFiles: CurrentFiles = {
-        primaryFile: { content: committedPrimary.content, sha },
+        primaryFile: { content: committedPrimary.content, sha: primaryBlobSha },
         auxiliaryFiles: {},
       };
       if (filePaths.auxiliary) {
         for (const auxPath of filePaths.auxiliary) {
           const auxFile = files.find(f => f.path === auxPath);
           committedFiles.auxiliaryFiles![auxPath] = auxFile
-            ? { content: auxFile.content, sha }
+            ? { content: auxFile.content, sha: computeBlobSha(auxFile.content) }
             : currentFiles.auxiliaryFiles?.[auxPath] ?? null;
         }
       }
@@ -218,7 +221,7 @@ export async function saveContent<T extends { contentHash?: string }>(
         contentType,
         contentSlug: contentId,
         data: cacheData,
-        githubSha: sha,
+        githubSha: primaryBlobSha,
       });
 
       return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });

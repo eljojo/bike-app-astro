@@ -5,7 +5,16 @@
  * Uses native fetch with Bearer token auth. No external dependencies.
  */
 
+import { createHash } from 'node:crypto';
+
 const GITHUB_API = 'https://api.github.com';
+
+/** Compute the git blob SHA for a string, matching GitHub's Contents API sha field. */
+export function computeBlobSha(content: string): string {
+  return createHash('sha1')
+    .update(`blob ${Buffer.byteLength(content)}\0${content}`)
+    .digest('hex');
+}
 
 export interface GitServiceConfig {
   token: string;
@@ -39,6 +48,8 @@ export interface IGitService {
   listCommits(opts?: { path?: string; perPage?: number; page?: number }): Promise<CommitInfo[]>;
   getFileAtCommit(commitSha: string, path: string): Promise<{ content: string } | null>;
   getCommitDiff(commitSha: string, filePath?: string): Promise<string | null>;
+  /** Get the list of file paths changed in a commit. */
+  getCommitFiles(commitSha: string): Promise<string[]>;
   getRef(branch: string): Promise<string | null>;
   updateRef(branch: string, sha: string, force?: boolean): Promise<void>;
   createRef(branch: string, sha: string): Promise<void>;
@@ -170,6 +181,15 @@ export class GitService implements IGitService {
     }
     const file = data.files?.find((f: any) => f.filename === filePath);
     return file?.patch || null;
+  }
+
+  async getCommitFiles(commitSha: string): Promise<string[]> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/commits/${commitSha}`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.files || []).map((f: any) => f.filename as string);
   }
 
   /**
