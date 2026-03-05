@@ -87,6 +87,14 @@ export class LocalGitService implements IGitService {
     const git = simpleGit(this.repoPath);
     if (files.length > 0) await git.add(files.map((f) => f.path));
 
+    // Check for staged changes before committing
+    const diff = await git.diff(['--cached', '--name-only']);
+    if (!diff.trim()) {
+      // Nothing staged — return current HEAD
+      const log = await git.log({ maxCount: 1 });
+      return log.latest?.hash || '';
+    }
+
     await git.commit(message, undefined, {
       '--author': `${author.name} <${author.email}>`,
     });

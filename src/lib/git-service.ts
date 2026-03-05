@@ -287,6 +287,12 @@ export class GitService implements IGitService {
     // Check if file exists to get its SHA (needed for updates)
     const existing = await this.readFile(file.path);
 
+    // Skip commit if content is identical
+    if (existing && existing.content === file.content) {
+      const ref = await this.getRef(this.branch);
+      return ref || existing.sha;
+    }
+
     const body: Record<string, unknown> = {
       message,
       content: encodeBase64Content(file.content),
@@ -405,6 +411,11 @@ export class GitService implements IGitService {
       throw new Error(`Failed to create tree: ${treeResponse.status} ${treeResponse.statusText}`);
     }
     const treeData = await treeResponse.json();
+
+    // Skip commit if tree is identical to base (no actual changes)
+    if (treeData.sha === baseTreeSha) {
+      return baseCommitSha;
+    }
 
     // 5. Create commit
     const newCommitResponse = await this.githubFetch(
