@@ -36,5 +36,5 @@ const cdnUrl = env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca';
   viewLink={`/routes/${slug}`}
 >
   <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} />
-  <EditHistory client:load contentPath={`ottawa/routes/${slug}/index.md`} />
+  <EditHistory client:load contentPath={`ottawa/routes/${slug}/index.md`} gitRepo="eljojo/bike-routes" />
 </AdminEditorLayout>

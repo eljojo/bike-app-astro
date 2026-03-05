@@ -20,9 +20,10 @@ interface Commit {
 interface Props {
   contentPath?: string;
   city?: string;
+  gitRepo?: string;
 }
 
-export default function EditHistory({ contentPath, city = 'ottawa' }: Props) {
+export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: Props) {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -136,6 +137,16 @@ export default function EditHistory({ contentPath, city = 'ottawa' }: Props) {
             <div key={c.sha} class="commit-item">
               <div class="commit-info">
                 <span class="commit-message">{c.message}</span>
+                {gitRepo && (
+                  <a
+                    class="commit-sha"
+                    href={`https://github.com/${gitRepo}/commit/${c.sha}`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {c.sha.slice(0, 7)}
+                  </a>
+                )}
                 {resourceLabel && (
                   <span class="commit-resource">{resourceLabel}</span>
                 )}

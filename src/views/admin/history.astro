@@ -12,7 +12,7 @@ const user = Astro.locals.user;
 <Base title="Edit History" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="history" />
-    <EditHistory client:load city={CITY} />
+    <EditHistory client:load city={CITY} gitRepo="eljojo/bike-routes" />
   </div>
 </Base>
 

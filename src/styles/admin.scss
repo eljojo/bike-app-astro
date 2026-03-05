@@ -810,6 +810,17 @@
   }
 }
 
+.commit-sha {
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  @include muted-text;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 // Toast notifications
 .toast-container {
   position: fixed;
