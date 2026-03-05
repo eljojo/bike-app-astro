@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
+import { z } from 'zod';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
@@ -25,6 +26,36 @@ interface VariantPayload {
   gpxContent?: string;
 }
 
+const routeUpdateSchema = z.object({
+  frontmatter: z.object({
+    name: z.string(),
+    tagline: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    status: z.string().optional(),
+    difficulty: z.string().optional(),
+    surface: z.string().optional(),
+    title: z.string().optional(),
+  }).strict(),
+  body: z.string(),
+  media: z.array(z.object({
+    key: z.string(),
+    caption: z.string().optional(),
+    cover: z.boolean().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  })).optional(),
+  variants: z.array(z.object({
+    name: z.string(),
+    gpx: z.string(),
+    distance_km: z.number().optional(),
+    strava_url: z.string().optional(),
+    rwgps_url: z.string().optional(),
+    isNew: z.boolean().optional(),
+    gpxContent: z.string().optional(),
+  })).optional(),
+  contentHash: z.string().optional(),
+});
+
 export interface RouteUpdate {
   frontmatter: Record<string, unknown>;
   body: string;
@@ -41,14 +72,7 @@ export interface RouteUpdate {
 
 export const routeHandlers: SaveHandlers<RouteUpdate> = {
   parseRequest(body: unknown): RouteUpdate {
-    const update = body as RouteUpdate;
-    // Validate frontmatter keys
-    const allowedKeys = new Set(['name', 'tagline', 'tags', 'status', 'difficulty', 'surface', 'title']);
-    const unknownKeys = Object.keys(update.frontmatter || {}).filter(k => !allowedKeys.has(k));
-    if (unknownKeys.length > 0) {
-      throw new Error(`Unknown frontmatter keys: ${unknownKeys.join(', ')}`);
-    }
-    return update;
+    return routeUpdateSchema.parse(body);
   },
 
   resolveContentId(params): string {

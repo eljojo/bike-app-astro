@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
+import { z } from 'zod';
 import adminEvents from 'virtual:bike-app/admin-events';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
@@ -19,6 +20,19 @@ interface OrganizerPayload {
   website?: string;
   instagram?: string;
 }
+
+const eventUpdateSchema = z.object({
+  frontmatter: z.record(z.unknown()),
+  body: z.string(),
+  contentHash: z.string().optional(),
+  organizer: z.object({
+    slug: z.string(),
+    name: z.string(),
+    website: z.string().optional(),
+    instagram: z.string().optional(),
+  }).optional(),
+  slug: z.string().optional(),
+});
 
 interface EventUpdate {
   frontmatter: Record<string, unknown>;
@@ -42,7 +56,7 @@ function resolveEventPath(eventId: string): string {
 
 const eventHandlers: SaveHandlers<EventUpdate> = {
   parseRequest(body: unknown): EventUpdate {
-    return body as EventUpdate;
+    return eventUpdateSchema.parse(body);
   },
 
   resolveContentId(params, update): string {

@@ -105,3 +105,40 @@ describe('routeHandlers.validateSlug', () => {
     expect(routeHandlers.validateSlug!('ab')).toBeNull();
   });
 });
+
+describe('routeHandlers.parseRequest', () => {
+  it('accepts valid route update', () => {
+    const body = {
+      frontmatter: { name: 'Test', tagline: 'A route', tags: ['urban'], status: 'published' },
+      body: 'Route description',
+      media: [{ key: 'abc123' }],
+    };
+    expect(() => routeHandlers.parseRequest(body)).not.toThrow();
+  });
+
+  it('rejects unknown frontmatter keys', () => {
+    const body = {
+      frontmatter: { name: 'Test', unknown_field: 'bad' },
+      body: 'body',
+      media: [],
+    };
+    expect(() => routeHandlers.parseRequest(body)).toThrow();
+  });
+
+  it('rejects missing body', () => {
+    const body = {
+      frontmatter: { name: 'Test' },
+      media: [],
+    };
+    expect(() => routeHandlers.parseRequest(body)).toThrow();
+  });
+
+  it('rejects non-string body', () => {
+    const body = {
+      frontmatter: { name: 'Test' },
+      body: 123,
+      media: [],
+    };
+    expect(() => routeHandlers.parseRequest(body)).toThrow();
+  });
+});
