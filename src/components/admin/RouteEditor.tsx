@@ -9,9 +9,10 @@ interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
   tagTranslations?: Record<string, Record<string, string>>;
+  defaultLocale?: string;
 }
 
-export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {}, defaultLocale = 'en' }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -22,7 +23,7 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} 
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
 
-  const [activeLocale, setActiveLocale] = useState('en');
+  const [activeLocale, setActiveLocale] = useState(defaultLocale);
   const [translations, setTranslations] = useState<Record<string, { name: string; tagline: string; body: string }>>(
     Object.fromEntries(
       Object.entries(initialData.translations || {}).map(([locale, t]) => [
@@ -93,14 +94,14 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} 
   }, []);
 
   function getField(field: 'name' | 'tagline' | 'body'): string {
-    if (activeLocale === 'en') {
+    if (activeLocale === defaultLocale) {
       return field === 'name' ? name : field === 'tagline' ? tagline : body;
     }
     return translations[activeLocale]?.[field] || '';
   }
 
   function setField(field: 'name' | 'tagline' | 'body', value: string) {
-    if (activeLocale === 'en') {
+    if (activeLocale === defaultLocale) {
       if (field === 'name') setName(value);
       else if (field === 'tagline') setTagline(value);
       else setBody(value);
@@ -115,8 +116,18 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} 
     }));
   }
 
+  function localeLabel(locale: string): string {
+    try {
+      const display = new Intl.DisplayNames([locale], { type: 'language' });
+      const name = display.of(locale);
+      return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
+    } catch {
+      return locale;
+    }
+  }
+
   function displayTag(tag: string): string {
-    if (activeLocale === 'en') return tag;
+    if (activeLocale === defaultLocale) return tag;
     return tagTranslations[tag]?.[activeLocale] ?? tag;
   }
 
@@ -210,20 +221,16 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} 
       <section class="editor-section">
         <h2>Text</h2>
         <div class="locale-tabs">
-          <button
-            type="button"
-            class={`locale-tab ${activeLocale === 'en' ? 'locale-tab--active' : ''}`}
-            onClick={() => setActiveLocale('en')}
-          >
-            English
-          </button>
-          <button
-            type="button"
-            class={`locale-tab ${activeLocale === 'fr' ? 'locale-tab--active' : ''}`}
-            onClick={() => setActiveLocale('fr')}
-          >
-            {'Fran\u00e7ais'}
-          </button>
+          {[defaultLocale, ...Object.keys(translations).filter(l => l !== defaultLocale)].map(locale => (
+            <button
+              key={locale}
+              type="button"
+              class={`locale-tab ${activeLocale === locale ? 'locale-tab--active' : ''}`}
+              onClick={() => setActiveLocale(locale)}
+            >
+              {localeLabel(locale)}
+            </button>
+          ))}
         </div>
         <div class="auth-form">
           <div class="form-field">
@@ -267,7 +274,7 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {} 
             </div>
           </div>
 
-          {activeLocale === 'en' && (
+          {activeLocale === defaultLocale && (
             <div class="form-field">
               <label for="route-status">Status</label>
               <select

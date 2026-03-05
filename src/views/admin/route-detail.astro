@@ -10,6 +10,7 @@ import { CDN_FALLBACK_URL } from '../../lib/config';
 import { loadAdminContent } from '../../lib/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/tag-translations';
+import { defaultLocale } from '../../lib/locale-utils';
 
 const { slug } = Astro.params;
 
@@ -38,6 +39,6 @@ const tagTranslations = loadTagTranslations();
   backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} defaultLocale={defaultLocale()} />
   <EditHistory client:load contentPath={`ottawa/routes/${slug}`} gitRepo="eljojo/bike-routes" />
 </AdminEditorLayout>
