@@ -150,6 +150,35 @@ Carp is a rural community west of Ottawa. This route follows the Trans Canada Tr
 `
   );
 
+  // Event fixture: ottawa/events/2026/bike-fest.md
+  const eventDir = path.join(FIXTURE_DIR, 'ottawa', 'events', '2026');
+  fs.mkdirSync(eventDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(eventDir, 'bike-fest.md'),
+    `---
+name: Bike Fest
+start_date: "2026-06-15"
+start_time: "10:00"
+location: Parliament Hill
+organizer: cycling-club
+---
+
+A fun cycling festival for the whole family.
+`
+  );
+
+  // Organizer fixture: ottawa/organizers/cycling-club.md
+  const orgDir = path.join(FIXTURE_DIR, 'ottawa', 'organizers');
+  fs.mkdirSync(orgDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(orgDir, 'cycling-club.md'),
+    `---
+name: Ottawa Cycling Club
+website: https://example.com/cycling
+---
+`
+  );
+
   // About page is pre-rendered and throws if missing
   const pagesDir = path.join(FIXTURE_DIR, 'ottawa', 'pages');
   fs.mkdirSync(pagesDir, { recursive: true });
