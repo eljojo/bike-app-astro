@@ -14,6 +14,7 @@ import {
 } from '../../../lib/auth';
 import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { withTransaction } from '../../../db/transaction';
 
 export const prerender = false;
 
@@ -61,14 +62,10 @@ export async function POST({ request, cookies, locals }: APIContext) {
 
     const { credential } = verification.registrationInfo;
 
-    // Store credential for the existing user
-    await storeCredential(database, user.id, credential, credentialResponse.response?.transports);
-
-    // Upgrade: set email, role, optionally username
+    // Check username availability before entering transaction
     const updates: Record<string, unknown> = { email, role: 'editor', ipAddress: null };
     if (rawUsername) {
       const newUsername = sanitizeUsername(rawUsername);
-      // Check new username not already taken (unless it's the same as current)
       if (newUsername !== user.username) {
         const existingUsername = await database
           .select({ id: users.id })
@@ -80,20 +77,22 @@ export async function POST({ request, cookies, locals }: APIContext) {
         }
       }
       updates.username = newUsername;
-      // Store old pseudonym in previousUsernames
       const prev = [user.username];
       updates.previousUsernames = JSON.stringify(prev);
     }
 
-    await database.update(users).set(updates).where(eq(users.id, user.id));
+    await withTransaction(database, async (tx) => {
+      await storeCredential(tx, user.id, credential, credentialResponse.response?.transports);
+      await tx.update(users).set(updates).where(eq(users.id, user.id));
 
-    // Re-issue session to prevent session fixation: the old guest token
-    // should not carry over into the elevated editor role.
-    const oldToken = cookies.get('session_token')?.value;
-    if (oldToken) {
-      await destroySession(database, oldToken);
-    }
-    await createSessionWithCookies(database, user.id, cookies);
+      // Re-issue session to prevent session fixation: the old guest token
+      // should not carry over into the elevated editor role.
+      const oldToken = cookies.get('session_token')?.value;
+      if (oldToken) {
+        await destroySession(tx, oldToken);
+      }
+      await createSessionWithCookies(tx, user.id, cookies);
+    });
 
     return jsonResponse({ success: true });
   } catch (err) {

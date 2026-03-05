@@ -5,6 +5,7 @@ import { generateId, createSessionWithCookies } from '../../../lib/auth';
 import { generatePseudonym } from '../../../lib/pseudonym';
 import { isIpBanned } from '../../../lib/ban-service';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { withTransaction } from '../../../db/transaction';
 
 export const prerender = false;
 
@@ -22,16 +23,18 @@ export async function POST({ cookies, request }: APIContext) {
       return jsonError('Unable to create account', 403);
     }
 
-    await database.insert(users).values({
-      id: userId,
-      email: null,
-      username,
-      role: 'guest',
-      createdAt: now,
-      ipAddress: ip,
-    });
+    await withTransaction(database, async (tx) => {
+      await tx.insert(users).values({
+        id: userId,
+        email: null,
+        username,
+        role: 'guest',
+        createdAt: now,
+        ipAddress: ip,
+      });
 
-    await createSessionWithCookies(database, userId, cookies);
+      await createSessionWithCookies(tx, userId, cookies);
+    });
 
     return jsonResponse({ success: true, username });
   } catch (err: unknown) {

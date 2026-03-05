@@ -15,6 +15,7 @@ import {
 import { sanitizeUsername } from '../../../lib/username';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { withTransaction } from '../../../db/transaction';
 
 
 export const prerender = false;
@@ -70,20 +71,18 @@ export async function POST({ request, cookies }: APIContext) {
     const userId = generateId();
     const now = new Date().toISOString();
 
-    // Create user
-    await database.insert(users).values({
-      id: userId,
-      email,
-      username,
-      role: firstUser ? 'admin' : 'editor',
-      createdAt: now,
+    await withTransaction(database, async (tx) => {
+      await tx.insert(users).values({
+        id: userId,
+        email,
+        username,
+        role: firstUser ? 'admin' : 'editor',
+        createdAt: now,
+      });
+
+      await storeCredential(tx, userId, credential, credentialResponse.response?.transports);
+      await createSessionWithCookies(tx, userId, cookies);
     });
-
-    // Store credential
-    await storeCredential(database, userId, credential, credentialResponse.response?.transports);
-
-    // Create session
-    await createSessionWithCookies(database, userId, cookies);
 
     return jsonResponse({ success: true });
   } catch (err) {

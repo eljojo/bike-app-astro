@@ -1,6 +1,6 @@
 import { eq, and, gt, lt } from 'drizzle-orm';
 import { sessions, users } from '../db/schema';
-import type { Database } from '../db';
+import type { Database, DbClient } from '../db';
 import type { AppEnv } from './app-env';
 
 export interface SessionUser {
@@ -57,7 +57,7 @@ export function generateId(): string {
 }
 
 /** Create a new session for a user, returning the token. Also cleans up expired sessions. */
-export async function createSession(db: Database, userId: string): Promise<string> {
+export async function createSession(db: DbClient, userId: string): Promise<string> {
   const token = randomHex(32);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -109,7 +109,7 @@ export async function validateSession(db: Database, token: string): Promise<Sess
 }
 
 /** Destroy a session by token. */
-export async function destroySession(db: Database, token: string): Promise<void> {
+export async function destroySession(db: DbClient, token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.token, token));
 }
 
@@ -194,7 +194,7 @@ export function requireAdmin(user: SessionUser | null | undefined): SessionUser 
 
 /** Store a WebAuthn credential for a user. */
 export async function storeCredential(
-  database: Database,
+  database: DbClient,
   userId: string,
   credential: { id: string; publicKey: Uint8Array | ArrayBuffer; counter: number },
   transports?: string[],
@@ -216,7 +216,7 @@ export async function storeCredential(
 
 /** Create session and set cookies in one call. */
 export async function createSessionWithCookies(
-  database: Database,
+  database: DbClient,
   userId: string,
   cookies: AstroCookies,
 ): Promise<string> {
