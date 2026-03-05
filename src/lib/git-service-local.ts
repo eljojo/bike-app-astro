@@ -119,6 +119,18 @@ export class LocalGitService implements IGitService {
     }
   }
 
+  async getCommitDiff(commitSha: string, filePath?: string): Promise<string | null> {
+    const git = simpleGit(this.repoPath);
+    try {
+      const args = [commitSha + '^', commitSha];
+      if (filePath) args.push('--', filePath);
+      const result = await git.diff(args);
+      return result || null;
+    } catch {
+      return null;
+    }
+  }
+
   async getRef(branch: string): Promise<string | null> {
     const git = simpleGit(this.repoPath);
     try {

@@ -38,6 +38,7 @@ export interface IGitService {
   writeFiles(files: FileChange[], message: string, author: CommitAuthor, deletePaths?: string[]): Promise<string>;
   listCommits(opts?: { path?: string; perPage?: number; page?: number }): Promise<CommitInfo[]>;
   getFileAtCommit(commitSha: string, path: string): Promise<{ content: string } | null>;
+  getCommitDiff(commitSha: string, filePath?: string): Promise<string | null>;
   getRef(branch: string): Promise<string | null>;
   updateRef(branch: string, sha: string, force?: boolean): Promise<void>;
   createRef(branch: string, sha: string): Promise<void>;
@@ -156,6 +157,19 @@ export class GitService implements IGitService {
 
     const data = await response.json();
     return { content: decodeBase64Content(data.content) };
+  }
+
+  async getCommitDiff(commitSha: string, filePath?: string): Promise<string | null> {
+    const response = await this.githubFetch(
+      `/repos/${this.config.owner}/${this.config.repo}/commits/${commitSha}`
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!filePath) {
+      return data.files?.map((f: any) => `--- ${f.filename}\n${f.patch || ''}`).join('\n\n') || null;
+    }
+    const file = data.files?.find((f: any) => f.filename === filePath);
+    return file?.patch || null;
   }
 
   /**

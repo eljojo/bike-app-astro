@@ -13,6 +13,7 @@ const adminRoutes = [
   { pattern: '/api/admin/users', entrypoint: './src/views/api/admin-users.ts' },
   { pattern: '/api/admin/history', entrypoint: './src/views/api/admin-history.ts' },
   { pattern: '/api/admin/revert', entrypoint: './src/views/api/admin-revert.ts' },
+  { pattern: '/api/admin/diff', entrypoint: './src/views/api/admin-diff.ts' },
   { pattern: '/admin/history', entrypoint: './src/views/admin/history.astro' },
   { pattern: '/admin/users', entrypoint: './src/views/admin/users.astro' },
   { pattern: '/api/gpx/import-rwgps', entrypoint: './src/views/api/gpx/import-rwgps.ts' },
