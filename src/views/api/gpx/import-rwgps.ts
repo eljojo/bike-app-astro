@@ -72,10 +72,13 @@ export async function POST({ request, locals }: APIContext) {
     headers: {
       'x-rwgps-api-key': apiKey,
       'x-rwgps-auth-token': authToken,
+      'User-Agent': 'whereto-bike',
     },
   });
 
   if (!response.ok) {
+    const body = await response.text();
+    console.error(`RWGPS API error: ${response.status}`, body);
     return jsonError(
       `Failed to fetch route from RideWithGPS (${response.status}). Make sure the route exists and your API credentials are valid.`,
       response.status === 404 ? 404 : 502,
