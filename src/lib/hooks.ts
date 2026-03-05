@@ -102,8 +102,8 @@ export function useFileUpload() {
       }
 
       return uploaded;
-    } catch (err: any) {
-      setError(err.message || 'Upload failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
       return [];
     } finally {
       setUploading(false);

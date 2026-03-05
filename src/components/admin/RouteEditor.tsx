@@ -93,8 +93,8 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
       setSaved(true);
       setTimeout(() => setSaved(false), 8000);
-    } catch (err: any) {
-      setError(err.message || 'Save failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }

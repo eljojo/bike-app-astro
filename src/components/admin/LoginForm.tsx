@@ -47,11 +47,11 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
 
       // Success — redirect
       window.location.href = returnTo;
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'NotAllowedError') {
         setError('Passkey authentication was cancelled');
       } else {
-        setError(err.message || 'Login failed');
+        setError(err instanceof Error ? err.message : 'Login failed');
       }
     } finally {
       setLoading(false);

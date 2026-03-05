@@ -34,7 +34,7 @@ export async function POST({ cookies, request }: APIContext) {
     await createSessionWithCookies(database, userId, cookies);
 
     return jsonResponse({ success: true, username });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('guest creation error:', err);
     return jsonError('Failed to create guest account', 500);
   }

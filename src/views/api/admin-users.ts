@@ -52,7 +52,8 @@ export async function POST({ request, locals }: APIContext) {
     } else {
       return jsonError('Invalid action');
     }
-  } catch (err: any) {
-    return jsonError(err.message || 'Failed to process action', 500);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to process action';
+    return jsonError(message, 500);
   }
 }

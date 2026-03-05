@@ -105,8 +105,8 @@ export default function VariantManager({ variants, onChange }: Props) {
       }]);
 
       setRwgpsUrl('');
-    } catch (err: any) {
-      setError(err.message || 'Import failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
       setImporting(false);
     }

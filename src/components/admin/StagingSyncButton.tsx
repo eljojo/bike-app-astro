@@ -21,8 +21,8 @@ export default function StagingSyncButton() {
       }
 
       setResult({ success: true });
-    } catch (err: any) {
-      setResult({ error: err.message || 'Sync failed' });
+    } catch (err: unknown) {
+      setResult({ error: err instanceof Error ? err.message : 'Sync failed' });
     } finally {
       setSyncing(false);
     }

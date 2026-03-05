@@ -52,11 +52,11 @@ export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }
 
       // Success — redirect
       window.location.href = returnTo;
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'NotAllowedError') {
         setError('Passkey registration was cancelled');
       } else {
-        setError(err.message || 'Registration failed');
+        setError(err instanceof Error ? err.message : 'Registration failed');
       }
     } finally {
       setLoading(false);

@@ -85,8 +85,9 @@ export async function POST({ request, locals }: APIContext) {
     }
 
     return jsonResponse({ success: true, sha });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('restore error:', err);
-    return jsonError(err.message || 'Failed to restore', 500);
+    const message = err instanceof Error ? err.message : 'Failed to restore';
+    return jsonError(message, 500);
   }
 }

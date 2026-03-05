@@ -23,8 +23,8 @@ export default function AuthGate({ returnTo }: Props) {
         throw new Error(msg);
       }
       window.location.href = returnTo;
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to continue as guest');
     } finally {
       setLoading(false);
     }

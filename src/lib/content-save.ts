@@ -79,8 +79,9 @@ export async function saveContent<T extends { contentHash?: string }>(
   try {
     const body = await request.json();
     update = handlers.parseRequest(body);
-  } catch (err: any) {
-    return jsonError(err.message || 'Invalid JSON body');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Invalid JSON body';
+    return jsonError(message);
   }
 
   // Phase 0c: Resolve content ID
@@ -224,8 +225,9 @@ export async function saveContent<T extends { contentHash?: string }>(
     }
 
     return jsonResponse({ success: true, sha, id: contentId });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`save ${contentType} error:`, err);
-    return jsonError(err.message || 'Failed to save', 500);
+    const message = err instanceof Error ? err.message : 'Failed to save';
+    return jsonError(message, 500);
   }
 }
