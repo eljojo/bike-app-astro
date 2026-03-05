@@ -63,6 +63,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   // Progressive disclosure — show fields when data exists or user clicks link
   const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
   const [showEndDate, setShowEndDate] = useState(!!initialData.end_date);
+  const [showEndTime, setShowEndTime] = useState(!!initialData.end_time);
   const [showLocation, setShowLocation] = useState(!!initialData.location);
   const [showDistances, setShowDistances] = useState(!!initialData.distances);
   const [showRegistration, setShowRegistration] = useState(!!initialData.registration_url);
@@ -170,6 +171,19 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
   async function handleSave() {
     setError('');
     setGithubUrl('');
+
+    if (!name.trim()) {
+      setError('Name is required');
+      document.getElementById('event-name')?.focus();
+      return;
+    }
+
+    if (!startDate) {
+      setError('Start date is required');
+      document.getElementById('event-start-date')?.focus();
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
 
@@ -271,6 +285,14 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
             </div>
           )}
 
+          {showEndTime && !showEndDate && (
+            <div class="form-field">
+              <label for="event-end-time">End time</label>
+              <input id="event-end-time" type="time" value={endTime}
+                onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
           {showEndDate && (
             <>
               <div class="form-field">
@@ -278,7 +300,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
                 <input id="event-end-date" type="date" value={endDate}
                   onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
               </div>
-              {showTime && (
+              {(showEndTime || showTime) && (
                 <div class="form-field">
                   <label for="event-end-time">End time</label>
                   <input id="event-end-time" type="time" value={endTime}
@@ -292,9 +314,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
             {!showTime && (
               <button type="button" class="btn-link" onClick={() => setShowTime(true)}>Set time</button>
             )}
+            {showTime && !showEndTime && !showEndDate && (
+              <button type="button" class="btn-link" onClick={() => setShowEndTime(true)}>Set end time</button>
+            )}
             {!showEndDate && (
               <button type="button" class="btn-link" onClick={() => {
                 setShowEndDate(true);
+                setShowEndTime(true);
                 if (!endDate) {
                   const next = new Date(startDate);
                   next.setDate(next.getDate() + 1);
@@ -396,9 +422,16 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
           <div class="form-field">
             <label>Select organizer</label>
             <div class="organizer-select-row">
-              <select value={orgSlug}
-                onChange={(e) => selectOrganizer((e.target as HTMLSelectElement).value)}>
+              <select value={orgSlug || (showOrgForm && orgName ? '__custom__' : '')}
+                onChange={(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  if (val === '__custom__') return;
+                  selectOrganizer(val);
+                }}>
                 <option value="">-- None --</option>
+                {showOrgForm && orgName && !organizers.find(o => o.slug === orgSlug) && (
+                  <option value="__custom__">{orgName} (custom)</option>
+                )}
                 {organizers.map(o => (
                   <option key={o.slug} value={o.slug}>{o.name}</option>
                 ))}

@@ -82,19 +82,19 @@ describe('routeHandlers.buildCommitMessage', () => {
 
 describe('routeHandlers.validateSlug', () => {
   it('rejects single character', () => {
-    expect(routeHandlers.validateSlug!('a')).toBe('Invalid slug');
+    expect(routeHandlers.validateSlug!('a')).toMatch(/must start and end/);
   });
 
   it('rejects leading hyphen', () => {
-    expect(routeHandlers.validateSlug!('-foo')).toBe('Invalid slug');
+    expect(routeHandlers.validateSlug!('-foo')).toMatch(/must start and end/);
   });
 
   it('rejects trailing hyphen', () => {
-    expect(routeHandlers.validateSlug!('foo-')).toBe('Invalid slug');
+    expect(routeHandlers.validateSlug!('foo-')).toMatch(/must start and end/);
   });
 
   it('rejects uppercase', () => {
-    expect(routeHandlers.validateSlug!('FooBar')).toBe('Invalid slug');
+    expect(routeHandlers.validateSlug!('FooBar')).toMatch(/must start and end/);
   });
 
   it('accepts valid slug', () => {

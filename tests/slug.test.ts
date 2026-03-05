@@ -21,15 +21,15 @@ describe('slugify', () => {
 
 describe('validateSlug', () => {
   it('rejects empty slug', () => {
-    expect(validateSlug('')).toBe('Invalid slug');
+    expect(validateSlug('')).toBe('Name is required');
   });
 
   it('rejects slug with leading hyphen', () => {
-    expect(validateSlug('-hello')).toBe('Invalid slug');
+    expect(validateSlug('-hello')).toMatch(/must start and end/);
   });
 
   it('rejects slug with trailing hyphen', () => {
-    expect(validateSlug('hello-')).toBe('Invalid slug');
+    expect(validateSlug('hello-')).toMatch(/must start and end/);
   });
 
   it('accepts valid slug', () => {
@@ -37,6 +37,6 @@ describe('validateSlug', () => {
   });
 
   it('rejects single character', () => {
-    expect(validateSlug('a')).toBe('Invalid slug');
+    expect(validateSlug('a')).toMatch(/must start and end/);
   });
 });

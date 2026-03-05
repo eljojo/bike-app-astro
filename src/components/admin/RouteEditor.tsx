@@ -50,6 +50,13 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
   async function handleSave() {
     setError('');
     setGithubUrl('');
+
+    if (!name.trim()) {
+      setError('Name is required');
+      document.getElementById('route-name')?.focus();
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
 

@@ -72,7 +72,8 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
 
   validateSlug(eventId: string): string | null {
     const slug = eventId.split('/')[1];
-    if (!slug || slug.length < 2) return 'Invalid slug';
+    if (!slug) return 'Event name is required';
+    if (slug.length < 2) return 'Event name is too short';
     return null;
   },
 
