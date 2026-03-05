@@ -38,6 +38,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
     {fontPreloads.map(href => (
       <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
     ))}
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" href="/bicycle.png" />
     <link rel="apple-touch-icon" href="/bicycle.png" />
     <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
@@ -48,17 +49,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
     <header class="site-header">
       <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
     </header>
-    {admin ? (
-      <nav class="top-nav admin-nav">
-        <ul>
-          <li><a href="/admin">Routes</a></li>
-          <li><a href="/">View site</a></li>
-          <li><a href="/api/auth/logout">Log out</a></li>
-        </ul>
-      </nav>
-    ) : (
-      <Nav alternateUrls={alternateUrls} />
-    )}
+    {!admin && <Nav alternateUrls={alternateUrls} />}
     <main>
       <slot />
     </main>
