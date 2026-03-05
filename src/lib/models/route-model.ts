@@ -18,6 +18,12 @@ const adminVariantSchema = z.object({
   rwgps_url: z.string().optional(),
 });
 
+const localeContentSchema = z.object({
+  name: z.string().optional(),
+  tagline: z.string().optional(),
+  body: z.string().optional(),
+});
+
 export const routeDetailSchema = z.object({
   slug: z.string(),
   name: z.string(),
@@ -28,16 +34,22 @@ export const routeDetailSchema = z.object({
   body: z.string(),
   media: z.array(adminMediaItemSchema),
   variants: z.array(adminVariantSchema),
+  translations: z.record(z.string(), localeContentSchema).default({}),
 });
 
 export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type AdminMediaItem = z.infer<typeof adminMediaItemSchema>;
 export type AdminVariant = z.infer<typeof adminVariantSchema>;
 
-/** Compute content hash for route conflict detection. Hashes primary + media content. */
-export function computeRouteContentHash(primaryContent: string, mediaContent: string | undefined): string {
+/** Compute content hash for route conflict detection. Hashes primary + media + translation content. */
+export function computeRouteContentHash(primaryContent: string, mediaContent: string | undefined, translationContents?: Record<string, string>): string {
   const hash = createHash('md5').update(primaryContent);
   if (mediaContent) hash.update(mediaContent);
+  if (translationContents) {
+    for (const locale of Object.keys(translationContents).sort()) {
+      hash.update(translationContents[locale]);
+    }
+  }
   return hash.digest('hex');
 }
 
@@ -50,6 +62,7 @@ export function routeDetailFromGit(
   frontmatter: Record<string, unknown>,
   body: string,
   mediaYml?: string,
+  translations?: Record<string, { name?: string; tagline?: string; body?: string }>,
 ): RouteDetail {
   let media: AdminMediaItem[] = [];
   if (mediaYml) {
@@ -74,6 +87,7 @@ export function routeDetailFromGit(
     body: body.trim(),
     media,
     variants: (frontmatter.variants as AdminVariant[]) || [],
+    translations: translations || {},
   };
 }
 
