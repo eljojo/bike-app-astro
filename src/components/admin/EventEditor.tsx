@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
+import type { EventDetail } from '../../lib/models/event-model';
 
 interface OrganizerData {
   slug: string;
@@ -8,35 +9,8 @@ interface OrganizerData {
   instagram?: string;
 }
 
-interface OrganizerInline {
-  name: string;
-  website?: string;
-  instagram?: string;
-}
-
-interface EventData {
-  id: string;
-  slug: string;
-  year: string;
-  name: string;
-  start_date: string;
-  start_time?: string;
-  end_date?: string;
-  end_time?: string;
-  registration_url?: string;
-  distances?: string;
-  location?: string;
-  review_url?: string;
-  organizer?: string | OrganizerInline;
-  poster_key?: string;
-  poster_content_type?: string;
-  body: string;
-  contentHash?: string;
-  isNew?: boolean;
-}
-
 interface Props {
-  initialData: EventData;
+  initialData: EventDetail & { contentHash?: string; isNew?: boolean };
   organizers: OrganizerData[];
   cdnUrl: string;
   readOnly?: boolean;
@@ -48,7 +22,7 @@ function slugify(text: string): string {
 
 /** Resolve the initial organizer state from the union field */
 function resolveOrganizer(
-  organizer: string | OrganizerInline | undefined,
+  organizer: EventDetail['organizer'],
   allOrganizers: OrganizerData[],
 ) {
   if (!organizer) return { slug: '', name: '', website: '', instagram: '', isRef: false };

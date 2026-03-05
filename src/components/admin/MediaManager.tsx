@@ -1,13 +1,8 @@
 import { useState, useRef } from 'preact/hooks';
 import { useDragReorder, useFileUpload } from '../../lib/hooks';
+import type { AdminMediaItem } from '../../lib/models/route-model';
 
-export interface MediaItem {
-  key: string;
-  caption?: string;
-  cover?: boolean;
-  width?: number;
-  height?: number;
-}
+export type MediaItem = AdminMediaItem;
 
 interface Props {
   media: MediaItem[];

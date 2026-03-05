@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config';
-import type { AdminEvent, AdminOrganizerRef } from '../types/admin';
+import type { AdminEvent } from '../types/admin';
 import { eventDetailFromGit, type EventDetail } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
@@ -37,7 +37,7 @@ export async function loadAdminEvents(): Promise<AdminEvent[]> {
         name: fm.name as string,
         start_date: fm.start_date as string,
         end_date: fm.end_date as string | undefined,
-        organizer: fm.organizer as string | AdminOrganizerRef | undefined,
+        organizer: fm.organizer as string | { name: string; website?: string; instagram?: string } | undefined,
         poster_key: fm.poster_key as string | undefined,
         contentHash,
       });

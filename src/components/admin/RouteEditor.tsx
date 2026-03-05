@@ -4,22 +4,10 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
-
-interface RouteData {
-  slug: string;
-  name: string;
-  tagline: string;
-  tags: string[];
-  status: string;
-  body: string;
-  media: MediaItem[];
-  contentHash?: string;
-  variants?: VariantItem[];
-  isNew?: boolean;
-}
+import type { RouteDetail } from '../../lib/models/route-model';
 
 interface Props {
-  initialData: RouteData;
+  initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
 }
 

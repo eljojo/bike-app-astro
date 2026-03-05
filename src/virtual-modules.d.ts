@@ -5,8 +5,8 @@
  * treats it as an ambient declaration (creating the module) rather than
  * module augmentation.
  *
- * Types are referenced by name from src/types/admin.ts — they are imported
- * into the global scope via env.d.ts's declare global block.
+ * Canonical types: src/lib/models/route-model.ts (RouteDetail)
+ * Canonical types: src/lib/models/event-model.ts (EventDetail)
  */
 
 interface _AdminRoute {
