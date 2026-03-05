@@ -75,10 +75,6 @@ export async function createPresignedUploadUrl(
 ): Promise<string> {
   const prefix = env.STORAGE_KEY_PREFIX || '';
 
-  if (process.env.RUNTIME === 'local') {
-    return `/api/dev/upload?key=${key}&contentType=${encodeURIComponent(contentType)}`;
-  }
-
   const client = new AwsClient({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,

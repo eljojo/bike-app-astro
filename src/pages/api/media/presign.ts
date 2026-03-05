@@ -26,7 +26,14 @@ export async function POST({ request, locals }: APIContext) {
   try {
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const key = await generateMediaKey(env.BUCKET, prefix);
-    const uploadUrl = await createPresignedUploadUrl(env, key, contentType);
+
+    let uploadUrl: string;
+    if (!env.R2_ACCESS_KEY_ID) {
+      // Local dev: use direct upload endpoint (no R2 credentials available)
+      uploadUrl = `/api/dev/upload?key=${key}&contentType=${encodeURIComponent(contentType)}`;
+    } else {
+      uploadUrl = await createPresignedUploadUrl(env, key, contentType);
+    }
 
     return jsonResponse({ key, uploadUrl });
   } catch (error) {
