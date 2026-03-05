@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue } from '../../lib/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
@@ -23,10 +23,56 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const bodyRef = useTextareaValue(body);
 
+  const [dragging, setDragging] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const dragCounterRef = useRef(0);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    function handleDragEnter(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current++;
+      if (e.dataTransfer?.types.includes('Files')) {
+        setDragging(true);
+      }
+    }
+    function handleDragLeave(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current--;
+      if (dragCounterRef.current === 0) {
+        setDragging(false);
+      }
+    }
+    function handleDragOver(e: DragEvent) {
+      e.preventDefault();
+    }
+    function handleDrop(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragging(false);
+      const files = e.dataTransfer?.files;
+      if (files?.length) {
+        const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length > 0) {
+          setPendingFiles(imageFiles);
+        }
+      }
+    }
+    document.addEventListener('dragenter', handleDragEnter);
+    document.addEventListener('dragleave', handleDragLeave);
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+    return () => {
+      document.removeEventListener('dragenter', handleDragEnter);
+      document.removeEventListener('dragleave', handleDragLeave);
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
+  }, []);
 
   function addTag() {
     const tag = tagInput.trim().toLowerCase();
@@ -109,6 +155,11 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
   return (
     <div class="route-editor">
+      {dragging && (
+        <div class="drop-overlay">
+          <div class="drop-overlay-content">Drop photos to add to route</div>
+        </div>
+      )}
       <section class="editor-section">
         <h2>Text</h2>
         <div class="auth-form">
@@ -180,7 +231,13 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
       <section class="editor-section">
         <h2>Photos</h2>
-        <MediaManager media={media} onChange={setMedia} cdnUrl={cdnUrl} />
+        <MediaManager
+          media={media}
+          onChange={setMedia}
+          cdnUrl={cdnUrl}
+          pendingFiles={pendingFiles}
+          onPendingProcessed={() => setPendingFiles([])}
+        />
       </section>
 
       <section class="editor-section">

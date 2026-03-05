@@ -1,4 +1,4 @@
-import { useState, useRef } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload } from '../../lib/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
@@ -8,13 +8,22 @@ interface Props {
   media: MediaItem[];
   onChange: (media: MediaItem[]) => void;
   cdnUrl: string;
+  pendingFiles?: File[];
+  onPendingProcessed?: () => void;
 }
 
-export default function MediaManager({ media, onChange, cdnUrl }: Props) {
+export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, onPendingProcessed }: Props) {
   const fileUpload = useFileUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const drag = useDragReorder(media, onChange);
+
+  useEffect(() => {
+    if (pendingFiles && pendingFiles.length > 0) {
+      uploadFiles(pendingFiles);
+      onPendingProcessed?.();
+    }
+  }, [pendingFiles]);
 
   function thumbnailUrl(key: string): string {
     return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
