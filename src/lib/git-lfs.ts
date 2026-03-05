@@ -94,9 +94,16 @@ export async function uploadToLfs(
     // 3. Verify if endpoint provided
     const verifyAction = obj?.actions?.verify;
     if (verifyAction) {
+      console.log('LFS verify debug:', JSON.stringify({
+        href: new URL(verifyAction.href).pathname,
+        headerKeys: verifyAction.header ? Object.keys(verifyAction.header) : null,
+        authenticated: obj.authenticated,
+      }));
+
       const verifyHeaders: Record<string, string> = {
         'Accept': 'application/vnd.git-lfs+json',
         'Content-Type': 'application/vnd.git-lfs+json',
+        'Authorization': `Basic ${basicAuth}`,
         ...(verifyAction.header || {}),
       };
 
@@ -107,7 +114,8 @@ export async function uploadToLfs(
       });
 
       if (!verifyResponse.ok) {
-        throw new Error(`LFS verify failed: ${verifyResponse.status}`);
+        const body = await verifyResponse.text();
+        throw new Error(`LFS verify failed: ${verifyResponse.status} — ${body}`);
       }
     }
   }

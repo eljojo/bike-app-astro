@@ -95,7 +95,7 @@ describe('uploadToLfs', () => {
     expect(pointer).toContain('size ');
     expect(globalThis.fetch).toHaveBeenCalledTimes(3);
 
-    // Verify uses only headers from batch response (not our Basic auth)
+    // Verify action's header overrides our default Basic auth
     const verifyCall = (globalThis.fetch as any).mock.calls[2];
     expect(verifyCall[1].headers['Authorization']).toBe('RemoteAuth xyz');
   });
