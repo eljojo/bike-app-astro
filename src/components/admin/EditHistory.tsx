@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';
+import { formatAdminDateTime } from '../../lib/date-utils';
 
 interface CommitUser {
   id: string;
@@ -143,13 +144,6 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
     }
   }
 
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('en-CA', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  }
-
   function extractResourceLabel(commit: Commit): string | null {
     if (contentPath) return null;
     const match = commit.message.match(resourcePathRegex);
@@ -194,7 +188,7 @@ export default function EditHistory({ contentPath, city = 'ottawa', gitRepo }: P
                     <span>{c.author.name}</span>
                   )}
                   {' · '}
-                  <time>{formatDate(c.date)}</time>
+                  <time>{formatAdminDateTime(c.date)}</time>
                 </span>
               </div>
               <div class="commit-actions">

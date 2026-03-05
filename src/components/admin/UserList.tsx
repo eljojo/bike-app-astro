@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
+import { formatAdminDate } from '../../lib/date-utils';
 
 interface User {
   id: string;
@@ -46,12 +47,6 @@ export default function UserList() {
     }
   }
 
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('en-CA', {
-      year: 'numeric', month: 'short', day: 'numeric',
-    });
-  }
-
   return (
     <div class="user-list">
       {loading && <p class="muted">Loading...</p>}
@@ -78,7 +73,7 @@ export default function UserList() {
                 </td>
                 <td>{u.role}</td>
                 <td>{u.bannedAt ? 'Banned' : 'Active'}</td>
-                <td>{formatDate(u.createdAt)}</td>
+                <td>{formatAdminDate(u.createdAt)}</td>
                 <td>
                   {u.role !== 'admin' && (
                     <button
