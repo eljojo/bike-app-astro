@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
 const organizerRefSchema = z.object({
@@ -26,6 +27,11 @@ export const eventDetailSchema = z.object({
 });
 
 export type EventDetail = z.infer<typeof eventDetailSchema>;
+
+/** Compute content hash for event conflict detection. Hashes the full .md content. */
+export function computeEventContentHash(content: string): string {
+  return createHash('md5').update(content).digest('hex');
+}
 
 /**
  * Parse raw git content (frontmatter + body) into canonical EventDetail.

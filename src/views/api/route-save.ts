@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
@@ -11,7 +10,7 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { uploadToLfs } from '../../lib/git-lfs';
 import { env } from '../../lib/env';
-import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
+import { routeDetailFromGit, routeDetailToCache, computeRouteContentHash } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 
 export const prerender = false;
@@ -67,12 +66,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   computeContentHash(currentFiles: CurrentFiles): string {
-    const hash = createHash('md5').update(currentFiles.primaryFile!.content);
     const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
-    if (mediaPath && currentFiles.auxiliaryFiles![mediaPath]) {
-      hash.update(currentFiles.auxiliaryFiles![mediaPath]!.content);
-    }
-    return hash.digest('hex');
+    const mediaContent = mediaPath ? currentFiles.auxiliaryFiles![mediaPath]?.content : undefined;
+    return computeRouteContentHash(currentFiles.primaryFile!.content, mediaContent);
   },
 
   buildFreshData(slug: string, currentFiles: CurrentFiles): string {

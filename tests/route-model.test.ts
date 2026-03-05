@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeDetailFromGit, routeDetailToCache, routeDetailFromCache } from '../src/lib/models/route-model';
+import { routeDetailFromGit, routeDetailToCache, routeDetailFromCache, computeRouteContentHash } from '../src/lib/models/route-model';
 
 describe('routeDetailFromGit', () => {
   it('parses frontmatter, body, and photo-only media into canonical shape', () => {
@@ -61,5 +61,25 @@ describe('routeDetailToCache / routeDetailFromCache', () => {
 
   it('fromCache throws on missing required fields', () => {
     expect(() => routeDetailFromCache(JSON.stringify({ slug: 'x' }))).toThrow();
+  });
+});
+
+describe('computeRouteContentHash', () => {
+  it('hashes primary content', () => {
+    const hash = computeRouteContentHash('# Hello', undefined);
+    expect(typeof hash).toBe('string');
+    expect(hash).toHaveLength(32); // MD5 hex
+  });
+
+  it('includes media content when present', () => {
+    const hashWithout = computeRouteContentHash('# Hello', undefined);
+    const hashWith = computeRouteContentHash('# Hello', '- key: abc');
+    expect(hashWithout).not.toBe(hashWith);
+  });
+
+  it('same input produces same hash', () => {
+    const a = computeRouteContentHash('body', 'media');
+    const b = computeRouteContentHash('body', 'media');
+    expect(a).toBe(b);
   });
 });

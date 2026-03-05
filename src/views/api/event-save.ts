@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
@@ -9,7 +8,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
-import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
+import { eventDetailFromGit, eventDetailToCache, computeEventContentHash } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 
 export const prerender = false;
@@ -68,7 +67,7 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
   },
 
   computeContentHash(currentFiles: CurrentFiles): string {
-    return createHash('md5').update(currentFiles.primaryFile!.content).digest('hex');
+    return computeEventContentHash(currentFiles.primaryFile!.content);
   },
 
   buildFreshData(eventId: string, currentFiles: CurrentFiles): string {

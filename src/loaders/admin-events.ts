@@ -1,10 +1,9 @@
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config';
 import type { AdminEvent } from '../types/admin';
-import { eventDetailFromGit, type EventDetail } from '../lib/models/event-model';
+import { eventDetailFromGit, computeEventContentHash, type EventDetail } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
 
@@ -27,7 +26,7 @@ export async function loadAdminEvents(): Promise<AdminEvent[]> {
       const slug = file.replace('.md', '');
       const filePath = path.join(yearPath, file);
       const raw = fs.readFileSync(filePath, 'utf-8');
-      const contentHash = createHash('md5').update(raw).digest('hex');
+      const contentHash = computeEventContentHash(raw);
       const { data: fm } = matter(raw);
 
       events.push({
@@ -68,7 +67,7 @@ export async function loadAdminEventDetails(): Promise<Record<string, EventDetai
       const id = `${yearDir}/${slug}`;
       const filePath = path.join(yearPath, file);
       const raw = fs.readFileSync(filePath, 'utf-8');
-      const contentHash = createHash('md5').update(raw).digest('hex');
+      const contentHash = computeEventContentHash(raw);
       const { data: fm, content: body } = matter(raw);
 
       const detail = eventDetailFromGit(id, fm, body.trim());

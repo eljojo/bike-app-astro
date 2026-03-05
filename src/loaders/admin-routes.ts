@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -6,7 +5,7 @@ import { cityDir } from '../lib/config';
 import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { scoreRoute } from '../lib/difficulty';
 import type { AdminRoute } from '../types/admin';
-import { routeDetailFromGit, type RouteDetail } from '../lib/models/route-model';
+import { routeDetailFromGit, computeRouteContentHash, type RouteDetail } from '../lib/models/route-model';
 
 const CITY_DIR = cityDir;
 
@@ -17,7 +16,7 @@ function readRouteDir(slug: string) {
 
   const indexRaw = fs.readFileSync(mdPath, 'utf-8');
   const mediaRaw = fs.existsSync(mediaPath) ? fs.readFileSync(mediaPath, 'utf-8') : '';
-  const contentHash = createHash('md5').update(indexRaw).update(mediaRaw).digest('hex');
+  const contentHash = computeRouteContentHash(indexRaw, mediaRaw || undefined);
 
   const { data: frontmatter, content: body } = matter(indexRaw);
   const detail = routeDetailFromGit(slug, frontmatter, body, mediaRaw || undefined);

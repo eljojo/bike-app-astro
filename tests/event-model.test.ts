@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eventDetailFromGit, eventDetailToCache, eventDetailFromCache } from '../src/lib/models/event-model';
+import { eventDetailFromGit, eventDetailToCache, eventDetailFromCache, computeEventContentHash } from '../src/lib/models/event-model';
 
 describe('eventDetailFromGit', () => {
   it('parses frontmatter and body into canonical shape', () => {
@@ -53,5 +53,19 @@ describe('eventDetailToCache / eventDetailFromCache', () => {
 
   it('fromCache throws on invalid data', () => {
     expect(() => eventDetailFromCache('bad')).toThrow();
+  });
+});
+
+describe('computeEventContentHash', () => {
+  it('hashes event content', () => {
+    const hash = computeEventContentHash('---\nname: Test\n---\nBody');
+    expect(typeof hash).toBe('string');
+    expect(hash).toHaveLength(32);
+  });
+
+  it('same input produces same hash', () => {
+    const a = computeEventContentHash('content');
+    const b = computeEventContentHash('content');
+    expect(a).toBe(b);
   });
 });

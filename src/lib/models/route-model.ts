@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import yaml from 'js-yaml';
 
@@ -32,6 +33,13 @@ export const routeDetailSchema = z.object({
 export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type AdminMediaItem = z.infer<typeof adminMediaItemSchema>;
 export type AdminVariant = z.infer<typeof adminVariantSchema>;
+
+/** Compute content hash for route conflict detection. Hashes primary + media content. */
+export function computeRouteContentHash(primaryContent: string, mediaContent: string | undefined): string {
+  const hash = createHash('md5').update(primaryContent);
+  if (mediaContent) hash.update(mediaContent);
+  return hash.digest('hex');
+}
 
 /**
  * Parse raw git content (frontmatter + body + media.yml) into canonical RouteDetail.
