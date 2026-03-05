@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRwgpsUrl } from '../src/views/api/gpx/import-rwgps';
+import { parseRwgpsUrl, buildGpxFromTrackPoints } from '../src/views/api/gpx/import-rwgps';
 
 describe('parseRwgpsUrl', () => {
   it('extracts route ID from standard URL', () => {
@@ -32,5 +32,24 @@ describe('parseRwgpsUrl', () => {
 
   it('returns null for RWGPS non-route URL', () => {
     expect(parseRwgpsUrl('https://ridewithgps.com/users/123')).toBeNull();
+  });
+});
+
+describe('buildGpxFromTrackPoints', () => {
+  it('builds valid GPX from track points', () => {
+    const gpx = buildGpxFromTrackPoints('Test Route', [
+      { x: -75.7, y: 45.4, e: 100 },
+      { x: -75.8, y: 45.5, e: 110 },
+    ]);
+    expect(gpx).toContain('<?xml version="1.0"');
+    expect(gpx).toContain('<name>Test Route</name>');
+    expect(gpx).toContain('lat="45.4" lon="-75.7"');
+    expect(gpx).toContain('<ele>100</ele>');
+    expect(gpx).toContain('<trkseg>');
+  });
+
+  it('escapes XML special characters in name', () => {
+    const gpx = buildGpxFromTrackPoints('A & B <route>', [{ x: 0, y: 0, e: 0 }]);
+    expect(gpx).toContain('A &amp; B &lt;route&gt;');
   });
 });
