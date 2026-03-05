@@ -64,7 +64,7 @@ const routeUpdateSchema = z.object({
 export interface RouteUpdate {
   frontmatter: Record<string, unknown>;
   body: string;
-  media: Array<{
+  media?: Array<{
     key: string;
     caption?: string;
     cover?: boolean;

@@ -98,7 +98,7 @@ vi.mock('../src/lib/env', () => ({
 }));
 
 // Mock D1 database with chainable methods
-const mockGetResult = vi.fn(() => null);
+const mockGetResult = vi.fn((): { githubSha: string; data: string } | null => null);
 const mockOnConflictDoUpdate = vi.fn();
 
 vi.mock('../src/lib/get-db', () => ({

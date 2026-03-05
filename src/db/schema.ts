@@ -43,6 +43,14 @@ export const bannedIps = sqliteTable('banned_ips', {
   index('banned_ips_user_id_idx').on(table.userId),
 ]);
 
+export const uploadAttempts = sqliteTable('upload_attempts', {
+  action: text('action').notNull(),
+  identifier: text('identifier').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (table) => [
+  index('upload_attempts_lookup_idx').on(table.action, table.identifier, table.createdAt),
+]);
+
 export const contentEdits = sqliteTable('content_edits', {
   contentType: text('content_type').notNull(),
   contentSlug: text('content_slug').notNull(),

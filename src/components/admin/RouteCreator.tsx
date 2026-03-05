@@ -187,6 +187,7 @@ export default function RouteCreator() {
     name,
     tagline: '',
     tags: [] as string[],
+    distance: 0,
     status: 'draft',
     body: '',
     media: [] as MediaItem[],
@@ -196,6 +197,7 @@ export default function RouteCreator() {
       isNew: true,
       gpxContent,
     }] as VariantItem[],
+    translations: {} as Record<string, { name?: string; tagline?: string; body?: string }>,
     isNew: true,
   };
 

@@ -2,8 +2,10 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
+import { db } from '../../../lib/get-db';
 import { generateMediaKey, createPresignedUploadUrl } from '../../../lib/storage';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../../lib/rate-limit';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
@@ -20,8 +22,28 @@ export async function POST({ request, locals }: APIContext) {
     return jsonError(`Invalid content type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
   }
 
-  // TODO: add rate limiting for guest uploads (max 10 per hour)
-  // For v1, trust UI friction (auth gate + drag-and-drop)
+  const user = (locals as any).user;
+  const role: string = user?.role ?? 'guest';
+  const limit = LIMITS[role];
+
+  if (limit != null) {
+    const database = db();
+    const ip = request.headers.get('cf-connecting-ip')
+      || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || 'unknown';
+
+    const identifiers = [`user:${user?.id ?? 'anonymous'}`, `ip:${ip}`];
+    const overLimit = await checkRateLimit(database, 'presign', identifiers, limit);
+
+    if (overLimit) {
+      return jsonError('Upload rate limit exceeded', 429);
+    }
+
+    await recordAttempt(database, 'presign', identifiers);
+
+    // Clean up old rows (fire-and-forget)
+    cleanupOldAttempts(database, 'presign').catch(() => {});
+  }
 
   try {
     const prefix = env.STORAGE_KEY_PREFIX || '';

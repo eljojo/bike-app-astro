@@ -12,7 +12,7 @@ const isUpgrade = Astro.url.searchParams.get('upgrade') === '1';
   <p class="auth-message">
     {isUpgrade
       ? 'Register to get credit for your contributions.'
-      : 'Create an account to suggest edits to routes and events.'}
+      : 'Create an account to make edits to routes and events.'}
   </p>
   <RegisterForm client:load returnTo={returnTo} isUpgrade={isUpgrade} />
   {!isUpgrade && <p class="auth-link">Already have an account? <a href="/login">Sign in</a></p>}

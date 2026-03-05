@@ -86,7 +86,7 @@ describe('onRequest middleware', () => {
 
   it('passes through for public routes', async () => {
     const { context } = makeContext('/routes/my-route');
-    const next = vi.fn(() => new Response('OK'));
+    const next = vi.fn(async () => new Response('OK'));
     await onRequest(context as any, next);
     expect(next).toHaveBeenCalled();
   });
@@ -94,7 +94,7 @@ describe('onRequest middleware', () => {
   it('redirects to /gate for admin pages with no cookie', async () => {
     const { context } = makeContext('/admin/routes');
     const next = vi.fn();
-    const res = await onRequest(context as any, next);
+    const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
     expect(res.headers.get('Location')).toContain('/gate');
     expect(next).not.toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('onRequest middleware', () => {
   it('returns 401 for API routes with no cookie', async () => {
     const { context } = makeContext('/api/routes/test');
     const next = vi.fn();
-    const res = await onRequest(context as any, next);
+    const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(401);
     expect(next).not.toHaveBeenCalled();
   });
@@ -114,7 +114,7 @@ describe('onRequest middleware', () => {
     });
     const { context } = makeContext('/api/routes/test', { cookie: 'valid-token' });
     const next = vi.fn();
-    const res = await onRequest(context as any, next);
+    const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toBe('Forbidden');
@@ -127,7 +127,7 @@ describe('onRequest middleware', () => {
     });
     const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
     const next = vi.fn();
-    const res = await onRequest(context as any, next);
+    const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
     expect(res.headers.get('Location')).toBe('/gate');
     expect(next).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe('onRequest middleware', () => {
     const user = { id: 'u1', username: 'test', role: 'editor', bannedAt: null };
     mockValidateSession.mockResolvedValue(user);
     const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
-    const next = vi.fn(() => new Response('OK'));
+    const next = vi.fn(async () => new Response('OK'));
     await onRequest(context as any, next);
     expect(next).toHaveBeenCalled();
     expect(context.locals.user).toEqual(user);
@@ -147,7 +147,7 @@ describe('onRequest middleware', () => {
     mockValidateSession.mockResolvedValue(null);
     const { context, deletedCookies } = makeContext('/admin/routes', { cookie: 'bad-token' });
     const next = vi.fn();
-    const res = await onRequest(context as any, next);
+    const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
     expect(deletedCookies).toContain('session_token');
     expect(deletedCookies).toContain('logged_in');
