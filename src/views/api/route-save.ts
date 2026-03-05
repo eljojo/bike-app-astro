@@ -54,6 +54,11 @@ const routeUpdateSchema = z.object({
     gpxContent: z.string().optional(),
   })).optional(),
   contentHash: z.string().optional(),
+  translations: z.record(z.string(), z.object({
+    name: z.string(),
+    tagline: z.string(),
+    body: z.string(),
+  })).optional(),
 });
 
 export interface RouteUpdate {
@@ -68,6 +73,7 @@ export interface RouteUpdate {
   }>;
   variants?: VariantPayload[];
   contentHash?: string;
+  translations?: Record<string, { name: string; tagline: string; body: string }>;
 }
 
 export const routeHandlers: SaveHandlers<RouteUpdate> = {
@@ -85,21 +91,46 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     const basePath = `${CITY}/routes/${slug}`;
     return {
       primary: `${basePath}/index.md`,
-      auxiliary: [`${basePath}/media.yml`],
+      auxiliary: [`${basePath}/media.yml`, `${basePath}/index.fr.md`],
     };
   },
 
   computeContentHash(currentFiles: CurrentFiles): string {
-    const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
-    const mediaContent = mediaPath ? currentFiles.auxiliaryFiles![mediaPath]?.content : undefined;
-    return computeRouteContentHash(currentFiles.primaryFile!.content, mediaContent);
+    const auxFiles = currentFiles.auxiliaryFiles || {};
+    const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('media.yml'));
+    const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
+    const translationContents: Record<string, string> = {};
+    for (const [p, f] of Object.entries(auxFiles)) {
+      const match = p.match(/index\.(\w+)\.md$/);
+      if (match && f) translationContents[match[1]] = f.content;
+    }
+    return computeRouteContentHash(
+      currentFiles.primaryFile!.content,
+      mediaContent,
+      Object.keys(translationContents).length > 0 ? translationContents : undefined,
+    );
   },
 
   buildFreshData(slug: string, currentFiles: CurrentFiles): string {
     const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile!.content);
-    const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
-    const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
-    const detail = routeDetailFromGit(slug, ghFrontmatter, ghBody, currentMedia?.content);
+    const auxFiles = currentFiles.auxiliaryFiles || {};
+    const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('media.yml'));
+    const currentMedia = mediaPath ? auxFiles[mediaPath] : null;
+
+    const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
+    for (const [p, f] of Object.entries(auxFiles)) {
+      const match = p.match(/index\.(\w+)\.md$/);
+      if (match && f) {
+        const { data: tFm, content: tBody } = matter(f.content);
+        translations[match[1]] = {
+          name: tFm.name as string | undefined,
+          tagline: tFm.tagline as string | undefined,
+          body: tBody.trim() || undefined,
+        };
+      }
+    }
+
+    const detail = routeDetailFromGit(slug, ghFrontmatter, ghBody, currentMedia?.content, translations);
     return routeDetailToCache(detail);
   },
 
@@ -180,9 +211,35 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
 
     files.push({ path: `${basePath}/index.md`, content: `---\n${frontmatterStr}\n---\n\n${update.body}\n` });
 
+    // Build translation files (index.fr.md, etc.)
+    if (update.translations) {
+      for (const [locale, trans] of Object.entries(update.translations)) {
+        const transPath = `${basePath}/index.${locale}.md`;
+        const hasContent = trans.name || trans.tagline || trans.body;
+        if (hasContent) {
+          const transFm: Record<string, string> = {};
+          if (trans.name) transFm.name = trans.name;
+          if (trans.tagline) transFm.tagline = trans.tagline;
+          const fmStr = Object.keys(transFm).length > 0
+            ? yaml.dump(transFm, { lineWidth: -1, quotingType: '"', forceQuotes: false }).trimEnd()
+            : '';
+          const transContent = trans.body.trim()
+            ? `---\n${fmStr}\n---\n\n${trans.body}\n`
+            : fmStr ? `---\n${fmStr}\n---\n` : '';
+          if (transContent) {
+            files.push({ path: transPath, content: transContent });
+          }
+        } else {
+          // All fields empty — delete the translation file if it exists
+          const existing = currentFiles.auxiliaryFiles?.[transPath];
+          if (existing) deletePaths.push(transPath);
+        }
+      }
+    }
+
     // Build media.yml
     if (update.media) {
-      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
+      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
       const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
       let existingMedia: Array<Record<string, unknown>> = [];
       if (currentMedia) {
@@ -205,7 +262,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     const parts: string[] = [];
     if (update.frontmatter) parts.push('Update');
     if (update.media) {
-      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
+      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
       const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
       let existingCount = 0;
       if (currentMedia) {
@@ -230,6 +287,16 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     const { data: fm } = currentFiles.primaryFile
       ? matter(currentFiles.primaryFile.content)
       : { data: {} as Record<string, unknown> };
+
+    const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
+    if (update.translations) {
+      for (const [locale, t] of Object.entries(update.translations)) {
+        if (t.name || t.tagline || t.body) {
+          translations[locale] = { name: t.name || undefined, tagline: t.tagline || undefined, body: t.body || undefined };
+        }
+      }
+    }
+
     const detail = {
       slug,
       name: update.frontmatter.name as string,
@@ -245,6 +312,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
         ...(v.strava_url ? { strava_url: v.strava_url } : {}),
         ...(v.rwgps_url ? { rwgps_url: v.rwgps_url } : {}),
       })) || [],
+      translations,
     };
     return routeDetailToCache(detail);
   },
