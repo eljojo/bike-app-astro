@@ -20,6 +20,7 @@ jobs:
       deploy: true
       environment: staging
       wrangler-env: staging
+      data-ref: staging
       disable-analytics: true
       update-screenshots: true
     secrets:
