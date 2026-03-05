@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
-const RWGPS_ROUTE_PATTERN = /ridewithgps\.com\/routes\/(\d+)(?:\?privacy_code=([\w\d]+))?/;
+const RWGPS_ROUTE_PATTERN = /ridewithgps\.com\/routes\/(\d+)\/?(?:\?privacy_code=([\w\d]+))?/;
 
 /** Extract route ID and optional privacy code from a RideWithGPS URL. Exported for testing. */
 export function parseRwgpsUrl(url: string): { routeId: string; privacyCode?: string } | null {

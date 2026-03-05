@@ -21,6 +21,11 @@ describe('parseRwgpsUrl', () => {
     });
   });
 
+  it('extracts privacy code from URL with trailing slash', () => {
+    expect(parseRwgpsUrl('https://ridewithgps.com/routes/41290515/?privacy_code=QYzdfhB5D7M8D4qZ'))
+      .toEqual({ routeId: '41290515', privacyCode: 'QYzdfhB5D7M8D4qZ' });
+  });
+
   it('returns null for non-RWGPS URL', () => {
     expect(parseRwgpsUrl('https://strava.com/routes/123')).toBeNull();
   });
