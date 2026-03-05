@@ -9,7 +9,9 @@ export const users = sqliteTable('users', {
   bannedAt: text('banned_at'),
   ipAddress: text('ip_address'),
   previousUsernames: text('previous_usernames'),
-});
+}, (table) => [
+  index('users_username_idx').on(table.username),
+]);
 
 export const credentials = sqliteTable('credentials', {
   id: text('id').primaryKey(),
@@ -37,7 +39,9 @@ export const bannedIps = sqliteTable('banned_ips', {
   ip: text('ip').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id),
   bannedAt: text('banned_at').notNull(),
-});
+}, (table) => [
+  index('banned_ips_user_id_idx').on(table.userId),
+]);
 
 export const contentEdits = sqliteTable('content_edits', {
   contentType: text('content_type').notNull(),
