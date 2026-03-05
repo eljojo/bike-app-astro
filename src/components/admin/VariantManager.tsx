@@ -1,4 +1,4 @@
-import { useState, useRef } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder } from '../../lib/hooks';
 import { extractRwgpsUrl } from '../../lib/gpx';
 
@@ -15,9 +15,11 @@ export interface VariantItem {
 interface Props {
   variants: VariantItem[];
   onChange: (variants: VariantItem[]) => void;
+  pendingFiles?: File[];
+  onPendingProcessed?: () => void;
 }
 
-export default function VariantManager({ variants, onChange }: Props) {
+export default function VariantManager({ variants, onChange, pendingFiles, onPendingProcessed }: Props) {
   const drag = useDragReorder(variants, onChange);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -34,14 +36,9 @@ export default function VariantManager({ variants, onChange }: Props) {
     onChange(variants.filter((_, i) => i !== idx));
   }
 
-  function handleGpxUpload(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const files = input.files;
-    if (!files?.length) return;
-
+  function processGpxFile(file: File) {
     setError('');
     const reader = new FileReader();
-    const file = files[0];
 
     reader.onload = () => {
       const content = reader.result as string;
@@ -68,8 +65,24 @@ export default function VariantManager({ variants, onChange }: Props) {
 
     reader.onerror = () => setError('Failed to read GPX file');
     reader.readAsText(file);
-    input.value = '';
   }
+
+  function handleGpxUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.length) {
+      processGpxFile(input.files[0]);
+      input.value = '';
+    }
+  }
+
+  useEffect(() => {
+    if (pendingFiles && pendingFiles.length > 0) {
+      for (const file of pendingFiles) {
+        processGpxFile(file);
+      }
+      onPendingProcessed?.();
+    }
+  }, [pendingFiles]);
 
   async function handleRwgpsImport() {
     if (!rwgpsUrl.trim()) return;

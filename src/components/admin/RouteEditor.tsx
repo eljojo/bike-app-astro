@@ -33,6 +33,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
   const [dragging, setDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
   const dragCounterRef = useRef(0);
 
   const [saving, setSaving] = useState(false);
@@ -64,10 +65,11 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
       setDragging(false);
       const files = e.dataTransfer?.files;
       if (files?.length) {
-        const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-        if (imageFiles.length > 0) {
-          setPendingFiles(imageFiles);
-        }
+        const allFiles = Array.from(files);
+        const imageFiles = allFiles.filter(f => f.type.startsWith('image/'));
+        const gpxFiles = allFiles.filter(f => f.name.toLowerCase().endsWith('.gpx'));
+        if (imageFiles.length > 0) setPendingFiles(imageFiles);
+        if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
       }
     }
     document.addEventListener('dragenter', handleDragEnter);
@@ -189,7 +191,7 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
     <div class="route-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos to add to route</div>
+          <div class="drop-overlay-content">Drop photos or GPX files to add to route</div>
         </div>
       )}
       <section class="editor-section">
@@ -294,7 +296,12 @@ export default function RouteEditor({ initialData, cdnUrl }: Props) {
 
       <section class="editor-section">
         <h2>Variants</h2>
-        <VariantManager variants={variants} onChange={setVariants} />
+        <VariantManager
+          variants={variants}
+          onChange={setVariants}
+          pendingFiles={pendingGpxFiles}
+          onPendingProcessed={() => setPendingGpxFiles([])}
+        />
       </section>
 
       <div class="editor-actions">
