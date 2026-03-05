@@ -11,6 +11,7 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { uploadToLfs } from '../../lib/git-lfs';
 import { env } from '../../lib/env';
+import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
 
 export const prerender = false;
 
@@ -84,31 +85,8 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile!.content);
     const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {})[0];
     const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
-
-    let ghMedia: Array<{ key: string; caption?: string; cover?: boolean }> = [];
-    if (currentMedia) {
-      const mediaEntries = (yaml.load(currentMedia.content) as any[]) || [];
-      ghMedia = mediaEntries
-        .filter((m: any) => m.type === 'photo')
-        .map((m: any) => {
-          const item: Record<string, unknown> = { key: m.key };
-          if (m.caption) item.caption = m.caption;
-          if (m.cover) item.cover = m.cover;
-          return item;
-        }) as Array<{ key: string; caption?: string; cover?: boolean }>;
-    }
-
-    return JSON.stringify({
-      slug,
-      name: ghFrontmatter.name,
-      tagline: ghFrontmatter.tagline || '',
-      tags: ghFrontmatter.tags || [],
-      distance: ghFrontmatter.distance_km,
-      status: ghFrontmatter.status,
-      body: ghBody.trim(),
-      media: ghMedia,
-      variants: (ghFrontmatter.variants as any[]) || [],
-    });
+    const detail = routeDetailFromGit(slug, ghFrontmatter, ghBody, currentMedia?.content);
+    return routeDetailToCache(detail);
   },
 
   async buildFileChanges(update, slug, currentFiles): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
@@ -235,25 +213,26 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   buildCacheData(update, slug, currentFiles): string {
-    // Extract distance from the committed file's frontmatter
     const { data: fm } = currentFiles.primaryFile
       ? matter(currentFiles.primaryFile.content)
       : { data: {} as Record<string, unknown> };
-
-    return JSON.stringify({
+    const detail = {
       slug,
-      name: update.frontmatter.name,
-      tagline: update.frontmatter.tagline || '',
-      tags: update.frontmatter.tags || [],
-      distance: fm.distance_km || 0,
-      status: update.frontmatter.status,
+      name: update.frontmatter.name as string,
+      tagline: (update.frontmatter.tagline as string) || '',
+      tags: (update.frontmatter.tags as string[]) || [],
+      distance: (fm.distance_km as number) || 0,
+      status: update.frontmatter.status as string,
       body: update.body,
       media: update.media || [],
       variants: update.variants?.map(v => ({
-        name: v.name, gpx: v.gpx, distance_km: v.distance_km,
-        strava_url: v.strava_url, rwgps_url: v.rwgps_url,
+        name: v.name, gpx: v.gpx,
+        ...(v.distance_km != null ? { distance_km: v.distance_km } : {}),
+        ...(v.strava_url ? { strava_url: v.strava_url } : {}),
+        ...(v.rwgps_url ? { rwgps_url: v.rwgps_url } : {}),
       })) || [],
-    });
+    };
+    return routeDetailToCache(detail);
   },
 
   buildGitHubUrl(slug: string, baseBranch: string): string {
