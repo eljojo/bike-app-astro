@@ -24,6 +24,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showRwgps, setShowRwgps] = useState(false);
   const [rwgpsUrl, setRwgpsUrl] = useState('');
   const [importing, setImporting] = useState(false);
 
@@ -118,6 +119,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
       }]);
 
       setRwgpsUrl('');
+      setShowRwgps(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -186,34 +188,46 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
       ))}
 
       <div class="variant-add">
-        <button type="button" class="btn-secondary" onClick={() => fileInputRef.current?.click()}>
-          + Add variant (upload GPX)
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".gpx"
-          style="display:none"
-          onChange={handleGpxUpload}
-        />
-        <div class="rwgps-import">
-          <input
-            type="url"
-            class="rwgps-input"
-            placeholder="https://ridewithgps.com/routes/..."
-            value={rwgpsUrl}
-            onInput={(e) => setRwgpsUrl((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRwgpsImport(); } }}
-          />
-          <button
-            type="button"
-            class="btn-secondary"
-            onClick={handleRwgpsImport}
-            disabled={importing || !rwgpsUrl.trim()}
-          >
-            {importing ? 'Importing...' : 'Import from RWGPS'}
+        <div class="variant-add-buttons">
+          <button type="button" class="btn-secondary" onClick={() => fileInputRef.current?.click()}>
+            + Add variant (upload GPX)
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".gpx"
+            style="display:none"
+            onChange={handleGpxUpload}
+          />
+          {!showRwgps && (
+            <button type="button" class="btn-secondary" onClick={() => setShowRwgps(true)}>
+              + Add variant (Ride with GPS)
+            </button>
+          )}
         </div>
+        {showRwgps && (
+          <div class="rwgps-import">
+            <input
+              type="url"
+              class="rwgps-input"
+              placeholder="https://ridewithgps.com/routes/..."
+              value={rwgpsUrl}
+              onInput={(e) => setRwgpsUrl((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRwgpsImport(); } }}
+            />
+            <button
+              type="button"
+              class="btn-secondary"
+              onClick={handleRwgpsImport}
+              disabled={importing || !rwgpsUrl.trim()}
+            >
+              {importing ? 'Importing...' : 'Import'}
+            </button>
+            <button type="button" class="btn-cancel" onClick={() => { setShowRwgps(false); setRwgpsUrl(''); }}>
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <div class="auth-error">{error}</div>}

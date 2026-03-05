@@ -597,6 +597,24 @@
   margin-top: 0.25rem;
 }
 
+.variant-add-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .rwgps-import {
   display: flex;
   gap: 0.5rem;
