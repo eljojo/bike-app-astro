@@ -19,7 +19,12 @@ test.describe('Community Editing — Auth Gate', () => {
 
     // Click continue as guest
     const guestButton = page.getByText('Continue as guest');
+    const guestResponsePromise = page.waitForResponse(
+      (res) => res.url().includes('/api/auth/guest') && res.request().method() === 'POST'
+    );
     await guestButton.click();
+    const guestResponse = await guestResponsePromise;
+    expect(guestResponse.status()).toBe(200);
 
     // Should redirect to the editor
     await page.waitForURL(url => url.pathname === '/admin/routes/carp', { timeout: 10000 });
