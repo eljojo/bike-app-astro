@@ -190,7 +190,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
       <div class="variant-add">
         <div class="variant-add-buttons">
           <button type="button" class="btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            + Add variant (upload GPX)
+            + Add option (upload GPX)
           </button>
           <input
             ref={fileInputRef}
@@ -201,7 +201,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
           />
           {!showRwgps && (
             <button type="button" class="btn-secondary" onClick={() => setShowRwgps(true)}>
-              + Add variant (Ride with GPS)
+              + Add option (Ride with GPS)
             </button>
           )}
         </div>

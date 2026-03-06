@@ -265,8 +265,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         </div>
       )}
     <fieldset class="event-editor" disabled={readOnly}>
-      <section class="editor-section">
-        <h2>Event Details</h2>
         <div class="auth-form">
           <div class="form-field">
             <label for="event-name">Name</label>
@@ -395,29 +393,28 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             <textarea id="event-body" ref={bodyRef} value={body}
               onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)} rows={6} />
           </div>
-        </div>
-      </section>
 
-      <section class="editor-section">
-        <h2>Poster</h2>
-        {posterKey && (
-          <div class="poster-preview">
-            <img src={`${cdnUrl}/cdn-cgi/image/width=400/${posterKey}`} alt="Event poster" />
-            <button type="button" class="btn-remove-poster" onClick={() => setPosterKey('')}>Remove</button>
+          <div class="form-field">
+            <label>Poster</label>
+            {posterKey && (
+              <div class="poster-preview">
+                <img src={`${cdnUrl}/cdn-cgi/image/width=400/${posterKey}`} alt="Event poster" />
+                <button type="button" class="btn-remove-poster" onClick={() => setPosterKey('')}>Remove</button>
+              </div>
+            )}
+            <button type="button" class="btn-secondary"
+              onClick={() => posterInputRef.current?.click()}
+              disabled={posterUpload.uploading}>
+              {posterUpload.uploading ? 'Uploading...' : posterKey ? 'Replace poster' : 'Upload poster'}
+            </button>
+            <input ref={posterInputRef} type="file" accept="image/jpeg,image/png,image/webp"
+              style="display:none"
+              onChange={(e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) uploadPoster(file);
+              }} />
           </div>
-        )}
-        <button type="button" class="btn-secondary"
-          onClick={() => posterInputRef.current?.click()}
-          disabled={posterUpload.uploading}>
-          {posterUpload.uploading ? 'Uploading...' : posterKey ? 'Replace poster' : 'Upload poster'}
-        </button>
-        <input ref={posterInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-          style="display:none"
-          onChange={(e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) uploadPoster(file);
-          }} />
-      </section>
+        </div>
 
       <section class="editor-section">
         <h2>Organizer</h2>

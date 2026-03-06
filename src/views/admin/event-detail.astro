@@ -34,7 +34,7 @@ const isPast = eventData.start_date < today;
 const readOnly = isPast && !can(user, 'edit-past-event');
 ---
 
-<AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events">
+<AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events" hideTitle>
   {readOnly && <p class="admin-notice">This event is in the past. Only admins can edit past events.</p>}
   <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} readOnly={readOnly} userRole={user?.role} />
   <EditHistory client:load contentPath={`${CITY}/events/${id}.md`} gitRepo={GIT_REPO} userRole={user?.role} />

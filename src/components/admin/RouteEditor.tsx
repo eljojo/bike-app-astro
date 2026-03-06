@@ -383,7 +383,7 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
       </section>
 
       <section class="editor-section">
-        <h2>Variants</h2>
+        <h2>Route Options</h2>
         <VariantManager
           variants={variants}
           onChange={setVariants}
