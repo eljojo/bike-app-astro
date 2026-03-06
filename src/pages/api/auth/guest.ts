@@ -1,11 +1,11 @@
 import type { APIContext } from 'astro';
 import { db } from '../../../lib/get-db';
 import { users } from '../../../db/schema';
-import { generateId, createSessionWithCookies } from '../../../lib/auth';
+import { buildSessionBatch, generateId, setSessionCookies } from '../../../lib/auth';
 import { generatePseudonym } from '../../../lib/pseudonym';
 import { isIpBanned } from '../../../lib/ban-service';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { withTransaction } from '../../../db/transaction';
+import { withBatch } from '../../../db/transaction';
 
 export const prerender = false;
 
@@ -23,18 +23,24 @@ export async function POST({ cookies, request }: APIContext) {
       return jsonError('Unable to create account', 403);
     }
 
-    await withTransaction(database, async (tx) => {
-      await tx.insert(users).values({
-        id: userId,
-        email: null,
-        username,
-        role: 'guest',
-        createdAt: now,
-        ipAddress: ip,
-      });
+    let token = '';
+    await withBatch(database, (tx) => {
+      const sessionPlan = buildSessionBatch(tx, userId);
+      token = sessionPlan.token;
 
-      await createSessionWithCookies(tx, userId, cookies);
+      return [
+        tx.insert(users).values({
+          id: userId,
+          email: null,
+          username,
+          role: 'guest',
+          createdAt: now,
+          ipAddress: ip,
+        }),
+        ...sessionPlan.statements,
+      ];
     });
+    setSessionCookies(cookies, token);
 
     return jsonResponse({ success: true, username });
   } catch (err: unknown) {

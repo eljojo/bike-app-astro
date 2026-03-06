@@ -4,10 +4,11 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
 import { users } from '../../../db/schema';
 import {
+  buildCredentialInsert,
+  buildSessionBatch,
   normalizeEmail,
   generateId,
-  createSessionWithCookies,
-  storeCredential,
+  setSessionCookies,
   retrieveChallenge,
   getWebAuthnConfig,
   isFirstUser,
@@ -15,7 +16,7 @@ import {
 import { sanitizeUsername } from '../../../lib/username';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { withTransaction } from '../../../db/transaction';
+import { withBatch } from '../../../db/transaction';
 
 
 export const prerender = false;
@@ -70,19 +71,32 @@ export async function POST({ request, cookies }: APIContext) {
 
     const userId = generateId();
     const now = new Date().toISOString();
+    let token = '';
 
-    await withTransaction(database, async (tx) => {
-      await tx.insert(users).values({
-        id: userId,
-        email,
-        username,
-        role: firstUser ? 'admin' : 'editor',
-        createdAt: now,
-      });
+    await withBatch(database, (tx) => {
+      const sessionPlan = buildSessionBatch(tx, userId);
+      token = sessionPlan.token;
 
-      await storeCredential(tx, userId, credential, credentialResponse.response?.transports);
-      await createSessionWithCookies(tx, userId, cookies);
+      return [
+        tx.insert(users).values({
+          id: userId,
+          email,
+          username,
+          role: firstUser ? 'admin' : 'editor',
+          createdAt: now,
+        }),
+        buildCredentialInsert(
+          tx,
+          userId,
+          credential,
+          credentialResponse.response?.transports,
+          now,
+        ),
+        ...sessionPlan.statements,
+      ];
     });
+
+    setSessionCookies(cookies, token);
 
     return jsonResponse({ success: true });
   } catch (err) {

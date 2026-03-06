@@ -1,5 +1,5 @@
 import { eq, and, gt, lt } from 'drizzle-orm';
-import { sessions, users } from '../db/schema';
+import { credentials, sessions, users } from '../db/schema';
 import type { Database, DbClient } from '../db';
 import type { AppEnv } from './app-env';
 
@@ -56,22 +56,67 @@ export function generateId(): string {
   return randomHex(16);
 }
 
-/** Create a new session for a user, returning the token. Also cleans up expired sessions. */
-export async function createSession(db: DbClient, userId: string): Promise<string> {
-  const token = randomHex(32);
+/**
+ * Build session write statements for batch/sequential execution.
+ * Returns a fresh token and the required DB statements.
+ */
+export function buildSessionBatch(
+  db: DbClient,
+  userId: string,
+  opts: { revokeToken?: string } = {},
+): { token: string; statements: unknown[] } {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const token = randomHex(32);
 
-  // Clean up expired sessions (fire-and-forget, don't block login)
-  await db.delete(sessions).where(lt(sessions.expiresAt, now.toISOString()));
+  const statements: unknown[] = [
+    db.delete(sessions).where(lt(sessions.expiresAt, now.toISOString())),
+  ];
 
-  await db.insert(sessions).values({
+  if (opts.revokeToken) {
+    statements.push(db.delete(sessions).where(eq(sessions.token, opts.revokeToken)));
+  }
+
+  statements.push(
+    db.insert(sessions).values({
+      id: generateId(),
+      userId,
+      token,
+      expiresAt: expiresAt.toISOString(),
+      createdAt: now.toISOString(),
+    }),
+  );
+
+  return { token, statements };
+}
+
+export function buildCredentialInsert(
+  database: DbClient,
+  userId: string,
+  credential: { id: string; publicKey: Uint8Array | ArrayBuffer; counter: number },
+  transports?: string[],
+  createdAt: string = new Date().toISOString(),
+): unknown {
+  const keyBytes = credential.publicKey instanceof Uint8Array
+    ? credential.publicKey
+    : new Uint8Array(credential.publicKey);
+  return database.insert(credentials).values({
     id: generateId(),
     userId,
-    token,
-    expiresAt: expiresAt.toISOString(),
-    createdAt: now.toISOString(),
+    credentialId: credential.id,
+    publicKey: Buffer.from(keyBytes),
+    counter: credential.counter,
+    transports: transports ? JSON.stringify(transports) : null,
+    createdAt,
   });
+}
+
+/** Create a new session for a user, returning the token. Also cleans up expired sessions. */
+export async function createSession(db: DbClient, userId: string): Promise<string> {
+  const { token, statements } = buildSessionBatch(db, userId);
+  for (const statement of statements) {
+    await statement;
+  }
 
   return token;
 }
@@ -199,19 +244,7 @@ export async function storeCredential(
   credential: { id: string; publicKey: Uint8Array | ArrayBuffer; counter: number },
   transports?: string[],
 ): Promise<void> {
-  const { credentials } = await import('../db/schema');
-  const keyBytes = credential.publicKey instanceof Uint8Array
-    ? credential.publicKey
-    : new Uint8Array(credential.publicKey);
-  await database.insert(credentials).values({
-    id: generateId(),
-    userId,
-    credentialId: credential.id,
-    publicKey: Buffer.from(keyBytes),
-    counter: credential.counter,
-    transports: transports ? JSON.stringify(transports) : null,
-    createdAt: new Date().toISOString(),
-  });
+  await buildCredentialInsert(database, userId, credential, transports);
 }
 
 /** Create session and set cookies in one call. */

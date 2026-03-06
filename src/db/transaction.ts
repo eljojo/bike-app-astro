@@ -1,22 +1,24 @@
 import type { Database, DbClient } from './index';
 
 /**
- * Run multiple DB operations atomically.
+ * Run multiple write statements atomically.
  *
- * In production (D1): uses a real async transaction.
- * In local/test (better-sqlite3): runs operations sequentially on the db
- * instance — better-sqlite3 rejects async transaction callbacks, but
- * local SQLite doesn't need atomicity guarantees.
+ * Callback must return query builders (do not await inside callback).
+ * Local/test: executes queries sequentially.
+ * D1: executes with db.batch(...).
  */
-export async function withTransaction(
+export async function withBatch(
   db: Database,
-  fn: (tx: DbClient) => Promise<void>,
+  fn: (tx: DbClient) => unknown[] | Promise<unknown[]>,
 ): Promise<void> {
-  // better-sqlite3 drizzle instances have a synchronous $client;
-  // D1 drizzle instances do not. Use this to pick the right path.
+  const statements = await fn(db as DbClient);
+
   if ('$client' in db && typeof (db.$client as any)?.pragma === 'function') {
-    await fn(db as DbClient);
+    for (const statement of statements) {
+      await statement;
+    }
     return;
   }
-  await (db as any).transaction(fn);
+
+  await (db as any).batch(statements);
 }

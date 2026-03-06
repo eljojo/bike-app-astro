@@ -5,16 +5,16 @@ import { db } from '../../../lib/get-db';
 import { users } from '../../../db/schema';
 import { eq } from 'drizzle-orm';
 import {
+  buildCredentialInsert,
+  buildSessionBatch,
   normalizeEmail,
-  createSessionWithCookies,
-  storeCredential,
-  destroySession,
+  setSessionCookies,
   retrieveChallenge,
   getWebAuthnConfig,
 } from '../../../lib/auth';
 import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { withTransaction } from '../../../db/transaction';
+import { withBatch } from '../../../db/transaction';
 
 export const prerender = false;
 
@@ -81,18 +81,30 @@ export async function POST({ request, cookies, locals }: APIContext) {
       updates.previousUsernames = JSON.stringify(prev);
     }
 
-    await withTransaction(database, async (tx) => {
-      await storeCredential(tx, user.id, credential, credentialResponse.response?.transports);
-      await tx.update(users).set(updates).where(eq(users.id, user.id));
+    const oldToken = cookies.get('session_token')?.value;
+    const now = new Date().toISOString();
+    let token = '';
 
-      // Re-issue session to prevent session fixation: the old guest token
-      // should not carry over into the elevated editor role.
-      const oldToken = cookies.get('session_token')?.value;
-      if (oldToken) {
-        await destroySession(tx, oldToken);
-      }
-      await createSessionWithCookies(tx, user.id, cookies);
+    await withBatch(database, (tx) => {
+      const sessionPlan = buildSessionBatch(tx, user.id, {
+        revokeToken: oldToken,
+      });
+      token = sessionPlan.token;
+
+      return [
+        buildCredentialInsert(
+          tx,
+          user.id,
+          credential,
+          credentialResponse.response?.transports,
+          now,
+        ),
+        tx.update(users).set(updates).where(eq(users.id, user.id)),
+        ...sessionPlan.statements,
+      ];
     });
+
+    setSessionCookies(cookies, token);
 
     return jsonResponse({ success: true });
   } catch (err) {
