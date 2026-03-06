@@ -15,7 +15,7 @@ const emailHash = user.email
 
 <Base title="Settings" admin>
   <div class="admin-page">
-    <AdminHeader user={user} currentTab="routes" />
+    <AdminHeader user={user} currentTab="settings" />
     <SettingsForm
       client:load
       username={user.username}
@@ -23,6 +23,7 @@ const emailHash = user.email
       emailHash={emailHash}
       emailInCommits={user.emailInCommits}
       analyticsOptOut={user.analyticsOptOut}
+      role={user.role}
     />
   </div>
 </Base>

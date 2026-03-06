@@ -1,15 +1,22 @@
 ---
+import { createHash } from 'node:crypto';
 import { env } from '../lib/env';
 import { CONTACT_EMAIL } from '../lib/config';
 
 interface Props {
-  user: { username: string; role: string };
-  currentTab: 'routes' | 'events' | 'history' | 'users';
+  user: { username: string; role: string; email?: string | null };
+  currentTab: 'routes' | 'events' | 'history' | 'users' | 'settings';
 }
 
 const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
 const cspNonce = Astro.locals.cspNonce;
+const avatarHash = user.email
+  ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
+  : null;
+const avatarUrl = avatarHash
+  ? `https://www.gravatar.com/avatar/${avatarHash}?d=mp&s=32`
+  : 'https://www.gravatar.com/avatar/?d=mp&s=32';
 ---
 
 {isStaging && (
@@ -48,9 +55,10 @@ const cspNonce = Astro.locals.cspNonce;
   });
 </script>
 <div class="admin-header">
-  <h1>{currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'history' ? 'History' : 'Users'}</h1>
+  <h1>{currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'history' ? 'History' : currentTab === 'settings' ? 'Settings' : 'Users'}</h1>
   <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle">
+      <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
       {user.username}
       <span class="admin-user-caret">&#9662;</span>
     </button>
@@ -66,6 +74,7 @@ const cspNonce = Astro.locals.cspNonce;
   </div>
 </div>
 
+{currentTab !== 'settings' && (
 <nav class="admin-nav">
   <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
   <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>
@@ -74,6 +83,7 @@ const cspNonce = Astro.locals.cspNonce;
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
   )}
 </nav>
+)}
 
 <style lang="scss">
   @use '../styles/variables' as *;
@@ -194,6 +204,10 @@ const cspNonce = Astro.locals.cspNonce;
     align-items: center;
     gap: 0.25rem;
     @include muted-text;
+  }
+
+  .admin-user-avatar {
+    border-radius: 50%;
   }
 
   .admin-user-caret {
