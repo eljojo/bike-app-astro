@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';
 import { formatAdminDateTime } from '../../lib/date-utils';
+import { extractChangesPath } from '../../lib/commit-author';
 
 interface CommitUser {
   id: string;
@@ -44,16 +45,17 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole }: Pr
 
   function resolveContentPath(commit: Commit): string | null {
     if (contentPath) {
-      // If contentPath is a directory (routes), append index.md for the revert endpoint
       if (!contentPath.endsWith('.md')) return `${contentPath}/index.md`;
       return contentPath;
     }
-    const match = commit.message.match(resourcePathRegex);
-    if (!match) return null;
-    const parts = match[0].split('/');
+    // Try Changes: trailer first (new format), fall back to regex on message (old format)
+    const changesPath = extractChangesPath(commit.message);
+    const resourcePath = changesPath || commit.message.match(resourcePathRegex)?.[0];
+    if (!resourcePath) return null;
+    const parts = resourcePath.split('/');
     const contentType = parts[1];
-    if (contentType === 'routes') return `${match[0]}/index.md`;
-    return `${match[0]}.md`;
+    if (contentType === 'routes') return `${resourcePath}/index.md`;
+    return `${resourcePath}.md`;
   }
 
   async function fetchCommits(pageNum: number, append = false) {
@@ -152,6 +154,8 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole }: Pr
 
   function extractResourceLabel(commit: Commit): string | null {
     if (contentPath) return null;
+    const changesPath = extractChangesPath(commit.message);
+    if (changesPath) return changesPath;
     const match = commit.message.match(resourcePathRegex);
     return match ? match[0] : null;
   }
@@ -169,7 +173,7 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole }: Pr
             <Fragment key={c.sha}>
             <div class="commit-item">
               <div class="commit-info">
-                <span class="commit-message">{c.message}</span>
+                <span class="commit-message">{c.message.split('\n')[0]}</span>
                 {gitRepo && (
                   <a
                     class="commit-sha"

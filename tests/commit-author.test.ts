@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAuthorEmail, parseAuthorEmail, buildResourcePathRegex, parseContentPath } from '../src/lib/commit-author';
+import { buildAuthorEmail, parseAuthorEmail, buildResourcePathRegex, parseContentPath, extractChangesPath } from '../src/lib/commit-author';
 
 describe('buildAuthorEmail', () => {
   it('doesnt use custom email even if provided', () => {
@@ -91,5 +91,26 @@ describe('parseContentPath', () => {
     const re = buildResourcePathRegex('ottawa');
     expect('ottawa/routes/pink-aylmer/index.md'.match(re)?.[0])
       .toBe('ottawa/routes/pink-aylmer/index');  // stops at dot
+  });
+});
+
+describe('extractChangesPath', () => {
+  it('extracts path from Changes trailer', () => {
+    expect(extractChangesPath('Update Aylmer\n\nChanges: ottawa/routes/aylmer'))
+      .toBe('ottawa/routes/aylmer');
+  });
+
+  it('extracts path when Signed-off-by follows', () => {
+    expect(extractChangesPath('Update Aylmer\n\nChanges: ottawa/routes/aylmer\nSigned-off-by: jane <jane@example.com>'))
+      .toBe('ottawa/routes/aylmer');
+  });
+
+  it('returns null when no Changes trailer', () => {
+    expect(extractChangesPath('Update ottawa/routes/aylmer')).toBeNull();
+  });
+
+  it('extracts event paths', () => {
+    expect(extractChangesPath('Create Bike Fest\n\nChanges: ottawa/events/2026/bike-fest'))
+      .toBe('ottawa/events/2026/bike-fest');
   });
 });

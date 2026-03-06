@@ -16,6 +16,12 @@ export function parseAuthorEmail(email: string): { userId?: string; username?: s
   return null;
 }
 
+/** Extract the resource path from a Changes: trailer in a commit message body. */
+export function extractChangesPath(message: string): string | null {
+  const match = message.match(/^Changes:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
 /** Build a regex that matches resource paths for the given city. */
 export function buildResourcePathRegex(city: string): RegExp {
   return new RegExp(`${city}/(routes|events|guides|places|organizers)/[\\w/-]+`);
