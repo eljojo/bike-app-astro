@@ -1,9 +1,12 @@
 /**
- * Playwright globalSetup — runs exactly once before the web server starts.
- * Cleans the DB and creates the fixture content directory.
+ * Playwright fixture setup — creates the fixture content directory.
  *
- * Also called at config-import time (via prepareFixture) to guarantee the
+ * Called at config-import time (via prepareFixture) to guarantee the
  * fixture exists before the webServer command evaluates astro.config.mjs.
+ *
+ * NOTE: Does NOT delete the DB. The astro preview server holds a persistent
+ * better-sqlite3 connection; deleting the file would orphan it. Instead,
+ * seedSession() in helpers.ts handles per-test DB state.
  */
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,14 +20,12 @@ export const DB_PATH = path.resolve(PROJECT_ROOT, '.data', 'local.db');
 export const UPLOADS_DIR = path.resolve(PROJECT_ROOT, '.data', 'uploads');
 
 export default function setup() {
-  // Clean slate: remove stale DB so the server creates tables with the current schema.
-  if (fs.existsSync(DB_PATH)) {
-    fs.rmSync(DB_PATH);
-    for (const suffix of ['-wal', '-shm']) {
-      const p = DB_PATH + suffix;
-      if (fs.existsSync(p)) fs.rmSync(p);
-    }
-  }
+  // NOTE: We intentionally do NOT delete the DB here.
+  // The astro preview server opens a persistent better-sqlite3 connection at startup.
+  // If we delete the DB file while the server is running, the server's connection
+  // becomes a dangling reference to a deleted inode — all session validation fails,
+  // causing every authenticated page to redirect to /gate.
+  // Instead, seedSession() handles schema init and state cleanup per test.
 
   // Clean uploads from previous test runs
   const uploadsDir = path.resolve(path.dirname(DB_PATH), 'uploads');
@@ -269,7 +270,7 @@ About page fixture.
     'git commit -m "initial fixture"',
   ].join(' && '), {
     cwd: FIXTURE_DIR,
-    stdio: 'inherit',
+    stdio: 'pipe',
     env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE },
   });
 
@@ -283,10 +284,23 @@ About page fixture.
 /**
  * Guard-wrapped setup — safe to call multiple times (Playwright imports
  * config files twice: once for the test runner, once for the web server).
+ *
+ * DB deletion happens here (once, before the server starts) rather than
+ * in setup(), which may re-run while the server holds an open connection.
  */
 let prepared = false;
 export function prepareFixture() {
   if (prepared) return;
   prepared = true;
+
+  // Clean DB before the server starts — safe because no connection exists yet.
+  if (fs.existsSync(DB_PATH)) {
+    fs.rmSync(DB_PATH);
+    for (const suffix of ['-wal', '-shm']) {
+      const p = DB_PATH + suffix;
+      if (fs.existsSync(p)) fs.rmSync(p);
+    }
+  }
+
   setup();
 }

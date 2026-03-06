@@ -8,7 +8,8 @@ import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DB_PATH } from './fixture-setup.ts';
+import { execSync } from 'node:child_process';
+import { DB_PATH, FIXTURE_DIR } from './fixture-setup.ts';
 import { initSchema } from '../../src/db/init-schema';
 
 interface SeedOptions {
@@ -47,6 +48,11 @@ export function seedSession(opts: SeedOptions = {}): string {
   }
 
   db.close();
+
+  // Reset fixture git repo to initial commit so save tests don't hit
+  // content-hash conflicts from modifications by earlier tests.
+  resetFixtureRepo();
+
   return token;
 }
 
@@ -56,6 +62,19 @@ export async function loginAs(page: import('@playwright/test').Page, token: stri
     name: 'session_token', value: token,
     domain: 'localhost', path: '/', httpOnly: true, secure: false,
   }]);
+}
+
+/** Reset fixture git repo to its initial commit (undo any test saves). */
+function resetFixtureRepo() {
+  if (!fs.existsSync(path.join(FIXTURE_DIR, '.git'))) return;
+  try {
+    const initial = execSync('git rev-list --max-parents=0 HEAD', {
+      cwd: FIXTURE_DIR, encoding: 'utf8',
+    }).trim();
+    execSync(`git reset --hard ${initial}`, { cwd: FIXTURE_DIR, stdio: 'pipe' });
+  } catch {
+    // If git state is broken, ignore — setup() will recreate it
+  }
 }
 
 /** Remove the user and session created by seedSession. */
