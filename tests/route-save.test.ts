@@ -35,6 +35,8 @@ describe('routeHandlers.buildCommitMessage', () => {
     };
     const msg = routeHandlers.buildCommitMessage(update, 'test', false, makeCurrentFiles(existing));
     expect(msg).not.toContain('media');
+    expect(msg).toContain('Update Test');
+    expect(msg).toContain('\n\nChanges: ottawa/routes/test');
   });
 
   it('added 3 media to route with 5 existing → "3 media" in message', () => {
@@ -46,6 +48,8 @@ describe('routeHandlers.buildCommitMessage', () => {
     };
     const msg = routeHandlers.buildCommitMessage(update, 'test', false, makeCurrentFiles(existing));
     expect(msg).toContain('3 media');
+    expect(msg).toContain('for Test');
+    expect(msg).toContain('\n\nChanges: ottawa/routes/test');
   });
 
   it('first save with media (no existing media.yml) → all items count as new', () => {
@@ -56,6 +60,8 @@ describe('routeHandlers.buildCommitMessage', () => {
     };
     const msg = routeHandlers.buildCommitMessage(update, 'test', false, makeCurrentFiles());
     expect(msg).toContain('2 media');
+    expect(msg).toContain('for Test');
+    expect(msg).toContain('\n\nChanges: ottawa/routes/test');
   });
 
   it('frontmatter-only save (no media) → no "media" mention', () => {
@@ -66,17 +72,18 @@ describe('routeHandlers.buildCommitMessage', () => {
     };
     const msg = routeHandlers.buildCommitMessage(update, 'test', false, makeCurrentFiles());
     expect(msg).not.toContain('media');
-    expect(msg).toContain('Update');
+    expect(msg).toContain('Update Updated Name');
+    expect(msg).toContain('\n\nChanges: ottawa/routes/test');
   });
 
   it('new route → "Create" message', () => {
     const update = {
-      frontmatter: { name: 'New' },
+      frontmatter: { name: 'New Route' },
       body: 'body',
       media: [{ key: 'p1' }],
     };
     const msg = routeHandlers.buildCommitMessage(update, 'new-route', true, makeCurrentFiles());
-    expect(msg).toBe('Create ottawa/routes/new-route');
+    expect(msg).toBe('Create New Route\n\nChanges: ottawa/routes/new-route');
   });
 });
 

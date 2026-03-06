@@ -231,7 +231,10 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
     const resourcePath = `${CITY}/routes/${slug}`;
-    if (isNew) return `Create ${resourcePath}`;
+    const title = (update.frontmatter as Record<string, unknown>)?.name as string || slug;
+    const trailer = `\n\nChanges: ${resourcePath}`;
+
+    if (isNew) return `Create ${title}${trailer}`;
 
     const parts: string[] = [];
     if (update.frontmatter) parts.push('Update');
@@ -254,7 +257,13 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
         parts.push(`${newVariants.length} variant${newVariants.length > 1 ? 's' : ''}`);
       }
     }
-    return parts.length > 0 ? `${parts.join(' + ')} for ${resourcePath}` : `Update ${resourcePath}`;
+    let subject: string;
+    if (parts.length === 0 || (parts.length === 1 && parts[0] === 'Update')) {
+      subject = `Update ${title}`;
+    } else {
+      subject = `${parts.join(' + ')} for ${title}`;
+    }
+    return `${subject}${trailer}`;
   },
 
   buildGitHubUrl(slug: string, baseBranch: string): string {
