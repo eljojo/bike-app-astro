@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { requireUser } from '../../../lib/auth';
+import { authorize } from '../../../lib/authorize';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
@@ -41,11 +41,8 @@ function escapeXml(s: string): string {
 }
 
 export async function POST({ request, locals }: APIContext) {
-  try {
-    requireUser(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'import-gpx');
+  if (user instanceof Response) return user;
 
   const { url } = await request.json();
   if (!url || typeof url !== 'string') {

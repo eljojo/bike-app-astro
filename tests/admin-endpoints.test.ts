@@ -48,7 +48,7 @@ describe('admin endpoint guards enforce role-specific access (I-5)', () => {
   it('admin-users GET rejects editor', async () => {
     const { GET } = await import('../src/views/api/admin-users');
     const res = await GET({ locals: { user: editorUser } } as any);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it('admin-users POST rejects editor', async () => {
@@ -57,7 +57,7 @@ describe('admin endpoint guards enforce role-specific access (I-5)', () => {
       request: makeRequest({ action: 'ban', userId: 'x' }),
       locals: { user: editorUser },
     } as any);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it('admin-history POST allows editor', async () => {
@@ -75,7 +75,7 @@ describe('admin endpoint guards enforce role-specific access (I-5)', () => {
       request: makeRequest({ commitSha: 'abc', contentPath: 'test.md' }),
       locals: { user: editorUser },
     } as any);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 });
 

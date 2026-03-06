@@ -9,6 +9,7 @@ import { jsonResponse, jsonError } from './api-response';
 import { computeBlobSha } from './git-service';
 import type { IGitService, FileChange } from './git-service';
 import type { SessionUser } from './auth';
+import { authorize, can } from './authorize';
 import { buildAuthorEmail } from './commit-author';
 import { upsertContentCache } from './cache';
 
@@ -115,9 +116,8 @@ async function authenticateAndParse<T>(
   params: Record<string, string | undefined>,
   handlers: SaveHandlers<T>,
 ): Promise<{ user: SessionUser; update: T; contentId: string } | Response> {
-  const user = locals.user as SessionUser | undefined;
-  if (!user) return jsonError('Unauthorized', 401);
-  if (user.bannedAt) return jsonError('Unable to save', 403);
+  const user = authorize(locals, 'edit-content');
+  if (user instanceof Response) return user;
 
   let update: T;
   try {
@@ -128,7 +128,7 @@ async function authenticateAndParse<T>(
     return jsonError(message);
   }
 
-  if (user.role !== 'admin') {
+  if (!can(user, 'set-status')) {
     const u = update as Record<string, unknown>;
     if (u.frontmatter && typeof u.frontmatter === 'object') {
       delete (u.frontmatter as Record<string, unknown>).status;

@@ -2,7 +2,8 @@ import type { APIContext } from 'astro';
 import { db } from '../../lib/get-db';
 import { users, userSettings } from '../../db/schema';
 import { eq, and, ne } from 'drizzle-orm';
-import { requireUser, normalizeEmail } from '../../lib/auth';
+import { normalizeEmail } from '../../lib/auth';
+import { authorize } from '../../lib/authorize';
 import { isValidUsername, sanitizeUsername } from '../../lib/username';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
@@ -13,12 +14,8 @@ function isValidEmail(email: string): boolean {
 export const prerender = false;
 
 export async function POST({ request, locals }: APIContext) {
-  let user;
-  try {
-    user = requireUser(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'update-settings');
+  if (user instanceof Response) return user;
 
   const body = await request.json();
   const database = db();

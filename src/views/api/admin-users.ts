@@ -2,18 +2,15 @@ import type { APIContext } from 'astro';
 import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
 import { desc } from 'drizzle-orm';
-import { requireAdmin } from '../../lib/auth';
+import { authorize } from '../../lib/authorize';
 import { banUser, unbanUser } from '../../lib/ban-service';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;
 
 export async function GET({ locals }: APIContext) {
-  try {
-    requireAdmin(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'manage-users');
+  if (user instanceof Response) return user;
 
   const database = db();
   const allUsers = await database.select({
@@ -29,11 +26,8 @@ export async function GET({ locals }: APIContext) {
 }
 
 export async function POST({ request, locals }: APIContext) {
-  try {
-    requireAdmin(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'manage-users');
+  if (user instanceof Response) return user;
 
   const { action, userId } = await request.json();
   if (!action || !userId) {

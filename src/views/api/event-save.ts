@@ -4,6 +4,7 @@ import { z } from 'zod';
 import adminEvents from 'virtual:bike-app/admin-events';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
+import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
@@ -179,7 +180,7 @@ export async function POST({ params, request, locals }: APIContext) {
   // For existing past events, only admins can edit
   if (params.id && params.id !== 'new') {
     const existing = adminEvents.find((e: AdminEvent) => e.id === params.id);
-    if (existing && isPastEvent(existing.start_date) && user?.role !== 'admin') {
+    if (existing && isPastEvent(existing.start_date) && !can(user, 'edit-past-event')) {
       return jsonError('Only admins can edit past events', 403);
     }
   }

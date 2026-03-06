@@ -5,7 +5,7 @@ import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { upsertContentCache } from '../../lib/cache';
-import { requireAdmin } from '../../lib/auth';
+import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
 import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
@@ -17,11 +17,8 @@ import type { Database } from '../../db';
 export const prerender = false;
 
 export async function POST({ request, locals }: APIContext) {
-  try {
-    requireAdmin(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'revert-commit');
+  if (user instanceof Response) return user;
 
   const { commitSha, contentPath } = await request.json();
   if (!commitSha || !contentPath) {
@@ -46,7 +43,6 @@ export async function POST({ request, locals }: APIContext) {
       return jsonResponse({ success: true, message: 'Content already matches this version' });
     }
 
-    const user = locals.user!;
     const parsed = parseContentPath(CITY, contentPath);
     const resourceLabel = parsed ? `${CITY}/${parsed.contentType}/${parsed.contentSlug}` : contentPath;
     const authorInfo = { name: user.username, email: buildAuthorEmail(user) };

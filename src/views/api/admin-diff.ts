@@ -2,17 +2,14 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
-import { requireUser } from '../../lib/auth';
+import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;
 
 export async function POST({ request, locals }: APIContext) {
-  try {
-    requireUser(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'view-history');
+  if (user instanceof Response) return user;
 
   const { commitSha, contentPath } = await request.json();
   if (!commitSha) {

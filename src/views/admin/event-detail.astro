@@ -7,6 +7,7 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminEventDetails from 'virtual:bike-app/admin-event-detail';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env';
+import { can } from '../../lib/authorize';
 import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
 import { loadAdminContent } from '../../lib/load-admin-content';
 import { eventDetailFromCache } from '../../lib/models/event-model';
@@ -30,7 +31,7 @@ const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
 const user = Astro.locals.user;
 const today = new Date().toISOString().slice(0, 10);
 const isPast = eventData.start_date < today;
-const readOnly = isPast && user?.role !== 'admin';
+const readOnly = isPast && !can(user, 'edit-past-event');
 ---
 
 <AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events">

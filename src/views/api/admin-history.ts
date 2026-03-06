@@ -5,18 +5,15 @@ import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
 import { eq, like } from 'drizzle-orm';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
-import { requireUser } from '../../lib/auth';
+import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { parseAuthorEmail } from '../../lib/commit-author';
 
 export const prerender = false;
 
 export async function POST({ request, locals }: APIContext) {
-  try {
-    requireUser(locals.user);
-  } catch {
-    return jsonError('Unauthorized', 401);
-  }
+  const user = authorize(locals, 'view-history');
+  if (user instanceof Response) return user;
 
   const { path, perPage = 20, page = 1 } = await request.json();
   const baseBranch = env.GIT_BRANCH || 'main';
