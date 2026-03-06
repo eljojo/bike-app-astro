@@ -14,6 +14,7 @@ import { env } from '../../lib/env';
 import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { updateRedirectsYaml } from '../../lib/redirects';
 
 export const prerender = false;
 
@@ -110,7 +111,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     return buildFreshRouteData(slug, currentFiles);
   },
 
-  async buildFileChanges(update, slug, currentFiles): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
+  async buildFileChanges(update, slug, currentFiles, git): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
     const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
     const basePath = `${CITY}/routes/${targetSlug}`;
     const files: FileChange[] = [];
@@ -133,6 +134,17 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
           }
         }
       }
+
+      // Add redirect entry
+      const redirectsPath = `${CITY}/redirects.yml`;
+      const redirectsFile = await git.readFile(redirectsPath);
+      const updatedRedirects = updateRedirectsYaml(
+        redirectsFile?.content || '',
+        'routes',
+        slug,
+        targetSlug,
+      );
+      files.push({ path: redirectsPath, content: updatedRedirects });
     }
 
     // Build frontmatter
