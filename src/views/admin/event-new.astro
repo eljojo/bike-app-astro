@@ -24,6 +24,6 @@ const initialData = {
 };
 ---
 
-<AdminEditorLayout title="New Event" backLink="/admin/events" backLabel="Back to events">
+<AdminEditorLayout title="New Event" backLink="/admin/events" backLabel="Back to events" user={Astro.locals.user} currentTab="events">
   <EventEditor client:load initialData={initialData} organizers={organizers} cdnUrl={cdnUrl} />
 </AdminEditorLayout>

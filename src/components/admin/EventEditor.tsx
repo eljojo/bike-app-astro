@@ -301,7 +301,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 <input id="event-end-date" type="date" value={endDate}
                   onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
               </div>
-              {(showEndTime || showTime) && (
+              {showEndTime && (
                 <div class="form-field">
                   <label for="event-end-time">End time</label>
                   <input id="event-end-time" type="time" value={endTime}

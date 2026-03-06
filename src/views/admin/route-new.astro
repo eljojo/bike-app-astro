@@ -5,6 +5,6 @@ import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteCreator from '../../components/admin/RouteCreator.tsx';
 ---
 
-<AdminEditorLayout title="New Route" backLink="/admin" backLabel="Back to routes">
+<AdminEditorLayout title="New Route" backLink="/admin" backLabel="Back to routes" user={Astro.locals.user} currentTab="routes">
   <RouteCreator client:load />
 </AdminEditorLayout>
