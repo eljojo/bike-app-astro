@@ -54,6 +54,7 @@ const routeUpdateSchema = z.object({
     isNew: z.boolean().optional(),
     gpxContent: z.string().optional(),
   })).optional(),
+  newSlug: z.string().optional(),
   contentHash: z.string().optional(),
   translations: z.record(z.string(), z.object({
     name: z.string(),
@@ -65,6 +66,7 @@ const routeUpdateSchema = z.object({
 export interface RouteUpdate {
   frontmatter: Record<string, unknown>;
   body: string;
+  newSlug?: string;
   media?: Array<{
     key: string;
     caption?: string;
@@ -109,10 +111,29 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   async buildFileChanges(update, slug, currentFiles): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
-    const basePath = `${CITY}/routes/${slug}`;
+    const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
+    const basePath = `${CITY}/routes/${targetSlug}`;
     const files: FileChange[] = [];
     const deletePaths: string[] = [];
     const isNew = !currentFiles.primaryFile;
+
+    // If slug changed and not new, delete old files
+    if (targetSlug !== slug && !isNew) {
+      const oldBasePath = `${CITY}/routes/${slug}`;
+      deletePaths.push(`${oldBasePath}/index.md`);
+      deletePaths.push(`${oldBasePath}/media.yml`);
+      const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
+      for (const l of secondaryLocales) {
+        deletePaths.push(`${oldBasePath}/index.${l}.md`);
+      }
+      if (currentFiles.auxiliaryFiles) {
+        for (const path of Object.keys(currentFiles.auxiliaryFiles)) {
+          if (path.endsWith('.gpx')) {
+            deletePaths.push(path);
+          }
+        }
+      }
+    }
 
     // Build frontmatter
     let mergedFrontmatter: Record<string, unknown>;
@@ -230,9 +251,14 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
-    const resourcePath = `${CITY}/routes/${slug}`;
+    const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
+    const resourcePath = `${CITY}/routes/${targetSlug}`;
     const title = (update.frontmatter as Record<string, unknown>)?.name as string || slug;
     const trailer = `\n\nChanges: ${resourcePath}`;
+
+    if (targetSlug !== slug) {
+      return `Rename ${title}: ${slug} → ${targetSlug}${trailer}`;
+    }
 
     if (isNew) return `Create ${title}${trailer}`;
 

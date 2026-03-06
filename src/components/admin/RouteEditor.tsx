@@ -6,6 +6,7 @@ import type { VariantItem } from './VariantManager';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
+import { slugify } from '../../lib/slug';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
@@ -26,6 +27,9 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
+  const [slug, setSlug] = useState(initialData.slug);
+  const [editingSlug, setEditingSlug] = useState(false);
+  const canEditSlug = userRole !== 'guest';
 
   const [activeLocale, setActiveLocale] = useState(defaultLocale);
   const [translations, setTranslations] = useState<Record<string, { name: string; tagline: string; body: string }>>(
@@ -190,6 +194,7 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
           status,
         },
         body,
+        ...(slug !== initialData.slug ? { newSlug: slug } : {}),
         media,
         variants,
         contentHash,
@@ -238,6 +243,33 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
           <div class="drop-overlay-content">Drop photos or GPX files to add to route</div>
         </div>
       )}
+      <div class="editor-slug">
+        {editingSlug ? (
+          <div class="editor-slug-edit">
+            <span class="editor-slug-prefix">/routes/</span>
+            <input
+              type="text"
+              value={slug}
+              onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
+              class="editor-slug-input"
+            />
+            <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
+          </div>
+        ) : (
+          <a
+            href={`/routes/${initialData.slug}`}
+            class="editor-slug-link"
+            onClick={canEditSlug ? (e: MouseEvent) => { e.preventDefault(); setEditingSlug(true); } : undefined}
+            title={canEditSlug ? 'Click to edit URL' : undefined}
+          >
+            /routes/{slug}
+          </a>
+        )}
+        {slug !== initialData.slug && (
+          <span class="editor-slug-changed">URL will change — old URL will redirect</span>
+        )}
+      </div>
+
       <section class="editor-section">
         <h2>Text</h2>
         <div class="locale-tabs">

@@ -135,6 +135,10 @@ async function authenticateAndParse<T>(
     }
   }
 
+  if (!can(user, 'edit-slug')) {
+    delete (update as any).newSlug;
+  }
+
   const contentId = handlers.resolveContentId(params, update);
   if (handlers.validateSlug) {
     const slugError = handlers.validateSlug(contentId);
