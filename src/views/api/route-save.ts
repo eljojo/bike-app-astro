@@ -288,40 +288,6 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     return parts.length > 0 ? `${parts.join(' + ')} for ${resourcePath}` : `Update ${resourcePath}`;
   },
 
-  buildCacheData(update, slug, currentFiles): string {
-    const { data: fm } = currentFiles.primaryFile
-      ? matter(currentFiles.primaryFile.content)
-      : { data: {} as Record<string, unknown> };
-
-    const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
-    if (update.translations) {
-      for (const [locale, t] of Object.entries(update.translations)) {
-        if (t.name || t.tagline || t.body) {
-          translations[locale] = { name: t.name || undefined, tagline: t.tagline || undefined, body: t.body || undefined };
-        }
-      }
-    }
-
-    const detail = {
-      slug,
-      name: update.frontmatter.name as string,
-      tagline: (update.frontmatter.tagline as string) || '',
-      tags: (update.frontmatter.tags as string[]) || [],
-      distance: (fm.distance_km as number) || 0,
-      status: update.frontmatter.status as string,
-      body: update.body,
-      media: update.media || [],
-      variants: update.variants?.map(v => ({
-        name: v.name, gpx: v.gpx,
-        ...(v.distance_km != null ? { distance_km: v.distance_km } : {}),
-        ...(v.strava_url ? { strava_url: v.strava_url } : {}),
-        ...(v.rwgps_url ? { rwgps_url: v.rwgps_url } : {}),
-      })) || [],
-      translations,
-    };
-    return routeDetailToCache(detail);
-  },
-
   buildGitHubUrl(slug: string, baseBranch: string): string {
     return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
   },

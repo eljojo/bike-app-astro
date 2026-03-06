@@ -163,24 +163,6 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
     return isNew ? `Create ${resourcePath}` : `Update ${resourcePath}`;
   },
 
-  buildCacheData(update, eventId): string {
-    const fm: Record<string, unknown> = { ...update.frontmatter };
-    if (update.organizer && update.organizer.name) {
-      const orgSlug = update.organizer.slug || slugify(update.organizer.name);
-      const otherRefs = countOrganizerReferences(orgSlug, eventId);
-      if (otherRefs === 0) {
-        const orgObj: Record<string, string> = { name: update.organizer.name };
-        if (update.organizer.website) orgObj.website = update.organizer.website;
-        if (update.organizer.instagram) orgObj.instagram = update.organizer.instagram;
-        fm.organizer = orgObj;
-      } else {
-        fm.organizer = orgSlug;
-      }
-    }
-    const detail = eventDetailFromGit(eventId, fm, update.body);
-    return eventDetailToCache(detail);
-  },
-
   buildGitHubUrl(eventId: string, baseBranch: string): string {
     return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${resolveEventPath(eventId)}`;
   },

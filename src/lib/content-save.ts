@@ -50,9 +50,6 @@ export interface SaveHandlers<T> {
   /** Build the commit message. */
   buildCommitMessage(update: T, contentId: string, isNew: boolean, currentFiles: CurrentFiles): string;
 
-  /** Serialize data for D1 cache after successful commit. */
-  buildCacheData(update: T, contentId: string, currentFiles: CurrentFiles): string;
-
   /** Build the GitHub URL for conflict notices. */
   buildGitHubUrl(contentId: string, baseBranch: string): string;
 }
@@ -101,7 +98,7 @@ export async function saveContent<T extends { contentHash?: string }>(
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
 
-    return updateCacheAfterCommit(database, contentType, contentId, filePaths, files, currentFiles, handlers, update, sha);
+    return updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
   } catch (err: unknown) {
     console.error(`save ${contentType} error:`, err);
     const message = err instanceof Error ? err.message : 'Failed to save';
@@ -236,9 +233,9 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }>(
   contentId: string,
   filePaths: { primary: string; auxiliary?: string[] },
   files: FileChange[],
+  deletePaths: string[],
   currentFiles: CurrentFiles,
   handlers: SaveHandlers<T>,
-  update: T,
   sha: string,
 ): Promise<Response> {
   const committedPrimary = files.find(f => f.path === filePaths.primary);
@@ -254,13 +251,22 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }>(
   if (filePaths.auxiliary) {
     for (const auxPath of filePaths.auxiliary) {
       const auxFile = files.find(f => f.path === auxPath);
-      committedFiles.auxiliaryFiles![auxPath] = auxFile
-        ? { content: auxFile.content, sha: computeBlobSha(auxFile.content) }
-        : currentFiles.auxiliaryFiles?.[auxPath] ?? null;
+      if (auxFile) {
+        committedFiles.auxiliaryFiles![auxPath] = {
+          content: auxFile.content,
+          sha: computeBlobSha(auxFile.content),
+        };
+        continue;
+      }
+      if (deletePaths.includes(auxPath)) {
+        committedFiles.auxiliaryFiles![auxPath] = null;
+        continue;
+      }
+      committedFiles.auxiliaryFiles![auxPath] = currentFiles.auxiliaryFiles?.[auxPath] ?? null;
     }
   }
 
-  const cacheData = handlers.buildCacheData(update, contentId, committedFiles);
+  const cacheData = handlers.buildFreshData(contentId, committedFiles);
   const newContentHash = handlers.computeContentHash(committedFiles);
 
   await upsertContentCache(database, {

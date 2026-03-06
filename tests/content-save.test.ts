@@ -18,7 +18,6 @@ describe('SaveHandlers interface', () => {
       };
     },
     buildCommitMessage: (_update, id, isNew) => isNew ? `Create ${id}` : `Update ${id}`,
-    buildCacheData: (update, id) => JSON.stringify({ id, body: update.body }),
     buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/test/${id}.md`,
   };
 
@@ -145,7 +144,6 @@ const stubHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
     };
   },
   buildCommitMessage: (_u, id, isNew) => isNew ? `Create ${id}` : `Update ${id}`,
-  buildCacheData: (update, id) => JSON.stringify({ id, body: update.body }),
   buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/test/${id}.md`,
 };
 
