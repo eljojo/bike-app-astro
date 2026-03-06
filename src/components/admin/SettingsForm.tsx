@@ -79,7 +79,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
             id="settings-email"
             type="email"
             value={email}
-            placeholder="Optional"
+            placeholder="your@email.com"
             onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
           />
           <p class="settings-help">

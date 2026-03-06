@@ -69,11 +69,7 @@ export async function POST({ request, locals }: APIContext) {
     const rawEmail = String(body.email).trim();
 
     if (rawEmail === '') {
-      // Clear email
-      await database
-        .update(users)
-        .set({ email: null })
-        .where(eq(users.id, user.id));
+      return jsonError('Email cannot be empty.');
     } else {
       if (!isValidEmail(rawEmail)) {
         return jsonError('Invalid email address.');
