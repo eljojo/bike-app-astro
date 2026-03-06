@@ -11,6 +11,7 @@ import {
   setSessionCookies,
   retrieveChallenge,
   getWebAuthnConfig,
+  validateSession,
 } from '../../../lib/auth';
 import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
@@ -18,10 +19,13 @@ import { withBatch } from '../../../db/transaction';
 
 export const prerender = false;
 
-export async function POST({ request, cookies, locals }: APIContext) {
-  const user = locals.user;
+export async function POST({ request, cookies }: APIContext) {
+  // Upgrade endpoints are under /api/auth/ which the middleware skips,
+  // so we must validate the session ourselves.
+  const token = cookies.get('session_token')?.value;
+  const user = token ? await validateSession(db(), token) : null;
   if (!user || user.role !== 'guest') {
-    return jsonError('Only guests can upgrade');
+    return jsonError('Only guests can upgrade', 401);
   }
 
   const { email: rawEmail, username: rawUsername, credential: credentialResponse } = await request.json();

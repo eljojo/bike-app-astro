@@ -4,15 +4,20 @@ import { generateRegistrationOptions } from '@simplewebauthn/server';
 import {
   getWebAuthnConfig,
   storeChallenge,
+  validateSession,
 } from '../../../lib/auth';
+import { db } from '../../../lib/get-db';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;
 
-export async function POST({ request, cookies, locals }: APIContext) {
-  const user = locals.user;
+export async function POST({ request, cookies }: APIContext) {
+  // Upgrade endpoints are under /api/auth/ which the middleware skips,
+  // so we must validate the session ourselves.
+  const token = cookies.get('session_token')?.value;
+  const user = token ? await validateSession(db(), token) : null;
   if (!user || user.role !== 'guest') {
-    return jsonError('Only guests can upgrade');
+    return jsonError('Only guests can upgrade', 401);
   }
 
   try {
