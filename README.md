@@ -42,7 +42,7 @@ This site was originally built as a Ruby on Rails application. The old Rails cod
 
 ## License
 
-This application is licensed under the [Apache License 2.0](LICENSE).
+This application is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
 The content data in [`bike-routes`](https://github.com/eljojo/bike-routes) is licensed separately:
 - Text: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
