@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { marked } from 'marked';
 import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { cityDir } from '../lib/config';
+import { renderMarkdownHtml } from '../lib/markdown-render';
 import { loadLocaleTranslations } from './locale-content';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 
@@ -114,7 +114,7 @@ export function routeLoader(): Loader {
           }
         }
 
-        const renderedBody = await marked.parse(body);
+        const renderedBody = await renderMarkdownHtml(body);
 
         const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
         const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);

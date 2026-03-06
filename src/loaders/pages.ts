@@ -2,8 +2,8 @@ import type { Loader } from 'astro/loaders';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { marked } from 'marked';
 import { cityDir } from '../lib/config';
+import { renderMarkdownHtml } from '../lib/markdown-render';
 
 export function pageLoader(): Loader {
   return {
@@ -25,7 +25,7 @@ export function pageLoader(): Loader {
         const filePath = path.join(pagesDir, file);
         const raw = fs.readFileSync(filePath, 'utf-8');
         const { data: frontmatter, content: body } = matter(raw);
-        const renderedBody = await marked.parse(body);
+        const renderedBody = await renderMarkdownHtml(body);
 
         // Look for locale translations (e.g. about.fr.md)
         const translations: Record<string, { title?: string; renderedBody: string }> = {};
@@ -39,7 +39,7 @@ export function pageLoader(): Loader {
           const { data: lfFrontmatter, content: lfBody } = matter(lfRaw);
           translations[locale] = {
             title: lfFrontmatter.title,
-            renderedBody: await marked.parse(lfBody),
+            renderedBody: await renderMarkdownHtml(lfBody),
           };
         }
 
