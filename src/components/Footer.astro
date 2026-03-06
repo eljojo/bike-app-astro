@@ -19,18 +19,9 @@ const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 ---
 <footer class="site-footer">
-  <div>
-    <div class="footer-community">
-      {t('footer.community', locale, { display_name: config.display_name })}
-      {' — '}
-      <a href={localePath('/about', locale)}>{t('footer.learn_more', locale)}</a>
-    </div>
-    <div class="footer-license">
-      <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>
-      {' · '}
-      <a href="https://opendatacommons.org/licenses/odbl/" target="_blank" rel="noopener">ODbL 1.0</a>
-    </div>
-  </div>
+  <a href={localePath('/about', locale)}>
+    {t('footer.community', locale, { display_name: config.display_name })}
+  </a>
   {showSwitcher && (
     <a href={switchPath} class="lang-switcher"
        data-locale={otherLocale}>
