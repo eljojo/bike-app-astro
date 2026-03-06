@@ -31,6 +31,7 @@ if (!routeData) {
 
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
 const tagTranslations = loadTagTranslations();
+const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.tags))].sort();
 ---
 
 <AdminEditorLayout
@@ -39,6 +40,6 @@ const tagTranslations = loadTagTranslations();
   backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={GIT_REPO} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

@@ -150,6 +150,72 @@ Carp is a rural community west of Ottawa. This route follows the Trans Canada Tr
 `
   );
 
+  // Second route for tag autocomplete tests — adds more known tags
+  const canalDir = path.join(FIXTURE_DIR, 'ottawa', 'routes', 'canal');
+  fs.mkdirSync(canalDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(canalDir, 'index.md'),
+    `---
+name: Canal Path
+status: published
+distance_km: 15.2
+tags:
+  - scenic
+  - bike path
+tagline: Along the Rideau Canal
+created_at: '2023-01-10'
+updated_at: '2023-06-01'
+variants:
+  - name: Main
+    gpx: main.gpx
+    distance_km: 15.2
+---
+
+A flat ride along the Rideau Canal from downtown to Hog's Back Falls.
+`
+  );
+
+  fs.writeFileSync(
+    path.join(canalDir, 'main.gpx'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+  <trk>
+    <name>Canal Path</name>
+    <trkseg>
+      <trkpt lat="45.4215" lon="-75.6972"><ele>60</ele></trkpt>
+      <trkpt lat="45.3950" lon="-75.6800"><ele>65</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+`
+  );
+
+  fs.writeFileSync(
+    path.join(canalDir, 'media.yml'),
+    `---
+- type: photo
+  key: e2e-canal-photo-key
+  caption: Canal view
+  width: 800
+  height: 600
+  cover: true
+  handle: cover
+`
+  );
+
+  // Tag translations for autocomplete tests
+  fs.writeFileSync(
+    path.join(FIXTURE_DIR, 'ottawa', 'tag-translations.yml'),
+    `road:
+  fr: route
+scenic:
+  fr: panoramique
+bike path:
+  fr: piste cyclable
+`
+  );
+
   // Event fixture: ottawa/events/2026/bike-fest.md
   const eventDir = path.join(FIXTURE_DIR, 'ottawa', 'events', '2026');
   fs.mkdirSync(eventDir, { recursive: true });

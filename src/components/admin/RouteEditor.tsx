@@ -10,11 +10,12 @@ interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
   tagTranslations?: Record<string, Record<string, string>>;
+  knownTags?: string[];
   defaultLocale?: string;
   userRole?: string;
 }
 
-export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {}, defaultLocale = 'en', userRole }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -133,9 +134,23 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
     return tagTranslations[tag]?.[activeLocale] ?? tag;
   }
 
+  function resolveTag(input: string): string {
+    // If it matches a known tag directly, use it
+    if (knownTags.includes(input)) return input;
+    // Check if input matches a translation, reverse-map to the primary key
+    for (const [key, locales] of Object.entries(tagTranslations)) {
+      for (const translated of Object.values(locales)) {
+        if (translated.toLowerCase() === input) return key;
+      }
+    }
+    return input;
+  }
+
   function addTag() {
-    const tag = tagInput.trim().toLowerCase();
-    if (tag && !tags.includes(tag)) {
+    const raw = tagInput.trim().toLowerCase();
+    if (!raw) { setTagInput(''); return; }
+    const tag = resolveTag(raw);
+    if (!tags.includes(tag)) {
       setTags([...tags, tag]);
     }
     setTagInput('');
@@ -269,12 +284,35 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
               <input
                 type="text"
                 class="tag-input"
+                list="tag-suggestions"
                 value={tagInput}
                 onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
                 onKeyDown={handleTagKeyDown}
                 onBlur={addTag}
                 placeholder="Add tag..."
               />
+              <datalist id="tag-suggestions">
+                {knownTags
+                  .filter(t => !tags.includes(t))
+                  .flatMap(tag => {
+                    const options = [<option key={tag} value={tag} />];
+                    if (activeLocale !== defaultLocale) {
+                      const translated = tagTranslations[tag]?.[activeLocale];
+                      if (translated) {
+                        options.push(<option key={`${tag}-${activeLocale}`} value={translated} />);
+                      }
+                    } else {
+                      // In default locale, also add non-default translations so users can search in any language
+                      const locales = tagTranslations[tag];
+                      if (locales) {
+                        for (const [locale, translated] of Object.entries(locales)) {
+                          options.push(<option key={`${tag}-${locale}`} value={translated} />);
+                        }
+                      }
+                    }
+                    return options;
+                  })}
+              </datalist>
             </div>
           </div>
 
