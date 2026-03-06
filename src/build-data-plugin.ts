@@ -54,7 +54,7 @@ function loadFontPreloads() {
 }
 
 function loadContributors(): Array<{ username: string; gravatarHash: string }> {
-  const filePath = path.join(PROJECT_ROOT, '_cache', 'contributors.json');
+  const filePath = path.join(PROJECT_ROOT, '.astro', 'contributors.json');
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 }

@@ -149,8 +149,8 @@ if (isDirectRun) {
   }
 
   const contributors = resolveContributors(authorMap, usersData);
-  const cacheDir = path.resolve(import.meta.dirname, '../_cache');
-  if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
-  fs.writeFileSync(path.join(cacheDir, 'contributors.json'), JSON.stringify(contributors));
-  console.log(`Wrote ${contributors.length} contributors to _cache/contributors.json`);
+  const outDir = path.resolve(import.meta.dirname, '../.astro');
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, 'contributors.json'), JSON.stringify(contributors));
+  console.log(`Wrote ${contributors.length} contributors to .astro/contributors.json`);
 }

@@ -124,6 +124,12 @@ jobs:
           CITY: ottawa
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
+      - name: Build contributor stats
+        run: npx tsx scripts/build-contributors.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
       - name: Build site
         run: npx astro build
         env:
