@@ -44,7 +44,7 @@ function makeRequest(body: object): Request {
   });
 }
 
-describe('admin endpoint guards reject editor role (I-5)', () => {
+describe('admin endpoint guards enforce role-specific access (I-5)', () => {
   it('admin-users GET rejects editor', async () => {
     const { GET } = await import('../src/views/api/admin-users');
     const res = await GET({ locals: { user: editorUser } } as any);
@@ -60,13 +60,13 @@ describe('admin endpoint guards reject editor role (I-5)', () => {
     expect(res.status).toBe(401);
   });
 
-  it('admin-history POST rejects editor', async () => {
+  it('admin-history POST allows editor', async () => {
     const { POST } = await import('../src/views/api/admin-history');
     const res = await POST({
       request: makeRequest({ path: 'ottawa/routes' }),
       locals: { user: editorUser },
     } as any);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
   });
 
   it('admin-revert POST rejects editor', async () => {

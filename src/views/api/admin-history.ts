@@ -5,7 +5,7 @@ import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
 import { eq, like } from 'drizzle-orm';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
-import { requireAdmin } from '../../lib/auth';
+import { requireUser } from '../../lib/auth';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { parseAuthorEmail } from '../../lib/commit-author';
 
@@ -13,7 +13,7 @@ export const prerender = false;
 
 export async function POST({ request, locals }: APIContext) {
   try {
-    requireAdmin(locals.user);
+    requireUser(locals.user);
   } catch {
     return jsonError('Unauthorized', 401);
   }

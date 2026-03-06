@@ -45,9 +45,7 @@ const cspNonce = Astro.locals.cspNonce;
 <nav class="admin-nav">
   <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
   <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>
-  {user.role === 'admin' && (
-    <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
-  )}
+  <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
   {user.role === 'admin' && (
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
   )}

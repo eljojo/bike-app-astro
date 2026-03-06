@@ -23,9 +23,11 @@ interface Props {
   contentPath?: string;
   city?: string;
   gitRepo?: string;
+  userRole?: string;
 }
 
-export default function EditHistory({ contentPath, city, gitRepo }: Props) {
+export default function EditHistory({ contentPath, city, gitRepo, userRole }: Props) {
+  const isAdmin = userRole === 'admin';
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -204,7 +206,7 @@ export default function EditHistory({ contentPath, city, gitRepo }: Props) {
                 >
                   {diffLoading === c.sha ? '...' : expandedDiff === c.sha ? 'Hide diff' : 'Diff'}
                 </button>
-                {filePath && (
+                {isAdmin && filePath && (
                   <button
                     type="button"
                     class="btn-small"
@@ -215,7 +217,7 @@ export default function EditHistory({ contentPath, city, gitRepo }: Props) {
                     {actionLoading === c.sha ? '...' : 'Restore'}
                   </button>
                 )}
-                {c.resolvedUser && c.resolvedUser.role !== 'admin' && !c.resolvedUser.bannedAt && (
+                {isAdmin && c.resolvedUser && c.resolvedUser.role !== 'admin' && !c.resolvedUser.bannedAt && (
                   <button
                     type="button"
                     class="btn-small btn-danger"

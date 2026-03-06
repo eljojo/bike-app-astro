@@ -40,5 +40,5 @@ const tagTranslations = loadTagTranslations();
   viewLink={`/routes/${slug}`}
 >
   <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
-  <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={GIT_REPO} />
+  <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={GIT_REPO} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>
