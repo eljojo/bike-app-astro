@@ -5,7 +5,7 @@ import AuthCardLayout from '../components/AuthCardLayout.astro';
 import RegisterForm from '../components/admin/RegisterForm.tsx';
 
 const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
-const isUpgrade = Astro.url.searchParams.get('upgrade') === '1';
+const isUpgrade = Astro.url.searchParams.get('join') === '1' || Astro.url.searchParams.get('upgrade') === '1';
 ---
 
 <AuthCardLayout title={isUpgrade ? 'Create your account' : 'Create account'}>

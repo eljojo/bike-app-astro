@@ -13,7 +13,7 @@ export default function SaveSuccessModal({ onClose, viewLink }: Props) {
           {' '}<a href={viewLink}>View live</a>
         </p>
         <p class="modal-cta">
-          <a href="/register?upgrade=1" class="btn-primary">Create an account</a>
+          <a href="/register?join=1" class="btn-primary">Create an account</a>
           <span class="modal-cta-hint">Join the community and get credit for your contributions</span>
         </p>
         <button type="button" class="btn-secondary" onClick={onClose}>
