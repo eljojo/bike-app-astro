@@ -4,6 +4,7 @@ import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/city-config';
 import { defaultLocale } from '@/lib/locale-utils';
+import contributors from 'virtual:bike-app/contributors';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale || defaultLocale();
@@ -26,6 +27,25 @@ const renderedBody = body
 
 <Base title={`${title} | ${config.display_name}`} description={`${title} - ${config.display_name} and ${config.author.name}`}>
   <div class="about-page--intro-text" set:html={renderedBody} />
+  {contributors.length > 0 && (
+    <div class="about-contributors">
+      <h3>Contributors</h3>
+      <div class="contributor-list">
+        {contributors.map(c => (
+          <div class="contributor">
+            <img
+              src={`https://www.gravatar.com/avatar/${c.gravatarHash}?d=mp&s=64`}
+              alt={c.username}
+              width="32"
+              height="32"
+              loading="lazy"
+            />
+            <span>{c.username}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
   <div class="about-contribute">
     <p>
       This is a community project — anyone can contribute.

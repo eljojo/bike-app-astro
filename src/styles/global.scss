@@ -677,6 +677,26 @@ a.go-back-button {
   }
 }
 
+.about-contributors {
+  margin: 2rem 0;
+
+  .contributor-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .contributor {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    img {
+      border-radius: 50%;
+    }
+  }
+}
+
 .about-contribute {
   margin-top: 2rem;
   padding: 1rem 1.25rem;
