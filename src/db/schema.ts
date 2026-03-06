@@ -60,3 +60,9 @@ export const contentEdits = sqliteTable('content_edits', {
 }, (table) => [
   primaryKey({ columns: [table.contentType, table.contentSlug] }),
 ]);
+
+export const userSettings = sqliteTable('user_settings', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  emailInCommits: integer('email_in_commits', { mode: 'boolean' }).notNull().default(false),
+  analyticsOptOut: integer('analytics_opt_out', { mode: 'boolean' }).notNull().default(false),
+});

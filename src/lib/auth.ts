@@ -1,5 +1,5 @@
 import { eq, and, gt, lt } from 'drizzle-orm';
-import { credentials, sessions, users } from '../db/schema';
+import { credentials, sessions, users, userSettings } from '../db/schema';
 import type { Database, DbClient } from '../db';
 import type { AppEnv } from './app-env';
 
@@ -9,6 +9,8 @@ export interface SessionUser {
   username: string;
   role: 'admin' | 'editor' | 'guest';
   bannedAt: string | null;
+  emailInCommits: boolean;
+  analyticsOptOut: boolean;
 }
 
 export interface WebAuthnConfig {
@@ -144,12 +146,26 @@ export async function validateSession(db: Database, token: string): Promise<Sess
   if (result.length === 0) return null;
 
   const row = result[0];
+
+  // Fetch settings separately to avoid LEFT JOIN issues with WAL mode
+  const settings = await db
+    .select({
+      emailInCommits: userSettings.emailInCommits,
+      analyticsOptOut: userSettings.analyticsOptOut,
+    })
+    .from(userSettings)
+    .where(eq(userSettings.userId, row.userId))
+    .limit(1);
+
+  const s = settings[0];
   return {
     id: row.userId,
     email: row.email,
     username: row.username,
     role: row.role as SessionUser['role'],
     bannedAt: row.bannedAt,
+    emailInCommits: s?.emailInCommits ?? false,
+    analyticsOptOut: s?.analyticsOptOut ?? false,
   };
 }
 

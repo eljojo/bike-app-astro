@@ -1,0 +1,36 @@
+---
+export const prerender = false;
+
+import { createHash } from 'node:crypto';
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import SettingsForm from '../../components/admin/SettingsForm.tsx';
+import '../../styles/admin.scss';
+
+const user = Astro.locals.user;
+const emailHash = user.email
+  ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
+  : null;
+---
+
+<Base title="Settings" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="routes" />
+    <SettingsForm
+      client:load
+      username={user.username}
+      email={user.email}
+      emailHash={emailHash}
+      emailInCommits={user.emailInCommits}
+      analyticsOptOut={user.analyticsOptOut}
+    />
+  </div>
+</Base>
+
+<style lang="scss">
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+</style>

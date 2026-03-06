@@ -136,6 +136,33 @@ describe('session lifecycle', () => {
     const allSessions = await database.select().from(sessions);
     expect(allSessions.every((s: any) => s.token !== 'old-token')).toBe(true);
   });
+
+  it('validateSession returns user settings', async () => {
+    const { createSession, validateSession } = await import('../src/lib/auth');
+    const { userSettings } = await import('../src/db/schema');
+
+    await database.insert(userSettings).values({
+      userId: 'user-1',
+      emailInCommits: true,
+      analyticsOptOut: false,
+    });
+
+    const token = await createSession(database, 'user-1');
+    const user = await validateSession(database, token);
+    expect(user).not.toBeNull();
+    expect(user!.emailInCommits).toBe(true);
+    expect(user!.analyticsOptOut).toBe(false);
+  });
+
+  it('validateSession returns defaults when no settings row', async () => {
+    const { createSession, validateSession } = await import('../src/lib/auth');
+
+    const token = await createSession(database, 'user-1');
+    const user = await validateSession(database, token);
+    expect(user).not.toBeNull();
+    expect(user!.emailInCommits).toBe(false);
+    expect(user!.analyticsOptOut).toBe(false);
+  });
 });
 
 describe('findUserByIdentifier', () => {

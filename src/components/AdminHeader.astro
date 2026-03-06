@@ -32,13 +32,37 @@ const cspNonce = Astro.locals.cspNonce;
     banner?.remove();
   });
 </script>
+<script nonce={cspNonce}>
+  const toggle = document.getElementById('user-menu-toggle');
+  const dropdown = document.getElementById('user-menu-dropdown');
+  toggle?.addEventListener('click', () => {
+    dropdown?.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!toggle?.contains(e.target) && !dropdown?.contains(e.target)) {
+      dropdown?.classList.remove('open');
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') dropdown?.classList.remove('open');
+  });
+</script>
 <div class="admin-header">
   <h1>{currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'history' ? 'History' : 'Users'}</h1>
   <div class="admin-user">
-    {user.username}
-    <form method="POST" action="/api/auth/logout" class="logout-form">
-      <button type="submit" class="btn-logout">Sign out</button>
-    </form>
+    <button type="button" class="admin-user-toggle" id="user-menu-toggle">
+      {user.username}
+      <span class="admin-user-caret">&#9662;</span>
+    </button>
+    <div class="admin-user-dropdown" id="user-menu-dropdown">
+      <a href="/admin/settings" class="admin-user-dropdown-item">Settings</a>
+      {user.role === 'guest' && (
+        <a href="/register?join=1" class="admin-user-dropdown-item">Create account</a>
+      )}
+      <form method="POST" action="/api/auth/logout" class="logout-form">
+        <button type="submit" class="admin-user-dropdown-item">Sign out</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -155,24 +179,78 @@ const cspNonce = Astro.locals.cspNonce;
   }
 
   .admin-user {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
     font-size: 0.875rem;
-    @include muted-text;
   }
 
-  .logout-form {
-    display: inline;
-  }
-
-  .btn-logout {
+  .admin-user-toggle {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 0.875rem;
-    text-decoration: underline;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
     @include muted-text;
+  }
+
+  .admin-user-caret {
+    font-size: 0.625rem;
+  }
+
+  .admin-user-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.25rem;
+    background: $color-card-bg;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    min-width: 140px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      border-color: $color-border-dark;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    &.open {
+      display: block;
+    }
+  }
+
+  .admin-user-dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+    color: $color-text;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+
+    @include dark-mode {
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+
+      @include dark-mode {
+        background: $color-card-hover-dark;
+      }
+    }
+  }
+
+  .logout-form {
+    display: contents;
   }
 
 </style>

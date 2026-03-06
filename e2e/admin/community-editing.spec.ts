@@ -61,8 +61,8 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     const saveButton = page.getByRole('button', { name: /save/i });
     await saveButton.click();
 
-    // Wait for save response — saves directly, shows success
-    await expect(page.locator('.save-success')).toBeVisible({ timeout: 15000 });
+    // Wait for save response — guests see a success modal
+    await expect(page.getByText('Thanks for your contribution!')).toBeVisible({ timeout: 15000 });
   });
 });
 
