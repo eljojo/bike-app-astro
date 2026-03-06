@@ -28,7 +28,7 @@ test.describe('Admin Route Editor', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify we landed on the editor (not redirected to gate)
-    await expect(page.locator('h1')).toContainText('Edit:');
+    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
 
     const textarea = page.locator('#route-body');
     await expect(textarea).toBeVisible({ timeout: 10000 });

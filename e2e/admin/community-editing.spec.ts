@@ -28,7 +28,7 @@ test.describe('Community Editing — Auth Gate', () => {
 
     // Should redirect to the editor
     await page.waitForURL(url => url.pathname === '/admin/routes/carp', { timeout: 10000 });
-    await expect(page.locator('h1')).toContainText('Edit:');
+    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -50,7 +50,7 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify we landed on the editor (not redirected to gate)
-    await expect(page.locator('h1')).toContainText('Edit:');
+    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Make an edit
@@ -84,6 +84,6 @@ test.describe('Community Editing — Admin Direct Commit', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify we landed on the editor
-    await expect(page.locator('h1')).toContainText('Edit:');
+    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
   });
 });
