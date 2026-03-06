@@ -95,3 +95,13 @@ declare module 'virtual:bike-app/admin-organizers' {
   const organizers: _AdminOrganizer[];
   export default organizers;
 }
+
+interface _Contributor {
+  username: string;
+  gravatarHash: string;
+}
+
+declare module 'virtual:bike-app/contributors' {
+  const contributors: _Contributor[];
+  export default contributors;
+}

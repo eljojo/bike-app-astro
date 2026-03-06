@@ -53,6 +53,12 @@ function loadFontPreloads() {
   return [...urls];
 }
 
+function loadContributors(): Array<{ username: string; gravatarHash: string }> {
+  const filePath = path.join(PROJECT_ROOT, '_cache', 'contributors.json');
+  if (!fs.existsSync(filePath)) return [];
+  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+}
+
 function loadCachedMaps() {
   const cacheDir = path.join(PROJECT_ROOT, 'public', 'maps');
   const maps: string[] = [];
@@ -78,6 +84,7 @@ export function buildDataPlugin(): Plugin {
   const tagTranslations = loadTagTranslations();
   const fontPreloads = loadFontPreloads();
   const cachedMaps = loadCachedMaps();
+  const contributors = loadContributors();
 
   // Load admin data eagerly (async) so it's ready when load() is called
   const adminRoutesPromise = loadAdminRoutes();
@@ -97,6 +104,7 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/admin-events') return '\0virtual:bike-app/admin-events';
       if (id === 'virtual:bike-app/admin-event-detail') return '\0virtual:bike-app/admin-event-detail';
       if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
+      if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
     },
     async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
@@ -121,6 +129,9 @@ export function buildDataPlugin(): Plugin {
       if (id === '\0virtual:bike-app/admin-organizers') {
         const organizers = await adminOrganizersPromise;
         return `export default ${JSON.stringify(organizers)};`;
+      }
+      if (id === '\0virtual:bike-app/contributors') {
+        return `export default ${JSON.stringify(contributors)};`;
       }
     },
 
