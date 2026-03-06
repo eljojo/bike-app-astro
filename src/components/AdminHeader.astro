@@ -39,21 +39,6 @@ const avatarUrl = avatarHash
     banner?.remove();
   });
 </script>
-<script nonce={cspNonce}>
-  const toggle = document.getElementById('user-menu-toggle');
-  const dropdown = document.getElementById('user-menu-dropdown');
-  toggle?.addEventListener('click', () => {
-    dropdown?.classList.toggle('open');
-  });
-  document.addEventListener('click', (e) => {
-    if (!toggle?.contains(e.target) && !dropdown?.contains(e.target)) {
-      dropdown?.classList.remove('open');
-    }
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') dropdown?.classList.remove('open');
-  });
-</script>
 <div class="admin-header">
   <h1>{currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'history' ? 'History' : currentTab === 'settings' ? 'Settings' : 'Users'}</h1>
   <div class="admin-user">
@@ -73,6 +58,21 @@ const avatarUrl = avatarHash
     </div>
   </div>
 </div>
+<script nonce={cspNonce}>
+  const toggle = document.getElementById('user-menu-toggle');
+  const dropdown = document.getElementById('user-menu-dropdown');
+  toggle?.addEventListener('click', () => {
+    dropdown?.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!toggle?.contains(e.target) && !dropdown?.contains(e.target)) {
+      dropdown?.classList.remove('open');
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') dropdown?.classList.remove('open');
+  });
+</script>
 
 {currentTab !== 'settings' && (
 <nav class="admin-nav">

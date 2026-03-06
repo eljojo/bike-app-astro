@@ -25,7 +25,7 @@ export function sharedCspDirectives(): string[] {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `img-src 'self' data: blob: ${cdn} ${videos} ${tiles}`,
+    `img-src 'self' data: blob: ${cdn} ${videos} ${tiles} https://www.gravatar.com`,
     `media-src 'self' blob: ${videos} ${cdn}`,
     "font-src 'self' data:",
     "connect-src 'self' https://*.r2.cloudflarestorage.com",
