@@ -801,6 +801,12 @@
   position: relative;
 }
 
+.event-editor {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
 .drop-overlay {
   position: fixed;
   inset: 0;

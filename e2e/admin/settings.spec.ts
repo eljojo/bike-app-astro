@@ -20,6 +20,9 @@ test.describe('Settings page', () => {
   });
 
   test('settings page loads with current username', async ({ page }) => {
+    const heading = page.locator('.admin-header h1');
+    await expect(heading).toHaveText('Settings');
+
     const usernameInput = page.locator('#settings-username');
     await expect(usernameInput).toBeVisible();
     const value = await usernameInput.inputValue();

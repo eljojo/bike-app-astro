@@ -28,7 +28,7 @@ let routes = mergedRoutes.sort((a, b) => {
 ---
 
 <Base title="Admin" admin>
-  {user.analyticsOptOut && <script nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
+  {user.analyticsOptOut && <script is:inline nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
   <div class="admin-page">
     <AdminHeader
       user={user}
