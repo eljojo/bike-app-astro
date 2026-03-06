@@ -20,13 +20,13 @@ describe('renderMarkdownHtml', () => {
     expect(html).toContain('Click</a>');
   });
 
-  it('preserves benign inline HTML used by static pages', async () => {
+  it('strips style attributes while preserving safe HTML attributes', async () => {
     const html = await renderMarkdownHtml(
       '<h1 style="font-size: 1.7em;">Welcome</h1>\n\n<p><a href="https://example.com" target="_blank" rel="noopener">Link</a></p>'
     );
-    expect(html).toContain('<h1 style="font-size: 1.7em;">Welcome</h1>');
+    expect(html).toContain('<h1>Welcome</h1>');
+    expect(html).not.toContain('style=');
     expect(html).toContain('href="https://example.com"');
     expect(html).toContain('target="_blank"');
   });
 });
-

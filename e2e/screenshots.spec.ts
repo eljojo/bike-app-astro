@@ -15,8 +15,8 @@ async function waitForImages(page: Page) {
   // Wait for all images to report complete
   await page.waitForFunction(() => {
     const images = Array.from(document.querySelectorAll('img'));
-    return images.every(img => img.complete);
-  }, { timeout: 10000 }).catch(() => {});
+    return images.every(img => img.complete || (img.loading === 'lazy' && !img.currentSrc));
+  }, undefined, { timeout: 10000 }).catch(() => {});
 }
 
 test.describe('Screenshots', () => {

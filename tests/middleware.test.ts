@@ -84,11 +84,64 @@ describe('onRequest middleware', () => {
     vi.clearAllMocks();
   });
 
+  function htmlResponse() {
+    return new Response('<html></html>', {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
   it('passes through for public routes', async () => {
     const { context } = makeContext('/routes/my-route');
     const next = vi.fn(async () => new Response('OK'));
     await onRequest(context as any, next);
     expect(next).toHaveBeenCalled();
+  });
+
+  it('adds nonce-based CSP header for auth pages', async () => {
+    const { context } = makeContext('/login');
+    const next = vi.fn(async () => htmlResponse());
+    const res = await onRequest(context as any, next) as Response;
+
+    expect(res.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
+    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(res.headers.get('Content-Security-Policy'))
+      .toContain(`'nonce-${context.locals.cspNonce}'`);
+  });
+
+  it('adds nonce attributes to inline scripts on nonce-CSP pages', async () => {
+    const { context } = makeContext('/gate');
+    const next = vi.fn(async () => new Response(
+      '<html><script>window.a=1</script><script nonce="keep">window.b=2</script></html>',
+      { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    ));
+    const res = await onRequest(context as any, next) as Response;
+    const body = await res.text();
+
+    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(body).toContain(`<script nonce="${context.locals.cspNonce}">window.a=1</script>`);
+    expect(body).toContain('<script nonce="keep">window.b=2</script>');
+  });
+
+  it('adds nonce-based CSP header for authenticated admin HTML pages', async () => {
+    const user = { id: 'u1', username: 'test', role: 'editor', bannedAt: null };
+    mockValidateSession.mockResolvedValue(user);
+    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const next = vi.fn(async () => htmlResponse());
+    const res = await onRequest(context as any, next) as Response;
+
+    expect(context.locals.user).toEqual(user);
+    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(res.headers.get('Content-Security-Policy'))
+      .toContain(`'nonce-${context.locals.cspNonce}'`);
+  });
+
+  it('does not add nonce CSP header for public static pages', async () => {
+    const { context } = makeContext('/routes/aylmer');
+    const next = vi.fn(async () => htmlResponse());
+    const res = await onRequest(context as any, next) as Response;
+
+    expect(context.locals.cspNonce).toBeUndefined();
+    expect(res.headers.get('Content-Security-Policy')).toBeNull();
   });
 
   it('redirects to /gate for admin pages with no cookie', async () => {

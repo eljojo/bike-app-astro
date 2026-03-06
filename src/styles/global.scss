@@ -490,6 +490,18 @@ a.go-back-button {
   max-width: 1130px;
   font-size: 1.05em;
 
+  .about-inline-title {
+    font-size: 1.7em;
+  }
+
+  .about-inline-title-text {
+    display: inline-block;
+  }
+
+  .about-contact-email {
+    font-weight: bold;
+  }
+
   img {
     float: right;
     margin-left: 10px;
@@ -497,6 +509,10 @@ a.go-back-button {
     max-width: 50vw;
     border-radius: 8px;
   }
+}
+
+.about-inline-icon {
+  vertical-align: middle;
 }
 
 // Guides

@@ -13,6 +13,7 @@ declare global {
   namespace App {
     interface Locals {
       user?: SessionUser;
+      cspNonce?: string;
     }
   }
 

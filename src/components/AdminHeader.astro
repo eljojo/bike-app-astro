@@ -9,6 +9,7 @@ interface Props {
 
 const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
+const cspNonce = Astro.locals.cspNonce;
 ---
 
 {isStaging && (
@@ -20,7 +21,7 @@ const isStaging = env.ENVIRONMENT === 'staging';
   Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
   <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
 </div>
-<script>
+<script nonce={cspNonce}>
   const banner = document.getElementById('community-banner');
   const dismiss = document.getElementById('community-banner-dismiss');
   if (sessionStorage.getItem('community-banner-dismissed')) {

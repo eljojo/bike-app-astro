@@ -9,6 +9,7 @@ import { env } from '../../lib/env';
 import { loadAdminRouteList } from '../../lib/load-admin-content';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
+const cspNonce = Astro.locals.cspNonce;
 const isStaging = env.ENVIRONMENT === 'staging';
 const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha';
 
@@ -27,6 +28,7 @@ let routes = mergedRoutes.sort((a, b) => {
 ---
 
 <Base title="Admin" admin>
+  {user.role === 'admin' && <script nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
   <div class="admin-page">
     <AdminHeader
       user={user}
