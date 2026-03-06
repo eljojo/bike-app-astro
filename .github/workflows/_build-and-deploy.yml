@@ -226,11 +226,7 @@ jobs:
 
       - name: Run admin E2E tests
         if: ${{ !inputs.skip-e2e }}
-        run: |
-          for config in e2e/admin/*.config.ts; do
-            echo "=== $config ==="
-            npx playwright test --config "$config"
-          done
+        run: npx playwright test --config e2e/admin/fixture.ts
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa

@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
-import { FIXTURE_DIR } from './fixture.ts';
+import { FIXTURE_DIR } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs } from './helpers.ts';
 
 test.describe('Event Editing', () => {

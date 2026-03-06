@@ -27,10 +27,11 @@ test-update: build ## Update screenshot baselines
 full: build validate test test-e2e test-admin ## Run full CI pipeline (build, validate, unit tests, all e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
-	@for config in e2e/admin/*.config.ts; do echo "=== $$config ===" && npx playwright test --config "$$config" || exit 1; done
+	npx playwright test --config e2e/admin/fixture.ts
 
-screenshots: ## Update admin screenshot baselines
-	@for config in e2e/admin/*.config.ts; do echo "=== $$config ===" && npx playwright test --config "$$config" --update-snapshots || exit 1; done
+screenshots: build ## Update all screenshot baselines (public + admin)
+	npx playwright test --config e2e/playwright.config.ts --update-snapshots
+	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
 
 maps: ## Generate map thumbnails
 	npx tsx scripts/generate-maps.ts

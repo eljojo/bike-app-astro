@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
-import { FIXTURE_DIR } from './fixture.ts';
+import { FIXTURE_DIR } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

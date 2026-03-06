@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import sharp from 'sharp';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { FIXTURE_DIR } from './fixture.ts';
+import { FIXTURE_DIR } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
