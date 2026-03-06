@@ -492,6 +492,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             {' '}<a href={`/events/${initialData.id}`}>View live</a>
           </div>
         )}
+        <p class="editor-license-notice">
+          By saving, you agree to release your contribution under{' '}
+          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
+        </p>
         <button type="button" class="btn-primary" onClick={handleSave} disabled={saving || readOnly}>
           {saving ? 'Saving...' : 'Save'}
         </button>

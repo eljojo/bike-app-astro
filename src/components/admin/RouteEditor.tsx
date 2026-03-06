@@ -400,6 +400,10 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
             {' '}<a href={`/routes/${initialData.slug}`}>View live</a>
           </div>
         )}
+        <p class="editor-license-notice">
+          By saving, you agree to release your contribution under{' '}
+          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
+        </p>
         <button
           type="button"
           class="btn-primary"
