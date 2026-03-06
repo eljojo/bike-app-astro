@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { routeDetailFromGit, routeDetailToCache, routeDetailFromCache, computeRouteContentHash } from '../src/lib/models/route-model';
+import {
+  routeDetailFromGit,
+  routeDetailToCache,
+  routeDetailFromCache,
+  computeRouteContentHash,
+  computeRouteContentHashFromFiles,
+  buildFreshRouteData,
+} from '../src/lib/models/route-model';
 
 describe('routeDetailFromGit', () => {
   it('parses frontmatter, body, and photo-only media into canonical shape', () => {
@@ -81,5 +88,45 @@ describe('computeRouteContentHash', () => {
     const a = computeRouteContentHash('body', 'media');
     const b = computeRouteContentHash('body', 'media');
     expect(a).toBe(b);
+  });
+});
+
+describe('computeRouteContentHashFromFiles', () => {
+  it('includes primary, media, and translation files', () => {
+    const withTranslation = computeRouteContentHashFromFiles({
+      primaryFile: { content: '---\nname: Test\n---\n\nBody', sha: 'a' },
+      auxiliaryFiles: {
+        'ottawa/routes/test/media.yml': { content: '- type: photo\n  key: img', sha: 'b' },
+        'ottawa/routes/test/index.fr.md': { content: '---\nname: Test FR\n---\n\nCorps', sha: 'c' },
+      },
+    });
+
+    const withoutTranslation = computeRouteContentHashFromFiles({
+      primaryFile: { content: '---\nname: Test\n---\n\nBody', sha: 'a' },
+      auxiliaryFiles: {
+        'ottawa/routes/test/media.yml': { content: '- type: photo\n  key: img', sha: 'b' },
+      },
+    });
+
+    expect(withTranslation).not.toBe(withoutTranslation);
+  });
+});
+
+describe('buildFreshRouteData', () => {
+  it('builds cache JSON from git file snapshots', () => {
+    const data = buildFreshRouteData('test-route', {
+      primaryFile: { content: '---\nname: Test Route\nstatus: published\n---\n\nBody text', sha: 'a' },
+      auxiliaryFiles: {
+        'ottawa/routes/test-route/media.yml': { content: '- type: photo\n  key: img1\n  caption: Nice', sha: 'b' },
+        'ottawa/routes/test-route/index.fr.md': { content: '---\nname: Itineraire\n---\n\nTexte', sha: 'c' },
+      },
+    });
+
+    const parsed = routeDetailFromCache(data);
+    expect(parsed.slug).toBe('test-route');
+    expect(parsed.body).toBe('Body text');
+    expect(parsed.media).toEqual([{ key: 'img1', caption: 'Nice' }]);
+    expect(parsed.translations.fr?.name).toBe('Itineraire');
+    expect(parsed.translations.fr?.body).toBe('Texte');
   });
 });

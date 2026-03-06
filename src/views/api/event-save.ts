@@ -1,5 +1,4 @@
 import type { APIContext } from 'astro';
-import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'zod';
 import adminEvents from 'virtual:bike-app/admin-events';
@@ -9,7 +8,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
-import { eventDetailFromGit, eventDetailToCache, computeEventContentHash } from '../../lib/models/event-model';
+import { buildFreshEventData, computeEventContentHashFromFiles } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 
 export const prerender = false;
@@ -82,13 +81,11 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
   },
 
   computeContentHash(currentFiles: CurrentFiles): string {
-    return computeEventContentHash(currentFiles.primaryFile!.content);
+    return computeEventContentHashFromFiles(currentFiles);
   },
 
   buildFreshData(eventId: string, currentFiles: CurrentFiles): string {
-    const { data: ghFm, content: ghBody } = matter(currentFiles.primaryFile!.content);
-    const detail = eventDetailFromGit(eventId, ghFm, ghBody);
-    return eventDetailToCache(detail);
+    return buildFreshEventData(eventId, currentFiles);
   },
 
   async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {

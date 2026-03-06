@@ -11,7 +11,7 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { uploadToLfs } from '../../lib/git-lfs';
 import { env } from '../../lib/env';
-import { routeDetailFromGit, routeDetailToCache, computeRouteContentHash } from '../../lib/models/route-model';
+import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 
@@ -101,42 +101,11 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   computeContentHash(currentFiles: CurrentFiles): string {
-    const auxFiles = currentFiles.auxiliaryFiles || {};
-    const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('media.yml'));
-    const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
-    const translationContents: Record<string, string> = {};
-    for (const [p, f] of Object.entries(auxFiles)) {
-      const match = p.match(/index\.(\w+)\.md$/);
-      if (match && f) translationContents[match[1]] = f.content;
-    }
-    return computeRouteContentHash(
-      currentFiles.primaryFile!.content,
-      mediaContent,
-      Object.keys(translationContents).length > 0 ? translationContents : undefined,
-    );
+    return computeRouteContentHashFromFiles(currentFiles);
   },
 
   buildFreshData(slug: string, currentFiles: CurrentFiles): string {
-    const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile!.content);
-    const auxFiles = currentFiles.auxiliaryFiles || {};
-    const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('media.yml'));
-    const currentMedia = mediaPath ? auxFiles[mediaPath] : null;
-
-    const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
-    for (const [p, f] of Object.entries(auxFiles)) {
-      const match = p.match(/index\.(\w+)\.md$/);
-      if (match && f) {
-        const { data: tFm, content: tBody } = matter(f.content);
-        translations[match[1]] = {
-          name: tFm.name as string | undefined,
-          tagline: tFm.tagline as string | undefined,
-          body: tBody.trim() || undefined,
-        };
-      }
-    }
-
-    const detail = routeDetailFromGit(slug, ghFrontmatter, ghBody, currentMedia?.content, translations);
-    return routeDetailToCache(detail);
+    return buildFreshRouteData(slug, currentFiles);
   },
 
   async buildFileChanges(update, slug, currentFiles): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {

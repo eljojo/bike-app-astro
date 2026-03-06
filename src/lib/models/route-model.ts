@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import yaml from 'js-yaml';
+import matter from 'gray-matter';
 
 const adminMediaItemSchema = z.object({
   key: z.string(),
@@ -41,6 +42,16 @@ export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type AdminMediaItem = z.infer<typeof adminMediaItemSchema>;
 export type AdminVariant = z.infer<typeof adminVariantSchema>;
 
+interface GitFileSnapshot {
+  content: string;
+  sha: string;
+}
+
+export interface RouteGitFiles {
+  primaryFile: GitFileSnapshot | null;
+  auxiliaryFiles?: Record<string, GitFileSnapshot | null>;
+}
+
 /** Compute content hash for route conflict detection. Hashes primary + media + translation content. */
 export function computeRouteContentHash(primaryContent: string, mediaContent: string | undefined, translationContents?: Record<string, string>): string {
   const hash = createHash('md5').update(primaryContent);
@@ -51,6 +62,29 @@ export function computeRouteContentHash(primaryContent: string, mediaContent: st
     }
   }
   return hash.digest('hex');
+}
+
+/** Compute route hash directly from git file snapshots used by the save pipeline. */
+export function computeRouteContentHashFromFiles(currentFiles: RouteGitFiles): string {
+  if (!currentFiles.primaryFile) {
+    throw new Error('Cannot compute route hash without primary file content');
+  }
+
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  const mediaPath = Object.keys(auxFiles).find((p) => p.endsWith('media.yml'));
+  const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
+  const translationContents: Record<string, string> = {};
+
+  for (const [p, f] of Object.entries(auxFiles)) {
+    const match = p.match(/index\.(\w+)\.md$/);
+    if (match && f) translationContents[match[1]] = f.content;
+  }
+
+  return computeRouteContentHash(
+    currentFiles.primaryFile.content,
+    mediaContent,
+    Object.keys(translationContents).length > 0 ? translationContents : undefined,
+  );
 }
 
 /**
@@ -94,6 +128,33 @@ export function routeDetailFromGit(
 /** Serialize RouteDetail to JSON string for D1 cache. */
 export function routeDetailToCache(detail: RouteDetail): string {
   return JSON.stringify(detail);
+}
+
+/** Build fresh route cache JSON directly from git file snapshots used by the save pipeline. */
+export function buildFreshRouteData(slug: string, currentFiles: RouteGitFiles): string {
+  if (!currentFiles.primaryFile) {
+    throw new Error('Cannot build route cache data without primary file content');
+  }
+
+  const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile.content);
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  const mediaPath = Object.keys(auxFiles).find((p) => p.endsWith('media.yml'));
+  const currentMedia = mediaPath ? auxFiles[mediaPath] : null;
+
+  const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
+  for (const [p, f] of Object.entries(auxFiles)) {
+    const match = p.match(/index\.(\w+)\.md$/);
+    if (!match || !f) continue;
+    const { data: tFm, content: tBody } = matter(f.content);
+    translations[match[1]] = {
+      name: tFm.name as string | undefined,
+      tagline: tFm.tagline as string | undefined,
+      body: tBody.trim() || undefined,
+    };
+  }
+
+  const detail = routeDetailFromGit(slug, ghFrontmatter, ghBody, currentMedia?.content, translations);
+  return routeDetailToCache(detail);
 }
 
 /** Deserialize and validate D1 cache blob into RouteDetail. Throws on invalid data. */

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { eventDetailFromGit, eventDetailToCache, eventDetailFromCache, computeEventContentHash } from '../src/lib/models/event-model';
+import {
+  eventDetailFromGit,
+  eventDetailToCache,
+  eventDetailFromCache,
+  computeEventContentHash,
+  computeEventContentHashFromFiles,
+  buildFreshEventData,
+} from '../src/lib/models/event-model';
 
 describe('eventDetailFromGit', () => {
   it('parses frontmatter and body into canonical shape', () => {
@@ -67,5 +74,34 @@ describe('computeEventContentHash', () => {
     const a = computeEventContentHash('content');
     const b = computeEventContentHash('content');
     expect(a).toBe(b);
+  });
+});
+
+describe('computeEventContentHashFromFiles', () => {
+  it('hashes primary file from git snapshot', () => {
+    const hashA = computeEventContentHashFromFiles({
+      primaryFile: { content: '---\nname: A\nstart_date: 2026-01-01\n---\n\nBody', sha: 'a' },
+    });
+    const hashB = computeEventContentHashFromFiles({
+      primaryFile: { content: '---\nname: B\nstart_date: 2026-01-01\n---\n\nBody', sha: 'b' },
+    });
+    expect(hashA).not.toBe(hashB);
+  });
+});
+
+describe('buildFreshEventData', () => {
+  it('builds cache JSON from git file snapshots', () => {
+    const data = buildFreshEventData('2026/bike-fest', {
+      primaryFile: {
+        content: '---\nname: Bike Fest\nstart_date: 2026-07-01\norganizer: bike-club\n---\n\nEvent body',
+        sha: 'abc',
+      },
+    });
+
+    const parsed = eventDetailFromCache(data);
+    expect(parsed.id).toBe('2026/bike-fest');
+    expect(parsed.name).toBe('Bike Fest');
+    expect(parsed.body).toBe('Event body');
+    expect(parsed.organizer).toBe('bike-club');
   });
 });

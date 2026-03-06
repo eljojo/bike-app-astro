@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import matter from 'gray-matter';
 
 const organizerRefSchema = z.object({
   name: z.string(),
@@ -28,9 +29,27 @@ export const eventDetailSchema = z.object({
 
 export type EventDetail = z.infer<typeof eventDetailSchema>;
 
+interface GitFileSnapshot {
+  content: string;
+  sha: string;
+}
+
+export interface EventGitFiles {
+  primaryFile: GitFileSnapshot | null;
+  auxiliaryFiles?: Record<string, GitFileSnapshot | null>;
+}
+
 /** Compute content hash for event conflict detection. Hashes the full .md content. */
 export function computeEventContentHash(content: string): string {
   return createHash('md5').update(content).digest('hex');
+}
+
+/** Compute event hash directly from git file snapshots used by the save pipeline. */
+export function computeEventContentHashFromFiles(currentFiles: EventGitFiles): string {
+  if (!currentFiles.primaryFile) {
+    throw new Error('Cannot compute event hash without primary file content');
+  }
+  return computeEventContentHash(currentFiles.primaryFile.content);
 }
 
 /**
@@ -65,6 +84,17 @@ export function eventDetailFromGit(
 /** Serialize EventDetail to JSON string for D1 cache. */
 export function eventDetailToCache(detail: EventDetail): string {
   return JSON.stringify(detail);
+}
+
+/** Build fresh event cache JSON directly from git file snapshots used by the save pipeline. */
+export function buildFreshEventData(eventId: string, currentFiles: EventGitFiles): string {
+  if (!currentFiles.primaryFile) {
+    throw new Error('Cannot build event cache data without primary file content');
+  }
+
+  const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile.content);
+  const detail = eventDetailFromGit(eventId, ghFrontmatter, ghBody);
+  return eventDetailToCache(detail);
 }
 
 /** Deserialize and validate D1 cache blob into EventDetail. Throws on invalid data. */

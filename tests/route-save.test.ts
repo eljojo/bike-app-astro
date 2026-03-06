@@ -142,3 +142,26 @@ describe('routeHandlers.parseRequest', () => {
     expect(() => routeHandlers.parseRequest(body)).toThrow();
   });
 });
+
+describe('routeHandlers.buildFileChanges', () => {
+  it('handles existing routes without crashing when parsing current frontmatter', async () => {
+    const update = {
+      frontmatter: { name: 'Updated Name' },
+      body: 'Updated body',
+      media: undefined,
+      variants: undefined,
+    };
+
+    const currentFiles: CurrentFiles = {
+      primaryFile: {
+        content: '---\nname: Original\nstatus: published\n---\n\nOriginal body',
+        sha: 'abc123',
+      },
+      auxiliaryFiles: {},
+    };
+
+    const result = await routeHandlers.buildFileChanges(update, 'test', currentFiles, {} as any);
+    expect(result.isNew).toBe(false);
+    expect(result.files.some((f) => f.path.endsWith('/index.md'))).toBe(true);
+  });
+});
