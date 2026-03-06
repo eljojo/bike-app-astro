@@ -70,48 +70,29 @@ export function resolveContributors(
     if (appMatch) {
       const userId = appMatch[2];
       const user = userById.get(userId);
-      if (user) {
-        if (user.bannedAt) continue;
-        const key = user.id;
-        const email = user.email || authorEmail;
-        const existing = resolved.get(key);
-        if (existing) {
-          existing.count += entry.count;
-        } else {
-          resolved.set(key, { username: user.username, email, count: entry.count });
-        }
-        continue;
-      }
-      // userId not found in DB — use commit info as-is
-      const existing = resolved.get(authorEmail);
-      if (existing) {
-        existing.count += entry.count;
-      } else {
-        resolved.set(authorEmail, { username: entry.name, email: authorEmail, count: entry.count });
-      }
-      continue;
-    }
-
-    // Regular email — check if it belongs to a known user
-    const user = userByEmail.get(authorEmail);
-    if (user) {
+      if (!user) continue; // userId not in DB — skip entirely
       if (user.bannedAt) continue;
       const key = user.id;
+      const email = user.email || authorEmail;
       const existing = resolved.get(key);
       if (existing) {
         existing.count += entry.count;
       } else {
-        resolved.set(key, { username: user.username, email: authorEmail, count: entry.count });
+        resolved.set(key, { username: user.username, email, count: entry.count });
       }
       continue;
     }
 
-    // Unknown external contributor
-    const existing = resolved.get(authorEmail);
+    // Regular email — only include if it belongs to a known DB user
+    const user = userByEmail.get(authorEmail);
+    if (!user) continue; // no DB match — skip, never use git author name
+    if (user.bannedAt) continue;
+    const key = user.id;
+    const existing = resolved.get(key);
     if (existing) {
       existing.count += entry.count;
     } else {
-      resolved.set(authorEmail, { username: entry.name, email: authorEmail, count: entry.count });
+      resolved.set(key, { username: user.username, email: authorEmail, count: entry.count });
     }
   }
 

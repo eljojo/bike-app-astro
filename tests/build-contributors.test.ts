@@ -42,24 +42,58 @@ describe('resolveContributors', () => {
     expect(result[0]).not.toHaveProperty('email');
   });
 
-  it('uses commit email for non-app authors', () => {
-    const lines = new Map([
-      ['jose@example.com', { name: 'José', count: 5 }],
+  it('excludes authors not matched to any DB user', () => {
+    const authorMap = new Map([
+      ['stranger@example.com', { name: 'Stranger', count: 5 }],
     ]);
-    const result = resolveContributors(lines, []);
+    const result = resolveContributors(authorMap, []);
+    expect(result).toHaveLength(0);
+  });
+
+  it('excludes app-format emails when userId not found in DB', () => {
+    const authorMap = new Map([
+      ['ghost+unknown-id@whereto.bike', { name: 'ghost', count: 3 }],
+    ]);
+    const result = resolveContributors(authorMap, []);
+    expect(result).toHaveLength(0);
+  });
+
+  it('includes regular email authors when their email matches a DB user', () => {
+    const authorMap = new Map([
+      ['jose@example.com', { name: 'José Real Name', count: 5 }],
+    ]);
+    const usersData = [
+      { id: 'uid-jose', username: 'jojo', email: 'jose@example.com' },
+    ];
+    const result = resolveContributors(authorMap, usersData);
     expect(result).toHaveLength(1);
-    expect(result[0].username).toBe('José');
-    expect(result[0].gravatarHash).toBeTruthy();
+    expect(result[0].username).toBe('jojo');
+  });
+
+  it('never uses git author name — always uses DB username', () => {
+    const authorMap = new Map([
+      ['jose@example.com', { name: 'José Albornoz Full Legal Name', count: 5 }],
+    ]);
+    const usersData = [
+      { id: 'uid-jose', username: 'jojo', email: 'jose@example.com' },
+    ];
+    const result = resolveContributors(authorMap, usersData);
+    expect(result[0].username).not.toBe('José Albornoz Full Legal Name');
+    expect(result[0].username).toBe('jojo');
   });
 
   it('sorts by commit count descending', () => {
     const authorMap = new Map([
-      ['a@x.com', { name: 'A', count: 1 }],
-      ['b@x.com', { name: 'B', count: 10 }],
+      ['a+uid1@whereto.bike', { name: 'a', count: 1 }],
+      ['b+uid2@whereto.bike', { name: 'b', count: 10 }],
     ]);
-    const result = resolveContributors(authorMap, []);
-    expect(result[0].username).toBe('B');
-    expect(result[1].username).toBe('A');
+    const usersData = [
+      { id: 'uid1', username: 'userA', email: 'a@x.com' },
+      { id: 'uid2', username: 'userB', email: 'b@x.com' },
+    ];
+    const result = resolveContributors(authorMap, usersData);
+    expect(result[0].username).toBe('userB');
+    expect(result[1].username).toBe('userA');
   });
 
   it('excludes banned users', () => {
