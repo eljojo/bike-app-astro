@@ -5,6 +5,9 @@ import { seedSession, cleanupSession, loginAs } from './helpers.ts';
 // that can cause minor rendering differences between runs.
 const screenshotOpts = { fullPage: true, maxDiffPixelRatio: 0.04 };
 
+// Fixed date for deterministic screenshots (matches fixture-setup.ts and helpers.ts).
+const FIXED_DATE = new Date('2025-06-15T16:00:00.000Z');
+
 test.describe('Admin Screenshots — Editor Pages', () => {
   let token: string;
 
@@ -17,6 +20,7 @@ test.describe('Admin Screenshots — Editor Pages', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
   });
 
@@ -89,6 +93,7 @@ test.describe('Admin Screenshots — Admin-Only Pages', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
   });
 
@@ -122,6 +127,7 @@ test.describe('Admin Screenshots — Guest Variant', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
   });
 

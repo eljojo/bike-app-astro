@@ -258,7 +258,9 @@ About page fixture.
 `
   );
 
-  // Init git repo with user config so simple-git can commit during saves
+  // Init git repo with user config so simple-git can commit during saves.
+  // Use a fixed date for deterministic commit timestamps in screenshot tests.
+  const FIXED_GIT_DATE = '2025-06-15T12:00:00-04:00';
   execSync([
     'git init -b main',
     'git config user.name "test"',
@@ -268,6 +270,7 @@ About page fixture.
   ].join(' && '), {
     cwd: FIXTURE_DIR,
     stdio: 'inherit',
+    env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE },
   });
 
   // Clean Astro content caches to prevent stale data from previous builds
