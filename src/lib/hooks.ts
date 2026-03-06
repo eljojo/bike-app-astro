@@ -65,7 +65,13 @@ export function useFileUpload() {
       const fileArray = Array.isArray(files) ? files : [files];
       const uploaded: UploadedFile[] = [];
 
+      const MAX_UPLOAD_SIZE = 25 * 1024 * 1024; // 25MB
       for (const file of fileArray) {
+        if (file.size > MAX_UPLOAD_SIZE) {
+          const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+          throw new Error(`File too large (${sizeMB}MB). Maximum size is 25MB.`);
+        }
+
         const presignRes = await fetch('/api/media/presign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
