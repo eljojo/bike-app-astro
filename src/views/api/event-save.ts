@@ -53,7 +53,7 @@ function resolveEventPath(eventId: string): string {
   return `${CITY}/events/${year}/${slug}.md`;
 }
 
-const eventHandlers: SaveHandlers<EventUpdate> = {
+export const eventHandlers: SaveHandlers<EventUpdate> = {
   parseRequest(body: unknown): EventUpdate {
     return eventUpdateSchema.parse(body);
   },
@@ -155,9 +155,11 @@ const eventHandlers: SaveHandlers<EventUpdate> = {
     return { files, deletePaths, isNew };
   },
 
-  buildCommitMessage(_update, eventId, isNew): string {
+  buildCommitMessage(update, eventId, isNew): string {
     const resourcePath = `${CITY}/events/${eventId}`;
-    return isNew ? `Create ${resourcePath}` : `Update ${resourcePath}`;
+    const title = (update.frontmatter as Record<string, unknown>)?.name as string || eventId;
+    const trailer = `\n\nChanges: ${resourcePath}`;
+    return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
   },
 
   buildGitHubUrl(eventId: string, baseBranch: string): string {
