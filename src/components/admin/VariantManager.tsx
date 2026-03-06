@@ -147,7 +147,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
               <button type="button" class="btn-edit-variant" onClick={() => setEditIdx(editIdx === idx ? null : idx)}>
                 {editIdx === idx ? 'Done' : 'Edit'}
               </button>
-              <button type="button" class="btn-remove" onClick={() => removeVariant(idx)} title="Remove variant">
+              <button type="button" class="btn-remove" onClick={() => removeVariant(idx)} title="Remove variant" disabled={variants.length <= 1}>
                 {'×'}
               </button>
             </div>

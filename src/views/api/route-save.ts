@@ -54,7 +54,7 @@ const routeUpdateSchema = z.object({
     rwgps_url: z.string().optional(),
     isNew: z.boolean().optional(),
     gpxContent: z.string().optional(),
-  })).optional(),
+  })).min(1, 'At least one route option is required').optional(),
   newSlug: z.string().optional(),
   contentHash: z.string().optional(),
   translations: z.record(z.string(), z.object({

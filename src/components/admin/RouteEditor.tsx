@@ -182,6 +182,11 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
       return;
     }
 
+    if (!variants.length) {
+      setError('At least one route option is required');
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
 

@@ -132,6 +132,26 @@ describe('routeHandlers.parseRequest', () => {
     expect(() => routeHandlers.parseRequest(body)).toThrow();
   });
 
+  it('rejects empty variants array', () => {
+    const body = {
+      frontmatter: { name: 'Test' },
+      body: 'body',
+      media: [],
+      variants: [],
+    };
+    expect(() => routeHandlers.parseRequest(body)).toThrow();
+  });
+
+  it('accepts variants with at least one entry', () => {
+    const body = {
+      frontmatter: { name: 'Test' },
+      body: 'body',
+      media: [],
+      variants: [{ name: 'Main', gpx: 'main.gpx' }],
+    };
+    expect(() => routeHandlers.parseRequest(body)).not.toThrow();
+  });
+
   it('rejects missing body', () => {
     const body = {
       frontmatter: { name: 'Test' },
