@@ -8,13 +8,16 @@ interface Props {
   analyticsOptOut: boolean;
 }
 
-export default function SettingsForm({ username: initialUsername, email, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut }: Props) {
   const [username, setUsername] = useState(initialUsername);
+  const [email, setEmail] = useState(initialEmail ?? '');
   const [emailInCommits, setEmailInCommits] = useState(initialEmailInCommits);
   const [analyticsOptOut, setAnalyticsOptOut] = useState(initialAnalyticsOptOut);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  const emailModified = email.trim().toLowerCase() !== (initialEmail ?? '').toLowerCase();
 
   const avatarUrl = emailHash
     ? `https://www.gravatar.com/avatar/${emailHash}?d=mp&s=80`
@@ -29,7 +32,7 @@ export default function SettingsForm({ username: initialUsername, email, emailHa
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, emailInCommits, analyticsOptOut }),
+        body: JSON.stringify({ username, email, emailInCommits, analyticsOptOut }),
       });
 
       if (!res.ok) {
@@ -64,13 +67,25 @@ export default function SettingsForm({ username: initialUsername, email, emailHa
           width={80}
           height={80}
         />
-        <div>
-          {email && <p class="settings-email">{email}</p>}
-          {!email && <p class="settings-email settings-email--none">No email set</p>}
-        </div>
+        {emailModified && (
+          <p class="settings-help">Gravatar updates on save</p>
+        )}
       </div>
 
       <div class="auth-form">
+        <div class="form-field">
+          <label for="settings-email">Email</label>
+          <input
+            id="settings-email"
+            type="email"
+            value={email}
+            placeholder="Optional"
+            onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
+          />
+          <p class="settings-help">
+            Used for your <a href="https://gravatar.com" target="_blank" rel="noopener noreferrer">Gravatar</a> avatar and optionally for commit attribution.
+          </p>
+        </div>
         <div class="form-field">
           <label for="settings-username">Username</label>
           <input
@@ -95,9 +110,9 @@ export default function SettingsForm({ username: initialUsername, email, emailHa
         <p class="settings-help">
           Your username always appears on commits. Enabling this adds a Signed-off-by line with your email so GitHub can link the commit to your account.
         </p>
-        {!email && (
+        {!email.trim() && (
           <p class="settings-help settings-help--warn">
-            You need to set an email during registration for this to take effect.
+            You need to set an email above for this to take effect.
           </p>
         )}
       </div>

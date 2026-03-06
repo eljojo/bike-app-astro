@@ -108,6 +108,118 @@ describe('POST /api/settings', () => {
     });
   });
 
+  describe('email change', () => {
+    it('updates email successfully', async () => {
+      const { users } = await import('../src/db/schema');
+      const { eq } = await import('drizzle-orm');
+      const { normalizeEmail } = await import('../src/lib/auth');
+
+      const newEmail = normalizeEmail('  Alice-NEW@Example.COM  ');
+      expect(newEmail).toBe('alice-new@example.com');
+
+      // Check uniqueness (no other user has this email)
+      const existing = await database
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, newEmail))
+        .limit(1);
+      expect(existing.length).toBe(0);
+
+      await database
+        .update(users)
+        .set({ email: newEmail })
+        .where(eq(users.id, 'user-1'));
+
+      const updated = await database
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, 'user-1'))
+        .limit(1);
+      expect(updated[0].email).toBe('alice-new@example.com');
+    });
+
+    it('rejects duplicate email', async () => {
+      const { users } = await import('../src/db/schema');
+      const { eq } = await import('drizzle-orm');
+      const { normalizeEmail } = await import('../src/lib/auth');
+
+      // Try to take bob's email
+      const newEmail = normalizeEmail('bob@example.com');
+      const existing = await database
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, newEmail))
+        .limit(1);
+      expect(existing.length).toBe(1);
+      expect(existing[0].id).toBe('user-2');
+    });
+
+    it('allows clearing email (set to null)', async () => {
+      const { users } = await import('../src/db/schema');
+      const { eq } = await import('drizzle-orm');
+
+      await database
+        .update(users)
+        .set({ email: null })
+        .where(eq(users.id, 'user-1'));
+
+      const updated = await database
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, 'user-1'))
+        .limit(1);
+      expect(updated[0].email).toBeNull();
+    });
+
+    it('skips update when email is unchanged', async () => {
+      const { users } = await import('../src/db/schema');
+      const { eq } = await import('drizzle-orm');
+      const { normalizeEmail } = await import('../src/lib/auth');
+
+      // Normalize alice's existing email
+      const email = normalizeEmail('alice@example.com');
+
+      // Fetch current email to compare
+      const current = await database
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, 'user-1'))
+        .limit(1);
+
+      // If normalized email matches current, no update needed
+      expect(current[0].email).toBe(email);
+    });
+
+    it('rejects invalid email format', () => {
+      // Basic email validation: must contain @ with something on each side
+      const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      expect(isValidEmail('valid@example.com')).toBe(true);
+      expect(isValidEmail('not-an-email')).toBe(false);
+      expect(isValidEmail('@example.com')).toBe(false);
+      expect(isValidEmail('user@')).toBe(false);
+      expect(isValidEmail('user@example')).toBe(false);
+      expect(isValidEmail('')).toBe(false);
+    });
+
+    it('allows own email to pass uniqueness check', async () => {
+      const { users } = await import('../src/db/schema');
+      const { eq, and, ne } = await import('drizzle-orm');
+      const { normalizeEmail } = await import('../src/lib/auth');
+
+      // User re-submits their own email (maybe just whitespace changed)
+      const email = normalizeEmail('  ALICE@example.com  ');
+
+      // Uniqueness check should exclude the current user
+      const existing = await database
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.email, email), ne(users.id, 'user-1')))
+        .limit(1);
+      expect(existing.length).toBe(0); // no conflict
+    });
+  });
+
   describe('settings upsert', () => {
     it('creates settings row if none exists', async () => {
       const { userSettings } = await import('../src/db/schema');

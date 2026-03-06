@@ -1,10 +1,14 @@
 import type { APIContext } from 'astro';
 import { db } from '../../lib/get-db';
 import { users, userSettings } from '../../db/schema';
-import { eq } from 'drizzle-orm';
-import { requireUser } from '../../lib/auth';
+import { eq, and, ne } from 'drizzle-orm';
+import { requireUser, normalizeEmail } from '../../lib/auth';
 import { isValidUsername, sanitizeUsername } from '../../lib/username';
 import { jsonResponse, jsonError } from '../../lib/api-response';
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export const prerender = false;
 
@@ -57,6 +61,44 @@ export async function POST({ request, locals }: APIContext) {
           previousUsernames: JSON.stringify(prev),
         })
         .where(eq(users.id, user.id));
+    }
+  }
+
+  // Email change logic
+  if (body.email !== undefined) {
+    const rawEmail = String(body.email).trim();
+
+    if (rawEmail === '') {
+      // Clear email
+      await database
+        .update(users)
+        .set({ email: null })
+        .where(eq(users.id, user.id));
+    } else {
+      if (!isValidEmail(rawEmail)) {
+        return jsonError('Invalid email address.');
+      }
+
+      const email = normalizeEmail(rawEmail);
+
+      // Only update if changed
+      if (email !== user.email) {
+        // Check uniqueness (exclude current user)
+        const existing = await database
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.email, email), ne(users.id, user.id)))
+          .limit(1);
+
+        if (existing.length > 0) {
+          return jsonError('Email is already in use.');
+        }
+
+        await database
+          .update(users)
+          .set({ email })
+          .where(eq(users.id, user.id));
+      }
     }
   }
 
