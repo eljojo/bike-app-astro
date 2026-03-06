@@ -274,11 +274,13 @@ About page fixture.
     env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE },
   });
 
-  // Clean Astro content caches to prevent stale data from previous builds
-  const astroCache = path.resolve(path.dirname(DB_PATH), '..', '.astro', 'data-store.json');
-  if (fs.existsSync(astroCache)) fs.rmSync(astroCache);
-  const nmAstroCache = path.resolve(path.dirname(DB_PATH), '..', 'node_modules', '.astro', 'data-store.json');
-  if (fs.existsSync(nmAstroCache)) fs.rmSync(nmAstroCache);
+  // Clean ALL Astro caches to prevent stale data from the main Cloudflare build.
+  // In CI, the main build runs first (different adapter, full data) and leaves
+  // artifacts in .astro/ that can interfere with the admin E2E build.
+  const astroCacheDir = path.resolve(path.dirname(DB_PATH), '..', '.astro');
+  if (fs.existsSync(astroCacheDir)) fs.rmSync(astroCacheDir, { recursive: true });
+  const nmAstroCacheDir = path.resolve(path.dirname(DB_PATH), '..', 'node_modules', '.astro');
+  if (fs.existsSync(nmAstroCacheDir)) fs.rmSync(nmAstroCacheDir, { recursive: true });
 }
 
 /**
