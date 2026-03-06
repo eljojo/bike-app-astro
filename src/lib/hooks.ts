@@ -75,7 +75,7 @@ export function useFileUpload() {
         const presignRes = await fetch('/api/media/presign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contentType: file.type }),
+          body: JSON.stringify({ contentType: file.type, contentLength: file.size }),
         });
         if (!presignRes.ok) {
           const data = await presignRes.json();

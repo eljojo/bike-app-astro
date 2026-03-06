@@ -10,7 +10,7 @@ import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../..
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
 export async function POST({ request, locals }: APIContext) {
-  let body: { contentType?: string };
+  let body: { contentType?: string; contentLength?: number };
   try {
     body = await request.json();
   } catch {
@@ -20,6 +20,11 @@ export async function POST({ request, locals }: APIContext) {
   const { contentType } = body;
   if (!contentType || !ALLOWED_TYPES.includes(contentType)) {
     return jsonError(`Invalid content type. Allowed: ${ALLOWED_TYPES.join(', ')}`);
+  }
+
+  const MAX_UPLOAD_SIZE = 25 * 1024 * 1024; // 25MB
+  if (body.contentLength && body.contentLength > MAX_UPLOAD_SIZE) {
+    return jsonError('File too large. Maximum size is 25MB.', 413);
   }
 
   const user = (locals as any).user;

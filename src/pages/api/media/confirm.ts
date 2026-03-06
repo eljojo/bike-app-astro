@@ -3,9 +3,13 @@ export const prerender = false;
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env';
 import { confirmUpload } from '../../../lib/storage';
+import { authorize } from '../../../lib/authorize';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export async function POST({ request, locals }: APIContext) {
+  const user = authorize(locals, 'upload-media');
+  if (user instanceof Response) return user;
+
   let body: { key?: string };
   try {
     body = await request.json();
