@@ -130,7 +130,15 @@ export class LocalGitService implements IGitService {
   async getCommitDiff(commitSha: string, filePath?: string): Promise<string | null> {
     const git = simpleGit(this.repoPath);
     try {
-      const args = [commitSha + '^', commitSha];
+      // For root commits (no parent), diff against empty tree
+      let args: string[];
+      try {
+        await git.raw(['rev-parse', commitSha + '^']);
+        args = [commitSha + '^', commitSha];
+      } catch {
+        const emptyTree = '4b825dc642cb6eb9a060e54bf899d15363d7aa16';
+        args = [emptyTree, commitSha];
+      }
       if (filePath) args.push('--', filePath);
       const result = await git.diff(args);
       return result || null;

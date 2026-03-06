@@ -176,11 +176,10 @@ export class GitService implements IGitService {
     );
     if (!response.ok) return null;
     const data = await response.json();
-    if (!filePath) {
-      return data.files?.map((f: any) => `--- ${f.filename}\n${f.patch || ''}`).join('\n\n') || null;
-    }
-    const file = data.files?.find((f: any) => f.filename === filePath);
-    return file?.patch || null;
+    const files = filePath
+      ? data.files?.filter((f: any) => f.filename === filePath || f.filename.startsWith(filePath + '/'))
+      : data.files;
+    return files?.map((f: any) => `--- ${f.filename}\n${f.patch || ''}`).join('\n\n') || null;
   }
 
   async getCommitFiles(commitSha: string): Promise<string[]> {
