@@ -96,7 +96,7 @@ export async function saveContent<T extends { contentHash?: string }>(
     const authorInfo = { name: user.username, email: buildAuthorEmail(user) };
     let message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
     if (user.emailInCommits && user.email) {
-      message += `\n\nSigned-off-by: ${user.username} <${user.email}>`;
+      message += `\nSigned-off-by: ${user.username} <${user.email}>`;
     }
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
