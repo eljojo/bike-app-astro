@@ -26,10 +26,10 @@ export function seedSession(opts: SeedOptions = {}): string {
   initSchema(db);
   const userId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString('hex');
-  // Use a fixed date for deterministic screenshot tests.
-  // The expiry just needs to be in the future relative to the frozen clock.
-  const now = '2025-06-15T16:00:00.000Z';
-  const expiresAt = '2025-06-16T16:00:00.000Z';
+  // Fixed future dates for deterministic tests. The server checks expiry against
+  // Date.now(), so these must be far enough in the future to remain valid.
+  const now = '2099-01-01T00:00:00.000Z';
+  const expiresAt = '2099-01-02T00:00:00.000Z';
 
   db.prepare(
     'INSERT OR REPLACE INTO users (id, email, username, role, created_at) VALUES (?, ?, ?, ?, ?)'
