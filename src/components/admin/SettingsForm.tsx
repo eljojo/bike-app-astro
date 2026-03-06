@@ -97,7 +97,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
         </div>
       </div>
 
-      <h2>Git attribution</h2>
+      <h2>Preferences</h2>
       <div class="auth-form">
         <label class="settings-checkbox">
           <input
@@ -115,20 +115,17 @@ export default function SettingsForm({ username: initialUsername, email: initial
             You need to set an email above for this to take effect.
           </p>
         )}
-      </div>
 
-      <h2>Analytics</h2>
-      <div class="auth-form">
         <label class="settings-checkbox">
           <input
             type="checkbox"
             checked={analyticsOptOut}
             onChange={(e) => setAnalyticsOptOut((e.target as HTMLInputElement).checked)}
           />
-          Disable analytics tracking
+          Don't count my visits
         </label>
         <p class="settings-help">
-          Stops Plausible from recording your page visits on this device.
+          Your page views won't be included in the site's Plausible analytics.
         </p>
       </div>
 

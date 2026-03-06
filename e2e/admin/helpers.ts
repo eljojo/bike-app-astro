@@ -8,7 +8,7 @@ import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DB_PATH } from './fixture.ts';
+import { DB_PATH } from './fixture-setup.ts';
 import { initSchema } from '../../src/db/init-schema';
 
 interface SeedOptions {
