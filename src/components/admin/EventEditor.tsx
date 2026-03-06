@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
+import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
@@ -16,6 +17,7 @@ interface Props {
   organizers: OrganizerData[];
   cdnUrl: string;
   readOnly?: boolean;
+  userRole?: string;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -46,7 +48,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -478,7 +480,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly 
             </a>
           </div>
         )}
-        {saved && (
+        {saved && userRole === 'guest' && (
+          <SaveSuccessModal
+            viewLink={`/events/${initialData.id}`}
+            onClose={() => setSaved(false)}
+          />
+        )}
+        {saved && userRole !== 'guest' && (
           <div class="save-success">
             Saved! Your edit will be live in a few minutes.
             {' '}<a href={`/events/${initialData.id}`}>View live</a>

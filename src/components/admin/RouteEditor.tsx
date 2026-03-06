@@ -3,6 +3,7 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
+import SaveSuccessModal from './SaveSuccessModal';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 
@@ -387,7 +388,13 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
             </a>
           </div>
         )}
-        {saved && (
+        {saved && userRole === 'guest' && (
+          <SaveSuccessModal
+            viewLink={`/routes/${initialData.slug}`}
+            onClose={() => setSaved(false)}
+          />
+        )}
+        {saved && userRole !== 'guest' && (
           <div class="save-success">
             Saved! Your edit will be live in a few minutes.
             {' '}<a href={`/routes/${initialData.slug}`}>View live</a>
