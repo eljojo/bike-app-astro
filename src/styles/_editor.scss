@@ -26,14 +26,17 @@
 }
 
 .editor-slug {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   font-size: 0.875rem;
 }
 
-.editor-slug-link {
+.editor-slug-toggle {
   @include muted-text;
-  text-decoration: none;
-  font-family: monospace;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  cursor: pointer;
 
   &:hover {
     text-decoration: underline;

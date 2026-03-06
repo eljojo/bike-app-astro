@@ -8,9 +8,10 @@ interface Props {
   backLink: string;
   backLabel?: string;
   viewLink?: string;
+  hideTitle?: boolean;
 }
 
-const { title, backLink, backLabel = 'Back', viewLink } = Astro.props;
+const { title, backLink, backLabel = 'Back', viewLink, hideTitle } = Astro.props;
 ---
 
 <Base title={title} admin>
@@ -20,7 +21,7 @@ const { title, backLink, backLabel = 'Back', viewLink } = Astro.props;
       <a href={backLink} class="back-link">&larr; {backLabel}</a>
       {viewLink && <a href={viewLink} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>}
     </div>
-    <h1 class="editor-title">{title}</h1>
+    {!hideTitle && <h1 class="editor-title">{title}</h1>}
     <slot />
   </div>
 </Base>

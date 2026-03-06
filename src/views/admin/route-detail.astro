@@ -39,6 +39,7 @@ const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.ta
   backLink="/admin"
   backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
+  hideTitle
 >
   <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={GIT_REPO} userRole={Astro.locals.user?.role} />

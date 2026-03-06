@@ -243,48 +243,19 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
           <div class="drop-overlay-content">Drop photos or GPX files to add to route</div>
         </div>
       )}
-      <div class="editor-slug">
-        {editingSlug ? (
-          <div class="editor-slug-edit">
-            <span class="editor-slug-prefix">/routes/</span>
-            <input
-              type="text"
-              value={slug}
-              onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
-              class="editor-slug-input"
-            />
-            <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
-          </div>
-        ) : (
-          <a
-            href={`/routes/${initialData.slug}`}
-            class="editor-slug-link"
-            onClick={canEditSlug ? (e: MouseEvent) => { e.preventDefault(); setEditingSlug(true); } : undefined}
-            title={canEditSlug ? 'Click to edit URL' : undefined}
+      <div class="locale-tabs">
+        {[defaultLocale, ...Object.keys(translations).filter(l => l !== defaultLocale)].map(locale => (
+          <button
+            key={locale}
+            type="button"
+            class={`locale-tab ${activeLocale === locale ? 'locale-tab--active' : ''}`}
+            onClick={() => setActiveLocale(locale)}
           >
-            /routes/{slug}
-          </a>
-        )}
-        {slug !== initialData.slug && (
-          <span class="editor-slug-changed">URL will change — old URL will redirect</span>
-        )}
+            {localeLabel(locale)}
+          </button>
+        ))}
       </div>
-
-      <section class="editor-section">
-        <h2>Text</h2>
-        <div class="locale-tabs">
-          {[defaultLocale, ...Object.keys(translations).filter(l => l !== defaultLocale)].map(locale => (
-            <button
-              key={locale}
-              type="button"
-              class={`locale-tab ${activeLocale === locale ? 'locale-tab--active' : ''}`}
-              onClick={() => setActiveLocale(locale)}
-            >
-              {localeLabel(locale)}
-            </button>
-          ))}
-        </div>
-        <div class="auth-form">
+      <div class="auth-form">
           <div class="form-field">
             <label for="route-name">Name</label>
             <input
@@ -294,6 +265,30 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
               onInput={(e) => setField('name', (e.target as HTMLInputElement).value)}
             />
           </div>
+
+          {canEditSlug && (
+            <div class="editor-slug">
+              {editingSlug ? (
+                <div class="editor-slug-edit">
+                  <span class="editor-slug-prefix">/routes/</span>
+                  <input
+                    type="text"
+                    value={slug}
+                    onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
+                    class="editor-slug-input"
+                  />
+                  <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
+                </div>
+              ) : (
+                <button type="button" class="editor-slug-toggle" onClick={() => setEditingSlug(true)}>
+                  Edit URL ›
+                </button>
+              )}
+              {slug !== initialData.slug && (
+                <span class="editor-slug-changed">URL will change — old URL will redirect</span>
+              )}
+            </div>
+          )}
 
           <div class="form-field">
             <label for="route-tagline">Tagline</label>
@@ -375,7 +370,6 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
             />
           </div>
         </div>
-      </section>
 
       <section class="editor-section">
         <h2>Photos</h2>
