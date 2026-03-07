@@ -18,6 +18,10 @@ interface PlaceOnMap {
   lat: number;
   lng: number;
   google_maps_url?: string;
+  address?: string;
+  phone?: string;
+  photo_key?: string;
+  link?: string;
 }
 
 interface MapPhoto {
@@ -75,7 +79,7 @@ const { routes, places, photos = [], center } = Astro.props;
 
     addMarkers(map, places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
-      popup: buildPlacePopup(p),
+      popup: buildPlacePopup(p, cdnUrl),
     })));
 
     addPhotoToggle(map, photos, cdnUrl, makePhotoPopupHandler(map, cdnUrl));

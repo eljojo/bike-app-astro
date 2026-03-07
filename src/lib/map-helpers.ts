@@ -3,6 +3,10 @@ interface PlacePopupData {
   description?: string;
   link?: string;
   google_maps_url?: string;
+  address?: string;
+  phone?: string;
+  photo_key?: string;
+  category?: string;
 }
 
 export function escapeHtml(s: string): string {
@@ -40,10 +44,18 @@ export function html(strings: TemplateStringsArray, ...values: unknown[]): strin
   return result;
 }
 
-export function buildPlacePopup(place: PlacePopupData): string {
-  let popup = html`<strong>${place.name}</strong>`;
-  if (place.description) popup += html`<br>${place.description}`;
-  if (place.link) popup += html`<br><a href="${place.link}" target="_blank">See more</a>`;
-  if (place.google_maps_url) popup += html`<br><a href="${place.google_maps_url}" target="_blank">Google Maps</a>`;
+export function buildPlacePopup(place: PlacePopupData, cdnUrl?: string): string {
+  let popup = '<div class="place-popup">';
+  if (place.photo_key && cdnUrl) {
+    popup += html`<img class="place-popup-photo" src="${cdnUrl}/cdn-cgi/image/width=280,height=160,fit=cover/${place.photo_key}" alt="" />`;
+  }
+  popup += html`<strong>${place.name}</strong>`;
+  if (place.address) popup += html`<div class="place-popup-address">${place.address}</div>`;
+  if (place.phone) popup += html`<div class="place-popup-phone">${place.phone}</div>`;
+  const links: string[] = [];
+  if (place.link) links.push(html`<a href="${place.link}" target="_blank" rel="noopener">Website</a>`);
+  if (place.google_maps_url) links.push(html`<a href="${place.google_maps_url}" target="_blank" rel="noopener">Google Maps</a>`);
+  if (links.length) popup += `<div class="place-popup-links">${links.join(' · ')}</div>`;
+  popup += '</div>';
   return popup;
 }

@@ -440,6 +440,32 @@ a.go-back-button {
   font-size: 18px;
   line-height: 1;
 }
+.place-popup {
+  min-width: 180px;
+  max-width: 280px;
+  line-height: 1.4;
+  font-size: 0.875rem;
+}
+.place-popup-photo {
+  width: 100%;
+  border-radius: $border-radius;
+  margin-bottom: 0.375rem;
+  display: block;
+}
+.place-popup-address,
+.place-popup-phone {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin-top: 0.125rem;
+}
+.place-popup-links {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+
+  a {
+    color: $color-accent;
+  }
+}
 .emoji-icon {
   font-size: 25px;
   text-shadow: 1px 2px 3px #444;

@@ -9,7 +9,7 @@ import { defaultLocale } from './locale-utils';
  * Filters to published places only.
  */
 export function toPlaceData(
-  allPlaces: { id: string; data: { status: string; name: string; name_fr?: string; category: string; lat: number; lng: number; address?: string; website?: string; phone?: string; google_maps_url?: string } }[],
+  allPlaces: { id: string; data: { status: string; name: string; name_fr?: string; category: string; lat: number; lng: number; address?: string; website?: string; phone?: string; google_maps_url?: string; photo_key?: string } }[],
 ): PlaceData[] {
   return allPlaces
     .filter(p => p.data.status === 'published')
@@ -24,6 +24,7 @@ export function toPlaceData(
       website: p.data.website,
       phone: p.data.phone,
       google_maps_url: p.data.google_maps_url,
+      photo_key: p.data.photo_key,
     }));
 }
 
@@ -36,5 +37,9 @@ export function toMapPlaces(nearby: NearbyPlace[], locale?: string) {
     lng: p.lng,
     google_maps_url: p.google_maps_url || `https://www.google.com/maps/?q=${p.lat},${p.lng}`,
     link: p.website,
+    address: p.address,
+    phone: p.phone,
+    photo_key: p.photo_key,
+    category: p.category,
   }));
 }
