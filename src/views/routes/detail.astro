@@ -3,7 +3,7 @@ import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/image-service';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/video-service';
-import { hasCachedMap, variantKeyFromGpx } from '@/lib/map-thumbnails';
+import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '@/lib/map-thumbnails';
 import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/distance';
 import PhotoGallery from '@/components/PhotoGallery.astro';
@@ -52,7 +52,8 @@ const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'c
 const ogImageAlt = cover?.caption || t('route.photo_from', locale, { name: localeName });
 const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
 const videos = media.filter(m => m.type === 'video');
-const hasMap = hasCachedMap(route.id);
+const hasMap = hasCachedMap(route.id, undefined, locale);
+const mapLang = cachedMapLocale(route.id, undefined, locale);
 
 const primaryGpx = variants[0]?.gpx;
 const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
@@ -203,7 +204,7 @@ const breadcrumbs = breadcrumbJsonLd([
         <div class="route-detail--static-map">
           <a href={paths.routeMap(slug, locale)} title={t('route.view_map', locale, { name: localeName })}>
             <img
-              src={assets.mapThumbnail(route.id)}
+              src={assets.mapThumbnail(route.id, 750, mapLang)}
               alt={t('route.map_of', locale, { name: localeName })}
             />
           </a>

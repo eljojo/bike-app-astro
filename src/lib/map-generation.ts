@@ -20,8 +20,10 @@ export interface MapThumbPaths {
   full: string;
 }
 
-export function mapThumbPaths(routeSlug: string, variantKey?: string): MapThumbPaths {
-  const dir = variantKey ? path.join(CACHE_DIR, routeSlug, variantKey) : path.join(CACHE_DIR, routeSlug);
+/** Build cache directory path, optionally scoped by locale (non-default locales get a lang/ prefix). */
+export function mapThumbPaths(routeSlug: string, variantKey?: string, lang?: string): MapThumbPaths {
+  const base = lang ? path.join(CACHE_DIR, lang) : CACHE_DIR;
+  const dir = variantKey ? path.join(base, routeSlug, variantKey) : path.join(base, routeSlug);
   return {
     thumb: path.join(dir, 'map-750.webp'),
     thumbSmall: path.join(dir, 'map-375.webp'),
@@ -38,17 +40,18 @@ export function gpxHash(gpxContent: string): string {
   return crypto.createHash('sha256').update(gpxContent).digest('hex').slice(0, 16);
 }
 
-export function hashPath(routeSlug: string): string {
-  return path.join(CACHE_DIR, routeSlug, '.gpx-hash');
+export function hashPath(routeSlug: string, lang?: string): string {
+  const base = lang ? path.join(CACHE_DIR, lang) : CACHE_DIR;
+  return path.join(base, routeSlug, '.gpx-hash');
 }
 
-export function needsRegeneration(routeSlug: string, currentHash: string): boolean {
-  const hp = hashPath(routeSlug);
+export function needsRegeneration(routeSlug: string, currentHash: string, lang?: string): boolean {
+  const hp = hashPath(routeSlug, lang);
   if (!fs.existsSync(hp)) return true;
   return fs.readFileSync(hp, 'utf-8').trim() !== currentHash;
 }
 
-export function buildStaticMapUrl(polyline: string, apiKey: string): string {
+export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string): string {
   const points = polylineCodec.decode(polyline);
   const start = points[0];
   const end = points[points.length - 1];
@@ -63,6 +66,7 @@ export function buildStaticMapUrl(polyline: string, apiKey: string): string {
     size: '800x800',
     scale: '2',
     key: apiKey,
+    ...(language && { language }),
   });
 
   return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`

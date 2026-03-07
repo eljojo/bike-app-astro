@@ -119,7 +119,7 @@ async function searchPlace(query: string, apiKey: string): Promise<PlaceResult |
 }
 
 export async function POST({ request, locals }: APIContext) {
-  const user = authorize(locals, 'edit-place');
+  const user = authorize(locals, 'edit-content');
   if (user instanceof Response) return user;
 
   const body = await request.json();

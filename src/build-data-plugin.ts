@@ -69,20 +69,34 @@ function loadContributors(): Array<{ username: string; gravatarHash: string }> {
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 }
 
-function loadCachedMaps() {
-  const cacheDir = path.join(PROJECT_ROOT, 'public', 'maps');
+/** Scan a directory for route map thumbnails, returning cache keys. */
+function scanMapDir(dir: string, prefix?: string) {
   const maps: string[] = [];
-  if (!fs.existsSync(cacheDir)) return maps;
-  for (const slug of fs.readdirSync(cacheDir)) {
-    const slugDir = path.join(cacheDir, slug);
+  if (!fs.existsSync(dir)) return maps;
+  for (const slug of fs.readdirSync(dir)) {
+    const slugDir = path.join(dir, slug);
     if (!fs.statSync(slugDir).isDirectory()) continue;
     if (fs.existsSync(path.join(slugDir, 'map-750.webp'))) {
-      maps.push(slug);
+      maps.push(prefix ? `${prefix}/${slug}` : slug);
     }
     for (const sub of fs.readdirSync(slugDir)) {
       const subDir = path.join(slugDir, sub);
       if (fs.statSync(subDir).isDirectory() && fs.existsSync(path.join(subDir, 'map-750.webp'))) {
-        maps.push(`${slug}/${sub}`);
+        maps.push(prefix ? `${prefix}/${slug}/${sub}` : `${slug}/${sub}`);
+      }
+    }
+  }
+  return maps;
+}
+
+function loadCachedMaps() {
+  const cacheDir = path.join(PROJECT_ROOT, 'public', 'maps');
+  const maps: string[] = scanMapDir(cacheDir);
+  // Scan locale subdirectories (2-letter dirs like "fr", "es")
+  if (fs.existsSync(cacheDir)) {
+    for (const entry of fs.readdirSync(cacheDir)) {
+      if (entry.length === 2 && fs.statSync(path.join(cacheDir, entry)).isDirectory()) {
+        maps.push(...scanMapDir(path.join(cacheDir, entry), entry));
       }
     }
   }

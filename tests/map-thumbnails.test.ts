@@ -32,6 +32,17 @@ describe('mapThumbPaths', () => {
     expect(paths.social).toContain('britannia/bike-days/map-social.jpg');
     expect(paths.full).toContain('britannia/bike-days/map.png');
   });
+
+  it('returns locale-prefixed paths when lang is provided', () => {
+    const paths = mapThumbPaths('aylmer', undefined, 'fr');
+    expect(paths.thumb).toContain('fr/aylmer/map-750.webp');
+    expect(paths.full).toContain('fr/aylmer/map.png');
+  });
+
+  it('returns locale-prefixed variant paths', () => {
+    const paths = mapThumbPaths('britannia', 'bike-days', 'fr');
+    expect(paths.thumb).toContain('fr/britannia/bike-days/map-750.webp');
+  });
 });
 
 describe('map-thumbnails', () => {
@@ -58,5 +69,17 @@ describe('map-thumbnails', () => {
     expect(url).toContain('markers=color:green');
     expect(url).toContain('size=800x800');
     expect(url).toContain('scale=2');
+  });
+
+  it('includes language parameter when provided', () => {
+    const polyline = 'o}|tGdwn|M_@_@_@_@';
+    const url = buildStaticMapUrl(polyline, 'TEST_KEY', 'fr');
+    expect(url).toContain('language=fr');
+  });
+
+  it('omits language parameter when not provided', () => {
+    const polyline = 'o}|tGdwn|M_@_@_@_@';
+    const url = buildStaticMapUrl(polyline, 'TEST_KEY');
+    expect(url).not.toContain('language=');
   });
 });

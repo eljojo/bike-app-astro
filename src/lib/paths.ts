@@ -29,9 +29,22 @@ export function routeSlug(route: { id: string; data: { translations?: Record<str
 }
 
 // Static asset paths (map thumbnails)
+// lang prefix is used for non-default locale maps (e.g. /maps/fr/slug/map-750.webp)
 export const assets = {
-  mapThumbnail: (slug: string, size: 375 | 750 = 750) => `/maps/${slug}/map-${size}.webp`,
-  mapThumbnailSrcset: (slug: string) => `/maps/${slug}/map-375.webp 1x, /maps/${slug}/map-750.webp 2x`,
-  mapVariantThumbnail: (slug: string, variant: string, size: 375 | 750 = 750) => `/maps/${slug}/${variant}/map-${size}.webp`,
-  mapPng: (slug: string, variant: string) => `/maps/${slug}/${variant}/map.png`,
+  mapThumbnail: (slug: string, size: 375 | 750 = 750, lang?: string) => {
+    const prefix = lang ? `/maps/${lang}` : '/maps';
+    return `${prefix}/${slug}/map-${size}.webp`;
+  },
+  mapThumbnailSrcset: (slug: string, lang?: string) => {
+    const prefix = lang ? `/maps/${lang}` : '/maps';
+    return `${prefix}/${slug}/map-375.webp 1x, ${prefix}/${slug}/map-750.webp 2x`;
+  },
+  mapVariantThumbnail: (slug: string, variant: string, size: 375 | 750 = 750, lang?: string) => {
+    const prefix = lang ? `/maps/${lang}` : '/maps';
+    return `${prefix}/${slug}/${variant}/map-${size}.webp`;
+  },
+  mapPng: (slug: string, variant: string, lang?: string) => {
+    const prefix = lang ? `/maps/${lang}` : '/maps';
+    return `${prefix}/${slug}/${variant}/map.png`;
+  },
 };
