@@ -74,7 +74,14 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     })));
 
     addPhotoToggle(map, photos, cdnUrl, (index) => {
-      window.dispatchEvent(new CustomEvent('open-photo-gallery', { detail: { index } }));
+      // If PhotoSwipe gallery exists on this page, open it; otherwise open image directly
+      const galleryLink = document.querySelectorAll('.photo-gallery a.photo-gallery--image');
+      if (galleryLink.length > index) {
+        (galleryLink[index] as HTMLElement).click();
+      } else {
+        const photo = photos[index];
+        if (photo) window.open(`${cdnUrl}/cdn-cgi/image/width=1600/${photo.key}`, '_blank');
+      }
     });
   }
 </script>
