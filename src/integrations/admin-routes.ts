@@ -8,6 +8,7 @@ const adminRoutes = [
   { pattern: '/admin/events/[...id]', entrypoint: './src/views/admin/event-detail.astro' },
   { pattern: '/api/routes/[slug]', entrypoint: './src/views/api/route-save.ts' },
   { pattern: '/api/events/[...id]', entrypoint: './src/views/api/event-save.ts' },
+  { pattern: '/api/places/[id]', entrypoint: './src/views/api/place-save.ts' },
   { pattern: '/api/media/[key]', entrypoint: './src/views/api/media-delete.ts' },
   { pattern: '/api/admin/sync', entrypoint: './src/views/api/admin-sync.ts' },
   { pattern: '/api/admin/users', entrypoint: './src/views/api/admin-users.ts' },
