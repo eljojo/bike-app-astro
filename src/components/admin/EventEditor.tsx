@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTextareaValue, useFileUpload } from '../../lib/hooks';
+import { useEditorState } from './useEditorState';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
@@ -88,11 +89,54 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const dropHandlerRef = useRef<(file: File) => void>(() => {});
 
   // Save state
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
-  const [contentHash, setContentHash] = useState(initialData.contentHash);
+  const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
+    apiBase: '/api/events',
+    contentId: initialData.isNew ? null : initialData.id,
+    initialContentHash: initialData.contentHash,
+    userRole,
+    validate: () => {
+      if (!name.trim()) {
+        document.getElementById('event-name')?.focus();
+        return 'Name is required';
+      }
+      if (!startDate) {
+        document.getElementById('event-start-date')?.focus();
+        return 'Start date is required';
+      }
+      return null;
+    },
+    buildPayload: () => {
+      const payload: EventUpdate = {
+        frontmatter: {
+          name,
+          start_date: startDate,
+          ...(startTime && { start_time: startTime }),
+          ...(endDate && { end_date: endDate }),
+          ...(endTime && { end_time: endTime }),
+          ...(registrationUrl && { registration_url: registrationUrl }),
+          ...(distances && { distances }),
+          ...(location && { location }),
+          ...(reviewUrl && { review_url: reviewUrl }),
+          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
+        },
+        body,
+      };
+      if (showOrgForm && orgName) {
+        payload.organizer = {
+          slug: orgSlug || slugify(orgName),
+          name: orgName,
+          ...(orgWebsite && { website: orgWebsite }),
+          ...(orgInstagram && { instagram: orgInstagram }),
+        };
+      }
+      return payload as unknown as Record<string, unknown>;
+    },
+    onSuccess: (result) => {
+      if (initialData.isNew && result.id) {
+        window.location.href = `/admin/events/${result.id}`;
+      }
+    },
+  });
 
   function selectOrganizer(slug: string) {
     setOrgSlug(slug);
@@ -170,92 +214,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       document.removeEventListener('drop', handleDrop);
     };
   }, []);
-
-  async function handleSave() {
-    setError('');
-    setGithubUrl('');
-
-    if (!name.trim()) {
-      setError('Name is required');
-      document.getElementById('event-name')?.focus();
-      return;
-    }
-
-    if (!startDate) {
-      setError('Start date is required');
-      document.getElementById('event-start-date')?.focus();
-      return;
-    }
-
-    setSaving(true);
-    setSaved(false);
-
-    try {
-      const payload: EventUpdate = {
-        frontmatter: {
-          name,
-          start_date: startDate,
-          ...(startTime && { start_time: startTime }),
-          ...(endDate && { end_date: endDate }),
-          ...(endTime && { end_time: endTime }),
-          ...(registrationUrl && { registration_url: registrationUrl }),
-          ...(distances && { distances }),
-          ...(location && { location }),
-          ...(reviewUrl && { review_url: reviewUrl }),
-          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
-        },
-        body,
-        contentHash,
-      };
-
-      // Include organizer data if set
-      if (showOrgForm && orgName) {
-        payload.organizer = {
-          slug: orgSlug || slugify(orgName),
-          name: orgName,
-          ...(orgWebsite && { website: orgWebsite }),
-          ...(orgInstagram && { instagram: orgInstagram }),
-        };
-      }
-
-      const url = initialData.isNew
-        ? '/api/events/new'
-        : `/api/events/${initialData.id}`;
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        if (res.status === 409 && data.conflict) {
-          setError(data.error);
-          setGithubUrl(data.githubUrl);
-          return;
-        }
-        throw new Error(data.error || 'Save failed');
-      }
-
-      const result = await res.json();
-      if (result.contentHash) {
-        setContentHash(result.contentHash);
-      }
-
-      if (initialData.isNew && result.id) {
-        window.location.href = `/admin/events/${result.id}`;
-        return;
-      }
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 8000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <div class="event-editor-wrapper">
