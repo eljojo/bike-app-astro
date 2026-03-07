@@ -29,7 +29,17 @@ export function initSchema(db: InstanceType<typeof Database>) {
       .map(s => s.replace(/^CREATE INDEX\b/i, 'CREATE INDEX IF NOT EXISTS'));
 
     for (const stmt of statements) {
-      db.exec(stmt);
+      try {
+        db.exec(stmt);
+      } catch (err: unknown) {
+        // ALTER TABLE migrations may fail on re-run (e.g. column already exists).
+        // This is expected when 0000_init.sql already includes the final schema.
+        const msg = err instanceof Error ? err.message : '';
+        const stmtTrimmed = stmt.replace(/^--.*\n/gm, '').trim();
+        if (stmtTrimmed.match(/^ALTER TABLE/i) && msg.includes('duplicate column')) continue;
+        if (msg.includes('no such table')) continue;
+        throw err;
+      }
     }
   }
 }

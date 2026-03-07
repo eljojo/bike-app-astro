@@ -52,13 +52,14 @@ export const uploadAttempts = sqliteTable('upload_attempts', {
 ]);
 
 export const contentEdits = sqliteTable('content_edits', {
+  city: text('city').notNull(),
   contentType: text('content_type').notNull(),
   contentSlug: text('content_slug').notNull(),
   data: text('data').notNull(),
   githubSha: text('github_sha').notNull(),
   updatedAt: text('updated_at').notNull(),
 }, (table) => [
-  primaryKey({ columns: [table.contentType, table.contentSlug] }),
+  primaryKey({ columns: [table.city, table.contentType, table.contentSlug] }),
 ]);
 
 export const userSettings = sqliteTable('user_settings', {
