@@ -13,13 +13,19 @@
 import type { AppEnv } from './app-env';
 
 let _env: AppEnv;
+let _openLocalDb: ((path: string) => unknown) | undefined;
+let _localDbPath: string | undefined;
 
 if (process.env.RUNTIME === 'local') {
-  const { createLocalEnv } = await import('./env-local');
+  const { createLocalEnv, openLocalDb } = await import('./env-local');
   _env = createLocalEnv();
+  _openLocalDb = openLocalDb;
+  _localDbPath = (_env.DB as any).$client.name;
 } else {
   const cf = await import('cloudflare:workers');
   _env = cf.env as AppEnv;
 }
 
 export const env: AppEnv = _env;
+export const openLocalDb = _openLocalDb;
+export const localDbPath = _localDbPath;

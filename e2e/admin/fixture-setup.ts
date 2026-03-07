@@ -259,6 +259,10 @@ About page fixture.
 `
   );
 
+  // Empty directories for collections that must exist (glob loader fails otherwise)
+  fs.mkdirSync(path.join(FIXTURE_DIR, 'ottawa', 'guides'), { recursive: true });
+  fs.mkdirSync(path.join(FIXTURE_DIR, 'ottawa', 'places'), { recursive: true });
+
   // Init git repo with user config so simple-git can commit during saves.
   // Use a fixed date for deterministic commit timestamps in screenshot tests.
   const FIXED_GIT_DATE = '2025-06-15T12:00:00-04:00';

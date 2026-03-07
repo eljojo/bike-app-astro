@@ -1,10 +1,12 @@
 import path from 'node:path';
-import { createLocalDb } from '../db/local';
+import { createLocalDb, openLocalDb } from '../db/local';
 import { createLocalBucket } from './storage-local';
 import type { AppEnv } from './app-env';
 
 const LOCAL_DB_PATH = path.resolve(import.meta.dirname, '..', '..', '.data', 'local.db');
 const LOCAL_UPLOADS_DIR = path.resolve(import.meta.dirname, '..', '..', '.data', 'uploads');
+
+export { openLocalDb };
 
 export function createLocalEnv(): AppEnv {
   const db = createLocalDb(process.env.LOCAL_DB_PATH || LOCAL_DB_PATH);
