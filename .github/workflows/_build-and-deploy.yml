@@ -32,6 +32,11 @@ on:
         type: boolean
         required: false
         default: false
+      skip-tests:
+        description: 'Skip unit tests'
+        type: boolean
+        required: false
+        default: false
       skip-e2e:
         description: 'Skip E2E screenshot tests'
         type: boolean
@@ -79,6 +84,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
       - name: Run unit tests
+        if: ${{ !inputs.skip-tests }}
         run: npx vitest run
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes

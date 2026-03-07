@@ -22,7 +22,7 @@ export function mapThumbPaths(routeSlug: string, variantKey?: string): MapThumbP
 }
 
 export function variantKeyFromGpx(gpxFilename: string): string {
-  return gpxFilename.replace(/\.gpx$/, '').replace(/^variants\//, '');
+  return gpxFilename.replace(/\.gpx$/, '').replace(/^variants\//, 'variants-');
 }
 
 export function hasCachedMap(routeSlug: string, variantKey?: string): boolean {

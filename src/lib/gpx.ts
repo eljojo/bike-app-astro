@@ -15,7 +15,18 @@ export interface GpxTrack {
   polyline: string;
 }
 
+// In-memory cache keyed by string length + first/last 100 chars.
+// Avoids re-parsing the same GPX when multiple loaders process the same files.
+const gpxCache = new Map<string, GpxTrack>();
+
+function cacheKey(xml: string): string {
+  return `${xml.length}:${xml.slice(0, 100)}:${xml.slice(-100)}`;
+}
+
 export function parseGpx(xml: string): GpxTrack {
+  const key = cacheKey(xml);
+  const cached = gpxCache.get(key);
+  if (cached) return cached;
   const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
   const parsed = parser.parse(xml);
 
@@ -39,13 +50,15 @@ export function parseGpx(xml: string): GpxTrack {
 
   if (points.length === 0) return emptyTrack();
 
-  return {
+  const result: GpxTrack = {
     points,
     distance_m: computeDistance(points),
     elevation_gain_m: computeElevationGain(points),
     max_gradient_pct: computeMaxGradient(points),
     polyline: polyline.encode(points.map(p => [p.lat, p.lon])),
   };
+  gpxCache.set(key, result);
+  return result;
 }
 
 /**

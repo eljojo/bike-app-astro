@@ -18,16 +18,16 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
-import { loadAdminRoutes, loadAdminRouteDetails } from './loaders/admin-routes';
-import { loadAdminEvents, loadAdminEventDetails } from './loaders/admin-events';
+import { loadAdminRouteData } from './loaders/admin-routes';
+import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 
 export { CONTENT_DIR, CITY };
-export { loadAdminRoutes, loadAdminRouteDetails };
-export { loadAdminEvents, loadAdminEventDetails };
+export { loadAdminRouteData };
+export { loadAdminEventData };
 export { loadAdminOrganizers };
 
 const CITY_DIR = cityDir;
@@ -86,11 +86,10 @@ export function buildDataPlugin(): Plugin {
   const cachedMaps = loadCachedMaps();
   const contributors = loadContributors();
 
-  // Load admin data eagerly (async) so it's ready when load() is called
-  const adminRoutesPromise = loadAdminRoutes();
-  const adminRouteDetailsPromise = loadAdminRouteDetails();
-  const adminEventsPromise = loadAdminEvents();
-  const adminEventDetailsPromise = loadAdminEventDetails();
+  // Load admin data eagerly (async) so it's ready when load() is called.
+  // Merged loaders compute routes+details and events+details in single passes.
+  const adminRouteDataPromise = loadAdminRouteData();
+  const adminEventDataPromise = loadAdminEventData();
   const adminOrganizersPromise = loadAdminOrganizers();
 
   return {
@@ -111,19 +110,19 @@ export function buildDataPlugin(): Plugin {
         return `export default new Set(${JSON.stringify(cachedMaps)});`;
       }
       if (id === '\0virtual:bike-app/admin-routes') {
-        const routes = await adminRoutesPromise;
+        const { routes } = await adminRouteDataPromise;
         return `export default ${JSON.stringify(routes)};`;
       }
       if (id === '\0virtual:bike-app/admin-route-detail') {
-        const details = await adminRouteDetailsPromise;
+        const { details } = await adminRouteDataPromise;
         return `export default ${JSON.stringify(details)};`;
       }
       if (id === '\0virtual:bike-app/admin-events') {
-        const events = await adminEventsPromise;
+        const { events } = await adminEventDataPromise;
         return `export default ${JSON.stringify(events)};`;
       }
       if (id === '\0virtual:bike-app/admin-event-detail') {
-        const details = await adminEventDetailsPromise;
+        const { details } = await adminEventDataPromise;
         return `export default ${JSON.stringify(details)};`;
       }
       if (id === '\0virtual:bike-app/admin-organizers') {
