@@ -11,7 +11,7 @@ interface Props {
   viewLink?: string;
   hideTitle?: boolean;
   user: { username: string; role: string; email?: string | null };
-  currentTab: 'routes' | 'events';
+  currentTab: 'routes' | 'events' | 'places';
 }
 
 const { title, backLink, backLabel = 'Back', viewLink, hideTitle, user, currentTab } = Astro.props;
