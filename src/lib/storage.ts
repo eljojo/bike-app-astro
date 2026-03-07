@@ -1,5 +1,6 @@
 import { AwsClient } from 'aws4fetch';
 import { parseImageDimensions } from './image-dimensions';
+import { extractPhotoMetadata } from './exif';
 
 export interface StorageEnv {
   BUCKET: BucketLike;
@@ -23,6 +24,9 @@ export interface UploadMetadata {
   contentType: string;
   width: number;
   height: number;
+  lat?: number;
+  lng?: number;
+  captured_at?: string;
 }
 
 /**
@@ -132,12 +136,16 @@ export async function confirmUpload(
   await bucket.put(mediaKey, buffer);
   await bucket.delete(pendingKey);
 
+  const meta = extractPhotoMetadata(buffer);
+
   return {
     key: mediaKey,
     size: buffer.byteLength,
     contentType: `image/${dimensions.format}`,
     width: dimensions.width,
     height: dimensions.height,
+    ...(meta && { lat: meta.lat, lng: meta.lng }),
+    ...(meta?.capturedAt && { captured_at: meta.capturedAt }),
   };
 }
 

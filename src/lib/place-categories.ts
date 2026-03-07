@@ -2,8 +2,8 @@ export const categoryEmoji: Record<string, string> = {
   park: '🌳', beach: '🏖️', 'bike-trail': '🚵', 'camping-spot': '⛺',
   'water-fountain': '💧', 'chill-spot': '😎', lookout: '👀', bridge: '🌉',
   poutine: '🍟', beer: '🍺', pizza: '🍕', 'ice-cream': '🍦',
-  cafe: '☕', restaurant: '🍽️',
+  cafe: '☕', restaurant: '🍽️', food: '🛒',
   'meeting-point': '📍', 'bike-shop': '🔧', parking: '🅿️', ferry: '⛴️',
   wc: '🚻', 'bike-rental': '🚲', detour: '⚠️', flooding: '🌊',
-  'something-interesting': '✨', other: '📌',
+  motel: '🏨', 'something-interesting': '✨', other: '📌',
 };

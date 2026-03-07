@@ -427,6 +427,19 @@ a.go-back-button {
   height: 70vh;
   min-height: 400px;
 }
+.poi-marker {
+  background: white;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.poi-marker-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
 .emoji-icon {
   font-size: 25px;
   text-shadow: 1px 2px 3px #444;
@@ -434,6 +447,70 @@ a.go-back-button {
   transition: opacity 0.5s ease;
   &:hover {
     opacity: 1;
+  }
+}
+.photo-marker-thumb {
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+.photo-cluster-icon {
+  background: rgba(53, 0, 145, 0.7);
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  span {
+    color: white;
+    font-weight: bold;
+    font-size: 13px;
+    font-family: $font-body;
+  }
+}
+.photo-popup {
+  .leaflet-popup-content {
+    margin: 8px;
+    padding: 0;
+  }
+}
+.photo-popup-content {
+  img {
+    display: block;
+    max-width: 100%;
+    border-radius: $border-radius;
+  }
+  a {
+    display: block;
+    line-height: 0;
+  }
+}
+.photo-popup-caption {
+  margin: 6px 4px 2px;
+  font-size: 0.9em;
+  color: $color-text-muted;
+  text-align: center;
+}
+.leaflet-bar, .leaflet-control {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+@include dark-mode {
+  .photo-popup-caption {
+    color: $color-text-muted-dark;
+  }
+  .photo-cluster-icon {
+    background: rgba(100, 60, 200, 0.8);
+    border-color: #555;
   }
 }
 .map-gps-icon {

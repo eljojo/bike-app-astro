@@ -1005,3 +1005,124 @@
     color: $color-accent;
   }
 }
+
+// Cross-route photo suggestions
+.nearby-photos {
+  margin-top: 1.5rem;
+  border: 2px dashed $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &--open {
+    background: none;
+  }
+
+  &--drop-target {
+    border-color: $color-accent;
+    border-style: solid;
+  }
+
+  &-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: inherit;
+    width: 100%;
+    text-align: left;
+  }
+
+  &-list {
+    margin-top: 0.75rem;
+  }
+
+  &-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+}
+
+.nearby-route-group h4 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.nearby-photo-card {
+  position: relative;
+  cursor: grab;
+
+  img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: $border-radius;
+  }
+
+  .add-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: $color-btn-primary-bg;
+    color: $color-text;
+    border: 1px solid $color-btn-primary-border;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .caption {
+    display: block;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .parked-badge {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    font-size: 0.625rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 1px 4px;
+    border-radius: $border-radius;
+  }
+
+  .delete-parked-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(200, 40, 40, 0.85);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.photo-grid--drop-target {
+  outline: 2px dashed $color-accent;
+  outline-offset: 4px;
+}

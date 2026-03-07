@@ -3,21 +3,26 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
+import NearbyPhotos from './NearbyPhotos';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import { slugify } from '../../lib/slug';
+import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
+import { toParkedEntry } from '../../lib/media-merge';
+import type { ParkedPhotoEntry } from '../../lib/media-merge';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  parkedPhotos?: ParkedPhotoEntry[];
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
   defaultLocale?: string;
   userRole?: string;
 }
 
-export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -26,6 +31,9 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
+  const [parkedPhotos, setParkedPhotos] = useState(initialParkedPhotos);
+  const [newlyParked, setNewlyParked] = useState<ParkedPhotoEntry[]>([]);
+  const [deletedParkedKeys, setDeletedParkedKeys] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const [slug, setSlug] = useState(initialData.slug);
   const [editingSlug, setEditingSlug] = useState(false);
@@ -201,6 +209,8 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
         body,
         ...(slug !== initialData.slug ? { newSlug: slug } : {}),
         media,
+        ...(newlyParked.length > 0 ? { parkedPhotos: newlyParked } : {}),
+        ...(deletedParkedKeys.length > 0 ? { deletedParkedKeys } : {}),
         variants,
         contentHash,
         translations,
@@ -384,6 +394,41 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
           cdnUrl={cdnUrl}
           pendingFiles={pendingFiles}
           onPendingProcessed={() => setPendingFiles([])}
+          userRole={userRole}
+          onParkPhoto={(photo) => {
+            const entry = toParkedEntry(photo);
+            setParkedPhotos(prev => [...prev, entry]);
+            setNewlyParked(prev => [...prev, entry]);
+          }}
+          onSuggestionDrop={(photo, wasParked) => {
+            setMedia(prev => [...prev, photo]);
+            if (wasParked) {
+              setParkedPhotos(prev => prev.filter(p => p.key !== photo.key));
+            }
+          }}
+        />
+        <NearbyPhotos
+          nearbyPhotos={nearbyPhotosMap[initialData.slug] || []}
+          parkedPhotos={parkedPhotos}
+          currentMediaKeys={new Set(media.map(m => m.key))}
+          cdnUrl={cdnUrl}
+          userRole={userRole}
+          onAddPhoto={(photo, wasParked) => {
+            setMedia([...media, photo]);
+            if (wasParked) {
+              setParkedPhotos(prev => prev.filter(p => p.key !== photo.key));
+            }
+          }}
+          onParkPhoto={(photo) => {
+            setMedia(prev => prev.filter(m => m.key !== photo.key));
+            const entry = toParkedEntry(photo);
+            setParkedPhotos(prev => [...prev, entry]);
+            setNewlyParked(prev => [...prev, entry]);
+          }}
+          onDeleteParked={(key) => {
+            setParkedPhotos(prev => prev.filter(p => p.key !== key));
+            setDeletedParkedKeys(prev => [...prev, key]);
+          }}
         />
       </section>
 

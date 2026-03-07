@@ -216,7 +216,8 @@ describe('routeHandlers.buildFileChanges', () => {
       auxiliaryFiles: {},
     };
 
-    const result = await routeHandlers.buildFileChanges(update, 'test', currentFiles, {} as any);
+    const git = { readFile: async () => null } as any;
+    const result = await routeHandlers.buildFileChanges(update, 'test', currentFiles, git);
     expect(result.isNew).toBe(false);
     expect(result.files.some((f) => f.path.endsWith('/index.md'))).toBe(true);
   });

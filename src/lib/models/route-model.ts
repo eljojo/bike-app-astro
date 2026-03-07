@@ -9,6 +9,10 @@ const adminMediaItemSchema = z.object({
   cover: z.boolean().optional(),
   width: z.number().optional(),
   height: z.number().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  uploaded_by: z.string().optional(),
+  captured_at: z.string().optional(),
 });
 
 const adminVariantSchema = z.object({
@@ -107,6 +111,12 @@ export function routeDetailFromGit(
         const item: AdminMediaItem = { key: m.key as string };
         if (m.caption != null) item.caption = m.caption as string;
         if (m.cover != null) item.cover = m.cover as boolean;
+        if (m.lat != null) item.lat = m.lat as number;
+        if (m.lng != null) item.lng = m.lng as number;
+        if (m.uploaded_by != null) item.uploaded_by = m.uploaded_by as string;
+        if (m.captured_at != null) item.captured_at = m.captured_at as string;
+        if (m.width != null) item.width = m.width as number;
+        if (m.height != null) item.height = m.height as number;
         return item;
       });
   }

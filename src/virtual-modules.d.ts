@@ -26,7 +26,7 @@ interface _AdminRouteDetail {
   tags: string[];
   status: string;
   body: string;
-  media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number }>;
+  media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number; uploaded_by?: string; captured_at?: string }>;
   contentHash?: string;
   variants?: Array<{ name: string; gpx: string; distance_km?: number; strava_url?: string; rwgps_url?: string }>;
 }
@@ -104,4 +104,40 @@ interface _Contributor {
 declare module 'virtual:bike-app/contributors' {
   const contributors: _Contributor[];
   export default contributors;
+}
+
+interface _PhotoLocation {
+  key: string;
+  lat: number;
+  lng: number;
+  routeSlug: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
+declare module 'virtual:bike-app/photo-locations' {
+  const locations: _PhotoLocation[];
+  export default locations;
+}
+
+declare module 'virtual:bike-app/nearby-photos' {
+  const nearbyPhotos: Record<string, _PhotoLocation[]>;
+  export default nearbyPhotos;
+}
+
+interface _ParkedPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  width?: number;
+  height?: number;
+  uploaded_by?: string;
+  captured_at?: string;
+}
+
+declare module 'virtual:bike-app/parked-photos' {
+  const parkedPhotos: _ParkedPhoto[];
+  export default parkedPhotos;
 }

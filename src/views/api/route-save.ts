@@ -2,11 +2,12 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'zod';
-import { mergeMedia } from '../../lib/media-merge';
+import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
+import { upsertContentCache } from '../../lib/cache';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { uploadToLfs } from '../../lib/git-lfs';
@@ -45,6 +46,10 @@ const routeUpdateSchema = z.object({
     cover: z.boolean().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    uploaded_by: z.string().optional(),
+    captured_at: z.string().optional(),
   })).optional(),
   variants: z.array(z.object({
     name: z.string(),
@@ -55,6 +60,17 @@ const routeUpdateSchema = z.object({
     isNew: z.boolean().optional(),
     gpxContent: z.string().optional(),
   })).min(1, 'At least one route option is required').optional(),
+  parkedPhotos: z.array(z.object({
+    key: z.string(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    caption: z.string().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+    uploaded_by: z.string().optional(),
+    captured_at: z.string().optional(),
+  })).optional(),
+  deletedParkedKeys: z.array(z.string()).optional(),
   newSlug: z.string().optional(),
   contentHash: z.string().optional(),
   translations: z.record(z.string(), z.object({
@@ -74,7 +90,13 @@ export interface RouteUpdate {
     cover?: boolean;
     width?: number;
     height?: number;
+    lat?: number;
+    lng?: number;
+    uploaded_by?: string;
+    captured_at?: string;
   }>;
+  parkedPhotos?: ParkedPhotoEntry[];
+  deletedParkedKeys?: string[];
   variants?: VariantPayload[];
   contentHash?: string;
   translations?: Record<string, { name: string; tagline: string; body: string }>;
@@ -111,7 +133,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
     return buildFreshRouteData(slug, currentFiles);
   },
 
-  async buildFileChanges(update, slug, currentFiles, git): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
+  async buildFileChanges(update, slug, currentFiles, git) {
     const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
     const basePath = `${CITY}/routes/${targetSlug}`;
     const files: FileChange[] = [];
@@ -266,7 +288,36 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
       }
     }
 
-    return { files, deletePaths, isNew };
+    // Update parked-photos.yml
+    const parkedPath = `${CITY}/parked-photos.yml`;
+    let existingParked: ParkedPhotoEntry[] = [];
+    const parkedFile = await git.readFile(parkedPath);
+    if (parkedFile) {
+      existingParked = (yaml.load(parkedFile.content) as ParkedPhotoEntry[]) || [];
+    }
+
+    // Un-park any photos that were added to this route from parking
+    const unparkedKeys = new Set(
+      (update.media || [])
+        .filter(m => existingParked.some(p => p.key === m.key))
+        .map(m => m.key),
+    );
+
+    // Also remove explicitly deleted parked photos
+    if (update.deletedParkedKeys) {
+      for (const k of update.deletedParkedKeys) unparkedKeys.add(k);
+    }
+
+    const toAdd = update.parkedPhotos || [];
+    const mergedParked = mergeParkedPhotos(existingParked, toAdd, unparkedKeys);
+
+    if (mergedParked.length > 0) {
+      files.push({ path: parkedPath, content: yaml.dump(mergedParked, { flowLevel: -1, lineWidth: -1 }) });
+    } else if (existingParked.length > 0) {
+      deletePaths.push(parkedPath);
+    }
+
+    return { files, deletePaths, isNew, mergedParked };
   },
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
@@ -313,6 +364,18 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
 
   buildGitHubUrl(slug: string, baseBranch: string): string {
     return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
+  },
+
+  async afterCommit(result, database) {
+    const mergedParked = result.mergedParked as ParkedPhotoEntry[] | undefined;
+    if (mergedParked) {
+      await upsertContentCache(database, {
+        contentType: 'parked-photos',
+        contentSlug: '__global',
+        data: JSON.stringify(mergedParked),
+        githubSha: 'n/a',
+      });
+    }
   },
 };
 

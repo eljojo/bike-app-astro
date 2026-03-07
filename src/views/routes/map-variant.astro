@@ -40,6 +40,11 @@ const conclusion = elevation ? elevationConclusion(elevation, allElevations) : n
 
 const nearby = findNearbyPlaces(track.points, placeData);
 const mapPlaces = toMapPlaces(nearby, locale);
+
+const photos = route.data.media
+  .filter((m: any) => m.type === 'photo' && m.lat != null && m.lng != null)
+  .map((m: any, i: number) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
+
 const variantKey = variantKeyFromGpx(variant.gpx);
 const alternateUrls: Record<string, string> = {};
 for (const loc of supportedLocales()) {
@@ -58,6 +63,7 @@ for (const loc of supportedLocales()) {
     elevationGain={elevation}
     elevationConclusion={conclusion}
     places={mapPlaces}
+    photos={photos}
     trackPoints={track.points}
     trackDistanceM={track.distance_m}
   />

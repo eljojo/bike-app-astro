@@ -18,9 +18,10 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
-import { loadAdminRouteData } from './loaders/admin-routes';
+import { loadAdminRouteData, loadRouteTrackPoints } from './loaders/admin-routes';
 import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
+import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -31,6 +32,13 @@ export { loadAdminEventData };
 export { loadAdminOrganizers };
 
 const CITY_DIR = cityDir;
+
+function loadParkedPhotos(): ParkedPhoto[] {
+  const filePath = path.join(CITY_DIR, 'parked-photos.yml');
+  if (!fs.existsSync(filePath)) return [];
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  return (yaml.load(raw) as ParkedPhoto[]) || [];
+}
 
 function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
@@ -104,6 +112,9 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/admin-event-detail') return '\0virtual:bike-app/admin-event-detail';
       if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
       if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
+      if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
+      if (id === 'virtual:bike-app/nearby-photos') return '\0virtual:bike-app/nearby-photos';
+      if (id === 'virtual:bike-app/parked-photos') return '\0virtual:bike-app/parked-photos';
     },
     async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
@@ -131,6 +142,24 @@ export function buildDataPlugin(): Plugin {
       }
       if (id === '\0virtual:bike-app/contributors') {
         return `export default ${JSON.stringify(contributors)};`;
+      }
+      if (id === '\0virtual:bike-app/photo-locations') {
+        const { details } = await adminRouteDataPromise;
+        const parked = loadParkedPhotos();
+        const locations = buildPhotoLocations(details, parked);
+        return `export default ${JSON.stringify(locations)};`;
+      }
+      if (id === '\0virtual:bike-app/nearby-photos') {
+        const { details } = await adminRouteDataPromise;
+        const parked = loadParkedPhotos();
+        const locations = buildPhotoLocations(details, parked);
+        const tracks = loadRouteTrackPoints();
+        const nearbyMap = buildNearbyPhotosMap(locations, tracks);
+        return `export default ${JSON.stringify(nearbyMap)};`;
+      }
+      if (id === '\0virtual:bike-app/parked-photos') {
+        const parked = loadParkedPhotos();
+        return `export default ${JSON.stringify(parked)};`;
       }
     },
 
