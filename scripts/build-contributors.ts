@@ -104,6 +104,41 @@ export function resolveContributors(
     }));
 }
 
+/**
+ * Load users from D1 (CI) or local SQLite (dev).
+ * Emails stay in memory only — never written to disk or CI logs.
+ */
+function loadUsers(): UserData[] {
+  if (process.env.RUNTIME === 'local') {
+    const dbPath = process.env.LOCAL_DB_PATH || path.resolve(import.meta.dirname, '../.data/local.db');
+    if (!fs.existsSync(dbPath)) return [];
+    try {
+      const Database = require('better-sqlite3');
+      const db = new Database(dbPath, { readonly: true });
+      const rows = db.prepare('SELECT id, username, email, banned_at as bannedAt FROM users').all();
+      db.close();
+      return rows;
+    } catch {
+      console.warn('Failed to load users from local SQLite');
+      return [];
+    }
+  }
+
+  // CI: query production D1 via wrangler (needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID)
+  try {
+    const output = execSync(
+      'npx wrangler d1 execute DB --env production --remote --json --command "SELECT id, username, email, banned_at as bannedAt FROM users"',
+      { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] },
+    );
+    const parsed = JSON.parse(output);
+    return parsed[0].results;
+  } catch {
+    // Fail silently — never log raw output (contains emails)
+    console.warn('Failed to load users from D1 (missing credentials?)');
+    return [];
+  }
+}
+
 // Main execution — only when run directly, not when imported for tests
 const isDirectRun = process.argv[1] && (
   process.argv[1].endsWith('build-contributors.ts') ||
@@ -120,14 +155,7 @@ if (isDirectRun) {
   );
   const lines = gitLog.trim().split('\n').filter(Boolean);
   const authorMap = groupCommitsByAuthor(lines);
-
-  // Load user data: from USERS_JSON env var (CI) or local file
-  let usersData: UserData[] = [];
-  const usersJsonPath = process.env.USERS_JSON;
-  if (usersJsonPath && fs.existsSync(usersJsonPath)) {
-    const raw = JSON.parse(fs.readFileSync(usersJsonPath, 'utf-8'));
-    usersData = raw.results || raw;
-  }
+  const usersData = loadUsers();
 
   const contributors = resolveContributors(authorMap, usersData);
   const outDir = path.resolve(import.meta.dirname, '../.astro');
