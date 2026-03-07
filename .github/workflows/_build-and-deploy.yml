@@ -130,6 +130,13 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
+      - name: Run unit tests
+        run: npx vitest run
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+          GIT_BRANCH: ${{ inputs.data-ref }}
+
       - name: Build site
         run: npx astro build
         env:
@@ -143,13 +150,6 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
-
-      - name: Run unit tests
-        run: npx vitest run
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
-          GIT_BRANCH: ${{ inputs.data-ref }}
 
       # When update-screenshots is enabled, --update-snapshots makes Playwright
       # overwrite baselines and pass screenshot assertions in a single run.
