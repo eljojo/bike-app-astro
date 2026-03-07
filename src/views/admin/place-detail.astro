@@ -1,0 +1,30 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
+import EditHistory from '../../components/admin/EditHistory.tsx';
+import adminPlaceDetails from 'virtual:bike-app/admin-place-detail';
+import { env } from '../../lib/env';
+import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
+import { loadDetailPageData } from '../../lib/load-admin-content';
+import { placeDetailFromCache } from '../../lib/models/place-model';
+
+const result = await loadDetailPageData({
+  contentType: 'places',
+  id: Astro.params.id,
+  virtualModuleData: adminPlaceDetails,
+  fromCache: placeDetailFromCache,
+});
+
+if (result.notFound) return new Response(null, { status: 404 });
+const placeData = result.data;
+
+const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const user = Astro.locals.user;
+---
+
+<AdminEditorLayout title={`Edit: ${placeData.name}`} backLink="/admin/places" backLabel="Back to places" hideTitle user={user} currentTab="places">
+  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} userRole={user?.role} />
+  <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={GIT_REPO} userRole={user?.role} />
+</AdminEditorLayout>
