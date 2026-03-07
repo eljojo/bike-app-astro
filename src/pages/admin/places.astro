@@ -5,9 +5,18 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import adminPlaces from 'virtual:bike-app/admin-places';
 import { categoryEmoji } from '../../lib/place-categories';
+import { getCityConfig } from '../../lib/city-config';
 import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
+const config = getCityConfig();
+const mapPlaces = adminPlaces.filter(p => p.lat && p.lng).map(p => ({
+  id: p.id,
+  name: p.name,
+  emoji: categoryEmoji[p.category] || '\u{1F4CD}',
+  lat: p.lat,
+  lng: p.lng,
+}));
 
 // Group by category
 function groupByCategory(places: typeof adminPlaces) {
@@ -39,6 +48,16 @@ const grouped = groupByCategory(adminPlaces);
       <span class="place-count">{adminPlaces.length} places</span>
     </div>
 
+    {mapPlaces.length > 0 && (
+      <div
+        id="places-map"
+        class="places-admin-map"
+        data-places={JSON.stringify(mapPlaces)}
+        data-tiles-url={config.tiles_url}
+        data-center={JSON.stringify([config.center.lat, config.center.lng])}
+      />
+    )}
+
     {grouped.map(({ key, label, emoji, places }) => (
       <div class="place-category-group">
         <h2 class="category-header">{emoji} {label} <span class="category-count">({places.length})</span></h2>
@@ -59,6 +78,31 @@ const grouped = groupByCategory(adminPlaces);
   </div>
 </Base>
 
+<script>
+  import { initMap, addMarkers } from '../../lib/leaflet-init';
+  import { html } from '../../lib/map-helpers';
+
+  const el = document.getElementById('places-map');
+  if (el) {
+    const places = JSON.parse(el.dataset.places || '[]');
+    const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
+    const tilesUrl = el.dataset.tilesUrl || '';
+
+    const map = initMap({ el, center, zoom: 11, tilesUrl });
+
+    addMarkers(map, places.map((p: any) => ({
+      lat: p.lat, lng: p.lng, emoji: p.emoji,
+      popup: html`<a href="/admin/places/${p.id}"><strong>${p.name}</strong></a>`,
+    })));
+
+    if (places.length > 0) {
+      const L = await import('leaflet');
+      const bounds = L.default.latLngBounds(places.map((p: any) => [p.lat, p.lng]));
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+    }
+  }
+</script>
+
 <style lang="scss">
   @use '../../styles/variables' as *;
   @use '../../styles/mixins' as *;
@@ -67,6 +111,12 @@ const grouped = groupByCategory(adminPlaces);
     max-width: 700px;
     margin: 1rem auto;
     padding: 0 1rem;
+  }
+
+  .places-admin-map {
+    height: 350px;
+    border-radius: $border-radius;
+    margin-bottom: 1.5rem;
   }
 
   .place-actions-bar {
