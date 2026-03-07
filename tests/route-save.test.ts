@@ -171,6 +171,35 @@ describe('routeHandlers.parseRequest', () => {
 });
 
 describe('routeHandlers.buildFileChanges', () => {
+  it('preserves existing slug field in translation files', async () => {
+    const update = {
+      frontmatter: { name: 'Lake Leamy' },
+      body: 'English body',
+      translations: {
+        fr: { name: 'Boucle vers le lac Leamy', tagline: 'au bord de l\'eau', body: 'Corps français' },
+      },
+    };
+
+    const currentFiles: CurrentFiles = {
+      primaryFile: {
+        content: '---\nname: Lake Leamy\n---\n\nEnglish body',
+        sha: 'abc123',
+      },
+      auxiliaryFiles: {
+        'ottawa/routes/lake-leamy/index.fr.md': {
+          content: '---\nslug: boucle-lac-leamy\nname: Boucle vers le lac Leamy\ntagline: au bord de l\'eau\n---\n\nCorps français',
+          sha: 'sha-fr',
+        },
+      },
+    };
+
+    const git = { readFile: async () => null } as any;
+    const result = await routeHandlers.buildFileChanges(update, 'lake-leamy', currentFiles, git);
+    const frFile = result.files.find(f => f.path.endsWith('index.fr.md'));
+    expect(frFile).toBeDefined();
+    expect(frFile!.content).toContain('slug: boucle-lac-leamy');
+  });
+
   it('handles existing routes without crashing when parsing current frontmatter', async () => {
     const update = {
       frontmatter: { name: 'Updated Name' },
