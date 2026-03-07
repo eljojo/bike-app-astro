@@ -12,14 +12,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Determine which cities need rebuilding
+  detect-cities:
+    runs-on: ubuntu-latest
+    outputs:
+      cities: ${{ steps.detect.outputs.cities }}
+    steps:
+      - id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # Data repo webhook — check payload for city
+            CITY="${{ github.event.client_payload.city || 'ottawa' }}"
+            echo "cities=[\"${CITY}\"]" >> "$GITHUB_OUTPUT"
+          else
+            # Code change or manual dispatch — rebuild all cities
+            echo 'cities=["ottawa","demo"]' >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
-    uses: ./.github/workflows/_build-and-deploy.yml
+    needs: detect-cities
+    strategy:
+      matrix:
+        include:
+          - city: ottawa
+            wrangler-env: production
+            # Migrations run only in Ottawa deploy — all cities share one DB.
+            # Do NOT add run-migrations to other cities thinking it was forgotten.
+            run-migrations: true
+          - city: demo
+            wrangler-env: demo-production
+            run-migrations: false
+      fail-fast: false
+    # Only run for cities that need rebuilding
+    if: contains(fromJSON(needs.detect-cities.outputs.cities), matrix.city)
+    uses: ./.github/workflows/_build-city.yml
     with:
+      city: ${{ matrix.city }}
       environment: production
+      wrangler-env: ${{ matrix.wrangler-env }}
       deploy: true
-      wrangler-env: production
-      skip-tests: ${{ github.event_name == 'repository_dispatch' }}
-      skip-e2e: true
+      run-migrations: ${{ matrix.run-migrations }}
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
