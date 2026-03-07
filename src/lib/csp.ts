@@ -28,7 +28,7 @@ export function sharedCspDirectives(): string[] {
     `img-src 'self' data: blob: ${cdn} ${videos} ${tiles} https://www.gravatar.com`,
     `media-src 'self' blob: ${videos} ${cdn}`,
     "font-src 'self' data:",
-    "connect-src 'self' https://*.r2.cloudflarestorage.com",
+    "connect-src 'self' https://*.r2.cloudflarestorage.com https://nominatim.openstreetmap.org",
     "manifest-src 'self'",
   ];
 }
