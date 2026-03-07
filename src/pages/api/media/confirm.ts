@@ -25,7 +25,10 @@ export async function POST({ request, locals }: APIContext) {
   try {
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const metadata = await confirmUpload(env.BUCKET, key, prefix);
-    return jsonResponse(metadata as unknown as Record<string, unknown>);
+    return jsonResponse({
+      ...metadata,
+      uploaded_by: user.username,
+    } as unknown as Record<string, unknown>);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return jsonError(message, 404);
