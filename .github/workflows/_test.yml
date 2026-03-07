@@ -1,0 +1,196 @@
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      update-screenshots:
+        description: 'Auto-commit updated screenshots on diff'
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      DATA_REPO_DEPLOY_KEY:
+        required: true
+      GOOGLE_MAPS_STATIC_API_KEY:
+        required: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout astro repo
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Checkout data repo
+        uses: actions/checkout@v6
+        with:
+          repository: eljojo/bike-routes
+          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+          ref: main
+          path: bike-routes
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Run unit tests
+        run: npx vitest run
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      - name: Restore Astro content cache
+        uses: actions/cache@v5
+        with:
+          path: .astro
+          key: astro-ottawa-${{ hashFiles('bike-routes/ottawa/routes/**') }}
+          restore-keys: |
+            astro-ottawa-
+
+      - name: Restore map cache
+        uses: actions/cache@v5
+        with:
+          path: public/maps
+          key: maps-${{ hashFiles('bike-routes/ottawa/routes/**/variants/*.gpx', 'bike-routes/ottawa/routes/**/*.gpx') }}
+          restore-keys: |
+            maps-
+
+      - name: Generate map thumbnails
+        run: npx tsx scripts/generate-maps.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+      - name: Build contributor stats
+        run: npx tsx scripts/build-contributors.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      - name: Build site (Ottawa)
+        run: npx astro build
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+          DISABLE_ANALYTICS: 'true'
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Validate build output
+        run: npm run validate
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install fonts for screenshots
+        run: |
+          echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+          sudo apt-get install -y fonts-noto-color-emoji ttf-mscorefonts-installer
+          sudo fc-cache -f
+
+      - name: Install Playwright browsers
+        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached)
+        if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: npx playwright install-deps chromium
+
+      - name: Run E2E tests
+        run: >-
+          npx playwright test --config e2e/playwright.config.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      - name: Save Cloudflare build for deploy
+        run: cp -r dist dist-cloudflare
+
+      - name: Run admin E2E tests
+        run: >-
+          npx playwright test --config e2e/admin/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      - name: Update screenshot baselines
+        id: update-screenshots
+        if: ${{ inputs.update-screenshots }}
+        run: |
+          if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
+            echo "Latest commit is already a screenshot update, skipping"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/
+          if git diff --cached --quiet; then
+            echo "No screenshot changes"
+            exit 0
+          fi
+          echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
+          git diff --cached --name-only
+          git commit -m "ci: update screenshot baselines"
+          git push
+
+      - name: Comment on PR with updated screenshots
+        if: >-
+          steps.update-screenshots.outputs.screenshots_updated == 'true'
+          && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- screenshot-update-comment -->';
+            const { execSync } = require('child_process');
+            const files = execSync('git diff --name-only HEAD~1').toString().trim().split('\n');
+            const list = files.map(f => `- \`${f}\``).join('\n');
+            const body = `${marker}\n📸 Screenshot baselines were automatically updated:\n\n${list}\n\nCheck the commit diff to review the visual changes.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      # Upload the Cloudflare build as artifact so the deploy job can use it
+      - name: Upload Ottawa build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-ottawa
+          path: dist-cloudflare/
+          retention-days: 1
