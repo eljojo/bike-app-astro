@@ -7,12 +7,12 @@ describe('variantKeyFromGpx', () => {
     expect(variantKeyFromGpx('main.gpx')).toBe('main');
   });
 
-  it('strips variants/ prefix', () => {
-    expect(variantKeyFromGpx('variants/bike-days.gpx')).toBe('bike-days');
+  it('prefixes variants/ with variants-', () => {
+    expect(variantKeyFromGpx('variants/bike-days.gpx')).toBe('variants-bike-days');
   });
 
   it('handles nested variant paths', () => {
-    expect(variantKeyFromGpx('variants/normal-route.gpx')).toBe('normal-route');
+    expect(variantKeyFromGpx('variants/normal-route.gpx')).toBe('variants-normal-route');
   });
 });
 
