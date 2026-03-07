@@ -9,22 +9,18 @@ import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env';
 import { can } from '../../lib/authorize';
 import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
-import { loadAdminContent } from '../../lib/load-admin-content';
+import { loadDetailPageData } from '../../lib/load-admin-content';
 import { eventDetailFromCache } from '../../lib/models/event-model';
 
-const id = Astro.params.id;
-if (!id) return new Response(null, { status: 404 });
-
-const [year, slug] = id.split('/');
-
-const { data: eventData } = await loadAdminContent({
+const result = await loadDetailPageData({
   contentType: 'events',
-  contentSlug: id,
+  id: Astro.params.id,
   virtualModuleData: adminEventDetails,
   fromCache: eventDetailFromCache,
 });
 
-if (!eventData) return new Response(null, { status: 404 });
+if (result.notFound) return new Response(null, { status: 404 });
+const eventData = result.data;
 
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;

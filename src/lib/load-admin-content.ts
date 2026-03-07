@@ -53,6 +53,27 @@ export async function loadAdminContent<T>(opts: {
 }
 
 /**
+ * Convenience wrapper for admin detail pages.
+ * Handles null ID check, loadAdminContent call, and null data check in one step.
+ */
+export async function loadDetailPageData<T>(opts: {
+  contentType: string;
+  id: string | undefined;
+  virtualModuleData: Record<string, T>;
+  fromCache: (blob: string) => T;
+}): Promise<{ data: T; notFound: false } | { notFound: true }> {
+  if (!opts.id) return { notFound: true };
+  const { data } = await loadAdminContent({
+    contentType: opts.contentType,
+    contentSlug: opts.id,
+    virtualModuleData: opts.virtualModuleData,
+    fromCache: opts.fromCache,
+  });
+  if (!data) return { notFound: true };
+  return { data, notFound: false };
+}
+
+/**
  * Load admin route list with D1 cache overlay.
  * Merges cached edits over build-time virtual module data and appends
  * routes that only exist in the cache (created since last deploy).
