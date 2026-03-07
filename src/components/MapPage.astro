@@ -29,6 +29,14 @@ interface GpxPoint {
   ele?: number;
 }
 
+interface MapPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  index: number;
+}
+
 interface Props {
   routeSlug: string;
   /** Translated slug for locale-aware links (falls back to routeSlug if not provided) */
@@ -40,11 +48,12 @@ interface Props {
   elevationGain?: number | null;
   elevationConclusion?: string | null;
   places?: MapPlace[];
+  photos?: MapPhoto[];
   trackPoints?: GpxPoint[];
   trackDistanceM?: number;
 }
 
-const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], trackPoints, trackDistanceM } = Astro.props;
+const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM } = Astro.props;
 const linkSlug = routeLocaleSlug || routeSlug;
 const siteUrl = import.meta.env.SITE || getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
@@ -98,7 +107,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   )}
 </p>
 
-<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} />
+<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} photos={photos} />
 
 {trackPoints && trackPoints.length > 0 && trackDistanceM && (
   <div id="elevation-profile" style="margin-top: 1.5em;">

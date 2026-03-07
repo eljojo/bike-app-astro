@@ -13,14 +13,23 @@ interface Place {
   google_maps_url?: string;
 }
 
+interface MapPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  index: number;
+}
+
 interface Props {
   polylines: { name: string; encoded: string }[];
   places?: Place[];
+  photos?: MapPhoto[];
   center?: [number, number];
   zoom?: number;
 }
 
-const { polylines, places = [], center, zoom } = Astro.props;
+const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 ---
 
 <div
@@ -31,6 +40,8 @@ const { polylines, places = [], center, zoom } = Astro.props;
   data-center={JSON.stringify(center)}
   data-zoom={zoom?.toString() || '12'}
   data-tiles-url={config.tiles_url}
+  data-photos={JSON.stringify(photos)}
+  data-cdn-url={import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca'}
 ></div>
 
 <script>
