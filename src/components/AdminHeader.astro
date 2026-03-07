@@ -31,11 +31,11 @@ const avatarUrl = avatarHash
 <script is:inline nonce={cspNonce}>
   const banner = document.getElementById('community-banner');
   const dismiss = document.getElementById('community-banner-dismiss');
-  if (sessionStorage.getItem('community-banner-dismissed')) {
+  if (localStorage.getItem('community-banner-dismissed')) {
     banner?.remove();
   }
   dismiss?.addEventListener('click', () => {
-    sessionStorage.setItem('community-banner-dismissed', '1');
+    localStorage.setItem('community-banner-dismissed', '1');
     banner?.remove();
   });
 </script>
