@@ -82,9 +82,9 @@ describe('loadAdminRouteData details', () => {
     for (const detail of Object.values(details)) {
       for (const item of detail.media) {
         const keys = Object.keys(item);
-        // Only allowed keys: key, caption, cover
+        // Only allowed keys: key, caption, cover, and optional coordinate/upload fields
         for (const k of keys) {
-          expect(['key', 'caption', 'cover']).toContain(k);
+          expect(['key', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at']).toContain(k);
         }
         // key is always required
         expect(item).toHaveProperty('key');

@@ -13,14 +13,23 @@ interface Place {
   google_maps_url?: string;
 }
 
+interface MapPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  index: number;
+}
+
 interface Props {
   polylines: { name: string; encoded: string }[];
   places?: Place[];
+  photos?: MapPhoto[];
   center?: [number, number];
   zoom?: number;
 }
 
-const { polylines, places = [], center, zoom } = Astro.props;
+const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 ---
 
 <div
@@ -31,19 +40,23 @@ const { polylines, places = [], center, zoom } = Astro.props;
   data-center={JSON.stringify(center)}
   data-zoom={zoom?.toString() || '12'}
   data-tiles-url={config.tiles_url}
+  data-photos={JSON.stringify(photos)}
+  data-cdn-url={import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca'}
 ></div>
 
 <script>
-  import { initMap, addPolylines, addMarkers } from '../lib/leaflet-init';
+  import { initMap, addPolylines, addMarkers, addPhotoToggle, makePhotoPopupHandler } from '../lib/leaflet-init';
   import { buildPlacePopup } from '../lib/map-helpers';
 
   const el = document.getElementById('route-map');
   if (el) {
     const polylines = JSON.parse(el.dataset.polylines || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
+    const photos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const zoom = parseInt(el.dataset.zoom || '12');
     const tilesUrl = el.dataset.tilesUrl || '';
+    const cdnUrl = el.dataset.cdnUrl || '';
 
     const map = initMap({ el, center, zoom, tilesUrl });
 
@@ -59,5 +72,18 @@ const { polylines, places = [], center, zoom } = Astro.props;
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p),
     })));
+
+    const hasGallery = document.querySelectorAll('.photo-gallery a.photo-gallery--image').length > 0;
+
+    if (hasGallery) {
+      addPhotoToggle(map, photos, cdnUrl, (photo) => {
+        const galleryLinks = document.querySelectorAll('.photo-gallery a.photo-gallery--image');
+        if (galleryLinks.length > photo.index) {
+          (galleryLinks[photo.index] as HTMLElement).click();
+        }
+      });
+    } else {
+      addPhotoToggle(map, photos, cdnUrl, makePhotoPopupHandler(map, cdnUrl));
+    }
   }
 </script>

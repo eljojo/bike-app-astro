@@ -29,6 +29,10 @@ export const routeSchema = z.object({
     height: z.number().optional(),
     duration: z.string().optional(),
     orientation: z.string().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    uploaded_by: z.string().optional(),
+    captured_at: z.string().optional(),
   })).default([]),
   gpxTracks: z.record(z.string(), z.object({
     points: z.array(z.object({ lat: z.number(), lon: z.number(), ele: z.number().optional() })),

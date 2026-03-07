@@ -106,3 +106,37 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
   return cachedRouteData;
 }
 
+export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng: number }>> {
+  const routesDir = path.join(CITY_DIR, 'routes');
+  const slugs = fs.readdirSync(routesDir).filter((name) => {
+    return fs.statSync(path.join(routesDir, name)).isDirectory();
+  });
+
+  const tracks: Record<string, Array<{ lat: number; lng: number }>> = {};
+
+  for (const slug of slugs) {
+    const routeDir = path.join(routesDir, slug);
+    const { frontmatter } = readRouteDir(slug);
+    const variants = (frontmatter.variants as Array<{ gpx: string }>) || [];
+
+    const points: Array<{ lat: number; lng: number }> = [];
+    for (const v of variants) {
+      const gpxPath = path.join(routeDir, v.gpx);
+      if (fs.existsSync(gpxPath)) {
+        try {
+          const parsed = parseGpx(fs.readFileSync(gpxPath, 'utf-8'));
+          for (const p of parsed.points) {
+            points.push({ lat: p.lat, lng: p.lon });
+          }
+        } catch { /* skip unparseable GPX */ }
+      }
+    }
+
+    if (points.length > 0) {
+      tracks[slug] = points;
+    }
+  }
+
+  return tracks;
+}
+

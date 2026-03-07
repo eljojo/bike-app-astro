@@ -18,9 +18,10 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
-import { loadAdminRouteData } from './loaders/admin-routes';
+import { loadAdminRouteData, loadRouteTrackPoints } from './loaders/admin-routes';
 import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
+import { buildPhotoLocations, buildNearbyPhotosMap } from './loaders/photo-locations';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -104,6 +105,8 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/admin-event-detail') return '\0virtual:bike-app/admin-event-detail';
       if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
       if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
+      if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
+      if (id === 'virtual:bike-app/nearby-photos') return '\0virtual:bike-app/nearby-photos';
     },
     async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
@@ -131,6 +134,18 @@ export function buildDataPlugin(): Plugin {
       }
       if (id === '\0virtual:bike-app/contributors') {
         return `export default ${JSON.stringify(contributors)};`;
+      }
+      if (id === '\0virtual:bike-app/photo-locations') {
+        const { details } = await adminRouteDataPromise;
+        const locations = buildPhotoLocations(details);
+        return `export default ${JSON.stringify(locations)};`;
+      }
+      if (id === '\0virtual:bike-app/nearby-photos') {
+        const { details } = await adminRouteDataPromise;
+        const locations = buildPhotoLocations(details);
+        const tracks = loadRouteTrackPoints();
+        const nearbyMap = buildNearbyPhotosMap(locations, tracks);
+        return `export default ${JSON.stringify(nearbyMap)};`;
       }
     },
 

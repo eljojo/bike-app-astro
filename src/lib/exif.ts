@@ -1,14 +1,20 @@
 import ExifReader from 'exif-reader';
 
+export interface PhotoMetadata {
+  lat: number;
+  lng: number;
+  capturedAt?: string;
+}
+
 /**
- * Extract GPS coordinates from a JPEG image buffer.
- * Returns { lat, lng } in decimal degrees, or null if no GPS data found.
+ * Extract GPS coordinates and capture timestamp from a JPEG image buffer.
+ * Returns { lat, lng, capturedAt? } or null if no GPS data found.
  *
  * Only JPEG files contain EXIF data. PNG and WebP are silently skipped.
  */
-export function extractGpsCoordinates(
+export function extractPhotoMetadata(
   buffer: ArrayBuffer,
-): { lat: number; lng: number } | null {
+): PhotoMetadata | null {
   try {
     const view = new Uint8Array(buffer);
     // Only JPEG files have EXIF — check for SOI marker (FF D8)
@@ -36,10 +42,25 @@ export function extractGpsCoordinates(
 
     if (!isFinite(lat) || !isFinite(lng)) return null;
 
-    return { lat: round6(lat), lng: round6(lng) };
+    let capturedAt: string | undefined;
+    const dto = exif?.Photo?.DateTimeOriginal;
+    if (dto instanceof Date) {
+      capturedAt = dto.toISOString();
+    }
+
+    return { lat: round6(lat), lng: round6(lng), capturedAt };
   } catch {
     return null;
   }
+}
+
+/** @deprecated Use extractPhotoMetadata instead */
+export function extractGpsCoordinates(
+  buffer: ArrayBuffer,
+): { lat: number; lng: number } | null {
+  const meta = extractPhotoMetadata(buffer);
+  if (!meta) return null;
+  return { lat: meta.lat, lng: meta.lng };
 }
 
 /**

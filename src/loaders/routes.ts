@@ -23,6 +23,10 @@ export interface RouteMedia {
   height?: number;
   duration?: string;
   orientation?: string;
+  lat?: number;
+  lng?: number;
+  uploaded_by?: string;
+  captured_at?: string;
 }
 
 /**
