@@ -6,11 +6,14 @@ export function parseLocalDate(dateStr: string): Date {
   return new Date(year, month - 1, day);
 }
 
+const monthFirstCache = new Map<string, boolean>();
 function isMonthFirst(locale: string): boolean {
+  const cached = monthFirstCache.get(locale);
+  if (cached !== undefined) return cached;
   const parts = new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric' }).formatToParts(new Date(2026, 0, 15));
-  const monthIdx = parts.findIndex(p => p.type === 'month');
-  const dayIdx = parts.findIndex(p => p.type === 'day');
-  return monthIdx < dayIdx;
+  const result = parts.findIndex(p => p.type === 'month') < parts.findIndex(p => p.type === 'day');
+  monthFirstCache.set(locale, result);
+  return result;
 }
 
 export function formatDate(d: Date, opts?: { includeYear?: boolean; locale?: string }): string {
