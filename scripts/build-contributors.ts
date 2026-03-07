@@ -57,6 +57,11 @@ export function resolveContributors(
   authorMap: Map<string, AuthorEntry>,
   usersData: UserData[],
 ): Contributor[] {
+  // No DB access — fall back to git author names
+  if (usersData.length === 0) {
+    return resolveWithoutDb(authorMap);
+  }
+
   const userById = new Map(usersData.map(u => [u.id, u]));
   const userByEmail = new Map(
     usersData.filter(u => u.email).map(u => [u.email!, u]),
@@ -97,6 +102,23 @@ export function resolveContributors(
   }
 
   return [...resolved.values()]
+    .sort((a, b) => b.count - a.count)
+    .map(({ username, email }) => ({
+      username,
+      gravatarHash: md5(email),
+    }));
+}
+
+function resolveWithoutDb(authorMap: Map<string, AuthorEntry>): Contributor[] {
+  const results: { username: string; email: string; count: number }[] = [];
+
+  for (const [authorEmail, entry] of authorMap) {
+    const appMatch = authorEmail.match(/^(.+)\+(.+)@whereto\.bike$/);
+    const username = appMatch ? appMatch[1] : entry.name;
+    results.push({ username, email: authorEmail, count: entry.count });
+  }
+
+  return results
     .sort((a, b) => b.count - a.count)
     .map(({ username, email }) => ({
       username,
