@@ -149,9 +149,9 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
 
       const pinIcon = L.default.divIcon({
         className: 'place-picker-marker',
-        html: '+',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+        html: '',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
       });
 
       function createDraggableMarker(position: [number, number]) {
