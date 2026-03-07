@@ -10,12 +10,25 @@ export interface PhotoLocation {
   height?: number;
 }
 
+export interface ParkedPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  width?: number;
+  height?: number;
+  uploaded_by?: string;
+  captured_at?: string;
+}
+
 /**
  * Build a flat list of all geolocated photos across all routes.
+ * Parked photos are merged with routeSlug '__parked'.
  * Used as a virtual module for cross-route photo suggestions in the admin editor.
  */
 export function buildPhotoLocations(
   routeData: Record<string, { media: Array<{ key: string; lat?: number; lng?: number; caption?: string; width?: number; height?: number }> }>,
+  parkedPhotos: ParkedPhoto[] = [],
 ): PhotoLocation[] {
   const photos: PhotoLocation[] = [];
 
@@ -34,6 +47,18 @@ export function buildPhotoLocations(
         });
       }
     }
+  }
+
+  for (const p of parkedPhotos) {
+    photos.push({
+      key: p.key,
+      lat: p.lat,
+      lng: p.lng,
+      routeSlug: '__parked',
+      caption: p.caption,
+      width: p.width,
+      height: p.height,
+    });
   }
 
   return photos;

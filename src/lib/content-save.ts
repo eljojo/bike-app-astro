@@ -40,13 +40,16 @@ export interface SaveHandlers<T> {
   /** Check for existence conflicts (new content). Return error Response or null. */
   checkExistence?(git: IGitService, contentId: string): Promise<Response | null>;
 
-  /** Build the file changes and delete paths for the git commit. */
+  /** Build the file changes and delete paths for the git commit. Extra properties are passed to afterCommit. */
   buildFileChanges(
     update: T,
     contentId: string,
     currentFiles: CurrentFiles,
     git: IGitService,
-  ): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }>;
+  ): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean; [key: string]: unknown }>;
+
+  /** Optional callback invoked after a successful commit with the buildFileChanges result. */
+  afterCommit?(result: { files: FileChange[]; deletePaths: string[]; isNew: boolean; [key: string]: unknown }, database: ReturnType<typeof db>): Promise<void>;
 
   /** Build the commit message. */
   buildCommitMessage(update: T, contentId: string, isNew: boolean, currentFiles: CurrentFiles): string;
@@ -87,7 +90,8 @@ export async function saveContent<T extends { contentHash?: string }>(
     const conflict = await detectConflict(database, contentType, contentId, currentFiles, update, handlers, baseBranch);
     if (conflict) return conflict;
 
-    const { files, deletePaths, isNew } = await handlers.buildFileChanges(update, contentId, currentFiles, git);
+    const buildResult = await handlers.buildFileChanges(update, contentId, currentFiles, git);
+    const { files, deletePaths, isNew } = buildResult;
 
     if (await hasNoChanges(files, deletePaths, isNew, currentFiles, filePaths, git)) {
       const currentHash = handlers.computeContentHash(currentFiles);
@@ -102,7 +106,17 @@ export async function saveContent<T extends { contentHash?: string }>(
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
 
-    return updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
+    const response = await updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
+
+    if (response.ok && handlers.afterCommit) {
+      try {
+        await handlers.afterCommit(buildResult, database);
+      } catch (err) {
+        console.error(`afterCommit for ${contentType} failed:`, err);
+      }
+    }
+
+    return response;
   } catch (err: unknown) {
     console.error(`save ${contentType} error:`, err);
     const message = err instanceof Error ? err.message : 'Failed to save';

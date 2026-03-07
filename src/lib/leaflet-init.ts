@@ -5,6 +5,10 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import polylineCodec from '@mapbox/polyline';
 import { addGpsControl } from './leaflet-controls';
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 interface MapOptions {
   el: HTMLElement;
   center: [number, number];
@@ -58,7 +62,7 @@ export function addMarkers(map: L.Map, markers: MarkerOptions[]) {
       html: `<span class="poi-marker-emoji">${m.emoji}</span>`,
       iconSize: [34, 34],
     });
-    L.marker([m.lat, m.lng], { icon }).bindPopup(m.popup).addTo(map);
+    L.marker([m.lat, m.lng], { icon, zIndexOffset: 1000 }).bindPopup(m.popup).addTo(map);
   }
 }
 
@@ -67,6 +71,10 @@ export interface PhotoMarkerOptions {
   lat: number;
   lng: number;
   caption?: string;
+  width?: number;
+  height?: number;
+  routeName?: string;
+  routeUrl?: string;
   index: number;
 }
 
@@ -99,7 +107,7 @@ export function addPhotoMarkers(
     const thumbUrl = `${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${photo.key}`;
     const icon = L.divIcon({
       className: 'photo-marker-thumb',
-      html: `<img src="${thumbUrl}" alt="${photo.caption || ''}" loading="lazy" />`,
+      html: `<img src="${thumbUrl}" alt="${escapeHtml(photo.caption || '')}" loading="lazy" />`,
       iconSize: [40, 40],
     });
 
@@ -119,7 +127,18 @@ export function makePhotoPopupHandler(map: L.Map, cdnUrl: string): (photo: Photo
   return (photo) => {
     const imgUrl = `${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${photo.key}`;
     const fullUrl = `${cdnUrl}/cdn-cgi/image/width=1600/${photo.key}`;
-    const captionHtml = photo.caption ? `<p class="photo-popup-caption">${photo.caption}</p>` : '';
+    const routeLink = photo.routeUrl && photo.routeName
+      ? `<p class="photo-popup-route"><a href="${escapeHtml(photo.routeUrl)}">${escapeHtml(photo.routeName)}</a></p>` : '';
+    const captionHtml = photo.caption ? `<p class="photo-popup-caption">${escapeHtml(photo.caption)}</p>` : '';
+
+    // Pre-compute proportional image size so popup doesn't resize after load
+    const popupWidth = 500;
+    let sizeAttrs = '';
+    if (photo.width && photo.height) {
+      const displayWidth = Math.min(photo.width, popupWidth);
+      const displayHeight = Math.round(displayWidth * photo.height / photo.width);
+      sizeAttrs = ` width="${displayWidth}" height="${displayHeight}"`;
+    }
 
     L.popup({
       maxWidth: 500,
@@ -130,9 +149,10 @@ export function makePhotoPopupHandler(map: L.Map, cdnUrl: string): (photo: Photo
       .setContent(`
         <div class="photo-popup-content">
           <a href="${fullUrl}" target="_blank">
-            <img src="${imgUrl}" alt="${photo.caption || 'Photo'}" />
+            <img src="${imgUrl}" alt="${escapeHtml(photo.caption || 'Photo')}"${sizeAttrs} />
           </a>
           ${captionHtml}
+          ${routeLink}
         </div>
       `)
       .openOn(map);

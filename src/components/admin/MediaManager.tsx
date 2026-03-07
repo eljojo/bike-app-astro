@@ -10,12 +10,16 @@ interface Props {
   cdnUrl: string;
   pendingFiles?: File[];
   onPendingProcessed?: () => void;
+  onSuggestionDrop?: (photo: MediaItem, wasParked: boolean) => void;
+  userRole?: string;
+  onParkPhoto?: (photo: MediaItem) => void;
 }
 
-export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, onPendingProcessed }: Props) {
+export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto }: Props) {
   const fileUpload = useFileUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [suggestionDragOver, setSuggestionDragOver] = useState(false);
   const drag = useDragReorder(media, onChange);
 
   useEffect(() => {
@@ -53,6 +57,42 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
     }
   }
 
+  function handleGridDragOver(e: DragEvent) {
+    if (e.dataTransfer?.types.includes('text/suggestion-data')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setSuggestionDragOver(true);
+    }
+  }
+
+  function handleGridDragLeave(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement;
+    const related = e.relatedTarget as Node | null;
+    if (!related || !target.contains(related)) {
+      setSuggestionDragOver(false);
+    }
+  }
+
+  function handleGridDrop(e: DragEvent) {
+    const suggestionData = e.dataTransfer?.getData('text/suggestion-data');
+    if (suggestionData) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSuggestionDragOver(false);
+      const { wasParked, routeSlug: _, ...photo } = JSON.parse(suggestionData);
+      if (onSuggestionDrop) {
+        onSuggestionDrop(photo as MediaItem, wasParked);
+      }
+    }
+  }
+
+  function handlePhotoDragStart(e: DragEvent, item: MediaItem, idx: number) {
+    drag.handleDragStart(idx);
+    e.dataTransfer!.setData('text/photo-key', item.key);
+    e.dataTransfer!.setData('text/photo-data', JSON.stringify(item));
+    e.dataTransfer!.effectAllowed = 'move';
+  }
+
   function handleFileSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     if (input.files?.length) {
@@ -67,6 +107,10 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
   }
 
   function removePhoto(idx: number) {
+    const photo = media[idx];
+    if (userRole !== 'admin' && onParkPhoto) {
+      onParkPhoto(photo);
+    }
     onChange(media.filter((_, i) => i !== idx));
   }
 
@@ -98,13 +142,18 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
 
       {fileUpload.error && <div class="auth-error">{fileUpload.error}</div>}
 
-      <div class="photo-grid">
+      <div
+        class={`photo-grid${suggestionDragOver ? ' photo-grid--drop-target' : ''}`}
+        onDragOver={handleGridDragOver}
+        onDragLeave={handleGridDragLeave}
+        onDrop={handleGridDrop}
+      >
         {media.map((item, idx) => (
           <div
             key={item.key}
             class={`photo-card ${drag.dragIdx === idx ? 'photo-card--dragging' : ''}`}
             draggable
-            onDragStart={() => drag.handleDragStart(idx)}
+            onDragStart={(e: DragEvent) => handlePhotoDragStart(e, item, idx)}
             onDragOver={(e: DragEvent) => drag.handleDragOver(e, idx)}
             onDragEnd={drag.handleDragEnd}
           >

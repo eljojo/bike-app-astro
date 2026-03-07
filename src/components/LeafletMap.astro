@@ -18,6 +18,8 @@ interface MapPhoto {
   lat: number;
   lng: number;
   caption?: string;
+  width?: number;
+  height?: number;
   index: number;
 }
 
@@ -73,17 +75,6 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       popup: buildPlacePopup(p),
     })));
 
-    const hasGallery = document.querySelectorAll('.photo-gallery a.photo-gallery--image').length > 0;
-
-    if (hasGallery) {
-      addPhotoToggle(map, photos, cdnUrl, (photo) => {
-        const galleryLinks = document.querySelectorAll('.photo-gallery a.photo-gallery--image');
-        if (galleryLinks.length > photo.index) {
-          (galleryLinks[photo.index] as HTMLElement).click();
-        }
-      });
-    } else {
-      addPhotoToggle(map, photos, cdnUrl, makePhotoPopupHandler(map, cdnUrl));
-    }
+    addPhotoToggle(map, photos, cdnUrl, makePhotoPopupHandler(map, cdnUrl));
   }
 </script>

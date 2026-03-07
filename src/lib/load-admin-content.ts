@@ -150,3 +150,27 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
 
   return { events, pendingIds: new Set(cacheMap.keys()) };
 }
+
+/**
+ * Load parked photos with D1 cache overlay.
+ * D1 stores the latest parked-photos list after each save, so edits
+ * made since the last deploy are visible without rebuilding.
+ */
+export async function loadParkedPhotosWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
+  const database = getDb();
+  const cached = await database.select().from(contentEdits)
+    .where(and(
+      eq(contentEdits.contentType, 'parked-photos'),
+      eq(contentEdits.contentSlug, '__global'),
+    ))
+    .get();
+
+  if (cached) {
+    try {
+      return JSON.parse(cached.data) as T[];
+    } catch {
+      return buildTimeParked;
+    }
+  }
+  return buildTimeParked;
+}

@@ -1018,11 +1018,12 @@
   }
 
   &--open {
-    background: $color-tag-bg;
+    background: none;
+  }
 
-    @include dark-mode {
-      background: $color-card-bg-dark;
-    }
+  &--drop-target {
+    border-color: $color-accent;
+    border-style: solid;
   }
 
   &-toggle {
@@ -1057,6 +1058,7 @@
 
 .nearby-photo-card {
   position: relative;
+  cursor: grab;
 
   img {
     width: 100%;
@@ -1089,4 +1091,38 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .parked-badge {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    font-size: 0.625rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 1px 4px;
+    border-radius: $border-radius;
+  }
+
+  .delete-parked-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(200, 40, 40, 0.85);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.photo-grid--drop-target {
+  outline: 2px dashed $color-accent;
+  outline-offset: 4px;
 }

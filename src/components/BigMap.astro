@@ -20,13 +20,26 @@ interface PlaceOnMap {
   google_maps_url?: string;
 }
 
+interface MapPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  width?: number;
+  height?: number;
+  routeName?: string;
+  routeUrl?: string;
+  index: number;
+}
+
 interface Props {
   routes: RouteOnMap[];
   places: PlaceOnMap[];
+  photos?: MapPhoto[];
   center: [number, number];
 }
 
-const { routes, places, center } = Astro.props;
+const { routes, places, photos = [], center } = Astro.props;
 ---
 
 <div
@@ -36,18 +49,22 @@ const { routes, places, center } = Astro.props;
   data-places={JSON.stringify(places)}
   data-center={JSON.stringify(center)}
   data-tiles-url={config.tiles_url}
+  data-photos={JSON.stringify(photos)}
+  data-cdn-url={import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca'}
 ></div>
 
 <script>
-  import { initMap, addPolylines, addMarkers } from '../lib/leaflet-init';
+  import { initMap, addPolylines, addMarkers, addPhotoToggle, makePhotoPopupHandler } from '../lib/leaflet-init';
   import { buildPlacePopup } from '../lib/map-helpers';
 
   const el = document.getElementById('big-map');
   if (el) {
     const routes = JSON.parse(el.dataset.routes || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
+    const photos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const tilesUrl = el.dataset.tilesUrl || '';
+    const cdnUrl = el.dataset.cdnUrl || '';
 
     const map = initMap({ el, center, zoom: 11, tilesUrl });
 
@@ -60,5 +77,7 @@ const { routes, places, center } = Astro.props;
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p),
     })));
+
+    addPhotoToggle(map, photos, cdnUrl, makePhotoPopupHandler(map, cdnUrl));
   }
 </script>

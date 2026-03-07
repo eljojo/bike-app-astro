@@ -8,6 +8,8 @@ import { categoryEmoji } from '@/lib/place-categories';
 import { getCityConfig } from '@/lib/city-config';
 import { t } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
+import photoLocations from 'virtual:bike-app/photo-locations';
+import { haversineM } from '@/lib/photo-proximity';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -15,8 +17,9 @@ const locale = Astro.currentLocale;
 const routes = await getCollection('routes');
 const places = await getCollection('places');
 
-const routeData = routes
-  .filter(r => r.data.status === 'published')
+const published = routes.filter(r => r.data.status === 'published');
+
+const routeData = published
   .map(r => {
     const firstVariant = r.data.variants[0];
     const track = firstVariant ? r.data.gpxTracks[firstVariant.gpx] : null;
@@ -30,6 +33,15 @@ const routeData = routes
   })
   .filter(r => r.polyline);
 
+// Build slug → {name, url} lookup for route links in photo popups
+const routeInfo = new Map(published.map(r => {
+  const trans = r.data.translations?.[locale!];
+  return [r.id, {
+    name: trans?.name || r.data.name,
+    url: paths.route(routeSlug(r, locale), locale),
+  }];
+}));
+
 const placeData = places
   .filter(p => p.data.status === 'published')
   .map(p => ({
@@ -40,8 +52,47 @@ const placeData = places
     lng: p.data.lng,
     google_maps_url: p.data.google_maps_url || `https://www.google.com/maps/?q=${p.data.lat},${p.data.lng}`,
   }));
+// Select photos for the big map:
+// 1. First geolocated photo per route (cover/top photo)
+// 2. Any photo within 200m of a place marker
+const PLACE_RADIUS_M = 200;
+const selectedKeys = new Set<string>();
+
+// 1. Top N geolocated photos per route (in media order)
+const TOP_PER_ROUTE = 10;
+const routePhotoCounts = new Map<string, number>();
+for (const p of photoLocations) {
+  if (p.routeSlug === '__parked') continue;
+  const count = routePhotoCounts.get(p.routeSlug) || 0;
+  if (count >= TOP_PER_ROUTE) continue;
+  routePhotoCounts.set(p.routeSlug, count + 1);
+  selectedKeys.add(p.key);
+}
+
+// 2. Photos near any place
+for (const p of photoLocations) {
+  if (selectedKeys.has(p.key)) continue;
+  for (const place of placeData) {
+    if (haversineM(p.lat, p.lng, place.lat, place.lng) <= PLACE_RADIUS_M) {
+      selectedKeys.add(p.key);
+      break;
+    }
+  }
+}
+
+const photoData = photoLocations
+  .filter(p => selectedKeys.has(p.key))
+  .map((p, i) => {
+    const info = routeInfo.get(p.routeSlug);
+    return {
+      key: p.key, lat: p.lat, lng: p.lng,
+      caption: p.caption, width: p.width, height: p.height,
+      routeName: info?.name, routeUrl: info?.url,
+      index: i,
+    };
+  });
 ---
 
 <Base title={`${t('nav.map', locale)} | ${config.display_name}`}>
-  <BigMap routes={routeData} places={placeData} center={[config.center.lat, config.center.lng]} />
+  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} />
 </Base>

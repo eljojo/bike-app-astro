@@ -1,3 +1,57 @@
+export interface ParkedPhotoEntry {
+  key: string;
+  lat?: number;
+  lng?: number;
+  caption?: string;
+  width?: number;
+  height?: number;
+  uploaded_by?: string;
+  captured_at?: string;
+}
+
+/** Convert a media item (or similar shape) to a ParkedPhotoEntry. */
+export function toParkedEntry(photo: {
+  key: string;
+  lat?: number;
+  lng?: number;
+  caption?: string;
+  width?: number;
+  height?: number;
+  uploaded_by?: string;
+  captured_at?: string;
+}): ParkedPhotoEntry {
+  return {
+    key: photo.key,
+    ...(photo.lat != null && { lat: photo.lat }),
+    ...(photo.lng != null && { lng: photo.lng }),
+    ...(photo.caption != null && { caption: photo.caption }),
+    ...(photo.width != null && { width: photo.width }),
+    ...(photo.height != null && { height: photo.height }),
+    ...(photo.uploaded_by != null && { uploaded_by: photo.uploaded_by }),
+    ...(photo.captured_at != null && { captured_at: photo.captured_at }),
+  };
+}
+
+/**
+ * Merge parking changes into the existing parked-photos.yml entries.
+ * - Appends newly parked photos
+ * - Removes un-parked photos (added back to a route)
+ * - Deduplicates by key
+ */
+export function mergeParkedPhotos(
+  existing: ParkedPhotoEntry[],
+  toAdd: ParkedPhotoEntry[],
+  toRemove: Set<string>,
+): ParkedPhotoEntry[] {
+  const result = existing.filter(p => !toRemove.has(p.key));
+  for (const photo of toAdd) {
+    if (!result.some(p => p.key === photo.key)) {
+      result.push(photo);
+    }
+  }
+  return result;
+}
+
 interface AdminPhoto {
   key: string;
   caption?: string;

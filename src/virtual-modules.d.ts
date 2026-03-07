@@ -125,3 +125,19 @@ declare module 'virtual:bike-app/nearby-photos' {
   const nearbyPhotos: Record<string, _PhotoLocation[]>;
   export default nearbyPhotos;
 }
+
+interface _ParkedPhoto {
+  key: string;
+  lat: number;
+  lng: number;
+  caption?: string;
+  width?: number;
+  height?: number;
+  uploaded_by?: string;
+  captured_at?: string;
+}
+
+declare module 'virtual:bike-app/parked-photos' {
+  const parkedPhotos: _ParkedPhoto[];
+  export default parkedPhotos;
+}

@@ -148,6 +148,15 @@ Carp is a rural community west of Ottawa. This route follows the Trans Canada Tr
   height: 800
   cover: true
   handle: cover
+  lat: 45.3485
+  lng: -75.8154
+- type: photo
+  key: e2e-parkable-photo-key
+  caption: Parkable photo
+  width: 1000
+  height: 750
+  lat: 45.3600
+  lng: -75.8300
 `
   );
 

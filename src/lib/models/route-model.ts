@@ -115,6 +115,8 @@ export function routeDetailFromGit(
         if (m.lng != null) item.lng = m.lng as number;
         if (m.uploaded_by != null) item.uploaded_by = m.uploaded_by as string;
         if (m.captured_at != null) item.captured_at = m.captured_at as string;
+        if (m.width != null) item.width = m.width as number;
+        if (m.height != null) item.height = m.height as number;
         return item;
       });
   }
