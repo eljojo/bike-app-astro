@@ -4,7 +4,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import polylineCodec from '@mapbox/polyline';
 import { addGpsControl } from './leaflet-controls';
-import { escapeHtml } from './map-helpers';
+import { html, raw } from './map-helpers';
 
 interface MapOptions {
   el: HTMLElement;
@@ -104,7 +104,7 @@ export function addPhotoMarkers(
     const thumbUrl = `${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${photo.key}`;
     const icon = L.divIcon({
       className: 'photo-marker-thumb',
-      html: `<img src="${thumbUrl}" alt="${escapeHtml(photo.caption || '')}" loading="lazy" />`,
+      html: html`<img src="${thumbUrl}" alt="${photo.caption || ''}" loading="lazy" />`,
       iconSize: [40, 40],
     });
 
@@ -125,8 +125,8 @@ export function makePhotoPopupHandler(map: L.Map, cdnUrl: string): (photo: Photo
     const imgUrl = `${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${photo.key}`;
     const fullUrl = `${cdnUrl}/cdn-cgi/image/width=1600/${photo.key}`;
     const routeLink = photo.routeUrl && photo.routeName
-      ? `<p class="photo-popup-route"><a href="${escapeHtml(photo.routeUrl)}">${escapeHtml(photo.routeName)}</a></p>` : '';
-    const captionHtml = photo.caption ? `<p class="photo-popup-caption">${escapeHtml(photo.caption)}</p>` : '';
+      ? html`<p class="photo-popup-route"><a href="${photo.routeUrl}">${photo.routeName}</a></p>` : '';
+    const captionBlock = photo.caption ? html`<p class="photo-popup-caption">${photo.caption}</p>` : '';
 
     // Pre-compute proportional image size so popup doesn't resize after load
     const popupWidth = 500;
@@ -143,13 +143,13 @@ export function makePhotoPopupHandler(map: L.Map, cdnUrl: string): (photo: Photo
       className: 'photo-popup',
     })
       .setLatLng([photo.lat, photo.lng])
-      .setContent(`
+      .setContent(html`
         <div class="photo-popup-content">
           <a href="${fullUrl}" target="_blank">
-            <img src="${imgUrl}" alt="${escapeHtml(photo.caption || 'Photo')}"${sizeAttrs} />
+            <img src="${imgUrl}" alt="${photo.caption || 'Photo'}"${raw(sizeAttrs)} />
           </a>
-          ${captionHtml}
-          ${routeLink}
+          ${raw(captionBlock)}
+          ${raw(routeLink)}
         </div>
       `)
       .openOn(map);
