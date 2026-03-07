@@ -87,6 +87,41 @@ function loadCachedMaps() {
   return maps;
 }
 
+interface AdminModuleConfig {
+  /** Module name without prefix, e.g. 'routes' → virtual:bike-app/admin-routes + admin-route-detail */
+  name: string;
+  /** Async function that returns { list, details } */
+  loader: () => Promise<{ list: unknown; details: unknown }>;
+}
+
+function registerAdminModules(configs: AdminModuleConfig[]) {
+  const promises = new Map<string, Promise<{ list: unknown; details: unknown }>>();
+  const moduleIds = new Map<string, { type: 'list' | 'detail'; name: string }>();
+
+  for (const config of configs) {
+    const listId = `virtual:bike-app/admin-${config.name}`;
+    const detailId = `virtual:bike-app/admin-${config.name.replace(/s$/, '')}-detail`;
+    moduleIds.set(listId, { type: 'list', name: config.name });
+    moduleIds.set(detailId, { type: 'detail', name: config.name });
+    promises.set(config.name, config.loader());
+  }
+
+  return {
+    resolveId(id: string): string | undefined {
+      if (moduleIds.has(id)) return `\0${id}`;
+    },
+    async load(id: string): Promise<string | undefined> {
+      for (const [virtualId, meta] of moduleIds) {
+        if (id === `\0${virtualId}`) {
+          const data = await promises.get(meta.name)!;
+          const value = meta.type === 'list' ? data.list : data.details;
+          return `export default ${JSON.stringify(value)};`;
+        }
+      }
+    },
+  };
+}
+
 export function buildDataPlugin(): Plugin {
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
@@ -100,16 +135,19 @@ export function buildDataPlugin(): Plugin {
   const adminEventDataPromise = loadAdminEventData();
   const adminOrganizersPromise = loadAdminOrganizers();
 
+  const adminModules = registerAdminModules([
+    { name: 'routes', loader: async () => { const d = await adminRouteDataPromise; return { list: d.routes, details: d.details }; } },
+    { name: 'events', loader: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; } },
+  ]);
+
   return {
     name: 'bike-app-build-data',
 
     // Virtual modules
     resolveId(id: string) {
+      const adminResolved = adminModules.resolveId(id);
+      if (adminResolved) return adminResolved;
       if (id === 'virtual:bike-app/cached-maps') return '\0virtual:bike-app/cached-maps';
-      if (id === 'virtual:bike-app/admin-routes') return '\0virtual:bike-app/admin-routes';
-      if (id === 'virtual:bike-app/admin-route-detail') return '\0virtual:bike-app/admin-route-detail';
-      if (id === 'virtual:bike-app/admin-events') return '\0virtual:bike-app/admin-events';
-      if (id === 'virtual:bike-app/admin-event-detail') return '\0virtual:bike-app/admin-event-detail';
       if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
       if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
       if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
@@ -117,24 +155,10 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/parked-photos') return '\0virtual:bike-app/parked-photos';
     },
     async load(id: string) {
+      const adminLoaded = await adminModules.load(id);
+      if (adminLoaded) return adminLoaded;
       if (id === '\0virtual:bike-app/cached-maps') {
         return `export default new Set(${JSON.stringify(cachedMaps)});`;
-      }
-      if (id === '\0virtual:bike-app/admin-routes') {
-        const { routes } = await adminRouteDataPromise;
-        return `export default ${JSON.stringify(routes)};`;
-      }
-      if (id === '\0virtual:bike-app/admin-route-detail') {
-        const { details } = await adminRouteDataPromise;
-        return `export default ${JSON.stringify(details)};`;
-      }
-      if (id === '\0virtual:bike-app/admin-events') {
-        const { events } = await adminEventDataPromise;
-        return `export default ${JSON.stringify(events)};`;
-      }
-      if (id === '\0virtual:bike-app/admin-event-detail') {
-        const { details } = await adminEventDataPromise;
-        return `export default ${JSON.stringify(details)};`;
       }
       if (id === '\0virtual:bike-app/admin-organizers') {
         const organizers = await adminOrganizersPromise;
