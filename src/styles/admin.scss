@@ -1005,3 +1005,70 @@
     color: $color-accent;
   }
 }
+
+// Cross-route photo suggestions
+.nearby-photos {
+  margin-top: 1rem;
+
+  &-toggle {
+    background: none;
+    border: 1px solid $color-border;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: $border-radius;
+    font-size: 0.9rem;
+    color: inherit;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+
+  &-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+}
+
+.nearby-route-group h4 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.nearby-photo-card {
+  position: relative;
+
+  img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: $border-radius;
+  }
+
+  .add-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: $color-btn-primary-bg;
+    color: $color-text;
+    border: 1px solid $color-btn-primary-border;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 22px;
+    text-align: center;
+  }
+
+  .caption {
+    display: block;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

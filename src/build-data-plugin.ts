@@ -18,10 +18,10 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
 import { CONTENT_DIR, CITY, cityDir } from './lib/config';
-import { loadAdminRoutes, loadAdminRouteDetails } from './loaders/admin-routes';
+import { loadAdminRoutes, loadAdminRouteDetails, loadRouteTrackPoints } from './loaders/admin-routes';
 import { loadAdminEvents, loadAdminEventDetails } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
-import { buildPhotoLocations } from './loaders/photo-locations';
+import { buildPhotoLocations, buildNearbyPhotosMap } from './loaders/photo-locations';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -107,6 +107,7 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
       if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
       if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
+      if (id === 'virtual:bike-app/nearby-photos') return '\0virtual:bike-app/nearby-photos';
     },
     async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
@@ -139,6 +140,13 @@ export function buildDataPlugin(): Plugin {
         const details = await adminRouteDetailsPromise;
         const locations = buildPhotoLocations(details);
         return `export default ${JSON.stringify(locations)};`;
+      }
+      if (id === '\0virtual:bike-app/nearby-photos') {
+        const details = await adminRouteDetailsPromise;
+        const locations = buildPhotoLocations(details);
+        const tracks = loadRouteTrackPoints();
+        const nearbyMap = buildNearbyPhotosMap(locations, tracks);
+        return `export default ${JSON.stringify(nearbyMap)};`;
       }
     },
 

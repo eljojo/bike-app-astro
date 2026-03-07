@@ -1,3 +1,5 @@
+import { findNearbyPhotos } from '../lib/photo-proximity';
+
 export interface PhotoLocation {
   key: string;
   lat: number;
@@ -34,4 +36,24 @@ export function buildPhotoLocations(
   }
 
   return photos;
+}
+
+/**
+ * Pre-compute nearby photos for each route at build time.
+ * Maps route slug → array of photos from other routes within 200m of its track.
+ */
+export function buildNearbyPhotosMap(
+  allPhotos: PhotoLocation[],
+  routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
+): Record<string, PhotoLocation[]> {
+  const result: Record<string, PhotoLocation[]> = {};
+
+  for (const [slug, trackPoints] of Object.entries(routeTracks)) {
+    const nearby = findNearbyPhotos(trackPoints, allPhotos, slug);
+    if (nearby.length > 0) {
+      result[slug] = nearby;
+    }
+  }
+
+  return result;
 }

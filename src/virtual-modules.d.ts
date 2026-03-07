@@ -120,3 +120,8 @@ declare module 'virtual:bike-app/photo-locations' {
   const locations: _PhotoLocation[];
   export default locations;
 }
+
+declare module 'virtual:bike-app/nearby-photos' {
+  const nearbyPhotos: Record<string, _PhotoLocation[]>;
+  export default nearbyPhotos;
+}

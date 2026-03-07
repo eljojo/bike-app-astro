@@ -3,10 +3,12 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
+import NearbyPhotos from './NearbyPhotos';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import { slugify } from '../../lib/slug';
+import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
@@ -385,6 +387,14 @@ export default function RouteEditor({ initialData, cdnUrl, tagTranslations = {},
           pendingFiles={pendingFiles}
           onPendingProcessed={() => setPendingFiles([])}
         />
+        {(nearbyPhotosMap[initialData.slug]?.length ?? 0) > 0 && (
+          <NearbyPhotos
+            nearbyPhotos={nearbyPhotosMap[initialData.slug]}
+            currentMediaKeys={new Set(media.map(m => m.key))}
+            cdnUrl={cdnUrl}
+            onAddPhoto={(photo) => setMedia([...media, photo])}
+          />
+        )}
       </section>
 
       <section class="editor-section">
