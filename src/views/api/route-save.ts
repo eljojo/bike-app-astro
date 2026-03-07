@@ -48,6 +48,7 @@ const routeUpdateSchema = z.object({
     lat: z.number().optional(),
     lng: z.number().optional(),
     uploaded_by: z.string().optional(),
+    captured_at: z.string().optional(),
   })).optional(),
   variants: z.array(z.object({
     name: z.string(),
@@ -80,6 +81,7 @@ export interface RouteUpdate {
     lat?: number;
     lng?: number;
     uploaded_by?: string;
+    captured_at?: string;
   }>;
   variants?: VariantPayload[];
   contentHash?: string;

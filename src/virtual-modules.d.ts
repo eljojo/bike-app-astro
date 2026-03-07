@@ -26,7 +26,7 @@ interface _AdminRouteDetail {
   tags: string[];
   status: string;
   body: string;
-  media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number; uploaded_by?: string }>;
+  media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number; uploaded_by?: string; captured_at?: string }>;
   contentHash?: string;
   variants?: Array<{ name: string; gpx: string; distance_km?: number; strava_url?: string; rwgps_url?: string }>;
 }

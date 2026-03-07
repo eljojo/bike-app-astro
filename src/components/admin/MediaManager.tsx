@@ -39,6 +39,7 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
         ...(r.lat != null && { lat: r.lat }),
         ...(r.lng != null && { lng: r.lng }),
         ...(r.uploaded_by && { uploaded_by: r.uploaded_by }),
+        ...(r.captured_at && { captured_at: r.captured_at }),
       }));
       onChange([...media, ...newItems]);
     }

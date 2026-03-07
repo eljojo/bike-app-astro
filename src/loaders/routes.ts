@@ -26,6 +26,7 @@ export interface RouteMedia {
   lat?: number;
   lng?: number;
   uploaded_by?: string;
+  captured_at?: string;
 }
 
 /**

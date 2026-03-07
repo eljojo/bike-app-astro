@@ -7,6 +7,7 @@ interface AdminPhoto {
   lat?: number;
   lng?: number;
   uploaded_by?: string;
+  captured_at?: string;
 }
 
 type MediaEntry = Record<string, unknown>;
@@ -57,6 +58,7 @@ export function mergeMedia(adminPhotos: AdminPhoto[], existing: MediaEntry[]): M
       if (photo.lat != null) entry.lat = photo.lat;
       if (photo.lng != null) entry.lng = photo.lng;
       if (photo.uploaded_by) entry.uploaded_by = photo.uploaded_by;
+      if (photo.captured_at) entry.captured_at = photo.captured_at;
       result.push(entry);
     }
   }

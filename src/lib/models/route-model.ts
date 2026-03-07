@@ -12,6 +12,7 @@ const adminMediaItemSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   uploaded_by: z.string().optional(),
+  captured_at: z.string().optional(),
 });
 
 const adminVariantSchema = z.object({
@@ -113,6 +114,7 @@ export function routeDetailFromGit(
         if (m.lat != null) item.lat = m.lat as number;
         if (m.lng != null) item.lng = m.lng as number;
         if (m.uploaded_by != null) item.uploaded_by = m.uploaded_by as string;
+        if (m.captured_at != null) item.captured_at = m.captured_at as string;
         return item;
       });
   }

@@ -50,6 +50,7 @@ export interface UploadedFile {
   lat?: number;
   lng?: number;
   uploaded_by?: string;
+  captured_at?: string;
 }
 
 /**
@@ -110,6 +111,7 @@ export function useFileUpload() {
           lat: confirmed.lat,
           lng: confirmed.lng,
           uploaded_by: confirmed.uploaded_by,
+          captured_at: confirmed.captured_at,
         });
       }
 

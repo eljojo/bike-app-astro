@@ -1,6 +1,6 @@
 import { AwsClient } from 'aws4fetch';
 import { parseImageDimensions } from './image-dimensions';
-import { extractGpsCoordinates } from './exif';
+import { extractPhotoMetadata } from './exif';
 
 export interface StorageEnv {
   BUCKET: BucketLike;
@@ -26,6 +26,7 @@ export interface UploadMetadata {
   height: number;
   lat?: number;
   lng?: number;
+  captured_at?: string;
 }
 
 /**
@@ -135,7 +136,7 @@ export async function confirmUpload(
   await bucket.put(mediaKey, buffer);
   await bucket.delete(pendingKey);
 
-  const gps = extractGpsCoordinates(buffer);
+  const meta = extractPhotoMetadata(buffer);
 
   return {
     key: mediaKey,
@@ -143,7 +144,8 @@ export async function confirmUpload(
     contentType: `image/${dimensions.format}`,
     width: dimensions.width,
     height: dimensions.height,
-    ...(gps && { lat: gps.lat, lng: gps.lng }),
+    ...(meta && { lat: meta.lat, lng: meta.lng }),
+    ...(meta?.capturedAt && { captured_at: meta.capturedAt }),
   };
 }
 
