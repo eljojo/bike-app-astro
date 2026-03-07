@@ -1,4 +1,24 @@
-import { haversine, type GpxPoint } from './gpx';
+import type { GpxPoint } from './gpx';
+
+/** Haversine distance in meters between two lat/lng points. */
+export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+/** Place is "nearby" a route track if within this distance. */
+export const PLACE_NEAR_ROUTE_M = 300;
+/** Photo is "nearby" a route track or place if within this distance. */
+export const PHOTO_NEARBY_M = 200;
 
 export interface PlaceData {
   id: string;
@@ -16,8 +36,6 @@ export interface PlaceData {
 export interface NearbyPlace extends PlaceData {
   distance_m: number;
 }
-
-const PROXIMITY_THRESHOLD_M = 300;
 
 // ~111km per degree of latitude; longitude shrinks by cos(lat)
 function bboxMargin(latDeg: number, meters: number) {
@@ -37,7 +55,7 @@ export function findNearbyPlaces(trackPoints: GpxPoint[], places: PlaceData[]): 
     if (p.lon < minLon) minLon = p.lon;
     if (p.lon > maxLon) maxLon = p.lon;
   }
-  const { dLat, dLon } = bboxMargin((minLat + maxLat) / 2, PROXIMITY_THRESHOLD_M);
+  const { dLat, dLon } = bboxMargin((minLat + maxLat) / 2, PLACE_NEAR_ROUTE_M);
   minLat -= dLat; maxLat += dLat;
   minLon -= dLon; maxLon += dLon;
 
@@ -52,11 +70,11 @@ export function findNearbyPlaces(trackPoints: GpxPoint[], places: PlaceData[]): 
   for (const place of candidates) {
     let minDist = Infinity;
     for (const tp of trackPoints) {
-      const d = haversine(tp, { lat: place.lat, lon: place.lng });
+      const d = haversineM(tp.lat, tp.lon, place.lat, place.lng);
       if (d < minDist) minDist = d;
     }
 
-    if (minDist <= PROXIMITY_THRESHOLD_M) {
+    if (minDist <= PLACE_NEAR_ROUTE_M) {
       nearby.push({ ...place, distance_m: Math.round(minDist) });
     }
   }

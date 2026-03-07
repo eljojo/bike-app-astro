@@ -1,3 +1,5 @@
+import { haversineM, PHOTO_NEARBY_M } from './proximity';
+
 interface Point {
   lat: number;
   lng: number;
@@ -13,13 +15,12 @@ interface PhotoCandidate {
   height?: number;
 }
 
-const RADIUS_M = 200;
 // At Ottawa's latitude (~45°), 1° lat ≈ 111km, 1° lng ≈ 78km
-const LAT_MARGIN = RADIUS_M / 111_000; // ~0.0018°
-const LNG_MARGIN = RADIUS_M / 78_000;  // ~0.0026°
+const LAT_MARGIN = PHOTO_NEARBY_M / 111_000; // ~0.0018°
+const LNG_MARGIN = PHOTO_NEARBY_M / 78_000;  // ~0.0026°
 
 /**
- * Find photos from other routes that are within RADIUS_M meters of the given route track.
+ * Find photos from other routes that are within PHOTO_NEARBY_M meters of the given route track.
  * Uses bounding box pre-filter then haversine for accuracy.
  */
 export function findNearbyPhotos(
@@ -62,28 +63,13 @@ export function findNearbyPhotos(
     for (const p of trackPoints) {
       const d = haversineM(p.lat, p.lng, photo.lat, photo.lng);
       if (d < minDist) minDist = d;
-      if (d <= RADIUS_M) break; // early exit
+      if (d <= PHOTO_NEARBY_M) break; // early exit
     }
 
-    if (minDist <= RADIUS_M) {
+    if (minDist <= PHOTO_NEARBY_M) {
       results.push(photo);
     }
   }
 
   return results;
-}
-
-/** Haversine distance in meters between two lat/lng points. */
-export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6_371_000; // Earth radius in meters
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180;
 }

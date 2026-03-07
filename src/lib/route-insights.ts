@@ -1,10 +1,10 @@
-import { haversine } from './gpx';
+import { haversineM } from './proximity';
 
 export function routeShape(points: { lat: number; lon: number }[], distance_m: number): string | null {
   if (points.length < 2) return null;
   const start = points[0];
   const end = points[points.length - 1];
-  const dist = haversine(start, end);
+  const dist = haversineM(start.lat, start.lon, end.lat, end.lon);
   if (dist < 1000) return 'loop';
   if (distance_m > 0 && dist / distance_m > 0.4) return 'one-way';
   return 'out-and-back';
