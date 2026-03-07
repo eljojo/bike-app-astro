@@ -11,6 +11,7 @@ import type { PlaceUpdate } from '../../views/api/place-save';
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  tilesUrl: string;
   userRole?: string;
 }
 
@@ -36,7 +37,7 @@ function throttle<T extends (...args: unknown[]) => void>(fn: T, ms: number): T 
   }) as T;
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, userRole }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }: Props) {
   const [name, setName] = useState(initialData.name || '');
   const [nameFr, setNameFr] = useState(initialData.name_fr || '');
   const [category, setCategory] = useState(initialData.category || 'other');
@@ -141,19 +142,30 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole }: Props) {
       const map = L.default.map(mapRef.current!, { scrollWheelZoom: true })
         .setView(defaultCenter, defaultZoom);
 
-      L.default.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      L.default.tileLayer(tilesUrl, {
+        maxZoom: 20,
+        attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
       }).addTo(map);
 
-      // Add marker at current position
-      if (lat && lng) {
-        const marker = L.default.marker([lat, lng], { draggable: true }).addTo(map);
+      const pinIcon = L.default.divIcon({
+        className: 'poi-marker',
+        html: '<span class="poi-marker-emoji">\u{1F4CD}</span>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      });
+
+      function createDraggableMarker(position: [number, number]) {
+        const marker = L.default.marker(position, { icon: pinIcon, draggable: true }).addTo(map);
         marker.on('dragend', () => {
           const pos = marker.getLatLng();
           updateLocation(pos.lat, pos.lng);
         });
-        markerRef.current = marker;
+        return marker;
+      }
+
+      // Add marker at current position
+      if (lat && lng) {
+        markerRef.current = createDraggableMarker([lat, lng]);
       }
 
       // Click to place/move marker
@@ -162,12 +174,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole }: Props) {
         if (markerRef.current) {
           markerRef.current.setLatLng([clickLat, clickLng]);
         } else {
-          const marker = L.default.marker([clickLat, clickLng], { draggable: true }).addTo(map);
-          marker.on('dragend', () => {
-            const pos = marker.getLatLng();
-            updateLocation(pos.lat, pos.lng);
-          });
-          markerRef.current = marker;
+          markerRef.current = createDraggableMarker([clickLat, clickLng]);
         }
         updateLocation(clickLat, clickLng);
       });
