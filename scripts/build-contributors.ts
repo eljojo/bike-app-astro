@@ -124,10 +124,11 @@ function loadUsers(): UserData[] {
     }
   }
 
-  // CI: query production D1 via wrangler (needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID)
+  // CI: query production D1 via wrangler (needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID).
+  // --config is required: wrangler won't auto-discover .jsonc files.
   try {
     const output = execSync(
-      'npx wrangler d1 execute DB --env production --remote --json --command "SELECT id, username, email, banned_at as bannedAt FROM users"',
+      'npx wrangler d1 execute DB --config wrangler.jsonc --env production --remote --json --command "SELECT id, username, email, banned_at as bannedAt FROM users"',
       { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const parsed = JSON.parse(output);
