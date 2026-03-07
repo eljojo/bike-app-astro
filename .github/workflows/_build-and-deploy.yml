@@ -155,39 +155,54 @@ jobs:
         if: ${{ !inputs.skip-e2e }}
         id: e2e
         continue-on-error: ${{ inputs.update-screenshots }}
-        run: npx playwright test --config e2e/playwright.config.ts
+        run: >-
+          npx playwright test --config e2e/playwright.config.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
+      # Admin E2E tests rebuild dist/ with RUNTIME=local (Node adapter),
+      # which overwrites the Cloudflare build. Save it first for deploy.
+      - name: Save Cloudflare build for deploy
+        if: ${{ inputs.deploy && !inputs.skip-e2e }}
+        run: cp -r dist dist-cloudflare
+
+      - name: Run admin E2E tests
+        if: ${{ !inputs.skip-e2e }}
+        id: admin-e2e
+        continue-on-error: ${{ inputs.update-screenshots }}
+        run: >-
+          npx playwright test --config e2e/admin/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      # After both test suites, commit any updated screenshot baselines.
+      # --update-snapshots makes Playwright overwrite baselines and pass,
+      # so we always check for changed files (not gated on test failure).
       - name: Update screenshot baselines
         id: update-screenshots
-        if: >-
-          !inputs.skip-e2e
-          && steps.e2e.outcome == 'failure'
-          && inputs.update-screenshots
+        if: ${{ !inputs.skip-e2e && inputs.update-screenshots }}
         run: |
           # Guard against infinite loops
           if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
             echo "Latest commit is already a screenshot update, skipping"
-            exit 1
+            exit 0
           fi
-          npx playwright test --config e2e/playwright.config.ts --update-snapshots
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add e2e/snapshots/
+          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
-            echo "No screenshot changes — e2e failure is not screenshot-related"
-            exit 1
+            echo "No screenshot changes"
+            exit 0
           fi
           echo "UPDATED_SCREENSHOTS<<EOF" >> "$GITHUB_ENV"
           git diff --cached --name-only >> "$GITHUB_ENV"
           echo "EOF" >> "$GITHUB_ENV"
           git commit -m "ci: update screenshot baselines"
           git push
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
 
       - name: Comment on PR with updated screenshots
         if: ${{ !inputs.skip-e2e && steps.update-screenshots.outcome == 'success' && github.event_name == 'pull_request' }}
@@ -196,7 +211,7 @@ jobs:
           script: |
             const marker = '<!-- screenshot-update-comment -->';
             const files = process.env.UPDATED_SCREENSHOTS.trim().split('\n');
-            const list = files.map(f => `- \`${f.replace('e2e/snapshots/screenshots.spec.ts-snapshots/', '')}\``).join('\n');
+            const list = files.map(f => `- \`${f}\``).join('\n');
             const body = `${marker}\n📸 Screenshot baselines were automatically updated:\n\n${list}\n\nCheck the commit diff to review the visual changes.`;
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -220,25 +235,11 @@ jobs:
               });
             }
 
-      - name: Fail if E2E tests failed and screenshots were not the cause
+      - name: Fail if tests had non-screenshot failures
         if: >-
           !inputs.skip-e2e
-          && steps.e2e.outcome == 'failure'
-          && steps.update-screenshots.outcome != 'success'
+          && (steps.e2e.outcome == 'failure' || steps.admin-e2e.outcome == 'failure')
         run: exit 1
-
-      # Admin E2E tests rebuild dist/ with RUNTIME=local (Node adapter),
-      # which overwrites the Cloudflare build. Save it first for deploy.
-      - name: Save Cloudflare build for deploy
-        if: ${{ inputs.deploy && !inputs.skip-e2e }}
-        run: cp -r dist dist-cloudflare
-
-      - name: Run admin E2E tests
-        if: ${{ !inputs.skip-e2e }}
-        run: npx playwright test --config e2e/admin/fixture.ts
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
 
       - name: Restore Cloudflare build for deploy
         if: ${{ inputs.deploy && !inputs.skip-e2e }}
