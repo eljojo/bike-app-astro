@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
 import SaveSuccessModal from './SaveSuccessModal';
 import { categoryEmoji } from '../../lib/place-categories';
+import { haversineM, PHOTO_NEARBY_M } from '../../lib/proximity';
+import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
 
@@ -116,6 +118,15 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole }: Props) {
       markerRef.current.setLatLng([latitude, longitude]);
     }
   }
+
+  // Filter photos near the current location
+  const nearbyPhotos = useMemo(() => {
+    if (!lat || !lng) return [];
+    return photoLocations
+      .filter((p) => haversineM(lat, lng, p.lat, p.lng) <= PHOTO_NEARBY_M)
+      .sort((a, b) => haversineM(lat, lng, a.lat, a.lng) - haversineM(lat, lng, b.lat, b.lng))
+      .slice(0, 12);
+  }, [lat, lng]);
 
   // Initialize map
   useEffect(() => {
@@ -241,6 +252,28 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole }: Props) {
             setPhotoContentType(contentType);
           }}
         />
+
+        {!photoKey && lat !== 0 && lng !== 0 && nearbyPhotos.length > 0 && (
+          <div class="form-field">
+            <label>Nearby photos <span class="field-hint">(click to use)</span></label>
+            <div class="nearby-photos-grid">
+              {nearbyPhotos.map((photo) => (
+                <button
+                  key={photo.key}
+                  type="button"
+                  class="nearby-photo-btn"
+                  title={photo.caption || photo.routeSlug}
+                  onClick={() => {
+                    setPhotoKey(photo.key);
+                    setPhotoContentType('image/jpeg');
+                  }}
+                >
+                  <img src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`} alt={photo.caption || ''} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div class="editor-actions">
