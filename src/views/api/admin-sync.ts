@@ -3,7 +3,8 @@ import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
-import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { eq } from 'drizzle-orm';
+import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
@@ -43,9 +44,9 @@ export async function POST({ locals }: APIContext) {
       await git.createRef('staging', mainSha);
     }
 
-    // 5. Clear D1 scratchpad
+    // 5. Clear D1 scratchpad for this city
     const database = db();
-    await database.delete(contentEdits);
+    await database.delete(contentEdits).where(eq(contentEdits.city, CITY));
 
     // Staging rebuild is triggered automatically by GitHub Actions in bike-routes
     // (notify-astro.yml) when the staging ref is updated.

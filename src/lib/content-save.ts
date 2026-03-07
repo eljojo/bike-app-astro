@@ -4,7 +4,7 @@ import { createGitService } from './git-factory';
 import { db } from './get-db';
 import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { GIT_OWNER, GIT_DATA_REPO } from './config';
+import { GIT_OWNER, GIT_DATA_REPO, CITY } from './config';
 import { jsonResponse, jsonError } from './api-response';
 import { computeBlobSha } from './git-service';
 import type { IGitService, FileChange } from './git-service';
@@ -194,7 +194,7 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
   if (!currentFiles.primaryFile) return null;
 
   const cached = await database.select().from(contentEdits)
-    .where(and(eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
+    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
     .get();
 
   let hasConflict = false;
