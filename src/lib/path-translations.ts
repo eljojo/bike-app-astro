@@ -4,7 +4,7 @@ import { defaultLocale } from './locale-utils';
  * URL path segment translations by locale.
  * Only segments that differ from the default (English) need an entry.
  */
-const segmentTranslations: Record<string, Record<string, string>> = {
+export const segmentTranslations: Record<string, Record<string, string>> = {
   about: { fr: 'a-propos' },
   calendar: { fr: 'calendrier' },
   map: { fr: 'carte' },

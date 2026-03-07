@@ -56,6 +56,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
       <slot />
     </main>
     <Footer alternateUrls={alternateUrls} />
+    <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')</script>
     <script is:inline nonce={cspNonce}>
       document.addEventListener('click', (e) => {
         const origin = e.target;
