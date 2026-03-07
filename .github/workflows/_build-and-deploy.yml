@@ -151,10 +151,11 @@ jobs:
           CITY: ottawa
           GIT_BRANCH: ${{ inputs.data-ref }}
 
+      # When update-screenshots is enabled, --update-snapshots makes Playwright
+      # overwrite baselines and pass screenshot assertions in a single run.
+      # Non-screenshot failures still fail normally and stop the job.
       - name: Run E2E tests
         if: ${{ !inputs.skip-e2e }}
-        id: e2e
-        continue-on-error: ${{ inputs.update-screenshots }}
         run: >-
           npx playwright test --config e2e/playwright.config.ts
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
@@ -170,8 +171,6 @@ jobs:
 
       - name: Run admin E2E tests
         if: ${{ !inputs.skip-e2e }}
-        id: admin-e2e
-        continue-on-error: ${{ inputs.update-screenshots }}
         run: >-
           npx playwright test --config e2e/admin/fixture.ts
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
@@ -179,14 +178,12 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
-      # After both test suites, commit any updated screenshot baselines.
-      # --update-snapshots makes Playwright overwrite baselines and pass,
-      # so we always check for changed files (not gated on test failure).
+      # If we get here, all tests passed. Commit any baselines that
+      # --update-snapshots wrote to disk (no-op if nothing changed).
       - name: Update screenshot baselines
         id: update-screenshots
         if: ${{ !inputs.skip-e2e && inputs.update-screenshots }}
         run: |
-          # Guard against infinite loops
           if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
             echo "Latest commit is already a screenshot update, skipping"
             exit 0
@@ -198,19 +195,22 @@ jobs:
             echo "No screenshot changes"
             exit 0
           fi
-          echo "UPDATED_SCREENSHOTS<<EOF" >> "$GITHUB_ENV"
-          git diff --cached --name-only >> "$GITHUB_ENV"
-          echo "EOF" >> "$GITHUB_ENV"
+          echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
+          git diff --cached --name-only
           git commit -m "ci: update screenshot baselines"
           git push
 
       - name: Comment on PR with updated screenshots
-        if: ${{ !inputs.skip-e2e && steps.update-screenshots.outcome == 'success' && github.event_name == 'pull_request' }}
+        if: >-
+          !inputs.skip-e2e
+          && steps.update-screenshots.outputs.screenshots_updated == 'true'
+          && github.event_name == 'pull_request'
         uses: actions/github-script@v8
         with:
           script: |
             const marker = '<!-- screenshot-update-comment -->';
-            const files = process.env.UPDATED_SCREENSHOTS.trim().split('\n');
+            const { execSync } = require('child_process');
+            const files = execSync('git diff --name-only HEAD~1').toString().trim().split('\n');
             const list = files.map(f => `- \`${f}\``).join('\n');
             const body = `${marker}\n📸 Screenshot baselines were automatically updated:\n\n${list}\n\nCheck the commit diff to review the visual changes.`;
             const { data: comments } = await github.rest.issues.listComments({
@@ -234,12 +234,6 @@ jobs:
                 body,
               });
             }
-
-      - name: Fail if tests had non-screenshot failures
-        if: >-
-          !inputs.skip-e2e
-          && (steps.e2e.outcome == 'failure' || steps.admin-e2e.outcome == 'failure')
-        run: exit 1
 
       - name: Restore Cloudflare build for deploy
         if: ${{ inputs.deploy && !inputs.skip-e2e }}
