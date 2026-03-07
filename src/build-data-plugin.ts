@@ -21,6 +21,7 @@ import { CONTENT_DIR, CITY, cityDir } from './lib/config';
 import { loadAdminRouteData, loadRouteTrackPoints } from './loaders/admin-routes';
 import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
+import { loadAdminPlaceData } from './loaders/admin-places';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
@@ -30,6 +31,7 @@ export { CONTENT_DIR, CITY };
 export { loadAdminRouteData };
 export { loadAdminEventData };
 export { loadAdminOrganizers };
+export { loadAdminPlaceData };
 
 const CITY_DIR = cityDir;
 
@@ -133,11 +135,13 @@ export function buildDataPlugin(): Plugin {
   // Merged loaders compute routes+details and events+details in single passes.
   const adminRouteDataPromise = loadAdminRouteData();
   const adminEventDataPromise = loadAdminEventData();
+  const adminPlaceDataPromise = loadAdminPlaceData();
   const adminOrganizersPromise = loadAdminOrganizers();
 
   const adminModules = registerAdminModules([
     { name: 'routes', loader: async () => { const d = await adminRouteDataPromise; return { list: d.routes, details: d.details }; } },
     { name: 'events', loader: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; } },
+    { name: 'places', loader: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; } },
   ]);
 
   return {

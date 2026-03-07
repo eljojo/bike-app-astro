@@ -91,6 +91,43 @@ declare module 'virtual:bike-app/admin-event-detail' {
   export default details;
 }
 
+interface _AdminPlace {
+  id: string;
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  contentHash: string;
+}
+
+/** Mirrors PlaceDetail from src/lib/models/place-model.ts + contentHash */
+interface _AdminPlaceDetail {
+  id: string;
+  name: string;
+  name_fr?: string;
+  category: string;
+  lat: number;
+  lng: number;
+  status?: string;
+  address?: string;
+  website?: string;
+  phone?: string;
+  google_maps_url?: string;
+  photo_key?: string;
+  photo_content_type?: string;
+  contentHash?: string;
+}
+
+declare module 'virtual:bike-app/admin-places' {
+  const places: _AdminPlace[];
+  export default places;
+}
+
+declare module 'virtual:bike-app/admin-place-detail' {
+  const details: Record<string, _AdminPlaceDetail>;
+  export default details;
+}
+
 declare module 'virtual:bike-app/admin-organizers' {
   const organizers: _AdminOrganizer[];
   export default organizers;
