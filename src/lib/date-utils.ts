@@ -6,18 +6,25 @@ export function parseLocalDate(dateStr: string): Date {
   return new Date(year, month - 1, day);
 }
 
+function isMonthFirst(locale: string): boolean {
+  const parts = new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric' }).formatToParts(new Date(2026, 0, 15));
+  const monthIdx = parts.findIndex(p => p.type === 'month');
+  const dayIdx = parts.findIndex(p => p.type === 'day');
+  return monthIdx < dayIdx;
+}
+
 export function formatDate(d: Date, opts?: { includeYear?: boolean; locale?: string }): string {
   const loc = opts?.locale || 'en-CA';
   const month = d.toLocaleString(loc, { month: 'long' });
   const day = d.getDate();
   const year = d.getFullYear();
 
-  if (loc.startsWith('fr')) {
-    if (opts?.includeYear === false) return `${day} ${month}`;
-    return `${day} ${month} ${year}`;
+  if (isMonthFirst(loc)) {
+    if (opts?.includeYear === false) return `${month} ${day}`;
+    return `${month} ${day}, ${year}`;
   }
-  if (opts?.includeYear === false) return `${month} ${day}`;
-  return `${month} ${day}, ${year}`;
+  if (opts?.includeYear === false) return `${day} ${month}`;
+  return `${day} ${month} ${year}`;
 }
 
 export function formatDateRange(startStr: string, endStr?: string, locale?: string): string {
@@ -30,17 +37,17 @@ export function formatDateRange(startStr: string, endStr?: string, locale?: stri
   const startMonth = start.toLocaleString(loc, { month: 'long' });
   const endMonth = end.toLocaleString(loc, { month: 'long' });
 
-  if (loc.startsWith('fr')) {
+  if (isMonthFirst(loc)) {
     if (sameMonth) {
-      return `${start.getDate()} \u2013 ${end.getDate()} ${startMonth} ${start.getFullYear()}`;
+      return `${startMonth} ${start.getDate()} \u2013 ${end.getDate()}, ${start.getFullYear()}`;
     }
-    return `${start.getDate()} ${startMonth} \u2013 ${end.getDate()} ${endMonth} ${end.getFullYear()}`;
+    return `${startMonth} ${start.getDate()} \u2013 ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
   }
 
   if (sameMonth) {
-    return `${startMonth} ${start.getDate()} \u2013 ${end.getDate()}, ${start.getFullYear()}`;
+    return `${start.getDate()} \u2013 ${end.getDate()} ${startMonth} ${start.getFullYear()}`;
   }
-  return `${startMonth} ${start.getDate()} \u2013 ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
+  return `${start.getDate()} ${startMonth} \u2013 ${end.getDate()} ${endMonth} ${end.getFullYear()}`;
 }
 
 export function formatMonthName(dateStr: string, locale?: string): string {
