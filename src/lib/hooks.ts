@@ -47,6 +47,9 @@ export interface UploadedFile {
   width?: number;
   height?: number;
   contentType?: string;
+  lat?: number;
+  lng?: number;
+  uploaded_by?: string;
 }
 
 /**
@@ -104,6 +107,9 @@ export function useFileUpload() {
           width: confirmed.width,
           height: confirmed.height,
           contentType: confirmed.contentType,
+          lat: confirmed.lat,
+          lng: confirmed.lng,
+          uploaded_by: confirmed.uploaded_by,
         });
       }
 

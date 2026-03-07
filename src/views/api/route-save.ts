@@ -45,6 +45,9 @@ const routeUpdateSchema = z.object({
     cover: z.boolean().optional(),
     width: z.number().optional(),
     height: z.number().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    uploaded_by: z.string().optional(),
   })).optional(),
   variants: z.array(z.object({
     name: z.string(),
@@ -74,6 +77,9 @@ export interface RouteUpdate {
     cover?: boolean;
     width?: number;
     height?: number;
+    lat?: number;
+    lng?: number;
+    uploaded_by?: string;
   }>;
   variants?: VariantPayload[];
   contentHash?: string;
