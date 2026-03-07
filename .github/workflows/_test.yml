@@ -48,21 +48,21 @@ jobs:
         run: npx vitest run
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
+          CITY: demo
 
       - name: Restore Astro content cache
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-ottawa-${{ hashFiles('bike-routes/ottawa/routes/**') }}
+          key: astro-demo-${{ hashFiles('bike-routes/demo/routes/**') }}
           restore-keys: |
-            astro-ottawa-
+            astro-demo-
 
       - name: Restore map cache
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-${{ hashFiles('bike-routes/ottawa/routes/**/variants/*.gpx', 'bike-routes/ottawa/routes/**/*.gpx') }}
+          key: maps-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx') }}
           restore-keys: |
             maps-
 
@@ -70,20 +70,20 @@ jobs:
         run: npx tsx scripts/generate-maps.ts
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
+          CITY: demo
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
       - name: Build contributor stats
         run: npx tsx scripts/build-contributors.ts
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
+          CITY: demo
 
-      - name: Build site (Ottawa)
+      - name: Build site (demo)
         run: npx astro build
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
+          CITY: demo
           DISABLE_ANALYTICS: 'true'
           NODE_OPTIONS: '--max-old-space-size=4096'
 
@@ -91,7 +91,7 @@ jobs:
         run: npm run validate
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
+          CITY: demo
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -130,10 +130,7 @@ jobs:
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
-
-      - name: Save Cloudflare build for deploy
-        run: cp -r dist dist-cloudflare
+          CITY: demo
 
       - name: Run admin E2E tests
         run: >-
@@ -141,7 +138,7 @@ jobs:
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ottawa
+          CITY: demo
 
       - name: Update screenshot baselines
         id: update-screenshots
@@ -196,11 +193,3 @@ jobs:
                 body,
               });
             }
-
-      # Upload the Cloudflare build as artifact so the deploy job can use it
-      - name: Upload Ottawa build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-ottawa
-          path: dist-cloudflare/
-          retention-days: 1
