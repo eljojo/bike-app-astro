@@ -148,10 +148,10 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
       }).addTo(map);
 
       const pinIcon = L.default.divIcon({
-        className: 'poi-marker',
-        html: '<span class="poi-marker-emoji">\u{1F4CD}</span>',
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        className: 'place-picker-marker',
+        html: '+',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
       });
 
       function createDraggableMarker(position: [number, number]) {

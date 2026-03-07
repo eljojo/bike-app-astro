@@ -1128,6 +1128,18 @@
 }
 
 // Place editor
+.place-picker-marker {
+  background: $color-accent;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+}
+
 .place-map-picker {
   height: 300px;
   border-radius: $border-radius;
