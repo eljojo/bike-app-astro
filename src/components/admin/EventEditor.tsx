@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
-import { useTextareaValue, useFileUpload } from '../../lib/hooks';
+import { useState } from 'preact/hooks';
+import { useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
+import PhotoField from './PhotoField';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
@@ -81,13 +82,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [orgInstagram, setOrgInstagram] = useState(initOrg.instagram);
   const [showOrgForm, setShowOrgForm] = useState(initOrg.name !== '');
 
-  // Poster upload
-  const posterUpload = useFileUpload();
-  const posterInputRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
-  const dragCounterRef = useRef(0);
-  const dropHandlerRef = useRef<(file: File) => void>(() => {});
-
   // Save state
   const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
     apiBase: '/api/events',
@@ -162,66 +156,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     setShowOrgForm(true);
   }
 
-  async function uploadPoster(file: File) {
-    setError('');
-    const results = await posterUpload.upload(file);
-    if (results.length > 0) {
-      setPosterKey(results[0].key);
-      setPosterContentType(results[0].contentType || file.type);
-    } else if (posterUpload.error) {
-      setError(posterUpload.error);
-    }
-  }
-
-  // Full-page drag-and-drop for poster upload
-  dropHandlerRef.current = (file: File) => uploadPoster(file);
-
-  useEffect(() => {
-    function handleDragEnter(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current++;
-      if (e.dataTransfer?.types.includes('Files')) {
-        setDragging(true);
-      }
-    }
-    function handleDragLeave(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current--;
-      if (dragCounterRef.current === 0) {
-        setDragging(false);
-      }
-    }
-    function handleDragOver(e: DragEvent) {
-      e.preventDefault();
-    }
-    function handleDrop(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current = 0;
-      setDragging(false);
-      const file = e.dataTransfer?.files?.[0];
-      if (file && file.type.startsWith('image/')) {
-        dropHandlerRef.current(file);
-      }
-    }
-    document.addEventListener('dragenter', handleDragEnter);
-    document.addEventListener('dragleave', handleDragLeave);
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('drop', handleDrop);
-    return () => {
-      document.removeEventListener('dragenter', handleDragEnter);
-      document.removeEventListener('dragleave', handleDragLeave);
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('drop', handleDrop);
-    };
-  }, []);
-
   return (
-    <div class="event-editor-wrapper">
-      {dragging && (
-        <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop image to upload poster</div>
-        </div>
-      )}
     <fieldset class="event-editor" disabled={readOnly}>
         <div class="auth-form">
           <div class="form-field">
@@ -352,26 +287,15 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)} rows={6} />
           </div>
 
-          <div class="form-field">
-            <label>Poster</label>
-            {posterKey && (
-              <div class="poster-preview">
-                <img src={`${cdnUrl}/cdn-cgi/image/width=400/${posterKey}`} alt="Event poster" />
-                <button type="button" class="btn-remove-poster" onClick={() => setPosterKey('')}>Remove</button>
-              </div>
-            )}
-            <button type="button" class="btn-secondary"
-              onClick={() => posterInputRef.current?.click()}
-              disabled={posterUpload.uploading}>
-              {posterUpload.uploading ? 'Uploading...' : posterKey ? 'Replace poster' : 'Upload poster'}
-            </button>
-            <input ref={posterInputRef} type="file" accept="image/jpeg,image/png,image/webp"
-              style="display:none"
-              onChange={(e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) uploadPoster(file);
-              }} />
-          </div>
+          <PhotoField
+            photoKey={posterKey}
+            cdnUrl={cdnUrl}
+            label="Poster"
+            onPhotoChange={(key, contentType) => {
+              setPosterKey(key);
+              setPosterContentType(contentType);
+            }}
+          />
         </div>
 
       <section class="editor-section">
@@ -456,6 +380,5 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         </button>
       </div>
     </fieldset>
-    </div>
   );
 }
