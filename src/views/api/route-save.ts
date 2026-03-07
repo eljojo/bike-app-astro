@@ -224,7 +224,14 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
         const transPath = `${basePath}/index.${locale}.md`;
         const hasContent = trans.name || trans.tagline || trans.body;
         if (hasContent) {
-          const transFm: Record<string, string> = {};
+          // Preserve existing frontmatter fields (e.g. slug) that the editor doesn't manage
+          const existingTransFile = currentFiles.auxiliaryFiles?.[transPath];
+          const existingTransFm: Record<string, string> = {};
+          if (existingTransFile) {
+            const { data } = matter(existingTransFile.content);
+            Object.assign(existingTransFm, data);
+          }
+          const transFm: Record<string, string> = { ...existingTransFm };
           if (trans.name) transFm.name = trans.name;
           if (trans.tagline) transFm.tagline = trans.tagline;
           const fmStr = Object.keys(transFm).length > 0
