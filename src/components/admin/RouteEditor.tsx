@@ -5,6 +5,7 @@ import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
 import NearbyPhotos from './NearbyPhotos';
 import SaveSuccessModal from './SaveSuccessModal';
+import { useEditorState } from './useEditorState';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import { slugify } from '../../lib/slug';
@@ -26,7 +27,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
-  const [contentHash, setContentHash] = useState(initialData.contentHash);
   const [tagInput, setTagInput] = useState('');
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
@@ -61,10 +61,45 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
   const dragCounterRef = useRef(0);
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
-  const [saved, setSaved] = useState(false);
+  const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
+    apiBase: '/api/routes',
+    contentId: initialData.slug,
+    initialContentHash: initialData.contentHash,
+    userRole,
+    validate: () => {
+      if (!name.trim()) {
+        document.getElementById('route-name')?.focus();
+        return 'Name is required';
+      }
+      if (!variants.length) {
+        return 'At least one route option is required';
+      }
+      return null;
+    },
+    buildPayload: () => {
+      const payload: RouteUpdate = {
+        frontmatter: {
+          name,
+          tagline,
+          tags,
+          status,
+        },
+        body,
+        ...(slug !== initialData.slug ? { newSlug: slug } : {}),
+        media,
+        ...(newlyParked.length > 0 ? { parkedPhotos: newlyParked } : {}),
+        ...(deletedParkedKeys.length > 0 ? { deletedParkedKeys } : {}),
+        variants,
+        translations,
+      };
+      return payload as unknown as Record<string, unknown>;
+    },
+    onSuccess: (result) => {
+      if (initialData.isNew) {
+        window.location.href = `/admin/routes/${initialData.slug}`;
+      }
+    },
+  });
 
   useEffect(() => {
     function handleDragEnter(e: DragEvent) {
@@ -177,77 +212,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       addTag();
-    }
-  }
-
-  async function handleSave() {
-    setError('');
-    setGithubUrl('');
-
-    if (!name.trim()) {
-      setError('Name is required');
-      document.getElementById('route-name')?.focus();
-      return;
-    }
-
-    if (!variants.length) {
-      setError('At least one route option is required');
-      return;
-    }
-
-    setSaving(true);
-    setSaved(false);
-
-    try {
-      const payload: RouteUpdate = {
-        frontmatter: {
-          name,
-          tagline,
-          tags,
-          status,
-        },
-        body,
-        ...(slug !== initialData.slug ? { newSlug: slug } : {}),
-        media,
-        ...(newlyParked.length > 0 ? { parkedPhotos: newlyParked } : {}),
-        ...(deletedParkedKeys.length > 0 ? { deletedParkedKeys } : {}),
-        variants,
-        contentHash,
-        translations,
-      };
-
-      const res = await fetch(`/api/routes/${initialData.slug}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        if (res.status === 409 && data.conflict) {
-          setError(data.error);
-          setGithubUrl(data.githubUrl);
-          return;
-        }
-        throw new Error(data.error || 'Save failed');
-      }
-
-      const data = await res.json();
-      if (data.contentHash) {
-        setContentHash(data.contentHash);
-      }
-
-      if (initialData.isNew) {
-        window.location.href = `/admin/routes/${initialData.slug}`;
-        return;
-      }
-
-      setSaved(true);
-      setTimeout(() => setSaved(false), 8000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
     }
   }
 
