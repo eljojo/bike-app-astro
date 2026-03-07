@@ -1,4 +1,5 @@
 ---
+export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
@@ -38,4 +39,9 @@ const { published, routeTagsMap, filterTags } = await loadHomepageData();
       );
     })}
   </ul>
+  <div class="suggest-route-cta">
+    <a href="/admin/routes/new" class="suggest-route-link">
+      Know a route that's missing? Suggest a new route
+    </a>
+  </div>
 </Base>

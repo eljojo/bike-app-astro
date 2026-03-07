@@ -4,7 +4,7 @@
   "nav.guides": "Guides",
   "nav.home": "Accueil",
   "nav.map": "Carte",
-  "footer.curated_by": "{display_name} est organisé par {author}",
+  "footer.community": "{display_name} est un wiki cycliste communautaire",
   "home.welcome": "Nouveau au vélo? Cycliste expérimenté? Trouvez votre nouveau parcours préféré et explorez la nature!",
   "filter.choose_tag": "choisir un tag pour filtrer :",
   "route.elevation_gain": "Dénivelé positif",

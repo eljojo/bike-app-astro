@@ -15,9 +15,10 @@ interface Props {
   jsonLd?: Record<string, any>;
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
+  cspNonce?: string;
 }
 
-const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls } = Astro.props;
+const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls, cspNonce } = Astro.props;
 const siteUrl = config.url;
 const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
 
@@ -89,9 +90,9 @@ const hreflangEntries = locales.map(locale => ({
 <meta name="twitter:site" content={config.author.twitter} />
 
 {jsonLd && (
-  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <script nonce={cspNonce} type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 )}
 
 {breadcrumbs && (
-  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} />
+  <script nonce={cspNonce} type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} />
 )}

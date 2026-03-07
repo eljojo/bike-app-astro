@@ -2,6 +2,8 @@ name: Deploy Staging
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [staging-data-updated]
 
 jobs:
   deploy:
@@ -9,7 +11,8 @@ jobs:
     with:
       environment: staging
       deploy: true
-      worker-name: bike-ottawa-staging
+      wrangler-env: staging
+      data-ref: staging
       disable-analytics: true
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}

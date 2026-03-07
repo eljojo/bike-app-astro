@@ -17,7 +17,7 @@ jobs:
     with:
       environment: production
       deploy: true
-      worker-name: bike-ottawa-production
+      wrangler-env: production
       skip-e2e: true
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}

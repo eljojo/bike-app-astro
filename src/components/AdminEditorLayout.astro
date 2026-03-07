@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+import AdminHeader from './AdminHeader.astro';
+import Toast from './admin/Toast.tsx';
+import '../styles/admin.scss';
+
+interface Props {
+  title: string;
+  backLink: string;
+  backLabel?: string;
+  viewLink?: string;
+  hideTitle?: boolean;
+  user: { username: string; role: string; email?: string | null };
+  currentTab: 'routes' | 'events';
+}
+
+const { title, backLink, backLabel = 'Back', viewLink, hideTitle, user, currentTab } = Astro.props;
+---
+
+<Base title={title} admin>
+  <Toast client:load />
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab={currentTab} />
+    <div class="editor-header">
+      <a href={backLink} class="back-link">&larr; {backLabel}</a>
+      {viewLink && <a href={viewLink} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>}
+    </div>
+    {!hideTitle && <h1 class="editor-title">{title}</h1>}
+    <slot />
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../styles/editor';
+</style>

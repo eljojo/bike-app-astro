@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { marked } from 'marked';
 import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { cityDir } from '../lib/config';
+import { renderMarkdownHtml } from '../lib/markdown-render';
 import { loadLocaleTranslations } from './locale-content';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 
@@ -98,14 +98,15 @@ export function routeLoader(): Loader {
         }
 
         // Parse GPX files from variants
-        const gpxTracks: Record<string, GpxTrack> = {};
+        const gpxTracks: Record<string, GpxTrack & { rawGpx?: string }> = {};
         const variants = frontmatter.variants || [];
         for (const variant of variants) {
           const gpxPath = path.join(routeDir, variant.gpx);
           if (fs.existsSync(gpxPath)) {
             try {
               const gpxXml = fs.readFileSync(gpxPath, 'utf-8');
-              gpxTracks[variant.gpx] = parseGpx(gpxXml);
+              const parsed = parseGpx(gpxXml);
+              gpxTracks[variant.gpx] = { ...parsed, rawGpx: gpxXml };
             } catch (e: unknown) {
               const message = e instanceof Error ? e.message : String(e);
               logger.warn(`Failed to parse GPX ${gpxPath}: ${message}`);
@@ -113,7 +114,7 @@ export function routeLoader(): Loader {
           }
         }
 
-        const renderedBody = await marked.parse(body);
+        const renderedBody = await renderMarkdownHtml(body);
 
         const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
         const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);

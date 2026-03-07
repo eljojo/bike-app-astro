@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseLocalDate, formatDate, formatDateRange, formatMonthName } from '../src/lib/date-utils';
+import { parseLocalDate, formatDate, formatDateRange, formatMonthName, formatAdminDate, formatAdminDateTime } from '../src/lib/date-utils';
 
 describe('parseLocalDate', () => {
   it('parses date-only string without timezone shift', () => {
@@ -67,5 +67,24 @@ describe('formatMonthName', () => {
 
   it('returns French month name', () => {
     expect(formatMonthName('2025-05-03', 'fr-CA')).toBe('mai');
+  });
+});
+
+describe('formatAdminDate', () => {
+  it('formats ISO string as short date', () => {
+    const result = formatAdminDate('2025-06-15T10:30:00Z');
+    expect(result).toContain('Jun');
+    expect(result).toContain('15');
+    expect(result).toContain('2025');
+  });
+});
+
+describe('formatAdminDateTime', () => {
+  it('formats ISO string as short date with time', () => {
+    const result = formatAdminDateTime('2025-06-15T10:30:00Z');
+    expect(result).toContain('Jun');
+    expect(result).toContain('15');
+    expect(result).toContain('2025');
+    expect(result).toMatch(/\d{1,2}:\d{2}/);
   });
 });

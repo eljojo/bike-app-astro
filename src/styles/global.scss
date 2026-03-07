@@ -1,4 +1,5 @@
 @use 'variables' as *;
+@use 'mixins' as *;
 @use 'webfonts';
 
 * { box-sizing: border-box; }
@@ -26,16 +27,8 @@ img { max-width: 100%; height: auto; }
 
 // Global tag pill styles
 .tag-pill {
-  background: $color-tag-bg;
-  color: $color-tag-text;
-  padding: 3px;
-  border-radius: 7px;
-  font-family: $font-mono;
-  font-size: 1.05em;
-  letter-spacing: 1px;
+  @include tag-base;
   list-style: none;
-  margin: 3px 7px 3px 0;
-  display: inline-block;
 }
 
 // Global action button styles
@@ -76,7 +69,7 @@ a.action-button {
       background-color: #bbddbb; // darken(#ded, 10%) — hardcoded to avoid Sass deprecation warning
     }
   }
-  @media (prefers-color-scheme: dark) {
+  @include dark-mode {
     &:hover, &.--primary {
       background-color: #333;
     }
@@ -99,7 +92,7 @@ a.go-back-button {
   @media (prefers-color-scheme: light) {
     border-top: 1px solid black;
   }
-  @media (prefers-color-scheme: dark) {
+  @include dark-mode {
     border-top: 1px solid white;
   }
 }
@@ -109,7 +102,7 @@ a.go-back-button {
   .route-card--preview { color: $color-text-muted; }
 }
 
-@media (prefers-color-scheme: dark) {
+@include dark-mode {
   body { background: $color-bg-dark; color: $color-text-dark; }
   a, a:visited { color: white; }
   .site-header img { filter: invert(1); }
@@ -186,7 +179,7 @@ a.go-back-button {
     a { background: black; color: white; }
   }
 }
-@media (prefers-color-scheme: dark) {
+@include dark-mode {
   .site-footer {
     border-top: 1px solid white;
     a { background: white; color: black; }
@@ -265,7 +258,7 @@ a.go-back-button {
   margin-top: 0.5em;
   margin-bottom: 1em;
 }
-@media (prefers-color-scheme: dark) {
+@include dark-mode {
   .route-card--link {
     background-color: $color-card-bg-dark;
     &:hover { background-color: $color-card-hover-dark; }
@@ -291,7 +284,7 @@ a.go-back-button {
 .event-dates { font-size: 1.2em; }
 .event-distances { font-size: 0.9em; }
 .event-review { color: $color-accent; font-weight: 600; }
-@media (prefers-color-scheme: dark) {
+@include dark-mode {
   .event-card { border-color: #333; }
 }
 
@@ -314,17 +307,9 @@ a.go-back-button {
   }
 }
 .tag-filter--btn {
+  @include tag-base;
   cursor: pointer;
   border: none;
-  font-size: 1.05em;
-  background: $color-tag-bg;
-  color: $color-tag-text;
-  padding: 3px;
-  border-radius: 7px;
-  font-family: $font-mono;
-  letter-spacing: 1px;
-  margin: 3px 7px 3px 0;
-  display: inline-block;
   transition: background 0.15s, color 0.15s;
   &.active {
     background: orange;
@@ -333,16 +318,6 @@ a.go-back-button {
   @media (hover: hover) {
     &:hover:not(.active) {
       background: orange;
-    }
-  }
-}
-@media (prefers-color-scheme: dark) {
-  .tag-filter--btn {
-    background: gray;
-    color: white;
-    &.active { background: orange; color: white; }
-    @media (hover: hover) {
-      &:hover:not(.active) { background: orange; }
     }
   }
 }
@@ -361,7 +336,7 @@ a.go-back-button {
   border: 1px solid #dee2e6;
   border-radius: 4px;
 }
-@media (prefers-color-scheme: dark) {
+@include dark-mode {
   .elevation-svg { border-color: #333; }
   .elevation-svg path[fill] { fill: rgba(100,180,255,0.15); }
   .elevation-svg path[stroke] { stroke: #6ab4ff; }
@@ -515,6 +490,18 @@ a.go-back-button {
   max-width: 1130px;
   font-size: 1.05em;
 
+  .about-inline-title {
+    font-size: 1.7em;
+  }
+
+  .about-inline-title-text {
+    display: inline-block;
+  }
+
+  .about-contact-email {
+    font-weight: bold;
+  }
+
   img {
     float: right;
     margin-left: 10px;
@@ -522,6 +509,10 @@ a.go-back-button {
     max-width: 50vw;
     border-radius: 8px;
   }
+}
+
+.about-inline-icon {
+  vertical-align: middle;
 }
 
 // Guides
@@ -625,4 +616,99 @@ a.go-back-button {
 }
 .route-description {
   a { color: inherit; text-decoration: underline; }
+}
+
+// Admin edit link (hidden unless logged in)
+.admin-edit-link {
+  display: none;
+  font-size: 0.5em;
+  font-weight: normal;
+  font-family: $font-body;
+  vertical-align: middle;
+  margin-left: 0.5em;
+  opacity: 0.4;
+  text-decoration: none;
+  &:hover { opacity: 0.8; }
+}
+.admin-visible .admin-edit-link {
+  display: inline;
+}
+
+.suggest-edit-link {
+  display: inline-block;
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  text-decoration: none;
+  margin-top: 0.5rem;
+
+  @include dark-mode {
+    color: #aaa;
+  }
+
+  &:hover {
+    text-decoration: underline;
+    color: $color-accent;
+  }
+}
+
+.suggest-route-cta {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.suggest-route-link {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: $color-text-muted;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border: 1px dashed $color-border;
+  border-radius: $border-radius;
+
+  @include dark-mode {
+    color: #aaa;
+    border-color: $color-border-dark;
+  }
+
+  &:hover {
+    text-decoration: none;
+    color: $color-accent;
+    border-color: $color-accent;
+  }
+}
+
+.about-contributors {
+  margin: 2rem 0;
+
+  .contributor-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .contributor {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    img {
+      border-radius: 50%;
+    }
+  }
+}
+
+.about-contribute {
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  font-size: 0.9rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  a {
+    color: $color-accent;
+  }
 }

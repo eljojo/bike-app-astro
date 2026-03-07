@@ -1,0 +1,25 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import EditHistory from '../../components/admin/EditHistory.tsx';
+import '../../styles/admin.scss';
+import { CITY, GIT_REPO } from '../../lib/config';
+const user = Astro.locals.user;
+---
+
+<Base title="Edit History" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="history" />
+    <EditHistory client:load city={CITY} gitRepo={GIT_REPO} userRole={user?.role} />
+  </div>
+</Base>
+
+<style lang="scss">
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+</style>

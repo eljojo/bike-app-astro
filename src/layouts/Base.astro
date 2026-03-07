@@ -14,6 +14,7 @@ const config = getCityConfig();
 const fontPreloads = getFontPreloads();
 const locale = Astro.currentLocale || defaultLocale();
 const htmlLang = fullLocale(locale);
+const cspNonce = Astro.locals.cspNonce;
 
 interface Props {
   title: string;
@@ -23,40 +24,49 @@ interface Props {
   jsonLd?: Record<string, any>;
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
+  admin?: boolean;
 }
 
-const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls } = Astro.props;
+const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls, admin } = Astro.props;
 ---
 <!DOCTYPE html>
 <html lang={htmlLang}>
   <head>
-    <LocaleRedirect />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls} />
+    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls} cspNonce={cspNonce} />
     {fontPreloads.map(href => (
       <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
     ))}
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" href="/bicycle.png" />
     <link rel="apple-touch-icon" href="/bicycle.png" />
     <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
     {import.meta.env.PROD && <script>import '../lib/analytics';</script>}
-    {import.meta.env.DISABLE_ANALYTICS === 'true' && <script>localStorage.plausible_ignore=true</script>}
+    {import.meta.env.DISABLE_ANALYTICS === 'true' && <script is:inline nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
+    <LocaleRedirect cspNonce={cspNonce} />
   </head>
   <body>
     <header class="site-header">
       <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
     </header>
-    <Nav alternateUrls={alternateUrls} />
+    {!admin && <Nav alternateUrls={alternateUrls} />}
     <main>
       <slot />
     </main>
     <Footer alternateUrls={alternateUrls} />
-    <script>
+    <script is:inline nonce={cspNonce}>
       document.addEventListener('click', (e) => {
-        const target = (e.target as HTMLElement).closest('[data-locale]') as HTMLElement | null;
-        if (target) localStorage.setItem('locale-preference', target.dataset.locale || '');
+        const origin = e.target;
+        if (!(origin instanceof Element)) return;
+        const target = origin.closest('[data-locale]');
+        if (target instanceof HTMLElement) {
+          localStorage.setItem('locale-preference', target.dataset.locale || '');
+        }
       });
+      if (document.cookie.includes('logged_in=1')) {
+        document.body.classList.add('admin-visible');
+      }
     </script>
   </body>
 </html>

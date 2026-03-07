@@ -16,6 +16,7 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
+.dev.vars
 
 # macOS-specific files
 .DS_Store
@@ -36,3 +37,10 @@ public/maps/
 # playwright test artifacts
 test-results/
 e2e/test-results/
+
+# worktrees
+.worktrees/
+.wrangler/
+
+# local dev data (uploads, SQLite, etc.)
+.data/

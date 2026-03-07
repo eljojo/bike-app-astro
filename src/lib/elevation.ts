@@ -1,3 +1,5 @@
+import { isPublished } from './content-filters';
+
 const ELEVATION_KEYS: [number, string][] = [
   [0.05, 'flat'],
   [0.1, 'mostly_flat'],
@@ -34,9 +36,9 @@ export function elevationTags(elevationGain: number | null, allElevations: numbe
   return [];
 }
 
-export function getAllElevations(routes: { data: { status: string; variants: { gpx: string }[]; gpxTracks: Record<string, { elevation_gain_m: number } | undefined> } }[]): number[] {
+export function getAllElevations(routes: { data: { status: string; variants: { gpx: string; [k: string]: unknown }[]; gpxTracks: Record<string, { elevation_gain_m: number; [k: string]: unknown } | undefined>; [k: string]: unknown } }[]): number[] {
   return routes
-    .filter(r => r.data.status === 'published')
+    .filter(isPublished)
     .map(r => {
       const gpx = r.data.variants[0]?.gpx;
       return gpx ? r.data.gpxTracks[gpx]?.elevation_gain_m : null;

@@ -1,6 +1,12 @@
+import 'dotenv/config';
 import { defineConfig } from 'astro/config';
+import { getAdapter } from './src/lib/adapter';
+import preact from '@astrojs/preact';
 import { i18nRoutes } from './src/integrations/i18n-routes';
+import { adminRoutesIntegration } from './src/integrations/admin-routes';
 import { slugRedirectLines } from './src/lib/slug-redirects.ts';
+import { buildDataPlugin } from './src/build-data-plugin';
+import { sharedCspDirectives } from './src/lib/csp';
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -13,15 +19,49 @@ const i18nConfig = {
   },
 };
 
+function patchStaticCspStyles(rootDir) {
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || !fs.existsSync(current)) continue;
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
+      const html = fs.readFileSync(full, 'utf-8');
+      const patched = html.replace(
+        /(content="[^"]*?)style-src\s+[^;]+;([^"]*")/i,
+        `$1style-src 'self' 'unsafe-inline';$2`
+      );
+      if (patched !== html) {
+        fs.writeFileSync(full, patched);
+      }
+    }
+  }
+}
+
 export default defineConfig({
-  site: 'https://ottawabybike.ca',
-  output: 'static',
+  site: process.env.SITE_URL || 'https://ottawabybike.ca',
+  adapter: await getAdapter(process.env.RUNTIME),
+  security: {
+    csp: {
+      directives: sharedCspDirectives(),
+      styleDirective: {
+        resources: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  },
   i18n: i18nConfig,
   build: {
     concurrency: 4,
   },
   integrations: [
+    preact(),
     i18nRoutes(),
+    adminRoutesIntegration(),
     {
       name: 'copy-map-cache',
       hooks: {
@@ -101,9 +141,25 @@ export default defineConfig({
           }
         }
       }
+    },
+    {
+      name: 'patch-static-csp-style-src',
+      hooks: {
+        'astro:build:done': async ({ dir }) => {
+          patchStaticCspStyles(dir.pathname);
+        },
+      },
     }
   ],
   vite: {
+    plugins: [buildDataPlugin()],
+    build: {
+      rollupOptions: {
+        // When RUNTIME=local, the 'cloudflare:workers' dynamic import in env.ts
+        // is dead code, but Rollup still tries to resolve it. Mark it external.
+        external: process.env.RUNTIME === 'local' ? ['cloudflare:workers'] : [],
+      },
+    },
     css: {
       preprocessorOptions: {
         scss: {

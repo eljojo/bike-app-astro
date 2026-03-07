@@ -12,8 +12,8 @@ on:
         description: 'Whether to deploy after testing'
         type: boolean
         required: true
-      worker-name:
-        description: 'Cloudflare Worker name'
+      wrangler-env:
+        description: 'Wrangler environment (staging or production)'
         type: string
         required: false
         default: ''
@@ -78,25 +78,12 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Cache Playwright browsers
-        if: ${{ !inputs.skip-e2e }}
-        id: playwright-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}
-
-      - name: Install emoji font
-        if: ${{ !inputs.skip-e2e }}
-        run: sudo apt-get install -y fonts-noto-color-emoji
-
-      - name: Install Playwright browsers
-        if: ${{ !inputs.skip-e2e && steps.playwright-cache.outputs.cache-hit != 'true' }}
-        run: npx playwright install --with-deps chromium
-
-      - name: Install Playwright deps (cached)
-        if: ${{ !inputs.skip-e2e && steps.playwright-cache.outputs.cache-hit == 'true' }}
-        run: npx playwright install-deps chromium
+      - name: Run unit tests
+        run: npx vitest run
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+          GIT_BRANCH: ${{ inputs.data-ref }}
 
       - name: Restore map cache
         uses: actions/cache@v5
@@ -117,69 +104,116 @@ jobs:
       - name: Generate map thumbnails
         run: npx tsx scripts/generate-maps.ts
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+      - name: Build contributor stats
+        run: npx tsx scripts/build-contributors.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Build site
         run: npx astro build
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Validate build output
         run: npm run validate
         env:
-          CONTENT_DIR: ./bike-routes
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ottawa
 
-      - name: Run unit tests
-        run: npx vitest run
-        env:
-          CONTENT_DIR: ./bike-routes
-          CITY: ottawa
+      - name: Cache Playwright browsers
+        if: ${{ !inputs.skip-e2e }}
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
 
+      - name: Install fonts for screenshots
+        if: ${{ !inputs.skip-e2e }}
+        run: |
+          echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+          sudo apt-get install -y fonts-noto-color-emoji ttf-mscorefonts-installer
+          sudo fc-cache -f
+
+      - name: Install Playwright browsers
+        if: ${{ !inputs.skip-e2e && steps.playwright-cache.outputs.cache-hit != 'true' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright deps (cached)
+        if: ${{ !inputs.skip-e2e && steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: npx playwright install-deps chromium
+
+      # When update-screenshots is enabled, --update-snapshots makes Playwright
+      # overwrite baselines and pass screenshot assertions in a single run.
+      # Non-screenshot failures still fail normally and stop the job.
       - name: Run E2E tests
         if: ${{ !inputs.skip-e2e }}
-        id: e2e
-        continue-on-error: ${{ inputs.update-screenshots }}
-        run: npx playwright test --config e2e/playwright.config.ts
+        run: >-
+          npx playwright test --config e2e/playwright.config.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
 
+      # Admin E2E tests rebuild dist/ with RUNTIME=local (Node adapter),
+      # which overwrites the Cloudflare build. Save it first for deploy.
+      - name: Save Cloudflare build for deploy
+        if: ${{ inputs.deploy && !inputs.skip-e2e }}
+        run: cp -r dist dist-cloudflare
+
+      - name: Run admin E2E tests
+        if: ${{ !inputs.skip-e2e }}
+        run: >-
+          npx playwright test --config e2e/admin/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
+      # If we get here, all tests passed. Commit any baselines that
+      # --update-snapshots wrote to disk (no-op if nothing changed).
       - name: Update screenshot baselines
         id: update-screenshots
-        if: >-
-          !inputs.skip-e2e
-          && steps.e2e.outcome == 'failure'
-          && inputs.update-screenshots
+        if: ${{ !inputs.skip-e2e && inputs.update-screenshots }}
         run: |
-          # Guard against infinite loops
           if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
             echo "Latest commit is already a screenshot update, skipping"
-            exit 1
+            exit 0
           fi
-          npx playwright test --config e2e/playwright.config.ts --update-snapshots
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add e2e/snapshots/
+          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
-            echo "No screenshot changes — e2e failure is not screenshot-related"
-            exit 1
+            echo "No screenshot changes"
+            exit 0
           fi
-          echo "UPDATED_SCREENSHOTS<<EOF" >> "$GITHUB_ENV"
-          git diff --cached --name-only >> "$GITHUB_ENV"
-          echo "EOF" >> "$GITHUB_ENV"
+          echo "screenshots_updated=true" >> "$GITHUB_OUTPUT"
+          git diff --cached --name-only
           git commit -m "ci: update screenshot baselines"
           git push
 
       - name: Comment on PR with updated screenshots
-        if: ${{ !inputs.skip-e2e && steps.update-screenshots.outcome == 'success' && github.event_name == 'pull_request' }}
+        if: >-
+          !inputs.skip-e2e
+          && steps.update-screenshots.outputs.screenshots_updated == 'true'
+          && github.event_name == 'pull_request'
         uses: actions/github-script@v8
         with:
           script: |
             const marker = '<!-- screenshot-update-comment -->';
-            const files = process.env.UPDATED_SCREENSHOTS.trim().split('\n');
-            const list = files.map(f => `- \`${f.replace('e2e/snapshots/screenshots.spec.ts-snapshots/', '')}\``).join('\n');
+            const { execSync } = require('child_process');
+            const files = execSync('git diff --name-only HEAD~1').toString().trim().split('\n');
+            const list = files.map(f => `- \`${f}\``).join('\n');
             const body = `${marker}\n📸 Screenshot baselines were automatically updated:\n\n${list}\n\nCheck the commit diff to review the visual changes.`;
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -203,16 +237,50 @@ jobs:
               });
             }
 
-      - name: Fail if E2E tests failed and screenshots were not the cause
-        if: >-
-          !inputs.skip-e2e
-          && steps.e2e.outcome == 'failure'
-          && steps.update-screenshots.outcome != 'success'
-        run: exit 1
+      - name: Restore Cloudflare build for deploy
+        if: ${{ inputs.deploy && !inputs.skip-e2e }}
+        run: |
+          rm -rf dist
+          mv dist-cloudflare dist
+
+      - name: Prepare wrangler config for deploy
+        if: inputs.deploy
+        run: |
+          # The Astro Cloudflare adapter generates dist/server/wrangler.json
+          # with its own config that lacks our env definitions (D1 bindings,
+          # worker names). Remove it and .wrangler/deploy so wrangler can't
+          # auto-discover it. Then patch our config with the worker entry
+          # point and correct assets path (can't be present at build time
+          # because the Vite plugin validates the file exists).
+          # NOTE: this must run AFTER E2E tests — astro preview needs these
+          # files to start the local Cloudflare worker for screenshot tests.
+          rm -f dist/server/wrangler.json
+          rm -rf .wrangler/deploy
+          node -e "
+            const fs = require('fs');
+            const c = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+            c.main = './dist/server/entry.mjs';
+            c.assets.directory = './dist/client';
+            fs.writeFileSync('wrangler.jsonc', JSON.stringify(c, null, 2));
+          "
+
+      - name: Run D1 migrations
+        if: inputs.deploy && inputs.wrangler-env
+        run: npx wrangler d1 migrations apply DB --config wrangler.jsonc --env ${{ inputs.wrangler-env }} --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy to Cloudflare Workers
         if: inputs.deploy
-        run: npx wrangler deploy --name ${{ inputs.worker-name }}
+        run: npx wrangler deploy --config wrangler.jsonc ${{ inputs.wrangler-env && format('--env {0}', inputs.wrangler-env) || '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Clear content edits cache
+        if: inputs.deploy && inputs.wrangler-env
+        run: npx wrangler d1 execute DB --config wrangler.jsonc --env ${{ inputs.wrangler-env }} --remote --command "DELETE FROM content_edits"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

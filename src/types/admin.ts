@@ -1,0 +1,30 @@
+// Detail types (RouteDetail, EventDetail, AdminMediaItem, AdminVariant) are
+// canonical in src/lib/models/route-model.ts and src/lib/models/event-model.ts
+
+export interface AdminRoute {
+  slug: string;
+  name: string;
+  mediaCount: number;
+  status: string;
+  contentHash: string;
+  difficultyScore: number | null;
+}
+
+export interface AdminEvent {
+  id: string;
+  slug: string;
+  year: string;
+  name: string;
+  start_date: string;
+  end_date?: string;
+  organizer?: string | { name: string; website?: string; instagram?: string };
+  poster_key?: string;
+  contentHash: string;
+}
+
+export interface AdminOrganizer {
+  slug: string;
+  name: string;
+  website?: string;
+  instagram?: string;
+}

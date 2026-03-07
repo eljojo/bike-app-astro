@@ -46,3 +46,18 @@ export function formatDateRange(startStr: string, endStr?: string, locale?: stri
 export function formatMonthName(dateStr: string, locale?: string): string {
   return parseLocalDate(dateStr).toLocaleString(locale || 'en-CA', { month: 'long' });
 }
+
+/** Format an ISO date string for admin UI (no time). */
+export function formatAdminDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-CA', {
+    year: 'numeric', month: 'short', day: 'numeric',
+  });
+}
+
+/** Format an ISO date string for admin UI (with time). */
+export function formatAdminDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-CA', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}

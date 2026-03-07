@@ -33,3 +33,38 @@ $breakpoint-tablet: 800px;
 $breakpoint-desktop: 1000px;
 
 $content-width: 85%;
+
+// Dark mode base
+$color-text-muted-dark: #aaa;
+$color-border-dark: #444;
+$color-border-subtle-dark: #333;
+
+// Status: error / danger
+$color-error: #c33;
+$color-error-bg: #fdd;
+$color-error-dark: #f99;
+$color-error-bg-dark: #411;
+
+// Status: success
+$color-success: green;
+$color-success-bg: #dfd;
+$color-success-border: #5a5;
+$color-success-dark: #8f8;
+$color-success-bg-dark: #142;
+$color-success-border-dark: #385;
+
+// Status: warning (conflict notices)
+$color-warning: #664d03;
+$color-warning-bg: #fff3cd;
+$color-warning-border: #ffc107;
+$color-warning-dark: #ffda6a;
+$color-warning-bg-dark: #332701;
+$color-warning-border-dark: #664d03;
+
+// Status: info (draft/staging banners)
+$color-info: #1565c0;
+$color-info-bg: #e3f2fd;
+$color-info-border: #90caf9;
+$color-info-dark: #90caf9;
+$color-info-bg-dark: #0d1b2a;
+$color-info-border-dark: #1565c0;

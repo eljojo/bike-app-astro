@@ -1,7 +1,7 @@
 ---
 // src/components/EventCard.astro
 import { getCollection } from 'astro:content';
-import { imageUrl } from '../lib/image-service';
+import ResponsiveImage from './ResponsiveImage.astro';
 import { formatDateRange } from '../lib/date-utils';
 
 interface Props {
@@ -12,17 +12,20 @@ interface Props {
   location?: string;
   registration_url?: string;
   review_url?: string;
-  organizer_slug?: string;
+  organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
+  eventId?: string;
 }
 
 const props = Astro.props;
 
 let organizerName = '';
-if (props.organizer_slug) {
+if (typeof props.organizer === 'string') {
   const organizers = await getCollection('organizers');
-  const org = organizers.find(o => o.id === props.organizer_slug);
-  organizerName = org?.data.name || props.organizer_slug;
+  const org = organizers.find(o => o.id === props.organizer);
+  organizerName = org?.data.name || props.organizer;
+} else if (props.organizer?.name) {
+  organizerName = props.organizer.name;
 }
 
 const dateDisplay = formatDateRange(props.start_date, props.end_date);
@@ -37,13 +40,16 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
   <span class="event-dates">{dateDisplay}</span>
   {props.distances && <span class="event-distances">{props.distances}</span>}
   {props.poster_key && (
-    <img
-      src={imageUrl(props.poster_key, { width: 600 })}
+    <ResponsiveImage
+      blobKey={props.poster_key}
       alt={props.name}
-      loading="lazy"
+      widths={[600]}
     />
   )}
   {props.review_url && (
     <a href={props.review_url} class="event-review">Read my review!</a>
+  )}
+  {props.eventId && (
+    <a href={`/admin/events/${props.eventId}`} class="suggest-edit-link">Suggest an edit</a>
   )}
 </div>

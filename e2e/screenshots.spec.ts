@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 // Scroll through the page to trigger lazy-loaded images, then wait for all to finish loading.
-async function waitForImages(page) {
+async function waitForImages(page: Page) {
   // Scroll to bottom in steps to trigger lazy loading
   await page.evaluate(async () => {
     const step = window.innerHeight;
@@ -14,8 +15,8 @@ async function waitForImages(page) {
   // Wait for all images to report complete
   await page.waitForFunction(() => {
     const images = Array.from(document.querySelectorAll('img'));
-    return images.every(img => img.complete);
-  }, { timeout: 10000 }).catch(() => {});
+    return images.every(img => img.complete || (img.loading === 'lazy' && !img.currentSrc));
+  }, undefined, { timeout: 10000 }).catch(() => {});
 }
 
 test.describe('Screenshots', () => {

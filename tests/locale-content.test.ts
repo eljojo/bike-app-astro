@@ -63,7 +63,7 @@ describe('localizedRouteFields', () => {
     const routeData = {
       name: 'Greenbelt',
       tagline: 'Escape the city',
-      translations: {},
+      translations: {} as Record<string, { name?: string; tagline?: string }>,
     };
 
     const locale = 'fr';

@@ -1,8 +1,58 @@
 {
-  "name": "bike-ottawa-production",
-  "compatibility_date": "2025-01-01",
+  "name": "whereto-bike",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
+    "binding": "ASSETS",
     "directory": "./dist",
     "not_found_handling": "404-page"
+  },
+  "env": {
+    "staging": {
+      "name": "bike-ottawa-staging",
+      "observability": { "enabled": true },
+      "vars": {
+        "GIT_BRANCH": "staging",
+        "ENVIRONMENT": "staging",
+        "STORAGE_KEY_PREFIX": "staging/"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bike-admin-staging",
+          "database_id": "eeca7adc-87e0-4219-bd54-90e31985e1e4",
+          "migrations_dir": "./drizzle/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "eljojo-bike-prod"
+        }
+      ]
+    },
+    "production": {
+      "name": "bike-ottawa-production",
+      "observability": { "enabled": true },
+      "vars": {
+        "GIT_BRANCH": "main",
+        "ENVIRONMENT": "production",
+        "STORAGE_KEY_PREFIX": ""
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bike-admin-production",
+          "database_id": "9bec7997-6dbb-4099-875c-6be0681b6aea",
+          "migrations_dir": "./drizzle/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "eljojo-bike-prod"
+        }
+      ]
+    }
   }
 }

@@ -1,5 +1,6 @@
 ---
 import { imageUrl } from '../lib/image-service';
+import ResponsiveImage from './ResponsiveImage.astro';
 import { t } from '../i18n';
 
 const locale = Astro.currentLocale;
@@ -44,11 +45,10 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
         class={`photo-gallery--image${i >= VISIBLE_COUNT ? ' photo-hidden' : ''}`}
         target="_blank"
       >
-        <img
-          src={imageUrl(photo.key, { width: 375 })}
-          srcset={`${imageUrl(photo.key, { width: 375 })} 375w, ${imageUrl(photo.key, { width: 750 })} 750w, ${imageUrl(photo.key, { width: 1170 })} 1170w`}
+        <ResponsiveImage
+          blobKey={photo.key}
           alt={photo.caption || routeName}
-          loading="lazy"
+          widths={[375, 750, 1170]}
           width={thumbDimensions(photo, 375).width}
           height={thumbDimensions(photo, 375).height}
         />

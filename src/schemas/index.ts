@@ -1,4 +1,4 @@
-import { z } from 'astro:content';
+import { z } from 'astro/zod';
 
 export const variantSchema = z.object({
   name: z.string(),
@@ -36,13 +36,14 @@ export const routeSchema = z.object({
     elevation_gain_m: z.number(),
     max_gradient_pct: z.number(),
     polyline: z.string(),
+    rawGpx: z.string().optional(),
   })).default({}),
   renderedBody: z.string().default(''),
-  translations: z.record(z.string(), z.object({
+  translations: z.record(z.string(), z.looseObject({
     name: z.string().optional(),
     tagline: z.string().optional(),
     renderedBody: z.string().optional(),
-  }).passthrough()).default({}),
+  })).default({}),
 });
 
 export const placeSchema = z.object({
@@ -89,7 +90,7 @@ export const eventSchema = z.object({
   distances: z.string().optional(),
   location: z.string().optional(),
   review_url: z.string().optional(),
-  organizer: z.string().optional(),
+  organizer: z.union([z.string(), organizerSchema]).optional(),
   poster_key: z.string().optional(),
   poster_content_type: z.string().optional(),
 });

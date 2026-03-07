@@ -2,10 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: '.',
-  testMatch: '*.spec.ts',
+  testMatch: 'screenshots.spec.ts',
   fullyParallel: true,
   workers: '100%',
-  testIgnore: 'capture-production.spec.ts',
   outputDir: './test-results',
   snapshotDir: './snapshots',
   snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
@@ -17,8 +16,9 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npx astro preview --port 4322 --root ..',
+    command: 'npx astro preview --port 4322',
     port: 4322,
+    cwd: '..',
     reuseExistingServer: true,
   },
 });

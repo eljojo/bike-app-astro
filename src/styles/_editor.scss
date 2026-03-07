@@ -1,0 +1,181 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.back-link,
+.view-link {
+  @include muted-text;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.editor-title {
+  font-family: $font-heading;
+  font-size: 1.25rem;
+  margin: 0 0 1.5rem;
+}
+
+.editor-slug {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.editor-slug-toggle {
+  @include muted-text;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.editor-slug-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editor-slug-prefix {
+  @include muted-text;
+  font-family: monospace;
+}
+
+.editor-slug-input {
+  @include form-control;
+  font-family: monospace;
+  width: auto;
+  flex: 1;
+}
+
+.editor-slug-changed {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: $color-warning;
+
+  @include dark-mode {
+    color: $color-warning-dark;
+  }
+}
+
+.editor-section {
+  margin-bottom: 2rem;
+
+  h2 {
+    font-family: $font-heading;
+    font-size: 1.1rem;
+    margin: 0 0 0.75rem;
+    border-bottom: 1px solid $color-border;
+    padding-bottom: 0.25rem;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+}
+
+.editor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1.5rem 0;
+  margin-top: 1rem;
+  border-top: 2px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+.editor-license-notice {
+  @include muted-text;
+  font-size: 0.8rem;
+  line-height: 1.4;
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}
+
+.save-success {
+  background: $color-success-bg;
+  border: 1px solid $color-success-border;
+  border-radius: $border-radius;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  width: 100%;
+
+  @include dark-mode {
+    background: $color-success-bg-dark;
+    border-color: $color-success-border-dark;
+  }
+}
+
+.conflict-notice {
+  background: $color-warning-bg;
+  border: 1px solid $color-warning-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: $color-warning;
+
+  @include dark-mode {
+    background: $color-warning-bg-dark;
+    border-color: $color-warning-border-dark;
+    color: $color-warning-dark;
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    margin: 0.5rem 0;
+  }
+
+  ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+}
+
+.drop-zone {
+  border: 2px dashed $color-border;
+  border-radius: $border-radius;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  @include muted-text;
+  font-size: 0.875rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.drop-zone--active {
+  border-color: $color-accent;
+  background: rgba(255, 165, 0, 0.05);
+}

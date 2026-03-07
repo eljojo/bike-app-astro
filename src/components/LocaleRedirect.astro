@@ -3,10 +3,11 @@ import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 
 const locales = supportedLocales();
 const defLocale = defaultLocale();
+const cspNonce = Astro.props.cspNonce as string | undefined;
 ---
 
 {locales.length > 1 && (
-  <script define:vars={{ locales, defLocale }}>
+  <script nonce={cspNonce} define:vars={{ locales, defLocale }}>
     (function() {
       if (localStorage.getItem('locale-preference')) return;
       const localePattern = new RegExp('^\/(' + locales.join('|') + ')(\/|$)');

@@ -48,6 +48,28 @@ export function parseGpx(xml: string): GpxTrack {
   };
 }
 
+/**
+ * Extract RideWithGPS URL from GPX metadata, if present.
+ * Checks <metadata><link href="..."> for ridewithgps.com URLs.
+ */
+export function extractRwgpsUrl(xml: string): string | null {
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+  const parsed = parser.parse(xml);
+
+  const metadata = parsed?.gpx?.metadata;
+  if (!metadata?.link) return null;
+
+  const links = Array.isArray(metadata.link) ? metadata.link : [metadata.link];
+  for (const link of links) {
+    const href = link['@_href'] || '';
+    if (href.includes('ridewithgps.com/routes/')) {
+      return href;
+    }
+  }
+
+  return null;
+}
+
 function emptyTrack(): GpxTrack {
   return { points: [], distance_m: 0, elevation_gain_m: 0, max_gradient_pct: 0, polyline: '' };
 }

@@ -10,6 +10,7 @@ import { paths } from '@/lib/paths';
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
+export const prerender = true;
 export async function getStaticPaths() {
   const guides = await getCollection('guides');
   return guides.map(guide => ({

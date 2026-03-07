@@ -23,6 +23,7 @@ import { tTag } from '@/lib/tag-translations';
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
+export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
 
@@ -113,7 +114,10 @@ const breadcrumbs = breadcrumbJsonLd([
 
     <div class="route-detail--content">
       <div class="route-detail--body">
-        <h1>{localeName}</h1>
+        <h1>
+          {localeName}
+          <a href={`/admin/routes/${route.id}`} class="admin-edit-link" aria-label="Edit this route">Edit</a>
+        </h1>
         {localeTagline && <h2>{localeTagline}</h2>}
 
         <ul class="route--tags">
@@ -121,6 +125,8 @@ const breadcrumbs = breadcrumbJsonLd([
         </ul>
 
         <div class="route-description" set:html={localeBody} />
+
+        <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">Suggest an edit</a>
 
         {primaryTrack && !manyVariants && (
           <p>

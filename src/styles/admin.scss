@@ -1,0 +1,1007 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.auth-page {
+  max-width: 420px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.auth-card {
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 2rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.auth-card h1 {
+  font-family: $font-heading;
+  font-size: 1.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.form-field input {
+  font-family: $font-body;
+  @include form-control;
+
+  &:focus {
+    outline: 2px solid $color-accent;
+    outline-offset: -1px;
+  }
+}
+
+.btn-primary {
+  font-family: $font-body;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid $color-btn-primary-border;
+  border-radius: $border-radius;
+  background: $color-btn-primary-bg;
+  color: $color-text;
+  cursor: pointer;
+  text-align: center;
+
+  @include dark-mode {
+    background: #2a4a2a;
+    color: $color-text-dark;
+    border-color: #005a00;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.auth-error {
+  color: $color-error;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  background: $color-error-bg;
+  border-radius: $border-radius;
+
+  @include dark-mode {
+    background: $color-error-bg-dark;
+    color: $color-error-dark;
+  }
+}
+
+.admin-notice {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  border-radius: $border-radius;
+  margin-bottom: 1rem;
+}
+
+.auth-message {
+  font-size: 0.875rem;
+  color: $color-text-muted;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.save-success {
+  color: $color-success;
+  font-size: 0.875rem;
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  @include dark-mode {
+    color: $color-success-dark;
+  }
+}
+
+// Event editor styles (used by Preact island)
+.form-row {
+  display: flex;
+  gap: 1rem;
+
+  .form-field {
+    flex: 1;
+  }
+}
+
+.form-field select {
+  font-family: $font-body;
+  @include form-control;
+  width: 100%;
+}
+
+.form-field textarea {
+  @include form-control;
+  font-family: $font-mono;
+  font-size: 0.875rem;
+  width: 100%;
+  resize: vertical;
+
+  &:focus {
+    outline: 2px solid $color-accent;
+    outline-offset: -1px;
+  }
+}
+
+.btn-secondary {
+  font-family: $font-body;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  color: $color-text;
+  cursor: pointer;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  padding: 0;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.poster-preview {
+  margin-bottom: 0.75rem;
+
+  img {
+    max-width: 300px;
+    border-radius: $border-radius;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.btn-remove-poster {
+  font-size: 0.8125rem;
+  background: none;
+  border: 1px solid $color-error;
+  border-radius: $border-radius;
+  padding: 0.25rem 0.5rem;
+  color: $color-error;
+  cursor: pointer;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+}
+
+.organizer-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.organizer-inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+.auth-subtitle {
+  color: $color-text-muted;
+  font-size: 0.875rem;
+  margin: 0 0 1.5rem;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.auth-link {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: $color-text-muted;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+
+  a {
+    color: $color-accent;
+  }
+}
+
+.gate-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gate-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 0.625rem 1.25rem;
+}
+
+.gate-btn-hint {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.8;
+  margin-top: 0.125rem;
+}
+
+.gate-divider {
+  text-align: center;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.gate-intro {
+  font-size: 0.875rem;
+  color: $color-text-muted;
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+// Save success modal
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: $color-bg;
+  border-radius: $border-radius;
+  padding: 2rem;
+  max-width: 480px;
+  width: 90%;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+  }
+
+  p {
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  a {
+    color: $color-accent;
+  }
+
+  .btn-secondary {
+    margin-top: 0.5rem;
+  }
+}
+
+.modal-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+
+  .btn-primary {
+    text-decoration: none;
+    display: inline-block;
+  }
+}
+
+.modal-cta-hint {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+// Tag editor (RouteEditor island)
+.tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  padding: 0.375rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-bg;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  border-radius: $border-radius;
+  font-size: 0.8125rem;
+
+  button {
+    background: none;
+    border: none;
+    color: $color-tag-text;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1;
+  }
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  padding: 0.125rem;
+  flex: 1;
+  min-width: 80px;
+  background: transparent;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+}
+
+// Media grid (MediaManager island)
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.photo-card {
+  position: relative;
+  border-radius: $border-radius;
+  overflow: hidden;
+  background: $color-card-bg;
+  cursor: grab;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.photo-card--dragging {
+  opacity: 0.5;
+}
+
+.photo-actions {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-star,
+.btn-remove {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-star--active {
+  background: rgba(255, 165, 0, 0.8);
+}
+
+.photo-caption {
+  width: 100%;
+  border: none;
+  border-top: 1px solid $color-border;
+  padding: 0.25rem 0.375rem;
+  font-size: 0.75rem;
+  background: $color-card-bg;
+  color: $color-text;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+// Variant manager (VariantManager island)
+.variant-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.variant-card {
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  padding: 0.75rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+.variant-card--dragging {
+  opacity: 0.5;
+}
+
+.variant-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-grip {
+  cursor: grab;
+  @include muted-text;
+  user-select: none;
+}
+
+.variant-name {
+  flex: 1;
+}
+
+.variant-distance {
+  font-size: 0.8125rem;
+  @include muted-text;
+}
+
+.variant-new {
+  background: $color-accent;
+  color: #000;
+  padding: 0.125rem 0.375rem;
+  border-radius: $border-radius;
+  font-size: 0.75rem;
+}
+
+.variant-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-edit-variant {
+  background: none;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.variant-edit-form {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid $color-border;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    label {
+      font-size: 0.75rem;
+      @include muted-text;
+    }
+
+    code {
+      font-family: $font-mono;
+      font-size: 0.8125rem;
+    }
+  }
+}
+
+.variant-add {
+  margin-top: 0.25rem;
+}
+
+.variant-add-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.btn-link-muted {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+    color: $color-accent;
+  }
+}
+
+.rwgps-import {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rwgps-input {
+  flex: 1;
+  @include form-control;
+  font-size: 0.875rem;
+}
+
+// Admin table (UserList island)
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid $color-border;
+    font-weight: 600;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+
+  .row-banned td {
+    opacity: 0.6;
+  }
+}
+
+.ip-hint {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.btn-small {
+  font-family: $font-body;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  color: $color-text;
+  cursor: pointer;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-danger {
+  border-color: $color-error;
+  color: $color-error;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+}
+
+// Edit history (EditHistory island)
+.edit-history {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  h3 {
+    font-size: 1rem;
+    margin: 0 0 0.75rem;
+  }
+}
+
+.commit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commit-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid $color-border;
+  font-size: 0.875rem;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+.commit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.commit-message {
+  word-break: break-word;
+}
+
+.commit-resource {
+  display: block;
+  font-size: 0.8em;
+  color: var(--muted-color, #888);
+  font-family: monospace;
+}
+
+.commit-meta {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.commit-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.user-banned {
+  text-decoration: line-through;
+}
+
+.user-list {
+  .muted {
+    @include muted-text;
+    font-size: 0.875rem;
+  }
+}
+
+// Route creator (RouteCreator island)
+.route-creator {
+  max-width: 500px;
+}
+
+.disclosure-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.event-editor-wrapper {
+  position: relative;
+}
+
+.event-editor {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.drop-overlay-content {
+  background: $color-card-bg;
+  border: 3px dashed $color-accent;
+  border-radius: 12px;
+  padding: 2rem 3rem;
+  font-size: 1.2em;
+  font-weight: 600;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.drop-zone--large {
+  padding: 3rem 1.5rem;
+  font-size: 1rem;
+}
+
+.locale-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid $color-border;
+
+  @include dark-mode {
+    border-bottom-color: $color-border-dark;
+  }
+}
+
+.locale-tab {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  @include muted-text;
+
+  &--active {
+    color: $color-accent;
+    border-bottom-color: $color-accent;
+    opacity: 1;
+  }
+
+  &:hover:not(&--active) {
+    opacity: 0.8;
+  }
+}
+
+.route-creator-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+
+  small {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}
+
+.commit-sha {
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  @include muted-text;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.commit-diff {
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  margin: 0 0 0.5rem;
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-subtle-dark;
+  }
+}
+
+// Toast notifications
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
+  padding: 0.75rem 1rem;
+  border-radius: $border-radius;
+  font-size: 0.875rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: toast-in 0.2s ease-out;
+  max-width: 350px;
+}
+
+.toast--success {
+  background: #16a34a;
+  color: #fff;
+}
+
+.toast--error {
+  background: #dc2626;
+  color: #fff;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-0.5rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+// Settings page
+.settings-form {
+  h2 {
+    font-family: $font-heading;
+    font-size: 1.25rem;
+    margin: 1.5rem 0 0.75rem;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+}
+
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.settings-avatar {
+  border-radius: 50%;
+}
+
+.settings-email {
+  font-size: 0.875rem;
+  @include muted-text;
+  margin: 0;
+
+  &--none {
+    font-style: italic;
+  }
+}
+
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: $color-accent;
+  }
+}
+
+.settings-help {
+  font-size: 0.8125rem;
+  @include muted-text;
+  margin: 0.25rem 0 0 1.5rem;
+
+  &--warn {
+    color: $color-accent;
+  }
+}

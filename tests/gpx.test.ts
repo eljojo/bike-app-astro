@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGpx } from '../src/lib/gpx';
+import { parseGpx, extractRwgpsUrl } from '../src/lib/gpx';
 
 const SAMPLE_GPX = `<?xml version="1.0"?>
 <gpx version="1.1">
@@ -64,5 +64,54 @@ describe('parseGpx', () => {
 </trkseg></trk></gpx>`;
     const track = parseGpx(flatGpx);
     expect(track.max_gradient_pct).toBe(0);
+  });
+});
+
+describe('extractRwgpsUrl', () => {
+  it('extracts URL from metadata link with ridewithgps creator', () => {
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="https://ridewithgps.com" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <link href="https://ridewithgps.com/routes/12345">
+      <text>some route</text>
+    </link>
+  </metadata>
+  <trk><trkseg><trkpt lat="45.0" lon="-75.0"></trkpt></trkseg></trk>
+</gpx>`;
+    expect(extractRwgpsUrl(gpx)).toBe('https://ridewithgps.com/routes/12345');
+  });
+
+  it('extracts URL from metadata link even without creator hint', () => {
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="other" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <link href="https://ridewithgps.com/routes/99999">
+      <text>my route</text>
+    </link>
+  </metadata>
+  <trk><trkseg><trkpt lat="45.0" lon="-75.0"></trkpt></trkseg></trk>
+</gpx>`;
+    expect(extractRwgpsUrl(gpx)).toBe('https://ridewithgps.com/routes/99999');
+  });
+
+  it('returns null when no RWGPS reference found', () => {
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="http://ottawabybike.ca" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>test</name></metadata>
+  <trk><trkseg><trkpt lat="45.0" lon="-75.0"></trkpt></trkseg></trk>
+</gpx>`;
+    expect(extractRwgpsUrl(gpx)).toBeNull();
+  });
+
+  it('handles multiple metadata links, picks RWGPS one', () => {
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <link href="https://example.com"><text>example</text></link>
+    <link href="https://ridewithgps.com/routes/555"><text>rwgps</text></link>
+  </metadata>
+  <trk><trkseg><trkpt lat="45.0" lon="-75.0"></trkpt></trkseg></trk>
+</gpx>`;
+    expect(extractRwgpsUrl(gpx)).toBe('https://ridewithgps.com/routes/555');
   });
 });

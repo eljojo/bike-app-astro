@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { marked } from 'marked';
+import { renderMarkdownHtml } from '../lib/markdown-render';
 
 export interface LocaleContent {
   name?: string;
@@ -32,7 +32,7 @@ export async function loadLocaleTranslations(dir: string, locales: string[]): Pr
     const raw = fs.readFileSync(filePath, 'utf-8');
     const { data: frontmatter, content: body } = matter(raw);
     const trimmedBody = body.trim();
-    const renderedBody = trimmedBody ? await marked.parse(trimmedBody) : undefined;
+    const renderedBody = trimmedBody ? await renderMarkdownHtml(trimmedBody) : undefined;
     result[locale] = {
       ...frontmatter,
       ...(trimmedBody ? { body: trimmedBody } : {}),

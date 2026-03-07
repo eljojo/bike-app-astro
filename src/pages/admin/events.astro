@@ -1,0 +1,182 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import adminEvents from 'virtual:bike-app/admin-events';
+import adminOrganizers from 'virtual:bike-app/admin-organizers';
+import { env } from '../../lib/env';
+import { CDN_FALLBACK_URL } from '../../lib/config';
+import { loadAdminEventList } from '../../lib/load-admin-content';
+import '../../styles/admin.scss';
+
+const { events, pendingIds } = await loadAdminEventList(adminEvents);
+const orgMap = new Map(adminOrganizers.map(o => [o.slug, o.name]));
+const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+
+// Resolve organizer display name from either slug or inline object
+function orgName(organizer?: string | { name: string }) {
+  if (!organizer) return '';
+  if (typeof organizer === 'string') return orgMap.get(organizer) || organizer;
+  return organizer.name;
+}
+
+// Group by month (like public calendar)
+function groupByMonth(evts: typeof events) {
+  const groups: Record<string, { label: string; events: typeof events }> = {};
+  for (const e of evts) {
+    const date = new Date(e.start_date + 'T00:00:00');
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (!groups[key]) {
+      groups[key] = {
+        label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        events: [],
+      };
+    }
+    groups[key].events.push(e);
+  }
+  return Object.entries(groups)
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([, group]) => group);
+}
+
+const grouped = groupByMonth(events);
+const user = Astro.locals.user;
+---
+
+<Base title="Events - Admin" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="events" />
+
+    <div class="event-actions-bar">
+      <a href="/admin/events/new" class="btn-primary">+ New event</a>
+    </div>
+
+    {grouped.map(({ label, events: monthEvents }) => (
+      <div class="event-month-group">
+        <h2 class="month-header">{label}</h2>
+        <div class="event-list">
+          {monthEvents.map(e => (
+            <a href={`/admin/events/${e.id}`} class="event-list-item">
+              {e.poster_key && (
+                <img
+                  src={`${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${e.poster_key}`}
+                  alt=""
+                  loading="lazy"
+                  class="event-poster-thumb"
+                />
+              )}
+              <div class="event-card-info">
+                <span class="event-card-name">{e.name}</span>
+                <span class="event-card-meta">
+                  {e.start_date}
+                  {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
+                  {pendingIds.has(e.id) && <span class="event-pending">pending</span>}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+
+    {events.length === 0 && <p class="auth-message">No events found.</p>}
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+  @use '../../styles/mixins' as *;
+
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+
+  .event-actions-bar {
+    margin-bottom: 1.5rem;
+  }
+
+  .event-month-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .month-header {
+    font-family: $font-heading;
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: $color-border;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    @include dark-mode {
+      background: #333;
+    }
+  }
+
+  .event-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    background: $color-card-bg;
+    color: $color-text;
+    text-decoration: none;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+
+      @include dark-mode {
+        background: $color-card-hover-dark;
+      }
+    }
+  }
+
+  .event-poster-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: $border-radius;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .event-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  .event-card-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .event-card-meta {
+    font-size: 0.8125rem;
+    @include muted-text;
+  }
+
+  .event-pending {
+    background: $color-tag-bg;
+    color: $color-tag-text;
+    padding: 0.125rem 0.375rem;
+    border-radius: $border-radius;
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
+  }
+</style>
