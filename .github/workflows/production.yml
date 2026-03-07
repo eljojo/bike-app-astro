@@ -43,8 +43,6 @@ jobs:
             wrangler-env: demo-production
             run-migrations: false
       fail-fast: false
-    # Only run for cities that need rebuilding
-    if: contains(fromJSON(needs.detect-cities.outputs.cities), matrix.city)
     uses: ./.github/workflows/_build-city.yml
     with:
       city: ${{ matrix.city }}
@@ -52,6 +50,7 @@ jobs:
       wrangler-env: ${{ matrix.wrangler-env }}
       deploy: true
       run-migrations: ${{ matrix.run-migrations }}
+      cities-to-build: ${{ needs.detect-cities.outputs.cities }}
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

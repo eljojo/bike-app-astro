@@ -36,6 +36,11 @@ on:
         type: boolean
         required: false
         default: false
+      cities-to-build:
+        description: 'JSON array of cities to build (empty = always build)'
+        type: string
+        required: false
+        default: ''
     secrets:
       DATA_REPO_DEPLOY_KEY:
         required: true
@@ -48,6 +53,7 @@ on:
 
 jobs:
   build-deploy:
+    if: inputs.cities-to-build == '' || contains(fromJSON(inputs.cities-to-build), inputs.city)
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || null }}
     steps:
