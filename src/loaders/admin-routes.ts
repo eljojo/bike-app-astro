@@ -45,13 +45,25 @@ function readRouteDir(slug: string) {
   return { frontmatter, detail, contentHash };
 }
 
-export async function loadAdminRoutes(): Promise<AdminRoute[]> {
+interface AdminRouteData {
+  routes: AdminRoute[];
+  details: Record<string, RouteDetail & { contentHash: string }>;
+}
+
+let cachedRouteData: AdminRouteData | null = null;
+
+export async function loadAdminRouteData(): Promise<AdminRouteData> {
+  if (cachedRouteData) return cachedRouteData;
+
   const routesDir = path.join(CITY_DIR, 'routes');
   const slugs = fs.readdirSync(routesDir).filter((name) => {
     return fs.statSync(path.join(routesDir, name)).isDirectory();
   });
 
-  const routes: AdminRoute[] = slugs.map((slug) => {
+  const routes: AdminRoute[] = [];
+  const details: Record<string, RouteDetail & { contentHash: string }> = {};
+
+  for (const slug of slugs) {
     const { frontmatter, detail, contentHash } = readRouteDir(slug);
     const routeDir = path.join(routesDir, slug);
 
@@ -77,32 +89,20 @@ export async function loadAdminRoutes(): Promise<AdminRoute[]> {
       },
     });
 
-    return {
+    routes.push({
       slug,
       name: frontmatter.name as string,
       mediaCount: detail.media.length,
       status: frontmatter.status as string,
       contentHash,
       difficultyScore: scores.length > 0 ? Math.min(...scores) : null,
-    };
-  });
+    });
 
-  routes.sort((a, b) => a.name.localeCompare(b.name));
-  return routes;
-}
-
-export async function loadAdminRouteDetails(): Promise<Record<string, RouteDetail & { contentHash: string }>> {
-  const routesDir = path.join(CITY_DIR, 'routes');
-  const slugs = fs.readdirSync(routesDir).filter((name) => {
-    return fs.statSync(path.join(routesDir, name)).isDirectory();
-  });
-
-  const details: Record<string, RouteDetail & { contentHash: string }> = {};
-
-  for (const slug of slugs) {
-    const { detail, contentHash } = readRouteDir(slug);
     details[slug] = { ...detail, contentHash };
   }
 
-  return details;
+  routes.sort((a, b) => a.name.localeCompare(b.name));
+  cachedRouteData = { routes, details };
+  return cachedRouteData;
 }
+

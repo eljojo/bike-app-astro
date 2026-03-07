@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { loadAdminRoutes, loadAdminRouteDetails, buildDataPlugin } from '../src/build-data-plugin';
+import { loadAdminRouteData, buildDataPlugin } from '../src/build-data-plugin';
 
-describe('loadAdminRoutes', () => {
+describe('loadAdminRouteData routes', () => {
   it('returns a sorted array of route summaries', async () => {
-    const routes = await loadAdminRoutes();
+    const { routes } = await loadAdminRouteData();
     expect(Array.isArray(routes)).toBe(true);
     expect(routes.length).toBeGreaterThan(0);
 
@@ -14,7 +14,7 @@ describe('loadAdminRoutes', () => {
   });
 
   it('has correct shape for each route', async () => {
-    const routes = await loadAdminRoutes();
+    const { routes } = await loadAdminRouteData();
     for (const route of routes) {
       expect(route).toHaveProperty('slug');
       expect(route).toHaveProperty('name');
@@ -33,30 +33,30 @@ describe('loadAdminRoutes', () => {
 
   it('counts only admin-managed media (photos, not videos yet)', async () => {
     // TODO(C7): update when video management is added
-    const routes = await loadAdminRoutes();
+    const { routes } = await loadAdminRouteData();
     const aylmer = routes.find((r) => r.slug === 'aylmer');
     expect(aylmer).toBeDefined();
     expect(aylmer!.mediaCount).toBeGreaterThan(0);
   });
 
   it('includes contentHash in route list items', async () => {
-    const routes = await loadAdminRoutes();
+    const { routes } = await loadAdminRouteData();
     expect(routes[0]).toHaveProperty('contentHash');
     expect(typeof routes[0].contentHash).toBe('string');
     expect(routes[0].contentHash.length).toBe(32); // MD5 hex length
   });
 });
 
-describe('loadAdminRouteDetails', () => {
+describe('loadAdminRouteData details', () => {
   it('returns a record keyed by slug', async () => {
-    const details = await loadAdminRouteDetails();
+    const { details } = await loadAdminRouteData();
     expect(typeof details).toBe('object');
     expect(details).toHaveProperty('carp');
     expect(details['carp'].slug).toBe('carp');
   });
 
   it('has correct shape for each detail', async () => {
-    const details = await loadAdminRouteDetails();
+    const { details } = await loadAdminRouteData();
     for (const [slug, detail] of Object.entries(details)) {
       expect(detail.slug).toBe(slug);
       expect(typeof detail.name).toBe('string');
@@ -69,7 +69,7 @@ describe('loadAdminRouteDetails', () => {
   });
 
   it('stores body as raw markdown (not rendered HTML)', async () => {
-    const details = await loadAdminRouteDetails();
+    const { details } = await loadAdminRouteData();
     const carp = details['carp'];
     // Carp's body has markdown links and list items — should be raw markdown
     expect(carp.body.length).toBeGreaterThan(0);
@@ -78,7 +78,7 @@ describe('loadAdminRouteDetails', () => {
   });
 
   it('media items only include key, caption, and cover fields', async () => {
-    const details = await loadAdminRouteDetails();
+    const { details } = await loadAdminRouteData();
     for (const detail of Object.values(details)) {
       for (const item of detail.media) {
         const keys = Object.keys(item);
@@ -94,7 +94,7 @@ describe('loadAdminRouteDetails', () => {
   });
 
   it('filters out non-photo media', async () => {
-    const details = await loadAdminRouteDetails();
+    const { details } = await loadAdminRouteData();
     // Aylmer has videos — media array should only have photos
     const aylmer = details['aylmer'];
     expect(aylmer).toBeDefined();
@@ -105,7 +105,7 @@ describe('loadAdminRouteDetails', () => {
   });
 
   it('includes contentHash for each route detail', async () => {
-    const details = await loadAdminRouteDetails();
+    const { details } = await loadAdminRouteData();
     const slug = Object.keys(details)[0];
     expect(details[slug]).toHaveProperty('contentHash');
     expect(typeof details[slug].contentHash).toBe('string');

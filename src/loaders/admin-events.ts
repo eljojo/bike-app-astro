@@ -7,11 +7,24 @@ import { eventDetailFromGit, computeEventContentHash, type EventDetail } from '.
 
 const CITY_DIR = cityDir;
 
-export async function loadAdminEvents(): Promise<AdminEvent[]> {
+interface AdminEventData {
+  events: AdminEvent[];
+  details: Record<string, EventDetail & { contentHash: string }>;
+}
+
+let cachedEventData: AdminEventData | null = null;
+
+export async function loadAdminEventData(): Promise<AdminEventData> {
+  if (cachedEventData) return cachedEventData;
+
   const eventsDir = path.join(CITY_DIR, 'events');
-  if (!fs.existsSync(eventsDir)) return [];
+  if (!fs.existsSync(eventsDir)) {
+    cachedEventData = { events: [], details: {} };
+    return cachedEventData;
+  }
 
   const events: AdminEvent[] = [];
+  const details: Record<string, EventDetail & { contentHash: string }> = {};
 
   for (const yearDir of fs.readdirSync(eventsDir).sort().reverse()) {
     const yearPath = path.join(eventsDir, yearDir);
@@ -24,13 +37,14 @@ export async function loadAdminEvents(): Promise<AdminEvent[]> {
       if (parts.length > 1) continue;
 
       const slug = file.replace('.md', '');
+      const id = `${yearDir}/${slug}`;
       const filePath = path.join(yearPath, file);
       const raw = fs.readFileSync(filePath, 'utf-8');
       const contentHash = computeEventContentHash(raw);
-      const { data: fm } = matter(raw);
+      const { data: fm, content: body } = matter(raw);
 
       events.push({
-        id: `${yearDir}/${slug}`,
+        id,
         slug,
         year: yearDir,
         name: fm.name as string,
@@ -40,40 +54,15 @@ export async function loadAdminEvents(): Promise<AdminEvent[]> {
         poster_key: fm.poster_key as string | undefined,
         contentHash,
       });
-    }
-  }
-
-  // Sort by start_date descending (newest first)
-  events.sort((a, b) => b.start_date.localeCompare(a.start_date));
-  return events;
-}
-
-export async function loadAdminEventDetails(): Promise<Record<string, EventDetail & { contentHash: string }>> {
-  const eventsDir = path.join(CITY_DIR, 'events');
-  if (!fs.existsSync(eventsDir)) return {};
-
-  const details: Record<string, EventDetail & { contentHash: string }> = {};
-
-  for (const yearDir of fs.readdirSync(eventsDir)) {
-    const yearPath = path.join(eventsDir, yearDir);
-    if (!fs.statSync(yearPath).isDirectory()) continue;
-
-    for (const file of fs.readdirSync(yearPath)) {
-      if (!file.endsWith('.md')) continue;
-      const parts = file.replace('.md', '').split('.');
-      if (parts.length > 1) continue;
-
-      const slug = file.replace('.md', '');
-      const id = `${yearDir}/${slug}`;
-      const filePath = path.join(yearPath, file);
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      const contentHash = computeEventContentHash(raw);
-      const { data: fm, content: body } = matter(raw);
 
       const detail = eventDetailFromGit(id, fm, body.trim());
       details[id] = { ...detail, contentHash };
     }
   }
 
-  return details;
+  // Sort by start_date descending (newest first)
+  events.sort((a, b) => b.start_date.localeCompare(a.start_date));
+  cachedEventData = { events, details };
+  return cachedEventData;
 }
+
