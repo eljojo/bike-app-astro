@@ -48,7 +48,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 
 <script>
   import { initMap, addPolylines, addMarkers, addPhotoToggle, makePhotoPopupHandler } from '../lib/leaflet-init';
-  import { buildPlacePopup } from '../lib/map-helpers';
+  import { buildPlacePopup, escapeHtml } from '../lib/map-helpers';
 
   const el = document.getElementById('route-map');
   if (el) {
@@ -64,7 +64,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 
     const bounds = addPolylines(map, polylines.map((pl: any) => ({
       encoded: pl.encoded,
-      popup: pl.name,
+      popup: escapeHtml(pl.name),
     })));
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [30, 30] });

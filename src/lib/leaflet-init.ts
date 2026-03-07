@@ -4,10 +4,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import polylineCodec from '@mapbox/polyline';
 import { addGpsControl } from './leaflet-controls';
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+import { escapeHtml } from './map-helpers';
 
 interface MapOptions {
   el: HTMLElement;
