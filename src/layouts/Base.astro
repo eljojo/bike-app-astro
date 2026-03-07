@@ -41,6 +41,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" href="/bicycle.png" />
     <link rel="apple-touch-icon" href="/bicycle.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
     {import.meta.env.PROD && <script>import '../lib/analytics';</script>}
     {import.meta.env.DISABLE_ANALYTICS === 'true' && <script is:inline nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
@@ -55,6 +56,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
       <slot />
     </main>
     <Footer alternateUrls={alternateUrls} />
+    <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')</script>
     <script is:inline nonce={cspNonce}>
       document.addEventListener('click', (e) => {
         const origin = e.target;

@@ -6,7 +6,9 @@ import { i18nRoutes } from './src/integrations/i18n-routes';
 import { adminRoutesIntegration } from './src/integrations/admin-routes';
 import { slugRedirectLines } from './src/lib/slug-redirects.ts';
 import { buildDataPlugin } from './src/build-data-plugin';
-import { sharedCspDirectives } from './src/lib/csp';
+import { sharedCspDirectives, cspOrigins } from './src/lib/csp';
+import { segmentTranslations } from './src/lib/path-translations';
+import { getCityConfig } from './src/lib/city-config';
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -141,6 +143,48 @@ export default defineConfig({
           }
         }
       }
+    },
+    {
+      name: 'stamp-sw-config',
+      hooks: {
+        'astro:build:done': async ({ dir }) => {
+          const config = getCityConfig();
+          const origins = cspOrigins();
+          const cdnOrigin = origins.cdn;
+          const tilesOrigin = origins.tiles;
+
+          // Build route path regex from translations
+          // e.g. /^\/(routes|fr\/parcours)\/([^/]+)/
+          const alternatives = ['routes'];
+          for (const [segment, localeMap] of Object.entries(segmentTranslations)) {
+            if (segment !== 'routes') continue;
+            for (const [locale, translated] of Object.entries(localeMap)) {
+              alternatives.push(`${locale}\\/${translated}`);
+            }
+          }
+          const routePathRe = `/^\\/(${alternatives.join('|')})\\/([^/]+)/`;
+
+          // Patch sw.js
+          const swPath = path.join(dir.pathname, 'sw.js');
+          if (fs.existsSync(swPath)) {
+            const buildHash = Date.now().toString(36);
+            let sw = fs.readFileSync(swPath, 'utf-8');
+            sw = sw.replace("const CACHE_VERSION = 'v1'", `const CACHE_VERSION = '${buildHash}'`);
+            sw = sw.replace('__ROUTE_PATH_RE__', routePathRe);
+            sw = sw.replace("'__CDN_ORIGIN__'", `'${cdnOrigin}'`);
+            sw = sw.replace("'__TILES_ORIGIN__'", `'${tilesOrigin}'`);
+            fs.writeFileSync(swPath, sw);
+          }
+
+          // Patch offline.html
+          const offlinePath = path.join(dir.pathname, 'offline.html');
+          if (fs.existsSync(offlinePath)) {
+            let html = fs.readFileSync(offlinePath, 'utf-8');
+            html = html.replaceAll('__DISPLAY_NAME__', config.display_name);
+            fs.writeFileSync(offlinePath, html);
+          }
+        },
+      },
     },
     {
       name: 'patch-static-csp-style-src',
