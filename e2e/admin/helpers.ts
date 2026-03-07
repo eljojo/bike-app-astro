@@ -42,7 +42,7 @@ export function seedSession(opts: SeedOptions = {}): string {
 
   // Clear stale content edits from previous runs so conflict detection doesn't fire
   try {
-    db.prepare('DELETE FROM content_edits').run();
+    db.prepare("DELETE FROM content_edits WHERE city = 'ottawa'").run();
   } catch {
     // Table may not exist yet on first run
   }
