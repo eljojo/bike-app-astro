@@ -21,6 +21,7 @@ import { CONTENT_DIR, CITY, cityDir } from './lib/config';
 import { loadAdminRoutes, loadAdminRouteDetails } from './loaders/admin-routes';
 import { loadAdminEvents, loadAdminEventDetails } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
+import { buildPhotoLocations } from './loaders/photo-locations';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -105,6 +106,7 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/admin-event-detail') return '\0virtual:bike-app/admin-event-detail';
       if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
       if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
+      if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
     },
     async load(id: string) {
       if (id === '\0virtual:bike-app/cached-maps') {
@@ -132,6 +134,11 @@ export function buildDataPlugin(): Plugin {
       }
       if (id === '\0virtual:bike-app/contributors') {
         return `export default ${JSON.stringify(contributors)};`;
+      }
+      if (id === '\0virtual:bike-app/photo-locations') {
+        const details = await adminRouteDetailsPromise;
+        const locations = buildPhotoLocations(details);
+        return `export default ${JSON.stringify(locations)};`;
       }
     },
 

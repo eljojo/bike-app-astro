@@ -105,3 +105,18 @@ declare module 'virtual:bike-app/contributors' {
   const contributors: _Contributor[];
   export default contributors;
 }
+
+interface _PhotoLocation {
+  key: string;
+  lat: number;
+  lng: number;
+  routeSlug: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
+declare module 'virtual:bike-app/photo-locations' {
+  const locations: _PhotoLocation[];
+  export default locations;
+}
