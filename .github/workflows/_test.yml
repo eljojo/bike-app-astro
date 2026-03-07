@@ -62,9 +62,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx') }}
+          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx') }}
           restore-keys: |
-            maps-
+            maps-demo-
 
       - name: Generate map thumbnails
         run: npx tsx scripts/generate-maps.ts
