@@ -10,6 +10,7 @@ const adminRoutes = [
   { pattern: '/api/events/[...id]', entrypoint: './src/views/api/event-save.ts' },
   { pattern: '/admin/places/new', entrypoint: './src/views/admin/place-new.astro' },
   { pattern: '/admin/places/[id]', entrypoint: './src/views/admin/place-detail.astro' },
+  { pattern: '/api/places/prefill', entrypoint: './src/views/api/places-prefill.ts' },
   { pattern: '/api/places/[id]', entrypoint: './src/views/api/place-save.ts' },
   { pattern: '/api/media/[key]', entrypoint: './src/views/api/media-delete.ts' },
   { pattern: '/api/admin/sync', entrypoint: './src/views/api/admin-sync.ts' },

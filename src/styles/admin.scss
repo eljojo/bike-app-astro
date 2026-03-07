@@ -1127,6 +1127,21 @@
   outline-offset: 4px;
 }
 
+.prefill-row {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.btn-prefill {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 // Place editor
 .place-picker-marker {
   background: $color-accent;

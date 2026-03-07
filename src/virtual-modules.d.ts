@@ -114,7 +114,6 @@ interface _AdminPlaceDetail {
   phone?: string;
   google_maps_url?: string;
   photo_key?: string;
-  photo_content_type?: string;
   contentHash?: string;
 }
 

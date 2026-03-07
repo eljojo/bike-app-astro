@@ -48,7 +48,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
   const [phone, setPhone] = useState(initialData.phone || '');
   const [googleMapsUrl, setGoogleMapsUrl] = useState(initialData.google_maps_url || '');
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
-  const [photoContentType, setPhotoContentType] = useState(initialData.photo_content_type || '');
+  const [prefilling, setPrefilling] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
@@ -80,7 +80,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
           ...(website && { website }),
           ...(phone && { phone }),
           ...(googleMapsUrl && { google_maps_url: googleMapsUrl }),
-          ...(photoKey && { photo_key: photoKey, photo_content_type: photoContentType || 'image/jpeg' }),
+          ...(photoKey && { photo_key: photoKey }),
         },
       };
       return payload as unknown as Record<string, unknown>;
@@ -128,6 +128,40 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
       .sort((a, b) => haversineM(lat, lng, a.lat, a.lng) - haversineM(lat, lng, b.lat, b.lng))
       .slice(0, 12);
   }, [lat, lng]);
+
+  async function handlePrefill() {
+    const query = googleMapsUrl.trim();
+    if (!query) return;
+    setPrefilling(true);
+    setError('');
+    try {
+      const res = await fetch('/api/places/prefill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Prefill failed');
+        return;
+      }
+      if (data.name) setName(data.name);
+      if (data.address) setAddress(data.address);
+      if (data.phone) setPhone(data.phone);
+      if (data.website) setWebsite(data.website);
+      if (data.google_maps_url) setGoogleMapsUrl(data.google_maps_url);
+      if (data.lat && data.lng) {
+        updateLocation(data.lat, data.lng);
+        if (leafletMapRef.current) {
+          leafletMapRef.current.setView([data.lat, data.lng], 15);
+        }
+      }
+    } catch {
+      setError('Prefill request failed');
+    } finally {
+      setPrefilling(false);
+    }
+  }
 
   // Initialize map
   useEffect(() => {
@@ -244,19 +278,24 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
         </div>
 
         <div class="form-field">
-          <label for="place-google-maps">Google Maps URL</label>
-          <input id="place-google-maps" type="url" value={googleMapsUrl}
-            placeholder="https://maps.google.com/..."
-            onInput={(e) => setGoogleMapsUrl((e.target as HTMLInputElement).value)} />
+          <label for="place-google-maps">Google Maps URL or place name</label>
+          <div class="prefill-row">
+            <input id="place-google-maps" type="text" value={googleMapsUrl}
+              placeholder="https://maps.google.com/... or place name"
+              onInput={(e) => setGoogleMapsUrl((e.target as HTMLInputElement).value)} />
+            <button type="button" class="btn-secondary btn-prefill" onClick={handlePrefill}
+              disabled={prefilling || !googleMapsUrl.trim()}>
+              {prefilling ? 'Loading...' : 'Prefill'}
+            </button>
+          </div>
         </div>
 
         <PhotoField
           photoKey={photoKey}
           cdnUrl={cdnUrl}
           label="Photo"
-          onPhotoChange={(key, contentType) => {
+          onPhotoChange={(key) => {
             setPhotoKey(key);
-            setPhotoContentType(contentType);
           }}
         />
 
@@ -272,7 +311,6 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
                   title={photo.caption || photo.routeSlug}
                   onClick={() => {
                     setPhotoKey(photo.key);
-                    setPhotoContentType('image/jpeg');
                   }}
                 >
                   <img src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`} alt={photo.caption || ''} />

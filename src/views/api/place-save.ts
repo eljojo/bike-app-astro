@@ -25,7 +25,6 @@ const placeUpdateSchema = z.object({
     phone: z.string().optional(),
     google_maps_url: z.string().optional(),
     photo_key: z.string().optional(),
-    photo_content_type: z.string().optional(),
   }),
   contentHash: z.string().optional(),
 });
@@ -43,7 +42,6 @@ export interface PlaceUpdate {
     phone?: string;
     google_maps_url?: string;
     photo_key?: string;
-    photo_content_type?: string;
   };
   contentHash?: string;
 }
@@ -111,7 +109,6 @@ export const placeHandlers: SaveHandlers<PlaceUpdate> = {
     if (update.frontmatter.google_maps_url) fm.google_maps_url = update.frontmatter.google_maps_url;
     if (update.frontmatter.photo_key) {
       fm.photo_key = update.frontmatter.photo_key;
-      if (update.frontmatter.photo_content_type) fm.photo_content_type = update.frontmatter.photo_content_type;
     }
 
     const frontmatterStr = yaml.dump(fm, {

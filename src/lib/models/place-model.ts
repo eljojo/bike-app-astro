@@ -15,7 +15,6 @@ export const placeDetailSchema = z.object({
   phone: z.string().optional(),
   google_maps_url: z.string().optional(),
   photo_key: z.string().optional(),
-  photo_content_type: z.string().optional(),
 });
 
 export type PlaceDetail = z.infer<typeof placeDetailSchema>;
@@ -60,7 +59,6 @@ export function placeDetailFromGit(
     phone: frontmatter.phone as string | undefined,
     google_maps_url: frontmatter.google_maps_url as string | undefined,
     photo_key: frontmatter.photo_key as string | undefined,
-    photo_content_type: frontmatter.photo_content_type as string | undefined,
   };
 }
 

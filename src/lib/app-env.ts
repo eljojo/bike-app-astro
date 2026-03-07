@@ -22,4 +22,5 @@ export interface AppEnv {
   ENVIRONMENT: string;
   RWGPS_API_KEY?: string;
   RWGPS_AUTH_TOKEN?: string;
+  GOOGLE_PLACES_API_KEY?: string;
 }
