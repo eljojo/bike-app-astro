@@ -12,23 +12,23 @@ export function cspOrigins() {
   const config = getCityConfig();
   const cdn = originFrom(process.env.R2_PUBLIC_URL || config.cdn_url, 'https://cdn.ottawabybike.ca');
   const videos = originFrom(config.videos_cdn_url, 'https://videos.ottawabybike.ca');
-  const tiles = originFrom(config.tiles_url, 'https://tiles.ottawabybike.ca/cycle/{z}/{x}/{y}{r}.png');
 
-  return { cdn, videos, tiles };
+  return { cdn, videos };
 }
 
 export function sharedCspDirectives(): string[] {
-  const { cdn, videos, tiles } = cspOrigins();
+  const { cdn, videos } = cspOrigins();
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `img-src 'self' data: blob: ${cdn} ${videos} ${tiles} https://www.gravatar.com`,
+    `img-src 'self' data: blob: ${cdn} ${videos} https://www.gravatar.com`,
     `media-src 'self' blob: ${videos} ${cdn}`,
     "font-src 'self' data:",
     "connect-src 'self' https://*.r2.cloudflarestorage.com https://nominatim.openstreetmap.org",
+    "worker-src 'self' blob:",
     "manifest-src 'self'",
   ];
 }
