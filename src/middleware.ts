@@ -51,7 +51,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     pathname.startsWith('/admin') ||
     (pathname.startsWith('/api/') &&
      !pathname.startsWith('/api/auth/') &&
-     !pathname.startsWith('/api/reactions/'));
+     !pathname.startsWith('/api/reactions/') &&
+     pathname !== '/api/event');
 
   if (!isProtected) {
     // For reactions GET, optionally load user for personalized responses
