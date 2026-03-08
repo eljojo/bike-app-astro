@@ -129,6 +129,7 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
   for (const m of markers) {
     const el = document.createElement('div');
     el.className = 'poi-marker';
+    el.style.cursor = 'pointer';
     el.innerHTML = `<span class="poi-marker-emoji">${m.emoji}</span>`;
 
     const marker = new maplibregl.Marker({ element: el })
@@ -165,8 +166,8 @@ export function addPhotoMarkers(
       })),
     },
     cluster: true,
-    clusterRadius: 40,
-    clusterMaxZoom: 16,
+    clusterRadius: 30,
+    clusterMaxZoom: 13,
   });
 
   // Cluster circles
@@ -203,7 +204,7 @@ export function addPhotoMarkers(
     filter: ['!', ['has', 'point_count']],
     paint: {
       'circle-color': '#350091',
-      'circle-radius': 6,
+      'circle-radius': 8,
       'circle-stroke-width': 2,
       'circle-stroke-color': '#ffffff',
     },
