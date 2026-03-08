@@ -24,9 +24,13 @@ You don't need to be a developer. You need to be a cyclist who knows your city.
 - An event calendar for local cycling events
 - Support for two languages
 
+## See it in action
+
+**[ottawabybike.ca](https://ottawabybike.ca)** is the first city running on whereto.bike — a live cycling guide with 25+ routes, photos, GPS tracks, community editing, and an event calendar. Everything you'd get for your city.
+
 ## How to get started
 
 The platform is open source and free to use.
 
-1. **Join the network** — We're working on making it easy to add new cities. If you're interested, [open an issue on GitHub](https://github.com/eljojo/bike-app-astro/issues) and tell us about your city.
+1. **Get in touch** — Send an email to <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#98;&#105;&#107;&#101;&#64;&#101;&#108;&#106;&#111;&#106;&#111;&#46;&#110;&#101;&#116;">bike&#64;eljojo&#46;net</a> and tell us about your city. We'll help you get set up.
 2. **Self-host** — If you're comfortable with web hosting, you can fork the code and run your own instance. Full instructions in the [GitHub repository](https://github.com/eljojo/bike-app-astro).
