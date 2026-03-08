@@ -29,6 +29,9 @@ export default defineConfig({
           attrs: { name: 'robots', content: 'noindex, nofollow' },
         }] : []),
       ],
+      components: {
+        Sidebar: './src/components/Sidebar.astro',
+      },
       sidebar: [
         {
           label: 'About',
