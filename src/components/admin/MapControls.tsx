@@ -1,0 +1,87 @@
+import { useState, useEffect } from 'preact/hooks';
+
+interface Props {
+  onTogglePhotos?: (visible: boolean) => void;
+  onTogglePlaces?: (visible: boolean) => void;
+  onToggleGps?: (visible: boolean) => void;
+  hasPhotos?: boolean;
+  hasPlaces?: boolean;
+}
+
+export function loadToggleState(key: string, defaultValue: boolean): boolean {
+  if (typeof localStorage === 'undefined') return defaultValue;
+  const stored = localStorage.getItem(key);
+  if (stored === null) return defaultValue;
+  return stored === 'true';
+}
+
+export function saveToggleState(key: string, value: boolean): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(key, String(value));
+}
+
+export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGps, hasPhotos = true, hasPlaces = true }: Props) {
+  const [photos, setPhotos] = useState(true);
+  const [places, setPlaces] = useState(true);
+  const [gps, setGps] = useState(false);
+
+  useEffect(() => {
+    const p = loadToggleState('map-photos', true);
+    const pl = loadToggleState('map-places', true);
+    setPhotos(p);
+    setPlaces(pl);
+    onTogglePhotos?.(p);
+    onTogglePlaces?.(pl);
+  }, []);
+
+  function toggle(which: 'photos' | 'places' | 'gps') {
+    if (which === 'photos') {
+      const next = !photos;
+      setPhotos(next);
+      saveToggleState('map-photos', next);
+      onTogglePhotos?.(next);
+    } else if (which === 'places') {
+      const next = !places;
+      setPlaces(next);
+      saveToggleState('map-places', next);
+      onTogglePlaces?.(next);
+    } else {
+      const next = !gps;
+      setGps(next);
+      onToggleGps?.(next);
+    }
+  }
+
+  return (
+    <div class="map-controls">
+      {hasPhotos && (
+        <button
+          class={`map-control-btn ${photos ? 'active' : ''}`}
+          onClick={() => toggle('photos')}
+          title={photos ? 'Hide photos' : 'Show photos'}
+          aria-pressed={photos}
+        >
+          {'📷'}
+        </button>
+      )}
+      {hasPlaces && (
+        <button
+          class={`map-control-btn ${places ? 'active' : ''}`}
+          onClick={() => toggle('places')}
+          title={places ? 'Hide places' : 'Show places'}
+          aria-pressed={places}
+        >
+          {'📍'}
+        </button>
+      )}
+      <button
+        class={`map-control-btn ${gps ? 'active' : ''}`}
+        onClick={() => toggle('gps')}
+        title={gps ? 'Hide my location' : 'Show my location'}
+        aria-pressed={gps}
+      >
+        {'🧭'}
+      </button>
+    </div>
+  );
+}
