@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, deleteFixtureFile } from './helpers.ts';
 
 test.describe('Photo Parking', () => {
   let token: string;
@@ -20,6 +20,12 @@ test.describe('Photo Parking', () => {
     clearContentEdits('routes', 'route-park-a');
     clearContentEdits('routes', 'route-park-b');
     clearContentEdits('parked-photos', '__global');
+    // Restore modified fixture files so retries see original state
+    restoreFixtureFiles([
+      'demo/routes/route-park-a/media.yml',
+      'demo/routes/route-park-b/media.yml',
+    ]);
+    deleteFixtureFile('demo/parked-photos.yml');
   });
 
   test('park a photo via save API and verify parked-photos.yml', async ({ page }) => {

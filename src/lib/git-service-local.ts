@@ -3,12 +3,31 @@
  *
  * Replaces GitHub REST API for local development. Uses simple-git
  * for commit operations and fs for file reads.
+ *
+ * Write operations are serialized via a module-level mutex to prevent
+ * git index.lock contention when multiple requests commit concurrently
+ * (e.g. parallel E2E tests hitting the same Astro server).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import simpleGit from 'simple-git';
 import type { FileChange, CommitAuthor, IGitService, CommitInfo } from './git-service';
+
+/**
+ * Module-level mutex for git write operations. New LocalGitService instances
+ * are created per-request, but they all operate on the same repo, so the
+ * lock must live at module scope.
+ */
+let gitWriteLock: Promise<void> = Promise.resolve();
+
+function acquireGitLock(): Promise<() => void> {
+  let release: () => void;
+  const next = new Promise<void>((resolve) => { release = resolve; });
+  const ready = gitWriteLock;
+  gitWriteLock = next;
+  return ready.then(() => release!);
+}
 
 export class LocalGitService implements IGitService {
   private repoPath: string;
@@ -55,6 +74,20 @@ export class LocalGitService implements IGitService {
   }
 
   async writeFiles(
+    files: FileChange[],
+    message: string,
+    author: CommitAuthor,
+    deletePaths?: string[],
+  ): Promise<string> {
+    const release = await acquireGitLock();
+    try {
+      return await this._writeFilesLocked(files, message, author, deletePaths);
+    } finally {
+      release();
+    }
+  }
+
+  private async _writeFilesLocked(
     files: FileChange[],
     message: string,
     author: CommitAuthor,

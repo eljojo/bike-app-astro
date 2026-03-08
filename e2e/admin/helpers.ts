@@ -3,13 +3,25 @@
  *
  * Provides session seeding/cleanup against the local SQLite DB
  * used by RUNTIME=local admin tests.
+ *
+ * All DB connections use WAL mode and a busy timeout to handle
+ * concurrent access from parallel Playwright workers.
  */
 import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DB_PATH } from './fixture-setup.ts';
+import { execSync } from 'node:child_process';
+import { DB_PATH, FIXTURE_DIR } from './fixture-setup.ts';
 import { initSchema } from '../../src/db/init-schema';
+
+/** Open a DB connection with WAL mode and busy timeout for concurrent access. */
+function openDb(): InstanceType<typeof Database> {
+  const db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
+  db.pragma('busy_timeout = 5000');
+  return db;
+}
 
 interface SeedOptions {
   role?: 'admin' | 'editor' | 'guest';
@@ -19,10 +31,15 @@ interface SeedOptions {
 
 /** Insert a user + session into the local DB and return the session token. */
 export function seedSession(opts: SeedOptions = {}): string {
-  const { role = 'admin', username = 'Playwright Test', email = 'playwright@test.local' } = opts;
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const {
+    role = 'admin',
+    username = `Playwright Test ${suffix}`,
+    email = `playwright-${suffix}@test.local`,
+  } = opts;
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const db = new Database(DB_PATH);
+  const db = openDb();
   initSchema(db);
   const userId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString('hex');
@@ -55,7 +72,7 @@ export async function loginAs(page: import('@playwright/test').Page, token: stri
 /** Clear content_edits cache for a route/event so retries see clean state. */
 export function clearContentEdits(contentType: string, slug: string) {
   if (!fs.existsSync(DB_PATH)) return;
-  const db = new Database(DB_PATH);
+  const db = openDb();
   try {
     db.prepare('DELETE FROM content_edits WHERE content_type = ? AND content_slug = ?').run(contentType, slug);
   } catch {}
@@ -65,7 +82,7 @@ export function clearContentEdits(contentType: string, slug: string) {
 /** Remove the user and session created by seedSession. */
 export function cleanupSession(token: string) {
   if (!fs.existsSync(DB_PATH)) return;
-  const db = new Database(DB_PATH);
+  const db = openDb();
   const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
   if (!hasTable) { db.close(); return; }
   const session = db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token) as any;
@@ -75,4 +92,64 @@ export function cleanupSession(token: string) {
     db.prepare('DELETE FROM users WHERE id = ?').run(session.user_id);
   }
   db.close();
+}
+
+/** Get the root commit SHA of the fixture repo (the "initial fixture" commit). */
+let rootCommit: string | undefined;
+function getFixtureRootCommit(): string {
+  if (!rootCommit) {
+    rootCommit = execSync('git rev-list --max-parents=0 HEAD', {
+      cwd: FIXTURE_DIR, encoding: 'utf-8',
+    }).trim();
+  }
+  return rootCommit;
+}
+
+/**
+ * Remove files/dirs created by a previous test attempt so retries start clean.
+ * Only touches the filesystem — no git operations needed since the server's
+ * LocalGitService reads from disk, not from git objects.
+ */
+export function cleanupCreatedFiles(paths: string[]) {
+  for (const relPath of paths) {
+    const fullPath = path.join(FIXTURE_DIR, relPath);
+    if (fs.existsSync(fullPath)) {
+      fs.rmSync(fullPath, { recursive: true });
+    }
+  }
+}
+
+/**
+ * Restore fixture files to their initial state from the root commit.
+ *
+ * Uses `git show` (read-only, no index lock needed) to read the original
+ * content and writes it back to disk via fs. This avoids git index lock
+ * contention with concurrent workers and the server's git mutex.
+ *
+ * Works because LocalGitService.readFile() reads from the filesystem,
+ * not from git objects — so restoring the file content on disk is sufficient.
+ */
+export function restoreFixtureFiles(paths: string[]) {
+  const root = getFixtureRootCommit();
+  for (const relPath of paths) {
+    try {
+      const content = execSync(`git show ${root}:"${relPath}"`, {
+        cwd: FIXTURE_DIR, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      fs.writeFileSync(path.join(FIXTURE_DIR, relPath), content, 'utf-8');
+    } catch {
+      // File might not exist in root commit — nothing to restore.
+    }
+  }
+}
+
+/**
+ * Delete a file if it exists. No git operations — the server reads
+ * from disk, so removing the file is sufficient.
+ */
+export function deleteFixtureFile(relPath: string) {
+  const fullPath = path.join(FIXTURE_DIR, relPath);
+  if (fs.existsSync(fullPath)) {
+    try { fs.unlinkSync(fullPath); } catch {}
+  }
 }

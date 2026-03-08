@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +37,11 @@ test.describe('Admin Save Flow', () => {
 
   test.beforeEach(() => {
     clearContentEdits('routes', 'route-save');
+    // Restore modified fixture files so retries see original state
+    restoreFixtureFiles([
+      'demo/routes/route-save/index.md',
+      'demo/routes/route-save/media.yml',
+    ]);
   });
 
   test('upload photo, edit tagline, save, verify commit and persistence', async ({ page }) => {
@@ -58,12 +63,9 @@ test.describe('Admin Save Flow', () => {
     const fileInput = page.locator('input[type="file"][accept*="image"]');
     await fileInput.setInputFiles(path.resolve(__dirname, 'fixtures/test-photo.jpg'));
 
-    // Wait for upload to complete
-    await expect(page.locator('.drop-zone')).not.toContainText('Uploading', { timeout: 10000 });
-
-    // Verify photo appeared in grid
-    const afterUploadCount = await photoCards.count();
-    expect(afterUploadCount).toBe(initialPhotoCount + 1);
+    // Wait for photo to appear in grid (more reliable than checking "Uploading" text)
+    await expect(photoCards).toHaveCount(initialPhotoCount + 1, { timeout: 15000 });
+    const afterUploadCount = initialPhotoCount + 1;
 
     // The new photo should have a visible image
     const newPhoto = photoCards.last();

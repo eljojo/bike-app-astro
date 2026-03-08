@@ -4,12 +4,11 @@
  * Calls prepareFixture() at import time to guarantee the fixture content
  * directory exists before the webServer command evaluates astro.config.mjs.
  *
- * Tests are split into two projects:
- *   - "read"  — specs that only read data (parallel, workers: 2)
- *   - "write" — specs that commit to git (serial after read finishes)
- *
- * This avoids git lock contention between concurrent saves while still
- * parallelizing the read-only specs.
+ * All specs run in parallel across workers. Git write contention is handled
+ * by a mutex in LocalGitService — concurrent saves queue rather than race.
+ * Each write spec owns dedicated fixture routes, so there are no semantic
+ * conflicts between specs. Tests within a spec file run sequentially
+ * (fullyParallel: false) to preserve intra-file ordering where needed.
  */
 import { defineConfig } from '@playwright/test';
 import {
@@ -28,28 +27,10 @@ prepareFixture();
 const port = 4323;
 const baseURL = `http://localhost:${port}`;
 
-/** Read-only specs — no git commits, safe to run in parallel. */
-const readSpecs = [
-  'admin-screenshots.spec.ts', // guest save modal writes to carp, but runs before write specs start
-  'body.spec.ts',
-  'tags.spec.ts',
-  'settings.spec.ts',
-];
-
-/** Writing specs — commit to git, run after read specs finish. */
-const writeSpecs = [
-  'save.spec.ts',
-  'parking.spec.ts',
-  'community-editing.spec.ts',
-  'events.spec.ts',
-  'route-create.spec.ts',
-  'places.spec.ts',
-];
-
 export default defineConfig({
   testDir: '.',
   fullyParallel: false,
-  workers: 1,
+  workers: 4,
   retries: 2,
   outputDir: '../test-results',
   snapshotPathTemplate: '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-chromium-{platform}{ext}',
@@ -58,17 +39,6 @@ export default defineConfig({
     baseURL,
     browserName: 'chromium',
   },
-  projects: [
-    {
-      name: 'read',
-      testMatch: readSpecs,
-    },
-    {
-      name: 'write',
-      testMatch: writeSpecs,
-      dependencies: ['read'],
-    },
-  ],
   webServer: {
     command: `RUNTIME=local CITY=demo CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro build && RUNTIME=local CITY=demo CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro preview --port ${port}`,
     port,
