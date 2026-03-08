@@ -383,6 +383,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           currentMediaKeys={new Set(media.map(m => m.key))}
           cdnUrl={cdnUrl}
           userRole={userRole}
+          initiallyExpanded={media.length === 0}
           onAddPhoto={(photo, wasParked) => {
             setMedia([...media, photo]);
             if (wasParked) {

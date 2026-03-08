@@ -100,11 +100,9 @@ test.describe('Route Creation', () => {
 
     // Override with a test name
     await nameInput.fill('Test Trail');
-    const slugInput = page.locator('#new-route-slug');
-    await expect(slugInput).toHaveValue('test-trail');
 
-    // Click Create Route to enter editor phase
-    await page.locator('button.btn-primary', { hasText: 'Create Route' }).click();
+    // Click Continue to enter editor phase
+    await page.locator('button.btn-primary', { hasText: 'Continue' }).click();
 
     // Wait for route editor to load
     await page.waitForTimeout(2000);

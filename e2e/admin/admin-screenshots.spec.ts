@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
+import path from 'node:path';
 import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { FIXTURE_DIR } from './fixture-setup.ts';
 
 // Admin pages include Preact islands and dynamic user info (e.g. gravatar)
 // that can cause minor rendering differences between runs.
@@ -43,6 +45,21 @@ test.describe('Admin Screenshots — Editor Pages', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('admin-route-creation.png', screenshotOpts);
+  });
+
+  test('route creation preview', async ({ page }) => {
+    await page.goto('/admin/routes/new');
+    await page.waitForLoadState('networkidle');
+
+    // Upload a GPX file to trigger the preview
+    const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
+    const gpxPath = path.join(FIXTURE_DIR, 'demo/routes/carp/main.gpx');
+    await gpxInput.setInputFiles(gpxPath);
+
+    // Wait for map and preview to render
+    await expect(page.locator('.route-preview-map')).toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('admin-route-creation-preview.png', screenshotOpts);
   });
 
   test('event list', async ({ page }) => {

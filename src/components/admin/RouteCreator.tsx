@@ -269,32 +269,24 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
               })()}
             </div>
 
-            <div class="form-field">
-              <label for="new-route-name">Route Name</label>
-              <input
-                id="new-route-name"
-                type="text"
-                value={name}
-                onInput={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  setName(val);
-                  setSlug(slugify(val));
-                }}
-              />
+            <div class="route-preview-actions">
+              <div class="form-field">
+                <label for="new-route-name">Route Name</label>
+                <input
+                  id="new-route-name"
+                  type="text"
+                  value={name}
+                  onInput={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    setName(val);
+                    setSlug(slugify(val));
+                  }}
+                />
+              </div>
+              <button type="button" class="btn-primary" onClick={startEditing}>
+                Continue
+              </button>
             </div>
-            <div class="form-field">
-              <label for="new-route-slug">Slug (URL path)</label>
-              <input
-                id="new-route-slug"
-                type="text"
-                value={slug}
-                onInput={(e) => setSlug((e.target as HTMLInputElement).value)}
-              />
-              <small>Will be at: /routes/{slug}</small>
-            </div>
-            <button type="button" class="btn-primary" onClick={startEditing}>
-              Create Route
-            </button>
           </div>
         )}
         {error && <div class="auth-error">{error}</div>}
