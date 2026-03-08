@@ -9,6 +9,6 @@ const isProduction = import.meta.env.DOCS_ENV !== 'staging';
 <ViewTransitions />
 {isProduction && <script>
   import Plausible from 'plausible-tracker';
-  const { trackPageview } = Plausible({ domain: 'whereto.bike' });
-  trackPageview();
+  const { enableAutoPageviews } = Plausible({ domain: 'whereto.bike' });
+  enableAutoPageviews();
 </script>}
