@@ -71,11 +71,15 @@ jobs:
           ref: ${{ inputs.data-ref }}
           path: bike-routes
 
+      - name: LFS cache period
+        id: lfs-period
+        run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
       - name: Restore data repo LFS cache
         uses: actions/cache@v5
         with:
           path: bike-routes/.git/lfs
-          key: lfs-bike-routes-v1
+          key: lfs-bike-routes-${{ steps.lfs-period.outputs.period }}
           restore-keys: lfs-bike-routes-
 
       - name: Pull data repo LFS files
