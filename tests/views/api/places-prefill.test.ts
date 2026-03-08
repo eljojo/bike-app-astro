@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractCid, extractCoordinates } from '../../../src/views/api/places-prefill';
+import { extractCid, extractCoordinates, mapGoogleTypeToCategory } from '../../../src/views/api/places-prefill';
 
 describe('extractCid', () => {
   it('extracts CID from hex format', () => {
@@ -29,5 +29,43 @@ describe('extractCoordinates', () => {
 
   it('returns null when no coordinates', () => {
     expect(extractCoordinates('https://maps.google.com/place/some-place')).toBeNull();
+  });
+});
+
+describe('mapGoogleTypeToCategory', () => {
+  it('maps cafe type', () => {
+    expect(mapGoogleTypeToCategory(['cafe'])).toBe('cafe');
+  });
+
+  it('maps restaurant type', () => {
+    expect(mapGoogleTypeToCategory(['restaurant'])).toBe('restaurant');
+  });
+
+  it('maps bicycle_store to bike-shop', () => {
+    expect(mapGoogleTypeToCategory(['bicycle_store'])).toBe('bike-shop');
+  });
+
+  it('maps bar to beer', () => {
+    expect(mapGoogleTypeToCategory(['bar'])).toBe('beer');
+  });
+
+  it('maps park type', () => {
+    expect(mapGoogleTypeToCategory(['park'])).toBe('park');
+  });
+
+  it('maps lodging to motel', () => {
+    expect(mapGoogleTypeToCategory(['lodging'])).toBe('motel');
+  });
+
+  it('uses first matching type when multiple present', () => {
+    expect(mapGoogleTypeToCategory(['point_of_interest', 'establishment', 'cafe'])).toBe('cafe');
+  });
+
+  it('returns null for unmapped types', () => {
+    expect(mapGoogleTypeToCategory(['point_of_interest', 'establishment'])).toBeNull();
+  });
+
+  it('returns null for empty array', () => {
+    expect(mapGoogleTypeToCategory([])).toBeNull();
   });
 });

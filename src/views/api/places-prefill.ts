@@ -39,6 +39,42 @@ async function fetchFinalUrl(url: string, limit = 3): Promise<string | null> {
   return res.url || url;
 }
 
+const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
+  cafe: 'cafe',
+  bakery: 'cafe',
+  restaurant: 'restaurant',
+  meal_takeaway: 'restaurant',
+  meal_delivery: 'restaurant',
+  bar: 'beer',
+  night_club: 'beer',
+  park: 'park',
+  campground: 'park',
+  bicycle_store: 'bike-shop',
+  grocery_or_supermarket: 'food',
+  supermarket: 'food',
+  convenience_store: 'food',
+  lodging: 'motel',
+  hotel: 'motel',
+  motel: 'motel',
+  parking: 'parking',
+  transit_station: 'meeting-point',
+  bus_station: 'meeting-point',
+  train_station: 'meeting-point',
+  tourist_attraction: 'something-interesting',
+  museum: 'something-interesting',
+  art_gallery: 'something-interesting',
+  natural_feature: 'lookout',
+  pizza_restaurant: 'pizza',
+};
+
+/** Map Google Places API types to app categories. Returns the first match or null. */
+export function mapGoogleTypeToCategory(types: string[]): string | null {
+  for (const type of types) {
+    if (GOOGLE_TYPE_TO_CATEGORY[type]) return GOOGLE_TYPE_TO_CATEGORY[type];
+  }
+  return null;
+}
+
 interface PlaceResult {
   name: string;
   lat: number;
@@ -47,6 +83,7 @@ interface PlaceResult {
   phone?: string;
   website?: string;
   google_maps_url?: string;
+  category?: string;
 }
 
 async function fetchPlaceFromText(query: string, apiKey: string): Promise<string | null> {
@@ -67,7 +104,7 @@ async function fetchPlaceDetails(id: string, apiKey: string, isCid = false): Pro
   const params = new URLSearchParams({
     [idParam]: id,
     key: apiKey,
-    fields: 'url,name,geometry,formatted_address,formatted_phone_number,website',
+    fields: 'url,name,geometry,formatted_address,formatted_phone_number,website,types',
     language: 'en',
   });
   const res = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`);
@@ -83,6 +120,7 @@ async function fetchPlaceDetails(id: string, apiKey: string, isCid = false): Pro
     phone: data.result.formatted_phone_number,
     website: data.result.website,
     google_maps_url: data.result.url,
+    category: mapGoogleTypeToCategory(data.result.types || []) ?? undefined,
   };
 }
 
