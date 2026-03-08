@@ -74,7 +74,7 @@ test.describe('Community Editing — Admin Direct Commit', () => {
   let token: string;
 
   test.beforeAll(() => {
-    token = seedSession({ role: 'admin', username: 'Admin User', email: 'admin@test.local' });
+    token = seedSession({ role: 'admin', username: 'Community Admin', email: 'community-admin@test.local' });
   });
 
   test.afterAll(() => {

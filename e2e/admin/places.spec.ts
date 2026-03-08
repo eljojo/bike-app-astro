@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, cleanupCreatedFiles } from './helpers.ts';
 
 test.describe('Place Creation', () => {
   let token: string;
@@ -15,6 +15,7 @@ test.describe('Place Creation', () => {
 
   test.beforeEach(() => {
     clearContentEdits('places', 'test-bike-shop');
+    cleanupCreatedFiles(['demo/places/test-bike-shop.md']);
   });
 
   test.afterAll(() => {
@@ -79,6 +80,7 @@ test.describe('Place Update', () => {
 
   test.beforeEach(() => {
     clearContentEdits('places', 'update-test-cafe');
+    cleanupCreatedFiles(['demo/places/update-test-cafe.md']);
   });
 
   test.afterAll(() => {

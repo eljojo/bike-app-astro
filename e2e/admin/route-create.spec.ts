@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, cleanupCreatedFiles } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,6 +18,10 @@ test.describe('Route Creation', () => {
 
   test.afterAll(() => {
     cleanupSession(token);
+  });
+
+  test.beforeEach(() => {
+    cleanupCreatedFiles(['demo/routes/test-trail']);
   });
 
   test('upload GPX, name route, save, verify commit', async ({ page }) => {

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, cleanupCreatedFiles, restoreFixtureFiles } from './helpers.ts';
 
 test.describe('Event Editing', () => {
   let token: string;
@@ -19,6 +19,8 @@ test.describe('Event Editing', () => {
 
   test.beforeEach(() => {
     clearContentEdits('events', '2099/event-edit');
+    // Restore modified fixture files so retries see original state
+    restoreFixtureFiles(['demo/events/2099/event-edit.md']);
   });
 
   test('edit existing event and save', async ({ page }) => {
@@ -87,6 +89,7 @@ test.describe('Event Creation', () => {
 
   test.beforeEach(() => {
     clearContentEdits('events', '2099/test-ride-2099');
+    cleanupCreatedFiles(['demo/events/2099/test-ride-2099.md']);
   });
 
   test('create new event and save', async ({ page }) => {
