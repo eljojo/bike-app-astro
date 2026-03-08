@@ -1,30 +1,24 @@
 ---
 title: How it works
-description: The technical architecture behind whereto.bike cycling guides.
+description: How whereto.bike cycling guides are built and maintained.
 ---
 
-whereto.bike guides are static websites — plain HTML files served from a CDN. Fast, reliable, works offline once loaded.
+Every cycling guide on whereto.bike is built by the people who ride those routes. Here's how that works in practice.
 
-## Content lives in Git
+## Anyone can edit
 
-All content — routes, photos, events, guides — lives in a Git repository as Markdown files, YAML, and GPX tracks. This means:
+You don't need an account to contribute. Visit any route page on the site, tap edit, and your changes go live within minutes. Add a photo from your ride, update a description, fix a mistake — it's that simple.
 
-- **Full version history.** Every edit is tracked. Any change can be reverted.
-- **No database dependency.** Clone the repo and you have all the content.
-- **Portable.** Move to any hosting provider. No vendor lock-in.
+If you want credit for your contributions, create an account with a passkey. No passwords to remember.
 
-## Community editing
+## Every edit is tracked
 
-Editors log in with passkeys (no passwords). Three roles:
+Every change made to the site is saved with a full history — who changed what, and when. If something goes wrong, admins can revert any edit with one click. This is the same model Wikipedia uses: open editing with community oversight.
 
-- **Guests** can edit anonymously with a pseudonym
-- **Editors** have full editing access
-- **Admins** can moderate (revert edits, manage users)
+## The site is always on
 
-All edits commit directly — no draft/review bottleneck. Admins moderate after the fact, like Wikipedia.
+The public cycling guides are plain web pages. They load fast, work on any device, and don't depend on a server being up. The editing tools run separately — if they go down for maintenance, every route page keeps working.
 
-## Static site generation
+## Built for independence
 
-The content repo is processed by [Astro](https://astro.build) at build time. The build computes data insights (difficulty scores, route similarity, elevation analysis) and freezes everything into static HTML. The public site needs no server, no database, no API calls.
-
-Admin pages are server-rendered for editing, but if the admin goes down, the public site keeps serving.
+All the content — routes, photos, events, descriptions — is stored in an open format that isn't tied to any one company or service. The guides can be moved to any hosting provider. No lock-in, no proprietary formats.

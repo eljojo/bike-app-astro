@@ -1,6 +1,8 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+const isStaging = process.env.DOCS_ENV === 'staging';
+
 export default defineConfig({
   site: 'https://whereto.bike',
   integrations: [
@@ -9,6 +11,23 @@ export default defineConfig({
       description: 'A cycling guide built by communities who ride.',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/eljojo/bike-app-astro' },
+      ],
+      head: [
+        // Plausible analytics (production only)
+        ...(!isStaging ? [{
+          tag: 'script',
+          attrs: {
+            defer: true,
+            'data-domain': 'whereto.bike',
+            'data-api': '/api/event',
+            src: '/js/script.js',
+          },
+        }] : []),
+        // Block search engine indexing on staging
+        ...(isStaging ? [{
+          tag: 'meta',
+          attrs: { name: 'robots', content: 'noindex, nofollow' },
+        }] : []),
       ],
       sidebar: [
         {

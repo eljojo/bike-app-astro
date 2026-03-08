@@ -39,6 +39,8 @@ jobs:
 
       - name: Build docs
         run: npm run build -w docs
+        env:
+          DOCS_ENV: ${{ github.event_name == 'push' && 'production' || 'staging' }}
 
       - name: Deploy to staging
         if: github.event_name == 'pull_request'
