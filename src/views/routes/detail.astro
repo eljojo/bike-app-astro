@@ -167,7 +167,12 @@ const breadcrumbs = breadcrumbJsonLd([
           )}
         </div>
 
-        {/* Zone 3: Actions */}
+        {/* Zone 3: Description */}
+        <div class="route-description" set:html={localeBody} />
+
+        <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">&#x270F;&#xFE0F; {t('route.suggest_edit', locale)}</a>
+
+        {/* Zone 4: Actions */}
         <div class="route-actions">
           {variants.length > 1 ? (
             <div>
@@ -226,11 +231,6 @@ const breadcrumbs = breadcrumbJsonLd([
             { type: 'star', icon: '\u2B50', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
           ]} />
         </div>
-
-        {/* Zone 4: Description */}
-        <div class="route-description" set:html={localeBody} />
-
-        <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">&#x270F;&#xFE0F; {t('route.suggest_edit', locale)}</a>
       </div>
 
       {hasMap && (
