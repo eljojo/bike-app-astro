@@ -11,7 +11,6 @@ import type { PlaceUpdate } from '../../views/api/place-save';
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
-  tilesUrl: string;
   userRole?: string;
   secondaryLocales?: string[];
 }
@@ -50,7 +49,7 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, secondaryLocales }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLocales }: Props) {
   const [name, setName] = useState(initialData.name || '');
 
   const locales = secondaryLocales || [];
@@ -86,10 +85,10 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
   const [prefilling, setPrefilling] = useState(false);
 
-  const mapRef = useRef<HTMLDivElement>(null);
-  const leafletMapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
-  const createMarkerRef = useRef<((position: [number, number]) => L.Marker) | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const createMarkerRef = useRef<((position: [number, number]) => any) | null>(null);
   const lastPrefillQuery = useRef<string>('');
 
   const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
@@ -157,9 +156,9 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
     reverseGeocode.current(latitude, longitude);
 
     // Update or create marker on existing map
-    if (leafletMapRef.current) {
+    if (mapInstanceRef.current) {
       if (markerRef.current) {
-        markerRef.current.setLatLng([latitude, longitude]);
+        markerRef.current.setLngLat([longitude, latitude]);
       } else if (createMarkerRef.current) {
         markerRef.current = createMarkerRef.current([latitude, longitude]);
       }
@@ -202,8 +201,8 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
       }
       if (data.lat && data.lng) {
         updateLocation(data.lat, data.lng);
-        if (leafletMapRef.current) {
-          leafletMapRef.current.setView([data.lat, data.lng], 15);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo({ center: [data.lng, data.lat], zoom: 15 });
         }
       }
     } catch {
@@ -229,34 +228,35 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
 
   // Initialize map
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapContainerRef.current) return;
 
-    import('leaflet').then((L) => {
-      import('leaflet/dist/leaflet.css');
+    import('maplibre-gl').then((maplibregl) => {
+      import('maplibre-gl/dist/maplibre-gl.css');
 
-      const defaultCenter: [number, number] = lat && lng ? [lat, lng] : [45.4215, -75.6972]; // Ottawa default
+      const defaultCenter: [number, number] = lat && lng ? [lng, lat] : [-75.6972, 45.4215]; // Ottawa default [lng, lat]
       const defaultZoom = lat && lng ? 15 : 11;
 
-      const map = L.default.map(mapRef.current!, { scrollWheelZoom: true })
-        .setView(defaultCenter, defaultZoom);
-
-      L.default.tileLayer(tilesUrl, {
-        maxZoom: 20,
-        attribution: 'Maps &copy; <a href="https://www.thunderforest.com">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-      }).addTo(map);
-
-      const pinIcon = L.default.divIcon({
-        className: 'place-picker-marker',
-        html: '',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+      const map = new maplibregl.default.Map({
+        container: mapContainerRef.current!,
+        style: '/map-style.json',
+        center: defaultCenter,
+        zoom: defaultZoom,
+        scrollZoom: true,
       });
 
+      const pinEl = document.createElement('div');
+      pinEl.className = 'place-picker-marker';
+
       function createDraggableMarker(position: [number, number]) {
-        const marker = L.default.marker(position, { icon: pinIcon, draggable: true }).addTo(map);
+        const el = document.createElement('div');
+        el.className = 'place-picker-marker';
+
+        const marker = new maplibregl.default.Marker({ element: el, draggable: true })
+          .setLngLat([position[1], position[0]]) // position is [lat, lng], MapLibre wants [lng, lat]
+          .addTo(map);
         marker.on('dragend', () => {
-          const pos = marker.getLatLng();
-          updateLocation(pos.lat, pos.lng);
+          const lngLat = marker.getLngLat();
+          updateLocation(lngLat.lat, lngLat.lng);
         });
         return marker;
       }
@@ -269,22 +269,22 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
       }
 
       // Click to place/move marker
-      map.on('click', (e: L.LeafletMouseEvent) => {
-        const { lat: clickLat, lng: clickLng } = e.latlng;
+      map.on('click', (e) => {
+        const { lat: clickLat, lng: clickLng } = e.lngLat;
         if (markerRef.current) {
-          markerRef.current.setLatLng([clickLat, clickLng]);
+          markerRef.current.setLngLat([clickLng, clickLat]);
         } else {
           markerRef.current = createDraggableMarker([clickLat, clickLng]);
         }
         updateLocation(clickLat, clickLng);
       });
 
-      leafletMapRef.current = map;
+      mapInstanceRef.current = map;
     });
 
     return () => {
-      leafletMapRef.current?.remove();
-      leafletMapRef.current = null;
+      mapInstanceRef.current?.remove();
+      mapInstanceRef.current = null;
       markerRef.current = null;
       createMarkerRef.current = null;
     };
@@ -343,7 +343,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
 
         <div class="form-field">
           <label>Location <span class="field-hint">(click map to set)</span></label>
-          <div ref={mapRef} class="place-map-picker" />
+          <div ref={mapContainerRef} class="place-map-picker" />
           {(lat !== 0 || lng !== 0) && (
             <div class="place-coords">
               {lat.toFixed(6)}, {lng.toFixed(6)}
