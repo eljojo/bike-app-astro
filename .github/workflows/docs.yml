@@ -5,7 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
-    paths: ['docs/**']
+    paths: ['docs/**', '.github/workflows/docs.yml']
 
 jobs:
   changes:
