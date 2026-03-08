@@ -24,10 +24,8 @@ export default defineConfig({
           tag: 'meta',
           attrs: { name: 'robots', content: 'noindex, nofollow' },
         }] : []),
-        { tag: 'meta', attrs: { property: 'og:image', content: 'https://whereto.bike/hero-screenshot.webp' } },
-        { tag: 'meta', attrs: { property: 'og:image:width', content: '1012' } },
-        { tag: 'meta', attrs: { property: 'og:image:height', content: '1282' } },
       ],
+      routeMiddleware: './src/routeData.ts',
       customCss: ['./src/styles/custom.css'],
       components: {
         Head: './src/components/Head.astro',
