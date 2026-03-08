@@ -338,7 +338,13 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           )}
 
           <div class="form-field">
-            <label for="route-body">Body (markdown)</label>
+            <label for="route-body">
+              Body (markdown)
+              {' · '}
+              <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" class="btn-link">
+                formatting help
+              </a>
+            </label>
             <textarea
               key={`body-${activeLocale}`}
               ref={bodyRef}
