@@ -170,6 +170,10 @@ If a feature requires a non-portable cloud API, stop and raise it. Find a portab
 
 This applies to ALL cloud vendors equally. No exceptions.
 
+## Don't Shrug Off Broken Things (MANDATORY)
+
+If something fails — a build, a tool, a command — investigate it. Don't dismiss it as "pre-existing" or "not my problem" and move on. A broken build that you work around is a broken build you'll ship against. If `make build` crashes, that's your problem right now, not background noise. Diagnose it, fix it or raise it. Never normalize broken infrastructure.
+
 ## Git Conventions
 
 - Never add `Co-Authored-By` lines to commits
