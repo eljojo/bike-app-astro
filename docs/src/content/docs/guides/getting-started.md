@@ -13,7 +13,9 @@ You can start contributing in under a minute. No account required.
 
 On any route or event page, look for the **Edit** link. It takes you straight to the editor for that page.
 
-You can also go directly to the admin area at `/admin` to see all routes and events.
+You can also go directly to the admin area to see all routes and events.
+
+<a href="/admin" class="city-link">Open the admin panel &rarr;</a>
 
 ## Choose how to sign in
 

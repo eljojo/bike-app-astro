@@ -9,9 +9,11 @@ sidebar:
 
 The event calendar helps riders find group rides, races, festivals, and community events in their city.
 
+<a href="/admin/events" class="city-link">Open the events page &rarr;</a>
+
 ## Create an event
 
-1. Go to `/admin/events` and tap **+ New event**.
+1. Go to [the events page](/admin/events) and tap **+ New event**.
 2. Fill in the event name and date.
 3. Tap **Save**.
 

@@ -9,9 +9,11 @@ sidebar:
 
 Moderation on whereto.bike follows the Wikipedia model: anyone can edit, and admins review after the fact. Most edits are good. When they're not, you have tools to fix things quickly.
 
+<a href="/admin/history" class="city-link">Open the edit history &rarr;</a>
+
 ## Edit history
 
-The site-wide edit history at `/admin/history` shows every change across all routes and events, newest first. This is your primary moderation tool.
+The [site-wide edit history](/admin/history) shows every change across all routes and events, newest first. This is your primary moderation tool.
 
 Each entry shows the change description, the author, and when it happened. Use the **Diff** button to see exactly what changed.
 
@@ -31,7 +33,7 @@ If a specific edit is clearly vandalism or spam, you can ban the user directly f
 
 ## Managing users
 
-The users page at `/admin/users` lists everyone who has an account or has edited as a guest.
+The [users page](/admin/users) lists everyone who has an account or has edited as a guest.
 
 For each user you can see:
 - Username and role (guest, editor, or admin)

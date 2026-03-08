@@ -29,6 +29,7 @@ export default defineConfig({
           attrs: { name: 'robots', content: 'noindex, nofollow' },
         }] : []),
       ],
+      customCss: ['./src/styles/custom.css'],
       components: {
         Sidebar: './src/components/Sidebar.astro',
       },

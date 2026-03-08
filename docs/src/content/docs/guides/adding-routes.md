@@ -9,9 +9,11 @@ sidebar:
 
 Every route starts with a GPS track. Record your ride, then share it with the community.
 
+<a href="/admin" class="city-link">Open the admin panel &rarr;</a>
+
 ## Create a new route
 
-1. Go to `/admin` and tap **+ New route**.
+1. Go to [the admin panel](/admin) and tap **+ New route**.
 2. Drop a GPX file onto the upload area, or click to browse your files.
 3. The route name and URL are pre-filled from the filename. Edit them if you'd like.
 4. Tap **Create Route**.
