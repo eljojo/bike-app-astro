@@ -530,6 +530,11 @@ a.go-back-button {
 .leaflet-bar, .leaflet-control {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
+// Leaflet popups have a white background — force dark text in dark mode
+.leaflet-popup-content-wrapper {
+  color: $color-text;
+  a { color: $color-text; }
+}
 @include dark-mode {
   .poi-marker {
     background: #222;
