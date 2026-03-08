@@ -55,6 +55,8 @@
   "reaction.ridden": "I've ridden this",
   "reaction.thumbs-up": "Great route",
   "reaction.star": "Save",
+  "reaction.star_title": "Saved routes show up first on the homepage",
+  "route.suggest_edit": "Suggest an edit",
   "strava.open": "Open in Strava",
   "rwgps.open": "Open in Ride With GPS",
   "ordinal.1": "st",

@@ -55,6 +55,8 @@
   "reaction.ridden": "J'ai roulé ici",
   "reaction.thumbs-up": "Super parcours",
   "reaction.star": "Sauvegarder",
+  "reaction.star_title": "Les parcours sauvegardés apparaissent en premier sur la page d'accueil",
+  "route.suggest_edit": "Suggérer une modification",
   "strava.open": "Ouvrir dans Strava",
   "rwgps.open": "Ouvrir dans Ride With GPS",
   "ordinal.1": "er",

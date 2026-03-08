@@ -55,6 +55,8 @@
   "reaction.ridden": "He recorrido esta ruta",
   "reaction.thumbs-up": "Gran ruta",
   "reaction.star": "Guardar",
+  "reaction.star_title": "Las rutas guardadas aparecen primero en la página de inicio",
+  "route.suggest_edit": "Sugerir una edición",
   "strava.open": "Abrir en Strava",
   "rwgps.open": "Abrir en Ride With GPS",
   "ordinal.1": "º",
