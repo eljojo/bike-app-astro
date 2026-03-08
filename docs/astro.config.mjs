@@ -23,8 +23,7 @@ export default defineConfig({
           attrs: {
             defer: true,
             'data-domain': 'whereto.bike',
-            'data-api': '/api/event',
-            src: '/js/script.js',
+            src: 'https://plausible.io/js/script.js',
           },
         }] : []),
         // Block search engine indexing on staging
