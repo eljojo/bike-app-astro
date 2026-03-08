@@ -55,14 +55,14 @@ const base = {
   // Buildings
   building: '#d9d0c8',
   buildingOutline: '#c8bfb5',
-  // Roads — deliberately muted; car infrastructure is background noise
-  road: '#e4e1dc',
-  roadCasing: '#d6d2cb',
-  service: '#eceae6',
-  serviceCasing: '#e0ddd7',
+  // Roads — nearly invisible; car infrastructure merges with background
+  road: '#ebe9e5',
+  roadCasing: '#e0ddd8',
+  service: '#efede9',
+  serviceCasing: '#e6e3de',
   // Rail
-  rail: '#b0a8a0',
-  railCasing: '#d0c8c0',
+  rail: '#ccc6be',
+  railCasing: '#ddd8d0',
   // Boundaries
   countryBorder: '#9898c0',
   stateBorder: '#b0b0c8',
@@ -71,7 +71,7 @@ const base = {
   labelTown: '#444444',
   labelVillage: '#555555',
   labelHalo: '#ffffff',
-  roadLabel: '#8a8278',
+  roadLabel: '#b0a89c',
   roadLabelHalo: '#ffffffcc',
   waterLabel: '#4878a0',
   waterLabelHalo: '#d8e8f0',
@@ -98,13 +98,13 @@ const base = {
  *   https://github.com/tangrams/walkabout-style
  */
 const cycling = {
-  safe: '#007c6e',        // Teal — segregated bike infra (cycleways + bike-access paths)
-  safeCasing: '#00b39e',  // Lighter teal casing
-  gravel: '#936454',      // Brown — off-road tracks, gravel
-  onRoad: '#ed752b',      // Orange — on-road bike lanes (shared with cars)
-  route: '#2060d0',       // Blue — signed cycling route network
+  safe: '#006458',        // Deep teal — segregated bike infra (cycleways + bike-access paths)
+  safeCasing: '#009e88',  // Teal casing
+  gravel: '#7a4e3c',      // Dark brown — off-road tracks, gravel
+  onRoad: '#3a8878',      // Muted teal — on-road bike lanes (same family, less confident)
+  route: '#1a50b8',       // Deep blue — signed cycling route network
   routeCasing: '#ffffff', // White casing for route overlay
-  hiking: '#8b6d4f',      // Warm brown — hiking trails (off-road, nature)
+  hiking: '#6b5038',      // Dark warm brown — hiking trails (off-road, nature)
   hikingCasing: '#ffffff', // White casing for visibility
 };
 
@@ -503,8 +503,7 @@ function roadFillLayers(): Layer[] {
 // ---------------------------------------------------------------------------
 
 function roadCyclewayOverlays(): Layer[] {
-  // Roads that have cycleway_left or cycleway_right get an orange overlay
-  // This matches Mapzen Tier 2 (on-road bike infrastructure)
+  // Roads with cycleway tags get a light teal overlay — same bike family, softer
   return [
     {
       id: 'road-cycleway-overlay',
@@ -521,7 +520,7 @@ function roadCyclewayOverlays(): Layer[] {
       paint: {
         'line-color': cycling.onRoad,
         'line-width': lineWidth([[10, 0.5], [12, 1], [14, 2], [18, 4]]),
-        'line-opacity': 0.6,
+        'line-opacity': 0.75,
         'line-offset': 0, // centered — ideally per-side, but offset is complex
       },
     },
