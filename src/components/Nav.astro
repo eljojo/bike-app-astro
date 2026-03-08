@@ -21,6 +21,7 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
     <li><a href={localePath('/about', locale)}>👋 {t('nav.about', locale)}</a></li>
     <li><a href={localePath('/calendar', locale)}>📅 {t('nav.calendar', locale)}</a></li>
     <li><a href={localePath('/map', locale)}>🗺️ {t('nav.map', locale)}</a></li>
+    <li class="nav-admin"><a href="/admin">Admin</a></li>
     {showSwitcher && (
       <li class="nav-lang">
         <a href={switchPath} data-locale={otherLocale}>

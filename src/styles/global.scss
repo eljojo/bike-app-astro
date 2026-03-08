@@ -758,6 +758,14 @@ a.go-back-button {
   display: inline;
 }
 
+// Admin nav link (hidden unless logged in)
+.nav-admin {
+  display: none;
+}
+.admin-visible .nav-admin {
+  display: list-item;
+}
+
 .suggest-edit-link {
   display: inline-block;
   font-size: 0.8125rem;
