@@ -50,6 +50,35 @@ test.describe('Route Creation', () => {
     await expect(importButton).not.toBeVisible();
   });
 
+  test('route preview shows map and stats after GPX upload', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/routes/new');
+    await page.waitForLoadState('networkidle');
+
+    // Upload a GPX file
+    const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
+    const gpxPath = path.join(FIXTURE_DIR, 'demo/routes/carp/main.gpx');
+    await gpxInput.setInputFiles(gpxPath);
+
+    // Wait for preview to render
+    const previewMap = page.locator('.route-preview-map');
+    await expect(previewMap).toBeVisible({ timeout: 5000 });
+
+    // Stats should be visible
+    const stats = page.locator('.route-preview-stats');
+    await expect(stats).toBeVisible();
+    await expect(stats).toContainText('km');
+    await expect(stats).toContainText('gain');
+
+    // Elevation chart should be visible
+    const elevationSvg = page.locator('.route-preview-elevation-svg');
+    await expect(elevationSvg).toBeVisible();
+
+    // Name field should still work
+    const nameInput = page.locator('#new-route-name');
+    await expect(nameInput).toBeVisible();
+  });
+
   test('upload GPX, name route, save, verify commit', async ({ page }) => {
     await loginAs(page, token);
 

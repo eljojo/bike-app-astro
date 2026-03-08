@@ -3,8 +3,12 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteCreator from '../../components/admin/RouteCreator.tsx';
+import { getCityConfig } from '../../lib/city-config';
+
+const { tiles_url: tilesUrl } = getCityConfig();
+const cdnUrl = import.meta.env.R2_PUBLIC_URL || '';
 ---
 
 <AdminEditorLayout title="New Route" backLink="/admin" backLabel="Back to routes" user={Astro.locals.user} currentTab="routes">
-  <RouteCreator client:load />
+  <RouteCreator client:load tilesUrl={tilesUrl} cdnUrl={cdnUrl} />
 </AdminEditorLayout>
