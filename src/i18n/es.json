@@ -5,6 +5,7 @@
   "nav.home": "Inicio",
   "nav.map": "Mapa",
   "footer.community": "Creado por personas que pedalean aquí",
+  "footer.powered_by": "Desarrollado con whereto.bike",
   "home.welcome": "¿Nuevo en el ciclismo? ¿Ciclista experimentado? ¡Encuentra tu nuevo recorrido favorito y explora la naturaleza!",
   "filter.choose_tag": "elige una etiqueta para filtrar:",
   "route.elevation_gain": "Desnivel positivo",

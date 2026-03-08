@@ -172,6 +172,7 @@ a.go-back-button {
   justify-content: space-between;
   align-items: center;
   a { padding: 4px; text-decoration: none; }
+  .powered-by { opacity: 0.5; font-size: 0.85em; &:hover { opacity: 1; } }
 }
 @media (prefers-color-scheme: light) {
   .site-footer {
