@@ -416,10 +416,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
           </div>
         )}
         {saved && userRole === 'guest' && (
-          <SaveSuccessModal
-            viewLink="/admin/places"
-            onClose={() => {}}
-          />
+          <SaveSuccessModal viewLink="/admin/places" />
         )}
         {saved && userRole !== 'guest' && (
           <div class="save-success">

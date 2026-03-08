@@ -531,6 +531,17 @@ a.go-back-button {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 @include dark-mode {
+  .poi-marker {
+    background: #222;
+    border-color: #555;
+  }
+  .place-popup-address,
+  .place-popup-phone {
+    color: $color-text-muted-dark;
+  }
+  .place-popup-links a {
+    color: $color-accent;
+  }
   .photo-popup-caption {
     color: $color-text-muted-dark;
   }

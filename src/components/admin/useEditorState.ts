@@ -24,19 +24,21 @@ export function useEditorState(opts: EditorStateOptions) {
   const [githubUrl, setGithubUrl] = useState('');
   const [contentHash, setContentHash] = useState(opts.initialContentHash);
 
+  const { apiBase, contentId, validate, buildPayload, onSuccess } = opts;
+
   const save = useCallback(async () => {
     setError('');
     setGithubUrl('');
 
-    if (opts.validate) {
-      const validationError = opts.validate();
+    if (validate) {
+      const validationError = validate();
       if (validationError) {
         setError(validationError);
         return;
       }
     }
 
-    const payload = opts.buildPayload();
+    const payload = buildPayload();
     if (!payload) return;
 
     payload.contentHash = contentHash;
@@ -45,9 +47,9 @@ export function useEditorState(opts: EditorStateOptions) {
     setSaved(false);
 
     try {
-      const url = opts.contentId
-        ? `${opts.apiBase}/${opts.contentId}`
-        : `${opts.apiBase}/new`;
+      const url = contentId
+        ? `${apiBase}/${contentId}`
+        : `${apiBase}/new`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -70,13 +72,13 @@ export function useEditorState(opts: EditorStateOptions) {
       setSaved(true);
       setTimeout(() => setSaved(false), 8000);
 
-      opts.onSuccess?.(data);
+      onSuccess?.(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }
-  }, [contentHash, opts]);
+  }, [contentHash, apiBase, contentId, validate, buildPayload, onSuccess]);
 
   return { saving, saved, error, githubUrl, contentHash, save, setError };
 }
