@@ -17,7 +17,7 @@ Every route starts with a GPS track. Record your ride, then share it with the co
 You'll land in the full route editor with your GPS track already loaded.
 
 :::tip
-Don't have a GPX file handy? Most cycling apps (Strava, Komoot, RideWithGPS, Garmin Connect) let you export your ride as a GPX file.
+Don't have a GPX file? See [GPX files](/guides/gpx-files/) for how to export one from Strava, Garmin, Komoot, or plan a new route from scratch.
 :::
 
 ## Import from RideWithGPS

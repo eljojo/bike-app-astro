@@ -210,6 +210,9 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
                 </button>
               )}
             </div>
+            <a href="https://whereto.bike/guides/gpx-files/" target="_blank" rel="noopener noreferrer" class="route-creator-help-link">
+              What's a GPX file?
+            </a>
           </div>
         ) : (
           <div class="route-creator-setup">

@@ -48,6 +48,7 @@ export default defineConfig({
           items: [
             { label: 'Getting started', slug: 'guides/getting-started' },
             { label: 'Adding routes', slug: 'guides/adding-routes' },
+            { label: 'GPX files', slug: 'guides/gpx-files' },
             { label: 'Managing media', slug: 'guides/managing-media' },
             { label: 'Managing events', slug: 'guides/managing-events' },
             { label: 'Editing content', slug: 'guides/editing-content' },
