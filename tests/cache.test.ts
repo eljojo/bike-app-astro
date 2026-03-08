@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { CITY } from '../src/lib/config';
 import { upsertContentCache } from '../src/lib/cache';
 
 // Mock drizzle
@@ -21,7 +22,7 @@ describe('upsertContentCache', () => {
 
     expect(mockInsert).toHaveBeenCalled();
     const valuesArg = mockInsert.mock.results[0].value.values.mock.calls[0][0];
-    expect(valuesArg.city).toBe('ottawa');
+    expect(valuesArg.city).toBe(CITY);
     expect(valuesArg.contentType).toBe('routes');
     expect(valuesArg.contentSlug).toBe('test-route');
     expect(valuesArg.githubSha).toBe('abc123');
