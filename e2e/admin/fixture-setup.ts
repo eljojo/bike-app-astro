@@ -373,12 +373,17 @@ About page fixture.
 }
 
 /**
- * Called from globalSetup — runs exactly once before the webServer starts.
+ * Called at config import time — guarded so it only runs once even though
+ * Playwright imports the config file multiple times (main process + workers).
  *
  * DB deletion happens here (once, before the server starts) rather than
  * in setup(), which may re-run while the server holds an open connection.
  */
+const READY_SENTINEL = path.join(FIXTURE_DIR, '.ready');
+
 export function prepareFixture() {
+  if (fs.existsSync(READY_SENTINEL)) return;
+
   // Clean DB before the server starts — safe because no connection exists yet.
   if (fs.existsSync(DB_PATH)) {
     fs.rmSync(DB_PATH);
@@ -389,4 +394,5 @@ export function prepareFixture() {
   }
 
   setup();
+  fs.writeFileSync(READY_SENTINEL, new Date().toISOString());
 }
