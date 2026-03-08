@@ -29,3 +29,59 @@ export function updateSharedKeys(
     }
   }
 }
+
+interface RouteMediaData {
+  media: Array<{ key: string }>;
+}
+
+interface PlacePhotoData {
+  slug: string;
+  photo_key?: string;
+}
+
+interface EventPosterData {
+  slug: string;
+  poster_key?: string;
+}
+
+interface ParkedPhotoData {
+  key: string;
+}
+
+export function buildSharedKeysMap(
+  routeData: Record<string, RouteMediaData>,
+  places: PlacePhotoData[],
+  events: EventPosterData[],
+  parkedPhotos: ParkedPhotoData[],
+): SharedKeysMap {
+  const map: SharedKeysMap = new Map();
+
+  for (const [slug, route] of Object.entries(routeData)) {
+    for (const item of route.media) {
+      updateSharedKeys(map, item.key, { type: 'route', slug }, 'add');
+    }
+  }
+
+  for (const place of places) {
+    if (place.photo_key) {
+      updateSharedKeys(map, place.photo_key, { type: 'place', slug: place.slug }, 'add');
+    }
+  }
+
+  for (const event of events) {
+    if (event.poster_key) {
+      updateSharedKeys(map, event.poster_key, { type: 'event', slug: event.slug }, 'add');
+    }
+  }
+
+  for (const parked of parkedPhotos) {
+    updateSharedKeys(map, parked.key, { type: 'parked', slug: '__global' }, 'add');
+  }
+
+  // Prune single-use keys — only keep multi-referenced
+  for (const [key, usages] of map) {
+    if (usages.length < 2) map.delete(key);
+  }
+
+  return map;
+}
