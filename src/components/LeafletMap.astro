@@ -1,8 +1,4 @@
 ---
-import { getCityConfig } from '../lib/city-config';
-
-const config = getCityConfig();
-
 interface Place {
   name: string;
   emoji: string;
@@ -38,47 +34,68 @@ interface Props {
 const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 ---
 
-<div
-  id="route-map"
-  class="leaflet-map"
-  data-polylines={JSON.stringify(polylines)}
-  data-places={JSON.stringify(places)}
-  data-center={JSON.stringify(center)}
-  data-zoom={zoom?.toString() || '12'}
-  data-tiles-url={config.tiles_url}
-  data-photos={JSON.stringify(photos)}
-  data-cdn-url={import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca'}
-></div>
+<div class="map-container">
+  <div
+    id="route-map"
+    style="width: 100%; height: 100%;"
+    data-polylines={JSON.stringify(polylines)}
+    data-places={JSON.stringify(places)}
+    data-center={JSON.stringify(center)}
+    data-zoom={zoom?.toString() || '12'}
+    data-photos={JSON.stringify(photos)}
+    data-cdn-url={import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca'}
+  ></div>
+  <div id="route-map-controls"></div>
+</div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoToggle, makePhotoPopupHandler } from '../lib/leaflet-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, addGpsControl, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
+  import { render, h } from 'preact';
+  import MapControls from './admin/MapControls';
 
   const el = document.getElementById('route-map');
+  const controlsEl = document.getElementById('route-map-controls');
   if (el) {
     const polylines = JSON.parse(el.dataset.polylines || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
     const photos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const zoom = parseInt(el.dataset.zoom || '12');
-    const tilesUrl = el.dataset.tilesUrl || '';
     const cdnUrl = el.dataset.cdnUrl || '';
 
-    const map = initMap({ el, center, zoom, tilesUrl });
+    const map = initMap({ el, center, zoom, styleUrl: '/map-style.json' });
 
-    const bounds = addPolylines(map, polylines.map((pl: any) => ({
-      encoded: pl.encoded,
-      popup: html`${pl.name}`,
-    })));
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [30, 30] });
-    }
+    map.on('load', () => {
+      const bounds = addPolylines(map, polylines.map((pl: any) => ({
+        encoded: pl.encoded,
+        popup: html`${pl.name}`,
+      })));
+      if (bounds) {
+        map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
+      }
 
-    addMarkers(map, places.map((p: any) => ({
-      lat: p.lat, lng: p.lng, emoji: p.emoji,
-      popup: buildPlacePopup(p, cdnUrl),
-    })));
+      addMarkers(map, places.map((p: any) => ({
+        lat: p.lat, lng: p.lng, emoji: p.emoji,
+        popup: buildPlacePopup(p, cdnUrl),
+      })));
 
-    addPhotoToggle(map, photos, cdnUrl, makePhotoPopupHandler(map, cdnUrl));
+      if (photos.length > 0) {
+        addPhotoMarkers(map, photos, cdnUrl);
+      }
+
+      // Render MapControls island
+      if (controlsEl) {
+        render(h(MapControls, {
+          hasPhotos: photos.length > 0,
+          hasPlaces: places.length > 0,
+          onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
+          onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
+          onToggleGps: (v: boolean) => {
+            if (v) addGpsControl(map);
+          },
+        }), controlsEl);
+      }
+    });
   }
 </script>
