@@ -13,6 +13,7 @@ export default function RouteCreator() {
   const [error, setError] = useState('');
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleGpxFile(file: File) {
@@ -71,10 +72,11 @@ export default function RouteCreator() {
         throw new Error(data.error || 'Import failed');
       }
 
-      const { gpxContent: content, name: routeName } = await res.json();
+      const { gpxContent: content, name: routeName, sourceUrl: resolvedUrl } = await res.json();
       setGpxContent(content);
       setName(routeName);
       setSlug(slugify(routeName));
+      setSourceUrl(resolvedUrl);
       setImportUrl('');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Import failed');
@@ -184,6 +186,8 @@ export default function RouteCreator() {
       gpx: 'main.gpx',
       isNew: true,
       gpxContent,
+      ...(sourceUrl.includes('ridewithgps.com') && { rwgps_url: sourceUrl }),
+      ...(sourceUrl.includes('google.com/maps/d/') && { google_maps_url: sourceUrl }),
     }] as VariantItem[],
     translations: {} as Record<string, { name?: string; tagline?: string; body?: string }>,
     isNew: true,
