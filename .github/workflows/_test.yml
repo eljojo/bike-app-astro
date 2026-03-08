@@ -31,7 +31,16 @@ jobs:
           ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
           ref: main
           path: bike-routes
-          lfs: true
+
+      - name: Restore data repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: bike-routes/.git/lfs
+          key: lfs-bike-routes-v1
+          restore-keys: lfs-bike-routes-
+
+      - name: Pull data repo LFS files
+        run: git -C bike-routes lfs pull
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
