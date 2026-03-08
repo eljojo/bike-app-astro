@@ -18,6 +18,14 @@ Run `make` to see all available targets.
 
 ## Architecture
 
+### Data Locality Principle
+
+Data lives next to what uses it. Route photos live in the route's `media.yml`. Place photos live in the place's frontmatter. Event posters live in the event's frontmatter. This colocation is a core architectural choice — never centralize data that belongs to a specific content item into a shared file or table.
+
+City-level files (like `parked-photos.yml`) exist only as a lowest common denominator — for data that has no content item to live next to. If data has a natural home, it lives there.
+
+When building query layers or indexes over distributed data, the index is a **computed view** — an abstraction that aggregates across sources. It never becomes the canonical store. Think ZFS: a unified interface over distributed storage, not a migration to centralized storage.
+
 ### Content Pipeline
 
 Content lives in a separate data repo (`~/code/bike-routes`) and is loaded via Astro content collections. The `CONTENT_DIR` env var points to it (defaults to `../bike-routes`).
