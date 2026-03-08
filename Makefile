@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck test-e2e test-update test-admin screenshots full maps maps-rebuild validate fonts contributors clean
+.PHONY: help install dev build preview test typecheck test-e2e test-update test-admin screenshots full maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -54,6 +54,15 @@ contributors: ## Build contributor stats for about page
 
 validate: ## Run content validation (uses CITY env, defaults to ottawa)
 	npx tsx scripts/validate.ts
+
+docs-dev: ## Start docs dev server
+	npm run dev -w docs
+
+docs-build: ## Build docs site
+	npm run build -w docs
+
+docs-preview: ## Preview built docs site
+	npm run preview -w docs
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/
