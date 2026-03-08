@@ -6,6 +6,7 @@ export const variantSchema = z.object({
   distance_km: z.number().optional(),
   strava_url: z.string().optional(),
   rwgps_url: z.string().optional(),
+  google_maps_url: z.string().optional(),
 });
 
 export const routeSchema = z.object({
