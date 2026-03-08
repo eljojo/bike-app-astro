@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
 
 test.describe('Event Editing', () => {
   let token: string;
@@ -17,22 +17,26 @@ test.describe('Event Editing', () => {
     cleanupSession(token);
   });
 
+  test.beforeEach(() => {
+    clearContentEdits('events', '2026/event-edit');
+  });
+
   test('edit existing event and save', async ({ page }) => {
     await loginAs(page, token);
 
-    await page.goto('/admin/events/2026/bike-fest');
+    await page.goto('/admin/events/2026/event-edit');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     // Verify the form loaded with fixture data
     const nameInput = page.locator('#event-name');
-    await expect(nameInput).toHaveValue('Bike Fest');
+    await expect(nameInput).toHaveValue('Editable Event');
 
     const startDateInput = page.locator('#event-start-date');
-    await expect(startDateInput).toHaveValue('2026-06-15');
+    await expect(startDateInput).toHaveValue('2026-07-20');
 
     // Edit the event name
-    const testName = `Bike Fest ${Date.now()}`;
+    const testName = `Editable Event ${Date.now()}`;
     await nameInput.fill(testName);
 
     // Record git HEAD before save
@@ -52,15 +56,15 @@ test.describe('Event Editing', () => {
 
     // Verify file on disk
     const eventMd = fs.readFileSync(
-      path.join(FIXTURE_DIR, 'ottawa/events/2026/bike-fest.md'),
+      path.join(FIXTURE_DIR, 'demo/events/2026/event-edit.md'),
       'utf-8'
     );
     const { data: fm, content: body } = matter(eventMd);
     expect(fm.name).toBe(testName);
-    expect(fm.start_date).toBe('2026-06-15');
-    expect(fm.start_time).toBe('10:00');
-    expect(fm.location).toBe('Parliament Hill');
-    expect(body.trim()).toBe('A fun cycling festival for the whole family.');
+    expect(fm.start_date).toBe('2026-07-20');
+    expect(fm.start_time).toBe('09:00');
+    expect(fm.location).toBe('City Park');
+    expect(body.trim()).toBe('An event for testing edits.');
 
     // Reload and verify persistence
     await page.reload();
@@ -79,6 +83,10 @@ test.describe('Event Creation', () => {
 
   test.afterAll(() => {
     cleanupSession(token);
+  });
+
+  test.beforeEach(() => {
+    clearContentEdits('events', '2026/test-ride-2026');
   });
 
   test('create new event and save', async ({ page }) => {
@@ -114,7 +122,7 @@ test.describe('Event Creation', () => {
     expect(headAfter).not.toBe(headBefore);
 
     // Verify file was created
-    const eventPath = path.join(FIXTURE_DIR, 'ottawa/events/2026/test-ride-2026.md');
+    const eventPath = path.join(FIXTURE_DIR, 'demo/events/2026/test-ride-2026.md');
     expect(fs.existsSync(eventPath)).toBe(true);
 
     const eventMd = fs.readFileSync(eventPath, 'utf-8');

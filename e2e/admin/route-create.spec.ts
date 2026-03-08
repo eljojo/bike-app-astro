@@ -29,7 +29,7 @@ test.describe('Route Creation', () => {
 
     // Upload a GPX file
     const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
-    const gpxPath = path.join(FIXTURE_DIR, 'ottawa/routes/carp/main.gpx');
+    const gpxPath = path.join(FIXTURE_DIR, 'demo/routes/carp/main.gpx');
     await gpxInput.setInputFiles(gpxPath);
 
     // Wait for name/slug fields to appear
@@ -68,7 +68,7 @@ test.describe('Route Creation', () => {
     expect(headAfter).not.toBe(headBefore);
 
     // Verify files were created
-    const routeDir = path.join(FIXTURE_DIR, 'ottawa/routes/test-trail');
+    const routeDir = path.join(FIXTURE_DIR, 'demo/routes/test-trail');
     expect(fs.existsSync(routeDir)).toBe(true);
 
     const indexMd = fs.readFileSync(path.join(routeDir, 'index.md'), 'utf-8');

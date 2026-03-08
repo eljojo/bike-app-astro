@@ -4,16 +4,25 @@
  * Used by both local dev (src/db/local.ts) and e2e test helpers
  * to bootstrap SQLite from the single source of truth in drizzle/migrations/.
  *
- * Uses process.cwd() which is the project root in all contexts:
- * - astro dev / astro preview (local dev)
- * - playwright test runner (e2e tests)
+ * Uses findProjectRoot() to locate the project root from any working directory,
+ * since Playwright tests may run from e2e/admin/ rather than project root.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 
+function findProjectRoot(startDir: string): string {
+  let dir = startDir;
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return startDir;
+}
+
 export function initSchema(db: InstanceType<typeof Database>) {
-  const migrationsDir = path.join(process.cwd(), 'drizzle', 'migrations');
+  const projectRoot = findProjectRoot(process.cwd());
+  const migrationsDir = path.join(projectRoot, 'drizzle', 'migrations');
   const files = fs.readdirSync(migrationsDir)
     .filter(f => f.endsWith('.sql'))
     .sort();

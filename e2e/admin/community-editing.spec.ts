@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
 
 test.describe('Community Editing — Auth Gate', () => {
   test('unauthenticated user sees auth gate on admin pages', async ({ page }) => {
@@ -43,10 +43,14 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     cleanupSession(token);
   });
 
+  test.beforeEach(() => {
+    clearContentEdits('routes', 'route-community');
+  });
+
   test('guest saves directly to main branch', async ({ page }) => {
     await loginAs(page, token);
 
-    await page.goto('/admin/routes/carp');
+    await page.goto('/admin/routes/route-community');
     await page.waitForLoadState('networkidle');
 
     // Verify we landed on the editor (not redirected to gate)

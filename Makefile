@@ -21,18 +21,22 @@ test: ## Run unit tests
 typecheck: ## Run TypeScript type checking
 	npx tsc --noEmit
 
-test-e2e: build ## Run Playwright screenshot tests
+test-e2e: ## Build with CITY=demo, validate, then run Playwright screenshot tests
+	CITY=demo npx astro build
+	CITY=demo npx tsx scripts/validate.ts
 	npx playwright test --config e2e/playwright.config.ts
 
-test-update: build ## Update screenshot baselines
+test-update: ## Update screenshot baselines
+	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: build validate test typecheck test-e2e test-admin ## Run full CI pipeline (build, validate, unit tests, typecheck, all e2e)
+full: test typecheck test-e2e test-admin ## Run full CI pipeline (unit tests, typecheck, e2e screenshots, admin e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts
 
-screenshots: build ## Update all screenshot baselines (public + admin)
+screenshots: ## Update all screenshot baselines (public + admin)
+	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
 
@@ -48,7 +52,7 @@ fonts: ## Download and embed Google Fonts locally
 contributors: ## Build contributor stats for about page
 	npx tsx scripts/build-contributors.ts
 
-validate: ## Run content validation
+validate: ## Run content validation (uses CITY env, defaults to ottawa)
 	npx tsx scripts/validate.ts
 
 clean: ## Remove build artifacts
