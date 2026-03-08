@@ -177,3 +177,9 @@ declare module 'virtual:bike-app/parked-photos' {
   const parkedPhotos: _ParkedPhoto[];
   export default parkedPhotos;
 }
+
+declare module 'virtual:bike-app/photo-shared-keys' {
+  /** Only contains keys referenced by 2+ content items */
+  const sharedKeys: Record<string, Array<{ type: 'route' | 'place' | 'event' | 'parked'; slug: string }>>;
+  export default sharedKeys;
+}

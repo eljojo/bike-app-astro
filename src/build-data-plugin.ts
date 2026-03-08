@@ -42,6 +42,37 @@ function loadParkedPhotos(): ParkedPhoto[] {
   return (yaml.load(raw) as ParkedPhoto[]) || [];
 }
 
+function loadPlacePhotoKeys(): Array<{ slug: string; photo_key?: string }> {
+  const placesDir = path.join(CITY_DIR, 'places');
+  if (!fs.existsSync(placesDir)) return [];
+  return fs.readdirSync(placesDir)
+    .filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))
+    .map(f => {
+      const content = fs.readFileSync(path.join(placesDir, f), 'utf-8');
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) return { slug: f.replace('.md', '') };
+      const fm = yaml.load(fmMatch[1]) as Record<string, unknown>;
+      return { slug: f.replace('.md', ''), photo_key: fm.photo_key as string | undefined };
+    });
+}
+
+function loadEventPosterKeys(): Array<{ slug: string; poster_key?: string }> {
+  const eventsDir = path.join(CITY_DIR, 'events');
+  if (!fs.existsSync(eventsDir)) return [];
+  const results: Array<{ slug: string; poster_key?: string }> = [];
+  for (const yearDir of fs.readdirSync(eventsDir).filter(d => /^\d{4}$/.test(d))) {
+    const yearPath = path.join(eventsDir, yearDir);
+    for (const f of fs.readdirSync(yearPath).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
+      const content = fs.readFileSync(path.join(yearPath, f), 'utf-8');
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) continue;
+      const fm = yaml.load(fmMatch[1]) as Record<string, unknown>;
+      results.push({ slug: `${yearDir}/${f.replace('.md', '')}`, poster_key: fm.poster_key as string | undefined });
+    }
+  }
+  return results;
+}
+
 function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
 }
@@ -171,6 +202,7 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
       if (id === 'virtual:bike-app/nearby-photos') return '\0virtual:bike-app/nearby-photos';
       if (id === 'virtual:bike-app/parked-photos') return '\0virtual:bike-app/parked-photos';
+      if (id === 'virtual:bike-app/photo-shared-keys') return '\0virtual:bike-app/photo-shared-keys';
     },
     async load(id: string) {
       const adminLoaded = await adminModules.load(id);
@@ -202,6 +234,19 @@ export function buildDataPlugin(): Plugin {
       if (id === '\0virtual:bike-app/parked-photos') {
         const parked = loadParkedPhotos();
         return `export default ${JSON.stringify(parked)};`;
+      }
+      if (id === '\0virtual:bike-app/photo-shared-keys') {
+        const { details } = await adminRouteDataPromise;
+        const routeData: Record<string, { media: Array<{ key: string }> }> = {};
+        for (const [slug, detail] of Object.entries(details)) {
+          routeData[slug] = { media: (detail as any).media || [] };
+        }
+        const parked = loadParkedPhotos();
+        const places = loadPlacePhotoKeys();
+        const events = loadEventPosterKeys();
+        const { buildSharedKeysMap, serializeSharedKeys } = await import('./lib/photo-registry');
+        const map = buildSharedKeysMap(routeData, places, events, parked);
+        return `export default ${serializeSharedKeys(map)};`;
       }
     },
 
