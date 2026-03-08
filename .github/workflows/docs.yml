@@ -27,8 +27,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Restore LFS cache
+        uses: actions/cache@v4
         with:
-          lfs: true
+          path: .git/lfs
+          key: lfs-docs-${{ hashFiles('docs/src/assets/**') }}
+          restore-keys: lfs-docs-
+
+      - name: Pull LFS files
+        run: git lfs pull
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
