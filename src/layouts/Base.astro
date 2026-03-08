@@ -55,7 +55,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
       <slot />
     </main>
     <Footer alternateUrls={alternateUrls} />
-    <script is:inline nonce={cspNonce}>
+    <script>
       document.addEventListener('click', (e) => {
         const origin = e.target;
         if (!(origin instanceof Element)) return;
