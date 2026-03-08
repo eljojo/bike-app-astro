@@ -31,7 +31,7 @@ Not sure yet? Start as a guest. You can create an account later and your contrib
 
 ## Make your first edit
 
-![The route editor showing fields for name, tagline, tags, status, and markdown body](../../../assets/admin-screenshot.webp)
+<img src="/admin-screenshot.webp" alt="The route editor showing fields for name, tagline, tags, status, and markdown body" width="906" height="1016" style="max-width:100%;height:auto;border-radius:8px;" />
 
 Once you're in, you'll see the editor for the route or event you chose. Try something small:
 
