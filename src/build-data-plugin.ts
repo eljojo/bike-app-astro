@@ -23,6 +23,7 @@ import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
 import { loadAdminPlaceData } from './loaders/admin-places';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
+import { buildSharedKeysMap, serializeSharedKeys } from './lib/photo-registry';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -244,7 +245,6 @@ export function buildDataPlugin(): Plugin {
         const parked = loadParkedPhotos();
         const places = loadPlacePhotoKeys();
         const events = loadEventPosterKeys();
-        const { buildSharedKeysMap, serializeSharedKeys } = await import('./lib/photo-registry');
         const map = buildSharedKeysMap(routeData, places, events, parked);
         return `export default ${serializeSharedKeys(map)};`;
       }
