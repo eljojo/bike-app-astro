@@ -24,6 +24,32 @@ test.describe('Route Creation', () => {
     cleanupCreatedFiles(['demo/routes/test-trail']);
   });
 
+  test('URL import input is visible and shows Import button on input', async ({ page }) => {
+    await loginAs(page, token);
+
+    await page.goto('/admin/routes/new');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // The unified URL import input should be visible
+    const urlInput = page.locator('.url-import-input');
+    await expect(urlInput).toBeVisible();
+    await expect(urlInput).toHaveAttribute('placeholder', /RideWithGPS.*Google Maps/);
+
+    // Import button should NOT be visible when input is empty
+    const importButton = page.locator('.url-import button.btn-secondary');
+    await expect(importButton).not.toBeVisible();
+
+    // Type a URL — Import button should appear
+    await urlInput.fill('https://www.google.com/maps/d/edit?mid=test123');
+    await expect(importButton).toBeVisible();
+    await expect(importButton).toHaveText('Import');
+
+    // Clear input — button should disappear
+    await urlInput.fill('');
+    await expect(importButton).not.toBeVisible();
+  });
+
   test('upload GPX, name route, save, verify commit', async ({ page }) => {
     await loginAs(page, token);
 
