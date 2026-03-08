@@ -130,7 +130,11 @@ const breadcrumbs = breadcrumbJsonLd([
 
         <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">Suggest an edit</a>
 
-        <ReactionsWidget client:idle contentType="route" contentSlug={route.id} />
+        <ReactionsWidget client:idle contentType="route" contentSlug={route.id} labels={[
+          { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
+          { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
+          { type: 'star', icon: '\u2B50', label: t('reaction.star', locale) },
+        ]} />
 
         {primaryTrack && !manyVariants && (
           <p>

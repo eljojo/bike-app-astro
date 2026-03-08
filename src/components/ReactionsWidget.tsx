@@ -1,23 +1,22 @@
 import { useState, useEffect, useCallback } from 'preact/hooks';
 
+interface ReactionButton {
+  type: string;
+  icon: string;
+  label: string;
+}
+
 interface Props {
   contentType: 'route' | 'event';
   contentSlug: string;
+  labels: ReactionButton[];
 }
 
 interface ReactionCounts {
-  ridden?: number;
-  'thumbs-up'?: number;
-  star?: number;
+  [key: string]: number;
 }
 
-const BUTTONS = [
-  { type: 'ridden', icon: '\u{1F6B4}', label: "I've ridden this" },
-  { type: 'thumbs-up', icon: '\u{1F44D}', label: 'Great route' },
-  { type: 'star', icon: '\u2B50', label: 'Star' },
-] as const;
-
-export default function ReactionsWidget({ contentType, contentSlug }: Props) {
+export default function ReactionsWidget({ contentType, contentSlug, labels }: Props) {
   const [counts, setCounts] = useState<ReactionCounts>({});
   const [userReactions, setUserReactions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,13 +57,13 @@ export default function ReactionsWidget({ contentType, contentSlug }: Props) {
       if (data.action === 'added') {
         setCounts(prev => ({
           ...prev,
-          [reactionType]: (prev[reactionType as keyof ReactionCounts] || 0) + 1,
+          [reactionType]: (prev[reactionType] || 0) + 1,
         }));
         setUserReactions(prev => [...prev, reactionType]);
       } else {
         setCounts(prev => ({
           ...prev,
-          [reactionType]: Math.max((prev[reactionType as keyof ReactionCounts] || 0) - 1, 0),
+          [reactionType]: Math.max((prev[reactionType] || 0) - 1, 0),
         }));
         setUserReactions(prev => prev.filter(r => r !== reactionType));
       }
@@ -75,8 +74,8 @@ export default function ReactionsWidget({ contentType, contentSlug }: Props) {
 
   return (
     <div class="reactions-widget">
-      {BUTTONS.map(({ type, icon, label }) => {
-        const count = counts[type as keyof ReactionCounts] || 0;
+      {labels.map(({ type, icon, label }) => {
+        const count = counts[type] || 0;
         const active = userReactions.includes(type);
         return (
           <button

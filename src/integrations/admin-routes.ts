@@ -24,6 +24,7 @@ const adminRoutes = [
   { pattern: '/api/settings', entrypoint: './src/views/api/settings.ts' },
   { pattern: '/api/gpx/import-rwgps', entrypoint: './src/views/api/gpx/import-rwgps.ts' },
   { pattern: '/api/reactions', entrypoint: './src/views/api/reactions.ts' },
+  // Static _starred must precede parameterized [contentType]/[contentSlug] to avoid matching as params
   { pattern: '/api/reactions/route/_starred', entrypoint: './src/views/api/reactions-starred.ts' },
   { pattern: '/api/reactions/[contentType]/[contentSlug]', entrypoint: './src/views/api/reactions-get.ts' },
   { pattern: '/dev-uploads/[...path]', entrypoint: './src/views/dev/dev-uploads.ts' },

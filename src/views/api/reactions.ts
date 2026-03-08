@@ -4,16 +4,10 @@ import { jsonResponse, jsonError } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { z } from 'zod';
 import { CITY } from '@/lib/config';
+import { reactionSchema } from '@/lib/reaction-types';
 
 export const prerender = false;
-
-const reactionSchema = z.object({
-  contentType: z.enum(['route', 'event']),
-  contentSlug: z.string().min(1),
-  reactionType: z.enum(['ridden', 'thumbs-up', 'star']),
-});
 
 export async function POST({ request, locals }: APIContext) {
   const user = authorize(locals, 'add-reaction');

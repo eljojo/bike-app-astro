@@ -1,13 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { reactions } from '../src/db/schema';
 import { getTableName, getTableColumns } from 'drizzle-orm';
-import { z } from 'zod';
-
-const reactionSchema = z.object({
-  contentType: z.enum(['route', 'event']),
-  contentSlug: z.string().min(1),
-  reactionType: z.enum(['ridden', 'thumbs-up', 'star']),
-});
+import { reactionSchema } from '../src/lib/reaction-types';
 
 describe('reactions', () => {
   describe('schema', () => {

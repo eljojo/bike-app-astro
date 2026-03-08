@@ -3,8 +3,9 @@ import { jsonResponse, jsonError } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and, count } from 'drizzle-orm';
-import type { SessionUser } from '@/lib/auth';
+import { getOptionalUser } from '@/lib/auth';
 import { CITY } from '@/lib/config';
+import { VALID_CONTENT_TYPES } from '@/lib/reaction-types';
 
 export const prerender = false;
 
@@ -14,6 +15,10 @@ export async function GET({ params, locals }: APIContext) {
 
   if (!contentType || !contentSlug) {
     return jsonError('Missing contentType or contentSlug', 400);
+  }
+
+  if (!(VALID_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+    return jsonError('Invalid content type', 400);
   }
 
   const database = db();
@@ -33,8 +38,7 @@ export async function GET({ params, locals }: APIContext) {
     )
     .groupBy(reactions.reactionType);
 
-  // User may or may not be authenticated (optional user loading in middleware)
-  const user = (locals as any).user as SessionUser | undefined;
+  const user = getOptionalUser(locals);
   let userReactions: string[] = [];
   if (user) {
     const own = await database
@@ -51,8 +55,13 @@ export async function GET({ params, locals }: APIContext) {
     userReactions = own.map(r => r.reactionType);
   }
 
-  return jsonResponse({
+  const response = jsonResponse({
     counts: Object.fromEntries(counts.map(c => [c.reactionType, c.total])),
     userReactions,
   });
+  // Short cache for public counts; personalized responses (with user) skip cache
+  if (!user) {
+    response.headers.set('Cache-Control', 'public, max-age=60');
+  }
+  return response;
 }
