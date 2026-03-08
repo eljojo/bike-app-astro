@@ -765,6 +765,12 @@ a.go-back-button {
 .admin-visible .nav-admin {
   display: list-item;
 }
+// Hide About on mobile when admin is visible to save space
+@media (max-width: $breakpoint-mobile) {
+  .admin-visible .nav-about {
+    display: none;
+  }
+}
 
 .suggest-edit-link {
   display: inline-block;
