@@ -90,6 +90,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
   const leafletMapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const createMarkerRef = useRef<((position: [number, number]) => L.Marker) | null>(null);
+  const lastPrefillQuery = useRef<string>('');
 
   const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
     apiBase: '/api/places',
@@ -176,7 +177,8 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
 
   async function handlePrefill() {
     const query = googleMapsUrl.trim();
-    if (!query) return;
+    if (!query || query === lastPrefillQuery.current) return;
+    lastPrefillQuery.current = query;
     setPrefilling(true);
     setError('');
     try {
@@ -215,6 +217,13 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
     const text = e.clipboardData?.getData('text')?.trim();
     if (text && isGoogleMapsUrl(text)) {
       setTimeout(() => handlePrefill(), 0);
+    }
+  }
+
+  function handleBlur() {
+    const query = googleMapsUrl.trim();
+    if (query && isGoogleMapsUrl(query)) {
+      handlePrefill();
     }
   }
 
@@ -293,7 +302,8 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
         <input id="place-google-maps" type="text" value={googleMapsUrl}
           placeholder={initialData.isNew ? 'https://maps.google.com/...' : 'https://maps.google.com/... or place name'}
           onInput={(e) => setGoogleMapsUrl((e.target as HTMLInputElement).value)}
-          onPaste={handlePaste} />
+          onPaste={handlePaste}
+          onBlur={handleBlur} />
         <button type="button" class="btn-secondary btn-prefill" onClick={handlePrefill}
           disabled={prefilling || !googleMapsUrl.trim()}>
           {prefilling ? 'Loading...' : 'Prefill'}
