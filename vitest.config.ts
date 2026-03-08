@@ -4,6 +4,6 @@ import { buildDataPlugin } from './src/build-data-plugin';
 export default defineConfig({
   plugins: [buildDataPlugin()],
   test: {
-    exclude: ['e2e/**', 'node_modules/**'],
+    exclude: ['e2e/**', 'node_modules/**', 'docs/**'],
   },
 });
