@@ -22,3 +22,9 @@ The Ottawa guide started in 2022 as a personal project by [José Albornoz](https
 - **Community-edited.** Anyone can contribute routes, photos, and local knowledge.
 - **Open data.** All content is freely licensed. Take it, use it, build on it.
 - **No ads. No tracking. No paywalls.** The guides are funded by the people who build them.
+
+## Why this exists
+
+whereto.bike is made with love in Ottawa, Canada. Our goal is simple: get more people on bikes for the first time and grow cycling ridership in every city we reach.
+
+We believe the biggest barrier isn't fitness or gear — it's not knowing where to go. A good cycling guide, built by people who actually ride those routes, can be the nudge someone needs to try their first ride.
