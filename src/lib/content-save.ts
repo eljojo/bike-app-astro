@@ -18,7 +18,13 @@ export interface CurrentFiles {
   auxiliaryFiles?: Record<string, { content: string; sha: string } | null>;
 }
 
-export interface SaveHandlers<T> {
+export interface BuildResult {
+  files: FileChange[];
+  deletePaths: string[];
+  isNew: boolean;
+}
+
+export interface SaveHandlers<T, R extends BuildResult = BuildResult> {
   /** Parse and validate the request body. Throw on invalid input. */
   parseRequest(body: unknown): T;
 
@@ -40,16 +46,16 @@ export interface SaveHandlers<T> {
   /** Check for existence conflicts (new content). Return error Response or null. */
   checkExistence?(git: IGitService, contentId: string): Promise<Response | null>;
 
-  /** Build the file changes and delete paths for the git commit. Extra properties are passed to afterCommit. */
+  /** Build the file changes and delete paths for the git commit. */
   buildFileChanges(
     update: T,
     contentId: string,
     currentFiles: CurrentFiles,
     git: IGitService,
-  ): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean; [key: string]: unknown }>;
+  ): Promise<R>;
 
   /** Optional callback invoked after a successful commit with the buildFileChanges result. */
-  afterCommit?(result: { files: FileChange[]; deletePaths: string[]; isNew: boolean; [key: string]: unknown }, database: ReturnType<typeof db>): Promise<void>;
+  afterCommit?(result: R, database: ReturnType<typeof db>): Promise<void>;
 
   /** Build the commit message. */
   buildCommitMessage(update: T, contentId: string, isNew: boolean, currentFiles: CurrentFiles): string;
@@ -58,12 +64,12 @@ export interface SaveHandlers<T> {
   buildGitHubUrl(contentId: string, baseBranch: string): string;
 }
 
-export async function saveContent<T extends { contentHash?: string }>(
+export async function saveContent<T extends { contentHash?: string }, R extends BuildResult = BuildResult>(
   request: Request,
   locals: APIContext['locals'],
   params: Record<string, string | undefined>,
   contentType: string,
-  handlers: SaveHandlers<T>,
+  handlers: SaveHandlers<T, R>,
 ): Promise<Response> {
   const auth = await authenticateAndParse(request, locals, params, handlers);
   if (auth instanceof Response) return auth;
@@ -124,11 +130,11 @@ export async function saveContent<T extends { contentHash?: string }>(
   }
 }
 
-async function authenticateAndParse<T>(
+async function authenticateAndParse<T, R extends BuildResult>(
   request: Request,
   locals: APIContext['locals'],
   params: Record<string, string | undefined>,
-  handlers: SaveHandlers<T>,
+  handlers: SaveHandlers<T, R>,
 ): Promise<{ user: SessionUser; update: T; contentId: string } | Response> {
   const user = authorize(locals, 'edit-content');
   if (user instanceof Response) return user;
@@ -176,13 +182,13 @@ async function readCurrentState(
   return { primaryFile, auxiliaryFiles };
 }
 
-async function detectConflict<T extends { contentHash?: string }>(
+async function detectConflict<T extends { contentHash?: string }, R extends BuildResult>(
   database: ReturnType<typeof db>,
   contentType: string,
   contentId: string,
   currentFiles: CurrentFiles,
   update: T,
-  handlers: SaveHandlers<T>,
+  handlers: SaveHandlers<T, R>,
   baseBranch: string,
 ): Promise<Response | null> {
   if (!currentFiles.primaryFile) return null;
@@ -248,7 +254,7 @@ async function hasNoChanges(
   return true;
 }
 
-async function updateCacheAfterCommit<T extends { contentHash?: string }>(
+async function updateCacheAfterCommit<T extends { contentHash?: string }, R extends BuildResult>(
   database: ReturnType<typeof db>,
   contentType: string,
   contentId: string,
@@ -256,7 +262,7 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }>(
   files: FileChange[],
   deletePaths: string[],
   currentFiles: CurrentFiles,
-  handlers: SaveHandlers<T>,
+  handlers: SaveHandlers<T, R>,
   sha: string,
 ): Promise<Response> {
   const committedPrimary = files.find(f => f.path === filePaths.primary);
