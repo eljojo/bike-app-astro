@@ -11,8 +11,7 @@ export default function RouteCreator() {
   const [slug, setSlug] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
-  const [showRwgps, setShowRwgps] = useState(false);
-  const [rwgpsUrl, setRwgpsUrl] = useState('');
+  const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,16 +54,16 @@ export default function RouteCreator() {
     }
   }
 
-  async function handleRwgpsImport() {
-    if (!rwgpsUrl.trim()) return;
+  async function handleUrlImport() {
+    if (!importUrl.trim()) return;
     setError('');
     setImporting(true);
 
     try {
-      const res = await fetch('/api/gpx/import-rwgps', {
+      const res = await fetch('/api/gpx/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: rwgpsUrl }),
+        body: JSON.stringify({ url: importUrl }),
       });
 
       if (!res.ok) {
@@ -72,15 +71,11 @@ export default function RouteCreator() {
         throw new Error(data.error || 'Import failed');
       }
 
-      const { gpxContent, rwgpsUrl: resolvedUrl } = await res.json();
-      setGpxContent(gpxContent);
-
-      // Extract name from RWGPS URL
-      const routeId = rwgpsUrl.match(/routes\/(\d+)/)?.[1] || 'imported';
-      setName(`RWGPS ${routeId}`);
-      setSlug(slugify(`rwgps-${routeId}`));
-      setRwgpsUrl('');
-      setShowRwgps(false);
+      const { gpxContent: content, name: routeName } = await res.json();
+      setGpxContent(content);
+      setName(routeName);
+      setSlug(slugify(routeName));
+      setImportUrl('');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -118,33 +113,26 @@ export default function RouteCreator() {
                 onChange={handleFileSelect}
               />
             </div>
-            {!showRwgps ? (
-              <button type="button" class="btn-link-muted" onClick={() => setShowRwgps(true)}>
-                or import from Ride with GPS
-              </button>
-            ) : (
-              <div class="rwgps-import">
-                <input
-                  type="url"
-                  class="rwgps-input"
-                  placeholder="https://ridewithgps.com/routes/..."
-                  value={rwgpsUrl}
-                  onInput={(e) => setRwgpsUrl((e.target as HTMLInputElement).value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRwgpsImport(); } }}
-                />
+            <div class="url-import">
+              <input
+                type="url"
+                class="url-import-input"
+                placeholder="or paste a URL (RideWithGPS, Google Maps)"
+                value={importUrl}
+                onInput={(e) => setImportUrl((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlImport(); } }}
+              />
+              {importUrl.trim() && (
                 <button
                   type="button"
                   class="btn-secondary"
-                  onClick={handleRwgpsImport}
-                  disabled={importing || !rwgpsUrl.trim()}
+                  onClick={handleUrlImport}
+                  disabled={importing}
                 >
                   {importing ? 'Importing...' : 'Import'}
                 </button>
-                <button type="button" class="btn-cancel" onClick={() => { setShowRwgps(false); setRwgpsUrl(''); }}>
-                  Cancel
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </>
         ) : (
           <div class="route-creator-setup">
