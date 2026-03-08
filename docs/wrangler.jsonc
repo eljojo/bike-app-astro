@@ -6,6 +6,9 @@
     "not_found_handling": "404-page"
   },
   "env": {
+    "production": {
+      "name": "whereto-bike-production"
+    },
     "staging": {
       "name": "whereto-bike-staging"
     }
