@@ -142,7 +142,39 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
   }
 }
 
-// --- Photo markers (clustered) ---
+// --- Photo markers (clustered with thumbnail bubbles) ---
+
+function showPhotoPopup(
+  map: maplibregl.Map,
+  props: Record<string, any>,
+  coords: [number, number],
+  cdnUrl: string,
+): void {
+  const imgUrl = `${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${props.key}`;
+  const fullUrl = `${cdnUrl}/cdn-cgi/image/width=1600/${props.key}`;
+
+  let sizeAttrs = '';
+  if (props.width && props.height) {
+    const displayWidth = Math.min(props.width, 500);
+    const displayHeight = Math.round(displayWidth * props.height / props.width);
+    sizeAttrs = ` width="${displayWidth}" height="${displayHeight}"`;
+  }
+
+  const routeLink = props.routeName && props.routeUrl
+    ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
+  const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
+
+  const popupHtml = html`
+    <div class="photo-popup-content">
+      <a href="${raw(fullUrl)}" target="_blank">
+        <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
+      </a>
+      ${raw(captionBlock)}
+      ${raw(routeLink)}
+    </div>
+  `;
+  new maplibregl.Popup({ maxWidth: '500px' }).setLngLat(coords).setHTML(popupHtml).addTo(map);
+}
 
 export function addPhotoMarkers(
   map: maplibregl.Map,
@@ -196,19 +228,62 @@ export function addPhotoMarkers(
     paint: { 'text-color': '#ffffff' },
   });
 
-  // Individual photo markers as circles
+  // Invisible layer for unclustered feature detection (queryable but not visible)
   map.addLayer({
     id: 'photo-unclustered',
     type: 'circle',
     source: sourceId,
     filter: ['!', ['has', 'point_count']],
     paint: {
-      'circle-color': '#350091',
-      'circle-radius': 8,
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff',
+      'circle-radius': 1,
+      'circle-opacity': 0,
     },
   });
+
+  // --- DOM photo bubble markers (circular thumbnails) ---
+  const bubbleMarkers = new Map<string, maplibregl.Marker>();
+
+  function syncPhotoBubbles() {
+    const features = map.queryRenderedFeatures({ layers: ['photo-unclustered'] });
+    const seen = new Set<string>();
+
+    for (const f of features) {
+      const key = f.properties!.key as string;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (!bubbleMarkers.has(key)) {
+        const props = f.properties!;
+        const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+        const thumbUrl = `${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${props.key}`;
+
+        const el = document.createElement('div');
+        el.className = 'photo-bubble';
+        el.innerHTML = `<img src="${thumbUrl}" alt="" loading="lazy" />`;
+
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showPhotoPopup(map, props, coords, cdnUrl);
+        });
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat(coords)
+          .addTo(map);
+
+        bubbleMarkers.set(key, marker);
+      }
+    }
+
+    // Remove markers no longer visible (clustered or out of viewport)
+    for (const [key, marker] of bubbleMarkers) {
+      if (!seen.has(key)) {
+        marker.remove();
+        bubbleMarkers.delete(key);
+      }
+    }
+  }
+
+  map.on('idle', syncPhotoBubbles);
 
   // Click to zoom into cluster
   map.on('click', 'photo-clusters', async (e) => {
@@ -220,39 +295,6 @@ export function addPhotoMarkers(
     map.easeTo({ center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number], zoom });
   });
 
-  // Click individual photo — popup with image
-  map.on('click', 'photo-unclustered', (e) => {
-    if (!e.features?.length) return;
-    const props = e.features[0].properties!;
-    const coords = (e.features[0].geometry as GeoJSON.Point).coordinates as [number, number];
-    const imgUrl = `${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${props.key}`;
-    const fullUrl = `${cdnUrl}/cdn-cgi/image/width=1600/${props.key}`;
-
-    let sizeAttrs = '';
-    if (props.width && props.height) {
-      const displayWidth = Math.min(props.width, 500);
-      const displayHeight = Math.round(displayWidth * props.height / props.width);
-      sizeAttrs = ` width="${displayWidth}" height="${displayHeight}"`;
-    }
-
-    const routeLink = props.routeName && props.routeUrl
-      ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
-    const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
-
-    const popupHtml = html`
-      <div class="photo-popup-content">
-        <a href="${raw(fullUrl)}" target="_blank">
-          <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
-        </a>
-        ${raw(captionBlock)}
-        ${raw(routeLink)}
-      </div>
-    `;
-    new maplibregl.Popup({ maxWidth: '500px' }).setLngLat(coords).setHTML(popupHtml).addTo(map);
-  });
-
-  map.on('mouseenter', 'photo-unclustered', () => { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'photo-unclustered', () => { map.getCanvas().style.cursor = ''; });
   map.on('mouseenter', 'photo-clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', 'photo-clusters', () => { map.getCanvas().style.cursor = ''; });
 }
@@ -277,6 +319,11 @@ export function setPhotoLayersVisible(map: maplibregl.Map, visible: boolean): vo
   const vis = visible ? 'visible' : 'none';
   for (const id of PHOTO_LAYER_IDS) {
     if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+  }
+  // Also toggle DOM photo bubble markers
+  const bubbles = map.getContainer().querySelectorAll('.photo-bubble');
+  for (const el of bubbles) {
+    (el as HTMLElement).style.display = visible ? '' : 'none';
   }
 }
 

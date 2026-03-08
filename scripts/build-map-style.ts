@@ -55,11 +55,11 @@ const base = {
   // Buildings
   building: '#d9d0c8',
   buildingOutline: '#c8bfb5',
-  // Roads — nearly invisible; car infrastructure merges with background
-  road: '#ebe9e5',
-  roadCasing: '#e0ddd8',
-  service: '#efede9',
-  serviceCasing: '#e6e3de',
+  // Roads — subdued but readable; enough contrast to see street grid
+  road: '#e2dfd8',
+  roadCasing: '#d6d2ca',
+  service: '#e8e5de',
+  serviceCasing: '#dfdcd5',
   // Rail
   rail: '#ccc6be',
   railCasing: '#ddd8d0',
@@ -71,10 +71,13 @@ const base = {
   labelTown: '#444444',
   labelVillage: '#555555',
   labelHalo: '#ffffff',
-  roadLabel: '#b0a89c',
+  roadLabel: '#9e968a',
   roadLabelHalo: '#ffffffcc',
   waterLabel: '#4878a0',
   waterLabelHalo: '#d8e8f0',
+  // Transit
+  station: '#2a2a3a',
+  stationHalo: '#ffffff',
   // Contours
   contour: '#c4b8a8',
   contourLabel: '#a89880',
@@ -893,6 +896,30 @@ function cyclingRouteLayers(): Layer[] {
 
 function labelLayers(): Layer[] {
   return [
+    // Green space labels — parks, forests, gardens, nature reserves (visible zoomed out)
+    {
+      id: 'label-park',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'landuse',
+      minzoom: 9,
+      filter: ['all', ['in', 'landuse', 'park', 'recreation_ground', 'garden', 'village_green', 'forest', 'meadow', 'grass', 'nature_reserve', 'wood'], ['has', 'name']],
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 9, 10, 12, 13, 16, 16],
+        'text-max-width': 7,
+        'symbol-placement': 'point',
+        'text-padding': 8,
+        'text-optional': true,
+      },
+      paint: {
+        'text-color': '#3a7a30',
+        'text-halo-color': '#ffffffcc',
+        'text-halo-width': 2,
+      },
+    },
+
     // Protected area labels (park names like "Gatineau Park")
     {
       id: 'label-protected-area',
@@ -1053,11 +1080,11 @@ function labelLayers(): Layer[] {
       type: 'circle',
       source: 'outdoors',
       'source-layer': 'poi-label',
-      minzoom: 13,
+      minzoom: 16,
       filter: ['has', 'name'],
       paint: {
         'circle-color': base.poiDot,
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2, 18, 4],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 16, 2, 18, 4],
         'circle-opacity': 0.6,
       },
     },
@@ -1066,7 +1093,7 @@ function labelLayers(): Layer[] {
       type: 'symbol',
       source: 'outdoors',
       'source-layer': 'poi-label',
-      minzoom: 14,
+      minzoom: 16,
       filter: ['has', 'name'],
       layout: {
         'text-field': '{name}',
@@ -1082,6 +1109,43 @@ function labelLayers(): Layer[] {
         'text-halo-color': base.poiLabelHalo,
         'text-halo-width': 1.5,
         'text-opacity': 0.8,
+      },
+    },
+
+    // Train / subway / LRT stations — prominent landmarks for navigation
+    {
+      id: 'station-dot',
+      type: 'circle',
+      source: 'outdoors',
+      'source-layer': 'railway-station',
+      minzoom: 10,
+      paint: {
+        'circle-color': base.station,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 14, 7, 18, 10],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': base.stationHalo,
+        'circle-opacity': 0.9,
+      },
+    },
+    {
+      id: 'station-label',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'railway-station',
+      minzoom: 11,
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.regular],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 14, 13, 18, 15],
+        'text-offset': [0, 1.4],
+        'text-anchor': 'top',
+        'text-max-width': 9,
+        'text-optional': true,
+      },
+      paint: {
+        'text-color': base.station,
+        'text-halo-color': base.stationHalo,
+        'text-halo-width': 2,
       },
     },
 
@@ -1233,9 +1297,9 @@ function labelLayers(): Layer[] {
       },
     },
 
-    // Path labels — BOLD RED FOR TESTING (to see what this layer adds beyond our cycleway labels)
+    // Path labels — names of paths/trails (supplements cycleway labels with broader path coverage)
     {
-      id: 'label-path-debug',
+      id: 'label-path',
       type: 'symbol',
       source: 'outdoors',
       'source-layer': 'path-label',
@@ -1243,14 +1307,14 @@ function labelLayers(): Layer[] {
       filter: ['has', 'name'],
       layout: {
         'text-field': '{name}',
-        'text-font': [font.bold],
-        'text-size': 12,
+        'text-font': [font.regular],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 13, 9, 16, 11],
         'symbol-placement': 'line',
         'text-max-angle': 25,
       },
       paint: {
-        'text-color': '#cc0000',
-        'text-halo-color': '#ffffff',
+        'text-color': cycling.safe,
+        'text-halo-color': '#ffffffcc',
         'text-halo-width': 2,
       },
     },
