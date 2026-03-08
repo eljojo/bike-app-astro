@@ -6,13 +6,13 @@ help: ## Show available targets
 install: ## Install npm dependencies
 	npm install
 
-dev: ## Start dev server
-	npx astro dev
+dev: build ## Start dev server
+	RUNTIME=local npx astro dev
 
 build: map-style ## Build static site to dist/
 	npx astro build
 
-preview: ## Preview built site locally
+preview: map-style ## Preview built site locally
 	npx astro preview
 
 test: ## Run unit tests
