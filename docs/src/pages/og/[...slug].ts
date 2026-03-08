@@ -21,7 +21,7 @@ export const { getStaticPaths, GET } = await OGImageRoute({
         path: './public/bicycle.png',
         size: [80],
       },
-      bgGradient: [[24, 24, 40], [44, 52, 80]],
+      bgGradient: [[255, 255, 255], [240, 240, 245]],
       ...(isHome && {
         bgImage: {
           path: './public/hero-screenshot.webp',
@@ -36,12 +36,12 @@ export const { getStaticPaths, GET } = await OGImageRoute({
       },
       font: {
         title: {
-          color: [255, 255, 255],
+          color: [0, 0, 0],
           size: isHome ? 64 : 56,
           weight: 'Bold',
         },
         description: {
-          color: [200, 200, 220],
+          color: [80, 80, 100],
           size: 32,
         },
       },
