@@ -1,11 +1,13 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 
 const isStaging = process.env.DOCS_ENV === 'staging';
 
 export default defineConfig({
   site: 'https://whereto.bike',
   integrations: [
+    sitemap(),
     starlight({
       title: 'whereto.bike',
       logo: {
