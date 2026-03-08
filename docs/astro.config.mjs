@@ -17,15 +17,6 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/eljojo/bike-app-astro' },
       ],
       head: [
-        // Plausible analytics (production only)
-        ...(!isStaging ? [{
-          tag: 'script',
-          attrs: {
-            defer: true,
-            'data-domain': 'whereto.bike',
-            src: '/js/script.js',
-          },
-        }] : []),
         // Block search engine indexing on staging
         ...(isStaging ? [{
           tag: 'meta',
@@ -34,6 +25,7 @@ export default defineConfig({
       ],
       customCss: ['./src/styles/custom.css'],
       components: {
+        Head: './src/components/Head.astro',
         Sidebar: './src/components/Sidebar.astro',
       },
       sidebar: [

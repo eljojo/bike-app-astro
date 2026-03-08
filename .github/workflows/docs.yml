@@ -37,6 +37,10 @@ jobs:
       - name: Install docs dependencies
         run: npm ci -w docs
 
+      - name: Generate Astro types
+        run: npx astro sync
+        working-directory: docs
+
       - name: Type check docs
         run: npx tsc --noEmit --project docs/tsconfig.json
 
