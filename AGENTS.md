@@ -22,6 +22,7 @@ These are the lens for all product and messaging decisions.
 - **Quiet confidence.** No ads, no algorithms, no paywalls — communicated through absence, not promises. Never sound like a startup.
 - **Don't name competitors.** Let the product speak for itself.
 - **Human over algorithmic.** Every photo was taken by someone who was there. Every route was ridden by a real person. This authenticity is the sharpest edge.
+- **Inclusive and empathetic.** Never use absolute fitness language ("easy", "hard") — use relative framing ("easier than most routes on this site"). Everyone's fitness level and perspective is different. The site should feel welcoming to all riders, not just experienced ones.
 
 ## Project Status
 
