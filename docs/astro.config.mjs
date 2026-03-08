@@ -8,6 +8,10 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'whereto.bike',
+      logo: {
+        src: './public/bicycle.png',
+        alt: 'whereto.bike',
+      },
       description: 'A cycling guide built by communities who ride.',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/eljojo/bike-app-astro' },
