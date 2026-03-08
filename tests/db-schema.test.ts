@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { users, credentials, sessions, contentEdits, bannedIps } from '../src/db/schema';
+import { users, credentials, sessions, contentEdits, bannedIps, reactions } from '../src/db/schema';
 import { getTableName, getTableColumns } from 'drizzle-orm';
 
 describe('database schema', () => {
@@ -59,5 +59,13 @@ describe('database schema', () => {
     expect(getTableName(contentEdits)).toBe('content_edits');
     const cols = getTableColumns(contentEdits);
     expect(Object.keys(cols)).toEqual(['city', 'contentType', 'contentSlug', 'data', 'githubSha', 'updatedAt']);
+  });
+
+  it('reactions table has expected columns', () => {
+    expect(getTableName(reactions)).toBe('reactions');
+    const cols = getTableColumns(reactions);
+    expect(Object.keys(cols)).toEqual([
+      'id', 'userId', 'contentType', 'contentSlug', 'reactionType', 'createdAt',
+    ]);
   });
 });

@@ -19,6 +19,7 @@ import { getCityConfig } from '@/lib/city-config';
 import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/locale-utils';
 import { tTag } from '@/lib/tag-translations';
+import ReactionsWidget from '@/components/ReactionsWidget';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -128,6 +129,8 @@ const breadcrumbs = breadcrumbJsonLd([
         <div class="route-description" set:html={localeBody} />
 
         <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">Suggest an edit</a>
+
+        <ReactionsWidget client:idle contentType="route" contentSlug={route.id} />
 
         {primaryTrack && !manyVariants && (
           <p>
