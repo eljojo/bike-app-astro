@@ -1,10 +1,12 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro';
+import { ViewTransitions } from 'astro:transitions';
 
 const isProduction = import.meta.env.DOCS_ENV !== 'staging';
 ---
 
 <Default {...Astro.props}><slot /></Default>
+<ViewTransitions />
 {isProduction && <script>
   import Plausible from 'plausible-tracker';
   const { trackPageview } = Plausible({ domain: 'whereto.bike' });
