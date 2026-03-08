@@ -629,16 +629,17 @@
   }
 }
 
-.rwgps-import {
+.url-import {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
   margin-top: 0.5rem;
 }
 
-.rwgps-input {
+.url-import-input {
   flex: 1;
   @include form-control;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
 }
 
 // Admin table (UserList island)
