@@ -38,6 +38,22 @@ describe('t()', () => {
   it('handles full locale codes', () => {
     expect(t('nav.about', 'fr-CA')).toBe('À propos');
   });
+
+  it('difficulty range reads as a natural sentence', () => {
+    const low = t('difficulty.easiest', 'en');
+    const result = t('difficulty.range', 'en', { low });
+    expect(result).toBe('Depends on the version, but generally one of the easiest routes on this site');
+  });
+
+  it('difficulty labels use relative language, not absolutes', () => {
+    // Labels should say "easier/harder than most" not "easy/hard" —
+    // everyone's fitness level is different
+    const labels = ['easiest', 'easy', 'average', 'hard', 'hardest']
+      .map(key => t(`difficulty.${key}`, 'en'));
+    for (const label of labels) {
+      expect(label).not.toMatch(/^(Very )?(Easy|Hard|Moderate|Challenging)$/i);
+    }
+  });
 });
 
 describe('tCategory()', () => {

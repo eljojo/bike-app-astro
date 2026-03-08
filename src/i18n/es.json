@@ -16,7 +16,7 @@
   "difficulty.average": "Dificultad promedio",
   "difficulty.hard": "Más difícil que la mayoría de las rutas del sitio",
   "difficulty.hardest": "Una de las rutas más difíciles del sitio",
-  "difficulty.range": "{low} a {high}",
+  "difficulty.range": "Depende de la versión, pero generalmente {low}",
   "route.versions": "Hay {count} versiones de esta ruta",
   "route.view_map": "Ver mapa de {name}",
   "route.similar": "Rutas similares",
