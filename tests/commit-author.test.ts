@@ -43,8 +43,8 @@ describe('buildResourcePathRegex', () => {
 
   it('matches event paths with year subdirectory', () => {
     const re = buildResourcePathRegex('ottawa');
-    const match = 'Create ottawa/events/2026/bike-fest'.match(re);
-    expect(match?.[0]).toBe('ottawa/events/2026/bike-fest');
+    const match = 'Create ottawa/events/2099/bike-fest'.match(re);
+    expect(match?.[0]).toBe('ottawa/events/2099/bike-fest');
   });
 
   it('matches other content types', () => {
@@ -67,8 +67,8 @@ describe('parseContentPath', () => {
   });
 
   it('parses event paths with year subdirectory', () => {
-    expect(parseContentPath('ottawa', 'ottawa/events/2026/bike-fest.md'))
-      .toEqual({ contentType: 'events', contentSlug: '2026/bike-fest' });
+    expect(parseContentPath('ottawa', 'ottawa/events/2099/bike-fest.md'))
+      .toEqual({ contentType: 'events', contentSlug: '2099/bike-fest' });
   });
 
   it('parses paths without file extensions', () => {
@@ -110,7 +110,7 @@ describe('extractChangesPath', () => {
   });
 
   it('extracts event paths', () => {
-    expect(extractChangesPath('Create Bike Fest\n\nChanges: ottawa/events/2026/bike-fest'))
-      .toBe('ottawa/events/2026/bike-fest');
+    expect(extractChangesPath('Create Bike Fest\n\nChanges: ottawa/events/2099/bike-fest'))
+      .toBe('ottawa/events/2099/bike-fest');
   });
 });

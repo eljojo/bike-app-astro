@@ -31,19 +31,19 @@ describe('isPastEvent', () => {
 describe('eventHandlers.buildCommitMessage', () => {
   it('new event includes title and Changes trailer', () => {
     const update = { frontmatter: { name: 'Bike Fest' }, body: '' };
-    const msg = eventHandlers.buildCommitMessage(update, '2026/bike-fest', true, { primaryFile: null });
-    expect(msg).toBe(`Create Bike Fest\n\nChanges: ${CITY}/events/2026/bike-fest`);
+    const msg = eventHandlers.buildCommitMessage(update, '2099/bike-fest', true, { primaryFile: null });
+    expect(msg).toBe(`Create Bike Fest\n\nChanges: ${CITY}/events/2099/bike-fest`);
   });
 
   it('update event includes title and Changes trailer', () => {
     const update = { frontmatter: { name: 'Bike Fest' }, body: '' };
-    const msg = eventHandlers.buildCommitMessage(update, '2026/bike-fest', false, { primaryFile: null });
-    expect(msg).toBe(`Update Bike Fest\n\nChanges: ${CITY}/events/2026/bike-fest`);
+    const msg = eventHandlers.buildCommitMessage(update, '2099/bike-fest', false, { primaryFile: null });
+    expect(msg).toBe(`Update Bike Fest\n\nChanges: ${CITY}/events/2099/bike-fest`);
   });
 
   it('falls back to eventId when name missing', () => {
     const update = { frontmatter: {}, body: '' };
-    const msg = eventHandlers.buildCommitMessage(update, '2026/bike-fest', false, { primaryFile: null });
-    expect(msg).toBe(`Update 2026/bike-fest\n\nChanges: ${CITY}/events/2026/bike-fest`);
+    const msg = eventHandlers.buildCommitMessage(update, '2099/bike-fest', false, { primaryFile: null });
+    expect(msg).toBe(`Update 2099/bike-fest\n\nChanges: ${CITY}/events/2099/bike-fest`);
   });
 });

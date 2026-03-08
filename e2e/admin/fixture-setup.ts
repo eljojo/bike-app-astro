@@ -286,7 +286,7 @@ bike path:
 
   // --- Event fixtures ---
 
-  const eventDir = path.join(CITY_DIR, 'events', '2026');
+  const eventDir = path.join(CITY_DIR, 'events', '2099');
   fs.mkdirSync(eventDir, { recursive: true });
 
   // bike-fest: read-only — used by screenshots
@@ -294,7 +294,7 @@ bike path:
     path.join(eventDir, 'bike-fest.md'),
     `---
 name: Bike Fest
-start_date: "2026-06-15"
+start_date: "2099-06-15"
 start_time: "10:00"
 location: Parliament Hill
 organizer: cycling-club
@@ -309,7 +309,7 @@ A fun cycling festival for the whole family.
     path.join(eventDir, 'event-edit.md'),
     `---
 name: Editable Event
-start_date: "2026-07-20"
+start_date: "2099-07-20"
 start_time: "09:00"
 location: City Park
 organizer: cycling-club
