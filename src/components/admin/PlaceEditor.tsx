@@ -54,6 +54,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const createMarkerRef = useRef<((position: [number, number]) => L.Marker) | null>(null);
 
   const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
     apiBase: '/api/places',
@@ -115,9 +116,13 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
     setLng(Math.round(longitude * 1000000) / 1000000);
     reverseGeocode.current(latitude, longitude);
 
-    // Update marker on existing map
-    if (leafletMapRef.current && markerRef.current) {
-      markerRef.current.setLatLng([latitude, longitude]);
+    // Update or create marker on existing map
+    if (leafletMapRef.current) {
+      if (markerRef.current) {
+        markerRef.current.setLatLng([latitude, longitude]);
+      } else if (createMarkerRef.current) {
+        markerRef.current = createMarkerRef.current([latitude, longitude]);
+      }
     }
   }
 
@@ -198,6 +203,8 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
         return marker;
       }
 
+      createMarkerRef.current = createDraggableMarker;
+
       // Add marker at current position
       if (lat && lng) {
         markerRef.current = createDraggableMarker([lat, lng]);
@@ -221,6 +228,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
       leafletMapRef.current?.remove();
       leafletMapRef.current = null;
       markerRef.current = null;
+      createMarkerRef.current = null;
     };
   }, []);
 
