@@ -1,8 +1,8 @@
 /**
  * Single Playwright config for all admin E2E tests.
  *
- * Uses globalSetup to create the fixture content directory exactly once
- * before the webServer starts, even with multiple parallel workers.
+ * Calls prepareFixture() at import time to guarantee the fixture content
+ * directory exists before the webServer command evaluates astro.config.mjs.
  *
  * Tests are split into two projects:
  *   - "read"  — specs that only read data (parallel, workers: 2)
@@ -16,10 +16,14 @@ import {
   FIXTURE_DIR,
   DB_PATH,
   UPLOADS_DIR,
+  prepareFixture,
 } from './fixture-setup.ts';
 
 // Re-export for tests that need these paths
 export { FIXTURE_DIR, DB_PATH, UPLOADS_DIR };
+
+// Create fixture before the webServer starts
+prepareFixture();
 
 const port = 4323;
 const baseURL = `http://localhost:${port}`;
@@ -43,7 +47,6 @@ const writeSpecs = [
 ];
 
 export default defineConfig({
-  globalSetup: './global-setup.ts',
   testDir: '.',
   fullyParallel: false,
   workers: 1,
