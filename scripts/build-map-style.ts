@@ -32,16 +32,16 @@ const base = {
   background: '#f5f3ef',
   earth: '#f0ede8',
   // Landcover
-  forest: '#c8dfb3',
-  grassland: '#d8e8c4',
+  forest: '#b4d89c',
+  grassland: '#cce0b5',
   farmland: '#ede9d9',
   scrub: '#c8d7ab',
   wetland: '#d4e6d4',
   glacier: '#e8f0f8',
-  sand: '#f5e6c8',
+  sand: '#f0d8a0',
   rock: '#ddd8d0',
   // Landuse
-  park: '#c2e4b5',
+  park: '#a8d898',
   residential: '#eae6e0',
   commercial: '#ede0d6',
   industrial: '#e0d8d0',
@@ -55,21 +55,11 @@ const base = {
   // Buildings
   building: '#d9d0c8',
   buildingOutline: '#c8bfb5',
-  // Roads
-  motorway: '#e89070',
-  motorwayCasing: '#c87058',
-  trunk: '#f0a878',
-  trunkCasing: '#d08860',
-  primary: '#f0c898',
-  primaryCasing: '#d0a878',
-  secondary: '#f0dca8',
-  secondaryCasing: '#d0bc88',
-  tertiary: '#ffffff',
-  tertiaryCasing: '#d0c8b8',
-  minor: '#ffffff',
-  minorCasing: '#ddd6c8',
-  service: '#ffffff',
-  serviceCasing: '#e0d8cc',
+  // Roads — deliberately muted; car infrastructure is background noise
+  road: '#e4e1dc',
+  roadCasing: '#d6d2cb',
+  service: '#eceae6',
+  serviceCasing: '#e0ddd7',
   // Rail
   rail: '#b0a8a0',
   railCasing: '#d0c8c0',
@@ -81,10 +71,13 @@ const base = {
   labelTown: '#444444',
   labelVillage: '#555555',
   labelHalo: '#ffffff',
-  roadLabel: '#5c5040',
+  roadLabel: '#8a8278',
   roadLabelHalo: '#ffffffcc',
   waterLabel: '#4878a0',
   waterLabelHalo: '#d8e8f0',
+  // Contours
+  contour: '#c4b8a8',
+  contourLabel: '#a89880',
   // POIs
   poiDot: '#8a7e70',
   poiLabel: '#6b6055',
@@ -92,35 +85,27 @@ const base = {
 };
 
 /**
- * Cycling infrastructure colors — adapted from the Mapzen Bike Map tier system.
+ * Cycling infrastructure — 4 colors, 4 concepts:
  *
- * Tier 1a: Dedicated off-road cycleways (highway=cycleway)
- * Tier 1b: Off-road tracks with bicycle access
- * Tier 2:  On-road protected bike infrastructure (cycleway=lane/track)
- * Tier 2m: Minor roads with bike access (living_street, shared)
- * Tier 3:  General bicycle access on roads
+ *   Teal   = Safe, segregated (cycleways + paths with bicycle access)
+ *   Brown  = Gravel/dirt (off-road tracks)
+ *   Orange = On-road bike lanes (shared with cars)
+ *   Blue   = Signed cycling route network overlay
  *
- * Original color/tag mapping by Nathaniel V. Kelso (Mapzen):
+ * Adapted from the Mapzen Bike Map tier system by Nathaniel V. Kelso:
  *   https://gist.github.com/nvkelso/fe46993c6c334b52c4b9d6cf5aabffa7
- *
- * Mapzen Bike Map blog posts:
  *   https://www.mapzen.com/blog/bike-map/
- *   https://www.mapzen.com/blog/bike-map-v2/
- *
- * Source style (Tangram/YAML, not MapLibre — adapted to GL JSON here):
  *   https://github.com/tangrams/walkabout-style
  */
 const cycling = {
-  tier1: '#007c6e',       // Dark teal — dedicated cycleways
-  tier1Casing: '#00b39e', // Lighter teal casing
-  tier1b: '#936454',      // Brown — off-road tracks
-  tier1bLite: '#b08b81',  // Light brown — footways with bike access
-  tier2: '#ed752b',       // Orange — on-road bike lanes
-  tier2Casing: '#f9a18a', // Light orange casing
-  tier2Minor: '#6bba91',  // Green — minor roads, shared lanes
-  tier3: '#e89e3c',       // Yellow-orange — general bike access
-  route: '#2060d0',       // Blue — signed cycling route overlay
-  routeCasing: '#ffffff', // White casing for routes
+  safe: '#007c6e',        // Teal — segregated bike infra (cycleways + bike-access paths)
+  safeCasing: '#00b39e',  // Lighter teal casing
+  gravel: '#936454',      // Brown — off-road tracks, gravel
+  onRoad: '#ed752b',      // Orange — on-road bike lanes (shared with cars)
+  route: '#2060d0',       // Blue — signed cycling route network
+  routeCasing: '#ffffff', // White casing for route overlay
+  hiking: '#8b6d4f',      // Warm brown — hiking trails (off-road, nature)
+  hikingCasing: '#ffffff', // White casing for visibility
 };
 
 // ---------------------------------------------------------------------------
@@ -160,7 +145,7 @@ function buildLayers(): Layer[] {
       type: 'background',
       paint: { 'background-color': base.background },
     },
-    // Hillshade — subtle terrain shading
+    // Hillshade — terrain shading so hills are visible
     {
       id: 'hillshade',
       type: 'fill',
@@ -169,11 +154,62 @@ function buildLayers(): Layer[] {
       paint: {
         'fill-color': [
           'interpolate', ['linear'], ['get', 'level'],
-          110, 'rgba(0,0,0,0.07)',
+          110, 'rgba(0,0,0,0.15)',
           170, 'rgba(0,0,0,0)',
-          230, 'rgba(255,255,255,0.1)',
+          230, 'rgba(255,255,255,0.15)',
         ],
         'fill-antialias': false,
+      },
+    },
+
+    // ===== CONTOUR LINES =====
+    // Minor contours — every contour line, thin
+    {
+      id: 'contour-line',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'elevation',
+      minzoom: 12,
+      paint: {
+        'line-color': base.contour,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.3, 16, 0.6],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.3, 14, 0.4],
+      },
+    },
+    // Major contours — every 50m, thicker
+    {
+      id: 'contour-line-major',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'elevation',
+      minzoom: 11,
+      filter: ['==', ['%', ['get', 'height'], 50], 0],
+      paint: {
+        'line-color': base.contour,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.4, 14, 1, 16, 1.2],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 14, 0.5],
+      },
+    },
+    // Contour labels — height in metres on major contours
+    {
+      id: 'contour-label',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'elevation',
+      minzoom: 13,
+      filter: ['==', ['%', ['get', 'height'], 50], 0],
+      layout: {
+        'text-field': ['concat', ['to-string', ['get', 'height']], 'm'],
+        'text-font': [font.regular],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 13, 8, 16, 10],
+        'symbol-placement': 'line',
+        'text-max-angle': 25,
+        'text-padding': 40,
+      },
+      paint: {
+        'text-color': base.contourLabel,
+        'text-halo-color': '#ffffffcc',
+        'text-halo-width': 1.5,
       },
     },
 
@@ -191,7 +227,31 @@ function buildLayers(): Layer[] {
     },
 
     // ===== LANDCOVER =====
-    ...['forest', 'grassland', 'farmland', 'scrub', 'wetland', 'glacier', 'sand', 'rock'].map(type => ({
+    // Forest gets stronger treatment — it's where trails are
+    {
+      id: 'landcover-forest',
+      type: 'fill',
+      source: 'outdoors',
+      'source-layer': 'landcover',
+      filter: ['==', 'type', 'forest'],
+      paint: {
+        'fill-color': base.forest,
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 10, 0.6, 14, 0.55],
+      },
+    },
+    // Sand/beaches — warm yellow, stands out as a destination
+    {
+      id: 'landcover-sand',
+      type: 'fill',
+      source: 'outdoors',
+      'source-layer': 'landcover',
+      filter: ['==', 'type', 'sand'],
+      paint: {
+        'fill-color': base.sand,
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 10, 0.65, 14, 0.6],
+      },
+    },
+    ...['grassland', 'farmland', 'scrub', 'wetland', 'glacier', 'rock'].map(type => ({
       id: `landcover-${type}`,
       type: 'fill',
       source: 'outdoors',
@@ -205,7 +265,7 @@ function buildLayers(): Layer[] {
 
     // ===== LANDUSE =====
     ...([
-      ['park', base.park, 0.7],
+      ['park', base.park, 0.85],
       ['residential', base.residential, 0.5],
       ['commercial', base.commercial, 0.5],
       ['industrial', base.industrial, 0.5],
@@ -261,10 +321,10 @@ function buildLayers(): Layer[] {
       type: 'fill',
       source: 'outdoors',
       'source-layer': 'building',
-      minzoom: 13,
+      minzoom: 15,
       paint: {
         'fill-color': base.building,
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, 0.6],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 15, 0, 16, 0.5],
       },
     },
     {
@@ -272,7 +332,7 @@ function buildLayers(): Layer[] {
       type: 'line',
       source: 'outdoors',
       'source-layer': 'building',
-      minzoom: 14,
+      minzoom: 16,
       paint: {
         'line-color': base.buildingOutline,
         'line-width': 0.5,
@@ -315,6 +375,9 @@ function buildLayers(): Layer[] {
 
     // ===== PATHS — with cycling-specific coloring =====
     ...pathLayers(),
+
+    // ===== HIKING ROUTE NETWORK =====
+    ...hikingRouteLayers(),
 
     // ===== CYCLING ROUTE NETWORK =====
     ...cyclingRouteLayers(),
@@ -364,64 +427,42 @@ interface RoadClass {
 }
 
 const roadClasses: RoadClass[] = [
+  // All car roads share one color — no visual hierarchy for cars
   {
-    id: 'motorway',
-    filter: ['in', 'highway', 'motorway', 'motorway_link'],
-    fill: base.motorway,
-    casing: base.motorwayCasing,
-    widthFill: [[5, 0.5], [10, 1.5], [14, 5], [18, 14]],
-    widthCasing: [[5, 1], [10, 2.5], [14, 7], [18, 18]],
-  },
-  {
-    id: 'trunk',
-    filter: ['in', 'highway', 'trunk', 'trunk_link'],
-    fill: base.trunk,
-    casing: base.trunkCasing,
-    widthFill: [[6, 0.4], [10, 1.2], [14, 4], [18, 12]],
-    widthCasing: [[6, 0.8], [10, 2], [14, 6], [18, 16]],
-  },
-  {
-    id: 'primary',
-    filter: ['in', 'highway', 'primary', 'primary_link'],
-    fill: base.primary,
-    casing: base.primaryCasing,
-    widthFill: [[7, 0.3], [10, 1], [14, 3.5], [18, 10]],
-    widthCasing: [[7, 0.7], [10, 1.8], [14, 5.5], [18, 14]],
+    id: 'major',
+    filter: ['in', 'highway', 'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link'],
+    fill: base.road,
+    casing: base.roadCasing,
+    widthFill: [[7, 0.2], [10, 0.5], [14, 1.5], [18, 4]],
+    widthCasing: [[7, 0.4], [10, 0.9], [14, 2.5], [18, 6]],
+    minzoom: 5,
   },
   {
     id: 'secondary',
-    filter: ['in', 'highway', 'secondary', 'secondary_link'],
-    fill: base.secondary,
-    casing: base.secondaryCasing,
-    widthFill: [[8, 0.2], [12, 0.8], [14, 3], [18, 8]],
-    widthCasing: [[8, 0.6], [12, 1.5], [14, 5], [18, 12]],
-  },
-  {
-    id: 'tertiary',
-    filter: ['in', 'highway', 'tertiary', 'tertiary_link'],
-    fill: base.tertiary,
-    casing: base.tertiaryCasing,
-    widthFill: [[10, 0.2], [14, 2], [18, 6]],
-    widthCasing: [[10, 0.5], [14, 3.5], [18, 9]],
+    filter: ['in', 'highway', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link'],
+    fill: base.road,
+    casing: base.roadCasing,
+    widthFill: [[8, 0.2], [12, 0.4], [14, 1.2], [18, 3]],
+    widthCasing: [[8, 0.4], [12, 0.8], [14, 2], [18, 4.5]],
     minzoom: 9,
   },
   {
     id: 'minor',
     filter: ['in', 'highway', 'residential', 'unclassified', 'living_street'],
-    fill: base.minor,
-    casing: base.minorCasing,
-    widthFill: [[12, 0.2], [14, 1.5], [18, 5]],
-    widthCasing: [[12, 0.5], [14, 2.5], [18, 7]],
-    minzoom: 11,
+    fill: base.road,
+    casing: base.roadCasing,
+    widthFill: [[12, 0.2], [14, 0.8], [18, 2.5]],
+    widthCasing: [[12, 0.4], [14, 1.5], [18, 4]],
+    minzoom: 12,
   },
   {
     id: 'service',
     filter: ['==', 'highway', 'service'],
     fill: base.service,
     casing: base.serviceCasing,
-    widthFill: [[14, 0.5], [18, 3]],
-    widthCasing: [[14, 1], [18, 4.5]],
-    minzoom: 13,
+    widthFill: [[14, 0.3], [18, 1.5]],
+    widthCasing: [[14, 0.6], [18, 2.5]],
+    minzoom: 14,
   },
 ];
 
@@ -470,7 +511,7 @@ function roadCyclewayOverlays(): Layer[] {
       type: 'line',
       source: 'outdoors',
       'source-layer': 'road',
-      minzoom: 12,
+      minzoom: 10,
       filter: ['any',
         ['has', 'cycleway'],
         ['has', 'cycleway_left'],
@@ -478,8 +519,8 @@ function roadCyclewayOverlays(): Layer[] {
       ],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': cycling.tier2,
-        'line-width': lineWidth([[12, 1], [14, 2], [18, 4]]),
+        'line-color': cycling.onRoad,
+        'line-width': lineWidth([[10, 0.5], [12, 1], [14, 2], [18, 4]]),
         'line-opacity': 0.6,
         'line-offset': 0, // centered — ideally per-side, but offset is complex
       },
@@ -493,18 +534,18 @@ function roadCyclewayOverlays(): Layer[] {
 
 function pathLayers(): Layer[] {
   return [
-    // Tier 1a: Dedicated cycleways — dark teal, solid
+    // Safe: Dedicated cycleways — teal, solid
     {
       id: 'path-cycleway-casing',
       type: 'line',
       source: 'outdoors',
       'source-layer': 'path',
-      minzoom: 10,
+      minzoom: 8,
       filter: ['==', 'highway', 'cycleway'],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
-        'line-color': cycling.tier1Casing,
-        'line-width': lineWidth([[10, 0.8], [14, 3], [18, 7]]),
+        'line-color': cycling.safeCasing,
+        'line-width': lineWidth([[8, 0.5], [10, 0.8], [14, 3], [18, 7]]),
       },
     },
     {
@@ -512,49 +553,49 @@ function pathLayers(): Layer[] {
       type: 'line',
       source: 'outdoors',
       'source-layer': 'path',
-      minzoom: 10,
+      minzoom: 8,
       filter: ['==', 'highway', 'cycleway'],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
-        'line-color': cycling.tier1,
-        'line-width': lineWidth([[10, 0.5], [14, 2], [18, 5]]),
+        'line-color': cycling.safe,
+        'line-width': lineWidth([[8, 0.3], [10, 0.5], [14, 2], [18, 5]]),
       },
     },
 
-    // Tier 1b: Paths with bicycle access — lighter teal, dashed
+    // Safe: Paths with bicycle access — teal, dashed
     {
       id: 'path-bicycle-access',
       type: 'line',
       source: 'outdoors',
       'source-layer': 'path',
-      minzoom: 12,
+      minzoom: 10,
       filter: ['all',
         ['in', 'highway', 'path', 'footway'],
         ['in', 'bicycle', 'yes', 'designated', 'permissive'],
       ],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
-        'line-color': cycling.tier1,
-        'line-width': lineWidth([[12, 0.5], [14, 1.5], [18, 3.5]]),
+        'line-color': cycling.safe,
+        'line-width': lineWidth([[10, 0.3], [12, 0.5], [14, 1.5], [18, 3.5]]),
         'line-dasharray': [4, 2],
         'line-opacity': 0.7,
       },
     },
 
-    // Tier 1b: Tracks with bicycle access — brown, dashed
+    // Gravel: Tracks with bicycle access — brown, dashed
     {
       id: 'path-track-bicycle',
       type: 'line',
       source: 'outdoors',
       'source-layer': 'path',
-      minzoom: 12,
+      minzoom: 10,
       filter: ['all',
         ['==', 'highway', 'track'],
         ['in', 'bicycle', 'yes', 'designated', 'permissive'],
       ],
       paint: {
-        'line-color': cycling.tier1b,
-        'line-width': lineWidth([[12, 0.5], [14, 1.5], [18, 3]]),
+        'line-color': cycling.gravel,
+        'line-width': lineWidth([[10, 0.3], [12, 0.5], [14, 1.5], [18, 3]]),
         'line-dasharray': [3, 2],
       },
     },
@@ -603,10 +644,46 @@ function pathLayers(): Layer[] {
       minzoom: 13,
       filter: ['==', 'highway', 'bridleway'],
       paint: {
-        'line-color': cycling.tier1bLite,
+        'line-color': '#b0a898',
         'line-width': lineWidth([[13, 0.5], [16, 1.5], [18, 3]]),
         'line-dasharray': [2, 3],
         'line-opacity': 0.6,
+      },
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Hiking route network — off-road nature trails
+// ---------------------------------------------------------------------------
+
+function hikingRouteLayers(): Layer[] {
+  return [
+    {
+      id: 'hiking-route-casing',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'hiking',
+      minzoom: 10,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': cycling.hikingCasing,
+        'line-width': lineWidth([[10, 1.5], [14, 3.5], [18, 6]]),
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.4, 14, 0.6],
+      },
+    },
+    {
+      id: 'hiking-route',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'hiking',
+      minzoom: 10,
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: {
+        'line-color': cycling.hiking,
+        'line-width': lineWidth([[10, 0.8], [14, 2], [18, 4]]),
+        'line-dasharray': [4, 2],
+        'line-opacity': 0.7,
       },
     },
   ];
@@ -629,8 +706,8 @@ function cyclingRouteLayers(): Layer[] {
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': cycling.routeCasing,
-        'line-width': lineWidth([[5, 1.5], [8, 3], [10, 4]]),
-        'line-opacity': 0.6,
+        'line-width': lineWidth([[5, 2], [8, 4], [10, 6]]),
+        'line-opacity': 0.7,
       },
     },
     {
@@ -643,8 +720,8 @@ function cyclingRouteLayers(): Layer[] {
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': cycling.route,
-        'line-width': lineWidth([[5, 0.8], [8, 1.5], [10, 2]]),
-        'line-opacity': 0.7,
+        'line-width': lineWidth([[5, 1.2], [8, 2.5], [10, 4]]),
+        'line-opacity': 0.8,
       },
     },
 
@@ -658,8 +735,8 @@ function cyclingRouteLayers(): Layer[] {
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': cycling.routeCasing,
-        'line-width': lineWidth([[8, 2], [12, 4], [16, 6]]),
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.4, 12, 0.6],
+        'line-width': lineWidth([[8, 3], [12, 5], [16, 8]]),
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 0.7],
       },
     },
     {
@@ -671,8 +748,8 @@ function cyclingRouteLayers(): Layer[] {
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': cycling.route,
-        'line-width': lineWidth([[8, 1], [12, 2], [16, 3]]),
-        'line-opacity': 0.7,
+        'line-width': lineWidth([[8, 1.5], [12, 3], [16, 5]]),
+        'line-opacity': 0.8,
       },
     },
   ];
@@ -756,17 +833,17 @@ function labelLayers(): Layer[] {
       type: 'symbol',
       source: 'outdoors',
       'source-layer': 'path',
-      minzoom: 14,
+      minzoom: 12,
       filter: ['all', ['==', 'highway', 'cycleway'], ['has', 'name']],
       layout: {
         'text-field': '{name}',
         'text-font': [font.bold],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 14, 9, 18, 12],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 14, 10, 18, 12],
         'symbol-placement': 'line',
         'text-max-angle': 30,
       },
       paint: {
-        'text-color': cycling.tier1,
+        'text-color': cycling.safe,
         'text-halo-color': '#ffffffcc',
         'text-halo-width': 2,
       },
@@ -792,6 +869,29 @@ function labelLayers(): Layer[] {
       },
     },
 
+    // Hiking route labels
+    {
+      id: 'label-hiking',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'hiking-label',
+      minzoom: 12,
+      filter: ['has', 'name'],
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 12, 8, 16, 11],
+        'symbol-placement': 'line',
+        'text-max-angle': 25,
+        'text-padding': 30,
+      },
+      paint: {
+        'text-color': cycling.hiking,
+        'text-halo-color': '#ffffffcc',
+        'text-halo-width': 1.5,
+      },
+    },
+
     // POI labels — subtle dots + names from tile data
     // (Curated places from bike-routes are rendered as DOM markers on top by map-init.ts)
     {
@@ -799,7 +899,7 @@ function labelLayers(): Layer[] {
       type: 'circle',
       source: 'outdoors',
       'source-layer': 'poi-label',
-      minzoom: 14,
+      minzoom: 13,
       filter: ['has', 'name'],
       paint: {
         'circle-color': base.poiDot,
@@ -812,7 +912,7 @@ function labelLayers(): Layer[] {
       type: 'symbol',
       source: 'outdoors',
       'source-layer': 'poi-label',
-      minzoom: 15,
+      minzoom: 14,
       filter: ['has', 'name'],
       layout: {
         'text-field': '{name}',
