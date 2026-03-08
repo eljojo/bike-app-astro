@@ -362,7 +362,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         {saved && userRole === 'guest' && (
           <SaveSuccessModal
             viewLink={`/events/${initialData.id}`}
-            onClose={() => setSaved(false)}
+            onClose={() => {}}
           />
         )}
         {saved && userRole !== 'guest' && (

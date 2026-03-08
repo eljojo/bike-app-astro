@@ -11,11 +11,12 @@ function escapeXml(s: string): string {
 export const GET: APIRoute = async () => {
   const config = getCityConfig();
   const routes = await getCollection('routes');
+  type Route = (typeof routes)[number];
   const published = routes
-    .filter(r => r.data.status === 'published')
-    .sort((a, b) => new Date(b.data.updated_at).getTime() - new Date(a.data.updated_at).getTime());
+    .filter((r: Route) => r.data.status === 'published')
+    .sort((a: Route, b: Route) => new Date(b.data.updated_at).getTime() - new Date(a.data.updated_at).getTime());
 
-  const items = published.map(r => `    <item>
+  const items = published.map((r: Route) => `    <item>
       <title>${escapeXml(r.data.name)}</title>
       <link>${config.url}/routes/${r.id}</link>
       <guid>${config.url}/routes/${r.id}</guid>

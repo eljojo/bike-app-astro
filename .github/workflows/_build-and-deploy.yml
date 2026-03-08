@@ -91,6 +91,13 @@ jobs:
           CITY: ottawa
           GIT_BRANCH: ${{ inputs.data-ref }}
 
+      - name: Type check
+        if: ${{ !inputs.skip-tests }}
+        run: npx tsc --noEmit
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ottawa
+
       - name: Restore map cache
         uses: actions/cache@v5
         with:

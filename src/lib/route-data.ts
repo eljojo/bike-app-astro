@@ -5,9 +5,10 @@ import { toPlaceData } from './places';
 import { scoreRoute } from './difficulty';
 import { routeShape } from './route-insights';
 import { buildSimilarityMatrix } from './route-similarity';
+import type { CollectionEntry } from 'astro:content';
 import type { PlaceData } from './proximity';
 
-type Route = Awaited<ReturnType<typeof getCollection<'routes'>>>[number];
+type Route = CollectionEntry<'routes'>;
 
 /**
  * Build the full tag list for a route: content tags + elevation tags + shape tag.
@@ -31,7 +32,7 @@ export async function loadHomepageData() {
 
   const published = routes
     .filter(isPublished)
-    .sort((a, b) => {
+    .sort((a: Route, b: Route) => {
       const aMin = Math.min(...(scoreRoute(a).length ? scoreRoute(a) : [0]));
       const bMin = Math.min(...(scoreRoute(b).length ? scoreRoute(b) : [0]));
       return aMin - bMin;
@@ -82,9 +83,8 @@ export async function loadRouteData() {
 
   const allScores = [...routeDifficultyScores.values()].map(s => s[0]);
 
-  const similarityData = routes
-    .filter(isPublished)
-    .map(r => {
+  const similarityData = (routes.filter(isPublished) as Route[])
+    .map((r) => {
       const gpx = r.data.variants[0]?.gpx;
       const track = gpx ? r.data.gpxTracks[gpx] : null;
       return track?.polyline ? { id: r.id, polyline: track.polyline } : null;
