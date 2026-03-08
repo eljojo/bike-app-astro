@@ -37,6 +37,9 @@ jobs:
       - name: Install docs dependencies
         run: npm ci -w docs
 
+      - name: Type check docs
+        run: npx tsc --noEmit --project docs/tsconfig.json
+
       - name: Build docs
         run: npm run build -w docs
         env:
