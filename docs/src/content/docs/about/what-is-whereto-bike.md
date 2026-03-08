@@ -1,9 +1,9 @@
 ---
 title: What is whereto.bike?
-description: An open-source cycling guide built by communities who ride.
+description: An open-source cycling wiki built by communities who ride.
 ---
 
-whereto.bike is an open-source platform for building cycling guides. Each guide is curated by people who actually ride the routes — every photo was taken by someone who was there, every route was ridden by a real person.
+whereto.bike is an open-source platform for building cycling wikis. Each wiki is curated by people who actually ride the routes — every photo was taken by someone who was there, every route was ridden by a real person.
 
 ## A cycling wiki
 
@@ -27,4 +27,4 @@ The Ottawa guide started in 2022 as a personal project by [José Albornoz](https
 
 whereto.bike is made with love in Ottawa, Canada. Our goal is simple: get more people on bikes for the first time and grow cycling ridership in every city we reach.
 
-We believe the biggest barrier isn't fitness or gear — it's not knowing where to go. A good cycling guide, built by people who actually ride those routes, can be the nudge someone needs to try their first ride.
+We believe the biggest barrier isn't fitness or gear — it's not knowing where to go. A good cycling wiki, built by people who actually ride those routes, can be the nudge someone needs to try their first ride.

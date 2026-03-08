@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Your first steps as a cycling guide editor.
+description: Your first steps as a cycling wiki editor.
 sidebar:
   badge:
     text: Everyone

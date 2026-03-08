@@ -1,9 +1,9 @@
 ---
 title: How it works
-description: How whereto.bike cycling guides are built and maintained.
+description: How whereto.bike cycling wikis are built and maintained.
 ---
 
-Every cycling guide on whereto.bike is built by the people who ride those routes. Here's how that works in practice.
+Every cycling wiki on whereto.bike is built by the people who ride those routes. Here's how that works in practice.
 
 ## Anyone can edit
 
@@ -17,7 +17,7 @@ Every change made to the site is saved with a full history — who changed what,
 
 ## The site is always on
 
-The public cycling guides are plain web pages. They load fast, work on any device, and don't depend on a server being up. The editing tools run separately — if they go down for maintenance, every route page keeps working.
+The public cycling wikis are plain web pages. They load fast, work on any device, and don't depend on a server being up. The editing tools run separately — if they go down for maintenance, every route page keeps working.
 
 ## Built for independence
 
