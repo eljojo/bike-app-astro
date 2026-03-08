@@ -1,0 +1,28 @@
+name: Docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['docs/**']
+  push:
+    branches: [main]
+    paths: ['docs/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install docs dependencies
+        run: npm ci -w docs
+
+      - name: Build docs
+        run: npm run build -w docs
