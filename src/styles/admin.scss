@@ -634,6 +634,7 @@
   gap: 0.5rem;
   align-items: center;
   margin-top: 0.5rem;
+  width: 100%;
 }
 
 .url-import-input {
@@ -790,6 +791,41 @@
 .route-creator {
 }
 
+.route-creator-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 480px;
+  margin: 4rem auto 0;
+}
+
+.route-creator-divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 1.25rem 0;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid $color-border;
+  }
+
+  span {
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    @include muted-text;
+  }
+
+  @include dark-mode {
+    &::before,
+    &::after {
+      border-top-color: $color-border-dark;
+    }
+  }
+}
+
 .disclosure-links {
   display: flex;
   flex-wrap: wrap;
@@ -834,6 +870,35 @@
 .drop-zone--large {
   padding: 3rem 1.5rem;
   font-size: 1rem;
+}
+
+.drop-zone--hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3.5rem 2rem;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.drop-zone-icon {
+  @include muted-text;
+  margin-bottom: 0.25rem;
+}
+
+.drop-zone-label {
+  font-weight: 600;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+}
+
+.drop-zone-hint {
+  font-size: 0.8rem;
+  @include muted-text;
 }
 
 .locale-tabs {

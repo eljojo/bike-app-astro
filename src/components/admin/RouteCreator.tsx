@@ -166,15 +166,21 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
     return (
       <div class="route-creator">
         {!gpxContent ? (
-          <>
+          <div class="route-creator-prompt">
             <div
-              class={`drop-zone drop-zone--large ${dragOver ? 'drop-zone--active' : ''}`}
+              class={`drop-zone drop-zone--hero ${dragOver ? 'drop-zone--active' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
             >
-              Drop a GPX file
+              <svg class="drop-zone-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span class="drop-zone-label">Drop a GPX file here</span>
+              <span class="drop-zone-hint">or click to choose a file</span>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -183,6 +189,7 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
                 onChange={handleFileSelect}
               />
             </div>
+            <div class="route-creator-divider"><span>or</span></div>
             <div class="url-import">
               <input
                 type="url"
@@ -203,9 +210,28 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
                 </button>
               )}
             </div>
-          </>
+          </div>
         ) : (
           <div class="route-creator-setup">
+            <div class="route-preview-actions">
+              <div class="form-field">
+                <label for="new-route-name">Name your route</label>
+                <input
+                  id="new-route-name"
+                  type="text"
+                  value={name}
+                  onInput={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    setName(val);
+                    setSlug(slugify(val));
+                  }}
+                />
+              </div>
+              <button type="button" class="btn-primary" onClick={startEditing}>
+                Continue
+              </button>
+            </div>
+
             <div class="route-preview">
               <div class="route-preview-map" ref={mapRef} />
 
@@ -267,25 +293,6 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
                   </div>
                 );
               })()}
-            </div>
-
-            <div class="route-preview-actions">
-              <div class="form-field">
-                <label for="new-route-name">Route Name</label>
-                <input
-                  id="new-route-name"
-                  type="text"
-                  value={name}
-                  onInput={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    setName(val);
-                    setSlug(slugify(val));
-                  }}
-                />
-              </div>
-              <button type="button" class="btn-primary" onClick={startEditing}>
-                Continue
-              </button>
             </div>
           </div>
         )}
