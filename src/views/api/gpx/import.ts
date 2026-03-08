@@ -5,6 +5,8 @@ import { parseRwgpsUrl, buildGpxFromTrackPoints } from './import-rwgps';
 import { parseGoogleMapsUrl, extractKmlRoute } from '../../../lib/google-maps';
 import { enrichWithElevation, buildGpxFromPoints } from '../../../lib/elevation-enrichment';
 import { unzipSync } from 'fflate';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '../../../lib/rate-limit';
+import { db } from '../../../lib/get-db';
 
 export const prerender = false;
 
@@ -120,6 +122,15 @@ async function handleGoogleMaps(url: string): Promise<Response> {
 export async function POST({ request, locals }: APIContext) {
   const user = authorize(locals, 'import-gpx');
   if (user instanceof Response) return user;
+
+  const database = db();
+  const identifiers = [user.id.toString()];
+  const exceeded = await checkRateLimit(database, 'gpx-import', identifiers, 10);
+  if (exceeded) {
+    return jsonError('Too many imports. Try again later.', 429);
+  }
+  await recordAttempt(database, 'gpx-import', identifiers);
+  cleanupOldAttempts(database, 'gpx-import').catch(() => {});
 
   const { url } = await request.json();
   if (!url || typeof url !== 'string') {

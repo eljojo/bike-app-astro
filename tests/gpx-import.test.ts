@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseRwgpsUrl, buildGpxFromTrackPoints } from '../src/views/api/gpx/import-rwgps';
+
+vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
+vi.mock('../src/lib/env', () => ({ env: {} }));
+
 import { detectUrlSource } from '../src/views/api/gpx/import';
 
 describe('detectUrlSource', () => {
