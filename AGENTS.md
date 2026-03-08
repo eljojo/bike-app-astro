@@ -1,6 +1,27 @@
 # Ottawa by Bike — Astro Rebuild
 
-Static site rebuild of [ottawabybike.ca](https://ottawabybike.ca). Replaces a Rails app with an Astro static site generated from exported content data.
+Static site rebuild of [ottawabybike.ca](https://ottawabybike.ca). Replaces a Rails app with an Astro static site generated from exported content data. Part of the **whereto.bike** platform — a global, open-source cycling wiki with city-specific instances.
+
+## Site Goals
+
+1. **Increase the number of first-time bicycle riders.**
+2. **Tap into experienced riders to help achieve goal 1.**
+
+These are the lens for all product and messaging decisions.
+
+## Brand Architecture
+
+- **whereto.bike** — Global cycling wiki platform (umbrella brand, AGPL source code)
+- **ottawabybike.ca** — Ottawa instance, established local brand (est. 2022), "powered by whereto.bike"
+- **{city}.whereto.bike** — Future city subdomains
+
+## Product Framing Principles
+
+- **Show, don't tell.** The product is the message. Real photos, real humans, real routes. No pitching.
+- **Rider first, contributor second.** Lead with utility (find a ride), not contribution (add a GPX).
+- **Quiet confidence.** No ads, no algorithms, no paywalls — communicated through absence, not promises. Never sound like a startup.
+- **Don't name competitors.** Let the product speak for itself.
+- **Human over algorithmic.** Every photo was taken by someone who was there. Every route was ridden by a real person. This authenticity is the sharpest edge.
 
 ## Project Status
 
