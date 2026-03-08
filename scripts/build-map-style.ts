@@ -213,7 +213,9 @@ function buildLayers(): Layer[] {
       },
     },
 
-    // ===== LANDCOVER (low zoom) =====
+    // ===== LANDCOVER (low zoom — value 0-16 classification) =====
+    // 0=water, 1-5=forest types, 6-7=shrubland, 8-9=savanna,
+    // 10=grassland, 11=wetland, 12-14=cropland, 15=urban, 16=barren
     {
       id: 'landcover-lowzoom',
       type: 'fill',
@@ -221,8 +223,20 @@ function buildLayers(): Layer[] {
       'source-layer': 'landcover-lowzoom',
       maxzoom: 8,
       paint: {
-        'fill-color': base.grassland,
-        'fill-opacity': 0.5,
+        'fill-color': [
+          'match', ['get', 'value'],
+          0, base.water,                                    // water
+          1, base.forest, 2, base.forest,                   // evergreen forest
+          3, base.forest, 4, base.forest, 5, base.forest,  // deciduous/mixed forest
+          6, base.scrub, 7, base.scrub,                     // shrubland
+          8, base.grassland, 9, base.grassland,             // savanna
+          10, base.grassland,                               // grassland
+          11, base.wetland,                                 // wetland
+          12, base.farmland, 13, base.farmland, 14, base.farmland, // cropland
+          16, base.rock,                                    // barren
+          base.earth,                                       // fallback
+        ],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.6, 6, 0.5, 8, 0.4],
       },
     },
 
@@ -284,6 +298,56 @@ function buildLayers(): Layer[] {
       },
     })),
 
+    // ===== PROTECTED AREAS (national/provincial parks, nature reserves) =====
+    {
+      id: 'protected-area',
+      type: 'fill',
+      source: 'outdoors',
+      'source-layer': 'protected-area',
+      paint: {
+        'fill-color': base.park,
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 0.6, 14, 0.5],
+      },
+    },
+    {
+      id: 'protected-area-outline',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'protected-area',
+      minzoom: 8,
+      paint: {
+        'line-color': '#7cba68',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 1.5, 16, 2],
+        'line-dasharray': [4, 2],
+        'line-opacity': 0.6,
+      },
+    },
+
+    // ===== WETLAND (dedicated layer — more detail than landcover wetland) =====
+    {
+      id: 'wetland',
+      type: 'fill',
+      source: 'outdoors',
+      'source-layer': 'wetland',
+      paint: {
+        'fill-color': base.wetland,
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.4, 12, 0.6],
+      },
+    },
+    {
+      id: 'wetland-outline',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'wetland',
+      minzoom: 10,
+      paint: {
+        'line-color': '#a0c8a0',
+        'line-width': 0.8,
+        'line-dasharray': [3, 2],
+        'line-opacity': 0.5,
+      },
+    },
+
     // ===== WATER =====
     {
       id: 'water',
@@ -312,6 +376,36 @@ function buildLayers(): Layer[] {
       paint: {
         'line-color': base.stream,
         'line-width': lineWidth([[12, 0.3], [16, 1.5], [18, 3]]),
+      },
+    },
+
+    // ===== WATER FEATURES (waterfalls, springs, fountains, dams) =====
+    {
+      id: 'water-feature',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'water-feature',
+      minzoom: 12,
+      paint: {
+        'line-color': base.waterOutline,
+        'line-width': 1.5,
+        'line-opacity': 0.7,
+      },
+    },
+
+    // ===== FERRY ROUTES =====
+    {
+      id: 'ferry',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'ferry',
+      minzoom: 8,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': base.waterOutline,
+        'line-width': lineWidth([[8, 0.5], [12, 1.5], [16, 2.5]]),
+        'line-dasharray': [6, 4],
+        'line-opacity': 0.7,
       },
     },
 
@@ -378,6 +472,9 @@ function buildLayers(): Layer[] {
 
     // ===== HIKING ROUTE NETWORK =====
     ...hikingRouteLayers(),
+
+    // ===== MOUNTAIN BIKING ROUTES =====
+    ...mountainBikingLayers(),
 
     // ===== CYCLING ROUTE NETWORK =====
     ...cyclingRouteLayers(),
@@ -689,6 +786,42 @@ function hikingRouteLayers(): Layer[] {
 }
 
 // ---------------------------------------------------------------------------
+// Mountain biking routes — gravel/off-road
+// ---------------------------------------------------------------------------
+
+function mountainBikingLayers(): Layer[] {
+  return [
+    {
+      id: 'mtb-route-casing',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'mountain-biking',
+      minzoom: 10,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': lineWidth([[10, 1.5], [14, 3.5], [18, 6]]),
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.4, 14, 0.6],
+      },
+    },
+    {
+      id: 'mtb-route',
+      type: 'line',
+      source: 'outdoors',
+      'source-layer': 'mountain-biking',
+      minzoom: 10,
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: {
+        'line-color': cycling.gravel,
+        'line-width': lineWidth([[10, 0.8], [14, 2], [18, 4]]),
+        'line-dasharray': [3, 1.5],
+        'line-opacity': 0.75,
+      },
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Cycling route network — signed routes overlay
 // ---------------------------------------------------------------------------
 
@@ -760,6 +893,28 @@ function cyclingRouteLayers(): Layer[] {
 
 function labelLayers(): Layer[] {
   return [
+    // Protected area labels (park names like "Gatineau Park")
+    {
+      id: 'label-protected-area',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'protected-area-label',
+      minzoom: 8,
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 12, 14, 16, 16],
+        'text-max-width': 8,
+        'symbol-placement': 'point',
+        'text-padding': 10,
+      },
+      paint: {
+        'text-color': '#3a7a30',
+        'text-halo-color': '#ffffffcc',
+        'text-halo-width': 2,
+      },
+    },
+
     // Water labels
     {
       id: 'label-water',
@@ -985,6 +1140,118 @@ function labelLayers(): Layer[] {
         'text-color': base.labelVillage,
         'text-halo-color': base.labelHalo,
         'text-halo-width': 1.5,
+      },
+    },
+
+    // State/province labels (Ontario, Quebec, etc.)
+    {
+      id: 'label-state',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'state-label',
+      minzoom: 4,
+      maxzoom: 8,
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 10, 7, 16],
+        'text-max-width': 8,
+        'text-transform': 'uppercase',
+        'text-letter-spacing': 0.15,
+      },
+      paint: {
+        'text-color': '#7a7a9a',
+        'text-halo-color': base.labelHalo,
+        'text-halo-width': 2,
+        'text-opacity': 0.7,
+      },
+    },
+
+    // Country labels
+    {
+      id: 'label-country',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'country-label',
+      maxzoom: 6,
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.bold],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 2, 10, 5, 18],
+        'text-max-width': 8,
+        'text-transform': 'uppercase',
+        'text-letter-spacing': 0.2,
+      },
+      paint: {
+        'text-color': '#6a6a8a',
+        'text-halo-color': base.labelHalo,
+        'text-halo-width': 2,
+      },
+    },
+
+    // Ferry labels
+    {
+      id: 'label-ferry',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'ferry',
+      minzoom: 10,
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 14, 11],
+        'symbol-placement': 'line',
+        'text-max-angle': 25,
+      },
+      paint: {
+        'text-color': base.waterLabel,
+        'text-halo-color': base.waterLabelHalo,
+        'text-halo-width': 1.5,
+      },
+    },
+
+    // Water feature labels (waterfalls, springs, dams)
+    {
+      id: 'label-water-feature',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'water-feature',
+      minzoom: 13,
+      filter: ['has', 'name'],
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 13, 9, 16, 11],
+        'text-offset': [0, 1],
+        'text-anchor': 'top',
+        'text-max-width': 7,
+      },
+      paint: {
+        'text-color': base.waterLabel,
+        'text-halo-color': base.waterLabelHalo,
+        'text-halo-width': 1.5,
+      },
+    },
+
+    // Path labels — BOLD RED FOR TESTING (to see what this layer adds beyond our cycleway labels)
+    {
+      id: 'label-path-debug',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'path-label',
+      minzoom: 13,
+      filter: ['has', 'name'],
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.bold],
+        'text-size': 12,
+        'symbol-placement': 'line',
+        'text-max-angle': 25,
+      },
+      paint: {
+        'text-color': '#cc0000',
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 2,
       },
     },
   ];
