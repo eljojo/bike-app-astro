@@ -9,6 +9,11 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../../lib/models/place-model';
 import { slugify } from '../../lib/slug';
+import { getPhotoUsages, updateSharedKeys, serializeSharedKeys } from '../../lib/photo-registry';
+import { loadSharedKeysMap } from '../../lib/load-admin-content';
+import { mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
+import { upsertContentCache } from '../../lib/cache';
+import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
 
@@ -89,9 +94,39 @@ export const placeHandlers: SaveHandlers<PlaceUpdate> = {
     return null;
   },
 
-  async buildFileChanges(update, placeId, currentFiles): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
+  async buildFileChanges(update, placeId, currentFiles, git) {
     const placePath = resolvePlacePath(placeId);
     const isNew = !currentFiles.primaryFile;
+    const files: FileChange[] = [];
+
+    // Detect photo_key change
+    let oldPhotoKey: string | undefined;
+    if (currentFiles.primaryFile) {
+      const fmMatch = currentFiles.primaryFile.content.match(/^---\n([\s\S]*?)\n---/);
+      if (fmMatch) {
+        const existingFm = yaml.load(fmMatch[1]) as Record<string, unknown>;
+        oldPhotoKey = existingFm.photo_key as string | undefined;
+      }
+    }
+    const newPhotoKey = update.frontmatter.photo_key;
+
+    // If photo_key was removed, check if it's used elsewhere and park if not
+    let mergedParked: ParkedPhotoEntry[] | undefined;
+    if (oldPhotoKey && oldPhotoKey !== newPhotoKey) {
+      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
+      const usages = getPhotoUsages(sharedKeysMap, oldPhotoKey);
+      const usedElsewhere = usages.some(u => !(u.type === 'place' && u.slug === placeId));
+
+      if (!usedElsewhere) {
+        const parkedPath = `${CITY}/parked-photos.yml`;
+        const existingParkedFile = await git.readFile(parkedPath);
+        const existingParked: ParkedPhotoEntry[] = existingParkedFile
+          ? (yaml.load(existingParkedFile.content) as ParkedPhotoEntry[]) || []
+          : [];
+        mergedParked = mergeParkedPhotos(existingParked, [{ key: oldPhotoKey }], new Set());
+        files.push({ path: parkedPath, content: yaml.dump(mergedParked, { lineWidth: -1 }) });
+      }
+    }
 
     // Build frontmatter, stripping empty optional fields
     const fm: Record<string, unknown> = {};
@@ -116,12 +151,49 @@ export const placeHandlers: SaveHandlers<PlaceUpdate> = {
     }).trimEnd();
 
     const content = `---\n${frontmatterStr}\n---\n`;
+    files.push({ path: placePath, content });
 
     return {
-      files: [{ path: placePath, content }],
+      files,
       deletePaths: [],
       isNew,
+      oldPhotoKey,
+      newPhotoKey,
+      placeSlug: placeId,
+      mergedParked,
     };
+  },
+
+  async afterCommit(result, database) {
+    const oldPhotoKey = result.oldPhotoKey as string | undefined;
+    const newPhotoKey = result.newPhotoKey as string | undefined;
+    const placeSlug = result.placeSlug as string;
+
+    if (oldPhotoKey !== newPhotoKey) {
+      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
+      if (oldPhotoKey) {
+        updateSharedKeys(sharedKeysMap, oldPhotoKey, { type: 'place', slug: placeSlug }, 'remove');
+      }
+      if (newPhotoKey) {
+        updateSharedKeys(sharedKeysMap, newPhotoKey, { type: 'place', slug: placeSlug }, 'add');
+      }
+      await upsertContentCache(database, {
+        contentType: 'photo-shared-keys',
+        contentSlug: '__global',
+        data: serializeSharedKeys(sharedKeysMap),
+        githubSha: 'n/a',
+      });
+    }
+
+    const mergedParked = result.mergedParked as ParkedPhotoEntry[] | undefined;
+    if (mergedParked) {
+      await upsertContentCache(database, {
+        contentType: 'parked-photos',
+        contentSlug: '__global',
+        data: JSON.stringify(mergedParked),
+        githubSha: 'n/a',
+      });
+    }
   },
 
   buildCommitMessage(update, placeId, isNew): string {
