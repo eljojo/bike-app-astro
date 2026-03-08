@@ -6,6 +6,7 @@ vi.mock('../src/lib/env', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'tes
 vi.mock('../src/lib/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 
+import { CITY } from '../src/lib/config';
 import { placeHandlers } from '../src/views/api/place-save';
 
 describe('placeHandlers.parseRequest', () => {
@@ -39,7 +40,7 @@ describe('placeHandlers.resolveContentId', () => {
 describe('placeHandlers.getFilePaths', () => {
   it('returns the correct path for a place', () => {
     const paths = placeHandlers.getFilePaths('test-place');
-    expect(paths.primary).toBe('ottawa/places/test-place.md');
+    expect(paths.primary).toBe(`${CITY}/places/test-place.md`);
   });
 });
 
@@ -47,12 +48,12 @@ describe('placeHandlers.buildCommitMessage', () => {
   it('new place includes title and Changes trailer', () => {
     const update = { frontmatter: { name: 'Test Cafe', category: 'cafe', lat: 45, lng: -75 } };
     const msg = placeHandlers.buildCommitMessage(update, 'test-cafe', true, { primaryFile: null });
-    expect(msg).toBe('Create Test Cafe\n\nChanges: ottawa/places/test-cafe');
+    expect(msg).toBe(`Create Test Cafe\n\nChanges: ${CITY}/places/test-cafe`);
   });
 
   it('update place includes title and Changes trailer', () => {
     const update = { frontmatter: { name: 'Test Cafe', category: 'cafe', lat: 45, lng: -75 } };
     const msg = placeHandlers.buildCommitMessage(update, 'test-cafe', false, { primaryFile: null });
-    expect(msg).toBe('Update Test Cafe\n\nChanges: ottawa/places/test-cafe');
+    expect(msg).toBe(`Update Test Cafe\n\nChanges: ${CITY}/places/test-cafe`);
   });
 });
