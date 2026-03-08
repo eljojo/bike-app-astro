@@ -62,7 +62,7 @@ describe('buildSharedKeysMap', () => {
     { slug: 'lansdowne', photo_key: 'photo-xyz' },
   ];
   const events = [
-    { slug: '2026/bike-fest', poster_key: 'photo-ghi' },
+    { slug: '2099/bike-fest', poster_key: 'photo-ghi' },
   ];
   const parkedPhotos = [
     { key: 'photo-parked' },
@@ -94,7 +94,7 @@ describe('buildSharedKeysMap', () => {
     ]);
     expect(map.get('photo-ghi')).toEqual([
       { type: 'route', slug: 'experimental-farm' },
-      { type: 'event', slug: '2026/bike-fest' },
+      { type: 'event', slug: '2099/bike-fest' },
     ]);
   });
 
@@ -158,7 +158,7 @@ describe('serialization', () => {
       { type: 'place', slug: 'flora' },
     ]);
     map.set('photo-def', [
-      { type: 'event', slug: '2026/bike-fest' },
+      { type: 'event', slug: '2099/bike-fest' },
       { type: 'parked', slug: '__global' },
     ]);
 

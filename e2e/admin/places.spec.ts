@@ -4,13 +4,17 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
 
 test.describe('Place Creation', () => {
   let token: string;
 
   test.beforeAll(() => {
     token = seedSession();
+  });
+
+  test.beforeEach(() => {
+    clearContentEdits('places', 'test-bike-shop');
   });
 
   test.afterAll(() => {
@@ -52,7 +56,7 @@ test.describe('Place Creation', () => {
     expect(headAfter).not.toBe(headBefore);
 
     // Verify file was created
-    const placePath = path.join(FIXTURE_DIR, 'ottawa/places/test-bike-shop.md');
+    const placePath = path.join(FIXTURE_DIR, 'demo/places/test-bike-shop.md');
     expect(fs.existsSync(placePath)).toBe(true);
 
     const placeMd = fs.readFileSync(placePath, 'utf-8');
@@ -71,6 +75,10 @@ test.describe('Place Update', () => {
 
   test.beforeAll(() => {
     token = seedSession();
+  });
+
+  test.beforeEach(() => {
+    clearContentEdits('places', 'update-test-cafe');
   });
 
   test.afterAll(() => {
@@ -132,7 +140,7 @@ test.describe('Place Update', () => {
     expect(headAfter).not.toBe(headBefore);
 
     // Verify file was updated
-    const placePath = path.join(FIXTURE_DIR, `ottawa/places/${placeId}.md`);
+    const placePath = path.join(FIXTURE_DIR, `demo/places/${placeId}.md`);
     const placeMd = fs.readFileSync(placePath, 'utf-8');
     const { data: fm } = matter(placeMd);
     expect(fm.name).toBe('Updated Cafe');

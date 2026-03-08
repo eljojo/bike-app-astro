@@ -27,13 +27,13 @@ test.describe('Screenshots', () => {
   });
 
   test('route detail', async ({ page }) => {
-    await page.goto('/routes/easy-loop-around-the-canal');
+    await page.goto('/routes/ruta-rio-chillan');
     await page.waitForLoadState('networkidle');
     await expect(page).toHaveScreenshot('route-detail.png', { fullPage: true, maxDiffPixelRatio: 0.02 });
   });
 
   test('route map', async ({ page }) => {
-    await page.goto('/routes/easy-loop-around-the-canal/map');
+    await page.goto('/routes/ruta-rio-chillan/map');
     await page.waitForSelector('.leaflet-container');
     await expect(page.locator('.leaflet-container')).toBeVisible();
   });
@@ -45,7 +45,7 @@ test.describe('Screenshots', () => {
   });
 
   test('guide detail', async ({ page }) => {
-    await page.goto('/guides/local-communities');
+    await page.goto('/guides/getting-started');
     await waitForImages(page);
     await expect(page).toHaveScreenshot('guide-detail.png', { fullPage: true });
   });

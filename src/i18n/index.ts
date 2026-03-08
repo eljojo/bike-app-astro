@@ -1,11 +1,12 @@
 import en from './en.json';
 import fr from './fr.json';
+import es from './es.json';
 import { shortLocale, fullLocale, defaultLocale } from '../lib/locale-utils';
 import { translatePath } from '../lib/path-translations';
 
 type Translations = Record<string, string | string[]>;
 
-const translations: Record<string, Translations> = { en, fr };
+const translations: Record<string, Translations> = { en, fr, es };
 
 /**
  * Translate a UI string key for the given locale.

@@ -6,12 +6,13 @@ CREATE TABLE `banned_ips` (
 );
 --> statement-breakpoint
 CREATE TABLE `content_edits` (
+	`city` text NOT NULL,
 	`content_type` text NOT NULL,
 	`content_slug` text NOT NULL,
 	`data` text NOT NULL,
 	`github_sha` text NOT NULL,
 	`updated_at` text NOT NULL,
-	PRIMARY KEY(`content_type`, `content_slug`)
+	PRIMARY KEY(`city`, `content_type`, `content_slug`)
 );
 --> statement-breakpoint
 CREATE TABLE `credentials` (

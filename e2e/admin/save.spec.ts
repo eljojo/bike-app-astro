@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,11 +35,15 @@ test.describe('Admin Save Flow', () => {
     cleanupSession(token);
   });
 
+  test.beforeEach(() => {
+    clearContentEdits('routes', 'route-save');
+  });
+
   test('upload photo, edit tagline, save, verify commit and persistence', async ({ page }) => {
     await loginAs(page, token);
 
     // Navigate to route editor
-    await page.goto('/admin/routes/carp');
+    await page.goto('/admin/routes/route-save');
     await page.waitForLoadState('networkidle');
 
     // Wait for Preact hydration
@@ -86,7 +90,7 @@ test.describe('Admin Save Flow', () => {
 
     // Verify tagline was written to index.md
     const indexMd = fs.readFileSync(
-      path.join(FIXTURE_DIR, 'ottawa/routes/carp/index.md'),
+      path.join(FIXTURE_DIR, 'demo/routes/route-save/index.md'),
       'utf-8'
     );
     expect(indexMd).toContain(testTagline);
@@ -94,7 +98,7 @@ test.describe('Admin Save Flow', () => {
     // Verify frontmatter preserves fields the admin doesn't edit
     const { data: savedFrontmatter } = matter(indexMd);
     // Admin-editable fields should be present
-    expect(savedFrontmatter.name).toBe('Towards Carp');
+    expect(savedFrontmatter.name).toBe('Save Test Route');
     expect(typeof savedFrontmatter.distance_km).toBe('number');
     expect(savedFrontmatter.status).toBe('published');
     expect(savedFrontmatter.tags).toContain('road');
@@ -109,7 +113,7 @@ test.describe('Admin Save Flow', () => {
 
     // Verify media.yml contains the uploaded photo
     const mediaYaml = fs.readFileSync(
-      path.join(FIXTURE_DIR, 'ottawa/routes/carp/media.yml'),
+      path.join(FIXTURE_DIR, 'demo/routes/route-save/media.yml'),
       'utf-8'
     );
     const mediaEntries = yaml.load(mediaYaml) as Array<{ key: string; type?: string }>;

@@ -1,4 +1,5 @@
 import { contentEdits } from '../db/schema';
+import { CITY } from './config';
 
 interface CacheEntry {
   contentType: string;
@@ -18,13 +19,14 @@ export async function upsertContentCache(
 ): Promise<void> {
   const now = new Date().toISOString();
   await database.insert(contentEdits).values({
+    city: CITY,
     contentType: entry.contentType,
     contentSlug: entry.contentSlug,
     data: entry.data,
     githubSha: entry.githubSha,
     updatedAt: now,
   }).onConflictDoUpdate({
-    target: [contentEdits.contentType, contentEdits.contentSlug],
+    target: [contentEdits.city, contentEdits.contentType, contentEdits.contentSlug],
     set: {
       data: entry.data,
       githubSha: entry.githubSha,

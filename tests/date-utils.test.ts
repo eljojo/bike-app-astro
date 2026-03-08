@@ -32,6 +32,19 @@ describe('formatDate', () => {
   it('formats without year in French', () => {
     expect(formatDate(parseLocalDate('2025-05-03'), { includeYear: false, locale: 'fr-CA' })).toBe('3 mai');
   });
+
+  it('formats dates in Spanish (day before month)', () => {
+    const d = parseLocalDate('2026-06-15');
+    const result = formatDate(d, { locale: 'es-CL' });
+    // Spanish uses "15 junio 2026" (day before month), not "junio 15, 2026"
+    expect(result).toMatch(/^15\s/);
+  });
+
+  it('formats without year in Spanish', () => {
+    const result = formatDate(parseLocalDate('2026-06-15'), { includeYear: false, locale: 'es-CL' });
+    expect(result).toMatch(/^15\s/);
+    expect(result).not.toContain('2026');
+  });
 });
 
 describe('formatDateRange', () => {
@@ -57,6 +70,18 @@ describe('formatDateRange', () => {
 
   it('formats cross-month range in French', () => {
     expect(formatDateRange('2025-06-21', '2025-07-02', 'fr-CA')).toBe('21 juin – 2 juillet 2025');
+  });
+
+  it('formats same-month range in Spanish', () => {
+    const result = formatDateRange('2026-06-15', '2026-06-20', 'es-CL');
+    // Spanish: "15 – 20 junio 2026" (day before month)
+    expect(result).toMatch(/^15\s/);
+  });
+
+  it('formats cross-month range in Spanish', () => {
+    const result = formatDateRange('2026-06-21', '2026-07-02', 'es-CL');
+    // Spanish: "21 junio – 2 julio 2026"
+    expect(result).toMatch(/^21\s/);
   });
 });
 

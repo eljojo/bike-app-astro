@@ -11,9 +11,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 
+// Read i18n config from city config.yml instead of hardcoding locales.
+// This runs at Node.js config time (before Vite/workerd), so fs is available.
+import { getCityConfig } from './src/lib/city-config.ts';
+const cityConfig = getCityConfig();
+const cityLocales = (cityConfig.locales || [cityConfig.locale]).map(l => l.split('-')[0]);
+
 const i18nConfig = {
-  defaultLocale: 'en',
-  locales: ['en', 'fr'],
+  defaultLocale: cityLocales[0],
+  locales: cityLocales,
   routing: {
     prefixDefaultLocale: false,
   },

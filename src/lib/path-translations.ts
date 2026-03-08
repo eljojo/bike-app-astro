@@ -5,11 +5,11 @@ import { defaultLocale } from './locale-utils';
  * Only segments that differ from the default (English) need an entry.
  */
 const segmentTranslations: Record<string, Record<string, string>> = {
-  about: { fr: 'a-propos' },
-  calendar: { fr: 'calendrier' },
-  map: { fr: 'carte' },
-  routes: { fr: 'parcours' },
-  // guides and videos stay the same in French
+  about: { fr: 'a-propos', es: 'acerca-de' },
+  calendar: { fr: 'calendrier', es: 'calendario' },
+  map: { fr: 'carte', es: 'mapa' },
+  routes: { fr: 'parcours', es: 'rutas' },
+  // guides and videos stay the same in French and Spanish
 };
 
 /**

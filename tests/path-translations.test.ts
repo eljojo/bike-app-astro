@@ -45,6 +45,17 @@ describe('translatePath()', () => {
     expect(translatePath('/routes/[slug]/map', 'fr')).toBe('/parcours/[slug]/carte');
     expect(translatePath('/routes/[slug]/map/[variant]', 'fr')).toBe('/parcours/[slug]/carte/[variant]');
   });
+
+  it('translates path segments to Spanish', () => {
+    expect(translatePath('/routes/some-route/map', 'es')).toBe('/rutas/some-route/mapa');
+  });
+
+  it('translates all known segments to Spanish', () => {
+    expect(translatePath('/about', 'es')).toBe('/acerca-de');
+    expect(translatePath('/calendar', 'es')).toBe('/calendario');
+    expect(translatePath('/map', 'es')).toBe('/mapa');
+    expect(translatePath('/routes', 'es')).toBe('/rutas');
+  });
 });
 
 describe('reverseTranslatePath()', () => {
@@ -71,6 +82,17 @@ describe('reverseTranslatePath()', () => {
     const paths = ['/about', '/routes/aylmer/map', '/calendar', '/map', '/guides'];
     for (const p of paths) {
       expect(reverseTranslatePath(translatePath(p, 'fr'), 'fr')).toBe(p);
+    }
+  });
+
+  it('reverse-translates Spanish path segments', () => {
+    expect(reverseTranslatePath('/rutas/some-route/mapa', 'es')).toBe('/routes/some-route/map');
+  });
+
+  it('is the inverse of translatePath for Spanish', () => {
+    const paths = ['/about', '/routes/aylmer/map', '/calendar', '/map', '/guides'];
+    for (const p of paths) {
+      expect(reverseTranslatePath(translatePath(p, 'es'), 'es')).toBe(p);
     }
   });
 });

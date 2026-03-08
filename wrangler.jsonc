@@ -55,6 +55,30 @@
           "bucket_name": "eljojo-bike-prod"
         }
       ]
+    },
+    "demo-production": {
+      "name": "bike-demo-production",
+      "observability": { "enabled": true },
+      "traces": { "enabled": true },
+      "vars": {
+        "GIT_BRANCH": "main",
+        "ENVIRONMENT": "production",
+        "STORAGE_KEY_PREFIX": "demo/"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bike-admin-production",
+          "database_id": "9bec7997-6dbb-4099-875c-6be0681b6aea",
+          "migrations_dir": "./drizzle/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "eljojo-bike-prod"
+        }
+      ]
     }
   }
 }

@@ -7,15 +7,15 @@ on:
 
 jobs:
   deploy:
-    uses: ./.github/workflows/_build-and-deploy.yml
+    uses: ./.github/workflows/_build-city.yml
     with:
+      city: ottawa
       environment: staging
-      deploy: true
       wrangler-env: staging
+      deploy: true
+      run-migrations: true
       data-ref: staging
       disable-analytics: true
-      skip-tests: ${{ github.event_name == 'repository_dispatch' }}
-      skip-e2e: ${{ github.event_name == 'repository_dispatch' }}
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

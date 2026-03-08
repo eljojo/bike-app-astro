@@ -5,6 +5,7 @@ import type { AdminRoute, AdminEvent } from '../types/admin';
 import { routeDetailFromCache } from './models/route-model';
 import { eventDetailFromCache } from './models/event-model';
 import { deserializeSharedKeys, type SharedKeysMap } from './photo-registry';
+import { CITY } from './config';
 
 export interface AdminContentResult<T> {
   data: T | null;
@@ -27,6 +28,7 @@ export async function loadAdminContent<T>(opts: {
   // Tier 1: D1 cache
   const cached = await database.select().from(contentEdits)
     .where(and(
+      eq(contentEdits.city, CITY),
       eq(contentEdits.contentType, opts.contentType),
       eq(contentEdits.contentSlug, opts.contentSlug),
     ))
@@ -85,7 +87,7 @@ export async function loadAdminRouteList(buildTimeRoutes: AdminRoute[]): Promise
 }> {
   const database = getDb();
   const cachedEdits = await database.select().from(contentEdits)
-    .where(eq(contentEdits.contentType, 'routes')).all();
+    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, 'routes'))).all();
 
   const cacheMap = new Map(cachedEdits.flatMap(e => {
     try {
@@ -135,7 +137,7 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
 }> {
   const database = getDb();
   const cachedEdits = await database.select().from(contentEdits)
-    .where(eq(contentEdits.contentType, 'events')).all();
+    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, 'events'))).all();
 
   const cacheMap = new Map(cachedEdits.flatMap(e => {
     try {
@@ -184,6 +186,7 @@ export async function loadSharedKeysMap(
   const database = getDb();
   const cached = await database.select().from(contentEdits)
     .where(and(
+      eq(contentEdits.city, CITY),
       eq(contentEdits.contentType, 'photo-shared-keys'),
       eq(contentEdits.contentSlug, '__global'),
     ))
@@ -209,6 +212,7 @@ export async function loadParkedPhotosWithOverlay<T>(buildTimeParked: T[]): Prom
   const database = getDb();
   const cached = await database.select().from(contentEdits)
     .where(and(
+      eq(contentEdits.city, CITY),
       eq(contentEdits.contentType, 'parked-photos'),
       eq(contentEdits.contentSlug, '__global'),
     ))

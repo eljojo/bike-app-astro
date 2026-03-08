@@ -53,7 +53,7 @@ test.describe('Admin Screenshots — Editor Pages', () => {
   });
 
   test('event editor', async ({ page }) => {
-    await page.goto('/admin/events/2026/bike-fest');
+    await page.goto('/admin/events/2099/bike-fest');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('admin-event-editor.png', screenshotOpts);

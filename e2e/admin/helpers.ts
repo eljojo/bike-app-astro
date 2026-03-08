@@ -8,8 +8,7 @@ import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
-import { DB_PATH, FIXTURE_DIR } from './fixture-setup.ts';
+import { DB_PATH } from './fixture-setup.ts';
 import { initSchema } from '../../src/db/init-schema';
 
 interface SeedOptions {
@@ -40,18 +39,7 @@ export function seedSession(opts: SeedOptions = {}): string {
     'INSERT INTO sessions (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'
   ).run(crypto.randomUUID(), userId, token, expiresAt, now);
 
-  // Clear stale content edits from previous runs so conflict detection doesn't fire
-  try {
-    db.prepare('DELETE FROM content_edits').run();
-  } catch {
-    // Table may not exist yet on first run
-  }
-
   db.close();
-
-  // Reset fixture git repo to initial commit so save tests don't hit
-  // content-hash conflicts from modifications by earlier tests.
-  resetFixtureRepo();
 
   return token;
 }
@@ -64,17 +52,14 @@ export async function loginAs(page: import('@playwright/test').Page, token: stri
   }]);
 }
 
-/** Reset fixture git repo to its initial commit (undo any test saves). */
-function resetFixtureRepo() {
-  if (!fs.existsSync(path.join(FIXTURE_DIR, '.git'))) return;
+/** Clear content_edits cache for a route/event so retries see clean state. */
+export function clearContentEdits(contentType: string, slug: string) {
+  if (!fs.existsSync(DB_PATH)) return;
+  const db = new Database(DB_PATH);
   try {
-    const initial = execSync('git rev-list --max-parents=0 HEAD', {
-      cwd: FIXTURE_DIR, encoding: 'utf8',
-    }).trim();
-    execSync(`git reset --hard ${initial}`, { cwd: FIXTURE_DIR, stdio: 'pipe' });
-  } catch {
-    // If git state is broken, ignore — setup() will recreate it
-  }
+    db.prepare('DELETE FROM content_edits WHERE content_type = ? AND content_slug = ?').run(contentType, slug);
+  } catch {}
+  db.close();
 }
 
 /** Remove the user and session created by seedSession. */

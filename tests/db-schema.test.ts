@@ -58,6 +58,6 @@ describe('database schema', () => {
   it('exports contentEdits table', () => {
     expect(getTableName(contentEdits)).toBe('content_edits');
     const cols = getTableColumns(contentEdits);
-    expect(Object.keys(cols)).toEqual(['contentType', 'contentSlug', 'data', 'githubSha', 'updatedAt']);
+    expect(Object.keys(cols)).toEqual(['city', 'contentType', 'contentSlug', 'data', 'githubSha', 'updatedAt']);
   });
 });

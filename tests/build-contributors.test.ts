@@ -46,7 +46,10 @@ describe('resolveContributors', () => {
     const authorMap = new Map([
       ['stranger@example.com', { name: 'Stranger', count: 5 }],
     ]);
-    const result = resolveContributors(authorMap, []);
+    const usersData = [
+      { id: 'uid-other', username: 'someone', email: 'other@example.com' },
+    ];
+    const result = resolveContributors(authorMap, usersData);
     expect(result).toHaveLength(0);
   });
 
@@ -54,7 +57,10 @@ describe('resolveContributors', () => {
     const authorMap = new Map([
       ['ghost+unknown-id@whereto.bike', { name: 'ghost', count: 3 }],
     ]);
-    const result = resolveContributors(authorMap, []);
+    const usersData = [
+      { id: 'uid-other', username: 'someone', email: 'other@example.com' },
+    ];
+    const result = resolveContributors(authorMap, usersData);
     expect(result).toHaveLength(0);
   });
 
@@ -118,6 +124,26 @@ describe('resolveContributors', () => {
     const result = resolveContributors(authorMap, usersData);
     expect(result).toHaveLength(1);
     expect(result[0].username).toBe('alice');
+  });
+
+  it('falls back to git author names when no users data', () => {
+    const authorMap = new Map([
+      ['alice@example.com', { name: 'Alice', count: 5 }],
+      ['bob@example.com', { name: 'Bob', count: 3 }],
+    ]);
+    const result = resolveContributors(authorMap, []);
+    expect(result).toHaveLength(2);
+    expect(result[0].username).toBe('Alice');
+    expect(result[1].username).toBe('Bob');
+  });
+
+  it('extracts username from app commit email when no DB', () => {
+    const authorMap = new Map([
+      ['coolbiker+abc123@whereto.bike', { name: 'coolbiker', count: 2 }],
+    ]);
+    const result = resolveContributors(authorMap, []);
+    expect(result).toHaveLength(1);
+    expect(result[0].username).toBe('coolbiker');
   });
 
   it('output shape has only username and gravatarHash', () => {
