@@ -1,10 +1,6 @@
 ---
 title: Managing media
 description: Uploading photos, reordering, and managing media for routes.
-sidebar:
-  badge:
-    text: Everyone
-    variant: tip
 ---
 
 Photos are what make a route come alive. They show people what to expect before they ride.

@@ -1,10 +1,6 @@
 ---
 title: Adding routes
 description: How to create new cycling routes with GPS tracks and photos.
-sidebar:
-  badge:
-    text: Everyone
-    variant: tip
 ---
 
 Every route starts with a GPS track. Record your ride, then share it with the community.

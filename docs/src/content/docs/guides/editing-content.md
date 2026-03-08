@@ -1,10 +1,6 @@
 ---
 title: Editing content
 description: How to edit routes and events, work with translations, and use version history.
-sidebar:
-  badge:
-    text: Everyone
-    variant: tip
 ---
 
 Every page on the site can be improved. Fix a typo, update a description, add missing details — the site gets better with every edit.

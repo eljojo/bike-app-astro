@@ -1,10 +1,6 @@
 ---
 title: Managing events
 description: Creating and editing cycling events on the calendar.
-sidebar:
-  badge:
-    text: Everyone
-    variant: tip
 ---
 
 The event calendar helps riders find group rides, races, festivals, and community events in their city.

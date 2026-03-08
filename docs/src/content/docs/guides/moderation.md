@@ -1,10 +1,6 @@
 ---
 title: Moderation
 description: Admin tools for reviewing edits, managing users, and maintaining quality.
-sidebar:
-  badge:
-    text: Admin
-    variant: caution
 ---
 
 Moderation on whereto.bike follows the Wikipedia model: anyone can edit, and admins review after the fact. Most edits are good. When they're not, you have tools to fix things quickly.

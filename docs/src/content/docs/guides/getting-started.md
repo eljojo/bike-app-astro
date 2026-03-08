@@ -1,10 +1,6 @@
 ---
 title: Getting started
 description: Your first steps as a cycling wiki editor.
-sidebar:
-  badge:
-    text: Everyone
-    variant: tip
 ---
 
 You can start contributing in under a minute. No account required.
