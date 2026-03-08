@@ -1,2 +1,4 @@
 e2e/snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text
 e2e/admin/**/*.png filter=lfs diff=lfs merge=lfs -text
+docs/src/assets/**/*.png filter=lfs diff=lfs merge=lfs -text
+docs/src/assets/**/*.webp filter=lfs diff=lfs merge=lfs -text
