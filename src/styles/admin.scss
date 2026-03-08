@@ -1173,6 +1173,12 @@
   @include muted-text;
 }
 
+.field-hint-block {
+  font-size: 0.8125rem;
+  @include muted-text;
+  margin: 0;
+}
+
 // Photo field (shared upload/preview component)
 .photo-field {
   display: flex;

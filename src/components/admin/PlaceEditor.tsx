@@ -13,6 +13,7 @@ interface Props {
   cdnUrl: string;
   tilesUrl: string;
   userRole?: string;
+  secondaryLocales?: string[];
 }
 
 const categories = Object.entries(categoryEmoji);
@@ -38,9 +39,43 @@ function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   }) as T;
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }: Props) {
+const GMAPS_PATTERNS = [
+  'maps.google.com',
+  'google.com/maps',
+  'goo.gl/maps',
+  'maps.app.goo.gl',
+];
+
+function isGoogleMapsUrl(text: string): boolean {
+  return GMAPS_PATTERNS.some(p => text.includes(p));
+}
+
+export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, secondaryLocales }: Props) {
   const [name, setName] = useState(initialData.name || '');
-  const [nameFr, setNameFr] = useState(initialData.name_fr || '');
+
+  const locales = secondaryLocales || [];
+  const [translations, setTranslations] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const locale of locales) {
+      const key = `name_${locale}`;
+      initial[locale] = (initialData as Record<string, unknown>)[key] as string || '';
+    }
+    return initial;
+  });
+
+  function setTranslation(locale: string, value: string) {
+    setTranslations(prev => ({ ...prev, [locale]: value }));
+  }
+
+  function localeLabel(locale: string): string {
+    try {
+      const display = new Intl.DisplayNames([locale], { type: 'language' });
+      const name = display.of(locale);
+      return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
+    } catch {
+      return locale;
+    }
+  }
   const [category, setCategory] = useState(initialData.category || 'other');
   const [lat, setLat] = useState(initialData.lat || 0);
   const [lng, setLng] = useState(initialData.lng || 0);
@@ -77,7 +112,11 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
           category,
           lat,
           lng,
-          ...(nameFr && { name_fr: nameFr }),
+          ...Object.fromEntries(
+            locales
+              .filter(locale => translations[locale])
+              .map(locale => [`name_${locale}`, translations[locale]])
+          ),
           ...(address && { address }),
           ...(website && { website }),
           ...(phone && { phone }),
@@ -156,6 +195,9 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
       if (data.phone) setPhone(data.phone);
       if (data.website) setWebsite(data.website);
       if (data.google_maps_url) setGoogleMapsUrl(data.google_maps_url);
+      if (data.category && category === 'other') {
+        setCategory(data.category);
+      }
       if (data.lat && data.lng) {
         updateLocation(data.lat, data.lng);
         if (leafletMapRef.current) {
@@ -166,6 +208,13 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
       setError('Prefill request failed');
     } finally {
       setPrefilling(false);
+    }
+  }
+
+  function handlePaste(e: ClipboardEvent) {
+    const text = e.clipboardData?.getData('text')?.trim();
+    if (text && isGoogleMapsUrl(text)) {
+      setTimeout(() => handlePrefill(), 0);
     }
   }
 
@@ -232,20 +281,45 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
     };
   }, []);
 
+  const googleMapsField = (
+    <div class="form-field">
+      <label for="place-google-maps">
+        Google Maps URL{initialData.isNew ? '' : ' or place name'}
+      </label>
+      {initialData.isNew && (
+        <p class="field-hint-block">Paste a Google Maps link to auto-fill all fields below</p>
+      )}
+      <div class="prefill-row">
+        <input id="place-google-maps" type="text" value={googleMapsUrl}
+          placeholder={initialData.isNew ? 'https://maps.google.com/...' : 'https://maps.google.com/... or place name'}
+          onInput={(e) => setGoogleMapsUrl((e.target as HTMLInputElement).value)}
+          onPaste={handlePaste} />
+        <button type="button" class="btn-secondary btn-prefill" onClick={handlePrefill}
+          disabled={prefilling || !googleMapsUrl.trim()}>
+          {prefilling ? 'Loading...' : 'Prefill'}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div class="place-editor">
       <div class="auth-form">
+        {initialData.isNew && googleMapsField}
+
         <div class="form-field">
           <label for="place-name">Name</label>
           <input id="place-name" type="text" value={name}
             onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         </div>
 
-        <div class="form-field">
-          <label for="place-name-fr">Name (French)</label>
-          <input id="place-name-fr" type="text" value={nameFr}
-            onInput={(e) => setNameFr((e.target as HTMLInputElement).value)} />
-        </div>
+        {locales.map(locale => (
+          <div class="form-field" key={locale}>
+            <label for={`place-name-${locale}`}>Name ({localeLabel(locale)})</label>
+            <input id={`place-name-${locale}`} type="text" value={translations[locale] || ''}
+              onInput={(e) => setTranslation(locale, (e.target as HTMLInputElement).value)} />
+          </div>
+        ))}
 
         <div class="form-field">
           <label for="place-category">Category</label>
@@ -286,18 +360,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole }:
             onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
         </div>
 
-        <div class="form-field">
-          <label for="place-google-maps">Google Maps URL or place name</label>
-          <div class="prefill-row">
-            <input id="place-google-maps" type="text" value={googleMapsUrl}
-              placeholder="https://maps.google.com/... or place name"
-              onInput={(e) => setGoogleMapsUrl((e.target as HTMLInputElement).value)} />
-            <button type="button" class="btn-secondary btn-prefill" onClick={handlePrefill}
-              disabled={prefilling || !googleMapsUrl.trim()}>
-              {prefilling ? 'Loading...' : 'Prefill'}
-            </button>
-          </div>
-        </div>
+        {!initialData.isNew && googleMapsField}
 
         <PhotoField
           photoKey={photoKey}
