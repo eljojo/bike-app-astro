@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { env, tileCache } from '../../lib/env';
 import { buildThunderforestUrl, contentTypeForPath } from '../../lib/tile-proxy-helpers';
 
+export const prerender = false;
+
 const CACHE_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export const ALL: APIRoute = async ({ params }) => {

@@ -34,8 +34,8 @@ test.describe('Screenshots', () => {
 
   test('route map', async ({ page }) => {
     await page.goto('/routes/ruta-rio-chillan/map');
-    await page.waitForSelector('.leaflet-container');
-    await expect(page.locator('.leaflet-container')).toBeVisible();
+    await page.waitForSelector('.maplibregl-map');
+    await expect(page.locator('.maplibregl-map')).toBeVisible();
   });
 
   test('guides index', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('Screenshots', () => {
 
   test('big map', async ({ page }) => {
     await page.goto('/map');
-    await page.waitForSelector('.leaflet-container');
-    await expect(page.locator('.leaflet-container')).toBeVisible();
+    await page.waitForSelector('.maplibregl-map');
+    await expect(page.locator('.maplibregl-map')).toBeVisible();
   });
 });
