@@ -208,13 +208,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             {!showTime && (
               <button type="button" class="btn-link" onClick={() => setShowTime(true)}>Set time</button>
             )}
-            {showTime && !showEndTime && !showEndDate && (
+            {showTime && !showEndTime && (
               <button type="button" class="btn-link" onClick={() => setShowEndTime(true)}>Set end time</button>
             )}
             {!showEndDate && (
               <button type="button" class="btn-link" onClick={() => {
                 setShowEndDate(true);
-                setShowEndTime(true);
                 if (!endDate) {
                   const next = new Date(startDate);
                   next.setDate(next.getDate() + 1);
