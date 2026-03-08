@@ -16,6 +16,8 @@ make dev           # astro dev server on localhost:4321
 
 Run `make` to see all available targets.
 
+**IMPORTANT:** All commands (`make`, `npm`, `npx`, etc.) MUST be run inside `nix develop`. Either enter the shell interactively or prefix commands: `nix develop --command bash -c "make build"`.
+
 ## Architecture
 
 ### Data Locality Principle
