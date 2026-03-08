@@ -17,45 +17,51 @@ import { cities } from '../cities';
 </div>
 
 <script>
-  const STORAGE_KEY = 'whereto-city';
-  const select = document.getElementById('city-select') as HTMLSelectElement;
-  const visitLink = document.getElementById('city-link') as HTMLAnchorElement;
+  function initCitySelector() {
+    const STORAGE_KEY = 'whereto-city';
+    const select = document.getElementById('city-select') as HTMLSelectElement;
+    const visitLink = document.getElementById('city-link') as HTMLAnchorElement;
+    if (!select || !visitLink) return;
 
-  // Restore saved city
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    const option = select.querySelector(`option[value="${saved}"]`) as HTMLOptionElement | null;
-    if (option) {
-      select.value = saved;
+    // Restore saved city
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const option = select.querySelector(`option[value="${saved}"]`) as HTMLOptionElement | null;
+      if (option) {
+        select.value = saved;
+      }
     }
-  }
 
-  function getSelectedUrl(): string {
-    const option = select.selectedOptions[0];
-    return option?.dataset.url || '';
-  }
+    function getSelectedUrl(): string {
+      const option = select.selectedOptions[0];
+      return option?.dataset.url || '';
+    }
 
-  function updateLinks() {
-    const baseUrl = getSelectedUrl();
-    visitLink.href = baseUrl;
+    function updateLinks() {
+      const baseUrl = getSelectedUrl();
+      visitLink.href = baseUrl;
 
-    // Rewrite city-relative links in page content
-    document.querySelectorAll<HTMLAnchorElement>('a[href^="/admin"], a[href^="/routes/"], a[href^="/fr/admin"]').forEach(link => {
-      // Only rewrite links inside the main content area
-      if (!link.closest('.sl-markdown-content')) return;
-      const path = link.getAttribute('href') || '';
-      link.href = baseUrl + path;
-      link.target = '_blank';
-      link.rel = 'noopener';
+      // Rewrite city-relative links in page content
+      document.querySelectorAll<HTMLAnchorElement>('a[href^="/admin"], a[href^="/routes/"], a[href^="/fr/admin"]').forEach(link => {
+        // Only rewrite links inside the main content area
+        if (!link.closest('.sl-markdown-content')) return;
+        const path = link.getAttribute('href') || '';
+        link.href = baseUrl + path;
+        link.target = '_blank';
+        link.rel = 'noopener';
+      });
+    }
+
+    select.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEY, select.value);
+      updateLinks();
     });
+
+    updateLinks();
   }
 
-  select.addEventListener('change', () => {
-    localStorage.setItem(STORAGE_KEY, select.value);
-    updateLinks();
-  });
-
-  updateLinks();
+  // Run on initial load and after view transitions
+  document.addEventListener('astro:page-load', initCitySelector);
 </script>
 
 <style>
