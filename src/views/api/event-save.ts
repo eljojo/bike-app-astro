@@ -11,6 +11,11 @@ import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
 import { buildFreshEventData, computeEventContentHashFromFiles } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
+import { getPhotoUsages, updateSharedKeys, serializeSharedKeys } from '../../lib/photo-registry';
+import { loadSharedKeysMap } from '../../lib/load-admin-content';
+import { mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
+import { upsertContentCache } from '../../lib/cache';
+import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
 
@@ -101,11 +106,40 @@ export const eventHandlers: SaveHandlers<EventUpdate> = {
     return null;
   },
 
-  async buildFileChanges(update, eventId, currentFiles, git): Promise<{ files: FileChange[]; deletePaths: string[]; isNew: boolean }> {
+  async buildFileChanges(update, eventId, currentFiles, git) {
     const eventPath = resolveEventPath(eventId);
     const files: FileChange[] = [];
     const deletePaths: string[] = [];
     const isNew = !currentFiles.primaryFile;
+
+    // Detect poster_key change
+    let oldPosterKey: string | undefined;
+    if (currentFiles.primaryFile) {
+      const fmMatch = currentFiles.primaryFile.content.match(/^---\n([\s\S]*?)\n---/);
+      if (fmMatch) {
+        const existingFm = yaml.load(fmMatch[1]) as Record<string, unknown>;
+        oldPosterKey = existingFm.poster_key as string | undefined;
+      }
+    }
+    const newPosterKey = update.frontmatter.poster_key as string | undefined;
+
+    // If poster_key was removed, check if it's used elsewhere and park if not
+    let mergedParked: ParkedPhotoEntry[] | undefined;
+    if (oldPosterKey && oldPosterKey !== newPosterKey) {
+      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
+      const usages = getPhotoUsages(sharedKeysMap, oldPosterKey);
+      const usedElsewhere = usages.some(u => !(u.type === 'event' && u.slug === eventId));
+
+      if (!usedElsewhere) {
+        const parkedPath = `${CITY}/parked-photos.yml`;
+        const existingParkedFile = await git.readFile(parkedPath);
+        const existingParked: ParkedPhotoEntry[] = existingParkedFile
+          ? (yaml.load(existingParkedFile.content) as ParkedPhotoEntry[]) || []
+          : [];
+        mergedParked = mergeParkedPhotos(existingParked, [{ key: oldPosterKey }], new Set());
+        files.push({ path: parkedPath, content: yaml.dump(mergedParked, { lineWidth: -1 }) });
+      }
+    }
 
     // Build the event frontmatter
     const fm: Record<string, unknown> = { ...update.frontmatter };
@@ -153,7 +187,39 @@ export const eventHandlers: SaveHandlers<EventUpdate> = {
     // Event file goes first in the commit
     files.unshift({ path: eventPath, content: eventContent });
 
-    return { files, deletePaths, isNew };
+    return { files, deletePaths, isNew, oldPosterKey, newPosterKey, eventSlug: eventId, mergedParked };
+  },
+
+  async afterCommit(result, database) {
+    const oldPosterKey = result.oldPosterKey as string | undefined;
+    const newPosterKey = result.newPosterKey as string | undefined;
+    const eventSlug = result.eventSlug as string;
+
+    if (oldPosterKey !== newPosterKey) {
+      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
+      if (oldPosterKey) {
+        updateSharedKeys(sharedKeysMap, oldPosterKey, { type: 'event', slug: eventSlug }, 'remove');
+      }
+      if (newPosterKey) {
+        updateSharedKeys(sharedKeysMap, newPosterKey, { type: 'event', slug: eventSlug }, 'add');
+      }
+      await upsertContentCache(database, {
+        contentType: 'photo-shared-keys',
+        contentSlug: '__global',
+        data: serializeSharedKeys(sharedKeysMap),
+        githubSha: 'n/a',
+      });
+    }
+
+    const mergedParked = result.mergedParked as ParkedPhotoEntry[] | undefined;
+    if (mergedParked) {
+      await upsertContentCache(database, {
+        contentType: 'parked-photos',
+        contentSlug: '__global',
+        data: JSON.stringify(mergedParked),
+        githubSha: 'n/a',
+      });
+    }
   },
 
   buildCommitMessage(update, eventId, isNew): string {

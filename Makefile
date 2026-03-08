@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-e2e test-update test-admin screenshots full maps maps-rebuild validate fonts contributors clean
+.PHONY: help install dev build preview test typecheck test-e2e test-update test-admin screenshots full maps maps-rebuild validate fonts contributors clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -18,13 +18,16 @@ preview: ## Preview built site locally
 test: ## Run unit tests
 	npx vitest run
 
+typecheck: ## Run TypeScript type checking
+	npx tsc --noEmit
+
 test-e2e: build ## Run Playwright screenshot tests
 	npx playwright test --config e2e/playwright.config.ts
 
 test-update: build ## Update screenshot baselines
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: build validate test test-e2e test-admin ## Run full CI pipeline (build, validate, unit tests, all e2e)
+full: build validate test typecheck test-e2e test-admin ## Run full CI pipeline (build, validate, unit tests, typecheck, all e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts

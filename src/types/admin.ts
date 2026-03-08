@@ -22,6 +22,15 @@ export interface AdminEvent {
   contentHash: string;
 }
 
+export interface AdminPlace {
+  id: string;
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  contentHash: string;
+}
+
 export interface AdminOrganizer {
   slug: string;
   name: string;

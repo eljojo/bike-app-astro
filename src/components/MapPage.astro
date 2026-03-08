@@ -1,7 +1,7 @@
 ---
 import LeafletMap from './LeafletMap.astro';
 import ElevationProfile from './ElevationProfile.astro';
-import { hasCachedMap, variantKeyFromGpx } from '../lib/map-thumbnails';
+import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '../lib/map-thumbnails';
 import { getCityConfig } from '../lib/city-config';
 import { t } from '../i18n';
 import { paths, assets } from '../lib/paths';
@@ -68,7 +68,8 @@ function gpxStudioUrl(gpxUrl: string): string {
 
 const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, variantKey)}`;
 const exploreUrl = gpxStudioUrl(gpxUrl);
-const hasVariantMap = hasCachedMap(routeSlug, variantKey);
+const hasVariantMap = hasCachedMap(routeSlug, variantKey, locale);
+const variantMapLang = cachedMapLocale(routeSlug, variantKey, locale);
 
 const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 ---
@@ -102,7 +103,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   {hasVariantMap && (
     <Fragment>
       {' '}
-      <a href={assets.mapPng(routeSlug, variantKey)} class="action-button" target="_blank" rel="noopener">
+      <a href={assets.mapPng(routeSlug, variantKey, variantMapLang)} class="action-button" target="_blank" rel="noopener">
         &#x1F5FA;&#xFE0F; PNG
       </a>
     </Fragment>

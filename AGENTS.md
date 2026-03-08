@@ -16,7 +16,17 @@ make dev           # astro dev server on localhost:4321
 
 Run `make` to see all available targets.
 
+**IMPORTANT:** All commands (`make`, `npm`, `npx`, etc.) MUST be run inside `nix develop`. Either enter the shell interactively or prefix commands: `nix develop --command bash -c "make build"`.
+
 ## Architecture
+
+### Data Locality Principle
+
+Data lives next to what uses it. Route photos live in the route's `media.yml`. Place photos live in the place's frontmatter. Event posters live in the event's frontmatter. This colocation is a core architectural choice — never centralize data that belongs to a specific content item into a shared file or table.
+
+City-level files (like `parked-photos.yml`) exist only as a lowest common denominator — for data that has no content item to live next to. If data has a natural home, it lives there.
+
+When building query layers or indexes over distributed data, the index is a **computed view** — an abstraction that aggregates across sources. It never becomes the canonical store. Think ZFS: a unified interface over distributed storage, not a migration to centralized storage.
 
 ### Content Pipeline
 
@@ -159,6 +169,10 @@ NEVER import platform-specific modules (e.g. `cloudflare:workers`, AWS SDK, Verc
 If a feature requires a non-portable cloud API, stop and raise it. Find a portable alternative or isolate it behind an abstraction first. One wrapper file per vendor concern — if they rename or break their API, only one file changes.
 
 This applies to ALL cloud vendors equally. No exceptions.
+
+## Don't Shrug Off Broken Things (MANDATORY)
+
+If something fails — a build, a tool, a command — investigate it. Don't dismiss it as "pre-existing" or "not my problem" and move on. A broken build that you work around is a broken build you'll ship against. If `make build` crashes, that's your problem right now, not background noise. Diagnose it, fix it or raise it. Never normalize broken infrastructure.
 
 ## Git Conventions
 

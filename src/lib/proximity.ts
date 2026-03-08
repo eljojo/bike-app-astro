@@ -31,6 +31,7 @@ export interface PlaceData {
   website?: string;
   phone?: string;
   google_maps_url?: string;
+  photo_key?: string;
 }
 
 export interface NearbyPlace extends PlaceData {

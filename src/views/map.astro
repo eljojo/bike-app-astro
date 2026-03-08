@@ -51,6 +51,10 @@ const placeData = places
     lat: p.data.lat,
     lng: p.data.lng,
     google_maps_url: p.data.google_maps_url || `https://www.google.com/maps/?q=${p.data.lat},${p.data.lng}`,
+    link: p.data.website,
+    address: p.data.address,
+    phone: p.data.phone,
+    photo_key: p.data.photo_key,
   }));
 // Select photos for the big map:
 // 1. First geolocated photo per route (cover/top photo)

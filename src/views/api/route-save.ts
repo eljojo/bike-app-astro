@@ -16,6 +16,9 @@ import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { updateRedirectsYaml } from '../../lib/redirects';
+import { updateSharedKeys, serializeSharedKeys } from '../../lib/photo-registry';
+import { loadSharedKeysMap } from '../../lib/load-admin-content';
+import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
 
@@ -273,7 +276,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
       }
     }
 
-    // Build media.yml
+    // Build media.yml and track added/removed keys for shared-keys map
+    let addedMediaKeys: string[] = [];
+    let removedMediaKeys: string[] = [];
     if (update.media) {
       const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
       const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
@@ -281,6 +286,13 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
       if (currentMedia) {
         existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
       }
+
+      // Compute diffs for shared-keys map
+      const oldKeys = new Set(existingMedia.map(m => m.key as string));
+      const newKeys = new Set(update.media.map(m => m.key));
+      addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
+      removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
+
       const merged = mergeMedia(update.media, existingMedia);
       if (merged.length > 0) {
         const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
@@ -317,7 +329,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
       deletePaths.push(parkedPath);
     }
 
-    return { files, deletePaths, isNew, mergedParked };
+    return { files, deletePaths, isNew, mergedParked, addedMediaKeys, removedMediaKeys, slug: targetSlug };
   },
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
@@ -373,6 +385,27 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
         contentType: 'parked-photos',
         contentSlug: '__global',
         data: JSON.stringify(mergedParked),
+        githubSha: 'n/a',
+      });
+    }
+
+    // Update shared-keys map for added/removed media
+    const addedKeys = result.addedMediaKeys as string[] | undefined;
+    const removedKeys = result.removedMediaKeys as string[] | undefined;
+    const routeSlug = result.slug as string;
+
+    if (addedKeys?.length || removedKeys?.length) {
+      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
+      for (const key of removedKeys || []) {
+        updateSharedKeys(sharedKeysMap, key, { type: 'route', slug: routeSlug }, 'remove');
+      }
+      for (const key of addedKeys || []) {
+        updateSharedKeys(sharedKeysMap, key, { type: 'route', slug: routeSlug }, 'add');
+      }
+      await upsertContentCache(database, {
+        contentType: 'photo-shared-keys',
+        contentSlug: '__global',
+        data: serializeSharedKeys(sharedKeysMap),
         githubSha: 'n/a',
       });
     }

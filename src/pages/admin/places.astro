@@ -1,0 +1,207 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import adminPlaces from 'virtual:bike-app/admin-places';
+import { categoryEmoji } from '../../lib/place-categories';
+import { getCityConfig } from '../../lib/city-config';
+import '../../styles/admin.scss';
+
+const user = Astro.locals.user;
+const config = getCityConfig();
+const mapPlaces = adminPlaces.filter(p => p.lat && p.lng).map(p => ({
+  id: p.id,
+  name: p.name,
+  emoji: categoryEmoji[p.category] || '\u{1F4CD}',
+  lat: p.lat,
+  lng: p.lng,
+}));
+
+// Group by category
+function groupByCategory(places: typeof adminPlaces) {
+  const groups: Record<string, { label: string; emoji: string; places: typeof adminPlaces }> = {};
+  for (const p of places) {
+    if (!groups[p.category]) {
+      groups[p.category] = {
+        label: p.category.replace(/-/g, ' '),
+        emoji: categoryEmoji[p.category] || '📌',
+        places: [],
+      };
+    }
+    groups[p.category].places.push(p);
+  }
+  return Object.entries(groups)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, group]) => ({ key, ...group }));
+}
+
+const grouped = groupByCategory(adminPlaces);
+---
+
+<Base title="Places - Admin" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="places" />
+
+    <div class="place-actions-bar">
+      <a href="/admin/places/new" class="btn-primary">+ New place</a>
+      <span class="place-count">{adminPlaces.length} places</span>
+    </div>
+
+    {mapPlaces.length > 0 && (
+      <div
+        id="places-map"
+        class="places-admin-map"
+        data-places={JSON.stringify(mapPlaces)}
+        data-tiles-url={config.tiles_url}
+        data-center={JSON.stringify([config.center.lat, config.center.lng])}
+      />
+    )}
+
+    {grouped.map(({ key, label, emoji, places }) => (
+      <div class="place-category-group">
+        <h2 class="category-header">{emoji} {label} <span class="category-count">({places.length})</span></h2>
+        <div class="place-list">
+          {places.map(p => (
+            <a href={`/admin/places/${p.id}`} class="place-list-item">
+              <span class="place-card-emoji">{categoryEmoji[p.category] || '📌'}</span>
+              <div class="place-card-info">
+                <span class="place-card-name">{p.name}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+
+    {adminPlaces.length === 0 && <p class="auth-message">No places found. Create one to get started.</p>}
+  </div>
+</Base>
+
+<script>
+  import { initMap, addMarkers } from '../../lib/leaflet-init';
+  import { html } from '../../lib/map-helpers';
+
+  const el = document.getElementById('places-map');
+  if (el) {
+    const places = JSON.parse(el.dataset.places || '[]');
+    const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
+    const tilesUrl = el.dataset.tilesUrl || '';
+
+    const map = initMap({ el, center, zoom: 11, tilesUrl });
+
+    addMarkers(map, places.map((p: any) => ({
+      lat: p.lat, lng: p.lng, emoji: p.emoji,
+      popup: html`<a href="/admin/places/${p.id}"><strong>${p.name}</strong></a>`,
+    })));
+
+    if (places.length > 0) {
+      const L = await import('leaflet');
+      const bounds = L.default.latLngBounds(places.map((p: any) => [p.lat, p.lng]));
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
+    }
+  }
+</script>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+  @use '../../styles/mixins' as *;
+
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+
+  .places-admin-map {
+    height: 350px;
+    border-radius: $border-radius;
+    margin-bottom: 1.5rem;
+  }
+
+  .place-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .place-count {
+    font-size: 0.875rem;
+    @include muted-text;
+  }
+
+  .place-category-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .category-header {
+    font-family: $font-heading;
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem;
+    text-transform: capitalize;
+  }
+
+  .category-count {
+    font-weight: 400;
+    font-size: 0.875rem;
+    @include muted-text;
+  }
+
+  .place-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: $color-border;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    @include dark-mode {
+      background: #333;
+    }
+  }
+
+  .place-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    background: $color-card-bg;
+    color: $color-text;
+    text-decoration: none;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+
+      @include dark-mode {
+        background: $color-card-hover-dark;
+      }
+    }
+  }
+
+  .place-card-emoji {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    width: 2rem;
+    text-align: center;
+  }
+
+  .place-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  .place-card-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>

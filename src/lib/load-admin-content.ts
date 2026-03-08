@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import type { AdminRoute, AdminEvent } from '../types/admin';
 import { routeDetailFromCache } from './models/route-model';
 import { eventDetailFromCache } from './models/event-model';
+import { deserializeSharedKeys, type SharedKeysMap } from './photo-registry';
 
 export interface AdminContentResult<T> {
   data: T | null;
@@ -50,6 +51,27 @@ export async function loadAdminContent<T>(opts: {
   }
 
   return { data };
+}
+
+/**
+ * Convenience wrapper for admin detail pages.
+ * Handles null ID check, loadAdminContent call, and null data check in one step.
+ */
+export async function loadDetailPageData<T>(opts: {
+  contentType: string;
+  id: string | undefined;
+  virtualModuleData: Record<string, T>;
+  fromCache: (blob: string) => T;
+}): Promise<{ data: T; notFound: false } | { notFound: true }> {
+  if (!opts.id) return { notFound: true };
+  const { data } = await loadAdminContent({
+    contentType: opts.contentType,
+    contentSlug: opts.id,
+    virtualModuleData: opts.virtualModuleData,
+    fromCache: opts.fromCache,
+  });
+  if (!data) return { notFound: true };
+  return { data, notFound: false };
 }
 
 /**
@@ -156,6 +178,38 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
  * D1 stores the latest parked-photos list after each save, so edits
  * made since the last deploy are visible without rebuilding.
  */
+/**
+ * Load shared-keys map with D1 cache overlay.
+ * D1 stores the latest shared-keys map after each save, so mutations
+ * made since the last deploy are visible without rebuilding.
+ */
+export async function loadSharedKeysMap(
+  buildTimeData: Record<string, Array<{ type: string; slug: string }>>,
+): Promise<SharedKeysMap> {
+  const database = getDb();
+  const cached = await database.select().from(contentEdits)
+    .where(and(
+      eq(contentEdits.contentType, 'photo-shared-keys'),
+      eq(contentEdits.contentSlug, '__global'),
+    ))
+    .get();
+
+  if (cached) {
+    try {
+      return deserializeSharedKeys(cached.data);
+    } catch {
+      // Fall through to build-time data
+    }
+  }
+
+  return new Map(
+    Object.entries(buildTimeData).map(([key, usages]) => [
+      key,
+      usages as Array<{ type: 'route' | 'place' | 'event' | 'parked'; slug: string }>,
+    ]),
+  );
+}
+
 export async function loadParkedPhotosWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
   const database = getDb();
   const cached = await database.select().from(contentEdits)

@@ -5,10 +5,11 @@ function mockLocals(user: any) {
   return { user } as any;
 }
 
-const admin = { id: '1', username: 'admin', role: 'admin', bannedAt: null };
-const editor = { id: '2', username: 'editor', role: 'editor', bannedAt: null };
-const guest = { id: '3', username: 'guest', role: 'guest', bannedAt: null };
-const banned = { id: '4', username: 'bad', role: 'editor', bannedAt: '2026-01-01' };
+const base = { email: null, emailInCommits: false, analyticsOptOut: false } as const;
+const admin = { ...base, id: '1', username: 'admin', role: 'admin' as const, bannedAt: null };
+const editor = { ...base, id: '2', username: 'editor', role: 'editor' as const, bannedAt: null };
+const guest = { ...base, id: '3', username: 'guest', role: 'guest' as const, bannedAt: null };
+const banned = { ...base, id: '4', username: 'bad', role: 'editor' as const, bannedAt: '2026-01-01' };
 
 describe('authorize', () => {
   it('returns 401 Response when user is null', () => {

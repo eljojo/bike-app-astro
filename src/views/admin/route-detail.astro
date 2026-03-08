@@ -8,27 +8,26 @@ import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import parkedPhotosData from 'virtual:bike-app/parked-photos';
 import { env } from '../../lib/env';
 import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
-import { loadAdminContent, loadParkedPhotosWithOverlay } from '../../lib/load-admin-content';
+import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/tag-translations';
 import { defaultLocale } from '../../lib/locale-utils';
 
 const { slug } = Astro.params;
 
-if (!slug || !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
+if (slug && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 
-const { data: routeData } = await loadAdminContent({
+const result = await loadDetailPageData({
   contentType: 'routes',
-  contentSlug: slug,
+  id: slug,
   virtualModuleData: adminRouteDetails,
   fromCache: routeDetailFromCache,
 });
 
-if (!routeData) {
-  return new Response(null, { status: 404 });
-}
+if (result.notFound) return new Response(null, { status: 404 });
+const routeData = result.data;
 
 const parkedPhotos = await loadParkedPhotosWithOverlay(parkedPhotosData);
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;

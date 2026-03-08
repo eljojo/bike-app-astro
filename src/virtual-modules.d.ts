@@ -91,6 +91,42 @@ declare module 'virtual:bike-app/admin-event-detail' {
   export default details;
 }
 
+interface _AdminPlace {
+  id: string;
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  contentHash: string;
+}
+
+/** Mirrors PlaceDetail from src/lib/models/place-model.ts + contentHash */
+interface _AdminPlaceDetail {
+  id: string;
+  name: string;
+  name_fr?: string;
+  category: string;
+  lat: number;
+  lng: number;
+  status?: string;
+  address?: string;
+  website?: string;
+  phone?: string;
+  google_maps_url?: string;
+  photo_key?: string;
+  contentHash?: string;
+}
+
+declare module 'virtual:bike-app/admin-places' {
+  const places: _AdminPlace[];
+  export default places;
+}
+
+declare module 'virtual:bike-app/admin-place-detail' {
+  const details: Record<string, _AdminPlaceDetail>;
+  export default details;
+}
+
 declare module 'virtual:bike-app/admin-organizers' {
   const organizers: _AdminOrganizer[];
   export default organizers;
@@ -140,4 +176,10 @@ interface _ParkedPhoto {
 declare module 'virtual:bike-app/parked-photos' {
   const parkedPhotos: _ParkedPhoto[];
   export default parkedPhotos;
+}
+
+declare module 'virtual:bike-app/photo-shared-keys' {
+  /** Only contains keys referenced by 2+ content items */
+  const sharedKeys: Record<string, Array<{ type: 'route' | 'place' | 'event' | 'parked'; slug: string }>>;
+  export default sharedKeys;
 }
