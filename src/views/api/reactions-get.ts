@@ -4,6 +4,7 @@ import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and, count } from 'drizzle-orm';
 import type { SessionUser } from '@/lib/auth';
+import { CITY } from '@/lib/config';
 
 export const prerender = false;
 
@@ -25,6 +26,7 @@ export async function GET({ params, locals }: APIContext) {
     .from(reactions)
     .where(
       and(
+        eq(reactions.city, CITY),
         eq(reactions.contentType, contentType),
         eq(reactions.contentSlug, contentSlug),
       )
@@ -40,6 +42,7 @@ export async function GET({ params, locals }: APIContext) {
       .from(reactions)
       .where(
         and(
+          eq(reactions.city, CITY),
           eq(reactions.userId, user.id),
           eq(reactions.contentType, contentType),
           eq(reactions.contentSlug, contentSlug),

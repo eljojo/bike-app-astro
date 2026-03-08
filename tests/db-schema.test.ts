@@ -65,7 +65,7 @@ describe('database schema', () => {
     expect(getTableName(reactions)).toBe('reactions');
     const cols = getTableColumns(reactions);
     expect(Object.keys(cols)).toEqual([
-      'id', 'userId', 'contentType', 'contentSlug', 'reactionType', 'createdAt',
+      'id', 'city', 'userId', 'contentType', 'contentSlug', 'reactionType', 'createdAt',
     ]);
   });
 });

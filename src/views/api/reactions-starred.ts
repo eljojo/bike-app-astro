@@ -4,6 +4,7 @@ import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import type { SessionUser } from '@/lib/auth';
+import { CITY } from '@/lib/config';
 
 export const prerender = false;
 
@@ -20,6 +21,7 @@ export async function GET({ locals }: APIContext) {
     .from(reactions)
     .where(
       and(
+        eq(reactions.city, CITY),
         eq(reactions.userId, user.id),
         eq(reactions.contentType, 'route'),
         eq(reactions.reactionType, 'star'),

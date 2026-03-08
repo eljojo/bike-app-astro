@@ -5,6 +5,7 @@ import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { CITY } from '@/lib/config';
 
 export const prerender = false;
 
@@ -33,6 +34,7 @@ export async function POST({ request, locals }: APIContext) {
     .from(reactions)
     .where(
       and(
+        eq(reactions.city, CITY),
         eq(reactions.userId, user.id),
         eq(reactions.contentType, body.contentType),
         eq(reactions.contentSlug, body.contentSlug),
@@ -53,6 +55,7 @@ export async function POST({ request, locals }: APIContext) {
     .insert(reactions)
     .values({
       id: crypto.randomUUID(),
+      city: CITY,
       userId: user.id,
       contentType: body.contentType,
       contentSlug: body.contentSlug,

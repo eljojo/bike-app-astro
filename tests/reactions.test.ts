@@ -18,7 +18,7 @@ describe('reactions', () => {
     it('has all expected columns', () => {
       const cols = getTableColumns(reactions);
       expect(Object.keys(cols)).toEqual([
-        'id', 'userId', 'contentType', 'contentSlug', 'reactionType', 'createdAt',
+        'id', 'city', 'userId', 'contentType', 'contentSlug', 'reactionType', 'createdAt',
       ]);
     });
   });
