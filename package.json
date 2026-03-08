@@ -25,7 +25,7 @@
     "@simplewebauthn/server": "^13.2.3",
     "@types/leaflet.markercluster": "^1.5.6",
     "@vovayatsyuk/photoswipe-object-position": "^1.0.0",
-    "astro": "^6.0.0-beta.17",
+    "astro": "^6.0.0-beta.20",
     "aws4fetch": "^1.0.20",
     "better-sqlite3": "^12.6.2",
     "dotenv": "^17.3.1",
