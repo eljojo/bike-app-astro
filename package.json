@@ -2,7 +2,9 @@
   "name": "bike-app-astro",
   "type": "module",
   "version": "0.0.1",
-  "workspaces": ["docs"],
+  "workspaces": [
+    "docs"
+  ],
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -32,6 +34,7 @@
     "drizzle-orm": "^0.45.1",
     "exif-reader": "^2.0.3",
     "fast-xml-parser": "^5.4.1",
+    "fflate": "^0.8.2",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
     "leaflet": "^1.9.4",

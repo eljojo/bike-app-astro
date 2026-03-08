@@ -1,5 +1,38 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseRwgpsUrl, buildGpxFromTrackPoints } from '../src/views/api/gpx/import-rwgps';
+
+vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
+vi.mock('../src/lib/env', () => ({ env: {} }));
+
+import { detectUrlSource } from '../src/views/api/gpx/import';
+
+describe('detectUrlSource', () => {
+  it('detects RideWithGPS URL', () => {
+    expect(detectUrlSource('https://ridewithgps.com/routes/12345')).toBe('rwgps');
+  });
+
+  it('detects Google My Maps edit URL', () => {
+    expect(
+      detectUrlSource('https://www.google.com/maps/d/edit?mid=1ABC123&usp=sharing'),
+    ).toBe('google-maps');
+  });
+
+  it('detects Google My Maps viewer URL', () => {
+    expect(
+      detectUrlSource('https://www.google.com/maps/d/viewer?mid=1ABC123'),
+    ).toBe('google-maps');
+  });
+
+  it('returns null for unsupported URL', () => {
+    expect(detectUrlSource('https://strava.com/routes/123')).toBeNull();
+  });
+
+  it('returns null for regular Google Maps URL (not My Maps)', () => {
+    expect(
+      detectUrlSource('https://www.google.com/maps/@45.4,-75.7,12z'),
+    ).toBeNull();
+  });
+});
 
 describe('parseRwgpsUrl', () => {
   it('extracts route ID from standard URL', () => {

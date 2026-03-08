@@ -21,6 +21,7 @@ const adminVariantSchema = z.object({
   distance_km: z.number().optional(),
   strava_url: z.string().optional(),
   rwgps_url: z.string().optional(),
+  google_maps_url: z.string().optional(),
 });
 
 const localeContentSchema = z.object({

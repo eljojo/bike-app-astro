@@ -24,6 +24,61 @@ test.describe('Route Creation', () => {
     cleanupCreatedFiles(['demo/routes/test-trail']);
   });
 
+  test('URL import input is visible and shows Import button on input', async ({ page }) => {
+    await loginAs(page, token);
+
+    await page.goto('/admin/routes/new');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // The unified URL import input should be visible
+    const urlInput = page.locator('.url-import-input');
+    await expect(urlInput).toBeVisible();
+    await expect(urlInput).toHaveAttribute('placeholder', /RideWithGPS.*Google Maps/);
+
+    // Import button should NOT be visible when input is empty
+    const importButton = page.locator('.url-import button.btn-secondary');
+    await expect(importButton).not.toBeVisible();
+
+    // Type a URL — Import button should appear
+    await urlInput.fill('https://www.google.com/maps/d/edit?mid=test123');
+    await expect(importButton).toBeVisible();
+    await expect(importButton).toHaveText('Import');
+
+    // Clear input — button should disappear
+    await urlInput.fill('');
+    await expect(importButton).not.toBeVisible();
+  });
+
+  test('route preview shows map and stats after GPX upload', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/routes/new');
+    await page.waitForLoadState('networkidle');
+
+    // Upload a GPX file
+    const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
+    const gpxPath = path.join(FIXTURE_DIR, 'demo/routes/carp/main.gpx');
+    await gpxInput.setInputFiles(gpxPath);
+
+    // Wait for preview to render
+    const previewMap = page.locator('.route-preview-map');
+    await expect(previewMap).toBeVisible({ timeout: 5000 });
+
+    // Stats should be visible
+    const stats = page.locator('.route-preview-stats');
+    await expect(stats).toBeVisible();
+    await expect(stats).toContainText('km');
+    await expect(stats).toContainText('gain');
+
+    // Elevation chart should be visible
+    const elevationSvg = page.locator('.route-preview-elevation-svg');
+    await expect(elevationSvg).toBeVisible();
+
+    // Name field should still work
+    const nameInput = page.locator('#new-route-name');
+    await expect(nameInput).toBeVisible();
+  });
+
   test('upload GPX, name route, save, verify commit', async ({ page }) => {
     await loginAs(page, token);
 
@@ -45,11 +100,9 @@ test.describe('Route Creation', () => {
 
     // Override with a test name
     await nameInput.fill('Test Trail');
-    const slugInput = page.locator('#new-route-slug');
-    await expect(slugInput).toHaveValue('test-trail');
 
-    // Click Create Route to enter editor phase
-    await page.locator('button.btn-primary', { hasText: 'Create Route' }).click();
+    // Click Continue to enter editor phase
+    await page.locator('button.btn-primary', { hasText: 'Continue' }).click();
 
     // Wait for route editor to load
     await page.waitForTimeout(2000);

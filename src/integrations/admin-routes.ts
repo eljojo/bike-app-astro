@@ -22,7 +22,7 @@ const adminRoutes = [
   { pattern: '/admin/users', entrypoint: './src/views/admin/users.astro' },
   { pattern: '/admin/settings', entrypoint: './src/views/admin/settings.astro' },
   { pattern: '/api/settings', entrypoint: './src/views/api/settings.ts' },
-  { pattern: '/api/gpx/import-rwgps', entrypoint: './src/views/api/gpx/import-rwgps.ts' },
+  { pattern: '/api/gpx/import', entrypoint: './src/views/api/gpx/import.ts' },
   { pattern: '/api/reactions', entrypoint: './src/views/api/reactions.ts' },
   // Static _starred must precede parameterized [contentType]/[contentSlug] to avoid matching as params
   { pattern: '/api/reactions/route/_starred', entrypoint: './src/views/api/reactions-starred.ts' },

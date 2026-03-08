@@ -1,20 +1,88 @@
-import { useState, useRef } from 'preact/hooks';
+import { useState, useRef, useMemo, useEffect } from 'preact/hooks';
 import RouteEditor from './RouteEditor';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
+import { parseGpx } from '../../lib/gpx';
+import { computeElevationProfile, CHART } from '../../lib/elevation-profile';
+import photoLocations from 'virtual:bike-app/photo-locations';
+import { findNearbyPhotos } from '../../lib/photo-proximity';
 
-export default function RouteCreator() {
+interface Props {
+  tilesUrl: string;
+  cdnUrl: string;
+}
+
+export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');
   const [gpxContent, setGpxContent] = useState('');
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
-  const [showRwgps, setShowRwgps] = useState(false);
-  const [rwgpsUrl, setRwgpsUrl] = useState('');
+  const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMapRef = useRef<any>(null);
+
+  const track = useMemo(() => gpxContent ? parseGpx(gpxContent) : null, [gpxContent]);
+
+  const elevation = useMemo(
+    () => track ? computeElevationProfile(track.points, track.distance_m) : null,
+    [track],
+  );
+
+  const nearbyPhotos = useMemo(() => {
+    if (!track || track.points.length === 0) return [];
+    const step = Math.max(1, Math.floor(track.points.length / 50));
+    const sampled = track.points.filter((_, i) => i % step === 0);
+    const trackPts = sampled.map(p => ({ lat: p.lat, lng: p.lon }));
+    return findNearbyPhotos(trackPts, photoLocations, '');
+  }, [track]);
+
+  useEffect(() => {
+    if (!track || !mapRef.current) return;
+    if (leafletMapRef.current) {
+      leafletMapRef.current.remove();
+      leafletMapRef.current = null;
+    }
+
+    import('leaflet').then((L) => {
+      import('leaflet/dist/leaflet.css');
+
+      if (!mapRef.current) return;
+
+      const map = L.default.map(mapRef.current, {
+        scrollWheelZoom: false,
+        dragging: false,
+        zoomControl: false,
+        attributionControl: false,
+      });
+
+      L.default.tileLayer(tilesUrl, { maxZoom: 20 }).addTo(map);
+
+      const coords = track.points.map(p => [p.lat, p.lon] as [number, number]);
+      const line = L.default.polyline(coords, {
+        color: '#350091',
+        weight: 4,
+        opacity: 0.9,
+      }).addTo(map);
+
+      map.fitBounds(line.getBounds(), { padding: [30, 30] });
+      leafletMapRef.current = map;
+    });
+
+    return () => {
+      leafletMapRef.current?.remove();
+      leafletMapRef.current = null;
+    };
+  }, [track]);
+
+  function slugToName(slug: string): string {
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
 
   function handleGpxFile(file: File) {
     setError('');
@@ -55,16 +123,16 @@ export default function RouteCreator() {
     }
   }
 
-  async function handleRwgpsImport() {
-    if (!rwgpsUrl.trim()) return;
+  async function handleUrlImport() {
+    if (!importUrl.trim()) return;
     setError('');
     setImporting(true);
 
     try {
-      const res = await fetch('/api/gpx/import-rwgps', {
+      const res = await fetch('/api/gpx/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: rwgpsUrl }),
+        body: JSON.stringify({ url: importUrl }),
       });
 
       if (!res.ok) {
@@ -72,15 +140,12 @@ export default function RouteCreator() {
         throw new Error(data.error || 'Import failed');
       }
 
-      const { gpxContent, rwgpsUrl: resolvedUrl } = await res.json();
-      setGpxContent(gpxContent);
-
-      // Extract name from RWGPS URL
-      const routeId = rwgpsUrl.match(/routes\/(\d+)/)?.[1] || 'imported';
-      setName(`RWGPS ${routeId}`);
-      setSlug(slugify(`rwgps-${routeId}`));
-      setRwgpsUrl('');
-      setShowRwgps(false);
+      const { gpxContent: content, name: routeName, sourceUrl: resolvedUrl } = await res.json();
+      setGpxContent(content);
+      setName(routeName);
+      setSlug(slugify(routeName));
+      setSourceUrl(resolvedUrl);
+      setImportUrl('');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -101,15 +166,21 @@ export default function RouteCreator() {
     return (
       <div class="route-creator">
         {!gpxContent ? (
-          <>
+          <div class="route-creator-prompt">
             <div
-              class={`drop-zone drop-zone--large ${dragOver ? 'drop-zone--active' : ''}`}
+              class={`drop-zone drop-zone--hero ${dragOver ? 'drop-zone--active' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
             >
-              Drop a GPX file here to start a new route
+              <svg class="drop-zone-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span class="drop-zone-label">Drop a GPX file here</span>
+              <span class="drop-zone-hint">or click to choose a file</span>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -118,62 +189,114 @@ export default function RouteCreator() {
                 onChange={handleFileSelect}
               />
             </div>
-            {!showRwgps ? (
-              <button type="button" class="btn-link-muted" onClick={() => setShowRwgps(true)}>
-                or import from Ride with GPS
-              </button>
-            ) : (
-              <div class="rwgps-import">
-                <input
-                  type="url"
-                  class="rwgps-input"
-                  placeholder="https://ridewithgps.com/routes/..."
-                  value={rwgpsUrl}
-                  onInput={(e) => setRwgpsUrl((e.target as HTMLInputElement).value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRwgpsImport(); } }}
-                />
+            <div class="route-creator-divider"><span>or</span></div>
+            <div class="url-import">
+              <input
+                type="url"
+                class="url-import-input"
+                placeholder="Paste a RideWithGPS or Google Maps link"
+                value={importUrl}
+                onInput={(e) => setImportUrl((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlImport(); } }}
+              />
+              {importUrl.trim() && (
                 <button
                   type="button"
                   class="btn-secondary"
-                  onClick={handleRwgpsImport}
-                  disabled={importing || !rwgpsUrl.trim()}
+                  onClick={handleUrlImport}
+                  disabled={importing}
                 >
                   {importing ? 'Importing...' : 'Import'}
                 </button>
-                <button type="button" class="btn-cancel" onClick={() => { setShowRwgps(false); setRwgpsUrl(''); }}>
-                  Cancel
-                </button>
-              </div>
-            )}
-          </>
+              )}
+            </div>
+            <a href="https://whereto.bike/guides/gpx-files/" target="_blank" rel="noopener noreferrer" class="route-creator-help-link">
+              What's a GPX file?
+            </a>
+          </div>
         ) : (
           <div class="route-creator-setup">
-            <div class="form-field">
-              <label for="new-route-name">Route Name</label>
-              <input
-                id="new-route-name"
-                type="text"
-                value={name}
-                onInput={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  setName(val);
-                  setSlug(slugify(val));
-                }}
-              />
+            <div class="route-preview-actions">
+              <div class="form-field">
+                <label for="new-route-name">Name your route</label>
+                <input
+                  id="new-route-name"
+                  type="text"
+                  value={name}
+                  onInput={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    setName(val);
+                    setSlug(slugify(val));
+                  }}
+                />
+              </div>
+              <button type="button" class="btn-primary" onClick={startEditing}>
+                Continue
+              </button>
             </div>
-            <div class="form-field">
-              <label for="new-route-slug">Slug (URL path)</label>
-              <input
-                id="new-route-slug"
-                type="text"
-                value={slug}
-                onInput={(e) => setSlug((e.target as HTMLInputElement).value)}
-              />
-              <small>Will be at: /routes/{slug}</small>
+
+            <div class="route-preview">
+              <div class="route-preview-map" ref={mapRef} />
+
+              {track && (
+                <div class="route-preview-stats">
+                  <span>{(track.distance_m / 1000).toFixed(1)} km</span>
+                  <span>{track.elevation_gain_m}m gain</span>
+                  <span>{track.max_gradient_pct}% max grade</span>
+                </div>
+              )}
+
+              {elevation && (() => {
+                const plotBottom = CHART.height - CHART.bottom;
+                const plotLeft = CHART.left;
+                const plotRight = CHART.width - CHART.right;
+                return (
+                  <div class="route-preview-elevation">
+                    <svg viewBox={`0 0 ${CHART.width} ${CHART.height}`} class="route-preview-elevation-svg">
+                      {elevation.yTicks.map(tick => (
+                        <line x1={plotLeft} x2={plotRight} y1={tick.position} y2={tick.position}
+                              stroke="var(--elevation-grid)" stroke-width="0.5" />
+                      ))}
+                      <path d={elevation.svgArea} fill="var(--elevation-fill)" />
+                      <path d={elevation.svgPath} fill="none" stroke="var(--elevation-line)" stroke-width="2" />
+                      {elevation.yTicks.map(tick => (
+                        <text x={plotLeft - 5} y={tick.position + 4} text-anchor="end"
+                              font-size="11" fill="var(--elevation-text)">{tick.label}</text>
+                      ))}
+                      {elevation.xTicks.map(tick => (
+                        <text x={tick.position} y={plotBottom + 16} text-anchor="middle"
+                              font-size="11" fill="var(--elevation-text)">{tick.label}</text>
+                      ))}
+                      <text x={plotRight} y={plotBottom + 16} text-anchor="middle"
+                            font-size="11" fill="var(--elevation-text)">km</text>
+                    </svg>
+                  </div>
+                );
+              })()}
+
+              {nearbyPhotos.length > 0 && (() => {
+                const routeSlugs = [...new Set(nearbyPhotos.map(p => p.routeSlug))];
+                const routeNames = routeSlugs.filter(s => s !== '__parked').slice(0, 3).map(slugToName);
+                const label = routeNames.length > 0
+                  ? `${nearbyPhotos.length} photos nearby · ${routeNames.join(', ')}`
+                  : `${nearbyPhotos.length} photos nearby`;
+                return (
+                  <div class="route-preview-photos">
+                    <small>{label}</small>
+                    <div class="route-preview-photos-strip">
+                      {nearbyPhotos.slice(0, 12).map(photo => (
+                        <img
+                          key={photo.key}
+                          src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`}
+                          alt={photo.caption || ''}
+                          loading="lazy"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-            <button type="button" class="btn-primary" onClick={startEditing}>
-              Create Route
-            </button>
           </div>
         )}
         {error && <div class="auth-error">{error}</div>}
@@ -196,6 +319,8 @@ export default function RouteCreator() {
       gpx: 'main.gpx',
       isNew: true,
       gpxContent,
+      ...(sourceUrl.includes('ridewithgps.com') && { rwgps_url: sourceUrl }),
+      ...(sourceUrl.includes('google.com/maps/d/') && { google_maps_url: sourceUrl }),
     }] as VariantItem[],
     translations: {} as Record<string, { name?: string; tagline?: string; body?: string }>,
     isNew: true,

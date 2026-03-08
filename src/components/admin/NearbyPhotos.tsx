@@ -21,10 +21,11 @@ interface Props {
   onAddPhoto: (photo: AdminMediaItem, wasParked: boolean) => void;
   onParkPhoto: (photo: AdminMediaItem) => void;
   onDeleteParked?: (key: string) => void;
+  initiallyExpanded?: boolean;
 }
 
-export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaKeys, cdnUrl, userRole, onAddPhoto, onParkPhoto, onDeleteParked }: Props) {
-  const [collapsed, setCollapsed] = useState(true);
+export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaKeys, cdnUrl, userRole, onAddPhoto, onParkPhoto, onDeleteParked, initiallyExpanded }: Props) {
+  const [collapsed, setCollapsed] = useState(!initiallyExpanded);
   const [dragOverPanel, setDragOverPanel] = useState(false);
 
   const available = useMemo(

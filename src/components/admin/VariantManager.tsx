@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder } from '../../lib/hooks';
 import { extractRwgpsUrl } from '../../lib/gpx';
+import { slugify } from '../../lib/slug';
 
 export interface VariantItem {
   name: string;
@@ -8,6 +9,7 @@ export interface VariantItem {
   distance_km?: number;
   strava_url?: string;
   rwgps_url?: string;
+  google_maps_url?: string;
   isNew?: boolean;      // client-only: marks newly uploaded variants
   gpxContent?: string;  // client-only: raw GPX XML for new uploads
 }
@@ -24,9 +26,9 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showRwgps, setShowRwgps] = useState(false);
-  const [rwgpsUrl, setRwgpsUrl] = useState('');
+  const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   function updateVariant(idx: number, updates: Partial<VariantItem>) {
     const updated = variants.map((v, i) => i === idx ? { ...v, ...updates } : v);
@@ -85,16 +87,16 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
     }
   }, [pendingFiles]);
 
-  async function handleRwgpsImport() {
-    if (!rwgpsUrl.trim()) return;
+  async function handleUrlImport() {
+    if (!importUrl.trim()) return;
     setError('');
     setImporting(true);
 
     try {
-      const res = await fetch('/api/gpx/import-rwgps', {
+      const res = await fetch('/api/gpx/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: rwgpsUrl }),
+        body: JSON.stringify({ url: importUrl }),
       });
 
       if (!res.ok) {
@@ -102,24 +104,25 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
         throw new Error(data.error || 'Import failed');
       }
 
-      const { gpxContent, rwgpsUrl: resolvedUrl } = await res.json();
+      const { gpxContent, sourceUrl, name: routeName } = await res.json();
 
-      // Derive variant name from RWGPS URL
-      const routeId = rwgpsUrl.match(/routes\/(\d+)/)?.[1] || 'imported';
+      const isRwgps = sourceUrl.includes('ridewithgps.com');
+      const isGoogleMaps = sourceUrl.includes('google.com/maps/d/');
+
       const gpxFileName = variants.length === 0
         ? 'main.gpx'
-        : `variants/rwgps-${routeId}.gpx`;
+        : `variants/${slugify(routeName)}.gpx`;
 
       onChange([...variants, {
-        name: `RWGPS ${routeId}`,
+        name: routeName,
         gpx: gpxFileName,
         isNew: true,
         gpxContent,
-        rwgps_url: resolvedUrl,
+        ...(isRwgps && { rwgps_url: sourceUrl }),
+        ...(isGoogleMaps && { google_maps_url: sourceUrl }),
       }]);
 
-      setRwgpsUrl('');
-      setShowRwgps(false);
+      setImportUrl('');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -179,6 +182,16 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
                   onInput={(e) => updateVariant(idx, { rwgps_url: (e.target as HTMLInputElement).value || undefined })}
                 />
               </div>
+              {v.google_maps_url && (
+                <div class="form-field">
+                  <label>
+                    Imported from{' '}
+                    <a href={v.google_maps_url} target="_blank" rel="noopener noreferrer">
+                      Google Maps
+                    </a>
+                  </label>
+                </div>
+              )}
               <div class="form-field">
                 <label>GPX file: <code>{v.gpx}</code></label>
               </div>
@@ -199,35 +212,37 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
             style="display:none"
             onChange={handleGpxUpload}
           />
-          {!showRwgps && (
-            <button type="button" class="btn-secondary" onClick={() => setShowRwgps(true)}>
-              + Add option (Ride with GPS)
+          <span class="variant-add-or">or</span>
+          {!showImport ? (
+            <button type="button" class="btn-secondary" onClick={() => setShowImport(true)}>
+              + Add option (RideWithGPS / Google Maps)
             </button>
+          ) : (
+            <div class="url-import">
+              <input
+                type="url"
+                class="url-import-input"
+                placeholder="Paste a RideWithGPS or Google Maps link"
+                value={importUrl}
+                onInput={(e) => setImportUrl((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlImport(); } }}
+              />
+              {importUrl.trim() && (
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  onClick={handleUrlImport}
+                  disabled={importing}
+                >
+                  {importing ? 'Importing...' : 'Import'}
+                </button>
+              )}
+              <button type="button" class="btn-cancel" onClick={() => { setShowImport(false); setImportUrl(''); }}>
+                Cancel
+              </button>
+            </div>
           )}
         </div>
-        {showRwgps && (
-          <div class="rwgps-import">
-            <input
-              type="url"
-              class="rwgps-input"
-              placeholder="https://ridewithgps.com/routes/..."
-              value={rwgpsUrl}
-              onInput={(e) => setRwgpsUrl((e.target as HTMLInputElement).value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRwgpsImport(); } }}
-            />
-            <button
-              type="button"
-              class="btn-secondary"
-              onClick={handleRwgpsImport}
-              disabled={importing || !rwgpsUrl.trim()}
-            >
-              {importing ? 'Importing...' : 'Import'}
-            </button>
-            <button type="button" class="btn-cancel" onClick={() => { setShowRwgps(false); setRwgpsUrl(''); }}>
-              Cancel
-            </button>
-          </div>
-        )}
       </div>
 
       {error && <div class="auth-error">{error}</div>}

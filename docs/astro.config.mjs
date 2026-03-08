@@ -24,10 +24,8 @@ export default defineConfig({
           tag: 'meta',
           attrs: { name: 'robots', content: 'noindex, nofollow' },
         }] : []),
-        { tag: 'meta', attrs: { property: 'og:image', content: 'https://whereto.bike/hero-screenshot.webp' } },
-        { tag: 'meta', attrs: { property: 'og:image:width', content: '1012' } },
-        { tag: 'meta', attrs: { property: 'og:image:height', content: '1282' } },
       ],
+      routeMiddleware: './src/routeData.ts',
       customCss: ['./src/styles/custom.css'],
       components: {
         Head: './src/components/Head.astro',
@@ -48,6 +46,7 @@ export default defineConfig({
           items: [
             { label: 'Getting started', slug: 'guides/getting-started' },
             { label: 'Adding routes', slug: 'guides/adding-routes' },
+            { label: 'GPX files', slug: 'guides/gpx-files' },
             { label: 'Managing media', slug: 'guides/managing-media' },
             { label: 'Managing events', slug: 'guides/managing-events' },
             { label: 'Editing content', slug: 'guides/editing-content' },
