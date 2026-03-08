@@ -6,6 +6,7 @@ import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { CITY } from '@/lib/config';
 import { reactionSchema } from '@/lib/reaction-types';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';
 
 export const prerender = false;
 
@@ -21,6 +22,15 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   const database = db();
+
+  // Rate limit: 60 reactions per hour per user
+  const identifiers = [`user:${user.id}`];
+  const overLimit = await checkRateLimit(database, 'reaction', identifiers, 60);
+  if (overLimit) {
+    return jsonError('Reaction rate limit exceeded', 429);
+  }
+  await recordAttempt(database, 'reaction', identifiers);
+  cleanupOldAttempts(database, 'reaction').catch(() => {});
 
   // Check if reaction already exists (toggle off)
   const existing = await database
