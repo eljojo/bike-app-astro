@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { updateSharedKeys, buildSharedKeysMap } from '../../src/lib/photo-registry';
+import {
+  updateSharedKeys, buildSharedKeysMap, getPhotoUsages,
+  serializeSharedKeys, deserializeSharedKeys,
+} from '../../src/lib/photo-registry';
 
 import type { SharedKeysMap } from '../../src/lib/photo-registry';
 
@@ -125,5 +128,47 @@ describe('buildSharedKeysMap', () => {
     }
 
     expect(bulkMap).toEqual(incrementalMap);
+  });
+});
+
+describe('getPhotoUsages', () => {
+  it('returns usages for a multi-referenced key', () => {
+    const map: SharedKeysMap = new Map();
+    map.set('photo-abc', [
+      { type: 'route', slug: 'canal-path' },
+      { type: 'place', slug: 'flora' },
+    ]);
+    expect(getPhotoUsages(map, 'photo-abc')).toEqual([
+      { type: 'route', slug: 'canal-path' },
+      { type: 'place', slug: 'flora' },
+    ]);
+  });
+
+  it('returns empty array for single-use or unknown key', () => {
+    const map: SharedKeysMap = new Map();
+    expect(getPhotoUsages(map, 'unknown-key')).toEqual([]);
+  });
+});
+
+describe('serialization', () => {
+  it('round-trips through JSON', () => {
+    const map: SharedKeysMap = new Map();
+    map.set('photo-abc', [
+      { type: 'route', slug: 'canal-path' },
+      { type: 'place', slug: 'flora' },
+    ]);
+    map.set('photo-def', [
+      { type: 'event', slug: '2026/bike-fest' },
+      { type: 'parked', slug: '__global' },
+    ]);
+
+    const json = serializeSharedKeys(map);
+    const restored = deserializeSharedKeys(json);
+    expect(restored).toEqual(map);
+  });
+
+  it('deserializes empty object to empty map', () => {
+    const map = deserializeSharedKeys('{}');
+    expect(map.size).toBe(0);
   });
 });

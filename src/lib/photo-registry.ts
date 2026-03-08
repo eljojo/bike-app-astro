@@ -85,3 +85,20 @@ export function buildSharedKeysMap(
 
   return map;
 }
+
+export function getPhotoUsages(map: SharedKeysMap, key: string): PhotoUsage[] {
+  return map.get(key) || [];
+}
+
+export function serializeSharedKeys(map: SharedKeysMap): string {
+  const obj: Record<string, PhotoUsage[]> = {};
+  for (const [key, usages] of map) {
+    obj[key] = usages;
+  }
+  return JSON.stringify(obj);
+}
+
+export function deserializeSharedKeys(json: string): SharedKeysMap {
+  const obj = JSON.parse(json) as Record<string, PhotoUsage[]>;
+  return new Map(Object.entries(obj));
+}
