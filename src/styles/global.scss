@@ -172,6 +172,7 @@ a.go-back-button {
   justify-content: space-between;
   align-items: center;
   a { padding: 4px; text-decoration: none; }
+  .powered-by { opacity: 0.5; font-size: 0.85em; &:hover { opacity: 1; } }
 }
 @media (prefers-color-scheme: light) {
   .site-footer {
@@ -530,6 +531,11 @@ a.go-back-button {
 .leaflet-bar, .leaflet-control {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
+// Leaflet popups have a white background — force dark text in dark mode
+.leaflet-popup-content-wrapper {
+  color: $color-text;
+  a { color: $color-text; }
+}
 @include dark-mode {
   .poi-marker {
     background: #222;
@@ -766,6 +772,188 @@ a.go-back-button {
   &:hover {
     text-decoration: underline;
     color: $color-accent;
+  }
+}
+
+// Stats strip
+.route-stats {
+  display: flex;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 0.75rem 0;
+  margin: 1rem 0;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile - 1px) {
+    flex-wrap: wrap;
+  }
+}
+
+.route-stats--item {
+  flex: 1;
+  padding: 0 1rem;
+  border-left: 1px solid $color-border;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  &:first-child {
+    border-left: none;
+  }
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile - 1px) {
+    flex: 0 0 50%;
+    padding: 0.5rem 1rem;
+    border-left: none;
+
+    &:nth-child(odd) {
+      border-right: 1px solid $color-border;
+      @include dark-mode { border-color: $color-border-dark; }
+    }
+    &:nth-child(n+3) {
+      border-top: 1px solid $color-border;
+      @include dark-mode { border-color: $color-border-dark; }
+    }
+  }
+}
+
+.route-stats--label {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  a { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.route-stats--value {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.route-stats--detail {
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  @include dark-mode { color: $color-text-muted-dark; }
+}
+
+// Actions bar
+.route-actions {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+// Similar routes
+.route-similar {
+  margin-top: 2em;
+  ul { list-style: none; padding: 0; }
+  li { padding: 0.3em 0; }
+  .route-similar--score {
+    opacity: 0.6;
+    font-size: 0.85em;
+  }
+}
+
+// Hidden nearby places (truncation toggle)
+.places-hidden {
+  display: none !important;
+}
+
+// Place summary line
+.route-place-summary {
+  font-size: 0.9em;
+  color: $color-text-muted;
+  @include dark-mode { color: $color-text-muted-dark; }
+}
+
+// Reactions widget
+@keyframes reaction-pop {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.3); }
+  30% { transform: scale(0.9); }
+  45% { transform: scale(1.15); }
+  60% { transform: scale(0.97); }
+  75% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.reactions-widget {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: transparent;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  &.active {
+    border-color: $color-accent;
+    background: rgba($color-accent, 0.08);
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.active {
+      border-color: $color-accent;
+      background: rgba($color-accent, 0.15);
+    }
+  }
+}
+
+.reaction-icon {
+  font-size: 1.2em;
+  display: inline-block;
+
+  &.pop {
+    animation: reaction-pop 0.6s cubic-bezier(0.2, 0.8, 0.4, 1);
+  }
+}
+
+.reaction-count {
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-left: 0.2rem;
+}
+
+.reaction-label {
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
   }
 }
 

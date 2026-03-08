@@ -1,6 +1,5 @@
 ---
 // src/components/Footer.astro
-import { getCityConfig } from '../lib/city-config';
 import { t, localePath } from '../i18n';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
@@ -10,7 +9,6 @@ interface Props {
 }
 
 const { alternateUrls } = Astro.props;
-const config = getCityConfig();
 const locale = Astro.currentLocale || defaultLocale();
 const locales = supportedLocales();
 const showSwitcher = locales.length > 1;
@@ -20,7 +18,10 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
 ---
 <footer class="site-footer">
   <a href={localePath('/about', locale)}>
-    {t('footer.community', locale, { display_name: config.display_name })}
+    {t('footer.community', locale)}
+  </a>
+  <a href="https://whereto.bike" class="powered-by" target="_blank" rel="noopener">
+    {t('footer.powered_by', locale)}
   </a>
   {showSwitcher && (
     <a href={switchPath} class="lang-switcher"

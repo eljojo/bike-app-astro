@@ -9,7 +9,7 @@ import { getCityConfig } from '@/lib/city-config';
 import { t } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
 import photoLocations from 'virtual:bike-app/photo-locations';
-import { haversineM, PHOTO_NEARBY_M } from '@/lib/proximity';
+import { haversineM, PHOTO_NEAR_PLACE_M } from '@/lib/proximity';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -58,7 +58,7 @@ const placeData = places
   }));
 // Select photos for the big map:
 // 1. First geolocated photo per route (cover/top photo)
-// 2. Any photo within PHOTO_NEARBY_M of a place marker
+// 2. Any photo within PHOTO_NEAR_PLACE_M of a place marker
 const selectedKeys = new Set<string>();
 
 // 1. Top N geolocated photos per route (in media order)
@@ -76,7 +76,7 @@ for (const p of photoLocations) {
 for (const p of photoLocations) {
   if (selectedKeys.has(p.key)) continue;
   for (const place of placeData) {
-    if (haversineM(p.lat, p.lng, place.lat, place.lng) <= PHOTO_NEARBY_M) {
+    if (haversineM(p.lat, p.lng, place.lat, place.lng) <= PHOTO_NEAR_PLACE_M) {
       selectedKeys.add(p.key);
       break;
     }

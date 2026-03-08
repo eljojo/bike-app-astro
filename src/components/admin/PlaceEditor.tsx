@@ -3,7 +3,7 @@ import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
 import SaveSuccessModal from './SaveSuccessModal';
 import { categoryEmoji } from '../../lib/place-categories';
-import { haversineM, PHOTO_NEARBY_M } from '../../lib/proximity';
+import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
@@ -170,7 +170,7 @@ export default function PlaceEditor({ initialData, cdnUrl, tilesUrl, userRole, s
   const nearbyPhotos = useMemo(() => {
     if (!lat || !lng) return [];
     return photoLocations
-      .filter((p) => haversineM(lat, lng, p.lat, p.lng) <= PHOTO_NEARBY_M)
+      .filter((p) => haversineM(lat, lng, p.lat, p.lng) <= PHOTO_NEAR_PLACE_M)
       .sort((a, b) => haversineM(lat, lng, a.lat, a.lng) - haversineM(lat, lng, b.lat, b.lng))
       .slice(0, 12);
   }, [lat, lng]);

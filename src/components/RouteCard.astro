@@ -39,7 +39,7 @@ const mapLang = cachedMapLocale(slug, undefined, locale);
 const loading = lazy ? 'lazy' : 'eager';
 ---
 
-<li class="route-card" data-tags={JSON.stringify(tags)}>
+<li class="route-card" data-tags={JSON.stringify(tags)} data-slug={slug}>
   <a href={paths.route(linkSlug, locale)} class="route-card--link">
     <div class="route-card--images">
       {coverKey && (

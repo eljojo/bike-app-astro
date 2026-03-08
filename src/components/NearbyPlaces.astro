@@ -6,20 +6,22 @@ import { t } from '../i18n';
 
 interface Props {
   nearby: NearbyPlace[];
+  limit?: number;
 }
 
-const { nearby } = Astro.props;
+const { nearby, limit } = Astro.props;
 const locale = Astro.currentLocale;
+const hasMore = limit != null && nearby.length > limit;
 ---
 
 {nearby.length > 0 && (
   <section class="nearby-places">
     <h2>{t('places.nearby', locale)}</h2>
     <ul>
-      {nearby.map(place => {
+      {nearby.map((place, i) => {
         const placeName = (locale !== defaultLocale() && place.name_fr) ? place.name_fr : place.name;
         return (
-        <li itemscope itemtype="https://schema.org/Place">
+        <li itemscope itemtype="https://schema.org/Place" class={limit != null && i >= limit ? 'places-hidden' : ''}>
           <span class="place-emoji" set:html={categoryEmoji[place.category] || '&#x1F4CD;'} />
           <a href={place.google_maps_url || `https://www.google.com/maps/?q=${place.lat},${place.lng}`}
              target="_blank" rel="noopener" class="place-name" itemprop="hasMap">
@@ -38,5 +40,24 @@ const locale = Astro.currentLocale;
         );
       })}
     </ul>
+    {hasMore && (
+      <button class="action-button" id="show-all-places">
+        {t('places.show_all', locale, { count: nearby.length })}
+      </button>
+    )}
   </section>
+)}
+
+{hasMore && (
+  <script>
+    const showAllBtn = document.getElementById('show-all-places');
+    if (showAllBtn) {
+      showAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('.places-hidden').forEach(el => {
+          (el as HTMLElement).classList.remove('places-hidden');
+        });
+        showAllBtn.style.display = 'none';
+      });
+    }
+  </script>
 )}

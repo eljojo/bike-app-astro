@@ -44,4 +44,30 @@ const { published, routeTagsMap, filterTags } = await loadHomepageData();
       Know a route that's missing? Suggest a new route
     </a>
   </div>
+  <script>
+    // Reorder starred routes to top of the grid
+    (async () => {
+      try {
+        const res = await fetch('/api/reactions/route/_starred');
+        if (!res.ok) return;
+        const data = await res.json();
+        const starred: string[] = data.starredSlugs || [];
+        if (starred.length === 0) return;
+
+        const grid = document.querySelector('.routes-grid');
+        if (!grid) return;
+
+        const starredSet = new Set(starred);
+        const cards = [...grid.querySelectorAll<HTMLElement>('.route-card')];
+        const starredCards = cards.filter(c => starredSet.has(c.dataset.slug || ''));
+
+        // Move starred cards to the top, preserving their relative order
+        for (const card of starredCards.reverse()) {
+          grid.prepend(card);
+        }
+      } catch {
+        // Silently fail — starred reordering is progressive enhancement
+      }
+    })();
+  </script>
 </Base>

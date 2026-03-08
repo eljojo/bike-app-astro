@@ -6,7 +6,7 @@ export type Action =
   | 'edit-content' | 'edit-past-event' | 'set-status' | 'edit-slug'
   | 'revert-commit' | 'manage-users' | 'delete-media'
   | 'sync-staging' | 'view-history' | 'upload-media'
-  | 'import-gpx' | 'update-settings';
+  | 'import-gpx' | 'update-settings' | 'add-reaction';
 
 type Policy = (user: SessionUser) => boolean;
 
@@ -16,6 +16,7 @@ const policies: Record<Action, Policy> = {
   'upload-media':    () => true,
   'import-gpx':      () => true,
   'update-settings': () => true,
+  'add-reaction':    () => true,
   'edit-slug':       (user) => user.role !== 'guest',
   'edit-past-event': (user) => user.role === 'admin',
   'set-status':      (user) => user.role === 'admin',

@@ -17,8 +17,10 @@ function toRad(deg: number): number {
 
 /** Place is "nearby" a route track if within this distance. */
 export const PLACE_NEAR_ROUTE_M = 300;
-/** Photo is "nearby" a route track or place if within this distance. */
+/** Photo is "nearby" a route track if within this distance. */
 export const PHOTO_NEARBY_M = 200;
+/** Photo is "nearby" a place pin if within this distance (larger — remote places like parks/beaches). */
+export const PHOTO_NEAR_PLACE_M = 750;
 
 export interface PlaceData {
   id: string;

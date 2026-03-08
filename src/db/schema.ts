@@ -62,6 +62,20 @@ export const contentEdits = sqliteTable('content_edits', {
   primaryKey({ columns: [table.city, table.contentType, table.contentSlug] }),
 ]);
 
+export const reactions = sqliteTable('reactions', {
+  id: text('id').primaryKey(),
+  city: text('city').notNull(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(),
+  contentSlug: text('content_slug').notNull(),
+  reactionType: text('reaction_type').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (table) => [
+  index('reactions_content_idx').on(table.city, table.contentType, table.contentSlug),
+  index('reactions_user_idx').on(table.userId),
+  uniqueIndex('reactions_unique_idx').on(table.city, table.userId, table.contentType, table.contentSlug, table.reactionType),
+]);
+
 export const userSettings = sqliteTable('user_settings', {
   userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   emailInCommits: integer('email_in_commits', { mode: 'boolean' }).notNull().default(false),

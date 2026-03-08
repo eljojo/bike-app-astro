@@ -1,0 +1,99 @@
+---
+import { cities } from '../cities';
+---
+
+<div class="city-selector">
+  <label class="city-label">
+    Your city
+    <select id="city-select">
+      {cities.map(city => (
+        <option value={city.id} data-url={city.url}>{city.name}</option>
+      ))}
+    </select>
+  </label>
+  <a id="city-link" href={cities[0].url} target="_blank" rel="noopener" class="city-visit">
+    Visit site &rarr;
+  </a>
+</div>
+
+<script>
+  const STORAGE_KEY = 'whereto-city';
+  const select = document.getElementById('city-select') as HTMLSelectElement;
+  const visitLink = document.getElementById('city-link') as HTMLAnchorElement;
+
+  // Restore saved city
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    const option = select.querySelector(`option[value="${saved}"]`) as HTMLOptionElement | null;
+    if (option) {
+      select.value = saved;
+    }
+  }
+
+  function getSelectedUrl(): string {
+    const option = select.selectedOptions[0];
+    return option?.dataset.url || '';
+  }
+
+  function updateLinks() {
+    const baseUrl = getSelectedUrl();
+    visitLink.href = baseUrl;
+
+    // Rewrite city-relative links in page content
+    document.querySelectorAll<HTMLAnchorElement>('a[href^="/admin"], a[href^="/routes/"], a[href^="/fr/admin"]').forEach(link => {
+      // Only rewrite links inside the main content area
+      if (!link.closest('.sl-markdown-content')) return;
+      const path = link.getAttribute('href') || '';
+      link.href = baseUrl + path;
+      link.target = '_blank';
+      link.rel = 'noopener';
+    });
+  }
+
+  select.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEY, select.value);
+    updateLinks();
+  });
+
+  updateLinks();
+</script>
+
+<style>
+  .city-selector {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    font-size: var(--sl-text-sm);
+  }
+
+  .city-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  #city-select {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background: var(--sl-color-gray-6, var(--sl-color-gray-5));
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-sm);
+  }
+
+  .city-visit {
+    display: block;
+    margin-top: 0.5rem;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+    font-size: var(--sl-text-xs);
+  }
+  .city-visit:hover {
+    text-decoration: underline;
+  }
+</style>

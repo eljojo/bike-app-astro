@@ -49,9 +49,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // Only protect admin pages and non-auth API routes
   const isProtected =
     pathname.startsWith('/admin') ||
-    (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/'));
+    (pathname.startsWith('/api/') &&
+     !pathname.startsWith('/api/auth/') &&
+     !pathname.startsWith('/api/reactions/'));
 
   if (!isProtected) {
+    // For reactions GET, optionally load user for personalized responses
+    if (pathname.startsWith('/api/reactions/')) {
+      const token = context.cookies.get('session_token')?.value;
+      if (token) {
+        const database = db();
+        const optionalUser = await validateSession(database, token);
+        if (optionalUser && !optionalUser.bannedAt) {
+          context.locals.user = optionalUser;
+        }
+      }
+    }
     const response = await next();
     if (withNonceCsp && context.locals.cspNonce) {
       return applyNonceCsp(response, context.locals.cspNonce);

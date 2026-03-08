@@ -1,3 +1,4 @@
+import type { APIContext } from 'astro';
 import { eq, and, gt, lt } from 'drizzle-orm';
 import { credentials, sessions, users, userSettings } from '../db/schema';
 import type { Database, DbClient } from '../db';
@@ -17,6 +18,11 @@ export interface WebAuthnConfig {
   rpID: string;
   rpName: string;
   origin: string;
+}
+
+/** Get user from locals if authenticated, undefined otherwise. For public endpoints with optional personalization. */
+export function getOptionalUser(locals: APIContext['locals']): SessionUser | undefined {
+  return (locals as any).user as SessionUser | undefined;
 }
 
 /** Normalize email for storage and lookup: lowercase, trim whitespace. */

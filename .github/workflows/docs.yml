@@ -1,0 +1,74 @@
+name: Docs
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths: ['docs/**']
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+
+  build-deploy:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Restore LFS cache
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-docs-${{ hashFiles('docs/src/assets/**') }}
+          restore-keys: lfs-docs-
+
+      - name: Pull LFS files
+        run: git lfs pull
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install docs dependencies
+        run: npm ci -w docs
+
+      - name: Generate Astro types
+        run: npx astro sync
+        working-directory: docs
+
+      - name: Type check docs
+        run: npx tsc --noEmit --project docs/tsconfig.json
+
+      - name: Build docs
+        run: npm run build -w docs
+        env:
+          DOCS_ENV: ${{ github.event_name == 'push' && 'production' || 'staging' }}
+
+      - name: Deploy to staging
+        if: github.event_name == 'pull_request'
+        run: npx wrangler deploy --config docs/wrangler.jsonc --env staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy to production
+        if: github.event_name == 'push'
+        run: npx wrangler deploy --config docs/wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
