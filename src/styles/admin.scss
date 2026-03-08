@@ -601,6 +601,12 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.variant-add-or {
+  font-size: 0.8rem;
+  @include muted-text;
 }
 
 .btn-cancel {

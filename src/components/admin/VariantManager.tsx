@@ -28,6 +28,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   function updateVariant(idx: number, updates: Partial<VariantItem>) {
     const updated = variants.map((v, i) => i === idx ? { ...v, ...updates } : v);
@@ -211,25 +212,35 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
             style="display:none"
             onChange={handleGpxUpload}
           />
-        </div>
-        <div class="url-import">
-          <input
-            type="url"
-            class="url-import-input"
-            placeholder="or paste a URL (RideWithGPS, Google Maps)"
-            value={importUrl}
-            onInput={(e) => setImportUrl((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlImport(); } }}
-          />
-          {importUrl.trim() && (
-            <button
-              type="button"
-              class="btn-secondary"
-              onClick={handleUrlImport}
-              disabled={importing}
-            >
-              {importing ? 'Importing...' : 'Import'}
+          <span class="variant-add-or">or</span>
+          {!showImport ? (
+            <button type="button" class="btn-secondary" onClick={() => setShowImport(true)}>
+              + Add option (RideWithGPS / Google Maps)
             </button>
+          ) : (
+            <div class="url-import">
+              <input
+                type="url"
+                class="url-import-input"
+                placeholder="Paste a RideWithGPS or Google Maps link"
+                value={importUrl}
+                onInput={(e) => setImportUrl((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlImport(); } }}
+              />
+              {importUrl.trim() && (
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  onClick={handleUrlImport}
+                  disabled={importing}
+                >
+                  {importing ? 'Importing...' : 'Import'}
+                </button>
+              )}
+              <button type="button" class="btn-cancel" onClick={() => { setShowImport(false); setImportUrl(''); }}>
+                Cancel
+              </button>
+            </div>
           )}
         </div>
       </div>
