@@ -769,6 +769,113 @@ a.go-back-button {
   }
 }
 
+// Stats strip
+.route-stats {
+  display: flex;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 0.75rem 0;
+  margin: 1rem 0;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile - 1px) {
+    flex-wrap: wrap;
+  }
+}
+
+.route-stats--item {
+  flex: 1;
+  padding: 0 1rem;
+  border-left: 1px solid $color-border;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  &:first-child {
+    border-left: none;
+  }
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile - 1px) {
+    flex: 0 0 50%;
+    padding: 0.5rem 1rem;
+    border-left: none;
+
+    &:nth-child(odd) {
+      border-right: 1px solid $color-border;
+      @include dark-mode { border-color: $color-border-dark; }
+    }
+    &:nth-child(n+3) {
+      border-top: 1px solid $color-border;
+      @include dark-mode { border-color: $color-border-dark; }
+    }
+  }
+}
+
+.route-stats--label {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  a { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.route-stats--value {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.route-stats--detail {
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  @include dark-mode { color: $color-text-muted-dark; }
+}
+
+// Actions bar
+.route-actions {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+// Similar routes
+.route-similar {
+  margin-top: 2em;
+  ul { list-style: none; padding: 0; }
+  li { padding: 0.3em 0; }
+  .route-similar--score {
+    opacity: 0.6;
+    font-size: 0.85em;
+  }
+}
+
+// Hidden nearby places (truncation toggle)
+.places-hidden {
+  display: none !important;
+}
+
+// Place summary line
+.route-place-summary {
+  font-size: 0.9em;
+  color: $color-text-muted;
+  @include dark-mode { color: $color-text-muted-dark; }
+}
+
 // Reactions widget
 @keyframes reaction-pop {
   0% { transform: scale(1); }

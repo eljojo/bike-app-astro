@@ -86,7 +86,16 @@ const placeDesc = buildPlaceDesc(nearbyCategories);
 
 const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 
-const allTags = [distanceTag, ...(shape ? [t('shape.' + shape, locale)] : []), ...tags];
+const displayTags = tags;
+
+const difficultyText = primaryScore !== null
+  ? (hasRange
+      ? t('difficulty.range', locale, {
+          low: t('difficulty.' + difficultyLabel(minScore!, allScores), locale),
+          high: t('difficulty.' + difficultyLabel(maxScore!, allScores), locale),
+        })
+      : t('difficulty.' + difficultyLabel(primaryScore, allScores), locale))
+  : null;
 
 const SEO_FRIENDLY_TAGS = ['gravel', 'scenic', 'easy', 'chill'];
 const seoTitle = (() => {
@@ -116,95 +125,112 @@ const breadcrumbs = breadcrumbJsonLd([
 
     <div class="route-detail--content">
       <div class="route-detail--body">
+        {/* Zone 1: Header */}
         <h1>
           {localeName}
           <a href={`/admin/routes/${route.id}`} class="admin-edit-link" aria-label="Edit this route">Edit</a>
         </h1>
         {localeTagline && <h2>{localeTagline}</h2>}
 
-        <ul class="route--tags">
-          {allTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
-        </ul>
+        {displayTags.length > 0 && (
+          <ul class="route--tags">
+            {displayTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+          </ul>
+        )}
 
+        {/* Zone 2: Stats Strip */}
+        <div class="route-stats">
+          <div class="route-stats--item">
+            <span class="route-stats--label">{t('route.distance', locale)}</span>
+            <span class="route-stats--value">{distanceTag}</span>
+          </div>
+          {shape && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('route.shape', locale)}</span>
+              <span class="route-stats--value">{t('shape.' + shape, locale)}</span>
+            </div>
+          )}
+          {primaryTrack?.elevation_gain_m != null && !manyVariants && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">
+                <a href={`${paths.routeMap(slug, locale)}#elevation-profile`}>{t('route.elevation_gain', locale)}</a>
+              </span>
+              <span class="route-stats--value">{primaryTrack.elevation_gain_m} {t('route.meters', locale)}</span>
+              {conclusion && <span class="route-stats--detail">{t('elevation.' + conclusion, locale)}</span>}
+            </div>
+          )}
+          {difficultyText && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('route.difficulty', locale)}</span>
+              <span class="route-stats--value">{difficultyText}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Zone 3: Actions */}
+        <div class="route-actions">
+          {variants.length > 1 ? (
+            <div>
+              <h3>{t('route.versions', locale, { count: variants.length })}</h3>
+              {variants.map((v, i) => (
+                <p>
+                  <a href={paths.routeVariantMap(slug, variantKeyFromGpx(v.gpx), locale)} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
+                    &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
+                  </a>
+                  {v.strava_url && (
+                    <Fragment>
+                      {' '}
+                      <a href={v.strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
+                        <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+                      </a>
+                    </Fragment>
+                  )}
+                  {v.rwgps_url && (
+                    <Fragment>
+                      {' '}
+                      <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
+                        <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
+                      </a>
+                    </Fragment>
+                  )}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p>
+              <a href={paths.routeMap(slug, locale)} class="action-button --primary --wider">
+                &#x1F5FA;&#xFE0F; {t('route.view_map', locale, { name: localeName })}
+              </a>
+              {variants[0]?.strava_url && (
+                <Fragment>
+                  {' '}
+                  <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
+                    <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+                  </a>
+                </Fragment>
+              )}
+              {variants[0]?.rwgps_url && (
+                <Fragment>
+                  {' '}
+                  <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
+                    <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
+                  </a>
+                </Fragment>
+              )}
+            </p>
+          )}
+
+          <ReactionsWidget client:idle contentType="route" contentSlug={route.id} labels={[
+            { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
+            { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
+            { type: 'star', icon: '\u2B50', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
+          ]} />
+        </div>
+
+        {/* Zone 4: Description */}
         <div class="route-description" set:html={localeBody} />
 
         <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">&#x270F;&#xFE0F; {t('route.suggest_edit', locale)}</a>
-
-        <ReactionsWidget client:idle contentType="route" contentSlug={route.id} labels={[
-          { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
-          { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
-          { type: 'star', icon: '\u2B50', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
-        ]} />
-
-        {primaryTrack && !manyVariants && (
-          <p>
-            <span style="font-size: 1.5em;">&#x1F6B5; </span>
-            {t('route.elevation_gain', locale)}: <a href={`${paths.routeMap(slug, locale)}#elevation-profile`}>{primaryTrack.elevation_gain_m} {t('route.meters', locale)}</a>{conclusion && `, ${t('route.this_is', locale)} ${t('elevation.' + conclusion, locale)}`}
-          </p>
-        )}
-
-        {primaryScore !== null && (
-          <p style="font-size: 0.9em; opacity: 0.8;">
-            {t('route.difficulty', locale)}: {hasRange
-              ? t('difficulty.range', locale, {
-                  low: t('difficulty.' + difficultyLabel(minScore!, allScores), locale),
-                  high: t('difficulty.' + difficultyLabel(maxScore!, allScores), locale),
-                })
-              : t('difficulty.' + difficultyLabel(primaryScore, allScores), locale)
-            }
-          </p>
-        )}
-
-        {variants.length > 1 ? (
-          <div>
-            <h3>{t('route.versions', locale, { count: variants.length })}</h3>
-            {variants.map((v, i) => (
-              <p>
-                <a href={paths.routeVariantMap(slug, variantKeyFromGpx(v.gpx), locale)} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
-                  &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
-                </a>
-                {v.strava_url && (
-                  <Fragment>
-                    {' '}
-                    <a href={v.strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                      <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                    </a>
-                  </Fragment>
-                )}
-                {v.rwgps_url && (
-                  <Fragment>
-                    {' '}
-                    <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                      <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
-                    </a>
-                  </Fragment>
-                )}
-              </p>
-            ))}
-          </div>
-        ) : (
-          <p>
-            <a href={paths.routeMap(slug, locale)} class="action-button --primary --wider" style="font-weight: bold;">
-              &#x1F5FA;&#xFE0F; {t('route.view_map', locale, { name: localeName })}
-            </a>
-            {variants[0]?.strava_url && (
-              <Fragment>
-                {' '}
-                <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                  <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                </a>
-              </Fragment>
-            )}
-            {variants[0]?.rwgps_url && (
-              <Fragment>
-                {' '}
-                <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                  <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
-                </a>
-              </Fragment>
-            )}
-          </p>
-        )}
       </div>
 
       {hasMap && (
@@ -216,9 +242,9 @@ const breadcrumbs = breadcrumbJsonLd([
             />
           </a>
           {nearbyPlaces.length > 0 && (
-            <NearbyPlaces nearby={nearbyPlaces} />
+            <NearbyPlaces nearby={nearbyPlaces} limit={8} />
           )}
-          {placeDesc && <p style="font-size: 0.9em; opacity: 0.8;">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
+          {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
         </div>
       )}
     </div>
@@ -254,20 +280,20 @@ const breadcrumbs = breadcrumbJsonLd([
     )}
 
     {similarRoutes.length > 0 && (
-      <div style="margin-top: 2em;">
+      <div class="route-similar">
         <h3>{t('route.similar', locale)}</h3>
-        <ul style="list-style: none; padding: 0;">
+        <ul>
           {similarRoutes.map(s => (
-            <li style="padding: 0.3em 0;">
+            <li>
               <a href={paths.route(s.id, locale)}>{routeNames[s.id]}</a>
-              <span style="opacity: 0.6; font-size: 0.85em;"> ({t('route.similar_pct', locale, { score: s.score })})</span>
+              <span class="route-similar--score"> ({t('route.similar_pct', locale, { score: s.score })})</span>
             </li>
           ))}
         </ul>
       </div>
     )}
 
-    <p style="margin-top: 2em;">
+    <p class="route-similar">
       <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
