@@ -1,5 +1,6 @@
-import { useState, useRef, useMemo, useEffect } from 'preact/hooks';
+import { useState, useRef, useMemo } from 'preact/hooks';
 import RouteEditor from './RouteEditor';
+import StaticRouteMap from './StaticRouteMap';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
@@ -9,11 +10,10 @@ import photoLocations from 'virtual:bike-app/photo-locations';
 import { findNearbyPhotos } from '../../lib/photo-proximity';
 
 interface Props {
-  tilesUrl: string;
   cdnUrl: string;
 }
 
-export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
+export default function RouteCreator({ cdnUrl }: Props) {
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');
   const [gpxContent, setGpxContent] = useState('');
   const [name, setName] = useState('');
@@ -24,13 +24,16 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
   const [importing, setImporting] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const leafletMapRef = useRef<any>(null);
 
   const track = useMemo(() => gpxContent ? parseGpx(gpxContent) : null, [gpxContent]);
 
   const elevation = useMemo(
     () => track ? computeElevationProfile(track.points, track.distance_m) : null,
+    [track],
+  );
+
+  const coordinates = useMemo(
+    () => track ? track.points.map(p => [p.lon, p.lat] as [number, number]) : [],
     [track],
   );
 
@@ -40,44 +43,6 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
     const sampled = track.points.filter((_, i) => i % step === 0);
     const trackPts = sampled.map(p => ({ lat: p.lat, lng: p.lon }));
     return findNearbyPhotos(trackPts, photoLocations, '');
-  }, [track]);
-
-  useEffect(() => {
-    if (!track || !mapRef.current) return;
-    if (leafletMapRef.current) {
-      leafletMapRef.current.remove();
-      leafletMapRef.current = null;
-    }
-
-    import('leaflet').then((L) => {
-      import('leaflet/dist/leaflet.css');
-
-      if (!mapRef.current) return;
-
-      const map = L.default.map(mapRef.current, {
-        scrollWheelZoom: false,
-        dragging: false,
-        zoomControl: false,
-        attributionControl: false,
-      });
-
-      L.default.tileLayer(tilesUrl, { maxZoom: 20 }).addTo(map);
-
-      const coords = track.points.map(p => [p.lat, p.lon] as [number, number]);
-      const line = L.default.polyline(coords, {
-        color: '#350091',
-        weight: 4,
-        opacity: 0.9,
-      }).addTo(map);
-
-      map.fitBounds(line.getBounds(), { padding: [30, 30] });
-      leafletMapRef.current = map;
-    });
-
-    return () => {
-      leafletMapRef.current?.remove();
-      leafletMapRef.current = null;
-    };
   }, [track]);
 
   function slugToName(slug: string): string {
@@ -236,7 +201,7 @@ export default function RouteCreator({ tilesUrl, cdnUrl }: Props) {
             </div>
 
             <div class="route-preview">
-              <div class="route-preview-map" ref={mapRef} />
+              <StaticRouteMap coordinates={coordinates} class="route-preview-map" />
 
               {track && (
                 <div class="route-preview-stats">

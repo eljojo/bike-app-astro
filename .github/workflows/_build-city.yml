@@ -131,6 +131,9 @@ jobs:
         if: inputs.deploy
         run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
+      - name: Build map style
+        run: npx tsx scripts/build-map-style.ts
+
       - name: Build site
         run: npx astro build
         env:

@@ -12,7 +12,7 @@ export function createKvTileCache(kv: KVNamespace): TileCache {
     },
     async put(key: string, data: ArrayBuffer | Uint8Array, ttlSeconds: number): Promise<void> {
       const buf = data instanceof Uint8Array
-        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
         : data;
       await kv.put(`tile:${key}`, buf, { expirationTtl: ttlSeconds });
     },

@@ -36,6 +36,9 @@ test.describe('Screenshots', () => {
     await page.goto('/routes/ruta-rio-chillan/map');
     await page.waitForSelector('.maplibregl-map');
     await expect(page.locator('.maplibregl-map')).toBeVisible();
+    // Wait for map tiles to render (canvas gets painted)
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('route-map.png', { maxDiffPixelRatio: 0.02 });
   });
 
   test('guides index', async ({ page }) => {

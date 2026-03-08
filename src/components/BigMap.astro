@@ -59,6 +59,7 @@ const { routes, places, photos = [], center } = Astro.props;
 <script>
   import { initMap, addPolylines, addMarkers, addPhotoMarkers, addGpsControl, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
+  import { MAP_STYLE_URL } from '../lib/map-style-url';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
 
@@ -71,7 +72,7 @@ const { routes, places, photos = [], center } = Astro.props;
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
 
-    const map = initMap({ el, center, zoom: 11, styleUrl: '/map-style.json' });
+    const map = initMap({ el, center, zoom: 11, styleUrl: MAP_STYLE_URL });
 
     map.on('load', () => {
       addPolylines(map, routes.map((r: any) => ({

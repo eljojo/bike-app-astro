@@ -61,7 +61,14 @@ export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.
     style: styleUrl,
     center: [center[1], center[0]], // MapLibre uses [lng, lat]
     zoom,
-    attributionControl: true,
+    attributionControl: {},
+    // Resolve relative URLs to absolute — MapLibre's web worker can't resolve them
+    transformRequest: (url) => {
+      if (url.startsWith('/')) {
+        return { url: `${location.origin}${url}` };
+      }
+      return { url };
+    },
   });
 }
 
@@ -256,7 +263,6 @@ export function addGpsControl(map: maplibregl.Map): void {
     new maplibregl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
       trackUserLocation: false,
-      showUserHeading: false,
     }),
     'top-left',
   );

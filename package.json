@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "tsx scripts/build-map-style.ts && astro build",
     "preview": "astro preview",
     "astro": "astro",
     "maps:generate": "npx tsx scripts/generate-maps.ts",

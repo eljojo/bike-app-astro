@@ -98,6 +98,9 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Build map style
+        run: npx tsx scripts/build-map-style.ts
+
       - name: Build site (demo)
         run: npx astro build
         env:
