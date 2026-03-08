@@ -2,6 +2,7 @@
   "name": "bike-app-astro",
   "type": "module",
   "version": "0.0.1",
+  "workspaces": ["docs"],
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
