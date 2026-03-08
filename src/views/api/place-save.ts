@@ -5,14 +5,12 @@ import { CITY } from '../../lib/config';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
-import type { IGitService, FileChange } from '../../lib/git-service';
+import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
+import type { FileChange } from '../../lib/git-service';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../../lib/models/place-model';
 import { slugify } from '../../lib/slug';
-import { getPhotoUsages, updateSharedKeys, serializeSharedKeys } from '../../lib/photo-registry';
-import { loadSharedKeysMap } from '../../lib/load-admin-content';
-import { mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
-import { upsertContentCache } from '../../lib/cache';
+import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
+import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
@@ -51,11 +49,18 @@ export interface PlaceUpdate {
   contentHash?: string;
 }
 
+interface PlaceBuildResult extends BuildResult {
+  oldPhotoKey: string | undefined;
+  newPhotoKey: string | undefined;
+  placeSlug: string;
+  mergedParked: ParkedPhotoEntry[] | undefined;
+}
+
 function resolvePlacePath(placeId: string): string {
   return `${CITY}/places/${placeId}.md`;
 }
 
-export const placeHandlers: SaveHandlers<PlaceUpdate> = {
+export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
   parseRequest(body: unknown): PlaceUpdate {
     return placeUpdateSchema.parse(body);
   },
@@ -85,7 +90,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate> = {
     return buildFreshPlaceData(placeId, currentFiles);
   },
 
-  async checkExistence(git: IGitService, placeId: string): Promise<Response | null> {
+  async checkExistence(git, placeId) {
     const placePath = resolvePlacePath(placeId);
     const existing = await git.readFile(placePath);
     if (existing) {
@@ -99,33 +104,24 @@ export const placeHandlers: SaveHandlers<PlaceUpdate> = {
     const isNew = !currentFiles.primaryFile;
     const files: FileChange[] = [];
 
-    // Detect photo_key change
-    let oldPhotoKey: string | undefined;
-    if (currentFiles.primaryFile) {
-      const fmMatch = currentFiles.primaryFile.content.match(/^---\n([\s\S]*?)\n---/);
-      if (fmMatch) {
-        const existingFm = yaml.load(fmMatch[1]) as Record<string, unknown>;
-        oldPhotoKey = existingFm.photo_key as string | undefined;
-      }
-    }
+    // Detect photo_key change and park orphaned photo
+    const oldPhotoKey = currentFiles.primaryFile
+      ? extractFrontmatterField(currentFiles.primaryFile.content, 'photo_key')
+      : undefined;
     const newPhotoKey = update.frontmatter.photo_key;
 
-    // If photo_key was removed, check if it's used elsewhere and park if not
     let mergedParked: ParkedPhotoEntry[] | undefined;
-    if (oldPhotoKey && oldPhotoKey !== newPhotoKey) {
-      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
-      const usages = getPhotoUsages(sharedKeysMap, oldPhotoKey);
-      const usedElsewhere = usages.some(u => !(u.type === 'place' && u.slug === placeId));
-
-      if (!usedElsewhere) {
-        const parkedPath = `${CITY}/parked-photos.yml`;
-        const existingParkedFile = await git.readFile(parkedPath);
-        const existingParked: ParkedPhotoEntry[] = existingParkedFile
-          ? (yaml.load(existingParkedFile.content) as ParkedPhotoEntry[]) || []
-          : [];
-        mergedParked = mergeParkedPhotos(existingParked, [{ key: oldPhotoKey }], new Set());
-        files.push({ path: parkedPath, content: yaml.dump(mergedParked, { lineWidth: -1 }) });
-      }
+    const parked = await parkOrphanedPhoto({
+      oldKey: oldPhotoKey,
+      newKey: newPhotoKey,
+      contentType: 'place',
+      contentId: placeId,
+      sharedKeysData,
+      git,
+    });
+    if (parked) {
+      mergedParked = parked.mergedParked;
+      files.push(parked.fileChange);
     }
 
     // Build frontmatter, stripping empty optional fields
@@ -153,47 +149,17 @@ export const placeHandlers: SaveHandlers<PlaceUpdate> = {
     const content = `---\n${frontmatterStr}\n---\n`;
     files.push({ path: placePath, content });
 
-    return {
-      files,
-      deletePaths: [],
-      isNew,
-      oldPhotoKey,
-      newPhotoKey,
-      placeSlug: placeId,
-      mergedParked,
-    };
+    return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, placeSlug: placeId, mergedParked };
   },
 
   async afterCommit(result, database) {
-    const oldPhotoKey = result.oldPhotoKey as string | undefined;
-    const newPhotoKey = result.newPhotoKey as string | undefined;
-    const placeSlug = result.placeSlug as string;
-
+    const { oldPhotoKey, newPhotoKey, placeSlug, mergedParked } = result;
+    const changes = [];
     if (oldPhotoKey !== newPhotoKey) {
-      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
-      if (oldPhotoKey) {
-        updateSharedKeys(sharedKeysMap, oldPhotoKey, { type: 'place', slug: placeSlug }, 'remove');
-      }
-      if (newPhotoKey) {
-        updateSharedKeys(sharedKeysMap, newPhotoKey, { type: 'place', slug: placeSlug }, 'add');
-      }
-      await upsertContentCache(database, {
-        contentType: 'photo-shared-keys',
-        contentSlug: '__global',
-        data: serializeSharedKeys(sharedKeysMap),
-        githubSha: 'n/a',
-      });
+      if (oldPhotoKey) changes.push({ key: oldPhotoKey, usage: { type: 'place' as const, slug: placeSlug }, action: 'remove' as const });
+      if (newPhotoKey) changes.push({ key: newPhotoKey, usage: { type: 'place' as const, slug: placeSlug }, action: 'add' as const });
     }
-
-    const mergedParked = result.mergedParked as ParkedPhotoEntry[] | undefined;
-    if (mergedParked) {
-      await upsertContentCache(database, {
-        contentType: 'parked-photos',
-        contentSlug: '__global',
-        data: JSON.stringify(mergedParked),
-        githubSha: 'n/a',
-      });
-    }
+    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
 
   buildCommitMessage(update, placeId, isNew): string {

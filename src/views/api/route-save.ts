@@ -7,8 +7,7 @@ import { parseGpx } from '../../lib/gpx';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
-import { upsertContentCache } from '../../lib/cache';
-import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { uploadToLfs } from '../../lib/git-lfs';
 import { env } from '../../lib/env';
@@ -16,8 +15,7 @@ import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { updateRedirectsYaml } from '../../lib/redirects';
-import { updateSharedKeys, serializeSharedKeys } from '../../lib/photo-registry';
-import { loadSharedKeysMap } from '../../lib/load-admin-content';
+import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
@@ -105,7 +103,14 @@ export interface RouteUpdate {
   translations?: Record<string, { name: string; tagline: string; body: string }>;
 }
 
-export const routeHandlers: SaveHandlers<RouteUpdate> = {
+interface RouteBuildResult extends BuildResult {
+  mergedParked: ParkedPhotoEntry[] | undefined;
+  addedMediaKeys: string[];
+  removedMediaKeys: string[];
+  slug: string;
+}
+
+export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
   parseRequest(body: unknown): RouteUpdate {
     return routeUpdateSchema.parse(body);
   },
@@ -379,36 +384,12 @@ export const routeHandlers: SaveHandlers<RouteUpdate> = {
   },
 
   async afterCommit(result, database) {
-    const mergedParked = result.mergedParked as ParkedPhotoEntry[] | undefined;
-    if (mergedParked) {
-      await upsertContentCache(database, {
-        contentType: 'parked-photos',
-        contentSlug: '__global',
-        data: JSON.stringify(mergedParked),
-        githubSha: 'n/a',
-      });
-    }
-
-    // Update shared-keys map for added/removed media
-    const addedKeys = result.addedMediaKeys as string[] | undefined;
-    const removedKeys = result.removedMediaKeys as string[] | undefined;
-    const routeSlug = result.slug as string;
-
-    if (addedKeys?.length || removedKeys?.length) {
-      const sharedKeysMap = await loadSharedKeysMap(sharedKeysData);
-      for (const key of removedKeys || []) {
-        updateSharedKeys(sharedKeysMap, key, { type: 'route', slug: routeSlug }, 'remove');
-      }
-      for (const key of addedKeys || []) {
-        updateSharedKeys(sharedKeysMap, key, { type: 'route', slug: routeSlug }, 'add');
-      }
-      await upsertContentCache(database, {
-        contentType: 'photo-shared-keys',
-        contentSlug: '__global',
-        data: serializeSharedKeys(sharedKeysMap),
-        githubSha: 'n/a',
-      });
-    }
+    const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug } = result;
+    const changes = [
+      ...removedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: routeSlug }, action: 'remove' as const })),
+      ...addedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: routeSlug }, action: 'add' as const })),
+    ];
+    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
 };
 

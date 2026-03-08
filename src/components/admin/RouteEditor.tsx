@@ -429,10 +429,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           </div>
         )}
         {saved && userRole === 'guest' && (
-          <SaveSuccessModal
-            viewLink={`/routes/${initialData.slug}`}
-            onClose={() => {}}
-          />
+          <SaveSuccessModal viewLink={`/routes/${initialData.slug}`} />
         )}
         {saved && userRole !== 'guest' && (
           <div class="save-success">

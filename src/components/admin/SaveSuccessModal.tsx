@@ -1,11 +1,12 @@
 interface Props {
-  onClose: () => void;
+  onClose?: () => void;
   viewLink: string;
 }
 
 export default function SaveSuccessModal({ onClose, viewLink }: Props) {
+  const handleClose = onClose ?? (() => {});
   return (
-    <div class="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div class="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
       <div class="modal-content">
         <h2>Thanks for your contribution!</h2>
         <p>
@@ -16,7 +17,7 @@ export default function SaveSuccessModal({ onClose, viewLink }: Props) {
           <a href="/register?join=1" class="btn-primary">Create an account</a>
           <span class="modal-cta-hint">Join the community and get credit for your contributions</span>
         </p>
-        <button type="button" class="btn-secondary" onClick={onClose}>
+        <button type="button" class="btn-secondary" onClick={handleClose}>
           Continue editing
         </button>
       </div>

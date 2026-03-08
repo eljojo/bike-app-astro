@@ -174,11 +174,6 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
 }
 
 /**
- * Load parked photos with D1 cache overlay.
- * D1 stores the latest parked-photos list after each save, so edits
- * made since the last deploy are visible without rebuilding.
- */
-/**
  * Load shared-keys map with D1 cache overlay.
  * D1 stores the latest shared-keys map after each save, so mutations
  * made since the last deploy are visible without rebuilding.
