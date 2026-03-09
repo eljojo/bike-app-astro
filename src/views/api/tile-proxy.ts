@@ -6,9 +6,12 @@ export const prerender = false;
 
 const CACHE_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
 
-export const ALL: APIRoute = async ({ params }) => {
+/** Only allow paths that look like tile, font, or sprite requests. */
+const ALLOWED_PATH = /^(tiles|fonts|sprites)\/.+\.(pbf|json|png|jpg|svg)$/;
+
+export const GET: APIRoute = async ({ params }) => {
   const tilePath = params.path;
-  if (!tilePath) return new Response('Not found', { status: 404 });
+  if (!tilePath || !ALLOWED_PATH.test(tilePath)) return new Response('Not found', { status: 404 });
 
   const apiKey = env.THUNDERFOREST_API_KEY;
   if (!apiKey) return new Response('Tile proxy not configured', { status: 503 });

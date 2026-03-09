@@ -144,7 +144,7 @@ NEVER add a `main` field to `wrangler.jsonc` — the Vite plugin validates file 
 
 ### Map Markers
 
-Never use default Leaflet/MapLibre marker icons — they don't work in Vite-bundled apps (broken image URLs). Use CSS-styled HTML markers (divIcon/HTML marker) or the project's existing marker patterns.
+Never use default MapLibre marker icons — they don't work in Vite-bundled apps (broken image URLs). Use CSS-styled HTML markers or the project's existing marker patterns.
 
 ### SCSS Modern Compiler
 

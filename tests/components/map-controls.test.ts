@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadToggleState, saveToggleState } from '../../src/components/admin/MapControls';
+import { loadToggleState } from '../../src/components/admin/MapControls';
 
 describe('MapControls toggle state', () => {
   it('returns default state when localStorage is empty', () => {

@@ -31,7 +31,7 @@ export function saveStylePreference(key: MapStyleKey): void {
  * since they live in the DOM, not WebGL.
  */
 export function switchStyle(
-  map: any, // maplibregl.Map — use any to avoid importing the full library
+  map: import('maplibre-gl').Map,
   key: MapStyleKey,
   replaySetup: () => void,
 ): void {

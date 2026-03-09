@@ -55,7 +55,7 @@ describe('switchStyle', () => {
   it('calls setStyle with the correct URL and registers style.load listener', () => {
     const setStyle = vi.fn();
     const once = vi.fn();
-    const fakeMap = { setStyle, once };
+    const fakeMap = { setStyle, once } as unknown as import('maplibre-gl').Map;
     const replaySetup = vi.fn();
 
     switchStyle(fakeMap, 'high-contrast', replaySetup);
@@ -67,7 +67,7 @@ describe('switchStyle', () => {
   it('uses default URL for "default" key', () => {
     const setStyle = vi.fn();
     const once = vi.fn();
-    const fakeMap = { setStyle, once };
+    const fakeMap = { setStyle, once } as unknown as import('maplibre-gl').Map;
 
     switchStyle(fakeMap, 'default', vi.fn());
 

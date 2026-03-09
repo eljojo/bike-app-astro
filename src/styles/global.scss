@@ -470,14 +470,13 @@ a.go-back-button {
     color: $color-accent;
   }
 }
-.emoji-icon {
-  font-size: 25px;
-  text-shadow: 1px 2px 3px #444;
-  opacity: 0.8;
-  transition: opacity 0.5s ease;
-  &:hover {
-    opacity: 1;
-  }
+.gps-dot {
+  width: 16px;
+  height: 16px;
+  background: #4285f4;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.3), 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 .photo-bubble {
   width: 44px;
@@ -510,6 +509,12 @@ a.go-back-button {
     display: block;
     line-height: 0;
   }
+}
+.photo-popup-route {
+  margin: 4px 4px 0;
+  font-size: 0.8125rem;
+
+  a { color: $color-accent; }
 }
 .photo-popup-caption {
   margin: 6px 4px 2px;

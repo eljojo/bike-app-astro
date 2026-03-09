@@ -3,6 +3,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import polylineCodec from '@mapbox/polyline';
 import { html, raw } from './map-helpers';
 
+export const ROUTE_COLOR = '#350091';
+
 /** Remove a source and all layers referencing it. Needed for style-switch replay. */
 function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
   const style = map.getStyle();
@@ -121,7 +123,7 @@ export function addPolylines(
     type: 'line',
     source: sourceId,
     paint: {
-      'line-color': '#350091',
+      'line-color': ROUTE_COLOR,
       'line-width': 6,
       'line-opacity': 0.9,
     },
@@ -384,7 +386,7 @@ export function addPhotoMarkers(
     minzoom: 11,
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': '#350091',
+      'circle-color': ROUTE_COLOR,
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 12, 15, 18],
       'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 13, 0.85],
     },
@@ -500,16 +502,39 @@ export function addPhotoMarkers(
   map.on('mouseleave', 'photo-clusters', () => { map.getCanvas().style.cursor = ''; });
 }
 
-// --- GPS control ---
+// --- GPS location ---
 
-export function addGpsControl(map: maplibregl.Map): void {
-  map.addControl(
-    new maplibregl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: false,
-    }),
-    'top-left',
+let gpsMarker: maplibregl.Marker | null = null;
+
+export function showUserLocation(map: maplibregl.Map): void {
+  if (!('geolocation' in navigator)) return;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { longitude, latitude } = pos.coords;
+
+      if (!gpsMarker) {
+        const el = document.createElement('div');
+        el.className = 'gps-dot';
+        gpsMarker = new maplibregl.Marker({ element: el })
+          .setLngLat([longitude, latitude])
+          .addTo(map);
+      } else {
+        gpsMarker.setLngLat([longitude, latitude]);
+        gpsMarker.addTo(map);
+      }
+
+      map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 14) });
+    },
+    () => {}, // silently ignore denied/unavailable
+    { enableHighAccuracy: true, timeout: 10000 },
   );
+}
+
+export function hideUserLocation(): void {
+  if (gpsMarker) {
+    gpsMarker.remove();
+  }
 }
 
 // --- Layer visibility helpers ---

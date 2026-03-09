@@ -15,7 +15,7 @@ build: map-style ## Build static site to dist/
 preview: map-style ## Preview built site locally
 	npx astro preview
 
-test: ## Run unit tests
+test: map-style ## Run unit tests
 	npx vitest run
 
 typecheck: ## Run TypeScript type checking

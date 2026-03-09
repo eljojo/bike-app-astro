@@ -12,7 +12,6 @@ export interface CityConfig {
   domain: string;
   cdn_url: string;
   videos_cdn_url: string;
-  tiles_url: string;
   timezone: string;
   locale: string;
   locales?: string[];

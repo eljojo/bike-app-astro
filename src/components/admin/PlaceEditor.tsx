@@ -14,6 +14,7 @@ interface Props {
   cdnUrl: string;
   userRole?: string;
   secondaryLocales?: string[];
+  mapCenter?: [number, number]; // [lat, lng] — city default center for new places
 }
 
 const categories = Object.entries(categoryEmoji);
@@ -50,7 +51,7 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLocales }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLocales, mapCenter }: Props) {
   const [name, setName] = useState(initialData.name || '');
 
   const locales = secondaryLocales || [];
@@ -87,9 +88,9 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
   const [prefilling, setPrefilling] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  const createMarkerRef = useRef<((position: [number, number]) => any) | null>(null);
+  const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
+  const markerRef = useRef<import('maplibre-gl').Marker | null>(null);
+  const createMarkerRef = useRef<((position: [number, number]) => import('maplibre-gl').Marker) | null>(null);
   const lastPrefillQuery = useRef<string>('');
 
   const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
@@ -231,22 +232,18 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    import('maplibre-gl').then((maplibregl) => {
-      import('maplibre-gl/dist/maplibre-gl.css');
+    import('maplibre-gl').then(async (maplibregl) => {
+      const { initMap } = await import('../../lib/map-init');
 
-      const defaultCenter: [number, number] = lat && lng ? [lng, lat] : [-75.6972, 45.4215]; // Ottawa default [lng, lat]
+      const defaultCenter: [number, number] = lat && lng ? [lat, lng] : (mapCenter || [45.4215, -75.6972]);
       const defaultZoom = lat && lng ? 15 : 11;
 
-      const map = new maplibregl.default.Map({
-        container: mapContainerRef.current!,
-        style: getStyleUrl(loadStylePreference()),
+      const map = initMap({
+        el: mapContainerRef.current!,
         center: defaultCenter,
         zoom: defaultZoom,
-        scrollZoom: true,
+        styleUrl: getStyleUrl(loadStylePreference()),
       });
-
-      const pinEl = document.createElement('div');
-      pinEl.className = 'place-picker-marker';
 
       function createDraggableMarker(position: [number, number]) {
         const el = document.createElement('div');

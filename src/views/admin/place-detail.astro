@@ -10,6 +10,7 @@ import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { placeDetailFromCache } from '../../lib/models/place-model';
+import { getCityConfig } from '../../lib/city-config';
 
 const result = await loadDetailPageData({
   contentType: 'places',
@@ -24,9 +25,11 @@ const placeData = result.data;
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const user = Astro.locals.user;
+const cityConfig = getCityConfig();
+const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
 ---
 
 <AdminEditorLayout title={`Edit: ${placeData.name}`} backLink="/admin/places" backLabel="Back to places" hideTitle user={user} currentTab="places">
-  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} userRole={user?.role} secondaryLocales={secondaryLocales} />
+  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
   <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={GIT_REPO} userRole={user?.role} />
 </AdminEditorLayout>

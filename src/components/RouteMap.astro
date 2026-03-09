@@ -31,6 +31,7 @@ interface Props {
   zoom?: number;
 }
 
+import { CDN_FALLBACK_URL } from '../lib/config';
 const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 ---
 
@@ -43,13 +44,13 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     data-center={JSON.stringify(center)}
     data-zoom={zoom?.toString() || '12'}
     data-photos={JSON.stringify(photos)}
-    data-cdn-url={import.meta.env.R2_PUBLIC_URL || 'https://cdn.ottawabybike.ca'}
+    data-cdn-url={import.meta.env.R2_PUBLIC_URL || CDN_FALLBACK_URL}
   ></div>
   <div id="route-map-controls"></div>
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, addGpsControl, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
@@ -111,7 +112,8 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
           onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
           onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
           onToggleGps: (v: boolean) => {
-            if (v) addGpsControl(map);
+            if (v) showUserLocation(map);
+            else hideUserLocation();
           },
           onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
             setupWebGLLayers();

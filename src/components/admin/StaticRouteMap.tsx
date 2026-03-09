@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'preact/hooks';
 import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
+import { ROUTE_COLOR } from '../../lib/map-init';
 
 interface Props {
   /** Array of [lon, lat] coordinate pairs */
@@ -10,7 +11,7 @@ interface Props {
 /** Non-interactive map preview showing a route polyline. */
 export default function StaticRouteMap({ coordinates, class: className }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<import('maplibre-gl').Map | null>(null);
 
   useEffect(() => {
     if (!coordinates.length || !containerRef.current) return;
@@ -38,6 +39,8 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
         fitBoundsOptions: { padding: 30 },
         interactive: false,
         attributionControl: false,
+        // TODO: deduplicate — this duplicates transformRequest from initMap() in map-init.ts
+        // Can't use initMap directly because this map needs bounds/interactive/attribution options it doesn't support
         transformRequest: (url: string) => {
           if (url.startsWith('/')) return { url: `${location.origin}${url}` };
           return { url };
@@ -58,7 +61,7 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
           type: 'line',
           source: 'route',
           paint: {
-            'line-color': '#350091',
+            'line-color': ROUTE_COLOR,
             'line-width': 4,
             'line-opacity': 0.9,
           },

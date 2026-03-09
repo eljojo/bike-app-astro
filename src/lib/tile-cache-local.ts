@@ -33,7 +33,7 @@ export function createLocalTileCache(cacheDir: string): TileCache {
     async put(key: string, data: ArrayBuffer | Uint8Array, ttlSeconds: number): Promise<void> {
       const fp = filePath(key);
       fs.mkdirSync(path.dirname(fp), { recursive: true });
-      fs.writeFileSync(fp, new Uint8Array(data instanceof ArrayBuffer ? data : data));
+      fs.writeFileSync(fp, new Uint8Array(data));
       fs.writeFileSync(metaPath(key), JSON.stringify({
         expiresAt: Date.now() + ttlSeconds * 1000,
       }));

@@ -291,5 +291,5 @@ export default function RouteCreator({ cdnUrl }: Props) {
     isNew: true,
   };
 
-  return <RouteEditor initialData={initialData} cdnUrl="" />;
+  return <RouteEditor initialData={initialData} cdnUrl={cdnUrl} />;
 }

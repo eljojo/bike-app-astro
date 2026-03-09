@@ -152,7 +152,6 @@ url: http://localhost
 domain: localhost
 cdn_url: http://localhost
 videos_cdn_url: http://localhost
-tiles_url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
 timezone: America/Toronto
 locale: en-CA
 locales: [en-CA, fr-CA]
