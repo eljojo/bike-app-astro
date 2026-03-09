@@ -1,3 +1,5 @@
+// AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
+// Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState, useRef, useEffect } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';

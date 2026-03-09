@@ -13,6 +13,8 @@
  * For map-thumbnails.ts, we use a virtual module since it's not in the config
  * import chain.
  */
+// AGENTS.md: virtual-modules.d.ts is ambient — NO top-level imports or it breaks all declarations.
+// Detail module names strip trailing 's': admin-routes → admin-route-detail.
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
