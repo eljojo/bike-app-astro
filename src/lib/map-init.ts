@@ -21,6 +21,15 @@ function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
 /** Track the syncPhotoBubbles handler per map so it can be removed on replay. */
 const photoBubbleSyncHandlers = new WeakMap<maplibregl.Map, () => void>();
 
+/** Single shared popup per map — opening one closes the previous. */
+const activePopups = new WeakMap<maplibregl.Map, maplibregl.Popup>();
+
+function showPopup(map: maplibregl.Map, popup: maplibregl.Popup): void {
+  activePopups.get(map)?.remove();
+  activePopups.set(map, popup);
+  popup.addTo(map);
+}
+
 // --- Interfaces ---
 
 export interface MapOptions {
@@ -126,7 +135,7 @@ export function addPolylines(
     if (!e.features?.length) return;
     const props = e.features[0].properties;
     if (props?.popup) {
-      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(props.popup).addTo(map);
+      showPopup(map, new maplibregl.Popup().setLngLat(e.lngLat).setHTML(props.popup));
     }
   });
   map.on('mouseenter', 'route-lines', () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -157,12 +166,23 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
       .addTo(map);
 
     if (m.popup) {
-      marker.setPopup(new maplibregl.Popup({ offset: 20, maxWidth: '320px' }).setHTML(m.popup));
+      const popup = new maplibregl.Popup({ offset: 20, maxWidth: '320px' }).setHTML(m.popup);
+      marker.setPopup(popup);
+      marker.getElement().addEventListener('click', () => {
+        activePopups.get(map)?.remove();
+        activePopups.set(map, popup);
+      });
     }
   }
 }
 
 // --- Photo markers (clustered with thumbnail bubbles) ---
+
+function photoPopupMaxWidth(zoom: number): number {
+  // Exponential scaling: grows fast when zoomed in, tiny when zoomed out
+  const t = Math.max(0, Math.min(1, (zoom - 8) / 8)); // 0 at z8, 1 at z16
+  return Math.round(100 + 400 * t * t);
+}
 
 function showPhotoPopup(
   map: maplibregl.Map,
@@ -173,13 +193,6 @@ function showPhotoPopup(
   const imgUrl = `${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${props.key}`;
   const fullUrl = `${cdnUrl}/cdn-cgi/image/width=1600/${props.key}`;
 
-  let sizeAttrs = '';
-  if (props.width && props.height) {
-    const displayWidth = Math.min(props.width, 500);
-    const displayHeight = Math.round(displayWidth * props.height / props.width);
-    sizeAttrs = ` width="${displayWidth}" height="${displayHeight}"`;
-  }
-
   const routeLink = props.routeName && props.routeUrl
     ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
   const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
@@ -187,13 +200,25 @@ function showPhotoPopup(
   const popupHtml = html`
     <div class="photo-popup-content">
       <a href="${raw(fullUrl)}" target="_blank">
-        <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
+        <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(
+          props.width && props.height ? ` style="aspect-ratio:${props.width}/${props.height};width:100%"` : ''
+        )} />
       </a>
       ${raw(captionBlock)}
       ${raw(routeLink)}
     </div>
   `;
-  new maplibregl.Popup({ maxWidth: '500px' }).setLngLat(coords).setHTML(popupHtml).addTo(map);
+
+  const popup = new maplibregl.Popup({ maxWidth: `${photoPopupMaxWidth(map.getZoom())}px` })
+    .setLngLat(coords)
+    .setHTML(popupHtml);
+  showPopup(map, popup);
+
+  const onZoom = () => {
+    popup.setMaxWidth(`${photoPopupMaxWidth(map.getZoom())}px`);
+  };
+  map.on('zoom', onZoom);
+  popup.on('close', () => map.off('zoom', onZoom));
 }
 
 export function addPhotoMarkers(

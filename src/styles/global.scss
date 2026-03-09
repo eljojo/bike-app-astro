@@ -517,7 +517,21 @@ a.go-back-button {
   color: $color-text-muted;
   text-align: center;
 }
-// MapLibre popups — force dark text in dark mode
+// MapLibre popups — force dark text in dark mode + entrance animation
+.maplibregl-popup {
+  animation: popup-enter 0.15s ease-out;
+}
+@keyframes popup-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.maplibregl-popup-content {
+  animation: popup-content-enter 0.2s ease-out;
+}
+@keyframes popup-content-enter {
+  from { transform: translateY(4px) scale(0.97); }
+  to { transform: translateY(0) scale(1); }
+}
 .maplibregl-popup-content {
   color: $color-text;
   a { color: $color-text; }
