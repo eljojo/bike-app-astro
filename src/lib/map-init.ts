@@ -263,20 +263,21 @@ export function addPhotoMarkers(
       })),
     },
     cluster: true,
-    clusterRadius: 30,
-    clusterMaxZoom: 13,
+    clusterRadius: 60,
+    clusterMaxZoom: 15,
   });
 
-  // Cluster circles
+  // Cluster circles — only show when zoomed in enough to be useful
   map.addLayer({
     id: 'photo-clusters',
     type: 'circle',
     source: sourceId,
+    minzoom: 11,
     filter: ['has', 'point_count'],
     paint: {
       'circle-color': '#350091',
-      'circle-radius': 18,
-      'circle-opacity': 0.85,
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 12, 15, 18],
+      'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 13, 0.85],
     },
   });
 
@@ -285,10 +286,11 @@ export function addPhotoMarkers(
     id: 'photo-cluster-count',
     type: 'symbol',
     source: sourceId,
+    minzoom: 11,
     filter: ['has', 'point_count'],
     layout: {
       'text-field': '{point_count_abbreviated}',
-      'text-size': 13,
+      'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 15, 13],
     },
     paint: { 'text-color': '#ffffff' },
   });
