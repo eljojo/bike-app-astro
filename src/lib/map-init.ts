@@ -442,9 +442,7 @@ export function addPhotoMarkers(
 
         el.addEventListener('mouseenter', () => {
           if (photosVisible.get(map) === false) return;
-          const w = photoPopupMaxWidth(map.getZoom());
-          preloadImage(`${cdnUrl}/cdn-cgi/image/width=${w * 2},fit=scale-down/${props.key}`);
-          preloadImage(`${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${props.key}`);
+          preloadImage(`${cdnUrl}/cdn-cgi/image/width=1000,fit=scale-down/${props.key}`);
         });
 
         el.addEventListener('click', (e) => {
@@ -468,11 +466,10 @@ export function addPhotoMarkers(
       (el as HTMLElement).style.height = `${bubbleSize}px`;
     }
 
-    // Preload popup images for visible photos at current zoom level
+    // Preload popup images for visible photos
     if (photosVisible.get(map) !== false) {
-      const popupWidth = photoPopupMaxWidth(map.getZoom() + 2);
       for (const key of seen) {
-        preloadImage(`${cdnUrl}/cdn-cgi/image/width=${popupWidth * 2},fit=scale-down/${key}`);
+        preloadImage(`${cdnUrl}/cdn-cgi/image/width=1000,fit=scale-down/${key}`);
       }
     }
 
