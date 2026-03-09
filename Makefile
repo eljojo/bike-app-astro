@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck test-e2e test-update test-admin screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
+.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -21,6 +21,9 @@ test: map-style ## Run unit tests
 typecheck: ## Run TypeScript type checking
 	npx tsc --noEmit
 
+lint: ## Run ESLint checks
+	npx eslint src/
+
 test-e2e: map-style ## Build with CITY=demo, validate, then run Playwright screenshot tests
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
@@ -30,7 +33,7 @@ test-update: map-style ## Update screenshot baselines
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: test typecheck test-e2e test-admin ## Run full CI pipeline (unit tests, typecheck, e2e screenshots, admin e2e)
+full: test typecheck lint test-e2e test-admin ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts
