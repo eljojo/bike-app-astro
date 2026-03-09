@@ -57,9 +57,9 @@ import path from 'node:path';
 // Types
 // ---------------------------------------------------------------------------
 
-type StyleVariant = 'default' | 'high-contrast';
+export type StyleVariant = 'default' | 'high-contrast';
 
-interface BasePalette {
+export interface BasePalette {
   background: string;
   earth: string;
   forest: string;
@@ -112,14 +112,14 @@ interface BasePalette {
   restStopLabel: string;
 }
 
-interface CyclingPalette {
+export interface CyclingPalette {
   oasis: string;
   oasisCasing: string;
   exposed: string;
   bikeInfra: string;
 }
 
-interface Palette {
+export interface Palette {
   base: BasePalette;
   cycling: CyclingPalette;
 }
@@ -129,7 +129,7 @@ interface Palette {
 // ---------------------------------------------------------------------------
 
 /** Warm, muted base — the "desert" */
-const defaultBase: BasePalette = {
+export const defaultBase: BasePalette = {
   background: '#f5f3ef',
   earth: '#f0ede8',
   // Landcover
@@ -201,7 +201,7 @@ const defaultBase: BasePalette = {
  *
  * The default (no color) = car roads. The desert.
  */
-const defaultCycling: CyclingPalette = {
+export const defaultCycling: CyclingPalette = {
   // Oasis — safe, separated from cars
   oasis: '#006458',
   oasisCasing: '#009e88',
@@ -215,7 +215,7 @@ const defaultCycling: CyclingPalette = {
  * High-contrast "paper" base — almost monochrome.
  * Information through line weight and dash patterns, not color.
  */
-const hcBase: BasePalette = {
+export const hcBase: BasePalette = {
   background: '#ffffff',
   earth: '#fafafa',
   forest: '#e8e8e8',
@@ -269,7 +269,7 @@ const hcBase: BasePalette = {
 };
 
 /** High-contrast cycling palette — black on white, like a poster print */
-const hcCycling: CyclingPalette = {
+export const hcCycling: CyclingPalette = {
   oasis: '#1a1a1a',
   oasisCasing: '#666666',
   exposed: '#555555',
@@ -290,9 +290,9 @@ const font = {
 // Helper: zoom-interpolated line width
 // ---------------------------------------------------------------------------
 
-type ZoomWidth = [number, number][];
+export type ZoomWidth = [number, number][];
 
-function lineWidth(stops: ZoomWidth): any {
+export function lineWidth(stops: ZoomWidth): any {
   return [
     'interpolate', ['exponential', 1.6], ['zoom'],
     ...stops.flatMap(([z, w]) => [z, w]),
@@ -300,7 +300,7 @@ function lineWidth(stops: ZoomWidth): any {
 }
 
 /** Scale every width in a ZoomWidth array by a multiplier */
-function scaleWidth(stops: ZoomWidth, factor: number): ZoomWidth {
+export function scaleWidth(stops: ZoomWidth, factor: number): ZoomWidth {
   return stops.map(([z, w]) => [z, w * factor]);
 }
 
@@ -378,7 +378,7 @@ function poiLayer(id: string, filter: any, opts: PoiOpts): Layer[] {
 // Layer builder
 // ---------------------------------------------------------------------------
 
-function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
+export function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
   return [
     // ===== BACKGROUND & TERRAIN =====
     {
@@ -760,7 +760,7 @@ const roadClasses = [
   },
 ];
 
-function roadLayers(p: Palette, variant: StyleVariant): Layer[] {
+export function roadLayers(p: Palette, variant: StyleVariant): Layer[] {
   const scale = variant === 'high-contrast' ? 0.8 : 1;
   return [
     // Casings (bottom)
@@ -1456,7 +1456,7 @@ function labelLayers(p: Palette): Layer[] {
 // Build the full style
 // ---------------------------------------------------------------------------
 
-function buildMapStyle(p: Palette, variant: StyleVariant, name: string) {
+export function buildMapStyle(p: Palette, variant: StyleVariant, name: string) {
   return {
     version: 8,
     name,
@@ -1476,35 +1476,43 @@ function buildMapStyle(p: Palette, variant: StyleVariant, name: string) {
 
 // ---------------------------------------------------------------------------
 // Main — generate fingerprinted map-style-{variant}.[hash].json + URL module
+// Only runs when executed directly, not when imported for tests.
 // ---------------------------------------------------------------------------
 
-const root = path.resolve(import.meta.dirname || __dirname, '..');
-
-const variants: { base: BasePalette; cycling: CyclingPalette; name: string; key: StyleVariant }[] = [
-  { base: defaultBase, cycling: defaultCycling, name: 'Cycling', key: 'default' },
-  { base: hcBase, cycling: hcCycling, name: 'Cycling High Contrast', key: 'high-contrast' },
-];
-
-// Clean ALL old fingerprinted map-style files
-for (const f of fs.readdirSync(path.join(root, 'public'))) {
-  if (f.startsWith('map-style') && f.endsWith('.json')) fs.unlinkSync(path.join(root, 'public', f));
-}
-
-const urls: Record<string, string> = {};
-for (const v of variants) {
-  const style = buildMapStyle({ base: v.base, cycling: v.cycling }, v.key, v.name);
-  const json = JSON.stringify(style, null, 2);
-  const hash = crypto.createHash('md5').update(json).digest('hex').slice(0, 8);
-  const filename = `map-style-${v.key}.${hash}.json`;
-  fs.writeFileSync(path.join(root, 'public', filename), json);
-  urls[v.key] = `/${filename}`;
-  console.log(`[map-style] Generated ${filename} (${style.layers.length} layers)`);
-}
-
-// Write URL module with both exports
-fs.writeFileSync(
-  path.join(root, 'src', 'lib', 'map-style-url.ts'),
-  `// Generated by scripts/build-map-style.ts — do not edit\n` +
-  `export const MAP_STYLE_URL = '${urls['default']}';\n` +
-  `export const MAP_STYLE_HC_URL = '${urls['high-contrast']}';\n`,
+const isDirectRun = process.argv[1] && (
+  process.argv[1].endsWith('build-map-style.ts') ||
+  process.argv[1].endsWith('build-map-style.js')
 );
+
+if (isDirectRun) {
+  const root = path.resolve(import.meta.dirname || __dirname, '..');
+
+  const variants: { base: BasePalette; cycling: CyclingPalette; name: string; key: StyleVariant }[] = [
+    { base: defaultBase, cycling: defaultCycling, name: 'Cycling', key: 'default' },
+    { base: hcBase, cycling: hcCycling, name: 'Cycling High Contrast', key: 'high-contrast' },
+  ];
+
+  // Clean ALL old fingerprinted map-style files
+  for (const f of fs.readdirSync(path.join(root, 'public'))) {
+    if (f.startsWith('map-style') && f.endsWith('.json')) fs.unlinkSync(path.join(root, 'public', f));
+  }
+
+  const urls: Record<string, string> = {};
+  for (const v of variants) {
+    const style = buildMapStyle({ base: v.base, cycling: v.cycling }, v.key, v.name);
+    const json = JSON.stringify(style, null, 2);
+    const hash = crypto.createHash('md5').update(json).digest('hex').slice(0, 8);
+    const filename = `map-style-${v.key}.${hash}.json`;
+    fs.writeFileSync(path.join(root, 'public', filename), json);
+    urls[v.key] = `/${filename}`;
+    console.log(`[map-style] Generated ${filename} (${style.layers.length} layers)`);
+  }
+
+  // Write URL module with both exports
+  fs.writeFileSync(
+    path.join(root, 'src', 'lib', 'map-style-url.ts'),
+    `// Generated by scripts/build-map-style.ts — do not edit\n` +
+    `export const MAP_STYLE_URL = '${urls['default']}';\n` +
+    `export const MAP_STYLE_HC_URL = '${urls['high-contrast']}';\n`,
+  );
+}

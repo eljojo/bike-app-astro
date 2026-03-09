@@ -295,7 +295,7 @@ function preloadImage(url: string): void {
   img.src = url;
 }
 
-function photoPopupMaxWidth(zoom: number): number {
+export function photoPopupMaxWidth(zoom: number): number {
   // Exponential scaling: grows fast when zoomed in, tiny when zoomed out
   const t = Math.max(0, Math.min(1, (zoom - 8) / 8)); // 0 at z8, 1 at z16
   return Math.round(100 + 400 * t * t);
