@@ -141,7 +141,7 @@ describe('buildLayers', () => {
     it('forest filter includes wood and orchard', () => {
       const forestLayer = defaultLayers.find((l: any) => l.id === 'landcover-forest');
       expect(forestLayer).toBeDefined();
-      const filter = JSON.stringify(forestLayer.filter);
+      const filter = JSON.stringify(forestLayer!.filter);
       expect(filter).toContain('wood');
       expect(filter).toContain('orchard');
     });
@@ -149,7 +149,7 @@ describe('buildLayers', () => {
     it('park filter includes common, golf_course, pitch', () => {
       const parkLayer = defaultLayers.find((l: any) => l.id === 'landuse-park');
       expect(parkLayer).toBeDefined();
-      const filter = JSON.stringify(parkLayer.filter);
+      const filter = JSON.stringify(parkLayer!.filter);
       expect(filter).toContain('common');
       expect(filter).toContain('golf_course');
       expect(filter).toContain('pitch');
