@@ -1478,10 +1478,6 @@ function labelLayers(p: Palette): Layer[] {
 // Build the full style
 // ---------------------------------------------------------------------------
 
-// Optional prefix for tile/font URLs — set TILE_BASE_URL to proxy through
-// another origin (e.g. staging) when the local tile proxy has no API key.
-const tileBase = (process.env.TILE_BASE_URL || '').replace(/\/$/, '');
-
 export function buildMapStyle(p: Palette, variant: StyleVariant, name: string) {
   return {
     version: 8,
@@ -1489,13 +1485,13 @@ export function buildMapStyle(p: Palette, variant: StyleVariant, name: string) {
     sources: {
       outdoors: {
         type: 'vector',
-        tiles: [`${tileBase}/api/tiles/thunderforest.outdoors-v2/{z}/{x}/{y}.vector.pbf`],
+        tiles: ['/api/tiles/thunderforest.outdoors-v2/{z}/{x}/{y}.vector.pbf'],
         minzoom: 0,
         maxzoom: 14,
         attribution: '&copy; <a href="https://www.thunderforest.com">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       },
     },
-    glyphs: `${tileBase}/api/tiles/fonts/{fontstack}/{range}.pbf`,
+    glyphs: '/api/tiles/fonts/{fontstack}/{range}.pbf',
     layers: buildLayers(p, variant),
   };
 }

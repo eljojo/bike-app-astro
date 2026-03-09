@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, proxyTiles } from './helpers.ts';
 import { FIXTURE_DIR } from './fixture-setup.ts';
 
 // Admin pages include Preact islands and dynamic user info (e.g. gravatar)
@@ -24,6 +24,7 @@ test.describe('Admin Screenshots — Editor Pages', () => {
   test.beforeEach(async ({ page }) => {
     await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
+    await proxyTiles(page);
   });
 
   test('route list', async ({ page }) => {
@@ -112,6 +113,7 @@ test.describe('Admin Screenshots — Admin-Only Pages', () => {
   test.beforeEach(async ({ page }) => {
     await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
+    await proxyTiles(page);
   });
 
   test('user management', async ({ page }) => {
@@ -146,6 +148,7 @@ test.describe('Admin Screenshots — Guest Variant', () => {
   test.beforeEach(async ({ page }) => {
     await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
+    await proxyTiles(page);
   });
 
   test('guest save modal', async ({ page }) => {
