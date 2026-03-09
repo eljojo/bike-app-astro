@@ -13,6 +13,7 @@ import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
 import { buildFreshEventData, computeEventContentHashFromFiles } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
+import { buildPhotoKeyChanges } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
@@ -187,11 +188,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
 
   async afterCommit(result, database) {
     const { oldPosterKey, newPosterKey, eventSlug, mergedParked } = result;
-    const changes = [];
-    if (oldPosterKey !== newPosterKey) {
-      if (oldPosterKey) changes.push({ key: oldPosterKey, usage: { type: 'event' as const, slug: eventSlug }, action: 'remove' as const });
-      if (newPosterKey) changes.push({ key: newPosterKey, usage: { type: 'event' as const, slug: eventSlug }, action: 'add' as const });
-    }
+    const changes = buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug);
     await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
 
