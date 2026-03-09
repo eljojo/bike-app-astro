@@ -54,6 +54,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
+  import polylineCodec from '@mapbox/polyline';
 
   const el = document.getElementById('route-map');
   const controlsEl = document.getElementById('route-map-controls');
@@ -61,8 +62,15 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     const polylines = JSON.parse(el.dataset.polylines || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
     const photos = JSON.parse(el.dataset.photos || '[]');
-    const center = JSON.parse(el.dataset.center || '[0, 0]');
     const zoom = parseInt(el.dataset.zoom || '12');
+
+    // Compute center from first polyline instead of defaulting to [0, 0]
+    let center: [number, number] = JSON.parse(el.dataset.center || 'null');
+    if (!center && polylines.length > 0) {
+      const points = polylineCodec.decode(polylines[0].encoded);
+      const mid = points[Math.floor(points.length / 2)];
+      center = [mid[0], mid[1]];
+    }
     const cdnUrl = el.dataset.cdnUrl || '';
 
     const styleKey = loadStylePreference();

@@ -1,5 +1,5 @@
 ---
-import LeafletMap from './LeafletMap.astro';
+import RouteMap from './RouteMap.astro';
 import ElevationProfile from './ElevationProfile.astro';
 import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '../lib/map-thumbnails';
 import { getCityConfig } from '../lib/city-config';
@@ -110,7 +110,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   )}
 </p>
 
-<LeafletMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} photos={photos} />
+<RouteMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} photos={photos} />
 
 {trackPoints && trackPoints.length > 0 && trackDistanceM && (
   <div id="elevation-profile" style="margin-top: 1.5em;">

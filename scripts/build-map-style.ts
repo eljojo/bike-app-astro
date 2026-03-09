@@ -327,9 +327,19 @@ function poiLayer(id: string, filter: any, opts: PoiOpts): Layer[] {
       source: 'outdoors',
       'source-layer': 'poi-label',
       minzoom: Math.max(opts.minzoom, 15),
-      filter: ['all', filter, ['has', 'name']],
+      filter,
       layout: {
-        'text-field': '{name}',
+        'text-field': ['coalesce', ['get', 'name'], ['match', ['get', 'feature'],
+          'toilets', 'Restroom',
+          'shelter', 'Shelter',
+          'drinking_water', 'Water Fountain',
+          'water_point', 'Water Fountain',
+          'picnic_site', 'Picnic',
+          'camp_site', 'Campsite',
+          'bicycle_repair_station', 'Bike Repair',
+          'bicycle_rental', 'Bike Rental',
+          '',
+        ]],
         'text-font': [font.regular],
         'text-size': ['interpolate', ['linear'], ['zoom'], 15, 9, 18, 11],
         'text-offset': [0, 1.2],
@@ -468,7 +478,19 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
         'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 10, 0.65, 14, 0.6],
       },
     },
-    ...['grassland', 'farmland', 'scrub', 'wetland', 'glacier', 'rock'].map(type => ({
+    // Grass, meadow, heath, vineyard — same green family as grassland
+    {
+      id: 'landcover-grass',
+      type: 'fill',
+      source: 'outdoors',
+      'source-layer': 'landcover',
+      filter: ['in', 'type', 'grass', 'meadow', 'heath', 'vineyard', 'grassland'],
+      paint: {
+        'fill-color': p.base.grassland,
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 0.5],
+      },
+    },
+    ...['farmland', 'scrub', 'wetland', 'glacier', 'rock'].map(type => ({
       id: `landcover-${type}`,
       type: 'fill',
       source: 'outdoors',
@@ -476,9 +498,7 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: ['==', 'type', type === 'rock' ? 'bare_rock' : type],
       paint: {
         'fill-color': (p.base as any)[type] || p.base.grassland,
-        'fill-opacity': type === 'grassland'
-          ? ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 0.55, 14, 0.5]
-          : ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 0.4],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 0.4],
       },
     })),
 
@@ -847,7 +867,7 @@ function oasisLayers(p: Palette, variant: StyleVariant): Layer[] {
       source: 'outdoors',
       'source-layer': 'cycling-lowzoom',
       minzoom: 2,
-      maxzoom: 10,
+      maxzoom: 12,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': '#ffffff',
@@ -861,7 +881,7 @@ function oasisLayers(p: Palette, variant: StyleVariant): Layer[] {
       source: 'outdoors',
       'source-layer': 'cycling-lowzoom',
       minzoom: 2,
-      maxzoom: 10,
+      maxzoom: 12,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': p.cycling.oasis,
@@ -969,7 +989,7 @@ function labelLayers(p: Palette): Layer[] {
       layout: {
         'text-field': '{name}',
         'text-font': [font.italic],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 9, 10, 12, 13, 16, 16],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 9, 8, 12, 11, 16, 13],
         'text-max-width': 7,
         'symbol-placement': 'point',
         'text-padding': 8,
@@ -1164,12 +1184,13 @@ function labelLayers(p: Palette): Layer[] {
     }),
 
     // ===== BIKE INFRASTRUCTURE =====
-    // Bike shops, parking, rental, repair — teal (same family as oasis)
+    // Bike shops, rental, repair — teal dots (same family as oasis)
     ...poiLayer('poi-bike', ['in', ['get', 'feature'], ['literal', [
-      'bicycle', 'bicycle_parking', 'bicycle_rental', 'bicycle_repair_station',
+      'bicycle', 'bicycle_rental', 'bicycle_repair_station',
     ]]], {
       color: p.cycling.bikeInfra, minzoom: 14,
     }),
+
 
     // Train stations — subtle orientation landmarks
     {
@@ -1256,13 +1277,57 @@ function labelLayers(p: Palette): Layer[] {
       layout: {
         'text-field': '{name}',
         'text-font': [font.regular],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 8, 14, 13, 18, 16],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 9, 14, 15, 18, 18],
         'text-max-width': 6,
       },
       paint: {
         'text-color': p.base.labelVillage,
         'text-halo-color': p.base.labelHalo,
         'text-halo-width': 1.5,
+      },
+    },
+
+    // Island labels
+    {
+      id: 'label-island',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'place-label',
+      minzoom: 10,
+      filter: ['in', 'place', 'island', 'islet'],
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.italic],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 14, 12, 18, 14],
+        'text-max-width': 7,
+      },
+      paint: {
+        'text-color': p.base.labelVillage,
+        'text-halo-color': p.base.labelHalo,
+        'text-halo-width': 1.5,
+      },
+    },
+
+    // Neighbourhood / locality labels
+    {
+      id: 'label-neighbourhood',
+      type: 'symbol',
+      source: 'outdoors',
+      'source-layer': 'place-label',
+      minzoom: 12,
+      filter: ['in', 'place', 'neighbourhood', 'locality'],
+      layout: {
+        'text-field': '{name}',
+        'text-font': [font.regular],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 16, 13],
+        'text-max-width': 6,
+        'text-padding': 10,
+      },
+      paint: {
+        'text-color': p.base.labelVillage,
+        'text-halo-color': p.base.labelHalo,
+        'text-halo-width': 1.5,
+        'text-opacity': 0.8,
       },
     },
 
