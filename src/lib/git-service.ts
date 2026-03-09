@@ -5,16 +5,9 @@
  * Uses native fetch with Bearer token auth. No external dependencies.
  */
 
-import { createHash } from 'node:crypto';
-
 const GITHUB_API = 'https://api.github.com';
 
-/** Compute the git blob SHA for a string, matching GitHub's Contents API sha field. */
-export function computeBlobSha(content: string): string {
-  return createHash('sha1')
-    .update(`blob ${Buffer.byteLength(content)}\0${content}`)
-    .digest('hex');
-}
+export { computeBlobSha } from './git-utils';
 
 export interface GitServiceConfig {
   token: string;
