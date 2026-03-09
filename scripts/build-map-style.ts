@@ -178,8 +178,8 @@ const defaultBase: BasePalette = {
   station: '#2a2a3a',
   stationHalo: '#ffffff',
   // Contours
-  contour: '#c4b8a8',
-  contourLabel: '#a89880',
+  contour: '#a89878',
+  contourLabel: '#8a7860',
   // Rest stops
   restStop: '#c87030',
   restStopLabel: '#a05820',
@@ -382,9 +382,9 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       paint: {
         'fill-color': [
           'interpolate', ['linear'], ['get', 'level'],
-          110, 'rgba(0,0,0,0.15)',
+          110, variant === 'high-contrast' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.55)',
           170, 'rgba(0,0,0,0)',
-          230, 'rgba(255,255,255,0.15)',
+          230, variant === 'high-contrast' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.4)',
         ],
         'fill-antialias': false,
       },
@@ -396,11 +396,11 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       type: 'line',
       source: 'outdoors',
       'source-layer': 'elevation',
-      minzoom: 12,
+      minzoom: 11,
       paint: {
         'line-color': p.base.contour,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.3, 16, 0.6],
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.3, 14, 0.4],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 14, 0.5, 16, 0.8],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 13, 0.4, 16, 0.5],
       },
     },
     {
@@ -408,12 +408,12 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       type: 'line',
       source: 'outdoors',
       'source-layer': 'elevation',
-      minzoom: 11,
+      minzoom: 9,
       filter: ['==', ['%', ['get', 'height'], 50], 0],
       paint: {
         'line-color': p.base.contour,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.4, 14, 1, 16, 1.2],
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 14, 0.5],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.3, 11, 0.6, 14, 1.2, 16, 1.5],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.25, 11, 0.4, 14, 0.6],
       },
     },
     {
@@ -421,7 +421,7 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       type: 'symbol',
       source: 'outdoors',
       'source-layer': 'elevation',
-      minzoom: 13,
+      minzoom: 12,
       filter: ['==', ['%', ['get', 'height'], 50], 0],
       layout: {
         'text-field': ['concat', ['to-string', ['get', 'height']], 'm'],
