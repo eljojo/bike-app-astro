@@ -6,7 +6,7 @@ help: ## Show available targets
 install: ## Install npm dependencies
 	npm install
 
-dev: build ## Start dev server
+dev: map-style ## Start dev server
 	RUNTIME=local npx astro dev
 
 build: map-style ## Build static site to dist/

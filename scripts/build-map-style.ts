@@ -82,6 +82,8 @@ interface BasePalette {
   stream: string;
   building: string;
   buildingOutline: string;
+  majorRoad: string;
+  majorRoadCasing: string;
   road: string;
   roadCasing: string;
   service: string;
@@ -151,6 +153,8 @@ const defaultBase: BasePalette = {
   building: '#d9d0c8',
   buildingOutline: '#c8bfb5',
   // Roads — the desert: pale, quiet, just enough to orient
+  majorRoad: '#d0cdc6',
+  majorRoadCasing: '#c2beb5',
   road: '#e2dfd8',
   roadCasing: '#d6d2ca',
   service: '#e8e5de',
@@ -226,6 +230,8 @@ const hcBase: BasePalette = {
   stream: '#c0c0c0',
   building: '#e5e5e5',
   buildingOutline: '#d5d5d5',
+  majorRoad: '#d8d8d8',
+  majorRoadCasing: '#cacaca',
   road: '#e8e8e8',
   roadCasing: '#dedede',
   service: '#eeeeee',
@@ -708,8 +714,8 @@ const roadClasses = [
   {
     id: 'major',
     filter: ['in', 'highway', 'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link'],
-    widthFill: [[7, 0.2], [10, 0.5], [14, 1.5], [18, 4]] as ZoomWidth,
-    widthCasing: [[7, 0.4], [10, 0.9], [14, 2.5], [18, 6]] as ZoomWidth,
+    widthFill: [[7, 0.4], [10, 1], [14, 2.5], [18, 6]] as ZoomWidth,
+    widthCasing: [[7, 0.8], [10, 1.6], [14, 4], [18, 9]] as ZoomWidth,
     minzoom: 5,
   },
   {
@@ -748,7 +754,7 @@ function roadLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: rc.filter,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': p.base.roadCasing,
+        'line-color': rc.id === 'major' ? p.base.majorRoadCasing : p.base.roadCasing,
         'line-width': lineWidth(scaleWidth(rc.widthCasing, scale)),
       },
     })),
@@ -762,7 +768,7 @@ function roadLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: rc.filter,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': p.base.road,
+        'line-color': rc.id === 'major' ? p.base.majorRoad : p.base.road,
         'line-width': lineWidth(scaleWidth(rc.widthFill, scale)),
       },
     })),
