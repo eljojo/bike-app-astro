@@ -88,6 +88,7 @@ export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.
     style: styleUrl,
     center: [center[1], center[0]], // MapLibre uses [lng, lat]
     zoom,
+    fadeDuration: 0,
     attributionControl: {},
     // Resolve relative URLs to absolute — MapLibre's web worker can't resolve them
     transformRequest: (url) => {
@@ -192,7 +193,7 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
     filter: ['has', 'point_count'],
     paint: {
       'circle-color': '#ffffff',
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 14, 12, 18],
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 12, 15, 18],
       'circle-stroke-color': '#cccccc',
       'circle-stroke-width': 2,
     },
@@ -207,7 +208,7 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
     layout: {
       'text-field': '{point_count_abbreviated}',
       'text-font': ['NotoSans_Regular'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 6, 11, 12, 13],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 15, 13],
     },
     paint: { 'text-color': '#555555' },
   });
@@ -371,7 +372,7 @@ export function addPhotoMarkers(
       })),
     },
     cluster: true,
-    clusterRadius: 60,
+    clusterRadius: 80,
     clusterMaxZoom: 15,
   });
 
