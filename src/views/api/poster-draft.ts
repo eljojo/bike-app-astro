@@ -2,7 +2,8 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { CDN_FALLBACK_URL } from '../../lib/config';
+import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
+import { getCityConfig } from '../../lib/city-config';
 import { db } from '../../lib/get-db';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/rate-limit';
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
@@ -153,9 +154,25 @@ export async function POST({ request, locals }: APIContext) {
     const model = body.model || DEFAULT_MODEL;
     if (!poster_key) return jsonError('poster_key required', 400);
 
-    // Build prompt with organizer context from build-time data
-    const organizerNames = adminOrganizers.map(o => o.name);
+    // Build prompt with city and organizer context
+    const cityConfig = getCityConfig();
+    const now = new Date();
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: cityConfig.timezone,
+      year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
+    });
+
     let prompt = EXTRACTION_PROMPT;
+    prompt += `\n\nContext for interpreting this poster:`;
+    prompt += `\n- Today's date: ${dateFormatter.format(now)}`;
+    prompt += `\n- City/region: ${cityConfig.name} (${CITY})`;
+    prompt += `\n- Timezone: ${cityConfig.timezone}`;
+    if (cityConfig.locales && cityConfig.locales.length > 1) {
+      prompt += `\n- This is a multilingual region. Posters may be in ${cityConfig.locales.map(l => l.split('-')[0]).join(' or ')}. Extract the primary language content.`;
+    }
+    prompt += `\n- If dates reference a day of the week without a specific date, resolve to the next upcoming occurrence.`;
+
+    const organizerNames = adminOrganizers.map(o => o.name);
     if (organizerNames.length > 0) {
       prompt += `\n\nKnown organizers (try to match one if applicable): ${organizerNames.join(', ')}`;
     }
