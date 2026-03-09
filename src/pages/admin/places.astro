@@ -53,7 +53,6 @@ const grouped = groupByCategory(adminPlaces);
         id="places-map"
         class="places-admin-map"
         data-places={JSON.stringify(mapPlaces)}
-        data-tiles-url={config.tiles_url}
         data-center={JSON.stringify([config.center.lat, config.center.lng])}
       />
     )}
@@ -79,27 +78,30 @@ const grouped = groupByCategory(adminPlaces);
 </Base>
 
 <script>
-  import { initMap, addMarkers } from '../../lib/leaflet-init';
+  import { initMap, addMarkers } from '../../lib/map-init';
+  import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
+  import maplibregl from 'maplibre-gl';
   import { html } from '../../lib/map-helpers';
 
   const el = document.getElementById('places-map');
   if (el) {
     const places = JSON.parse(el.dataset.places || '[]');
     const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
-    const tilesUrl = el.dataset.tilesUrl || '';
 
-    const map = initMap({ el, center, zoom: 11, tilesUrl });
+    const map = initMap({ el, center, zoom: 11, styleUrl: getStyleUrl(loadStylePreference()) });
 
-    addMarkers(map, places.map((p: any) => ({
-      lat: p.lat, lng: p.lng, emoji: p.emoji,
-      popup: html`<a href="/admin/places/${p.id}"><strong>${p.name}</strong></a>`,
-    })));
+    map.on('load', () => {
+      addMarkers(map, places.map((p: any) => ({
+        lat: p.lat, lng: p.lng, emoji: p.emoji,
+        popup: html`<a href="/admin/places/${p.id}"><strong>${p.name}</strong></a>`,
+      })));
 
-    if (places.length > 0) {
-      const L = await import('leaflet');
-      const bounds = L.default.latLngBounds(places.map((p: any) => [p.lat, p.lng]));
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30] });
-    }
+      if (places.length > 0) {
+        const bounds = new maplibregl.LngLatBounds();
+        for (const p of places) bounds.extend([p.lng, p.lat]);
+        map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
+      }
+    });
   }
 </script>
 

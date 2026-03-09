@@ -422,23 +422,26 @@ a.go-back-button {
   width: 100%;
   height: 85vh;
   min-height: 500px;
+  position: relative;
 }
-.leaflet-map {
+.map-container {
   width: 100%;
   height: 70vh;
   min-height: 400px;
+  position: relative;
 }
 .poi-marker {
   background: white;
   border-radius: 50%;
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
 }
 .poi-marker-emoji {
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
 }
 .place-popup {
@@ -467,48 +470,33 @@ a.go-back-button {
     color: $color-accent;
   }
 }
-.emoji-icon {
-  font-size: 25px;
-  text-shadow: 1px 2px 3px #444;
-  opacity: 0.8;
-  transition: opacity 0.5s ease;
-  &:hover {
-    opacity: 1;
-  }
+.gps-dot {
+  width: 16px;
+  height: 16px;
+  background: #4285f4;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.3), 0 1px 4px rgba(0, 0, 0, 0.3);
 }
-.photo-marker-thumb {
+.photo-bubble {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s;
+
+  &:hover {
+    transform: scale(1.15);
+  }
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-  }
-}
-.photo-cluster-icon {
-  background: rgba(53, 0, 145, 0.7);
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  span {
-    color: white;
-    font-weight: bold;
-    font-size: 13px;
-    font-family: $font-body;
-  }
-}
-.photo-popup {
-  .leaflet-popup-content {
-    margin: 8px;
-    padding: 0;
   }
 }
 .photo-popup-content {
@@ -522,24 +510,78 @@ a.go-back-button {
     line-height: 0;
   }
 }
+.photo-popup-route {
+  margin: 4px 4px 0;
+  font-size: 0.8125rem;
+
+  a { color: $color-accent; }
+}
 .photo-popup-caption {
   margin: 6px 4px 2px;
   font-size: 0.9em;
-  color: $color-text-muted;
+  color: $color-text;
   text-align: center;
 }
-.leaflet-bar, .leaflet-control {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+// MapLibre popups — force dark text in dark mode + entrance animation
+.maplibregl-popup {
+  animation: popup-enter 0.15s ease-out;
 }
-// Leaflet popups have a white background — force dark text in dark mode
-.leaflet-popup-content-wrapper {
+@keyframes popup-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.maplibregl-popup-content {
+  animation: popup-content-enter 0.2s ease-out;
+}
+@keyframes popup-content-enter {
+  from { transform: translateY(4px) scale(0.97); }
+  to { transform: translateY(0) scale(1); }
+}
+.maplibregl-popup-content {
   color: $color-text;
   a { color: $color-text; }
+  a { outline: none; }
+}
+// Map controls (Photos/Places/GPS toggles)
+.map-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.map-control-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  border: none;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+
+  &.active { opacity: 1; }
+  &:hover { opacity: 1; }
+
+  @include dark-mode {
+    background: #333;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  }
 }
 @include dark-mode {
-  .poi-marker {
-    background: #222;
+  .photo-bubble {
     border-color: #555;
+  }
+  .poi-marker {
+    background: white;
+    border-color: white;
   }
   .place-popup-address,
   .place-popup-phone {
@@ -550,25 +592,6 @@ a.go-back-button {
   }
   .photo-popup-caption {
     color: $color-text-muted-dark;
-  }
-  .photo-cluster-icon {
-    background: rgba(100, 60, 200, 0.8);
-    border-color: #555;
-  }
-}
-.map-gps-icon {
-  .custom-button {
-    background: white;
-    border: 2px solid rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-    cursor: pointer;
-    padding: 4px 8px;
-    font-size: 18px;
-    line-height: 1;
-
-    &:hover {
-      background: #f4f4f4;
-    }
   }
 }
 

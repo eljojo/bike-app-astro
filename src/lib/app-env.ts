@@ -23,4 +23,6 @@ export interface AppEnv {
   RWGPS_API_KEY?: string;
   RWGPS_AUTH_TOKEN?: string;
   GOOGLE_PLACES_API_KEY?: string;
+  THUNDERFOREST_API_KEY?: string;
+  TILE_CACHE?: unknown; // KV namespace in prod, undefined locally (handled by env-local)
 }

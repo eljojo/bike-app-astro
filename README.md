@@ -19,10 +19,12 @@ The build has zero external dependencies — it reads only the data repo. Works 
 
 - **[Astro](https://astro.build)** — static site generator (TypeScript)
 - **[Cloudflare Workers](https://workers.cloudflare.com)** — deployment (static assets on CDN)
-- **[Leaflet](https://leafletjs.com)** — interactive maps with Thunderforest Cycle tiles
 - **[PhotoSwipe](https://photoswipe.com)** — photo galleries
 - **[Playwright](https://playwright.dev)** — screenshot regression tests
 - **[Plausible](https://plausible.io)** — privacy-friendly analytics
+- **[MapLibre GL JS](https://maplibre.org)** — vector tile maps
+- **[Thunderforest](https://www.thunderforest.com)** — vector tile data ([outdoors-v2](https://www.thunderforest.com/docs/thunderforest.outdoors-v2/))
+- **[OpenStreetMap](https://www.openstreetmap.org/copyright)** — underlying map data
 
 ## Getting started
 
@@ -39,6 +41,9 @@ Route data lives in the separate [`bike-routes`](https://github.com/eljojo/bike-
 ## History
 
 This site was originally built as a Ruby on Rails application. The old Rails codebase is archived at [bike-app-archive](https://github.com/eljojo/bike-app-archive).
+
+
+Tile data served by [Thunderforest](https://www.thunderforest.com) outdoors-v2 vector tileset.
 
 ## License
 

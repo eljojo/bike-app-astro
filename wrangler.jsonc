@@ -30,6 +30,12 @@
           "binding": "BUCKET",
           "bucket_name": "eljojo-bike-prod"
         }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "TILE_CACHE",
+          "id": "295e43f49e3a4497aae86c3898b7c507"
+        }
       ]
     },
     "production": {
@@ -54,6 +60,12 @@
           "binding": "BUCKET",
           "bucket_name": "eljojo-bike-prod"
         }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "TILE_CACHE",
+          "id": "295e43f49e3a4497aae86c3898b7c507"
+        }
       ]
     },
     "demo-production": {
@@ -77,6 +89,12 @@
         {
           "binding": "BUCKET",
           "bucket_name": "eljojo-bike-prod"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "TILE_CACHE",
+          "id": "295e43f49e3a4497aae86c3898b7c507"
         }
       ]
     }

@@ -34,6 +34,10 @@ result
 # map cache (build-time generated)
 public/maps/
 
+# map style (generated from scripts/build-map-style.ts)
+public/map-style-*
+src/lib/map-style-url.ts
+
 # playwright test artifacts
 test-results/
 e2e/test-results/

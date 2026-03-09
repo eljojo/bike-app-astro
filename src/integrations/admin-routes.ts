@@ -27,6 +27,7 @@ const adminRoutes = [
   // Static _starred must precede parameterized [contentType]/[contentSlug] to avoid matching as params
   { pattern: '/api/reactions/route/_starred', entrypoint: './src/views/api/reactions-starred.ts' },
   { pattern: '/api/reactions/[contentType]/[contentSlug]', entrypoint: './src/views/api/reactions-get.ts' },
+  { pattern: '/api/tiles/[...path]', entrypoint: './src/views/api/tile-proxy.ts' },
   { pattern: '/dev-uploads/[...path]', entrypoint: './src/views/dev/dev-uploads.ts' },
 ];
 

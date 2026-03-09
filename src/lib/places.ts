@@ -28,7 +28,7 @@ export function toPlaceData(
     }));
 }
 
-/** Convert NearbyPlace[] into the format expected by LeafletMap/BigMap components. */
+/** Convert NearbyPlace[] into the format expected by map components. */
 export function toMapPlaces(nearby: NearbyPlace[], locale?: string) {
   return nearby.map(p => ({
     name: (locale && locale !== defaultLocale() && p.name_fr) ? p.name_fr : p.name,

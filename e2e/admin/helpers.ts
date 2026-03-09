@@ -61,6 +61,32 @@ export function seedSession(opts: SeedOptions = {}): string {
   return token;
 }
 
+// Staging origin used to proxy tile requests in E2E — CI has no Thunderforest
+// API key, so we intercept /api/tiles/* and forward to staging which has one.
+const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';
+
+/**
+ * Intercept tile/font requests and proxy them through staging.
+ * Playwright's route() intercepts at the network level, bypassing CORS.
+ */
+export async function proxyTiles(page: import('@playwright/test').Page) {
+  await page.route('**/api/tiles/**', async (route) => {
+    const url = new URL(route.request().url());
+    const upstream = `${TILE_PROXY_ORIGIN}${url.pathname}`;
+    try {
+      const res = await fetch(upstream);
+      const body = Buffer.from(await res.arrayBuffer());
+      await route.fulfill({
+        status: res.status,
+        headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream' },
+        body,
+      });
+    } catch {
+      await route.abort();
+    }
+  });
+}
+
 /** Set session cookie on a Playwright page. */
 export async function loginAs(page: import('@playwright/test').Page, token: string) {
   await page.context().addCookies([{

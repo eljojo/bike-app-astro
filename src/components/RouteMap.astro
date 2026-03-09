@@ -1,24 +1,16 @@
 ---
-// src/components/BigMap.astro
-
-interface RouteOnMap {
-  url: string;
+interface Place {
   name: string;
-  polyline: string;
-  distance_km: number;
-}
-
-interface PlaceOnMap {
-  name: string;
-  category: string;
   emoji: string;
   lat: number;
   lng: number;
+  description?: string;
+  link?: string;
   google_maps_url?: string;
   address?: string;
   phone?: string;
   photo_key?: string;
-  link?: string;
+  category?: string;
 }
 
 interface MapPhoto {
@@ -28,33 +20,33 @@ interface MapPhoto {
   caption?: string;
   width?: number;
   height?: number;
-  routeName?: string;
-  routeUrl?: string;
   index: number;
 }
 
 interface Props {
-  routes: RouteOnMap[];
-  places: PlaceOnMap[];
+  polylines: { name: string; encoded: string }[];
+  places?: Place[];
   photos?: MapPhoto[];
-  center: [number, number];
+  center?: [number, number];
+  zoom?: number;
 }
 
 import { CDN_FALLBACK_URL } from '../lib/config';
-const { routes, places, photos = [], center } = Astro.props;
+const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 ---
 
-<div class="big-map">
+<div class="map-container">
   <div
-    id="big-map"
+    id="route-map"
     style="width: 100%; height: 100%;"
-    data-routes={JSON.stringify(routes)}
+    data-polylines={JSON.stringify(polylines)}
     data-places={JSON.stringify(places)}
     data-center={JSON.stringify(center)}
+    data-zoom={zoom?.toString() || '12'}
     data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || CDN_FALLBACK_URL}
   ></div>
-  <div id="big-map-controls"></div>
+  <div id="route-map-controls"></div>
 </div>
 
 <script>
@@ -63,18 +55,32 @@ const { routes, places, photos = [], center } = Astro.props;
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
+  import polylineCodec from '@mapbox/polyline';
 
-  const el = document.getElementById('big-map');
-  const controlsEl = document.getElementById('big-map-controls');
+  const el = document.getElementById('route-map');
+  const controlsEl = document.getElementById('route-map-controls');
   if (el) {
-    const routes = JSON.parse(el.dataset.routes || '[]');
+    const polylines = JSON.parse(el.dataset.polylines || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
     const photos = JSON.parse(el.dataset.photos || '[]');
-    const center = JSON.parse(el.dataset.center || '[0, 0]');
+    const zoom = parseInt(el.dataset.zoom || '12');
+
+    // Compute center from first polyline instead of defaulting to [0, 0]
+    let center: [number, number] = JSON.parse(el.dataset.center || 'null');
+    if (!center && polylines.length > 0) {
+      const points = polylineCodec.decode(polylines[0].encoded);
+      const mid = points[Math.floor(points.length / 2)];
+      center = [mid[0], mid[1]];
+    }
     const cdnUrl = el.dataset.cdnUrl || '';
 
     const styleKey = loadStylePreference();
-    const map = initMap({ el, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
+    const map = initMap({ el, center, zoom, styleUrl: getStyleUrl(styleKey) });
+
+    const polylineData = polylines.map((pl: any) => ({
+      encoded: pl.encoded,
+      popup: html`${pl.name}`,
+    }));
 
     const placeData = places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
@@ -82,20 +88,21 @@ const { routes, places, photos = [], center } = Astro.props;
     }));
 
     function setupWebGLLayers() {
-      addPolylines(map, routes.map((r: any) => ({
-        encoded: r.polyline,
-        popup: html`<a href="${r.url}">${r.name}</a><br>${r.distance_km} km`,
-      })));
+      const bounds = addPolylines(map, polylineData);
 
       if (photos.length > 0) {
         addPhotoMarkers(map, photos, cdnUrl);
       }
 
       addMarkers(map, placeData);
+      return bounds;
     }
 
     map.on('load', () => {
-      setupWebGLLayers();
+      const bounds = setupWebGLLayers();
+      if (bounds) {
+        map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
+      }
 
       // Render MapControls island
       if (controlsEl) {

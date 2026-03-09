@@ -1,6 +1,27 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
+// Staging origin used to proxy tile requests — CI has no Thunderforest API key.
+const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';
+
+async function proxyTiles(page: Page) {
+  await page.route('**/api/tiles/**', async (route) => {
+    const url = new URL(route.request().url());
+    const upstream = `${TILE_PROXY_ORIGIN}${url.pathname}`;
+    try {
+      const res = await fetch(upstream);
+      const body = Buffer.from(await res.arrayBuffer());
+      await route.fulfill({
+        status: res.status,
+        headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream' },
+        body,
+      });
+    } catch {
+      await route.abort();
+    }
+  });
+}
+
 // Scroll through the page to trigger lazy-loaded images, then wait for all to finish loading.
 async function waitForImages(page: Page) {
   // Scroll to bottom in steps to trigger lazy loading
@@ -33,9 +54,13 @@ test.describe('Screenshots', () => {
   });
 
   test('route map', async ({ page }) => {
+    await proxyTiles(page);
     await page.goto('/routes/ruta-rio-chillan/map');
-    await page.waitForSelector('.leaflet-container');
-    await expect(page.locator('.leaflet-container')).toBeVisible();
+    await page.waitForSelector('.maplibregl-map');
+    await expect(page.locator('.maplibregl-map')).toBeVisible();
+    // Wait for map tiles to render (canvas gets painted)
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('route-map.png', { maxDiffPixelRatio: 0.02 });
   });
 
   test('guides index', async ({ page }) => {
@@ -75,8 +100,9 @@ test.describe('Screenshots', () => {
   });
 
   test('big map', async ({ page }) => {
+    await proxyTiles(page);
     await page.goto('/map');
-    await page.waitForSelector('.leaflet-container');
-    await expect(page.locator('.leaflet-container')).toBeVisible();
+    await page.waitForSelector('.maplibregl-map');
+    await expect(page.locator('.maplibregl-map')).toBeVisible();
   });
 });

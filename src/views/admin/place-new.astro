@@ -5,12 +5,13 @@ import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
 import { env } from '../../lib/env';
 import { CDN_FALLBACK_URL } from '../../lib/config';
-import { getCityConfig } from '../../lib/city-config';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { getCityConfig } from '../../lib/city-config';
 
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
-const { tiles_url: tilesUrl } = getCityConfig();
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
+const cityConfig = getCityConfig();
+const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
 
 const initialData = {
   id: '',
@@ -23,5 +24,5 @@ const initialData = {
 ---
 
 <AdminEditorLayout title="New Place" backLink="/admin/places" backLabel="Back to places" user={Astro.locals.user} currentTab="places">
-  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} tilesUrl={tilesUrl} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} />
+  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
 </AdminEditorLayout>

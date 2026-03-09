@@ -1,10 +1,12 @@
 import path from 'node:path';
 import { createLocalDb, openLocalDb } from '../db/local';
 import { createLocalBucket } from './storage-local';
+import { createLocalTileCache } from './tile-cache-local';
 import type { AppEnv } from './app-env';
 
 const LOCAL_DB_PATH = path.resolve(import.meta.dirname, '..', '..', '.data', 'local.db');
 const LOCAL_UPLOADS_DIR = path.resolve(import.meta.dirname, '..', '..', '.data', 'uploads');
+const LOCAL_TILE_CACHE_DIR = path.resolve(import.meta.dirname, '..', '..', '.data', 'tile-cache');
 
 export { openLocalDb };
 
@@ -29,6 +31,11 @@ export function createLocalEnv(): AppEnv {
     ENVIRONMENT: process.env.ENVIRONMENT || 'local',
     RWGPS_API_KEY: process.env.RWGPS_API_KEY || '',
     RWGPS_AUTH_TOKEN: process.env.RWGPS_AUTH_TOKEN || '',
+    THUNDERFOREST_API_KEY: process.env.THUNDERFOREST_API_KEY || '',
     ASSETS: null as unknown,
   };
+}
+
+export function createLocalTileCacheFromEnv() {
+  return createLocalTileCache(LOCAL_TILE_CACHE_DIR);
 }
