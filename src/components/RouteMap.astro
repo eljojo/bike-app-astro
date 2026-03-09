@@ -81,28 +81,27 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       popup: html`${pl.name}`,
     }));
 
+    const placeData = places.map((p: any) => ({
+      lat: p.lat, lng: p.lng, emoji: p.emoji,
+      popup: buildPlacePopup(p, cdnUrl),
+    }));
+
     function setupWebGLLayers() {
-      addPolylines(map, polylineData);
+      const bounds = addPolylines(map, polylineData);
 
       if (photos.length > 0) {
         addPhotoMarkers(map, photos, cdnUrl);
       }
+
+      addMarkers(map, placeData);
+      return bounds;
     }
 
     map.on('load', () => {
-      const bounds = addPolylines(map, polylineData);
+      const bounds = setupWebGLLayers();
       if (bounds) {
         map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
       }
-
-      if (photos.length > 0) {
-        addPhotoMarkers(map, photos, cdnUrl);
-      }
-
-      addMarkers(map, places.map((p: any) => ({
-        lat: p.lat, lng: p.lng, emoji: p.emoji,
-        popup: buildPlacePopup(p, cdnUrl),
-      })));
 
       // Render MapControls island
       if (controlsEl) {

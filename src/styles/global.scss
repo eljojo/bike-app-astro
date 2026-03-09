@@ -535,7 +535,7 @@ a.go-back-button {
 .maplibregl-popup-content {
   color: $color-text;
   a { color: $color-text; }
-  .photo-popup-content a { outline: none; }
+  a { outline: none; }
 }
 // Map controls (Photos/Places/GPS toggles)
 .map-controls {
