@@ -59,7 +59,7 @@ const { routes, places, photos = [], center } = Astro.props;
 <script>
   import { initMap, addPolylines, addMarkers, addPhotoMarkers, addGpsControl, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
-  import { MAP_STYLE_URL } from '../lib/map-style-url';
+  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
 
@@ -72,22 +72,27 @@ const { routes, places, photos = [], center } = Astro.props;
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
 
-    const map = initMap({ el, center, zoom: 11, styleUrl: MAP_STYLE_URL });
+    const styleKey = loadStylePreference();
+    const map = initMap({ el, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
 
-    map.on('load', () => {
+    function setupWebGLLayers() {
       addPolylines(map, routes.map((r: any) => ({
         encoded: r.polyline,
         popup: html`<a href="${r.url}">${r.name}</a><br>${r.distance_km} km`,
       })));
 
+      if (photos.length > 0) {
+        addPhotoMarkers(map, photos, cdnUrl);
+      }
+    }
+
+    map.on('load', () => {
+      setupWebGLLayers();
+
       addMarkers(map, places.map((p: any) => ({
         lat: p.lat, lng: p.lng, emoji: p.emoji,
         popup: buildPlacePopup(p, cdnUrl),
       })));
-
-      if (photos.length > 0) {
-        addPhotoMarkers(map, photos, cdnUrl);
-      }
 
       // Render MapControls island
       if (controlsEl) {
@@ -99,6 +104,7 @@ const { routes, places, photos = [], center } = Astro.props;
           onToggleGps: (v: boolean) => {
             if (v) addGpsControl(map);
           },
+          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, setupWebGLLayers),
         }), controlsEl);
       }
     });

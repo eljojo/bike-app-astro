@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'preact/hooks';
-import { MAP_STYLE_URL } from '../../lib/map-style-url';
+import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
 
 interface Props {
   /** Array of [lon, lat] coordinate pairs */
@@ -33,7 +33,7 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
 
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style: MAP_STYLE_URL,
+        style: getStyleUrl(loadStylePreference()),
         bounds: [sw, ne],
         fitBoundsOptions: { padding: 30 },
         interactive: false,

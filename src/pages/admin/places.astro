@@ -79,7 +79,7 @@ const grouped = groupByCategory(adminPlaces);
 
 <script>
   import { initMap, addMarkers } from '../../lib/map-init';
-  import { MAP_STYLE_URL } from '../../lib/map-style-url';
+  import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
   import maplibregl from 'maplibre-gl';
   import { html } from '../../lib/map-helpers';
 
@@ -88,7 +88,7 @@ const grouped = groupByCategory(adminPlaces);
     const places = JSON.parse(el.dataset.places || '[]');
     const center = JSON.parse(el.dataset.center || '[45.42, -75.69]');
 
-    const map = initMap({ el, center, zoom: 11, styleUrl: MAP_STYLE_URL });
+    const map = initMap({ el, center, zoom: 11, styleUrl: getStyleUrl(loadStylePreference()) });
 
     map.on('load', () => {
       addMarkers(map, places.map((p: any) => ({

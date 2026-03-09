@@ -51,7 +51,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 <script>
   import { initMap, addPolylines, addMarkers, addPhotoMarkers, addGpsControl, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
-  import { MAP_STYLE_URL } from '../lib/map-style-url';
+  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
 
@@ -65,25 +65,36 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     const zoom = parseInt(el.dataset.zoom || '12');
     const cdnUrl = el.dataset.cdnUrl || '';
 
-    const map = initMap({ el, center, zoom, styleUrl: MAP_STYLE_URL });
+    const styleKey = loadStylePreference();
+    const map = initMap({ el, center, zoom, styleUrl: getStyleUrl(styleKey) });
+
+    const polylineData = polylines.map((pl: any) => ({
+      encoded: pl.encoded,
+      popup: html`${pl.name}`,
+    }));
+
+    function setupWebGLLayers() {
+      addPolylines(map, polylineData);
+
+      if (photos.length > 0) {
+        addPhotoMarkers(map, photos, cdnUrl);
+      }
+    }
 
     map.on('load', () => {
-      const bounds = addPolylines(map, polylines.map((pl: any) => ({
-        encoded: pl.encoded,
-        popup: html`${pl.name}`,
-      })));
+      const bounds = addPolylines(map, polylineData);
       if (bounds) {
         map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
+      }
+
+      if (photos.length > 0) {
+        addPhotoMarkers(map, photos, cdnUrl);
       }
 
       addMarkers(map, places.map((p: any) => ({
         lat: p.lat, lng: p.lng, emoji: p.emoji,
         popup: buildPlacePopup(p, cdnUrl),
       })));
-
-      if (photos.length > 0) {
-        addPhotoMarkers(map, photos, cdnUrl);
-      }
 
       // Render MapControls island
       if (controlsEl) {
@@ -95,6 +106,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
           onToggleGps: (v: boolean) => {
             if (v) addGpsControl(map);
           },
+          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, setupWebGLLayers),
         }), controlsEl);
       }
     });

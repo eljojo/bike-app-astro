@@ -3,7 +3,7 @@ import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
 import SaveSuccessModal from './SaveSuccessModal';
 import { categoryEmoji } from '../../lib/place-categories';
-import { MAP_STYLE_URL } from '../../lib/map-style-url';
+import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
@@ -239,7 +239,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
 
       const map = new maplibregl.default.Map({
         container: mapContainerRef.current!,
-        style: MAP_STYLE_URL,
+        style: getStyleUrl(loadStylePreference()),
         center: defaultCenter,
         zoom: defaultZoom,
         scrollZoom: true,

@@ -3,6 +3,24 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import polylineCodec from '@mapbox/polyline';
 import { html, raw } from './map-helpers';
 
+/** Remove a source and all layers referencing it. Needed for style-switch replay. */
+function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
+  const style = map.getStyle();
+  if (style?.layers) {
+    for (const layer of style.layers) {
+      if ('source' in layer && layer.source === sourceId && map.getLayer(layer.id)) {
+        map.removeLayer(layer.id);
+      }
+    }
+  }
+  if (map.getSource(sourceId)) {
+    map.removeSource(sourceId);
+  }
+}
+
+/** Track the syncPhotoBubbles handler per map so it can be removed on replay. */
+const photoBubbleSyncHandlers = new WeakMap<maplibregl.Map, () => void>();
+
 // --- Interfaces ---
 
 export interface MapOptions {
@@ -78,6 +96,8 @@ export function addPolylines(
   map: maplibregl.Map,
   polylines: PolylineOptions[],
 ): maplibregl.LngLatBounds | null {
+  removeSourceAndLayers(map, 'route-polylines');
+
   const features = polylines.map((p) => buildPolylineFeature(p.encoded, p.popup));
   const sourceId = 'route-polylines';
 
@@ -181,6 +201,16 @@ export function addPhotoMarkers(
   photos: PhotoMarkerOptions[],
   cdnUrl: string,
 ): void {
+  // Clean up previous photo markers (idempotent for style-switch replay)
+  removeSourceAndLayers(map, 'photo-markers');
+  map.getContainer().querySelectorAll('.photo-bubble').forEach(el => el.remove());
+
+  const previousSync = photoBubbleSyncHandlers.get(map);
+  if (previousSync) {
+    map.off('idle', previousSync);
+    photoBubbleSyncHandlers.delete(map);
+  }
+
   const sourceId = 'photo-markers';
 
   map.addSource(sourceId, {
@@ -284,6 +314,7 @@ export function addPhotoMarkers(
   }
 
   map.on('idle', syncPhotoBubbles);
+  photoBubbleSyncHandlers.set(map, syncPhotoBubbles);
 
   // Click to zoom into cluster
   map.on('click', 'photo-clusters', async (e) => {
