@@ -459,7 +459,7 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
           16, p.base.rock,
           p.base.earth,
         ],
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.6, 6, 0.5, 8, 0.4],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.8, 6, 0.75, 8, 0.7],
       },
     },
     {
@@ -467,10 +467,10 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       type: 'fill',
       source: 'outdoors',
       'source-layer': 'landcover',
-      filter: ['==', 'type', 'forest'],
+      filter: ['in', 'type', 'forest', 'wood', 'orchard'],
       paint: {
         'fill-color': p.base.forest,
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 10, 0.6, 14, 0.55],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.85, 10, 0.8, 14, 0.75],
       },
     },
     {
@@ -493,7 +493,7 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: ['in', 'type', 'grass', 'meadow', 'heath', 'vineyard', 'grassland'],
       paint: {
         'fill-color': p.base.grassland,
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 0.5],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.8, 10, 0.7],
       },
     },
     ...['farmland', 'scrub', 'wetland', 'glacier', 'rock'].map(type => ({
@@ -504,7 +504,7 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: ['==', 'type', type === 'rock' ? 'bare_rock' : type],
       paint: {
         'fill-color': (p.base as any)[type] || p.base.grassland,
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 10, 0.4],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.8, 10, 0.7],
       },
     })),
 
@@ -515,10 +515,10 @@ function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
       type: 'fill',
       source: 'outdoors',
       'source-layer': 'landuse',
-      filter: ['in', 'type', 'park', 'recreation_ground', 'garden', 'village_green', 'grass'],
+      filter: ['in', 'type', 'park', 'recreation_ground', 'garden', 'village_green', 'grass', 'common', 'golf_course', 'pitch'],
       paint: {
         'fill-color': p.base.park,
-        'fill-opacity': 0.6,
+        'fill-opacity': 0.8,
       },
     },
     ...([
