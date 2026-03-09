@@ -53,7 +53,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
   import { buildPlacePopup, html } from '../lib/map-helpers';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
-  import MapControls from './admin/MapControls';
+  import MapControls, { loadToggleState } from './admin/MapControls';
   import polylineCodec from '@mapbox/polyline';
 
   const el = document.getElementById('route-map');
@@ -114,7 +114,11 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
           onToggleGps: (v: boolean) => {
             if (v) addGpsControl(map);
           },
-          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, setupWebGLLayers),
+          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
+            setupWebGLLayers();
+            setPhotoLayersVisible(map, loadToggleState('map-photos', true));
+            setPlaceMarkersVisible(map, loadToggleState('map-places', true));
+          }),
         }), controlsEl);
       }
     });

@@ -84,6 +84,10 @@ interface BasePalette {
   buildingOutline: string;
   majorRoad: string;
   majorRoadCasing: string;
+  secondaryRoad: string;
+  secondaryRoadCasing: string;
+  countryRoad: string;
+  countryRoadCasing: string;
   road: string;
   roadCasing: string;
   service: string;
@@ -153,8 +157,12 @@ const defaultBase: BasePalette = {
   building: '#d9d0c8',
   buildingOutline: '#c8bfb5',
   // Roads — the desert: pale, quiet, just enough to orient
-  majorRoad: '#d0cdc6',
-  majorRoadCasing: '#c2beb5',
+  majorRoad: '#c8c4bc',
+  majorRoadCasing: '#aaa69c',
+  secondaryRoad: '#d0cdc6',
+  secondaryRoadCasing: '#b5b0a5',
+  countryRoad: '#dbd8d0',
+  countryRoadCasing: '#c8c2b8',
   road: '#e2dfd8',
   roadCasing: '#d6d2ca',
   service: '#e8e5de',
@@ -230,12 +238,16 @@ const hcBase: BasePalette = {
   stream: '#c0c0c0',
   building: '#e5e5e5',
   buildingOutline: '#d5d5d5',
-  majorRoad: '#d8d8d8',
-  majorRoadCasing: '#cacaca',
-  road: '#e8e8e8',
-  roadCasing: '#dedede',
-  service: '#eeeeee',
-  serviceCasing: '#e5e5e5',
+  majorRoad: '#e0e0e0',
+  majorRoadCasing: '#d5d5d5',
+  secondaryRoad: '#e5e5e5',
+  secondaryRoadCasing: '#dadada',
+  countryRoad: '#e8e8e8',
+  countryRoadCasing: '#e0e0e0',
+  road: '#eeeeee',
+  roadCasing: '#e8e8e8',
+  service: '#f2f2f2',
+  serviceCasing: '#ececec',
   rail: '#cccccc',
   railCasing: '#e0e0e0',
   countryBorder: '#999999',
@@ -714,20 +726,27 @@ const roadClasses = [
   {
     id: 'major',
     filter: ['in', 'highway', 'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link'],
-    widthFill: [[7, 0.4], [10, 1], [14, 2.5], [18, 6]] as ZoomWidth,
-    widthCasing: [[7, 0.8], [10, 1.6], [14, 4], [18, 9]] as ZoomWidth,
+    widthFill: [[7, 0.6], [10, 1.4], [14, 3.5], [18, 8]] as ZoomWidth,
+    widthCasing: [[7, 1], [10, 2.2], [14, 5.5], [18, 12]] as ZoomWidth,
     minzoom: 5,
   },
   {
     id: 'secondary',
-    filter: ['in', 'highway', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link'],
-    widthFill: [[8, 0.2], [12, 0.4], [14, 1.2], [18, 3]] as ZoomWidth,
-    widthCasing: [[8, 0.4], [12, 0.8], [14, 2], [18, 4.5]] as ZoomWidth,
-    minzoom: 9,
+    filter: ['in', 'highway', 'secondary', 'secondary_link'],
+    widthFill: [[8, 0.4], [10, 1], [14, 2.5], [18, 6]] as ZoomWidth,
+    widthCasing: [[8, 0.8], [10, 1.8], [14, 4], [18, 9]] as ZoomWidth,
+    minzoom: 8,
+  },
+  {
+    id: 'country',
+    filter: ['in', 'highway', 'tertiary', 'tertiary_link', 'unclassified'],
+    widthFill: [[10, 0.2], [12, 0.4], [14, 1], [18, 2.8]] as ZoomWidth,
+    widthCasing: [[10, 0.6], [12, 1], [14, 2.2], [18, 5]] as ZoomWidth,
+    minzoom: 10,
   },
   {
     id: 'minor',
-    filter: ['in', 'highway', 'residential', 'unclassified', 'living_street'],
+    filter: ['in', 'highway', 'residential', 'living_street'],
     widthFill: [[12, 0.2], [14, 0.8], [18, 2.5]] as ZoomWidth,
     widthCasing: [[12, 0.4], [14, 1.5], [18, 4]] as ZoomWidth,
     minzoom: 12,
@@ -754,7 +773,10 @@ function roadLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: rc.filter,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': rc.id === 'major' ? p.base.majorRoadCasing : p.base.roadCasing,
+        'line-color': rc.id === 'major' ? p.base.majorRoadCasing
+          : rc.id === 'secondary' ? p.base.secondaryRoadCasing
+          : rc.id === 'country' ? p.base.countryRoadCasing
+          : p.base.roadCasing,
         'line-width': lineWidth(scaleWidth(rc.widthCasing, scale)),
       },
     })),
@@ -768,7 +790,10 @@ function roadLayers(p: Palette, variant: StyleVariant): Layer[] {
       filter: rc.filter,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': rc.id === 'major' ? p.base.majorRoad : p.base.road,
+        'line-color': rc.id === 'major' ? p.base.majorRoad
+          : rc.id === 'secondary' ? p.base.secondaryRoad
+          : rc.id === 'country' ? p.base.countryRoad
+          : p.base.road,
         'line-width': lineWidth(scaleWidth(rc.widthFill, scale)),
       },
     })),
