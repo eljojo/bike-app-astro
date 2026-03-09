@@ -110,6 +110,8 @@ export interface BasePalette {
   contourLabel: string;
   restStop: string;
   restStopLabel: string;
+  amenity: string;
+  amenityLabel: string;
 }
 
 export interface CyclingPalette {
@@ -191,6 +193,8 @@ export const defaultBase: BasePalette = {
   // Rest stops
   restStop: '#c87030',
   restStopLabel: '#a05820',
+  amenity: '#4a9ec2',
+  amenityLabel: '#3578a0',
 };
 
 /**
@@ -266,6 +270,8 @@ export const hcBase: BasePalette = {
   contourLabel: '#b0b0b0',
   restStop: '#1a1a1a',
   restStopLabel: '#333333',
+  amenity: '#1a1a1a',
+  amenityLabel: '#333333',
 };
 
 /** High-contrast cycling palette — black on white, like a poster print */
@@ -315,6 +321,10 @@ interface PoiOpts {
   minzoom: number;
   /** Custom radius stops [zoom, radius, ...] */
   radius?: number[];
+  /** Override label minzoom (default: max(minzoom, 15)) */
+  labelMinzoom?: number;
+  /** Custom text size stops [zoom, size, ...] */
+  textSize?: number[];
 }
 
 function poiLayer(id: string, filter: any, opts: PoiOpts): Layer[] {
@@ -344,7 +354,7 @@ function poiLayer(id: string, filter: any, opts: PoiOpts): Layer[] {
       type: 'symbol',
       source: 'outdoors',
       'source-layer': 'poi-label',
-      minzoom: Math.max(opts.minzoom, 15),
+      minzoom: opts.labelMinzoom ?? Math.max(opts.minzoom, 15),
       filter,
       layout: {
         'text-field': ['coalesce', ['get', 'name'], ['match', ['get', 'feature'],
@@ -359,7 +369,9 @@ function poiLayer(id: string, filter: any, opts: PoiOpts): Layer[] {
           '',
         ]],
         'text-font': [font.regular],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 15, 9, 18, 11],
+        'text-size': opts.textSize
+          ? ['interpolate', ['linear'], ['zoom'], ...opts.textSize]
+          : ['interpolate', ['linear'], ['zoom'], 15, 9, 18, 11],
         'text-offset': [0, 1.2],
         'text-anchor': 'top',
         'text-max-width': 8,
@@ -1192,24 +1204,31 @@ function labelLayers(p: Palette): Layer[] {
     // Water, food, toilets, lodging, camping — all the same job:
     // "I can stop here." One warm orange dot.
 
-    // Water fountains — visible earlier (critical infrastructure)
+    // Water fountains & restrooms — sky blue, visible earlier (critical infrastructure)
     ...poiLayer('poi-water', ['in', ['get', 'feature'], ['literal', [
-      'drinking_water', 'water_point',
+      'drinking_water', 'water_point', 'toilets',
     ]]], {
-      color: p.base.restStop, minzoom: 14,
+      color: p.base.amenity, minzoom: 10, radius: [10, 3, 14, 5, 18, 7],
     }),
 
-    // Everything else you'd stop at
+    // Camping — visible from afar (key for long rides)
+    ...poiLayer('poi-camping', ['in', ['get', 'feature'], ['literal', [
+      'camp_site',
+    ]]], {
+      color: p.base.restStop, minzoom: 0, radius: [0, 7, 14, 7, 18, 9], labelMinzoom: 8,
+    }),
+
+    // Everything else you'd stop at — food, lodging
     ...poiLayer('poi-rest', ['in', ['get', 'feature'], ['literal', [
       // Food & drink
       'restaurant', 'cafe', 'fast_food', 'bar', 'pub', 'ice_cream',
-      // Groceries
-      'supermarket', 'convenience', 'greengrocer', 'bakery', 'deli', 'marketplace',
+      // Groceries & fuel
+      'supermarket', 'convenience', 'greengrocer', 'bakery', 'deli', 'marketplace', 'fuel',
       // Comfort
-      'toilets', 'shelter',
+      'shelter',
       // Lodging
       'hotel', 'motel', 'guest_house', 'hostel', 'alpine_hut',
-      'camp_site', 'caravan_site', 'picnic_site',
+      'caravan_site', 'picnic_site',
     ]]], {
       color: p.base.restStop, minzoom: 15,
     }),
@@ -1219,7 +1238,7 @@ function labelLayers(p: Palette): Layer[] {
     ...poiLayer('poi-bike', ['in', ['get', 'feature'], ['literal', [
       'bicycle', 'bicycle_rental', 'bicycle_repair_station',
     ]]], {
-      color: p.cycling.bikeInfra, minzoom: 14,
+      color: p.cycling.bikeInfra, minzoom: 10, radius: [10, 3, 14, 5, 18, 7],
     }),
 
 
