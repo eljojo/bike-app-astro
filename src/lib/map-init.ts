@@ -178,6 +178,16 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
 
 // --- Photo markers (clustered with thumbnail bubbles) ---
 
+const preloadedUrls = new Set<string>();
+const photosVisible = new WeakMap<maplibregl.Map, boolean>();
+
+function preloadImage(url: string): void {
+  if (preloadedUrls.has(url)) return;
+  preloadedUrls.add(url);
+  const img = new Image();
+  img.src = url;
+}
+
 function photoPopupMaxWidth(zoom: number): number {
   // Exponential scaling: grows fast when zoomed in, tiny when zoomed out
   const t = Math.max(0, Math.min(1, (zoom - 8) / 8)); // 0 at z8, 1 at z16
@@ -316,6 +326,13 @@ export function addPhotoMarkers(
         el.className = 'photo-bubble';
         el.innerHTML = `<img src="${thumbUrl}" alt="" loading="lazy" />`;
 
+        el.addEventListener('mouseenter', () => {
+          if (photosVisible.get(map) === false) return;
+          const w = photoPopupMaxWidth(map.getZoom());
+          preloadImage(`${cdnUrl}/cdn-cgi/image/width=${w * 2},fit=scale-down/${props.key}`);
+          preloadImage(`${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${props.key}`);
+        });
+
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           showPhotoPopup(map, props, coords, cdnUrl);
@@ -326,6 +343,14 @@ export function addPhotoMarkers(
           .addTo(map);
 
         bubbleMarkers.set(key, marker);
+      }
+    }
+
+    // Preload popup images for visible photos at current zoom level
+    if (photosVisible.get(map) !== false) {
+      const popupWidth = photoPopupMaxWidth(map.getZoom() + 2);
+      for (const key of seen) {
+        preloadImage(`${cdnUrl}/cdn-cgi/image/width=${popupWidth * 2},fit=scale-down/${key}`);
       }
     }
 
@@ -372,6 +397,7 @@ export function addGpsControl(map: maplibregl.Map): void {
 const PHOTO_LAYER_IDS = ['photo-clusters', 'photo-cluster-count', 'photo-unclustered'];
 
 export function setPhotoLayersVisible(map: maplibregl.Map, visible: boolean): void {
+  photosVisible.set(map, visible);
   const vis = visible ? 'visible' : 'none';
   for (const id of PHOTO_LAYER_IDS) {
     if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
