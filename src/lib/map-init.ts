@@ -2,8 +2,14 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import polylineCodec from '@mapbox/polyline';
 import { html, raw } from './map-helpers';
+import type { MapStyleKey } from './map-style-switch';
 
 export const ROUTE_COLOR = '#350091';
+const ROUTE_COLOR_HC = '#0077BB';
+
+export function getRouteColor(style?: MapStyleKey): string {
+  return style === 'high-contrast' ? ROUTE_COLOR_HC : ROUTE_COLOR;
+}
 
 /** Remove a source and all layers referencing it. Needed for style-switch replay. */
 function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
@@ -107,6 +113,7 @@ export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.
 export function addPolylines(
   map: maplibregl.Map,
   polylines: PolylineOptions[],
+  styleKey?: MapStyleKey,
 ): maplibregl.LngLatBounds | null {
   removeSourceAndLayers(map, 'route-polylines');
 
@@ -123,7 +130,7 @@ export function addPolylines(
     type: 'line',
     source: sourceId,
     paint: {
-      'line-color': ROUTE_COLOR,
+      'line-color': getRouteColor(styleKey),
       'line-width': 6,
       'line-opacity': 0.9,
     },
@@ -346,6 +353,7 @@ export function addPhotoMarkers(
   map: maplibregl.Map,
   photos: PhotoMarkerOptions[],
   cdnUrl: string,
+  styleKey?: MapStyleKey,
 ): void {
   // Clean up previous photo markers (idempotent for style-switch replay)
   removeSourceAndLayers(map, 'photo-markers');
@@ -386,7 +394,7 @@ export function addPhotoMarkers(
     minzoom: 11,
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': ROUTE_COLOR,
+      'circle-color': getRouteColor(styleKey),
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 12, 15, 18],
       'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 13, 0.85],
     },

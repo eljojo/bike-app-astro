@@ -81,21 +81,21 @@ const { routes, places, photos = [], center } = Astro.props;
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    function setupWebGLLayers() {
+    function setupWebGLLayers(sk: MapStyleKey) {
       addPolylines(map, routes.map((r: any) => ({
         encoded: r.polyline,
         popup: html`<a href="${r.url}">${r.name}</a><br>${r.distance_km} km`,
-      })));
+      })), sk);
 
       if (photos.length > 0) {
-        addPhotoMarkers(map, photos, cdnUrl);
+        addPhotoMarkers(map, photos, cdnUrl, sk);
       }
 
       addMarkers(map, placeData);
     }
 
     map.on('load', () => {
-      setupWebGLLayers();
+      setupWebGLLayers(styleKey);
 
       // Render MapControls island
       if (controlsEl) {
@@ -109,7 +109,7 @@ const { routes, places, photos = [], center } = Astro.props;
             else hideUserLocation();
           },
           onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
-            setupWebGLLayers();
+            setupWebGLLayers(key);
             setPhotoLayersVisible(map, loadToggleState('map-photos', true));
             setPlaceMarkersVisible(map, loadToggleState('map-places', true));
           }),

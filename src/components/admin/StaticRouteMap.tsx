@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'preact/hooks';
 import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
-import { ROUTE_COLOR } from '../../lib/map-init';
+import { getRouteColor } from '../../lib/map-init';
 
 interface Props {
   /** Array of [lon, lat] coordinate pairs */
@@ -32,9 +32,10 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
         if (c[1] > ne[1]) ne[1] = c[1];
       }
 
+      const sk = loadStylePreference();
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style: getStyleUrl(loadStylePreference()),
+        style: getStyleUrl(sk),
         bounds: [sw, ne],
         fitBoundsOptions: { padding: 30 },
         interactive: false,
@@ -61,7 +62,7 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
           type: 'line',
           source: 'route',
           paint: {
-            'line-color': ROUTE_COLOR,
+            'line-color': getRouteColor(sk),
             'line-width': 4,
             'line-opacity': 0.9,
           },

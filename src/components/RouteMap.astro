@@ -87,11 +87,11 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    function setupWebGLLayers() {
-      const bounds = addPolylines(map, polylineData);
+    function setupWebGLLayers(sk: MapStyleKey) {
+      const bounds = addPolylines(map, polylineData, sk);
 
       if (photos.length > 0) {
-        addPhotoMarkers(map, photos, cdnUrl);
+        addPhotoMarkers(map, photos, cdnUrl, sk);
       }
 
       addMarkers(map, placeData);
@@ -99,7 +99,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     }
 
     map.on('load', () => {
-      const bounds = setupWebGLLayers();
+      const bounds = setupWebGLLayers(styleKey);
       if (bounds) {
         map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
       }
@@ -116,7 +116,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
             else hideUserLocation();
           },
           onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
-            setupWebGLLayers();
+            setupWebGLLayers(key);
             setPhotoLayersVisible(map, loadToggleState('map-photos', true));
             setPlaceMarkersVisible(map, loadToggleState('map-places', true));
           }),
