@@ -206,6 +206,7 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
     filter: ['has', 'point_count'],
     layout: {
       'text-field': '{point_count_abbreviated}',
+      'text-font': ['NotoSans_Regular'],
       'text-size': ['interpolate', ['linear'], ['zoom'], 6, 11, 12, 13],
     },
     paint: { 'text-color': '#555555' },
@@ -397,6 +398,7 @@ export function addPhotoMarkers(
     filter: ['has', 'point_count'],
     layout: {
       'text-field': '{point_count_abbreviated}',
+      'text-font': ['NotoSans_Regular'],
       'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 15, 13],
     },
     paint: { 'text-color': '#ffffff' },
