@@ -19,11 +19,12 @@ The build has zero external dependencies — it reads only the data repo. Works 
 
 - **[Astro](https://astro.build)** — static site generator (TypeScript)
 - **[Cloudflare Workers](https://workers.cloudflare.com)** — deployment (static assets on CDN)
-- **[MapLibre GL JS](https://maplibre.org)** — vector tile maps
-- **[Thunderforest](https://www.thunderforest.com)** — vector tile data ([outdoors-v2](https://www.thunderforest.com/docs/thunderforest.outdoors-v2/))
 - **[PhotoSwipe](https://photoswipe.com)** — photo galleries
 - **[Playwright](https://playwright.dev)** — screenshot regression tests
 - **[Plausible](https://plausible.io)** — privacy-friendly analytics
+- **[MapLibre GL JS](https://maplibre.org)** — vector tile maps
+- **[Thunderforest](https://www.thunderforest.com)** — vector tile data ([outdoors-v2](https://www.thunderforest.com/docs/thunderforest.outdoors-v2/))
+- **[OpenStreetMap](https://www.openstreetmap.org/copyright)** — underlying map data
 
 ## Getting started
 
@@ -41,14 +42,6 @@ Route data lives in the separate [`bike-routes`](https://github.com/eljojo/bike-
 
 This site was originally built as a Ruby on Rails application. The old Rails codebase is archived at [bike-app-archive](https://github.com/eljojo/bike-app-archive).
 
-## Map Style Attribution
-
-The cycling map style (`scripts/build-map-style.ts`) is original work that draws on:
-
-- **[Mapzen Bike Map](https://github.com/tangrams/walkabout-style)** — cycling infrastructure color tier system ([color/tag reference](https://gist.github.com/nvkelso/fe46993c6c334b52c4b9d6cf5aabffa7))
-- **[MapTiler Outdoor](https://www.openmaptiles.org/styles/)** — visual design inspiration (warm outdoor palette)
-- **[Basemapkit](https://github.com/jonathanlurie/basemapkit)** — reference for cycling layer structure on vector tiles
-- **[OpenStreetMap](https://www.openstreetmap.org/copyright)** — underlying map data
 
 Tile data served by [Thunderforest](https://www.thunderforest.com) outdoors-v2 vector tileset.
 
