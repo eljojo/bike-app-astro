@@ -12,6 +12,7 @@
       "name": "bike-ottawa-staging",
       "observability": { "enabled": true },
       "traces": { "enabled": true },
+      "ai": { "binding": "AI" },
       "vars": {
         "GIT_BRANCH": "staging",
         "ENVIRONMENT": "staging",
@@ -42,6 +43,7 @@
       "name": "bike-ottawa-production",
       "observability": { "enabled": true },
       "traces": { "enabled": true },
+      "ai": { "binding": "AI" },
       "vars": {
         "GIT_BRANCH": "main",
         "ENVIRONMENT": "production",
@@ -72,6 +74,7 @@
       "name": "bike-demo-production",
       "observability": { "enabled": true },
       "traces": { "enabled": true },
+      "ai": { "binding": "AI" },
       "vars": {
         "GIT_BRANCH": "main",
         "ENVIRONMENT": "production",
