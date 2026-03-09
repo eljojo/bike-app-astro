@@ -97,6 +97,9 @@ test.describe('Event Creation', () => {
 
     await page.goto('/admin/events/new');
     await page.waitForLoadState('networkidle');
+
+    // Skip the poster upload phase (EventCreator → EventEditor)
+    await page.locator('button.btn-link', { hasText: 'Skip' }).click();
     await page.waitForTimeout(2000);
 
     // Fill required fields
