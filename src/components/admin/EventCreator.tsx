@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback } from 'preact/hooks';
 import EventEditor from './EventEditor';
 import { useFileUpload } from '../../lib/hooks';
-import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
-import { slugify } from '../../lib/slug';
 import type { EventDetail } from '../../lib/models/event-model';
 
 interface OrganizerData {
@@ -17,15 +15,31 @@ interface Props {
   organizers: OrganizerData[];
 }
 
-interface FieldValue {
-  value: string;
-  confidence: number;
+/** Draft fields returned by the server, already in EventDetail shape. */
+interface PosterDraft {
+  draft: Partial<EventDetail>;
+  uncertain: string[];
 }
 
-type ExtractedFields = Partial<Record<string, FieldValue>>;
+const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'registration_url'] as const;
 
-const HIGH_CONFIDENCE = 0.7;
-const MEDIUM_CONFIDENCE = 0.4;
+const FIELD_LABELS: Record<string, string> = {
+  name: 'name',
+  start_date: 'start date',
+  end_date: 'end date',
+  start_time: 'start time',
+  end_time: 'end time',
+  location: 'location',
+  distances: 'distances',
+  organizer: 'organizer',
+  registration_url: 'registration URL',
+};
+
+function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
+  if (!organizer) return '';
+  if (typeof organizer === 'string') return organizer;
+  return organizer.name || '';
+}
 
 export default function EventCreator({ cdnUrl, organizers }: Props) {
   const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>('upload');
@@ -33,14 +47,12 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
   const [posterKey, setPosterKey] = useState('');
   const [posterContentType, setPosterContentType] = useState('');
   const [extracting, setExtracting] = useState(false);
-  const [extracted, setExtracted] = useState<ExtractedFields>({});
+  const [posterDraft, setPosterDraft] = useState<PosterDraft | null>(null);
   const [error, setError] = useState('');
   const [pasteUrl, setPasteUrl] = useState('');
   const [fetchingUrl, setFetchingUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const upload = useFileUpload();
-
-  const organizerNames = organizers.map(o => o.name);
 
   const handlePosterUploaded = useCallback(async (key: string, contentType: string) => {
     setPosterKey(key);
@@ -49,31 +61,31 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
     setError('');
 
     try {
-      const res = await fetch('/api/admin/ai-extract', {
+      const res = await fetch('/api/admin/poster-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          poster_key: key,
-          organizers: organizerNames,
-        }),
+        body: JSON.stringify({ poster_key: key }),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'AI extraction failed');
+        // Service unavailable (no AI binding, rate limited, etc.) — silently skip to editor
+        setPhase('edit');
+        return;
       }
 
       const data = await res.json();
-      setExtracted(data.extracted || {});
-      setPhase('review');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Extraction failed');
-      // Still allow proceeding even if extraction fails
-      setPhase('review');
+      const { draft, uncertain } = data as PosterDraft;
+      const hasFields = Object.keys(draft).length > 0;
+
+      setPosterDraft({ draft, uncertain });
+      setPhase(hasFields ? 'review' : 'edit');
+    } catch {
+      // Network error or unexpected failure — silently skip to editor
+      setPhase('edit');
     } finally {
       setExtracting(false);
     }
-  }, [organizerNames]);
+  }, []);
 
   async function handleFile(file: File) {
     setError('');
@@ -129,49 +141,23 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
     }
   }
 
-  function getFieldValue(field: string): string {
-    const f = extracted[field];
-    if (!f) return '';
-    if (typeof f === 'object' && 'value' in f) return f.value || '';
-    // Model returned flat values (no confidence wrapper)
-    return String(f);
-  }
-
-  function getConfidence(field: string): number {
-    const f = extracted[field];
-    if (!f) return 0;
-    if (typeof f === 'object' && 'confidence' in f) return f.confidence;
-    // Flat value — assume medium confidence
-    return 0.6;
-  }
-
   function buildInitialData(): EventDetail & { contentHash?: string; isNew?: boolean } {
     const today = new Date().toISOString().split('T')[0];
-    const name = getFieldValue('name');
-
-    // Resolve organizer via fuzzy match
-    const aiOrganizer = getFieldValue('organizer');
-    const orgMatch = aiOrganizer ? fuzzyMatchOrganizer(aiOrganizer, organizers) : null;
-    const orgConfidence = getConfidence('organizer');
-    const useOrgMatch = orgMatch && orgConfidence >= HIGH_CONFIDENCE;
+    const draft = posterDraft?.draft || {};
 
     return {
       id: '',
-      slug: name ? slugify(name) : '',
-      year: (getFieldValue('start_date') || today).substring(0, 4),
-      name,
-      start_date: getFieldValue('start_date') || today,
-      start_time: getFieldValue('start_time') || undefined,
-      end_date: getFieldValue('end_date') || undefined,
-      end_time: getFieldValue('end_time') || undefined,
-      location: getFieldValue('location') || undefined,
-      distances: getFieldValue('distances') || undefined,
-      registration_url: getFieldValue('registration_url') || undefined,
-      organizer: useOrgMatch
-        ? orgMatch.slug
-        : aiOrganizer
-          ? { name: aiOrganizer }
-          : undefined,
+      slug: (draft.slug as string) || '',
+      year: ((draft.start_date as string) || today).substring(0, 4),
+      name: (draft.name as string) || '',
+      start_date: (draft.start_date as string) || today,
+      start_time: draft.start_time as string | undefined,
+      end_date: draft.end_date as string | undefined,
+      end_time: draft.end_time as string | undefined,
+      location: draft.location as string | undefined,
+      distances: draft.distances as string | undefined,
+      registration_url: draft.registration_url as string | undefined,
+      organizer: draft.organizer as EventDetail['organizer'],
       poster_key: posterKey,
       poster_content_type: posterContentType,
       body: '',
@@ -188,7 +174,7 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
         {isLoading ? (
           <div class="event-creator-loading">
             <div class="event-creator-spinner" />
-            <span>{upload.uploading ? 'Uploading poster...' : fetchingUrl ? 'Fetching image...' : 'Analyzing poster with AI...'}</span>
+            <span>{upload.uploading ? 'Uploading poster...' : fetchingUrl ? 'Fetching image...' : 'Reading poster...'}</span>
           </div>
         ) : (
           <div class="event-creator-prompt">
@@ -214,7 +200,7 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
                 onChange={handleFileSelect}
               />
             </div>
-            <div class="route-creator-divider"><span>or</span></div>
+            <div class="creator-divider"><span>or</span></div>
             <div class="url-import">
               <input
                 type="url"
@@ -242,12 +228,10 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
     );
   }
 
-  // Phase: review — show what AI found, let user proceed
-  if (phase === 'review') {
-    const fields = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'registration_url'] as const;
-    const hasExtracted = fields.some(f => getFieldValue(f));
-    const aiOrganizer = getFieldValue('organizer');
-    const orgMatch = aiOrganizer ? fuzzyMatchOrganizer(aiOrganizer, organizers) : null;
+  // Phase: review — show what was found, let user proceed
+  if (phase === 'review' && posterDraft) {
+    const { draft, uncertain } = posterDraft;
+    const hasUncertainFields = uncertain.length > 0;
 
     return (
       <div class="event-creator">
@@ -256,36 +240,32 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
             <img src={`${cdnUrl}/cdn-cgi/image/width=300,format=auto/${posterKey}`} alt="Event poster" />
           </div>
           <div class="event-creator-review-data">
-            <h3>{hasExtracted ? 'AI extracted the following' : 'Could not extract event details'}</h3>
-            {hasExtracted && (
-              <table class="extraction-table">
-                <tbody>
-                  {fields.map(field => {
-                    const value = getFieldValue(field);
-                    if (!value) return null;
-                    const conf = getConfidence(field);
-                    const level = conf >= HIGH_CONFIDENCE ? 'high' : conf >= MEDIUM_CONFIDENCE ? 'medium' : 'low';
-                    return (
-                      <tr key={field}>
-                        <td class="field-name">{field.replace(/_/g, ' ')}</td>
-                        <td>
-                          {field === 'organizer' && orgMatch
-                            ? <><span>{value}</span>{' \u2192 '}<strong>{orgMatch.name}</strong></>
-                            : value
-                          }
+            <h3>Here's what we found</h3>
+            <table class="extraction-table">
+              <tbody>
+                {REVIEW_FIELDS.map(field => {
+                  const value = field === 'organizer'
+                    ? getOrganizerDisplay(draft.organizer as EventDetail['organizer'])
+                    : draft[field] as string | undefined;
+                  if (!value) return null;
+                  const isUncertain = uncertain.includes(field);
+                  return (
+                    <tr key={field}>
+                      <td class="field-name">{FIELD_LABELS[field] || field}</td>
+                      <td>{value}</td>
+                      {hasUncertainFields && (
+                        <td class={isUncertain ? 'confidence-medium' : ''}>
+                          {isUncertain ? '?' : ''}
                         </td>
-                        <td class={`confidence-${level}`}>
-                          {level === 'high' ? '\u2713' : level === 'medium' ? '?' : '!'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
             <p class="event-creator-review-hint">You can edit all fields after continuing.</p>
             <button type="button" class="btn-primary" onClick={() => setPhase('edit')}>
-              {hasExtracted ? 'Continue with these details' : 'Continue to editor'}
+              Continue with these details
             </button>
           </div>
         </div>

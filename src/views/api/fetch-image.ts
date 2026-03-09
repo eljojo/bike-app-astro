@@ -27,7 +27,9 @@ export async function POST({ request, locals }: APIContext) {
       return jsonError('URL must be http or https', 400);
     }
 
-    // Fetch the image
+    // Cloudflare Workers' outbound fetch() routes through Cloudflare's network and
+    // cannot reach private/internal IP ranges (169.254.x.x, 10.x.x.x, etc.),
+    // providing built-in SSRF protection. No explicit IP blocking needed.
     const imageResponse = await fetch(url, {
       headers: { 'Accept': 'image/*' },
     });
@@ -55,7 +57,10 @@ export async function POST({ request, locals }: APIContext) {
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const key = `${prefix}uploads/${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}.${ext}`;
 
-    // Upload to bucket
+    if (!env.BUCKET) {
+      return jsonError('Storage not configured', 500);
+    }
+
     await env.BUCKET.put(key, imageBuffer);
 
     return jsonResponse({ key, contentType });
