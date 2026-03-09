@@ -514,7 +514,7 @@ a.go-back-button {
 .photo-popup-caption {
   margin: 6px 4px 2px;
   font-size: 0.9em;
-  color: $color-text-muted;
+  color: $color-text;
   text-align: center;
 }
 // MapLibre popups — force dark text in dark mode + entrance animation
@@ -535,6 +535,7 @@ a.go-back-button {
 .maplibregl-popup-content {
   color: $color-text;
   a { color: $color-text; }
+  .photo-popup-content a { outline: none; }
 }
 // Map controls (Photos/Places/GPS toggles)
 .map-controls {
@@ -574,8 +575,8 @@ a.go-back-button {
     border-color: #555;
   }
   .poi-marker {
-    background: #222;
-    border-color: #555;
+    background: white;
+    border-color: white;
   }
   .place-popup-address,
   .place-popup-phone {
