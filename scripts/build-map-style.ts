@@ -23,15 +23,18 @@
  *        visually receding. Not hidden, just quiet.
  *
  *   2. Can I stop here?
- *      - Rest stops are one concept: water, food, toilets, shelter,
- *        lodging, camping — all the same job. A cyclist doesn't care
- *        if it's a hotel or a campsite. Both answer "I can stop here."
- *      - Bike infrastructure (shops, parking, rental, repair) is the
- *        only other category — it's the oasis equivalent for stops.
+ *      Three tiers, by how critical they are mid-ride:
+ *      - WATER & RESTROOMS (blue, visible from z10). Critical
+ *        infrastructure — the things you can't skip on a long ride.
+ *      - CAMPING (orange, visible from z0). Key for touring — you
+ *        need to know where you can sleep from the planning stage.
+ *      - FOOD & LODGING (orange, visible from z15). Restaurants,
+ *        hotels, shelters — useful but only when zoomed in.
+ *      - BIKE INFRASTRUCTURE (teal, visible from z10). Shops, rental,
+ *        repair — same color family as oasis.
  *
  * Why we collapse categories:
  *   - Gravel, MTB, hiking trails → all "can I bike here?" Same color.
- *   - Restaurant, toilet, hotel, campsite → all "can I stop here?" Same dot.
  *   - We optimize for reducing cognitive load, not taxonomic completeness.
  *
  * Two style variants:
@@ -688,8 +691,8 @@ export function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
     },
 
     // ===== CAR ROADS — the desert =====
-    // All car roads share one color. No hierarchy — they're all the same
-    // from a cyclist's perspective: places you don't want to be.
+    // Subtle hierarchy (major slightly darker than minor) for orientation,
+    // but all pale earth tones — visually receding behind cycling infra.
     ...roadLayers(p, variant),
 
     // ===== EXPOSED — rideable but alongside cars =====
@@ -1200,11 +1203,11 @@ function labelLayers(p: Palette): Layer[] {
       },
     },
 
-    // ===== REST STOPS — one concept, one color =====
-    // Water, food, toilets, lodging, camping — all the same job:
-    // "I can stop here." One warm orange dot.
+    // ===== REST STOPS =====
+    // Three tiers by criticality: water/restrooms (blue, z10),
+    // camping (orange, z0), food/lodging (orange, z15).
 
-    // Water fountains & restrooms — sky blue, visible earlier (critical infrastructure)
+    // Water fountains & restrooms — blue, visible earliest (critical infrastructure)
     ...poiLayer('poi-water', ['in', ['get', 'feature'], ['literal', [
       'drinking_water', 'water_point', 'toilets',
     ]]], {
