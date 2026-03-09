@@ -2,6 +2,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
+import { generateMediaKey, confirmUpload } from '../../lib/storage';
 
 export const prerender = false;
 
@@ -11,6 +12,10 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export async function POST({ request, locals }: APIContext) {
   const user = authorize(locals, 'upload-media');
   if (user instanceof Response) return user;
+
+  if (!env.BUCKET) {
+    return jsonError('Storage not configured', 500);
+  }
 
   try {
     const { url } = await request.json() as { url: string };
@@ -52,18 +57,15 @@ export async function POST({ request, locals }: APIContext) {
       return jsonError('Image too large (max 25MB)', 400);
     }
 
-    // Generate a unique key
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+    // Stage to pending, validate image headers, then promote — same as direct uploads
     const prefix = env.STORAGE_KEY_PREFIX || '';
-    const key = `${prefix}uploads/${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}.${ext}`;
+    const key = await generateMediaKey(env.BUCKET, prefix);
+    const pendingKey = `${prefix}uploads/pending/${key}`;
+    await env.BUCKET.put(pendingKey, imageBuffer);
 
-    if (!env.BUCKET) {
-      return jsonError('Storage not configured', 500);
-    }
+    const result = await confirmUpload(env.BUCKET, key, prefix);
 
-    await env.BUCKET.put(key, imageBuffer);
-
-    return jsonResponse({ key, contentType });
+    return jsonResponse({ key: result.key, contentType: result.contentType });
   } catch (err: unknown) {
     console.error('Fetch image error:', err);
     const message = err instanceof Error ? err.message : 'Failed to fetch image';
