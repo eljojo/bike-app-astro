@@ -1,3 +1,5 @@
+// AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
+// Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
