@@ -59,6 +59,11 @@ jobs:
 
       - name: Build map style
         run: npx tsx scripts/build-map-style.ts
+        env:
+          # Staging origin so E2E screenshots render real map tiles.
+          # Hardcoded because CI has no tile API key — staging already proxies
+          # Thunderforest with its own key, so we point tiles there at build time.
+          TILE_BASE_URL: https://new.ottawabybike.ca
 
       - name: Run unit tests
         run: npx vitest run
