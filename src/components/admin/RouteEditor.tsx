@@ -25,6 +25,7 @@ interface Props {
   userRole?: string;
 }
 
+// eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
 export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);

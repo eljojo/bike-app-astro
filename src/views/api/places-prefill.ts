@@ -90,7 +90,7 @@ async function fetchPlaceFromText(query: string, apiKey: string): Promise<string
   const params = new URLSearchParams({
     input: query,
     inputtype: 'textquery',
-    language: 'en',
+    language: 'en', // eslint-disable-line bike-app/no-hardcoded-city-locale -- Google API language param
     key: apiKey,
   });
   const res = await fetch(`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?${params}`);
@@ -105,7 +105,7 @@ async function fetchPlaceDetails(id: string, apiKey: string, isCid = false): Pro
     [idParam]: id,
     key: apiKey,
     fields: 'url,name,geometry,formatted_address,formatted_phone_number,website,types',
-    language: 'en',
+    language: 'en', // eslint-disable-line bike-app/no-hardcoded-city-locale -- Google API language param
   });
   const res = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`);
   if (!res.ok) return null;
