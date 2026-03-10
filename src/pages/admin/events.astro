@@ -57,24 +57,32 @@ const user = Astro.locals.user;
         <h2 class="month-header">{label}</h2>
         <div class="event-list">
           {monthEvents.map(e => (
-            <a href={`/admin/events/${e.id}`} class="event-list-item">
-              {e.poster_key && (
-                <img
-                  src={`${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${e.poster_key}`}
-                  alt=""
-                  loading="lazy"
-                  class="event-poster-thumb"
-                />
-              )}
-              <div class="event-card-info">
-                <span class="event-card-name">{e.name}</span>
-                <span class="event-card-meta">
-                  {e.start_date}
-                  {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
-                  {pendingIds.has(e.id) && <span class="event-pending">pending</span>}
-                </span>
-              </div>
-            </a>
+            <div class="event-list-item">
+              <a href={`/admin/events/${e.id}`} class="event-list-link">
+                {e.poster_key && (
+                  <img
+                    src={`${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${e.poster_key}`}
+                    alt=""
+                    loading="lazy"
+                    class="event-poster-thumb"
+                  />
+                )}
+                <div class="event-card-info">
+                  <span class="event-card-name">{e.name}</span>
+                  <span class="event-card-meta">
+                    {e.start_date}
+                    {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
+                    {pendingIds.has(e.id) && <span class="event-pending">pending</span>}
+                  </span>
+                </div>
+              </a>
+              <a href={`/admin/events/new?copy=${e.id}`} class="event-copy-btn" title="Duplicate event">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              </a>
+            </div>
           ))}
         </div>
       </div>
@@ -124,11 +132,8 @@ const user = Astro.locals.user;
   .event-list-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 1rem;
     background: $color-card-bg;
     color: $color-text;
-    text-decoration: none;
 
     @include dark-mode {
       background: $color-card-bg-dark;
@@ -141,6 +146,42 @@ const user = Astro.locals.user;
       @include dark-mode {
         background: $color-card-hover-dark;
       }
+    }
+  }
+
+  .event-list-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.5rem 0.625rem 1rem;
+    flex: 1;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .event-copy-btn {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 1rem;
+    color: $color-text-muted;
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    @include dark-mode {
+      color: $color-text-muted-dark;
+    }
+
+    &:hover {
+      color: $color-text;
+
+      @include dark-mode {
+        color: $color-text-dark;
+      }
+    }
+
+    .event-list-item:hover & {
+      opacity: 1;
     }
   }
 

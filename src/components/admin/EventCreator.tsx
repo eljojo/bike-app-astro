@@ -13,6 +13,7 @@ interface OrganizerData {
 interface Props {
   cdnUrl: string;
   organizers: OrganizerData[];
+  copyData?: Partial<EventDetail>;
 }
 
 /** Draft fields returned by the server, already in EventDetail shape. */
@@ -41,11 +42,11 @@ function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
   return organizer.name || '';
 }
 
-export default function EventCreator({ cdnUrl, organizers }: Props) {
-  const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>('upload');
+export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
+  const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>(copyData ? 'edit' : 'upload');
   const [dragOver, setDragOver] = useState(false);
-  const [posterKey, setPosterKey] = useState('');
-  const [posterContentType, setPosterContentType] = useState('');
+  const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
+  const [posterContentType, setPosterContentType] = useState(copyData?.poster_content_type || '');
   const [extracting, setExtracting] = useState(false);
   const [posterDraft, setPosterDraft] = useState<PosterDraft | null>(null);
   const [error, setError] = useState('');
@@ -143,24 +144,26 @@ export default function EventCreator({ cdnUrl, organizers }: Props) {
 
   function buildInitialData(): EventDetail & { contentHash?: string; isNew?: boolean } {
     const today = new Date().toISOString().split('T')[0];
-    const draft = posterDraft?.draft || {};
+    // copyData takes priority (duplicating an event), then poster draft (AI extraction)
+    const source = copyData || posterDraft?.draft || {};
 
     return {
       id: '',
-      slug: (draft.slug as string) || '',
-      year: ((draft.start_date as string) || today).substring(0, 4),
-      name: (draft.name as string) || '',
-      start_date: (draft.start_date as string) || today,
-      start_time: draft.start_time as string | undefined,
-      end_date: draft.end_date as string | undefined,
-      end_time: draft.end_time as string | undefined,
-      location: draft.location as string | undefined,
-      distances: draft.distances as string | undefined,
-      registration_url: draft.registration_url as string | undefined,
-      organizer: draft.organizer as EventDetail['organizer'],
+      slug: (source.slug as string) || '',
+      year: copyData ? '' : ((source.start_date as string) || today).substring(0, 4),
+      name: (source.name as string) || '',
+      // When copying, leave dates empty so user must pick new ones
+      start_date: copyData ? '' : ((source.start_date as string) || today),
+      start_time: source.start_time as string | undefined,
+      end_date: copyData ? undefined : (source.end_date as string | undefined),
+      end_time: source.end_time as string | undefined,
+      location: source.location as string | undefined,
+      distances: source.distances as string | undefined,
+      registration_url: source.registration_url as string | undefined,
+      organizer: source.organizer as EventDetail['organizer'],
       poster_key: posterKey,
       poster_content_type: posterContentType,
-      body: '',
+      body: (source.body as string) || '',
       isNew: true,
     };
   }

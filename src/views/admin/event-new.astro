@@ -4,13 +4,44 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventCreator from '../../components/admin/EventCreator.tsx';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
+import adminEventDetails from 'virtual:bike-app/admin-event-detail';
+import { eventDetailFromCache } from '../../lib/models/event-model';
+import { loadDetailPageData } from '../../lib/load-admin-content';
 import { env } from '../../lib/env';
 import { CDN_FALLBACK_URL } from '../../lib/config';
 
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+
+// Load source event data for copy/duplicate
+const copyFromId = Astro.url.searchParams.get('copy');
+let copyData: Record<string, unknown> | undefined;
+
+if (copyFromId) {
+  const result = await loadDetailPageData({
+    contentType: 'events',
+    id: copyFromId,
+    virtualModuleData: adminEventDetails,
+    fromCache: eventDetailFromCache,
+  });
+  if (!result.notFound) {
+    const src = result.data;
+    copyData = {
+      name: src.name,
+      start_time: src.start_time,
+      end_time: src.end_time,
+      location: src.location,
+      distances: src.distances,
+      registration_url: src.registration_url,
+      organizer: src.organizer,
+      poster_key: src.poster_key,
+      poster_content_type: src.poster_content_type,
+      body: src.body,
+    };
+  }
+}
 ---
 
 <AdminEditorLayout title="New Event" backLink="/admin/events" backLabel="Back to events" user={Astro.locals.user} currentTab="events">
-  <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} />
+  <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} />
 </AdminEditorLayout>
