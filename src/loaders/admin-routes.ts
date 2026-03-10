@@ -56,6 +56,10 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
   if (cachedRouteData) return cachedRouteData;
 
   const routesDir = path.join(CITY_DIR, 'routes');
+  if (!fs.existsSync(routesDir)) {
+    cachedRouteData = { routes: [], details: {} };
+    return cachedRouteData;
+  }
   const slugs = fs.readdirSync(routesDir).filter((name) => {
     return fs.statSync(path.join(routesDir, name)).isDirectory();
   });
@@ -108,6 +112,7 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
 
 export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng: number }>> {
   const routesDir = path.join(CITY_DIR, 'routes');
+  if (!fs.existsSync(routesDir)) return {};
   const slugs = fs.readdirSync(routesDir).filter((name) => {
     return fs.statSync(path.join(routesDir, name)).isDirectory();
   });

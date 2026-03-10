@@ -1,7 +1,9 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { routeLoader } from './loaders/routes';
+import { rideLoader } from './loaders/rides';
 import { pageLoader } from './loaders/pages';
+import { isBlogInstance } from './lib/city-config';
 import {
   routeSchema, placeSchema, guideSchema,
   eventSchema, organizerSchema, pageSchema,
@@ -13,7 +15,7 @@ const CITY_DIR = `${process.env.CONTENT_DIR || '../bike-routes'}/${process.env.C
 const mdPattern = ['**/*.md', '!**/*.??.md'];
 
 const routes = defineCollection({
-  loader: routeLoader(),
+  loader: isBlogInstance() ? rideLoader() : routeLoader(),
   schema: routeSchema,
 });
 

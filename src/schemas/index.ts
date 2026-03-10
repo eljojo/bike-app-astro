@@ -49,6 +49,15 @@ export const routeSchema = z.object({
     tagline: z.string().optional(),
     renderedBody: z.string().optional(),
   })).default({}),
+
+  // Ride-specific fields (used by blog instances, ignored by wiki instances)
+  ride_date: z.string().optional(),
+  tour_slug: z.string().optional(),
+  country: z.string().optional(),
+  highlight: z.boolean().optional(),
+  elapsed_time_s: z.number().optional(),
+  moving_time_s: z.number().optional(),
+  average_speed_kmh: z.number().optional(),
 });
 
 export const placeSchema = z.object({
