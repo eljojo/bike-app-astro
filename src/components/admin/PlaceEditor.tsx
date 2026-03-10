@@ -22,10 +22,11 @@ interface Props {
 const categories = Object.entries(categoryEmoji);
 
 // Throttle: at most one call per interval
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let last = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: any[]) => {
+  return ((...args: Parameters<T>) => {
     const now = Date.now();
     const remaining = ms - (now - last);
     if (remaining <= 0) {

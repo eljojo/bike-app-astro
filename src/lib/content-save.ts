@@ -162,7 +162,7 @@ async function authenticateAndParse<T, R extends BuildResult>(
   }
 
   if (!can(user, 'edit-slug')) {
-    delete (update as any).newSlug;
+    delete (update as Record<string, unknown>).newSlug;
   }
 
   const contentId = handlers.resolveContentId(params, update);

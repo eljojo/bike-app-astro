@@ -33,6 +33,19 @@ export interface CommitInfo {
   date: string;
 }
 
+/** GitHub API response shapes — only the fields we access. */
+interface GhCommitListItem {
+  sha: string;
+  commit: { message: string; author: { name: string; email: string; date: string } };
+}
+interface GhCommitDetail {
+  files?: GhCommitFile[];
+}
+interface GhCommitFile {
+  filename: string;
+  patch?: string;
+}
+
 /** Shared interface for both GitHub and local git service implementations. */
 export interface IGitService {
   readFile(path: string): Promise<{ content: string; sha: string } | null>;
@@ -140,8 +153,8 @@ export class GitService implements IGitService {
     );
     if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
 
-    const data = await response.json();
-    return data.map((c: any) => ({
+    const data: GhCommitListItem[] = await response.json();
+    return data.map((c) => ({
       sha: c.sha,
       message: c.commit.message,
       author: {
@@ -159,7 +172,7 @@ export class GitService implements IGitService {
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
 
-    const data = await response.json();
+    const data: { content: string } = await response.json();
     return { content: decodeBase64Content(data.content) };
   }
 
@@ -168,11 +181,11 @@ export class GitService implements IGitService {
       `/repos/${this.config.owner}/${this.config.repo}/commits/${commitSha}`
     );
     if (!response.ok) return null;
-    const data = await response.json();
+    const data: GhCommitDetail = await response.json();
     const files = filePath
-      ? data.files?.filter((f: any) => f.filename === filePath || f.filename.startsWith(filePath + '/'))
+      ? data.files?.filter((f) => f.filename === filePath || f.filename.startsWith(filePath + '/'))
       : data.files;
-    return files?.map((f: any) => `--- ${f.filename}\n${f.patch || ''}`).join('\n\n') || null;
+    return files?.map((f) => `--- ${f.filename}\n${f.patch || ''}`).join('\n\n') || null;
   }
 
   async getCommitFiles(commitSha: string): Promise<string[]> {
@@ -180,8 +193,8 @@ export class GitService implements IGitService {
       `/repos/${this.config.owner}/${this.config.repo}/commits/${commitSha}`
     );
     if (!response.ok) return [];
-    const data = await response.json();
-    return (data.files || []).map((f: any) => f.filename as string);
+    const data: GhCommitDetail = await response.json();
+    return (data.files || []).map((f) => f.filename);
   }
 
   /**

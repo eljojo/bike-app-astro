@@ -8,7 +8,7 @@ export interface LocaleContent {
   tagline?: string;
   body?: string;
   renderedBody?: string;
-  [key: string]: any;
+  [key: string]: string | undefined;
 }
 
 /**

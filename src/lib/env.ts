@@ -22,13 +22,13 @@ if (process.env.RUNTIME === 'local') {
   const { createLocalEnv, openLocalDb, createLocalTileCacheFromEnv } = await import('./env-local');
   _env = createLocalEnv();
   _openLocalDb = openLocalDb;
-  _localDbPath = (_env.DB as any).$client.name;
+  _localDbPath = ((_env.DB as Record<string, unknown>).$client as Record<string, unknown>).name as string;
   _tileCache = createLocalTileCacheFromEnv();
 } else {
   const cf = await import('cloudflare:workers');
   _env = cf.env as AppEnv;
   const { createKvTileCache } = await import('./tile-cache-kv');
-  _tileCache = createKvTileCache(_env.TILE_CACHE as any);
+  _tileCache = createKvTileCache(_env.TILE_CACHE as Parameters<typeof createKvTileCache>[0]);
 }
 
 export const env: AppEnv = _env;

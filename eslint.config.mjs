@@ -28,11 +28,11 @@ export default [
       },
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
       'bike-app/no-hardcoded-city-locale': 'error',
       'bike-app/require-prerender-export': 'error',
       'bike-app/vendor-isolation': 'error',
-      'bike-app/zod-import-source': 'warn',
+      'bike-app/zod-import-source': 'error',
       'bike-app/require-authorize-call': 'error',
       'bike-app/enforce-model-layer': 'error',
     },
