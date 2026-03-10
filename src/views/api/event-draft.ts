@@ -13,7 +13,8 @@ import adminOrganizers from 'virtual:bike-app/admin-organizers';
 
 export const prerender = false;
 
-const DEFAULT_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
+const VISION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
+const TEXT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
 
 const FIELD_SPEC = `Return this exact structure (omit fields you cannot find at all):
 
@@ -250,12 +251,17 @@ async function extractFromHtml(
     + `\n\nSource URL: ${sourceUrl}`
     + `\n\n--- PAGE CONTENT ---\n${truncated}`;
 
+  console.log(`[event-draft] Extracting from URL: ${sourceUrl} (${pageText.length} chars → ${truncated.length} chars)`);
+
   const start = Date.now();
   const result = await ai.run(model, {
     messages: [{ role: 'user', content: prompt }],
   });
+  const durationMs = Date.now() - start;
 
-  return { extracted: parseAiResponse(result.response), durationMs: Date.now() - start };
+  console.log(`[event-draft] AI response (${durationMs}ms):`, JSON.stringify(result.response).substring(0, 500));
+
+  return { extracted: parseAiResponse(result.response), durationMs };
 }
 
 /** Stage an image buffer to R2, returning the media key and content type. */
@@ -302,14 +308,11 @@ export async function POST({ request, locals }: APIContext) {
     const body = await request.json() as {
       poster_key?: string;
       url?: string;
-      model?: string;
     };
-
-    const model = body.model || DEFAULT_MODEL;
 
     // Mode 1: Extract from an already-uploaded poster image
     if (body.poster_key) {
-      const { extracted, durationMs } = await extractFromPoster(ai, model, body.poster_key);
+      const { extracted, durationMs } = await extractFromPoster(ai, VISION_MODEL, body.poster_key);
       const { draft, uncertain } = buildDraft(extracted);
       return jsonResponse({ draft, uncertain, durationMs });
     }
@@ -344,7 +347,7 @@ export async function POST({ request, locals }: APIContext) {
         }
 
         const staged = await stageImage(imageBuffer);
-        const { extracted, durationMs } = await extractFromPoster(ai, model, staged.key);
+        const { extracted, durationMs } = await extractFromPoster(ai, VISION_MODEL, staged.key);
         const { draft, uncertain } = buildDraft(extracted);
         return jsonResponse({
           draft, uncertain, durationMs,
@@ -360,7 +363,7 @@ export async function POST({ request, locals }: APIContext) {
         return jsonError('Page has too little content to extract from', 400);
       }
 
-      const { extracted, durationMs } = await extractFromHtml(ai, model, pageText, body.url);
+      const { extracted, durationMs } = await extractFromHtml(ai, TEXT_MODEL, pageText, body.url);
       const { draft, uncertain } = buildDraft(extracted);
 
       // If the page URL looks like a registration page, use it as the registration URL
