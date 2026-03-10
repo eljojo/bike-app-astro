@@ -353,7 +353,7 @@ async function tryAiCommitMessage(
   return fallback;
 }
 
-/** Build a prompt summarizing changes for the AI to generate a commit subject. */
+/** Build a prompt with a compact diff for the AI to generate a commit subject. */
 function buildChangeSummary(
   contentType: string,
   files: FileChange[],
@@ -365,47 +365,57 @@ function buildChangeSummary(
   const newFm = primaryFile ? matter(primaryFile.content).data : {};
   const name = newFm.name || '';
 
+  const instructions = `Write a git commit subject (under 60 chars) for this ${type} change. Reply with ONLY the subject line, nothing else.`;
+
   if (isNew) {
-    return `Write a short git commit subject (under 60 chars) for creating a new ${type} called "${name}". Reply with ONLY the subject line, no quotes.`;
+    const fields = Object.entries(newFm)
+      .filter(([k]) => !['created_at', 'updated_at'].includes(k))
+      .map(([k, v]) => `  ${k}: ${formatVal(v)}`)
+      .join('\n');
+    return `${instructions}\n\nNew ${type}:\n${fields}`;
   }
 
   const oldFm = currentFiles.primaryFile ? matter(currentFiles.primaryFile.content).data : {};
-  const changes: string[] = [];
+  const diff: string[] = [];
 
-  // Detect changed frontmatter fields
-  for (const key of Object.keys(newFm)) {
+  // Frontmatter diff
+  const allKeys = new Set([...Object.keys(oldFm), ...Object.keys(newFm)]);
+  for (const key of allKeys) {
     if (['updated_at'].includes(key)) continue;
     const oldVal = JSON.stringify(oldFm[key]);
     const newVal = JSON.stringify(newFm[key]);
-    if (oldVal !== newVal) {
-      if (!oldFm[key]) {
-        changes.push(`added ${key}`);
-      } else {
-        changes.push(`changed ${key}`);
-      }
-    }
-  }
-
-  // Detect media changes
-  const mediaFile = files.find(f => f.path.endsWith('media.yml'));
-  if (mediaFile) {
-    const oldMediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
-    const oldMedia = oldMediaPath ? currentFiles.auxiliaryFiles?.[oldMediaPath] : null;
-    if (!oldMedia) {
-      changes.push('added photos');
+    if (oldVal === newVal) continue;
+    if (!oldFm[key]) {
+      diff.push(`+ ${key}: ${formatVal(newFm[key])}`);
+    } else if (!newFm[key]) {
+      diff.push(`- ${key}: ${formatVal(oldFm[key])}`);
     } else {
-      changes.push('updated photos');
+      diff.push(`- ${key}: ${formatVal(oldFm[key])}`);
+      diff.push(`+ ${key}: ${formatVal(newFm[key])}`);
     }
   }
 
-  // Detect body changes
+  // Body diff
   const oldBody = currentFiles.primaryFile ? matter(currentFiles.primaryFile.content).content.trim() : '';
   const newBody = primaryFile ? matter(primaryFile.content).content.trim() : '';
   if (oldBody !== newBody) {
-    changes.push('updated description');
+    if (!oldBody) diff.push('+ [added description]');
+    else if (!newBody) diff.push('- [removed description]');
+    else diff.push('~ [updated description]');
   }
 
-  const changeStr = changes.length > 0 ? changes.join(', ') : 'minor edits';
+  // Media/translation file changes
+  for (const f of files) {
+    if (f.path.endsWith('media.yml')) diff.push('~ [updated photos]');
+    if (f.path.match(/index\.\w{2}\.md$/)) diff.push('~ [updated translation]');
+  }
 
-  return `Write a short git commit subject (under 60 chars) for updating a ${type} called "${name}". Changes: ${changeStr}. Reply with ONLY the subject line, no quotes.`;
+  return `${instructions}\n\n${type}: "${name}"\n${diff.join('\n')}`;
+}
+
+function formatVal(v: unknown): string {
+  if (typeof v === 'string') return v.length > 60 ? v.substring(0, 60) + '...' : v;
+  if (Array.isArray(v)) return v.map(String).join(', ');
+  if (typeof v === 'object' && v !== null) return JSON.stringify(v);
+  return String(v);
 }
