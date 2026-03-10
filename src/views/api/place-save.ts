@@ -2,7 +2,7 @@
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import yaml from 'js-yaml';
-import { z } from 'zod';
+import { z } from 'astro/zod';
 import { CITY } from '../../lib/config';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
