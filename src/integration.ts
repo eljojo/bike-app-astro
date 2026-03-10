@@ -148,6 +148,24 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     },
   };
 
+  const copyPublicAssets: AstroIntegration = {
+    name: 'copy-public-assets',
+    hooks: {
+      'astro:build:done': async ({ dir }) => {
+        const packagePublic = path.join(import.meta.dirname, '..', 'public');
+        if (!fs.existsSync(packagePublic)) return;
+        // Copy fonts (and any other public assets) from the package into build output
+        for (const entry of fs.readdirSync(packagePublic, { withFileTypes: true })) {
+          const src = path.join(packagePublic, entry.name);
+          const dest = path.join(dir.pathname, entry.name);
+          if (entry.isDirectory()) {
+            fs.cpSync(src, dest, { recursive: true, force: false });
+          }
+        }
+      },
+    },
+  };
+
   const copyMapCache: AstroIntegration = {
     name: 'copy-map-cache',
     hooks: {
@@ -247,6 +265,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     setupIntegration,
     i18nRoutes(),
     adminRoutesIntegration(),
+    copyPublicAssets,
     copyMapCache,
     generateRedirects,
     patchCspStyleSrc,
