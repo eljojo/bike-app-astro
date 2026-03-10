@@ -7,7 +7,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "setup": "node scripts/setup.js",
-    "sync": "node node_modules/create-bike-blog/sync.js"
+    "sync": "node node_modules/bike-app-astro/sync.js"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.0.0-beta.11",
