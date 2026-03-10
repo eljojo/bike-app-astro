@@ -26,20 +26,33 @@ function md5(str: string): string {
 
 /**
  * Parse git log output into a map of email -> { name, count }.
- * Input: flat array of lines from `git log --format='%H%n%ae%n%an'`
- * (every 3 lines = one commit: hash, email, name)
+ * Input: record-separated blocks from `git log --format='%ae%n%an%n%b%x00'`
+ * (each record: email, name, body, separated by NUL)
+ *
+ * Also extracts Co-Authored-By trailers from the body so that commits
+ * where the main author is a personal email still count the app email
+ * for contributor stats.
  */
-export function groupCommitsByAuthor(lines: string[]): Map<string, AuthorEntry> {
+export function groupCommitsByAuthor(records: string[]): Map<string, AuthorEntry> {
   const map = new Map<string, AuthorEntry>();
-  for (let i = 0; i + 2 < lines.length; i += 3) {
-    const email = lines[i + 1];
-    const name = lines[i + 2];
+  for (const record of records) {
+    const lines = record.split('\n');
+    const email = lines[0];
+    const name = lines[1];
     if (!email) continue;
-    const existing = map.get(email);
-    if (existing) {
-      existing.count++;
-    } else {
-      map.set(email, { name, count: 1 });
+
+    const bump = (e: string, n: string) => {
+      const existing = map.get(e);
+      if (existing) existing.count++;
+      else map.set(e, { name: n, count: 1 });
+    };
+
+    bump(email, name);
+
+    // Parse Co-Authored-By trailers from commit body
+    for (let j = 2; j < lines.length; j++) {
+      const coMatch = lines[j].match(/^Co-Authored-By:\s*(.+?)\s*<(.+?)>/i);
+      if (coMatch) bump(coMatch[2], coMatch[1]);
     }
   }
   return map;
@@ -173,11 +186,11 @@ if (isDirectRun) {
   const CITY = process.env.CITY || 'ottawa';
 
   const gitLog = execSync(
-    `git -C "${CONTENT_DIR}" log --format="%H%n%ae%n%an" -- "${CITY}/"`,
+    `git -C "${CONTENT_DIR}" log --format="%ae%n%an%n%b%x00" -- "${CITY}/"`,
     { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },
   );
-  const lines = gitLog.trim().split('\n').filter(Boolean);
-  const authorMap = groupCommitsByAuthor(lines);
+  const records = gitLog.split('\0').map(r => r.trim()).filter(Boolean);
+  const authorMap = groupCommitsByAuthor(records);
   const usersData = loadUsers();
 
   const contributors = resolveContributors(authorMap, usersData);

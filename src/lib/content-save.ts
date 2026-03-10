@@ -104,10 +104,16 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
       return jsonResponse({ success: true, id: contentId, contentHash: currentHash });
     }
 
-    const authorInfo = { name: user.username, email: buildAuthorEmail(user) };
+    const appEmail = buildAuthorEmail(user);
+    const useRealEmail = user.emailInCommits && user.email;
+    const authorInfo = { name: user.username, email: (useRealEmail && user.email) || appEmail };
     let message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
-    if (user.emailInCommits && user.email) {
-      message += `\nSigned-off-by: ${user.username} <${user.email}>`;
+    if (useRealEmail) {
+      message += `\nCo-Authored-By: ${user.username} <${appEmail}>`;
+    }
+    const appBranch: string = typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'unknown';
+    if (env.ENVIRONMENT === 'staging' && appBranch !== 'main') {
+      message += `\nApp-Branch: ${appBranch}`;
     }
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);

@@ -126,7 +126,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
               Include my email in commit history
             </label>
             <p class="settings-help">
-              Your username always appears on commits. Enabling this adds a Signed-off-by line with your email so GitHub can link the commit to your account.
+              When enabled, your email is used as the commit author so GitHub can link it to your account. Your username still gets credit in contributor stats.
             </p>
             {!email.trim() && (
               <p class="settings-help settings-help--warn">
