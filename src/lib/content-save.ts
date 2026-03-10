@@ -106,7 +106,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
 
     const appEmail = buildAuthorEmail(user);
     const useRealEmail = user.emailInCommits && user.email;
-    const authorInfo = { name: user.username, email: useRealEmail ? user.email : appEmail };
+    const authorInfo = { name: user.username, email: (useRealEmail && user.email) || appEmail };
     let message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
     if (useRealEmail) {
       message += `\nCo-Authored-By: ${user.username} <${appEmail}>`;
