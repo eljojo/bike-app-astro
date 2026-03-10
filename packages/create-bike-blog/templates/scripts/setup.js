@@ -242,13 +242,65 @@ async function stepApiKeys() {
     return;
   }
 
-  console.log('  Your app needs a few API keys to work. Press Enter to skip any.\n');
+  // --- Auto-detect what we can ---
+  const autoSecrets = [];
+  const autoVars = [];
+
+  // R2_BUCKET_NAME from wrangler.jsonc (created in Step 1)
+  try {
+    const config = readWranglerConfig();
+    const bucketName = config.r2_buckets?.[0]?.bucket_name;
+    if (bucketName) autoSecrets.push({ name: 'R2_BUCKET_NAME', value: bucketName });
+  } catch { /* ignore */ }
+
+  // R2_ACCOUNT_ID from wrangler whoami (already logged in from Step 1)
+  try {
+    const whoami = run('wrangler whoami 2>/dev/null');
+    const id = whoami.match(/([a-f0-9]{32})/)?.[1];
+    if (id) autoSecrets.push({ name: 'R2_ACCOUNT_ID', value: id });
+  } catch { /* ignore */ }
+
+  // GIT_OWNER and GIT_DATA_REPO from git remote (blog content lives in same repo)
+  try {
+    const remoteUrl = run('git remote get-url origin');
+    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
+    if (match) {
+      autoVars.push({ name: 'GIT_OWNER', value: match[1] });
+      autoVars.push({ name: 'GIT_DATA_REPO', value: match[2] });
+    }
+  } catch { /* ignore */ }
+
+  if (autoSecrets.length > 0 || autoVars.length > 0) {
+    console.log('  Auto-detected from your setup:\n');
+    for (const { name, value } of [...autoVars, ...autoSecrets]) {
+      console.log(`    ${name} = ${value}`);
+    }
+    console.log();
+  }
+
+  // --- Prompt only for secrets that need manual input ---
+  console.log('  A few API keys are needed for full functionality. Press Enter to skip any.\n');
 
   const secrets = [
     {
       name: 'GITHUB_TOKEN',
-      description: 'Personal access token for saving content edits to your data repo',
-      howTo: 'GitHub → Settings → Developer settings → Personal access tokens\n    → Fine-grained → Create: repo contents read/write on your data repo',
+      description: 'Personal access token for saving content edits',
+      howTo: 'GitHub → Settings → Developer settings → Personal access tokens\n    → Fine-grained → Create: repo contents read/write on this repo',
+    },
+    {
+      name: 'R2_ACCESS_KEY_ID',
+      description: 'R2 API key ID for photo upload (presigned URLs)',
+      howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens\n    → Create API token → read/write on your bucket → copy Access Key ID',
+    },
+    {
+      name: 'R2_SECRET_ACCESS_KEY',
+      description: 'R2 API secret for photo upload (presigned URLs)',
+      howTo: 'Same token as R2_ACCESS_KEY_ID — copy the Secret Access Key',
+    },
+    {
+      name: 'R2_PUBLIC_URL',
+      description: 'Public URL for your media/images CDN bucket',
+      howTo: 'Your R2 bucket\'s public URL (custom domain or r2.dev URL)',
     },
     {
       name: 'THUNDERFOREST_API_KEY',
@@ -270,44 +322,9 @@ async function stepApiKeys() {
       description: 'Auth token for RideWithGPS API (paired with API key)',
       howTo: 'Same as RWGPS_API_KEY — provided alongside it',
     },
-    {
-      name: 'R2_PUBLIC_URL',
-      description: 'Public URL for your media/images CDN bucket',
-      howTo: 'Your R2 bucket\'s public URL (custom domain or r2.dev URL)',
-    },
-    {
-      name: 'R2_ACCESS_KEY_ID',
-      description: 'R2 API key ID for presigned upload URLs',
-      howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens\n    → Create API token → read/write on your bucket → copy Access Key ID',
-    },
-    {
-      name: 'R2_SECRET_ACCESS_KEY',
-      description: 'R2 API secret for presigned upload URLs',
-      howTo: 'Same token as R2_ACCESS_KEY_ID — copy the Secret Access Key',
-    },
-    {
-      name: 'R2_ACCOUNT_ID',
-      description: 'Cloudflare account ID (used to build R2 endpoint URL)',
-      howTo: 'Cloudflare Dashboard → overview sidebar → Account ID',
-    },
-    {
-      name: 'R2_BUCKET_NAME',
-      description: 'Name of your R2 bucket (for presigned URLs)',
-      howTo: 'The bucket name you created in Step 1 (e.g. "my-blog-media")',
-    },
   ];
 
   const vars = [
-    {
-      name: 'GIT_OWNER',
-      description: 'GitHub username owning the data repo',
-      howTo: 'Your GitHub username (e.g. "jose")',
-    },
-    {
-      name: 'GIT_DATA_REPO',
-      description: 'Name of the data repo (not the full URL)',
-      howTo: 'Just the repo name (e.g. "bike-routes")',
-    },
     {
       name: 'WEBAUTHN_RP_ID',
       description: 'WebAuthn relying party domain (for passkey login)',
@@ -325,8 +342,8 @@ async function stepApiKeys() {
     },
   ];
 
-  const collectedSecrets = [];
-  const collectedVars = [];
+  const collectedSecrets = [...autoSecrets];
+  const collectedVars = [...autoVars];
 
   for (const s of secrets) {
     console.log(`  ${s.name}`);
@@ -371,9 +388,7 @@ async function stepApiKeys() {
       const raw = fs.readFileSync('wrangler.jsonc', 'utf-8');
       let updated = raw;
 
-      // Find or create vars section
       if (/"vars"\s*:/.test(updated)) {
-        // Add to existing vars object
         for (const { name, value } of collectedVars) {
           const varsMatch = updated.match(/"vars"\s*:\s*\{/);
           if (varsMatch) {
@@ -382,7 +397,6 @@ async function stepApiKeys() {
           }
         }
       } else {
-        // Insert vars before the closing brace
         const lastBrace = updated.lastIndexOf('}');
         const varsObj = collectedVars.map(({ name, value }) => `    "${name}": "${value}"`).join(',\n');
         updated = updated.slice(0, lastBrace) + `  "vars": {\n${varsObj}\n  },\n` + updated.slice(lastBrace);
@@ -390,16 +404,17 @@ async function stepApiKeys() {
 
       fs.writeFileSync('wrangler.jsonc', updated);
       console.log(`  ✓ ${collectedVars.map(v => v.name).join(', ')} added to wrangler.jsonc`);
-    } catch (err) {
-      console.error(`  ⚠ Could not update wrangler.jsonc — add these vars manually:`);
+    } catch {
+      console.error('  ⚠ Could not update wrangler.jsonc — add these vars manually:');
       for (const { name, value } of collectedVars) {
         console.error(`    "${name}": "${value}"`);
       }
     }
   }
 
-  if (collectedSecrets.length === 0 && collectedVars.length === 0) {
-    console.log('  No keys set. You can add them later with: wrangler secret put <NAME>\n');
+  const prompted = collectedSecrets.length - autoSecrets.length + collectedVars.length - autoVars.length;
+  if (prompted === 0) {
+    console.log('  No additional keys set. You can add them later with: wrangler secret put <NAME>\n');
   } else {
     console.log();
   }
