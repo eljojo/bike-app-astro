@@ -312,9 +312,18 @@ export function photoPopupMaxWidth(zoom: number): number {
   return Math.round(100 + 400 * t * t);
 }
 
+interface PhotoPopupProps {
+  key: string;
+  routeName?: string;
+  routeUrl?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
 function showPhotoPopup(
   map: maplibregl.Map,
-  props: Record<string, any>,
+  props: PhotoPopupProps,
   coords: [number, number],
   cdnUrl: string,
 ): void {
@@ -455,7 +464,7 @@ export function addPhotoMarkers(
 
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          showPhotoPopup(map, props, coords, cdnUrl);
+          showPhotoPopup(map, props as unknown as PhotoPopupProps, coords, cdnUrl);
         });
 
         const marker = new maplibregl.Marker({ element: el })

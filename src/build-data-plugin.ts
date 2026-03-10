@@ -242,7 +242,7 @@ export function buildDataPlugin(): Plugin {
         const { details } = await adminRouteDataPromise;
         const routeData: Record<string, { media: Array<{ key: string }> }> = {};
         for (const [slug, detail] of Object.entries(details)) {
-          routeData[slug] = { media: (detail as any).media || [] };
+          routeData[slug] = { media: detail.media || [] };
         }
         const parked = loadParkedPhotos();
         const places = loadPlacePhotoKeys();

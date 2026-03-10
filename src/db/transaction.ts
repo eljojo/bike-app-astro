@@ -13,12 +13,12 @@ export async function withBatch(
 ): Promise<void> {
   const statements = await fn(db as DbClient);
 
-  if ('$client' in db && typeof (db.$client as any)?.pragma === 'function') {
+  if ('$client' in db && typeof ((db as unknown as Record<string, unknown>).$client as Record<string, unknown>)?.pragma === 'function') {
     for (const statement of statements) {
       await statement;
     }
     return;
   }
 
-  await (db as any).batch(statements);
+  await (db as unknown as { batch(s: unknown[]): Promise<void> }).batch(statements);
 }

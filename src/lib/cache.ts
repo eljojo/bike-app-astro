@@ -1,4 +1,5 @@
 import { contentEdits } from '../db/schema';
+import type { Database } from '../db/index';
 import { CITY } from './config';
 
 interface CacheEntry {
@@ -14,7 +15,7 @@ interface CacheEntry {
  * content-save.ts and admin-revert.ts.
  */
 export async function upsertContentCache(
-  database: any,
+  database: Database,
   entry: CacheEntry,
 ): Promise<void> {
   const now = new Date().toISOString();
