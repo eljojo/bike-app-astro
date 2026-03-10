@@ -72,6 +72,9 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Lint
+        run: npx eslint src/
+
       - name: Restore Astro content cache
         uses: actions/cache@v5
         with:

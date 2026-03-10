@@ -19,3 +19,7 @@ Use SCSS variables from `_variables.scss` — never hardcode colors or breakpoin
 ## admin.scss Is Canonical for Preact Islands
 
 This is the ONLY stylesheet that reaches Preact components in `src/components/admin/`. If styles "work in Astro but not in the component", the cause is almost always scoped CSS. Move to admin.scss.
+
+## Admin Visibility Toggle — `logged_in` Cookie Pattern
+
+Admin-only links on static pages (`.admin-edit-link`, `.nav-admin`) are hidden by default via CSS and revealed by adding the `admin-visible` class to `<body>`. This class is toggled by JavaScript reading the `logged_in` cookie (a non-httpOnly cookie set alongside the httpOnly `session_token`). This avoids server-rendering conditional logic on prerendered static pages. Never replace this with server-side conditional rendering — it would break static page caching.
