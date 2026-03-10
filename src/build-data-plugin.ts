@@ -13,6 +13,8 @@
  * For map-thumbnails.ts, we use a virtual module since it's not in the config
  * import chain.
  */
+// AGENTS.md: virtual-modules.d.ts is ambient — NO top-level imports or it breaks all declarations.
+// Detail module names strip trailing 's': admin-routes → admin-route-detail.
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -240,7 +242,7 @@ export function buildDataPlugin(): Plugin {
         const { details } = await adminRouteDataPromise;
         const routeData: Record<string, { media: Array<{ key: string }> }> = {};
         for (const [slug, detail] of Object.entries(details)) {
-          routeData[slug] = { media: (detail as any).media || [] };
+          routeData[slug] = { media: detail.media || [] };
         }
         const parked = loadParkedPhotos();
         const places = loadPlacePhotoKeys();

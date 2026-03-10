@@ -1,6 +1,8 @@
+// AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
+// Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import yaml from 'js-yaml';
-import { z } from 'zod';
+import { z } from 'astro/zod';
 import { CITY } from '../../lib/config';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
@@ -9,6 +11,7 @@ import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-
 import type { FileChange } from '../../lib/git-service';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../../lib/models/place-model';
 import { slugify } from '../../lib/slug';
+import { buildPhotoKeyChanges } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
@@ -154,11 +157,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
 
   async afterCommit(result, database) {
     const { oldPhotoKey, newPhotoKey, placeSlug, mergedParked } = result;
-    const changes = [];
-    if (oldPhotoKey !== newPhotoKey) {
-      if (oldPhotoKey) changes.push({ key: oldPhotoKey, usage: { type: 'place' as const, slug: placeSlug }, action: 'remove' as const });
-      if (newPhotoKey) changes.push({ key: newPhotoKey, usage: { type: 'place' as const, slug: placeSlug }, action: 'add' as const });
-    }
+    const changes = buildPhotoKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
     await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
 

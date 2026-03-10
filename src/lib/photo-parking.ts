@@ -1,6 +1,6 @@
 import yaml from 'js-yaml';
 import { CITY } from './config';
-import { getPhotoUsages, updateSharedKeys, serializeSharedKeys, type PhotoUsage, type SharedKeysMap } from './photo-registry';
+import { getPhotoUsages, updateSharedKeys, serializeSharedKeys, type PhotoUsage } from './photo-registry';
 import { loadSharedKeysMap } from './load-admin-content';
 import { mergeParkedPhotos, type ParkedPhotoEntry } from './media-merge';
 import { upsertContentCache } from './cache';

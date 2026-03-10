@@ -36,7 +36,7 @@ export function authorize(
   locals: APIContext['locals'],
   action: Action,
 ): SessionUser | Response {
-  const user = (locals as any).user as SessionUser | null | undefined;
+  const user = (locals as Record<string, unknown>).user as SessionUser | null | undefined;
   if (!user) return jsonError('Unauthorized', 401);
   if (user.bannedAt) return jsonError('Forbidden', 403);
   if (!policies[action](user)) return jsonError('Forbidden', 403);

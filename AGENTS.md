@@ -57,114 +57,29 @@ NEVER write string literals like `'ottawa'` or `'fr'` in application code. Alway
 
 ---
 
-## Gotchas — Read Before Writing Code
+## Gotchas
 
-These are patterns that have caused repeated bugs. Each has been learned the hard way through multiple fix commits.
+Gotchas are documented in directory-level AGENTS.md files, next to the code they apply to:
 
-### Prerender Flags Are Required
+- **Save pipeline** (frontmatter merge, content hash, blob SHA): `src/views/api/AGENTS.md`
+- **Preact islands** (textarea hydration, scoped CSS, state sync): `src/components/admin/AGENTS.md`
+- **Styling** (dark mode, SCSS compiler, admin.scss): `src/styles/AGENTS.md`
+- **Core library** (build-time transforms, vendor isolation, config layers, CSP, authorize): `src/lib/AGENTS.md`
+- **Integrations** (route ordering, bracket filenames, i18n sync): `src/integrations/AGENTS.md`
+- **E2E tests** (fixture dates, DB lifecycle, generated files): `e2e/AGENTS.md`
 
-Every page and API endpoint MUST have an explicit `export const prerender = true` or `export const prerender = false`. Public pages are `true` (static). Admin pages, auth pages, and API endpoints are `false` (server-rendered). Getting this wrong means either a static page that can't access runtime data or unnecessary server compute.
+Hotspot files also have header comments pointing to their directory's AGENTS.md.
 
-### Build-Time Transforms
+Additional gotchas not covered by directory files:
 
-Three files use `fs.readFileSync` in Node.js but get **completely replaced** during the Vite build by `src/build-data-plugin.ts`:
-
-- `src/lib/city-config.ts` — replaced with static JSON from `config.yml`
-- `src/lib/tag-translations.ts` — replaced with static translation map
-- `src/lib/fonts.ts` — replaced with static font preload URLs
-
-This exists because Cloudflare workerd cannot access the host filesystem. If you modify the exports of these files, you MUST also update the corresponding transform code in `build-data-plugin.ts`. The transform generates a completely new module body — it does not wrap the original.
-
-### Virtual Module Type Declarations
-
-`src/virtual-modules.d.ts` is an **ambient declaration file** — it MUST NOT have any top-level imports or exports. Adding an `import` at the top converts it to a module augmentation file and breaks ALL virtual module type declarations. Use private interfaces (prefixed with `_`) defined inline for complex types.
-
-`src/virtual.d.ts` is a separate file that only declares `virtual:bike-app/cached-maps`.
-
-### Preact Island Styles — No Scoped CSS
-
-Astro's scoped `<style>` blocks do NOT reach Preact islands (they're hydrated independently). ALL styling for admin Preact components must go in `src/styles/admin.scss` as global rules. This is the most common source of "styles work in Astro but not in the Preact component" bugs.
-
-### Preact Textarea Hydration Bug
-
-Preact has a known hydration issue with `<textarea>` elements. When SSR renders text inside a textarea, `hydrate()` skips applying the `value` prop, then child diffing removes the SSR content, leaving the field empty. Every textarea in a Preact island needs this workaround:
-
-```tsx
-const bodyRef = useRef<HTMLTextAreaElement>(null);
-useEffect(() => {
-  if (bodyRef.current && body && !bodyRef.current.value) {
-    bodyRef.current.value = body;
-  }
-}, []);
-```
-
-### Save Pipeline — Always Merge Frontmatter
-
-When building save handlers, ALWAYS read existing frontmatter first and merge editor changes on top. Never reconstruct frontmatter from only the fields the UI sends — this silently deletes fields the editor doesn't know about (variants, created_at, strava_url, etc.):
-
-```typescript
-const existing = matter(currentFile.content).data;
-const merged = { ...existing, ...editorFields };
-```
-
-### Content Hash — Compare-and-Swap
-
-The save pipeline uses optimistic concurrency control. After a successful save, the server MUST return the new `contentHash` and the client MUST update its state. The cache stores blob SHAs (not commit SHAs). Mismatches cause false 409 conflicts on consecutive saves.
-
-### CSP Updates Required for New External Domains
-
-When adding ANY new external domain (CDN, API, tile server) or inline script, update `src/lib/csp.ts`. For `<script>` tags with nonces on SSR pages, use `is:inline nonce={cspNonce}`. For static pages, use bare `<script>` tags (Astro hashes them). Never mix these approaches — Astro hoists non-`is:inline` scripts, stripping `nonce` attributes.
-
-### Dark Mode — Every Color Needs Both Variants
-
-Every color change needs both light AND dark variants using the `dark-mode` mixin from `src/styles/_mixins.scss`. This has been a recurring source of bugs (white text on white backgrounds in dark mode, etc.). Never add a color without checking its dark mode appearance.
-
-### Path Resolution — Never Use Relative Paths
-
-NEVER use `path.resolve('relative/path')` — it resolves from `process.cwd()` which varies (Playwright starts from `e2e/`). Always use `import.meta.dirname` to compute an absolute base and resolve from there.
-
-### Zod v4 (via Astro)
-
-This project uses Zod v4 via `astro/zod` (NOT direct `zod` package). Key differences from v3:
-- Use `z.record(z.string(), z.unknown())` not `z.record(z.unknown())`
-- Use `z.looseObject()` instead of `.passthrough()`
-- Always import from `astro/zod`, never `astro:content` or `zod`
-
-### View Transitions
-
-Pages with View Transitions re-render without full reloads. Scripts that initialize on `DOMContentLoaded` or module load won't re-run. Use `document.addEventListener('astro:page-load', init)` instead.
-
-### Middleware Route Exclusions
-
-`/api/auth/*` and `/api/reactions/*` are excluded from auth middleware. NEVER put endpoints that require authentication under `/api/auth/` — they will silently skip session validation. Use `/api/admin/` for authenticated non-content endpoints.
-
-### Wrangler Config
-
-NEVER add a `main` field to `wrangler.jsonc` — the Vite plugin validates file existence at build time before `dist/` exists, causing build failures. It gets patched post-build in CI.
-
-### Map Markers
-
-Never use default MapLibre marker icons — they don't work in Vite-bundled apps (broken image URLs). Use CSS-styled HTML markers or the project's existing marker patterns.
-
-### SCSS Modern Compiler
-
-Don't use deprecated Sass functions (`darken()`, `lighten()`, etc.). The project uses `api: 'modern-compiler'`.
-
-### withBatch — Don't Await Inside Callbacks
-
-`src/db/transaction.ts`'s `withBatch()` collects unawaited query builders. Awaiting inside the callback executes statements prematurely instead of batching them.
-
-### authorize() Returns Response, Not Boolean
-
-`authorize()` in `src/lib/authorize.ts` returns either a `SessionUser` or a `Response` (401/403). It is NOT a boolean check. For boolean UI-level checks, use `can()`.
-
-### Admin Route Ordering
-
-In `src/integrations/admin-routes.ts`, static routes MUST precede parameterized routes when they share a prefix (e.g., `/api/reactions/route/_starred` must come before `/api/reactions/[contentType]/[contentSlug]`).
-
-### E2E Test Dates
-
-Test fixture dates must be far in the future (2099) to avoid time-dependent breakage (e.g., `isPastEvent()` logic). NEVER delete the SQLite DB file while the Astro preview server is running — it orphans the connection.
+- **Prerender flags**: every page/API endpoint MUST export `prerender` (true or false).
+- **Virtual module types**: `src/virtual-modules.d.ts` is ambient — NO top-level imports or it breaks all declarations.
+- **Path resolution**: never use `path.resolve('relative/path')` — use `import.meta.dirname`.
+- **View Transitions**: use `astro:page-load` event, not `DOMContentLoaded`.
+- **Middleware exclusions**: `/api/auth/*` and `/api/reactions/*` skip auth — don't put protected endpoints there.
+- **Wrangler config**: never add `main` field — it breaks builds.
+- **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
+- **Zod v4**: import from `astro/zod`, not `zod`. Use `z.record(z.string(), z.unknown())`, `z.looseObject()`.
 
 ---
 
@@ -262,51 +177,21 @@ Key behaviors:
 
 ### Admin Architecture
 
-The app runs in hybrid mode: public pages are static (`prerender = true`), admin/API pages are server-rendered (`prerender = false`).
-
-**Preact islands** (`src/components/admin/`): RouteEditor, EventEditor, PlaceEditor, MediaManager, VariantManager, RouteCreator, NearbyPhotos, PhotoField, EditHistory, UserList, SettingsForm, AuthGate, LoginForm, RegisterForm, SaveSuccessModal, StagingSyncButton, Toast. Shared hooks in `useEditorState.ts`.
-
-**Auth system**: WebAuthn (passkeys) via `@simplewebauthn/server`. Three roles: `admin`, `editor`, `guest`. Session-based auth with 30-day cookies. Two cookies: `session_token` (httpOnly) and `logged_in` (readable by JS for CSS-based UI toggling via `admin-visible` class on `<body>`). WebAuthn challenges stored in short-lived (5-minute) httpOnly cookies, not DB.
-
-**Middleware** (`src/middleware.ts`):
-- `/admin/*` — full auth + nonce CSP
-- `/api/*` (except `/api/auth/*`, `/api/reactions/*`) — full auth
-- `/api/reactions/*` — no auth required, optionally loads user
-- `/login`, `/register`, `/setup`, `/gate` — no auth, nonce CSP
-- CSP nonce injection replaces `<script>` tags to add nonce attributes and deletes `content-length`
-
-### Media URLs
-
-Images and videos served from Cloudflare R2 via `R2_PUBLIC_URL` (with fallback to `getCityConfig().cdn_url`):
-- **Images**: `R2_PUBLIC_URL/cdn-cgi/image/{transforms}/{blobKey}` — uses `import.meta.env.R2_PUBLIC_URL` (Vite-time)
-- **Videos**: `R2_PUBLIC_URL/{blobKey}`
-- **Video HLS**: `https://videos.ottawabybike.ca/{key}/{key}.m3u8`
+Hybrid mode: public pages are static (`prerender = true`), admin/API pages are server-rendered (`prerender = false`). Auth via WebAuthn (passkeys), three roles: `admin`, `editor`, `guest`. See `src/components/admin/AGENTS.md` for Preact island patterns.
 
 ### i18n — Three Layers
 
-Locales are driven by city config (e.g., `[en-CA, fr-CA, es]` → `[en, fr, es]`). UI strings in `src/i18n/{en,fr,es}.json`.
-
-**Layer 1 — UI strings**: `t()` helper with `{variable}` interpolation.
-
-**Layer 2 — URL path segments** (`src/lib/path-translations.ts`): translates known top-level segments (e.g., `routes` → `parcours`). Slugs pass through unchanged. `localePages` in `i18n-routes.ts` and `segmentTranslations` must stay in sync — if you add a route to `localePages` without a translation entry, the French URL will use the English segment.
-
-**Layer 3 — Content translations**: sidecar files (`index.fr.md` next to `index.md`). Routes with locale-specific slugs in translation frontmatter generate Cloudflare `_redirects` entries (200 rewrites + 301 redirects) at build time.
+Locales driven by city config. Layer 1: UI strings via `t()`. Layer 2: URL path segment translations (`src/lib/path-translations.ts`). Layer 3: content sidecar files (`index.fr.md`). See `src/integrations/AGENTS.md` for sync requirements.
 
 ### Database
 
-Drizzle ORM on SQLite (D1 in production, `better-sqlite3` locally). Schema in `src/db/schema.ts`, migrations in `drizzle/migrations/`.
+Drizzle ORM on SQLite (D1 in production, `better-sqlite3` locally). Schema: `src/db/schema.ts`, migrations: `drizzle/migrations/`. `init-schema.ts` applies migrations idempotently.
 
-Tables: `users`, `credentials` (WebAuthn), `sessions`, `banned_ips`, `upload_attempts` (rate limiting), `content_edits` (D1 content cache), `user_settings`, `reactions` (ridden/thumbs-up/star on routes and events).
+### Other Subsystems
 
-`init-schema.ts` applies ALL migrations idempotently (rewrites `CREATE TABLE` to `IF NOT EXISTS`, swallows duplicate column errors). Local dev and E2E always get latest schema. D1 applies migrations sequentially. `content_edits` has a composite primary key: `(city, contentType, contentSlug)`.
-
-### Reactions System
-
-User reactions (ridden, thumbs-up, star) on routes and events. Spans: `reactions` table, `src/lib/reaction-types.ts`, `src/views/api/reactions.ts` + `reactions-get.ts` + `reactions-starred.ts`, `src/components/ReactionsWidget.tsx`. The `/api/reactions/*` paths are excluded from auth middleware but optionally load user for personalized responses.
-
-### Contributors System
-
-`scripts/build-contributors.ts` generates `.astro/contributors.json` from git log. Only shows users matched to a DB record — unknown git authors are excluded entirely. Display uses DB username, never git commit author name. Must run BEFORE `astro build` (consumed by `virtual:bike-app/contributors`).
+- **Media URLs**: R2 via `R2_PUBLIC_URL`, images use `cdn-cgi/image/{transforms}/{blobKey}`, videos direct.
+- **Reactions**: ridden/thumbs-up/star on routes and events, excluded from auth middleware.
+- **Contributors**: `scripts/build-contributors.ts` generates `.astro/contributors.json` — must run BEFORE `astro build`.
 
 ### Key Directories
 
@@ -398,18 +283,7 @@ This is the most complex operation. Files that must change together:
 
 ## CSS & Styling
 
-All styles must match production (ottawabybike.ca). Use SCSS variables from `src/styles/_variables.scss` — never hardcode colors or breakpoints. SCSS uses `api: 'modern-compiler'`.
-
-Key variables: `$color-card-bg`, `$color-tag-bg`, `$color-btn-*`, `$border-radius`, `$breakpoint-*`, `$font-*`.
-
-Dark mode uses `@media (prefers-color-scheme: dark)` via the `dark-mode` mixin — every color change needs both light and dark variants.
-
-Three style layers:
-- **`global.scss`** — public page styles, imported via `Base.astro`
-- **`admin.scss`** — all admin/auth styles including Preact islands (scoped styles don't reach islands)
-- **`_variables.scss` / `_mixins.scss`** — design tokens and mixins
-
-The `logged_in` cookie enables JS to add `admin-visible` class to `<body>`, toggling CSS-hidden admin links (`.admin-edit-link`, `.nav-admin`) without server-rendering conditional logic on static pages.
+See `src/styles/AGENTS.md` for styling rules. Key: use SCSS variables from `_variables.scss`, dark mode needs both variants, Preact island styles go in `admin.scss` only.
 
 ## Testing
 
@@ -417,23 +291,10 @@ The `logged_in` cookie enables JS to add `admin-visible` class to `<body>`, togg
 make test          # vitest unit tests (tests/)
 make test-e2e      # build (CITY=demo) + playwright screenshot tests
 make test-admin    # admin E2E tests (save flow, community editing, etc.)
-make test-update   # rebuild screenshot baselines
 make full          # build + validate + unit + all E2E
 ```
 
-Screenshot tests build against `CITY=demo` (a fixture city), not Ottawa. Baselines tracked with Git LFS.
-
-Admin E2E tests (`e2e/admin/`) use a fixture system (`fixture-setup.ts`) that:
-- Creates isolated content directory at `.data/e2e-content/demo/`
-- Initializes a git repo in the fixture (for `LocalGitService`)
-- Creates SQLite DB at `.data/local.db`
-- Builds with `RUNTIME=local`, runs `astro preview` on port 4323
-- Uses a `.ready` sentinel to prevent duplicate setup across Playwright workers
-- Clears ALL Astro caches before build to prevent stale data interference
-- Bypasses WebAuthn by seeding sessions directly into SQLite
-- Restores fixture files via `git show` (read-only, no index lock) to avoid contention
-
-Key fixture gotchas: each writing spec owns its own route fixture for parallelization. The DB is NOT deleted between runs (server holds persistent connection). `seedSession()` handles per-test DB state.
+Screenshot tests build against `CITY=demo` (a fixture city), not Ottawa. See `e2e/AGENTS.md` for fixture system details.
 
 ## Build
 
@@ -447,9 +308,7 @@ make fonts         # download and embed Google Fonts
 
 **Build order matters:** `make contributors` and `make maps` must run before `astro build` because they generate files consumed by virtual modules.
 
-Build integrations in `astro.config.mjs`: `copy-map-cache`, `generate-redirects` (Cloudflare `_redirects` from multiple sources including translated slugs), `patch-static-csp-style-src` (rewrites Astro's style hashes to `unsafe-inline`).
-
-CSP is split across four files: `src/lib/csp.ts` (shared directives), `src/middleware.ts` (nonce injection for dynamic pages), `astro.config.mjs` `security.csp` (static pages), and `patch-static-csp-style-src` (post-build fixup).
+Build integrations in `astro.config.mjs`: `copy-map-cache`, `generate-redirects`, `patch-static-csp-style-src`. See `src/lib/AGENTS.md` for CSP details.
 
 ## Git Conventions
 
@@ -465,20 +324,4 @@ CSP is split across four files: `src/lib/csp.ts` (shared directives), `src/middl
 
 ## Environment Variables
 
-See `.env.example`:
-- `RUNTIME` — `local` for offline dev (SQLite + filesystem + simple-git), unset for production
-- `CONTENT_DIR` — path to bike-routes data repo (default: `../bike-routes`)
-- `CITY` — city config to load (default: `ottawa`). E2E tests use `demo`
-- `SITE_URL` — public site URL
-- `CONTACT_EMAIL` — contact email address
-- `GIT_OWNER` / `GIT_DATA_REPO` — GitHub repo coordinates (default: `eljojo`/`bike-routes`)
-- `GITHUB_TOKEN` — fine-grained PAT for GitHub API (Contents + Pull requests R/W)
-- `ENVIRONMENT` — `staging` or `production` (controls git branch and rebuild events)
-- `GIT_BRANCH` — `staging` or `main` (set per environment in `wrangler.jsonc`)
-- `R2_PUBLIC_URL` — media CDN base URL
-- `STORAGE_KEY_PREFIX` — `staging/` for staging, empty for production
-- `GOOGLE_MAPS_STATIC_API_KEY` — for map thumbnail generation
-- `GOOGLE_PLACES_API_KEY` — for place data prefill
-- `WEBAUTHN_RP_ID` / `WEBAUTHN_RP_NAME` / `WEBAUTHN_ORIGIN` — WebAuthn relying party config
-- `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ACCOUNT_ID` / `R2_BUCKET_NAME` — R2 presigned upload
-- `RWGPS_API_KEY` / `RWGPS_AUTH_TOKEN` — RideWithGPS API credentials
+See `.env.example` for the full list. Key variables: `RUNTIME=local` for offline dev, `CONTENT_DIR` for data repo path, `CITY` for city selection (default: `ottawa`, E2E: `demo`).

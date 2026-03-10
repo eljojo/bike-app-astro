@@ -10,9 +10,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import simpleGit from 'simple-git';
 import type { FileChange, CommitAuthor, IGitService, CommitInfo } from './git-service';
+import { computeBlobSha } from './git-utils';
 
 /**
  * Module-level mutex for git write operations. New LocalGitService instances
@@ -52,10 +52,7 @@ export class LocalGitService implements IGitService {
     if (!fs.existsSync(fullPath)) return null;
 
     const content = fs.readFileSync(fullPath, 'utf-8');
-    // Compute git blob SHA (same algorithm GitHub uses)
-    const sha = createHash('sha1')
-      .update(`blob ${Buffer.byteLength(content)}\0${content}`)
-      .digest('hex');
+    const sha = computeBlobSha(content);
 
     return { content, sha };
   }
@@ -138,7 +135,7 @@ export class LocalGitService implements IGitService {
 
   async listCommits(opts: { path?: string; perPage?: number; page?: number } = {}): Promise<CommitInfo[]> {
     const git = simpleGit(this.repoPath);
-    const logOpts: any = { maxCount: opts.perPage || 20 };
+    const logOpts: { maxCount: number; file?: string } = { maxCount: opts.perPage || 20 };
     if (opts.path) logOpts.file = opts.path;
 
     const log = await git.log(logOpts);

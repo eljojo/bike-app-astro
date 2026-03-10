@@ -1,3 +1,5 @@
+// AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
+// Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
@@ -24,7 +26,7 @@ const categories = Object.entries(categoryEmoji);
 function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let last = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: any[]) => {
+  return ((...args: Parameters<T>) => {
     const now = Date.now();
     const remaining = ms - (now - last);
     if (remaining <= 0) {

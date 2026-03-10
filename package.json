@@ -47,12 +47,15 @@
     "simple-git": "^3.32.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.57.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/mapbox__polyline": "^1.0.5",
     "drizzle-kit": "^0.31.9",
+    "eslint": "^10.0.3",
     "tsx": "^4.21.0",
+    "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"
   }
 }

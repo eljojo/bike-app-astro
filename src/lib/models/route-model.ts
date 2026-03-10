@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { z } from 'zod';
+import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 

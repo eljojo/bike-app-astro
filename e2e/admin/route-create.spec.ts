@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs, cleanupCreatedFiles } from './helpers.ts';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test.describe('Route Creation', () => {
   let token: string;
