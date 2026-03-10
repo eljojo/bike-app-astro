@@ -275,6 +275,26 @@ async function stepApiKeys() {
       description: 'Public URL for your media/images CDN bucket',
       howTo: 'Your R2 bucket\'s public URL (custom domain or r2.dev URL)',
     },
+    {
+      name: 'R2_ACCESS_KEY_ID',
+      description: 'R2 API key ID for presigned upload URLs',
+      howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens\n    → Create API token → read/write on your bucket → copy Access Key ID',
+    },
+    {
+      name: 'R2_SECRET_ACCESS_KEY',
+      description: 'R2 API secret for presigned upload URLs',
+      howTo: 'Same token as R2_ACCESS_KEY_ID — copy the Secret Access Key',
+    },
+    {
+      name: 'R2_ACCOUNT_ID',
+      description: 'Cloudflare account ID (used to build R2 endpoint URL)',
+      howTo: 'Cloudflare Dashboard → overview sidebar → Account ID',
+    },
+    {
+      name: 'R2_BUCKET_NAME',
+      description: 'Name of your R2 bucket (for presigned URLs)',
+      howTo: 'The bucket name you created in Step 1 (e.g. "my-blog-media")',
+    },
   ];
 
   const vars = [
