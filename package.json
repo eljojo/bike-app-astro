@@ -6,8 +6,10 @@
     ".": "./src/integration.ts",
     "./loaders/routes": "./src/loaders/routes.ts",
     "./loaders/rides": "./src/loaders/rides.ts",
+    "./loaders/pages": "./src/loaders/pages.ts",
     "./schemas": "./src/schemas/index.ts",
-    "./plugin": "./src/build-data-plugin.ts"
+    "./plugin": "./src/build-data-plugin.ts",
+    "./lib/adapter": "./src/lib/adapter.ts"
   },
   "workspaces": [
     "docs"
