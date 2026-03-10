@@ -48,7 +48,7 @@ function hasGitRemote() {
 // --- Steps ---
 
 async function stepCloudflare(folderName) {
-  console.log('\n  Step 1/2: Cloudflare');
+  console.log('\n  Step 1/3: Cloudflare');
   console.log('  ────────────────────');
 
   if (hasResourceIds()) {
@@ -120,7 +120,7 @@ async function stepCloudflare(folderName) {
 }
 
 async function stepGitHub(folderName) {
-  console.log('\n  Step 2/2: GitHub');
+  console.log('\n  Step 2/3: GitHub');
   console.log('  ────────────────');
 
   if (!commandExists('gh')) {
@@ -233,6 +233,158 @@ async function stepGitHub(folderName) {
   }
 }
 
+async function stepApiKeys() {
+  console.log('\n  Step 3/3: API Keys');
+  console.log('  ──────────────────');
+
+  if (!commandExists('wrangler')) {
+    console.log('  ⚠ wrangler not found — skipping. Set these secrets manually before deploying.\n');
+    return;
+  }
+
+  console.log('  Your app needs a few API keys to work. Press Enter to skip any.\n');
+
+  const secrets = [
+    {
+      name: 'GITHUB_TOKEN',
+      description: 'Personal access token for saving content edits to your data repo',
+      howTo: 'GitHub → Settings → Developer settings → Personal access tokens\n    → Fine-grained → Create: repo contents read/write on your data repo',
+    },
+    {
+      name: 'THUNDERFOREST_API_KEY',
+      description: 'Map tiles (cycle, outdoors, transport layers)',
+      howTo: 'https://www.thunderforest.com → sign up → Dashboard → API key',
+    },
+    {
+      name: 'GOOGLE_PLACES_API_KEY',
+      description: 'Auto-populating place details when adding places',
+      howTo: 'Google Cloud Console → APIs & Services → Credentials\n    → Create API Key → Enable Places API',
+    },
+    {
+      name: 'RWGPS_API_KEY',
+      description: 'Import routes from RideWithGPS',
+      howTo: 'https://ridewithgps.com/api → request API access',
+    },
+    {
+      name: 'RWGPS_AUTH_TOKEN',
+      description: 'Auth token for RideWithGPS API (paired with API key)',
+      howTo: 'Same as RWGPS_API_KEY — provided alongside it',
+    },
+    {
+      name: 'R2_PUBLIC_URL',
+      description: 'Public URL for your media/images CDN bucket',
+      howTo: 'Your R2 bucket\'s public URL (custom domain or r2.dev URL)',
+    },
+  ];
+
+  const vars = [
+    {
+      name: 'GIT_OWNER',
+      description: 'GitHub username owning the data repo',
+      howTo: 'Your GitHub username (e.g. "jose")',
+    },
+    {
+      name: 'GIT_DATA_REPO',
+      description: 'Name of the data repo (not the full URL)',
+      howTo: 'Just the repo name (e.g. "bike-routes")',
+    },
+    {
+      name: 'WEBAUTHN_RP_ID',
+      description: 'WebAuthn relying party domain (for passkey login)',
+      howTo: 'Your domain without protocol (e.g. "eljojo.bike")',
+    },
+    {
+      name: 'WEBAUTHN_RP_NAME',
+      description: 'Display name shown in passkey prompts',
+      howTo: 'Your blog name (e.g. "El Jojo Bike")',
+    },
+    {
+      name: 'WEBAUTHN_ORIGIN',
+      description: 'Full origin URL for WebAuthn',
+      howTo: 'Your full URL with protocol (e.g. "https://eljojo.bike")',
+    },
+  ];
+
+  const collectedSecrets = [];
+  const collectedVars = [];
+
+  for (const s of secrets) {
+    console.log(`  ${s.name}`);
+    console.log(`    ${s.description}`);
+    console.log(`    ${s.howTo}\n`);
+    const value = await ask('    Value: ');
+    if (value.trim()) {
+      collectedSecrets.push({ name: s.name, value: value.trim() });
+    } else {
+      console.log('    → skipped\n');
+    }
+  }
+
+  for (const v of vars) {
+    console.log(`  ${v.name}`);
+    console.log(`    ${v.description}`);
+    console.log(`    ${v.howTo}\n`);
+    const value = await ask('    Value: ');
+    if (value.trim()) {
+      collectedVars.push({ name: v.name, value: value.trim() });
+    } else {
+      console.log('    → skipped\n');
+    }
+  }
+
+  // Set secrets via wrangler
+  for (const { name, value } of collectedSecrets) {
+    try {
+      execSync(`wrangler secret put ${name}`, {
+        input: value,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      console.log(`  ✓ ${name} set`);
+    } catch {
+      console.error(`  ✗ Failed to set ${name} — set it manually with: wrangler secret put ${name}`);
+    }
+  }
+
+  // Set vars in wrangler.jsonc
+  if (collectedVars.length > 0) {
+    try {
+      const raw = fs.readFileSync('wrangler.jsonc', 'utf-8');
+      let updated = raw;
+
+      // Find or create vars section
+      if (/"vars"\s*:/.test(updated)) {
+        // Add to existing vars object
+        for (const { name, value } of collectedVars) {
+          const varsMatch = updated.match(/"vars"\s*:\s*\{/);
+          if (varsMatch) {
+            const insertPos = varsMatch.index + varsMatch[0].length;
+            updated = updated.slice(0, insertPos) + `\n    "${name}": "${value}",` + updated.slice(insertPos);
+          }
+        }
+      } else {
+        // Insert vars before the closing brace
+        const lastBrace = updated.lastIndexOf('}');
+        const varsObj = collectedVars.map(({ name, value }) => `    "${name}": "${value}"`).join(',\n');
+        updated = updated.slice(0, lastBrace) + `  "vars": {\n${varsObj}\n  },\n` + updated.slice(lastBrace);
+      }
+
+      fs.writeFileSync('wrangler.jsonc', updated);
+      console.log(`  ✓ ${collectedVars.map(v => v.name).join(', ')} added to wrangler.jsonc`);
+    } catch (err) {
+      console.error(`  ⚠ Could not update wrangler.jsonc — add these vars manually:`);
+      for (const { name, value } of collectedVars) {
+        console.error(`    "${name}": "${value}"`);
+      }
+    }
+  }
+
+  if (collectedSecrets.length === 0 && collectedVars.length === 0) {
+    console.log('  No keys set. You can add them later with: wrangler secret put <NAME>\n');
+  } else {
+    console.log();
+  }
+}
+
 // --- Main ---
 
 async function main() {
@@ -243,6 +395,7 @@ async function main() {
 
   await stepCloudflare(folderName);
   await stepGitHub(folderName);
+  await stepApiKeys();
 
   // Offer to commit and push
   let remoteUrl;

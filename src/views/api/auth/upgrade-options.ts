@@ -8,10 +8,14 @@ import {
 } from '../../../lib/auth';
 import { db } from '../../../lib/get-db';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { isBlogInstance } from '../../../lib/city-config';
 
 export const prerender = false;
 
 export async function POST({ request, cookies }: APIContext) {
+  if (isBlogInstance()) {
+    return new Response(null, { status: 404 });
+  }
   // Upgrade endpoints are under /api/auth/ which the middleware skips,
   // so we must validate the session ourselves.
   const token = cookies.get('session_token')?.value;

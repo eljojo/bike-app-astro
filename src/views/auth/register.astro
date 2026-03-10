@@ -3,6 +3,11 @@ export const prerender = false;
 
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import RegisterForm from '../../components/admin/RegisterForm.tsx';
+import { isBlogInstance } from '../../lib/city-config';
+
+if (isBlogInstance()) {
+  return new Response(null, { status: 404 });
+}
 
 const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
 const isUpgrade = Astro.url.searchParams.get('join') === '1' || Astro.url.searchParams.get('upgrade') === '1';

@@ -6,10 +6,14 @@ import { eq, and, count } from 'drizzle-orm';
 import { getOptionalUser } from '@/lib/auth';
 import { CITY } from '@/lib/config';
 import { VALID_CONTENT_TYPES } from '@/lib/reaction-types';
+import { isBlogInstance } from '@/lib/city-config';
 
 export const prerender = false;
 
 export async function GET({ params, locals }: APIContext) {
+  if (isBlogInstance()) {
+    return new Response(null, { status: 404 });
+  }
   const contentType = params.contentType;
   const contentSlug = params.contentSlug;
 

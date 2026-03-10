@@ -6,10 +6,14 @@ import { generatePseudonym } from '../../../lib/pseudonym';
 import { isIpBanned } from '../../../lib/ban-service';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { withBatch } from '../../../db/transaction';
+import { isBlogInstance } from '../../../lib/city-config';
 
 export const prerender = false;
 
 export async function POST({ cookies, request }: APIContext) {
+  if (isBlogInstance()) {
+    return new Response(null, { status: 404 });
+  }
   try {
     const database = db();
     const userId = generateId();

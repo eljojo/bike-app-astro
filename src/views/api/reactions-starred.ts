@@ -5,11 +5,15 @@ import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getOptionalUser } from '@/lib/auth';
 import { CITY } from '@/lib/config';
+import { isBlogInstance } from '@/lib/city-config';
 
 export const prerender = false;
 
 /** Returns the current user's starred route slugs. Public — returns empty if not logged in. */
 export async function GET({ locals }: APIContext) {
+  if (isBlogInstance()) {
+    return new Response(null, { status: 404 });
+  }
   const user = getOptionalUser(locals);
   if (!user) {
     return jsonResponse({ starredSlugs: [] });

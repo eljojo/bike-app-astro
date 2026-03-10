@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { env } from '../lib/env';
 import { CONTACT_EMAIL } from '../lib/config';
+import { isBlogInstance } from '../lib/city-config';
 
 interface Props {
   user: { username: string; role: string; email?: string | null };
@@ -10,6 +11,7 @@ interface Props {
 
 const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
+const blog = isBlogInstance();
 const cspNonce = Astro.locals.cspNonce;
 const avatarHash = user.email
   ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
@@ -22,12 +24,14 @@ const avatarUrl = avatarHash
 {isStaging && (
   <div class="staging-banner">Staging Environment</div>
 )}
-<div class="community-banner" id="community-banner">
-  This is a community wiki — feel free to browse and edit routes and events.
-  Your changes go live within a few minutes.
-  Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-  <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
-</div>
+{!blog && (
+  <div class="community-banner" id="community-banner">
+    This is a community wiki — feel free to browse and edit routes and events.
+    Your changes go live within a few minutes.
+    Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+    <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
+  </div>
+)}
 <script is:inline nonce={cspNonce}>
   const banner = document.getElementById('community-banner');
   const dismiss = document.getElementById('community-banner-dismiss');
@@ -49,7 +53,7 @@ const avatarUrl = avatarHash
     </button>
     <div class="admin-user-dropdown" id="user-menu-dropdown">
       <a href="/admin/settings" class="admin-user-dropdown-item">Settings</a>
-      {user.role === 'guest' && (
+      {user.role === 'guest' && !blog && (
         <a href="/register?join=1" class="admin-user-dropdown-item">Create account</a>
       )}
       <form method="POST" action="/api/auth/logout" class="logout-form">
@@ -79,7 +83,7 @@ const avatarUrl = avatarHash
   <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>
   <a href="/admin/places" class:list={['admin-nav-link', { active: currentTab === 'places' }]}>Places</a>
   <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
-  {user.role === 'admin' && (
+  {user.role === 'admin' && !blog && (
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
   )}
 </nav>

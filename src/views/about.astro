@@ -2,7 +2,7 @@
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { getCityConfig } from '@/lib/city-config';
+import { getCityConfig, isBlogInstance } from '@/lib/city-config';
 import { defaultLocale } from '@/lib/locale-utils';
 import contributors from 'virtual:bike-app/contributors';
 
@@ -46,13 +46,15 @@ const renderedBody = body
       </div>
     </div>
   )}
-  <div class="about-contribute">
-    <p>
-      This is a community project — anyone can contribute.
-      If you know a cycling route that's not listed, <a href="/admin/routes/new">suggest a new route</a>.
-      You can also <a href="/admin">suggest edits</a> to existing routes and events.
-    </p>
-  </div>
+  {!isBlogInstance() && (
+    <div class="about-contribute">
+      <p>
+        This is a community project — anyone can contribute.
+        If you know a cycling route that's not listed, <a href="/admin/routes/new">suggest a new route</a>.
+        You can also <a href="/admin">suggest edits</a> to existing routes and events.
+      </p>
+    </div>
+  )}
   <br />
   <small>the <img src="/bicycle.png" alt="bicycle" width="32" height="32" class="about-inline-icon" /> icon is from <a href="https://www.flaticon.com/free-icon/bicycle_2972185#" target="_blank" rel="noopener">flaticon</a> - <a href="/sitemap">sitemap</a></small>
 </Base>
