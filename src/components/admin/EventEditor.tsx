@@ -85,7 +85,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [showOrgForm, setShowOrgForm] = useState(initOrg.name !== '');
 
   // Save state
-  const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
+  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/events',
     contentId: initialData.isNew ? null : initialData.id,
     initialContentHash: initialData.contentHash,

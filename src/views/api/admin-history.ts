@@ -6,7 +6,7 @@ import { users } from '../../db/schema';
 import { eq, like } from 'drizzle-orm';
 import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import { authorize } from '../../lib/authorize';
-import { jsonResponse, jsonError } from '../../lib/api-response';
+import { jsonResponse } from '../../lib/api-response';
 import { parseAuthorEmail } from '../../lib/commit-author';
 
 export const prerender = false;

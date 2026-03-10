@@ -15,6 +15,7 @@ export default [
       parser: tseslint.parser,
     },
     plugins: {
+      '@typescript-eslint': tseslint.plugin,
       'bike-app': {
         rules: {
           'no-hardcoded-city-locale': noHardcodedCityLocale,
@@ -27,6 +28,7 @@ export default [
       },
     },
     rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
       'bike-app/no-hardcoded-city-locale': 'error',
       'bike-app/require-prerender-export': 'error',
       'bike-app/vendor-isolation': 'error',
