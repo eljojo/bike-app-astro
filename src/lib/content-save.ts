@@ -328,6 +328,7 @@ async function tryAiCommitMessage(
   currentFiles: CurrentFiles,
   isNew: boolean,
 ): Promise<string> {
+  if (isNew) return fallback;
   const ai = env.AI as { run(model: string, input: unknown): Promise<{ response?: unknown }> } | undefined;
   if (!ai) return fallback;
 
