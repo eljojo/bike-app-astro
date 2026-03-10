@@ -310,7 +310,7 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
   return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });
 }
 
-const AI_COMMIT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const AI_COMMIT_MODEL = '@cf/meta/llama-3.2-1b-instruct';
 
 /**
  * Try to generate an AI commit subject. Returns the original message if AI
