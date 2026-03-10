@@ -159,11 +159,39 @@ async function stepGitHub(folderName) {
   }
   console.log(`  ✓ gh found, logged in as ${ghUser}\n`);
 
-  // Collect what we need to do
+  // Create repo if needed
   const needsRepo = !hasGitRemote();
   const repoName = `${ghUser}/${folderName}`;
 
-  // Token
+  if (needsRepo) {
+    console.log(`  I'll create a private repo:\n`);
+    console.log(`    gh repo create ${repoName} --private --source .\n`);
+    const createAnswer = await ask('  Proceed? [Y/n] ');
+    if (createAnswer.toLowerCase() !== 'n') {
+      try {
+        execSync(`gh repo create ${repoName} --private --source .`, { stdio: 'inherit' });
+        console.log(`\n  ✓ Repo created: github.com/${repoName}\n`);
+      } catch {
+        console.error('\n  ✗ Repo creation failed. Create it manually and run setup again.\n');
+      }
+    }
+  } else {
+    console.log('  ✓ Repo already configured\n');
+  }
+
+  // Check if deploy secrets are already set
+  let hasDeploySecrets = false;
+  try {
+    const secretList = run('gh secret list 2>/dev/null');
+    hasDeploySecrets = secretList.includes('CLOUDFLARE_API_TOKEN');
+  } catch { /* ignore — repo may not exist yet */ }
+
+  if (hasDeploySecrets) {
+    console.log('  ✓ Deploy secrets already configured\n');
+    return;
+  }
+
+  // Deploy secrets (optional — Enter to skip)
   console.log('  GitHub Actions needs a Cloudflare API token to deploy.\n');
   console.log('  Create one at:');
   console.log('    https://dash.cloudflare.com/profile/api-tokens\n');
@@ -175,9 +203,11 @@ async function stepGitHub(folderName) {
   console.log('    - Zone Resources: "All zones" (or pick your domain)');
   console.log('  Click "Continue to summary" → "Create Token" → copy it.\n');
 
-  const token = await ask('  Paste your token: ');
+  const token = await ask('  Paste your token (Enter to skip): ');
   if (!token.trim()) {
-    console.log('\n  No token provided. Run npm run setup again when ready.\n');
+    console.log('    → skipped. Set deploy secrets later with:');
+    console.log('      gh secret set CLOUDFLARE_API_TOKEN');
+    console.log('      gh secret set CLOUDFLARE_ACCOUNT_ID\n');
     return;
   }
 
@@ -192,31 +222,6 @@ async function stepGitHub(folderName) {
     accountId = await ask('  Paste your Cloudflare Account ID: ');
   }
 
-  // Show what we'll do
-  console.log('\n  I\'ll run:\n');
-  if (needsRepo) {
-    console.log(`    gh repo create ${repoName} --private --source .`);
-  }
-  console.log('    gh secret set CLOUDFLARE_API_TOKEN');
-  console.log(`    gh secret set CLOUDFLARE_ACCOUNT_ID (${accountId?.slice(0, 8)}...)`);
-  console.log();
-
-  const answer = await ask('  Proceed? [Y/n] ');
-  if (answer.toLowerCase() === 'n') {
-    console.log('\n  Skipped. Run npm run setup again when ready.\n');
-    return;
-  }
-
-  if (needsRepo) {
-    try {
-      execSync(`gh repo create ${repoName} --private --source .`, { stdio: 'inherit' });
-      console.log(`\n  ✓ Repo created: github.com/${repoName}`);
-    } catch {
-      console.error('\n  ✗ Repo creation failed. Create it manually and run setup again.\n');
-      return;
-    }
-  }
-
   // Set secrets
   try {
     const secretInput = (name, value) => {
@@ -227,7 +232,7 @@ async function stepGitHub(folderName) {
     };
     secretInput('CLOUDFLARE_API_TOKEN', token.trim());
     secretInput('CLOUDFLARE_ACCOUNT_ID', accountId.trim());
-    console.log('  ✓ Secrets configured\n');
+    console.log('  ✓ Deploy secrets configured\n');
   } catch {
     console.error('\n  ✗ Failed to set secrets. Set them manually in repo Settings → Secrets.\n');
   }
@@ -242,7 +247,20 @@ async function stepApiKeys() {
     return;
   }
 
-  // --- Auto-detect what we can ---
+  // --- Detect what's already set ---
+  let existingSecrets = new Set();
+  try {
+    const secretList = run('wrangler secret list 2>/dev/null');
+    const parsed = JSON.parse(secretList);
+    existingSecrets = new Set(parsed.map(s => s.name));
+  } catch { /* ignore — may not be deployed yet */ }
+
+  let existingVars = new Set();
+  try {
+    const config = readWranglerConfig();
+    if (config.vars) existingVars = new Set(Object.keys(config.vars));
+  } catch { /* ignore */ }
+
   const autoSecrets = [];
   const autoVars = [];
 
@@ -270,102 +288,141 @@ async function stepApiKeys() {
     }
   } catch { /* ignore */ }
 
-  if (autoSecrets.length > 0 || autoVars.length > 0) {
-    console.log('  Auto-detected from your setup:\n');
-    for (const { name, value } of [...autoVars, ...autoSecrets]) {
-      console.log(`    ${name} = ${value}`);
-    }
-    console.log();
-  }
-
-  // --- Prompt only for secrets that need manual input ---
-  console.log('  A few API keys are needed for full functionality. Press Enter to skip any.\n');
-
+  // --- Classify all items ---
   const secrets = [
     {
-      name: 'GITHUB_TOKEN',
+      name: 'GITHUB_TOKEN', kind: 'secret',
       description: 'Personal access token for saving content edits',
       howTo: 'GitHub → Settings → Developer settings → Personal access tokens\n    → Fine-grained → Create: repo contents read/write on this repo',
     },
     {
-      name: 'R2_ACCESS_KEY_ID',
+      name: 'R2_ACCESS_KEY_ID', kind: 'secret',
       description: 'R2 API key ID for photo upload (presigned URLs)',
       howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens\n    → Create API token → read/write on your bucket → copy Access Key ID',
     },
     {
-      name: 'R2_SECRET_ACCESS_KEY',
+      name: 'R2_SECRET_ACCESS_KEY', kind: 'secret',
       description: 'R2 API secret for photo upload (presigned URLs)',
       howTo: 'Same token as R2_ACCESS_KEY_ID — copy the Secret Access Key',
     },
     {
-      name: 'R2_PUBLIC_URL',
+      name: 'R2_PUBLIC_URL', kind: 'secret',
       description: 'Public URL for your media/images CDN bucket',
       howTo: 'Your R2 bucket\'s public URL (custom domain or r2.dev URL)',
     },
     {
-      name: 'THUNDERFOREST_API_KEY',
+      name: 'THUNDERFOREST_API_KEY', kind: 'secret',
       description: 'Map tiles (cycle, outdoors, transport layers)',
       howTo: 'https://www.thunderforest.com → sign up → Dashboard → API key',
     },
     {
-      name: 'GOOGLE_PLACES_API_KEY',
+      name: 'GOOGLE_PLACES_API_KEY', kind: 'secret',
       description: 'Auto-populating place details when adding places',
       howTo: 'Google Cloud Console → APIs & Services → Credentials\n    → Create API Key → Enable Places API',
     },
     {
-      name: 'RWGPS_API_KEY',
+      name: 'RWGPS_API_KEY', kind: 'secret',
       description: 'Import routes from RideWithGPS',
       howTo: 'https://ridewithgps.com/api → request API access',
     },
     {
-      name: 'RWGPS_AUTH_TOKEN',
+      name: 'RWGPS_AUTH_TOKEN', kind: 'secret',
       description: 'Auth token for RideWithGPS API (paired with API key)',
       howTo: 'Same as RWGPS_API_KEY — provided alongside it',
     },
-  ];
-
-  const vars = [
     {
-      name: 'WEBAUTHN_RP_ID',
+      name: 'WEBAUTHN_RP_ID', kind: 'var',
       description: 'WebAuthn relying party domain (for passkey login)',
       howTo: 'Your domain without protocol (e.g. "eljojo.bike")',
     },
     {
-      name: 'WEBAUTHN_RP_NAME',
+      name: 'WEBAUTHN_RP_NAME', kind: 'var',
       description: 'Display name shown in passkey prompts',
       howTo: 'Your blog name (e.g. "El Jojo Bike")',
     },
     {
-      name: 'WEBAUTHN_ORIGIN',
+      name: 'WEBAUTHN_ORIGIN', kind: 'var',
       description: 'Full origin URL for WebAuthn',
       howTo: 'Your full URL with protocol (e.g. "https://eljojo.bike")',
     },
   ];
 
-  const collectedSecrets = [...autoSecrets];
-  const collectedVars = [...autoVars];
-
-  for (const s of secrets) {
-    console.log(`  ${s.name}`);
-    console.log(`    ${s.description}`);
-    console.log(`    ${s.howTo}\n`);
-    const value = await ask('    Value: ');
-    if (value.trim()) {
-      collectedSecrets.push({ name: s.name, value: value.trim() });
-    } else {
-      console.log('    → skipped\n');
-    }
+  // Build auto-detected map (name → {name, value, kind}) for items that aren't already set
+  const autoDetected = new Map();
+  for (const s of autoSecrets) {
+    if (!existingSecrets.has(s.name)) autoDetected.set(s.name, { ...s, kind: 'secret' });
+  }
+  for (const v of autoVars) {
+    if (!existingVars.has(v.name)) autoDetected.set(v.name, { ...v, kind: 'var' });
   }
 
-  for (const v of vars) {
-    console.log(`  ${v.name}`);
-    console.log(`    ${v.description}`);
-    console.log(`    ${v.howTo}\n`);
-    const value = await ask('    Value: ');
-    if (value.trim()) {
-      collectedVars.push({ name: v.name, value: value.trim() });
-    } else {
-      console.log('    → skipped\n');
+  // Partition into: already set, auto-detected (will set), needs input
+  const alreadySet = [];
+  const needsInput = [];
+  for (const item of secrets) {
+    const isSet = item.kind === 'secret'
+      ? existingSecrets.has(item.name)
+      : existingVars.has(item.name);
+    if (isSet) {
+      alreadySet.push(item);
+    } else if (!autoDetected.has(item.name)) {
+      needsInput.push(item);
+    }
+    // auto-detected items handled separately
+  }
+
+  if (alreadySet.length > 0) {
+    console.log('  Already configured:');
+    for (const item of alreadySet) {
+      console.log(`    ✓ ${item.name}`);
+    }
+    console.log();
+  }
+
+  if (autoDetected.size > 0) {
+    console.log('  Auto-detected from your setup:');
+    for (const [name, { value }] of autoDetected) {
+      console.log(`    ${name} = ${value}`);
+    }
+    console.log();
+  }
+
+  // Collect values to write (start with auto-detected, user input appended below)
+  const collectedSecrets = [...autoDetected.values()].filter(s => s.kind === 'secret');
+  const collectedVars = [...autoDetected.values()].filter(s => s.kind === 'var');
+
+  if (needsInput.length === 0) {
+    if (autoDetected.size === 0) {
+      console.log('  All keys are set! Nothing to do.\n');
+    }
+  } else {
+    console.log('  A few API keys are needed for full functionality. Press Enter to skip any.\n');
+
+    let skipRemaining = false;
+    for (let i = 0; i < needsInput.length; i++) {
+      if (skipRemaining) break;
+      const item = needsInput[i];
+
+      console.log(`  ${item.name}`);
+      console.log(`    ${item.description}`);
+      console.log(`    ${item.howTo}\n`);
+      const value = await ask('    Value (Enter to skip): ');
+      if (value.trim()) {
+        if (item.kind === 'secret') {
+          collectedSecrets.push({ name: item.name, value: value.trim() });
+        } else {
+          collectedVars.push({ name: item.name, value: value.trim() });
+        }
+      } else {
+        console.log('    → skipped');
+        if (i < needsInput.length - 1) {
+          const skipAll = await ask('    Skip remaining keys too? [Y/n] ');
+          if (skipAll.toLowerCase() !== 'n') {
+            skipRemaining = true;
+          }
+        }
+        console.log();
+      }
     }
   }
 
@@ -412,10 +469,9 @@ async function stepApiKeys() {
     }
   }
 
-  const prompted = collectedSecrets.length - autoSecrets.length + collectedVars.length - autoVars.length;
-  if (prompted === 0) {
-    console.log('  No additional keys set. You can add them later with: wrangler secret put <NAME>\n');
-  } else {
+  if (collectedSecrets.length === 0 && collectedVars.length === 0 && needsInput.length > 0) {
+    console.log('  No keys set. You can add them later with: wrangler secret put <NAME>\n');
+  } else if (collectedSecrets.length > 0 || collectedVars.length > 0) {
     console.log();
   }
 }
