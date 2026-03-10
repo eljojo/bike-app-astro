@@ -3,27 +3,46 @@ import { groupCommitsByAuthor, resolveContributors } from '../scripts/build-cont
 
 describe('groupCommitsByAuthor', () => {
   it('groups commits by email', () => {
-    const lines = [
-      'abc123', 'alice+uid1@whereto.bike', 'alice',
-      'def456', 'alice+uid1@whereto.bike', 'alice',
-      'ghi789', 'bob+uid2@whereto.bike', 'bob',
+    const records = [
+      'alice+uid1@whereto.bike\nalice\n',
+      'alice+uid1@whereto.bike\nalice\n',
+      'bob+uid2@whereto.bike\nbob\n',
     ];
-    const result = groupCommitsByAuthor(lines);
+    const result = groupCommitsByAuthor(records);
     expect(result.get('alice+uid1@whereto.bike')).toEqual({ name: 'alice', count: 2 });
     expect(result.get('bob+uid2@whereto.bike')).toEqual({ name: 'bob', count: 1 });
   });
 
   it('handles regular email addresses', () => {
-    const lines = [
-      'abc123', 'jose@example.com', 'José',
+    const records = [
+      'jose@example.com\nJosé\n',
     ];
-    const result = groupCommitsByAuthor(lines);
+    const result = groupCommitsByAuthor(records);
     expect(result.get('jose@example.com')).toEqual({ name: 'José', count: 1 });
   });
 
   it('handles empty input', () => {
     const result = groupCommitsByAuthor([]);
     expect(result.size).toBe(0);
+  });
+
+  it('extracts Co-Authored-By emails from commit body', () => {
+    const records = [
+      'alice@real.com\nalice\nUpdate event\n\nChanges: ottawa/events/2026/ride\nCo-Authored-By: alice <alice+uid1@whereto.bike>',
+    ];
+    const result = groupCommitsByAuthor(records);
+    expect(result.get('alice@real.com')).toEqual({ name: 'alice', count: 1 });
+    expect(result.get('alice+uid1@whereto.bike')).toEqual({ name: 'alice', count: 1 });
+  });
+
+  it('counts both author and co-author for same email', () => {
+    const records = [
+      'alice@real.com\nalice\nCo-Authored-By: alice <alice+uid1@whereto.bike>',
+      'alice+uid1@whereto.bike\nalice\n',
+    ];
+    const result = groupCommitsByAuthor(records);
+    expect(result.get('alice@real.com')!.count).toBe(1);
+    expect(result.get('alice+uid1@whereto.bike')!.count).toBe(2);
   });
 });
 
