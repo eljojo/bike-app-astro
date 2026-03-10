@@ -16,53 +16,43 @@ export const prerender = false;
 const VISION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
 const TEXT_MODEL = VISION_MODEL;
 
-const FIELD_SPEC = `Return this exact structure (omit fields you cannot find at all):
+const FIELD_SPEC = `Return this exact JSON structure (omit fields you cannot find at all):
 
-{
-  "name": { "value": "event name", "confidence": 0.9 },
-  "start_date": { "value": "YYYY-MM-DD", "confidence": 0.8 },
-  "end_date": { "value": "YYYY-MM-DD (only if multi-day)", "confidence": 0.7 },
-  "start_time": { "value": "HH:MM (24h format)", "confidence": 0.6 },
-  "end_time": { "value": "HH:MM (24h format)", "confidence": 0.5 },
-  "location": { "value": "event location or address", "confidence": 0.8 },
-  "distances": { "value": "distances mentioned, e.g. 50km, 100km", "confidence": 0.7 },
-  "organizer": { "value": "organizer name", "confidence": 0.6 },
-  "organizer_website": { "value": "organizer website URL", "confidence": 0.5 },
-  "organizer_instagram": { "value": "organizer Instagram handle (without @)", "confidence": 0.5 },
-  "registration_url": { "value": "any registration URL or signup link mentioned", "confidence": 0.5 }
-}
+{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5}}
 
-Return ONLY the JSON object. No markdown, no explanation, no code fences.`;
+Rules:
+- "c" is your confidence from 0 to 10 (integer)
+- Dates must be YYYY-MM-DD, times must be HH:MM in 24h format
+- Omit fields entirely if not found (do NOT use empty strings or "null")
+- URLs must have proper JSON escaping (escape backslashes and quotes)
+- Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
 
-const POSTER_PROMPT = `You are analyzing an event poster image. Extract event information and return ONLY a valid JSON object.
-
-For each field, include a confidence score from 0.0 to 1.0 indicating how certain you are about the extraction.
+const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
 
 ${FIELD_SPEC}`;
 
-const WEBPAGE_PROMPT = `You are analyzing an event webpage. Extract event information and return ONLY a valid JSON object.
-
-For each field, include a confidence score from 0.0 to 1.0 indicating how certain you are about the extraction.
+const WEBPAGE_PROMPT = `Extract event information from this webpage. Return ONLY a valid JSON object.
 
 ${FIELD_SPEC}`;
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 15_000; // Characters of page text to send
-const HIGH_CONFIDENCE = 0.7;
+const HIGH_CONFIDENCE = 7; // 0-10 scale
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'organizer_website', 'organizer_instagram', 'registration_url'] as const;
 
-/** Unwrap a field from the AI response, which may be {value, confidence} or a flat string. */
+/** Unwrap a field from the AI response, which may be {value, c} or a flat string. */
 function unwrap(field: unknown): { value: string; confidence: number } | null {
   if (!field) return null;
   if (typeof field === 'object' && field !== null && 'value' in field) {
-    const f = field as { value?: string; confidence?: number };
+    const f = field as { value?: string; c?: number; confidence?: number };
     if (!f.value || f.value === 'null') return null;
-    return { value: f.value, confidence: f.confidence ?? 0.6 };
+    const confidence = f.c ?? (f.confidence != null ? f.confidence * 10 : 6);
+    return { value: f.value, confidence };
   }
   const s = String(field);
-  return s && s !== 'null' ? { value: s, confidence: 0.6 } : null;
+  return s && s !== 'null' ? { value: s, confidence: 6 } : null;
 }
 
 /**
@@ -180,16 +170,29 @@ function parseAiResponse(raw: unknown): Record<string, unknown> {
     return raw as Record<string, unknown>;
   }
   const responseText = String(raw || '');
-  try {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
     console.warn('[event-draft] No JSON object found in AI response:', responseText.substring(0, 300));
-  } catch (err) {
-    console.warn('[event-draft] Failed to parse AI response:', (err as Error).message, responseText.substring(0, 300));
+    return {};
   }
-  return {};
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    // AI often produces invalid JSON — try field-by-field regex extraction
+  }
+  const result: Record<string, unknown> = {};
+  for (const field of FIELD_NAMES) {
+    // Match both "c":N and "confidence":N formats
+    const re = new RegExp(`"${field}"\\s*:\\s*\\{\\s*"value"\\s*:\\s*"([^"]*)"\\s*,\\s*"(?:c|confidence)"\\s*:\\s*([\\d.]+)`);
+    const m = jsonMatch[0].match(re);
+    if (m) result[field] = { value: m[1], c: parseFloat(m[2]) };
+  }
+  if (Object.keys(result).length > 0) {
+    console.log(`[event-draft] Recovered ${Object.keys(result).length} fields from malformed JSON`);
+  } else {
+    console.warn('[event-draft] Could not extract any fields from AI response');
+  }
+  return result;
 }
 
 /** Convert an ArrayBuffer to base64 in chunks (avoids call stack limits). */
