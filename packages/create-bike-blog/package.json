@@ -6,6 +6,6 @@
   "bin": {
     "create-bike-blog": "./index.js"
   },
-  "files": ["index.js", "templates/"],
+  "files": ["index.js", "sync.js", "templates/"],
   "license": "AGPL-3.0"
 }

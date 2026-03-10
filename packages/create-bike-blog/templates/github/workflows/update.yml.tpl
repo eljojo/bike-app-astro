@@ -23,10 +23,13 @@ jobs:
       - name: Update bike-app-astro
         run: npm update bike-app-astro
 
+      - name: Sync workflow templates
+        run: npm run sync
+
       - name: Check for changes
         id: changes
         run: |
-          if git diff --quiet package-lock.json; then
+          if git diff --quiet; then
             echo "updated=false" >> "$GITHUB_OUTPUT"
           else
             echo "updated=true" >> "$GITHUB_OUTPUT"
@@ -37,6 +40,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
+          git add package-lock.json .github/workflows/
           git commit -m "chore: update bike-app-astro"
           git push
