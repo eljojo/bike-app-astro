@@ -1,0 +1,43 @@
+import { defineCollection } from 'astro:content';
+import { glob } from 'astro/loaders';
+import { rideLoader } from 'bike-app-astro/loaders/rides';
+import { pageLoader } from 'bike-app-astro/loaders/pages';
+import {
+  routeSchema, placeSchema, guideSchema,
+  eventSchema, organizerSchema, pageSchema,
+} from 'bike-app-astro/schemas';
+
+const CITY_DIR = `${process.env.CONTENT_DIR || '.'}/${process.env.CITY || 'blog'}`;
+const mdPattern = ['**/*.md', '!**/*.??.md'];
+
+const routes = defineCollection({
+  loader: rideLoader(),
+  schema: routeSchema,
+});
+
+const places = defineCollection({
+  loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/places` }),
+  schema: placeSchema,
+});
+
+const guides = defineCollection({
+  loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/guides` }),
+  schema: guideSchema,
+});
+
+const events = defineCollection({
+  loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/events` }),
+  schema: eventSchema,
+});
+
+const organizers = defineCollection({
+  loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/organizers` }),
+  schema: organizerSchema,
+});
+
+const pages = defineCollection({
+  loader: pageLoader(),
+  schema: pageSchema,
+});
+
+export const collections = { routes, places, guides, events, organizers, pages };

@@ -12,7 +12,8 @@
     "./lib/adapter": "./src/lib/adapter.ts"
   },
   "workspaces": [
-    "docs"
+    "docs",
+    "packages/create-bike-blog"
   ],
   "scripts": {
     "dev": "astro dev",

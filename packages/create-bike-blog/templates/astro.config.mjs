@@ -1,0 +1,15 @@
+import 'dotenv/config';
+import { defineConfig } from 'astro/config';
+import { getAdapter } from 'bike-app-astro/lib/adapter';
+import preact from '@astrojs/preact';
+import { wheretoBike, cspConfig } from 'bike-app-astro';
+
+export default defineConfig({
+  site: process.env.SITE_URL,
+  adapter: await getAdapter(process.env.RUNTIME),
+  security: cspConfig(),
+  integrations: [
+    preact(),
+    ...wheretoBike({ consumerRoot: import.meta.dirname }),
+  ],
+});

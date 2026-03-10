@@ -1,0 +1,4 @@
+CONTENT_DIR=.
+CITY={{USERNAME}}
+RUNTIME=local
+SITE_URL=https://{{DOMAIN}}
