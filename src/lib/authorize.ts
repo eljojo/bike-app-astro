@@ -7,7 +7,7 @@ export type Action =
   | 'revert-commit' | 'manage-users' | 'delete-media'
   | 'sync-staging' | 'view-history' | 'upload-media'
   | 'import-gpx' | 'update-settings' | 'add-reaction'
-  | 'poster-draft';
+  | 'event-draft';
 
 type Policy = (user: SessionUser) => boolean;
 
@@ -18,7 +18,7 @@ const policies: Record<Action, Policy> = {
   'import-gpx':      () => true,
   'update-settings': () => true,
   'add-reaction':    () => true,
-  'poster-draft':    () => true,
+  'event-draft':     () => true,
   'edit-slug':       (user) => user.role !== 'guest',
   'edit-past-event': (user) => user.role === 'admin',
   'set-status':      (user) => user.role === 'admin',

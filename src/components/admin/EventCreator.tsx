@@ -17,9 +17,11 @@ interface Props {
 }
 
 /** Draft fields returned by the server, already in EventDetail shape. */
-interface PosterDraft {
+interface EventDraftResponse {
   draft: Partial<EventDetail>;
   uncertain: string[];
+  poster_key?: string;
+  poster_content_type?: string;
 }
 
 const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'registration_url'] as const;
@@ -48,12 +50,25 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
   const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(copyData?.poster_content_type || '');
   const [extracting, setExtracting] = useState(false);
-  const [posterDraft, setPosterDraft] = useState<PosterDraft | null>(null);
+  const [eventDraft, setEventDraft] = useState<EventDraftResponse | null>(null);
   const [error, setError] = useState('');
   const [pasteUrl, setPasteUrl] = useState('');
   const [fetchingUrl, setFetchingUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const upload = useFileUpload();
+
+  /** Process an event-draft response: update poster state if present, show review or skip to edit. */
+  const handleDraftResponse = useCallback((data: EventDraftResponse) => {
+    // If the server staged a poster image (URL was an image), update poster state
+    if (data.poster_key) {
+      setPosterKey(data.poster_key);
+      setPosterContentType(data.poster_content_type || 'image/jpeg');
+    }
+
+    const hasFields = Object.keys(data.draft).length > 0;
+    setEventDraft(data);
+    setPhase(hasFields ? 'review' : 'edit');
+  }, []);
 
   const handlePosterUploaded = useCallback(async (key: string, contentType: string) => {
     setPosterKey(key);
@@ -62,7 +77,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
     setError('');
 
     try {
-      const res = await fetch('/api/admin/poster-draft', {
+      const res = await fetch('/api/admin/event-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poster_key: key }),
@@ -74,19 +89,14 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
         return;
       }
 
-      const data = await res.json();
-      const { draft, uncertain } = data as PosterDraft;
-      const hasFields = Object.keys(draft).length > 0;
-
-      setPosterDraft({ draft, uncertain });
-      setPhase(hasFields ? 'review' : 'edit');
+      handleDraftResponse(await res.json() as EventDraftResponse);
     } catch {
       // Network error or unexpected failure — silently skip to editor
       setPhase('edit');
     } finally {
       setExtracting(false);
     }
-  }, []);
+  }, [handleDraftResponse]);
 
   async function handleFile(file: File) {
     setError('');
@@ -121,7 +131,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
     setFetchingUrl(true);
 
     try {
-      const res = await fetch('/api/admin/fetch-image', {
+      const res = await fetch('/api/admin/event-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: pasteUrl }),
@@ -129,14 +139,13 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to fetch image');
+        throw new Error(data.error || 'Failed to process URL');
       }
 
-      const { key, contentType } = await res.json();
       setPasteUrl('');
-      await handlePosterUploaded(key, contentType);
+      handleDraftResponse(await res.json() as EventDraftResponse);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch image');
+      setError(err instanceof Error ? err.message : 'Failed to process URL');
     } finally {
       setFetchingUrl(false);
     }
@@ -144,8 +153,8 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
 
   function buildInitialData(): EventDetail & { contentHash?: string; isNew?: boolean } {
     const today = new Date().toISOString().split('T')[0];
-    // copyData takes priority (duplicating an event), then poster draft (AI extraction)
-    const source = copyData || posterDraft?.draft || {};
+    // copyData takes priority (duplicating an event), then event draft (extraction)
+    const source = copyData || eventDraft?.draft || {};
 
     return {
       id: '',
@@ -177,7 +186,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
         {isLoading ? (
           <div class="event-creator-loading">
             <div class="event-creator-spinner" />
-            <span>{upload.uploading ? 'Uploading poster...' : fetchingUrl ? 'Fetching image...' : 'Reading poster...'}</span>
+            <span>{upload.uploading ? 'Uploading poster...' : fetchingUrl ? 'Reading link...' : 'Reading poster...'}</span>
           </div>
         ) : (
           <div class="event-creator-prompt">
@@ -208,7 +217,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
               <input
                 type="url"
                 class="url-import-input"
-                placeholder="Paste a link to a poster image"
+                placeholder="Paste a link to a poster or event page"
                 value={pasteUrl}
                 onInput={(e) => setPasteUrl((e.target as HTMLInputElement).value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlFetch(); } }}
@@ -232,16 +241,18 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
   }
 
   // Phase: review — show what was found, let user proceed
-  if (phase === 'review' && posterDraft) {
-    const { draft, uncertain } = posterDraft;
+  if (phase === 'review' && eventDraft) {
+    const { draft, uncertain } = eventDraft;
     const hasUncertainFields = uncertain.length > 0;
 
     return (
       <div class="event-creator">
-        <div class="event-creator-review">
-          <div class="event-creator-review-poster">
-            <img src={`${cdnUrl}/cdn-cgi/image/width=300,format=auto/${posterKey}`} alt="Event poster" />
-          </div>
+        <div class={`event-creator-review ${posterKey ? '' : 'event-creator-review--no-poster'}`}>
+          {posterKey && (
+            <div class="event-creator-review-poster">
+              <img src={`${cdnUrl}/cdn-cgi/image/width=300,format=auto/${posterKey}`} alt="Event poster" />
+            </div>
+          )}
           <div class="event-creator-review-data">
             <h3>Here's what we found</h3>
             <table class="extraction-table">
