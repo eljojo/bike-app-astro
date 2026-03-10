@@ -3,7 +3,7 @@
 import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { z } from 'zod';
+import { z } from 'astro/zod';
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { z } from 'zod';
+import { z } from 'astro/zod';
 import matter from 'gray-matter';
 
 export const placeDetailSchema = z.object({
