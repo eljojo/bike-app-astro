@@ -5,11 +5,15 @@ import { env } from '../../../lib/env';
 import { db } from '../../../lib/get-db';
 import { generateMediaKey, createPresignedUploadUrl } from '../../../lib/storage';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { authorize } from '../../../lib/authorize';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../../lib/rate-limit';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
 export async function POST({ request, locals }: APIContext) {
+  const auth = authorize(locals, 'upload-media');
+  if (auth instanceof Response) return auth;
+
   let body: { contentType?: string; contentLength?: number };
   try {
     body = await request.json();
@@ -27,8 +31,7 @@ export async function POST({ request, locals }: APIContext) {
     return jsonError('File too large. Maximum size is 25MB.', 413);
   }
 
-  const user = (locals as any).user;
-  const role: string = user?.role ?? 'guest';
+  const role: string = auth.role;
   const limit = LIMITS[role];
 
   if (limit != null) {
@@ -37,7 +40,7 @@ export async function POST({ request, locals }: APIContext) {
       || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || 'unknown';
 
-    const identifiers = [`user:${user?.id ?? 'anonymous'}`, `ip:${ip}`];
+    const identifiers = [`user:${auth.id}`, `ip:${ip}`];
     const overLimit = await checkRateLimit(database, 'presign', identifiers, limit);
 
     if (overLimit) {

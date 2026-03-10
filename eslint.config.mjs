@@ -3,6 +3,8 @@ import noHardcodedCityLocale from './eslint-rules/no-hardcoded-city-locale.js';
 import requirePrerenderExport from './eslint-rules/require-prerender-export.js';
 import vendorIsolation from './eslint-rules/vendor-isolation.js';
 import zodImportSource from './eslint-rules/zod-import-source.js';
+import requireAuthorizeCall from './eslint-rules/require-authorize-call.js';
+import enforceModelLayer from './eslint-rules/enforce-model-layer.js';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -19,6 +21,8 @@ export default [
           'require-prerender-export': requirePrerenderExport,
           'vendor-isolation': vendorIsolation,
           'zod-import-source': zodImportSource,
+          'require-authorize-call': requireAuthorizeCall,
+          'enforce-model-layer': enforceModelLayer,
         },
       },
     },
@@ -27,6 +31,8 @@ export default [
       'bike-app/require-prerender-export': 'error',
       'bike-app/vendor-isolation': 'error',
       'bike-app/zod-import-source': 'warn',
+      'bike-app/require-authorize-call': 'error',
+      'bike-app/enforce-model-layer': 'error',
     },
   },
   {

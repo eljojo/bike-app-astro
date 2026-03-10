@@ -1,3 +1,4 @@
+// eslint-disable-next-line bike-app/require-authorize-call -- Plausible analytics proxy, intentionally public
 import type { APIRoute } from 'astro';
 
 export const prerender = false;
