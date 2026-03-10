@@ -183,3 +183,43 @@ declare module 'virtual:bike-app/photo-shared-keys' {
   const sharedKeys: Record<string, Array<{ type: 'route' | 'place' | 'event' | 'parked'; slug: string }>>;
   export default sharedKeys;
 }
+
+interface _Tour {
+  slug: string;
+  name: string;
+  description?: string;
+  total_distance_km: number;
+  total_elevation_m: number;
+  days: number;
+  ride_count: number;
+  countries: string[];
+  start_date: string;
+  end_date: string;
+  rides: string[];
+}
+
+declare module 'virtual:bike-app/tours' {
+  const tours: _Tour[];
+  export default tours;
+}
+
+interface _RideStats {
+  total_distance_km: number;
+  total_elevation_m: number;
+  total_rides: number;
+  total_tours: number;
+  total_days: number;
+  countries: string[];
+  by_year: Record<string, { rides: number; distance_km: number; elevation_m: number }>;
+  by_country: Record<string, { rides: number; distance_km: number }>;
+  records: {
+    longest_ride?: { slug: string; name: string; distance_km: number };
+    most_elevation?: { slug: string; name: string; elevation_m: number };
+    longest_tour?: { slug: string; name: string; distance_km: number; days: number };
+  };
+}
+
+declare module 'virtual:bike-app/ride-stats' {
+  const stats: _RideStats;
+  export default stats;
+}

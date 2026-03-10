@@ -133,7 +133,7 @@ export function detectTours(gpxPaths: string[]): Tour[] {
 }
 
 /** Build a slug from ride date and filename. */
-function buildSlug(date: RideDate, gpxFilename: string): string {
+export function buildSlug(date: RideDate, gpxFilename: string): string {
   const baseName = gpxFilename.replace(/\.gpx$/i, '');
 
   // Strip the leading date prefix from the filename to avoid duplication
@@ -150,7 +150,7 @@ function buildSlug(date: RideDate, gpxFilename: string): string {
 }
 
 /** Build an ISO date string from a RideDate. */
-function rideDateToIso(date: RideDate): string {
+export function rideDateToIso(date: RideDate): string {
   const mm = String(date.month).padStart(2, '0');
   const dd = String(date.day).padStart(2, '0');
   return `${date.year}-${mm}-${dd}`;
@@ -160,7 +160,7 @@ function rideDateToIso(date: RideDate): string {
  * Recursively find all .gpx files under a directory.
  * Returns paths relative to the base directory.
  */
-function findGpxFiles(baseDir: string, dir: string = ''): string[] {
+export function findGpxFiles(baseDir: string, dir: string = ''): string[] {
   const results: string[] = [];
   const absDir = dir ? path.join(baseDir, dir) : baseDir;
 
@@ -207,7 +207,7 @@ function computeRideDigest(ridesDir: string, gpxRelPath: string): string {
 }
 
 /** Extract a human-readable name from a GPX filename. */
-function nameFromFilename(gpxFilename: string): string {
+export function nameFromFilename(gpxFilename: string): string {
   return gpxFilename
     .replace(/\.gpx$/i, '')
     .replace(/^\d{1,2}-\d{1,2}-/, '')   // strip MM-DD- prefix
