@@ -113,6 +113,10 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     if (useRealEmail) {
       message += `\nCo-Authored-By: ${user.username} <${appEmail}>`;
     }
+    const appBranch: string = typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'unknown';
+    if (env.ENVIRONMENT === 'staging' && appBranch !== 'main') {
+      message += `\nApp-Branch: ${appBranch}`;
+    }
     const sha = await git.writeFiles(files, message, authorInfo,
       deletePaths.length > 0 ? deletePaths : undefined);
 

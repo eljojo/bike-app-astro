@@ -7,6 +7,7 @@ import { adminRoutesIntegration } from './src/integrations/admin-routes';
 import { slugRedirectLines } from './src/lib/slug-redirects.ts';
 import { buildDataPlugin } from './src/build-data-plugin';
 import { sharedCspDirectives } from './src/lib/csp';
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -158,6 +159,11 @@ export default defineConfig({
     }
   ],
   vite: {
+    define: {
+      __APP_BRANCH__: JSON.stringify(
+        (() => { try { return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim(); } catch { return 'unknown'; } })()
+      ),
+    },
     plugins: [buildDataPlugin()],
     build: {
       rollupOptions: {
