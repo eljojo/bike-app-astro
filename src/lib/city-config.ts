@@ -4,6 +4,7 @@ import yaml from 'js-yaml';
 import { cityDir } from './config';
 
 export interface CityConfig {
+  instance_type?: 'blog' | 'wiki';
   name: string;
   display_name: string;
   tagline: string;
@@ -37,4 +38,8 @@ export function getCityConfig(): CityConfig {
   const raw = fs.readFileSync(configPath, 'utf-8');
   cached = yaml.load(raw) as CityConfig;
   return cached;
+}
+
+export function isBlogInstance(): boolean {
+  return getCityConfig().instance_type === 'blog';
 }

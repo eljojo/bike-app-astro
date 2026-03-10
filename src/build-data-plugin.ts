@@ -261,6 +261,7 @@ export function buildDataPlugin(): Plugin {
           code: `
 const _data = ${JSON.stringify(cityConfig)};
 export function getCityConfig() { return _data; }
+export function isBlogInstance() { return _data.instance_type === 'blog'; }
 `,
           map: null,
         };
