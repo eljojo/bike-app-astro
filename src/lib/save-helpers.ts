@@ -1,8 +1,5 @@
-interface KeyChange {
-  key: string;
-  usage: { type: string; slug: string };
-  action: 'add' | 'remove';
-}
+import type { PhotoKeyChange } from './photo-parking';
+import type { PhotoUsage } from './photo-registry';
 
 /**
  * Build the photo-key change list for afterCommit photo registry updates.
@@ -11,10 +8,10 @@ interface KeyChange {
 export function buildPhotoKeyChanges(
   oldKey: string | undefined,
   newKey: string | undefined,
-  contentType: string,
+  contentType: PhotoUsage['type'],
   slug: string,
-): KeyChange[] {
-  const changes: KeyChange[] = [];
+): PhotoKeyChange[] {
+  const changes: PhotoKeyChange[] = [];
   if (oldKey !== newKey) {
     if (oldKey) changes.push({ key: oldKey, usage: { type: contentType, slug }, action: 'remove' });
     if (newKey) changes.push({ key: newKey, usage: { type: contentType, slug }, action: 'add' });
