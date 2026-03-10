@@ -1,5 +1,5 @@
 // tests/empty-commit.test.ts
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { CommitAuthor } from '../src/lib/git-service';
 
 const TEST_AUTHOR: CommitAuthor = { name: 'Test', email: 'test@example.com' };

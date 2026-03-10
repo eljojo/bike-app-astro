@@ -64,7 +64,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
   const dragCounterRef = useRef(0);
 
-  const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
+  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/routes',
     contentId: initialData.slug,
     initialContentHash: initialData.contentHash,
