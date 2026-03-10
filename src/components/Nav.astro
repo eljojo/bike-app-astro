@@ -3,6 +3,7 @@
 import { t, localePath } from '../i18n';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
+import { isBlogInstance } from '../lib/city-config';
 
 interface Props {
   alternateUrls?: Record<string, string>;
@@ -12,16 +13,28 @@ const { alternateUrls } = Astro.props;
 const locale = Astro.currentLocale || defaultLocale();
 const locales = supportedLocales();
 const showSwitcher = locales.length > 1;
+const blog = isBlogInstance();
 
 const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 ---
 <nav class="top-nav">
   <ul>
-    <li class="nav-about"><a href={localePath('/about', locale)}>👋 {t('nav.about', locale)}</a></li>
-    <li><a href={localePath('/calendar', locale)}>📅 {t('nav.calendar', locale)}</a></li>
-    <li><a href={localePath('/map', locale)}>🗺️ {t('nav.map', locale)}</a></li>
-    <li class="nav-admin"><a href="/admin">🔧 Admin</a></li>
+    {blog ? (
+      <>
+        <li><a href="/rides">{t('nav.rides', locale)}</a></li>
+        <li><a href="/tours">{t('nav.tours', locale)}</a></li>
+        <li><a href="/stats">{t('nav.stats', locale)}</a></li>
+        <li class="nav-about"><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
+      </>
+    ) : (
+      <>
+        <li class="nav-about"><a href={localePath('/about', locale)}>&#x1F44B; {t('nav.about', locale)}</a></li>
+        <li><a href={localePath('/calendar', locale)}>&#x1F4C5; {t('nav.calendar', locale)}</a></li>
+        <li><a href={localePath('/map', locale)}>&#x1F5FA;&#xFE0F; {t('nav.map', locale)}</a></li>
+      </>
+    )}
+    <li class="nav-admin"><a href="/admin">&#x1F527; Admin</a></li>
     {showSwitcher && (
       <li class="nav-lang">
         <a href={switchPath} data-locale={otherLocale}>

@@ -17,6 +17,11 @@ export const paths = {
   routeGpx: (slug: string, variant: string) => `/routes/${slug}/${variant}.gpx`,  // GPX never localized
   guide: (slug: string, locale?: string) => localize(`/guides/${slug}`, locale),
   video: (handle: string, locale?: string) => localize(`/videos/${handle}`, locale),
+  // Blog instance paths
+  ride: (slug: string) => `/rides/${slug}`,
+  rideMap: (slug: string) => `/rides/${slug}/map`,
+  rideGpx: (slug: string, variant: string) => `/rides/${slug}/${variant}.gpx`,
+  tour: (slug: string) => `/tours/${slug}`,
 };
 
 /** Get the correct slug for a route in the given locale. Uses translated slug if available. */

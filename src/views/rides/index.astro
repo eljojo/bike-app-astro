@@ -1,0 +1,74 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '@/lib/city-config';
+import { imageUrl } from '@/lib/image-service';
+import { isPublished } from '@/lib/content-filters';
+import { t } from '@/i18n';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+const allRoutes = await getCollection('routes');
+
+// Sort by ride_date descending
+const rides = allRoutes
+  .filter(isPublished)
+  .sort((a, b) => (b.data.ride_date || '').localeCompare(a.data.ride_date || ''));
+
+// Group by year
+const byYear = new Map<number, typeof rides>();
+for (const ride of rides) {
+  const year = ride.data.ride_date ? new Date(ride.data.ride_date).getFullYear() : 0;
+  if (!byYear.has(year)) byYear.set(year, []);
+  byYear.get(year)!.push(ride);
+}
+const years = [...byYear.keys()].sort((a, b) => b - a);
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h${m.toString().padStart(2, '0')}m`;
+}
+---
+
+<Base title={`${t('nav.rides', locale)} | ${config.display_name}`} description={t('rides.description', locale)}>
+  <h1>{t('nav.rides', locale)}</h1>
+  {years.map(year => (
+    <section class="rides-year-section">
+      <h2>{year || 'Unknown'}</h2>
+      <ul class="rides-list">
+        {byYear.get(year)!.map(ride => {
+          const cover = ride.data.media.find(m => m.cover);
+          return (
+            <li class="ride-card">
+              <a href={`/rides/${ride.id}`} class="ride-card--link">
+                {cover && (
+                  <div class="ride-card--cover">
+                    <img
+                      src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                      alt={ride.data.name}
+                      loading="lazy"
+                      width="300"
+                      height="200"
+                    />
+                  </div>
+                )}
+                <div class="ride-card--info">
+                  <strong class="ride-card--name">{ride.data.name}</strong>
+                  <span class="ride-card--meta">
+                    {ride.data.ride_date}
+                    {' · '}
+                    {ride.data.distance_km.toFixed(0)} km
+                    {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                    {ride.data.country ? ` · ${ride.data.country}` : ''}
+                  </span>
+                </div>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  ))}
+</Base>

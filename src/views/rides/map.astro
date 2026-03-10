@@ -1,0 +1,58 @@
+---
+import Base from '@/layouts/Base.astro';
+import MapPage from '@/components/MapPage.astro';
+import { elevationConclusion } from '@/lib/elevation';
+import { getCityConfig } from '@/lib/city-config';
+import { getCollection } from 'astro:content';
+import { getAllElevations } from '@/lib/elevation';
+import { paths } from '@/lib/paths';
+import { variantKeyFromGpx } from '@/lib/map-thumbnails';
+
+const config = getCityConfig();
+
+export const prerender = true;
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  const allElevations = getAllElevations(routes);
+
+  return routes.map(route => ({
+    params: { slug: route.id },
+    props: { route, allElevations },
+  }));
+}
+
+const { route, allElevations } = Astro.props;
+const { name, variants, gpxTracks } = route.data;
+
+const variant = variants[0];
+const track = variant ? gpxTracks[variant.gpx] : null;
+const elevation = track?.elevation_gain_m;
+const conclusion = elevation ? elevationConclusion(elevation, allElevations) : null;
+const variantKey = variant ? variantKeyFromGpx(variant.gpx) : '';
+
+const photos = route.data.media
+  .filter((m: any) => m.type === 'photo' && m.lat != null && m.lng != null)
+  .map((m: any, i: number) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
+---
+
+<Base title={`Map: ${name} | ${config.display_name}`}>
+  {variant && track ? (
+    <MapPage
+      routeSlug={route.id}
+      routeLocaleSlug={route.id}
+      routeName={name}
+      variant={variant}
+      polyline={track.polyline}
+      elevationGain={elevation}
+      elevationConclusion={conclusion}
+      places={[]}
+      photos={photos}
+      trackPoints={track.points}
+      trackDistanceM={track.distance_m}
+      gpxPath={paths.rideGpx(route.id, variantKey)}
+      backPath={paths.ride(route.id)}
+    />
+  ) : (
+    <p>No map available for this ride.</p>
+  )}
+</Base>

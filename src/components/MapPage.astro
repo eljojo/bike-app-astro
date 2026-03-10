@@ -53,9 +53,13 @@ interface Props {
   photos?: MapPhoto[];
   trackPoints?: GpxPoint[];
   trackDistanceM?: number;
+  /** Override GPX download path (for blog rides that use /rides/ instead of /routes/) */
+  gpxPath?: string;
+  /** Override "back to" link path */
+  backPath?: string;
 }
 
-const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM } = Astro.props;
+const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM, gpxPath, backPath } = Astro.props;
 const linkSlug = routeLocaleSlug || routeSlug;
 const siteUrl = import.meta.env.SITE || getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
@@ -66,7 +70,7 @@ function gpxStudioUrl(gpxUrl: string): string {
   return `https://gpx.studio/?state=%7B%22urls%22:%5B%22${urlParam}%22%5D%7D&distance&slope`;
 }
 
-const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, variantKey)}`;
+const gpxUrl = `${siteUrl}${gpxPath || paths.routeGpx(routeSlug, variantKey)}`;
 const exploreUrl = gpxStudioUrl(gpxUrl);
 const hasVariantMap = hasCachedMap(routeSlug, variantKey, locale);
 const variantMapLang = cachedMapLocale(routeSlug, variantKey, locale);
@@ -127,5 +131,5 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 )}
 
 <p style="margin-top: 1em;">
-  <a href={paths.route(linkSlug, locale)} class="go-back-button">&#x21A9; {t('map.back_to', locale, { name: routeName })}</a>
+  <a href={backPath || paths.route(linkSlug, locale)} class="go-back-button">&#x21A9; {t('map.back_to', locale, { name: routeName })}</a>
 </p>

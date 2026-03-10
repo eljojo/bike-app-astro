@@ -1056,3 +1056,246 @@ a.go-back-button {
     color: $color-accent;
   }
 }
+
+// -----------------------------------------------
+// Blog instance styles (rides, tours, stats)
+// -----------------------------------------------
+
+// Ride breadcrumb
+.ride-breadcrumb {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  @include muted-text;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+// Rides list (shared between rides index, tour detail, and homepage)
+.rides-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ride-card {
+  margin-bottom: 0.75rem;
+}
+
+.ride-card--link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  color: $color-text;
+  padding: 0.75rem;
+  border-radius: $border-radius;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: $color-card-hover;
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+
+    &:hover {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.ride-card--cover {
+  flex-shrink: 0;
+
+  img {
+    border-radius: $border-radius;
+    display: block;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
+  }
+}
+
+.ride-card--info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ride-card--name {
+  font-size: 1.05rem;
+}
+
+.ride-card--meta {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+// Tour list
+.tours-summary {
+  @include muted-text;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.tours-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tour-card {
+  margin-bottom: 0.75rem;
+}
+
+.tour-card--link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-decoration: none;
+  color: $color-text;
+  padding: 0.75rem;
+  border-radius: $border-radius;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: $color-card-hover;
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+
+    &:hover {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.tour-card--name {
+  font-size: 1.05rem;
+}
+
+.tour-card--meta {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.tour-card--description {
+  font-size: 0.9rem;
+  @include muted-text;
+}
+
+.tour-detail {
+  h2 { margin-top: 2rem; }
+}
+
+// Stats page
+.stats-headline {
+  flex-wrap: wrap;
+}
+
+.stats-section {
+  margin-top: 2rem;
+}
+
+.stats-records {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stats-record-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  flex: 1;
+  min-width: 200px;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.stats-record-card--label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  @include muted-text;
+}
+
+.stats-record-card--value {
+  font-weight: 600;
+  color: $color-text;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+}
+
+.stats-record-card--detail {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+
+  th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    @include muted-text;
+  }
+
+  td {
+    font-size: 0.95rem;
+  }
+
+  tbody tr:hover {
+    background: $color-card-hover;
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+// Blog homepage
+.blog-home--section {
+  margin-top: 2rem;
+}
+
+.blog-home--more {
+  margin-top: 1rem;
+
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.rides-year-section {
+  margin-bottom: 2rem;
+}

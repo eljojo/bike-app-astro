@@ -3,71 +3,183 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
-import { getCityConfig } from '@/lib/city-config';
+import { getCityConfig, isBlogInstance } from '@/lib/city-config';
 import { t } from '@/i18n';
 import { routeSlug } from '@/lib/paths';
-import { loadHomepageData } from '@/lib/route-data';
+import { imageUrl } from '@/lib/image-service';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
+const blog = isBlogInstance();
 
-const { published, routeTagsMap, filterTags } = await loadHomepageData();
+// For wiki instances, load the traditional homepage data
+// For blog instances, load rides and stats
+let wikiData: Awaited<ReturnType<typeof import('@/lib/route-data').loadHomepageData>> | null = null;
+let blogRides: Array<any> = [];
+let blogHighlights: Array<any> = [];
+
+if (blog) {
+  const { getCollection } = await import('astro:content');
+  const { isPublished } = await import('@/lib/content-filters');
+  const allRoutes = await getCollection('routes');
+  const published = allRoutes
+    .filter(isPublished)
+    .sort((a, b) => (b.data.ride_date || '').localeCompare(a.data.ride_date || ''));
+  blogHighlights = published.filter(r => r.data.highlight);
+  blogRides = published.slice(0, 10);
+} else {
+  const { loadHomepageData } = await import('@/lib/route-data');
+  wikiData = await loadHomepageData();
+}
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h${m.toString().padStart(2, '0')}m`;
+}
 ---
 
 <Base title={config.display_name} description={config.tagline}>
-  <div class="welcome-message">
-    <h3>{t('home.welcome', locale)}</h3>
-  </div>
-  <TagFilter tags={filterTags} />
-  <ul class="routes-grid">
-    {published.map((route, i) => {
-      const cover = route.data.media.find(m => m.cover);
-      const trans = route.data.translations?.[locale!];
-      return (
-        <RouteCard
-          slug={route.id}
-          localeSlug={routeSlug(route, locale)}
-          name={trans?.name || route.data.name}
-          tagline={trans?.tagline || route.data.tagline}
-          distance_km={route.data.distance_km}
-          tags={routeTagsMap.get(route.id)!}
-          body={trans?.body || route.body}
-          coverKey={cover?.key}
-          lazy={i >= 5}
-          variants={route.data.variants}
-        />
-      );
-    })}
-  </ul>
-  <div class="suggest-route-cta">
-    <a href="/admin/routes/new" class="suggest-route-link">
-      Know a route that's missing? Suggest a new route
-    </a>
-  </div>
-  <script>
-    // Reorder starred routes to top of the grid
-    (async () => {
-      try {
-        const res = await fetch('/api/reactions/route/_starred');
-        if (!res.ok) return;
-        const data = await res.json();
-        const starred: string[] = data.starredSlugs || [];
-        if (starred.length === 0) return;
+  {blog ? (
+    <div class="blog-home">
+      <div class="welcome-message">
+        <h3>{config.tagline}</h3>
+      </div>
 
-        const grid = document.querySelector('.routes-grid');
-        if (!grid) return;
+      {blogHighlights.length > 0 && (
+        <section class="blog-home--section">
+          <h2>{t('home.highlights', locale)}</h2>
+          <ul class="rides-list">
+            {blogHighlights.map(ride => {
+              const cover = ride.data.media.find(m => m.cover);
+              return (
+                <li class="ride-card">
+                  <a href={`/rides/${ride.id}`} class="ride-card--link">
+                    {cover && (
+                      <div class="ride-card--cover">
+                        <img
+                          src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                          alt={ride.data.name}
+                          loading="lazy"
+                          width="300"
+                          height="200"
+                        />
+                      </div>
+                    )}
+                    <div class="ride-card--info">
+                      <strong class="ride-card--name">{ride.data.name}</strong>
+                      <span class="ride-card--meta">
+                        {ride.data.ride_date}
+                        {' · '}
+                        {ride.data.distance_km.toFixed(0)} km
+                        {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                        {ride.data.country ? ` · ${ride.data.country}` : ''}
+                      </span>
+                    </div>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
-        const starredSet = new Set(starred);
-        const cards = [...grid.querySelectorAll<HTMLElement>('.route-card')];
-        const starredCards = cards.filter(c => starredSet.has(c.dataset.slug || ''));
+      <section class="blog-home--section">
+        <h2>{t('home.latest_rides', locale)}</h2>
+        <ul class="rides-list">
+          {blogRides.map(ride => {
+            const cover = ride.data.media.find(m => m.cover);
+            return (
+              <li class="ride-card">
+                <a href={`/rides/${ride.id}`} class="ride-card--link">
+                  {cover && (
+                    <div class="ride-card--cover">
+                      <img
+                        src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                        alt={ride.data.name}
+                        loading="lazy"
+                        width="300"
+                        height="200"
+                      />
+                    </div>
+                  )}
+                  <div class="ride-card--info">
+                    <strong class="ride-card--name">{ride.data.name}</strong>
+                    <span class="ride-card--meta">
+                      {ride.data.ride_date}
+                      {' · '}
+                      {ride.data.distance_km.toFixed(0)} km
+                      {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                      {ride.data.country ? ` · ${ride.data.country}` : ''}
+                    </span>
+                  </div>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+        <p class="blog-home--more">
+          <a href="/rides">{t('home.all_rides', locale)}</a>
+        </p>
+      </section>
+    </div>
+  ) : (
+    <>
+      <div class="welcome-message">
+        <h3>{t('home.welcome', locale)}</h3>
+      </div>
+      <TagFilter tags={wikiData!.filterTags} />
+      <ul class="routes-grid">
+        {wikiData!.published.map((route, i) => {
+          const cover = route.data.media.find(m => m.cover);
+          const trans = route.data.translations?.[locale!];
+          return (
+            <RouteCard
+              slug={route.id}
+              localeSlug={routeSlug(route, locale)}
+              name={trans?.name || route.data.name}
+              tagline={trans?.tagline || route.data.tagline}
+              distance_km={route.data.distance_km}
+              tags={wikiData!.routeTagsMap.get(route.id)!}
+              body={trans?.body || route.body}
+              coverKey={cover?.key}
+              lazy={i >= 5}
+              variants={route.data.variants}
+            />
+          );
+        })}
+      </ul>
+      <div class="suggest-route-cta">
+        <a href="/admin/routes/new" class="suggest-route-link">
+          Know a route that's missing? Suggest a new route
+        </a>
+      </div>
+      <script>
+        // Reorder starred routes to top of the grid
+        (async () => {
+          try {
+            const res = await fetch('/api/reactions/route/_starred');
+            if (!res.ok) return;
+            const data = await res.json();
+            const starred: string[] = data.starredSlugs || [];
+            if (starred.length === 0) return;
 
-        // Move starred cards to the top, preserving their relative order
-        for (const card of starredCards.reverse()) {
-          grid.prepend(card);
-        }
-      } catch {
-        // Silently fail — starred reordering is progressive enhancement
-      }
-    })();
-  </script>
+            const grid = document.querySelector('.routes-grid');
+            if (!grid) return;
+
+            const starredSet = new Set(starred);
+            const cards = [...grid.querySelectorAll<HTMLElement>('.route-card')];
+            const starredCards = cards.filter(c => starredSet.has(c.dataset.slug || ''));
+
+            // Move starred cards to the top, preserving their relative order
+            for (const card of starredCards.reverse()) {
+              grid.prepend(card);
+            }
+          } catch {
+            // Silently fail — starred reordering is progressive enhancement
+          }
+        })();
+      </script>
+    </>
+  )}
 </Base>

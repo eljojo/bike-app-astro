@@ -1,0 +1,167 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { imageUrl } from '@/lib/image-service';
+import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
+import { getCityConfig } from '@/lib/city-config';
+import { isPublished } from '@/lib/content-filters';
+import { t } from '@/i18n';
+import PhotoGallery from '@/components/PhotoGallery.astro';
+import tours from 'virtual:bike-app/tours';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  return routes.map(route => ({
+    params: { slug: route.id },
+    props: { route },
+  }));
+}
+
+const { route } = Astro.props;
+const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
+
+const cover = media.find(m => m.cover);
+const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
+const hasMap = hasCachedMap(route.id);
+const mapLang = cachedMapLocale(route.id, undefined, locale);
+
+const primaryGpx = route.data.variants[0]?.gpx;
+const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
+
+// Tour info
+const tour = route.data.tour_slug
+  ? tours.find(t => t.slug === route.data.tour_slug)
+  : null;
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h${m.toString().padStart(2, '0')}m`;
+}
+
+function formatSpeed(kmh: number): string {
+  return `${kmh.toFixed(1)} km/h`;
+}
+
+const seoTitle = `${name} | ${config.display_name}`;
+const seoDescription = route.data.ride_date
+  ? `${name} — ${distance_km.toFixed(0)} km ride on ${route.data.ride_date}`
+  : `${name} — ${distance_km.toFixed(0)} km ride`;
+---
+
+<Base title={seoTitle} description={seoDescription} ogImage={coverUrl} ogImageAlt={name}>
+  <div class="route-detail">
+    {cover && (
+      <div class="route-detail--hero">
+        <img
+          src={imageUrl(cover.key, { width: 1170 })}
+          alt={name}
+          class="gallery-cover-photo"
+        />
+      </div>
+    )}
+
+    <div class="route-detail--content">
+      <div class="route-detail--body">
+        {/* Breadcrumb for tour */}
+        {tour && (
+          <nav class="ride-breadcrumb">
+            <a href="/tours">{t('nav.tours', locale)}</a>
+            {' / '}
+            <a href={`/tours/${tour.slug}`}>{tour.name}</a>
+          </nav>
+        )}
+
+        <h1>{name}</h1>
+
+        {/* Stats strip */}
+        <div class="route-stats">
+          {route.data.ride_date && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('ride.date', locale)}</span>
+              <span class="route-stats--value">{route.data.ride_date}</span>
+            </div>
+          )}
+          <div class="route-stats--item">
+            <span class="route-stats--label">{t('ride.distance', locale)}</span>
+            <span class="route-stats--value">{distance_km.toFixed(0)} km</span>
+          </div>
+          {primaryTrack?.elevation_gain_m != null && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('ride.elevation', locale)}</span>
+              <span class="route-stats--value">{primaryTrack.elevation_gain_m} m</span>
+            </div>
+          )}
+          {route.data.moving_time_s && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('ride.moving_time', locale)}</span>
+              <span class="route-stats--value">{formatTime(route.data.moving_time_s)}</span>
+            </div>
+          )}
+          {route.data.elapsed_time_s && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('ride.elapsed_time', locale)}</span>
+              <span class="route-stats--value">{formatTime(route.data.elapsed_time_s)}</span>
+            </div>
+          )}
+          {route.data.average_speed_kmh && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('ride.speed', locale)}</span>
+              <span class="route-stats--value">{formatSpeed(route.data.average_speed_kmh)}</span>
+            </div>
+          )}
+          {route.data.country && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('ride.country', locale)}</span>
+              <span class="route-stats--value">{route.data.country}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Description */}
+        {renderedBody && <div class="route-description" set:html={renderedBody} />}
+
+        {/* Map action */}
+        <div class="route-actions">
+          <p>
+            <a href={`/rides/${route.id}/map`} class="action-button --primary --wider">
+              &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
+            </a>
+            {route.data.variants[0]?.strava_url && (
+              <Fragment>
+                {' '}
+                <a href={route.data.variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
+                  <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+                </a>
+              </Fragment>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {hasMap && (
+        <div class="route-detail--static-map">
+          <a href={`/rides/${route.id}/map`} title={t('ride.view_map', locale)}>
+            <img
+              src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
+              alt={`Map of ${name}`}
+            />
+          </a>
+        </div>
+      )}
+    </div>
+
+    {photos.length > 0 && (
+      <PhotoGallery photos={photos} routeName={name} />
+    )}
+
+    <p class="route-similar">
+      <a href="/rides" class="go-back-button">&#x21A9; {t('ride.go_back', locale)}</a>
+    </p>
+  </div>
+</Base>

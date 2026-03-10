@@ -1,0 +1,50 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import tours from 'virtual:bike-app/tours';
+import { getCityConfig } from '@/lib/city-config';
+import { t } from '@/i18n';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+const sortedTours = [...tours].sort((a, b) => b.start_date.localeCompare(a.start_date));
+
+const totalDistance = tours.reduce((sum, t) => sum + t.total_distance_km, 0);
+const totalDays = tours.reduce((sum, t) => sum + t.days, 0);
+---
+
+<Base title={`${t('nav.tours', locale)} | ${config.display_name}`} description={t('tours.description', locale)}>
+  <h1>{t('tours.title', locale)}</h1>
+  {tours.length > 0 && (
+    <p class="tours-summary">
+      {t('tours.summary', locale, {
+        distance: totalDistance.toLocaleString(),
+        days: String(totalDays),
+        count: String(tours.length),
+      })}
+    </p>
+  )}
+  <ul class="tours-list">
+    {sortedTours.map(tour => (
+      <li class="tour-card">
+        <a href={`/tours/${tour.slug}`} class="tour-card--link">
+          <strong class="tour-card--name">{tour.name}</strong>
+          <span class="tour-card--meta">
+            {tour.start_date}
+            {tour.end_date !== tour.start_date ? ` — ${tour.end_date}` : ''}
+            {' · '}
+            {tour.days} {t('tours.days', locale)}
+            {' · '}
+            {tour.total_distance_km.toFixed(0)} km
+            {' · '}
+            {tour.ride_count} {t('tours.rides', locale)}
+            {tour.countries.length > 0 ? ` · ${tour.countries.join(', ')}` : ''}
+          </span>
+          {tour.description && (
+            <span class="tour-card--description">{tour.description}</span>
+          )}
+        </a>
+      </li>
+    ))}
+  </ul>
+</Base>
