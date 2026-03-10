@@ -15,7 +15,7 @@ All save handlers update the photo-shared-keys registry via `updatePhotoRegistry
 
 ## Registering New Endpoints
 
-1. Create file here (NOT in `src/pages/api/` — exception: auth endpoints in `src/pages/api/auth/`)
+1. Create file here (auth endpoints go in `src/views/api/auth/`)
 2. Add `export const prerender = false` at top level
 3. Register in `src/integrations/admin-routes.ts` — static routes MUST precede parameterized routes when they share a prefix
 4. If public (no auth needed), add exclusion in `src/middleware.ts` `isProtected` check

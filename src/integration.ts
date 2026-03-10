@@ -22,7 +22,7 @@ import { sharedCspDirectives } from './lib/csp';
 import { slugRedirectLines } from './lib/slug-redirects';
 import { buildDataPlugin } from './build-data-plugin';
 import { i18nRoutes } from './integrations/i18n-routes';
-import { adminRoutesIntegration } from './integrations/admin-routes';
+import { appRoutesIntegration } from './integrations/admin-routes';
 
 /**
  * Returns CSP security config for use in defineConfig().
@@ -134,6 +134,13 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
                 // is dead code, but Rollup still tries to resolve it. Mark it external.
                 external: process.env.RUNTIME === 'local' ? ['cloudflare:workers'] : [],
               },
+            },
+            // Ensure Preact JSX transform works for components inside node_modules.
+            // @preact/preset-vite excludes node_modules by default; this fallback
+            // makes Vite's esbuild transform use Preact for any files the plugin skips.
+            esbuild: {
+              jsx: 'automatic',
+              jsxImportSource: 'preact',
             },
             css: {
               preprocessorOptions: {
@@ -264,7 +271,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
   return [
     setupIntegration,
     i18nRoutes(),
-    adminRoutesIntegration(),
+    appRoutesIntegration(),
     copyPublicAssets,
     copyMapCache,
     generateRedirects,

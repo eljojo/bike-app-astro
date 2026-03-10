@@ -4,13 +4,13 @@ export default {
     type: 'problem',
     docs: { description: 'Require explicit prerender export in page/API files' },
     messages: {
-      missingPrerender: 'Files in src/views/ and src/pages/ must export `prerender` (true or false).',
+      missingPrerender: 'Files in src/views/ must export `prerender` (true or false).',
     },
   },
   create(context) {
     const filename = context.filename || context.getFilename();
-    // Only apply to .ts files in src/views/ and src/pages/ (not .astro — those are handled differently)
-    if (!filename.match(/src\/(views|pages)\/.*\.ts$/)) return {};
+    // Only apply to .ts files in src/views/ (not .astro — those are handled differently)
+    if (!filename.match(/src\/views\/.*\.ts$/)) return {};
 
     let hasPrerender = false;
     let hasRouteHandler = false;

@@ -2,7 +2,7 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
-import { jsonResponse, jsonError } from '../../../lib/api-response';
+import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export async function PUT({ request, url }: APIContext) {
   if (process.env.RUNTIME !== 'local') {
@@ -15,7 +15,7 @@ export async function PUT({ request, url }: APIContext) {
   }
 
   try {
-    const { env } = await import('../../../lib/env');
+    const { env } = await import('../../lib/env');
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const body = await request.arrayBuffer();
     await env.BUCKET.put(`${prefix}uploads/pending/${key}`, body);

@@ -18,8 +18,8 @@ vi.mock('@simplewebauthn/server', () => ({
   verifyRegistrationResponse: vi.fn(),
 }));
 
-const { POST: upgradeOptions } = await import('../src/pages/api/auth/upgrade-options');
-const { POST: upgrade } = await import('../src/pages/api/auth/upgrade');
+const { POST: upgradeOptions } = await import('../src/views/api/auth/upgrade-options');
+const { POST: upgrade } = await import('../src/views/api/auth/upgrade');
 
 function makeCookies(token?: string) {
   return {

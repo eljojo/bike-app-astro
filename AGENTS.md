@@ -205,11 +205,10 @@ src/
   lib/            # Service modules, adapters, save pipeline, auth
   lib/models/     # Canonical type defs: route-model.ts, event-model.ts, place-model.ts
   loaders/        # Custom Astro content loaders (routes, pages, admin data)
-  pages/          # File-based routing (public pages + auth API + feeds)
   schemas/        # Zod schemas for content collections (barrel export via index.ts)
   styles/         # SCSS — _variables.scss is the design token source of truth
   types/          # TypeScript types (admin.ts, mapbox-polyline.d.ts)
-  views/          # Admin pages + API endpoints (injected via injectRoute)
+  views/          # All pages + API endpoints (injected via injectRoute, no src/pages/)
 docs/             # Documentation site (separate npm workspace)
 drizzle/          # Migration SQL files
 e2e/              # Playwright screenshot + admin E2E tests
@@ -239,14 +238,14 @@ This is the most complex operation. Files that must change together:
 8. `src/views/api/{type}-save.ts` — implement `SaveHandlers<T>` with `POST` export
 9. `src/integrations/admin-routes.ts` — register admin pages + API endpoint
 10. `src/views/admin/{type}-detail.astro` + `{type}-new.astro` — admin pages
-11. `src/pages/admin/{types}.astro` — admin list page
+11. `src/views/admin/{types}.astro` — admin list page
 12. `src/components/admin/{Type}Editor.tsx` — Preact island
 13. `src/styles/admin.scss` — all editor styles (NOT scoped `<style>`)
 14. `src/lib/load-admin-content.ts` — add list overlay function if needed
 
 ### Adding a New API Endpoint
 
-1. Create file in `src/views/api/` (NOT `src/pages/api/` — exception: auth endpoints)
+1. Create file in `src/views/api/` (auth endpoints go in `src/views/api/auth/`)
 2. Add `export const prerender = false`
 3. Register in `src/integrations/admin-routes.ts` (static routes before parameterized)
 4. If public (no auth needed), add exclusion in `src/middleware.ts` `isProtected` check

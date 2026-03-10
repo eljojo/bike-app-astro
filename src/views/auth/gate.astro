@@ -1,8 +1,8 @@
 ---
 export const prerender = false;
 
-import AuthCardLayout from '../components/AuthCardLayout.astro';
-import AuthGate from '../components/admin/AuthGate.tsx';
+import AuthCardLayout from '../../components/AuthCardLayout.astro';
+import AuthGate from '../../components/admin/AuthGate.tsx';
 
 const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
 ---
