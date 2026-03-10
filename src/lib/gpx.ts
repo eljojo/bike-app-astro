@@ -5,6 +5,7 @@ export interface GpxPoint {
   lat: number;
   lon: number;
   ele?: number;
+  time?: string;
 }
 
 export interface GpxTrack {
@@ -13,6 +14,9 @@ export interface GpxTrack {
   elevation_gain_m: number;
   max_gradient_pct: number;
   polyline: string;
+  elapsed_time_s: number;
+  moving_time_s: number;
+  average_speed_kmh: number;
 }
 
 // In-memory cache keyed by string length + first/last 100 chars.
@@ -44,18 +48,28 @@ export function parseGpx(xml: string): GpxTrack {
         lat: parseFloat(pt['@_lat']),
         lon: parseFloat(pt['@_lon']),
         ele: pt.ele != null ? parseFloat(pt.ele) : undefined,
+        time: pt.time != null ? String(pt.time) : undefined,
       });
     }
   }
 
   if (points.length === 0) return emptyTrack();
 
+  const distance_m = computeDistance(points);
+  const moving_time_s = computeMovingTime(points);
+  const average_speed_kmh = moving_time_s > 0
+    ? Math.round((distance_m / 1000) / (moving_time_s / 3600) * 10) / 10
+    : 0;
+
   const result: GpxTrack = {
     points,
-    distance_m: computeDistance(points),
+    distance_m,
     elevation_gain_m: computeElevationGain(points),
     max_gradient_pct: computeMaxGradient(points),
     polyline: polyline.encode(points.map(p => [p.lat, p.lon])),
+    elapsed_time_s: computeElapsedTime(points),
+    moving_time_s,
+    average_speed_kmh,
   };
   gpxCache.set(key, result);
   return result;
@@ -83,8 +97,55 @@ export function extractRwgpsUrl(xml: string): string | null {
   return null;
 }
 
+/**
+ * Seconds between first and last trackpoint timestamp.
+ * Returns 0 if fewer than 2 points have timestamps.
+ */
+export function computeElapsedTime(points: GpxPoint[]): number {
+  const timestamps = points.filter(p => p.time).map(p => new Date(p.time!).getTime());
+  if (timestamps.length < 2) return 0;
+  return Math.round((timestamps[timestamps.length - 1] - timestamps[0]) / 1000);
+}
+
+/**
+ * Sum of time segments where speed exceeds 1 km/h.
+ * Uses haversine distance between consecutive points divided by time delta.
+ * Returns 0 if fewer than 2 points have timestamps.
+ */
+export function computeMovingTime(points: GpxPoint[]): number {
+  const SPEED_THRESHOLD_MS = 1 / 3.6; // 1 km/h in m/s
+  let movingSeconds = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    if (!prev.time || !curr.time) continue;
+
+    const dt = (new Date(curr.time).getTime() - new Date(prev.time).getTime()) / 1000;
+    if (dt <= 0) continue;
+
+    const dist = haversine(prev, curr);
+    const speed = dist / dt; // m/s
+
+    if (speed > SPEED_THRESHOLD_MS) {
+      movingSeconds += dt;
+    }
+  }
+
+  return Math.round(movingSeconds);
+}
+
 function emptyTrack(): GpxTrack {
-  return { points: [], distance_m: 0, elevation_gain_m: 0, max_gradient_pct: 0, polyline: '' };
+  return {
+    points: [],
+    distance_m: 0,
+    elevation_gain_m: 0,
+    max_gradient_pct: 0,
+    polyline: '',
+    elapsed_time_s: 0,
+    moving_time_s: 0,
+    average_speed_kmh: 0,
+  };
 }
 
 function computeDistance(points: GpxPoint[]): number {
