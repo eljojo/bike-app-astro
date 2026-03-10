@@ -2,43 +2,46 @@ import type { AstroIntegration } from 'astro';
 import { translatePath } from '../lib/path-translations';
 import { isBlogInstance } from '../lib/city-config';
 
+/** Resolve a view path relative to this file's location (works from node_modules too). */
+const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
+
 /** Pages shared between both wiki and blog instance types. */
 const sharedPages = [
-  { pattern: '/', entrypoint: './src/views/index.astro' },
-  { pattern: '/about', entrypoint: './src/views/about.astro' },
+  { pattern: '/', entrypoint: view('index.astro') },
+  { pattern: '/about', entrypoint: view('about.astro') },
 ];
 
 /** Wiki-only pages. */
 const wikiPages = [
-  { pattern: '/calendar', entrypoint: './src/views/calendar.astro' },
-  { pattern: '/map', entrypoint: './src/views/map.astro' },
-  { pattern: '/routes', entrypoint: './src/views/routes/index.astro' },
-  { pattern: '/routes/[slug]', entrypoint: './src/views/routes/detail.astro' },
-  { pattern: '/routes/[slug]/map', entrypoint: './src/views/routes/map.astro' },
-  { pattern: '/routes/[slug]/map/[variant]', entrypoint: './src/views/routes/map-variant.astro' },
-  { pattern: '/guides', entrypoint: './src/views/guides/index.astro' },
-  { pattern: '/guides/[slug]', entrypoint: './src/views/guides/detail.astro' },
-  { pattern: '/videos', entrypoint: './src/views/videos/index.astro' },
-  { pattern: '/videos/[handle]', entrypoint: './src/views/videos/detail.astro' },
+  { pattern: '/calendar', entrypoint: view('calendar.astro') },
+  { pattern: '/map', entrypoint: view('map.astro') },
+  { pattern: '/routes', entrypoint: view('routes/index.astro') },
+  { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
+  { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
+  { pattern: '/routes/[slug]/map/[variant]', entrypoint: view('routes/map-variant.astro') },
+  { pattern: '/guides', entrypoint: view('guides/index.astro') },
+  { pattern: '/guides/[slug]', entrypoint: view('guides/detail.astro') },
+  { pattern: '/videos', entrypoint: view('videos/index.astro') },
+  { pattern: '/videos/[handle]', entrypoint: view('videos/detail.astro') },
 ];
 
 /** Blog-only pages. */
 const blogPages = [
-  { pattern: '/rides', entrypoint: './src/views/rides/index.astro' },
-  { pattern: '/rides/[slug]', entrypoint: './src/views/rides/detail.astro' },
-  { pattern: '/rides/[slug]/map', entrypoint: './src/views/rides/map.astro' },
-  { pattern: '/tours', entrypoint: './src/views/tours/index.astro' },
-  { pattern: '/tours/[slug]', entrypoint: './src/views/tours/detail.astro' },
-  { pattern: '/stats', entrypoint: './src/views/stats.astro' },
+  { pattern: '/rides', entrypoint: view('rides/index.astro') },
+  { pattern: '/rides/[slug]', entrypoint: view('rides/detail.astro') },
+  { pattern: '/rides/[slug]/map', entrypoint: view('rides/map.astro') },
+  { pattern: '/tours', entrypoint: view('tours/index.astro') },
+  { pattern: '/tours/[slug]', entrypoint: view('tours/detail.astro') },
+  { pattern: '/stats', entrypoint: view('stats.astro') },
 ];
 
 /** Routes that don't need locale variants (downloads, feeds, etc.). */
 const wikiStaticRoutes = [
-  { pattern: '/routes/[slug]/[variant].gpx', entrypoint: './src/views/routes/download-gpx.ts' },
+  { pattern: '/routes/[slug]/[variant].gpx', entrypoint: view('routes/download-gpx.ts') },
 ];
 
 const blogStaticRoutes = [
-  { pattern: '/rides/[slug]/[variant].gpx', entrypoint: './src/views/rides/download-gpx.ts' },
+  { pattern: '/rides/[slug]/[variant].gpx', entrypoint: view('rides/download-gpx.ts') },
 ];
 
 export function i18nRoutes(): AstroIntegration {

@@ -2,6 +2,13 @@
   "name": "bike-app-astro",
   "type": "module",
   "version": "0.0.1",
+  "exports": {
+    ".": "./src/integration.ts",
+    "./loaders/routes": "./src/loaders/routes.ts",
+    "./loaders/rides": "./src/loaders/rides.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./plugin": "./src/build-data-plugin.ts"
+  },
   "workspaces": [
     "docs"
   ],

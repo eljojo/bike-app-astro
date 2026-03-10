@@ -100,8 +100,8 @@ function loadFontPreloads() {
   return [...urls];
 }
 
-function loadContributors(): Array<{ username: string; gravatarHash: string }> {
-  const filePath = path.join(PROJECT_ROOT, '.astro', 'contributors.json');
+function loadContributors(rootDir?: string): Array<{ username: string; gravatarHash: string }> {
+  const filePath = path.join(rootDir || PROJECT_ROOT, '.astro', 'contributors.json');
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 }
@@ -126,8 +126,8 @@ function scanMapDir(dir: string, prefix?: string) {
   return maps;
 }
 
-function loadCachedMaps() {
-  const cacheDir = path.join(PROJECT_ROOT, 'public', 'maps');
+function loadCachedMaps(rootDir?: string) {
+  const cacheDir = path.join(rootDir || PROJECT_ROOT, 'public', 'maps');
   const maps: string[] = scanMapDir(cacheDir);
   // Scan locale subdirectories (2-letter dirs like "fr", "es")
   if (fs.existsSync(cacheDir)) {
@@ -175,12 +175,15 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
   };
 }
 
-export function buildDataPlugin(): Plugin {
+export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
+  // CONSUMER_ROOT = the project that depends on this package (for public/, .astro/, _cache/).
+  // PROJECT_ROOT = this package itself (for src/styles/, internal assets).
+  const CONSUMER_ROOT = options?.consumerRoot || PROJECT_ROOT;
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
   const fontPreloads = loadFontPreloads();
-  const cachedMaps = loadCachedMaps();
-  const contributors = loadContributors();
+  const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
+  const contributors = loadContributors(CONSUMER_ROOT);
 
   // Load admin data eagerly (async) so it's ready when load() is called.
   // Merged loaders compute routes+details and events+details in single passes.
