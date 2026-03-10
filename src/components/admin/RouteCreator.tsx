@@ -154,7 +154,7 @@ export default function RouteCreator({ cdnUrl }: Props) {
                 onChange={handleFileSelect}
               />
             </div>
-            <div class="route-creator-divider"><span>or</span></div>
+            <div class="creator-divider"><span>or</span></div>
             <div class="url-import">
               <input
                 type="url"

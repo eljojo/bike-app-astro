@@ -201,6 +201,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
         const entry: Record<string, unknown> = { name: v.name, gpx: v.gpx };
         if (v.isNew && v.gpxContent) {
           const track = parseGpx(v.gpxContent);
+          if (track.points.length < 2) {
+            return jsonError('GPX file must contain at least 2 track points', 400) as never;
+          }
           entry.distance_km = Math.round(track.distance_m / 100) / 10;
         } else if (v.distance_km) {
           entry.distance_km = v.distance_km;

@@ -97,7 +97,14 @@ test.describe('Event Creation', () => {
 
     await page.goto('/admin/events/new');
     await page.waitForLoadState('networkidle');
+
+    // Skip the poster upload phase (EventCreator → EventEditor)
+    await page.locator('button.btn-link', { hasText: 'Skip' }).click();
     await page.waitForTimeout(2000);
+
+    // Screenshot the empty event creation form
+    await expect(page.locator('#event-name')).toBeVisible();
+    await page.screenshot({ path: 'e2e/test-results/event-creation-form.png', fullPage: true });
 
     // Fill required fields
     const nameInput = page.locator('#event-name');

@@ -25,4 +25,5 @@ export interface AppEnv {
   GOOGLE_PLACES_API_KEY?: string;
   THUNDERFOREST_API_KEY?: string;
   TILE_CACHE?: unknown; // KV namespace in prod, undefined locally (handled by env-local)
+  AI?: unknown; // Workers AI binding, used for poster vision extraction
 }
