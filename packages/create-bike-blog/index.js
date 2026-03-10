@@ -2,8 +2,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import os from 'node:os';
+import { execSync } from 'node:child_process';
+import readline from 'node:readline';
 
 // --- Template engine ---
 
@@ -34,9 +35,14 @@ function copyTemplate(templateDir, destDir, vars) {
   }
 }
 
+// --- Prompts ---
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+
 // --- Main ---
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 2 || args.includes('--help') || args.includes('-h')) {
@@ -114,27 +120,39 @@ function main() {
     fs.renameSync(citySrc, cityDest);
   }
 
+  console.log(`  Files created in ${folder}/\n`);
+
   // Install dependencies
-  console.log('  Installing dependencies...\n');
-  try {
-    execSync('npm install', { cwd: destDir, stdio: 'inherit' });
-  } catch {
-    console.error('\n  npm install failed. You can retry manually: cd ' + folder + ' && npm install\n');
-    process.exit(1);
+  const install = await ask('  Install dependencies? (npm install) [Y/n] ');
+  if (install.toLowerCase() !== 'n') {
+    try {
+      execSync('npm install', { cwd: destDir, stdio: 'inherit' });
+    } catch {
+      console.error('\n  npm install failed. You can retry manually: cd ' + folder + ' && npm install\n');
+    }
+  } else {
+    console.log(`\n  Skipped. Run it yourself:\n\n    cd ${folder} && npm install\n`);
   }
 
   // Initialize git repo
-  execSync('git init', { cwd: destDir, stdio: 'pipe' });
-  execSync('git add -A', { cwd: destDir, stdio: 'pipe' });
-  execSync('git commit -m "initial blog scaffold"', { cwd: destDir, stdio: 'pipe' });
+  const gitInit = await ask('  Initialize git repo? (git init + first commit) [Y/n] ');
+  if (gitInit.toLowerCase() !== 'n') {
+    execSync('git init', { cwd: destDir, stdio: 'pipe' });
+    execSync('git add -A', { cwd: destDir, stdio: 'pipe' });
+    execSync('git commit -m "initial blog scaffold"', { cwd: destDir, stdio: 'pipe' });
+    console.log('\n  ✓ Git repo initialized with first commit.\n');
+  } else {
+    console.log(`\n  Skipped. Run it yourself:\n\n    cd ${folder} && git init && git add -A && git commit -m "initial blog scaffold"\n`);
+  }
 
-  console.log(`
-  Done! Next steps:
+  console.log(`  Next steps:
 
     cd ${folder}
     # edit ${username}/config.yml and ${username}/pages/about.md
     npm run setup
 `);
+
+  rl.close();
 }
 
 // Only run when invoked directly (not when imported for tests)
