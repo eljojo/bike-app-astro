@@ -12,6 +12,7 @@ import type { SessionUser } from './auth';
 import { authorize, can } from './authorize';
 import { buildAuthorEmail } from './commit-author';
 import { upsertContentCache } from './cache';
+import matter from 'gray-matter';
 
 export interface CurrentFiles {
   primaryFile: { content: string; sha: string } | null;
@@ -105,9 +106,10 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     }
 
     const appEmail = buildAuthorEmail(user);
-    const useRealEmail = user.emailInCommits && user.email;
-    const authorInfo = { name: user.username, email: useRealEmail ? user.email : appEmail };
+    const useRealEmail = user.emailInCommits && !!user.email;
+    const authorInfo = { name: user.username, email: useRealEmail ? user.email! : appEmail };
     let message = handlers.buildCommitMessage(update, contentId, isNew, currentFiles);
+    message = await tryAiCommitMessage(message, contentType, files, currentFiles, isNew);
     if (useRealEmail) {
       message += `\nCo-Authored-By: ${user.username} <${appEmail}>`;
     }
@@ -306,4 +308,104 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
   });
 
   return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });
+}
+
+const AI_COMMIT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+
+/**
+ * Try to generate an AI commit subject. Returns the original message if AI
+ * is unavailable or fails. Only replaces the subject line — the Changes:
+ * trailer is always preserved.
+ */
+async function tryAiCommitMessage(
+  fallback: string,
+  contentType: string,
+  files: FileChange[],
+  currentFiles: CurrentFiles,
+  isNew: boolean,
+): Promise<string> {
+  const ai = env.AI as { run(model: string, input: unknown): Promise<{ response?: unknown }> } | undefined;
+  if (!ai) return fallback;
+
+  // Split message into subject and trailer
+  const parts = fallback.split('\n\n');
+  const trailer = parts.length > 1 ? '\n\n' + parts.slice(1).join('\n\n') : '';
+
+  try {
+    const summary = buildChangeSummary(contentType, files, currentFiles, isNew);
+    const result = await ai.run(AI_COMMIT_MODEL, {
+      messages: [{ role: 'user', content: summary }],
+    });
+
+    const response = String(result.response || '').trim();
+    // Extract first line only, strip quotes and trailing period
+    const subject = response.split('\n')[0]
+      .replace(/^["']|["']$/g, '')
+      .replace(/\.$/, '')
+      .trim();
+
+    if (subject.length >= 10 && subject.length <= 72) {
+      return subject + trailer;
+    }
+  } catch {
+    // AI failed — use fallback
+  }
+  return fallback;
+}
+
+/** Build a prompt summarizing changes for the AI to generate a commit subject. */
+function buildChangeSummary(
+  contentType: string,
+  files: FileChange[],
+  currentFiles: CurrentFiles,
+  isNew: boolean,
+): string {
+  const type = contentType.replace(/s$/, ''); // routes → route
+  const primaryFile = files.find(f => f.path.endsWith('/index.md') || f.path.endsWith('.md'));
+  const newFm = primaryFile ? matter(primaryFile.content).data : {};
+  const name = newFm.name || '';
+
+  if (isNew) {
+    return `Write a short git commit subject (under 60 chars) for creating a new ${type} called "${name}". Reply with ONLY the subject line, no quotes.`;
+  }
+
+  const oldFm = currentFiles.primaryFile ? matter(currentFiles.primaryFile.content).data : {};
+  const changes: string[] = [];
+
+  // Detect changed frontmatter fields
+  for (const key of Object.keys(newFm)) {
+    if (['updated_at'].includes(key)) continue;
+    const oldVal = JSON.stringify(oldFm[key]);
+    const newVal = JSON.stringify(newFm[key]);
+    if (oldVal !== newVal) {
+      if (!oldFm[key]) {
+        changes.push(`added ${key}`);
+      } else {
+        changes.push(`changed ${key}`);
+      }
+    }
+  }
+
+  // Detect media changes
+  const mediaFile = files.find(f => f.path.endsWith('media.yml'));
+  if (mediaFile) {
+    const oldMediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
+    const oldMedia = oldMediaPath ? currentFiles.auxiliaryFiles?.[oldMediaPath] : null;
+    if (!oldMedia) {
+      changes.push('added photos');
+    } else {
+      changes.push('updated photos');
+    }
+  }
+
+  // Detect body changes
+  const oldBody = currentFiles.primaryFile ? matter(currentFiles.primaryFile.content).content.trim() : '';
+  const newBody = primaryFile ? matter(primaryFile.content).content.trim() : '';
+  if (oldBody !== newBody) {
+    changes.push('updated description');
+  }
+
+  const changeStr = changes.length > 0 ? changes.join(', ') : 'minor edits';
+
+  return `Write a short git commit subject (under 60 chars) for updating a ${type} called "${name}". Changes: ${changeStr}. Reply with ONLY the subject line, no quotes.`;
 }
