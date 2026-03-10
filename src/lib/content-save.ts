@@ -370,7 +370,7 @@ function buildChangeSummary(
   const newFm = primaryFile ? matter(primaryFile.content).data : {};
   const name = newFm.name || '';
 
-  const instructions = `Write a git commit subject (under 60 chars) for this ${type} change. Reply with ONLY the subject line, nothing else.`;
+  const instructions = `Write a git commit subject (under 60 chars) for this ${type} change. Reply with ONLY the subject line. No markdown, no quotes, no explanation.`;
 
   if (isNew) {
     const fields = Object.entries(newFm)
