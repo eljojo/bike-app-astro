@@ -14,7 +14,7 @@ import adminOrganizers from 'virtual:bike-app/admin-organizers';
 export const prerender = false;
 
 const VISION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
-const TEXT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const TEXT_MODEL = VISION_MODEL;
 
 const FIELD_SPEC = `Return this exact structure (omit fields you cannot find at all):
 
@@ -58,11 +58,11 @@ function unwrap(field: unknown): { value: string; confidence: number } | null {
   if (!field) return null;
   if (typeof field === 'object' && field !== null && 'value' in field) {
     const f = field as { value?: string; confidence?: number };
-    if (!f.value) return null;
+    if (!f.value || f.value === 'null') return null;
     return { value: f.value, confidence: f.confidence ?? 0.6 };
   }
   const s = String(field);
-  return s ? { value: s, confidence: 0.6 } : null;
+  return s && s !== 'null' ? { value: s, confidence: 0.6 } : null;
 }
 
 /**
@@ -185,8 +185,9 @@ function parseAiResponse(raw: unknown): Record<string, unknown> {
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-  } catch {
-    // Parse failed — return empty
+    console.warn('[event-draft] No JSON object found in AI response:', responseText.substring(0, 300));
+  } catch (err) {
+    console.warn('[event-draft] Failed to parse AI response:', (err as Error).message, responseText.substring(0, 300));
   }
   return {};
 }
