@@ -23,10 +23,11 @@ interface Props {
   knownTags?: string[];
   defaultLocale?: string;
   userRole?: string;
+  showLicenseNotice?: boolean;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -447,10 +448,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
             {' '}<a href={`/routes/${initialData.slug}`}>View live</a>
           </div>
         )}
-        <p class="editor-license-notice">
-          By saving, you agree to release your contribution under{' '}
-          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-        </p>
+        {showLicenseNotice !== false && (
+          <p class="editor-license-notice">
+            By saving, you agree to release your contribution under{' '}
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
+          </p>
+        )}
         <button
           type="button"
           class="btn-primary"

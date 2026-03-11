@@ -22,6 +22,7 @@ interface Props {
   cdnUrl: string;
   readOnly?: boolean;
   userRole?: string;
+  showLicenseNotice?: boolean;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -52,7 +53,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -369,10 +370,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             {' '}<a href={`/events/${initialData.id}`}>View live</a>
           </div>
         )}
-        <p class="editor-license-notice">
-          By saving, you agree to release your contribution under{' '}
-          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-        </p>
+        {showLicenseNotice !== false && (
+          <p class="editor-license-notice">
+            By saving, you agree to release your contribution under{' '}
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
+          </p>
+        )}
         <button type="button" class="btn-primary" onClick={handleSave} disabled={saving || readOnly}>
           {saving ? 'Saving...' : 'Save'}
         </button>

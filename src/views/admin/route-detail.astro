@@ -12,6 +12,7 @@ import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/load-
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/tag-translations';
 import { defaultLocale } from '../../lib/locale-utils';
+import { isBlogInstance } from '../../lib/city-config';
 
 const { slug } = Astro.params;
 
@@ -44,6 +45,6 @@ const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.ta
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={!isBlogInstance()} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

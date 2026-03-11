@@ -11,6 +11,8 @@ import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
 import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
 import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { rideFilePaths } from '../../lib/ride-paths';
+import { isBlogInstance } from '../../lib/city-config';
 import type { IGitService } from '../../lib/git-service';
 import type { Database } from '../../db';
 
@@ -126,9 +128,15 @@ async function rebuildContentCache(
   parsed: { contentType: string; contentSlug: string },
   restoreFiles: { path: string; content: string }[],
 ): Promise<void> {
-  const primaryPath = parsed.contentType === 'routes'
-    ? `${CITY}/routes/${parsed.contentSlug}/index.md`
-    : `${CITY}/events/${parsed.contentSlug}.md`;
+  let primaryPath: string;
+  if (parsed.contentType === 'routes' && isBlogInstance()) {
+    const { sidecar } = rideFilePaths(parsed.contentSlug);
+    primaryPath = sidecar;
+  } else if (parsed.contentType === 'routes') {
+    primaryPath = `${CITY}/routes/${parsed.contentSlug}/index.md`;
+  } else {
+    primaryPath = `${CITY}/events/${parsed.contentSlug}.md`;
+  }
 
   const newFile = await git.readFile(primaryPath);
   if (!newFile) return;
