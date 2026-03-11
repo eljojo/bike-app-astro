@@ -1208,6 +1208,65 @@ a.go-back-button {
   @include muted-text;
 }
 
+// Image grid variant (blog homepage)
+.rides-list--grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+
+  .ride-card {
+    margin-bottom: 0;
+
+    @media screen and (min-width: $breakpoint-mobile) {
+      flex: 0 0 calc(25% - 0.5em);
+      max-width: 300px;
+    }
+  }
+
+  .ride-card--link {
+    display: block;
+    padding: 0;
+
+    &:hover {
+      background: none;
+    }
+  }
+
+  .ride-card--images {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+
+    // Cover shown by default, map on hover (matches Rails)
+    .ride-card--cover { display: block; }
+    .ride-card--map { display: none; }
+    .ride-card--cover:only-child { display: block; }
+
+    @media (max-width: $breakpoint-mobile) {
+      display: block;
+    }
+  }
+
+  .ride-card:hover .ride-card--images {
+    .ride-card--cover { display: none; }
+    .ride-card--map { display: block; }
+  }
+
+  .ride-card--info {
+    padding: 0.5em;
+  }
+
+  .ride-card--name {
+    font-family: 'Merriweather', serif;
+    font-size: 1.3em;
+    display: block;
+  }
+
+  .ride-card--meta {
+    font-size: 0.8rem;
+  }
+}
+
 // Tour list
 .tours-summary {
   @include muted-text;

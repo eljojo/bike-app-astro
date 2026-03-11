@@ -48,32 +48,32 @@ if (blog) {
       {blogHighlights.length > 0 && (
         <section class="blog-home--section">
           <h2>{t('home.highlights', locale)}</h2>
-          <ul class="rides-list">
+          <ul class="rides-list rides-list--grid">
             {blogHighlights.map(ride => {
               const cover = ride.data.media.find(m => m.cover);
               const hasMap = hasCachedMap(ride.id);
               return (
                 <li class="ride-card">
-                  <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
+                  <a href={ride.data.tour_slug ? paths.tour(ride.data.tour_slug) : paths.ride(ride.id)} class="ride-card--link">
                     <div class="ride-card--images">
                       {cover && (
                         <img
                           class="ride-card--cover"
-                          src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                          src={imageUrl(cover.key, { width: 600, height: 600, fit: 'cover' })}
                           alt={ride.data.name}
                           loading="lazy"
-                          width="300"
-                          height="200"
+                          width="600"
+                          height="600"
                         />
                       )}
                       {hasMap && (
                         <img
                           class="ride-card--map"
-                          src={assets.mapThumbnail(ride.id, 375)}
+                          src={assets.mapThumbnail(ride.id, 750)}
                           alt={`Map of ${ride.data.name}`}
                           loading="lazy"
-                          width="300"
-                          height="200"
+                          width="600"
+                          height="600"
                         />
                       )}
                     </div>
@@ -97,7 +97,7 @@ if (blog) {
 
       <section class="blog-home--section">
         <h2>{t('home.latest_rides', locale)}</h2>
-        <ul class="rides-list">
+        <ul class="rides-list rides-list--grid">
           {blogRides.map(ride => {
             const cover = ride.data.media.find(m => m.cover);
             const hasMap = hasCachedMap(ride.id);
@@ -108,21 +108,21 @@ if (blog) {
                     {cover && (
                       <img
                         class="ride-card--cover"
-                        src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                        src={imageUrl(cover.key, { width: 600, height: 600, fit: 'cover' })}
                         alt={ride.data.name}
                         loading="lazy"
-                        width="300"
-                        height="200"
+                        width="600"
+                        height="600"
                       />
                     )}
                     {hasMap && (
                       <img
                         class="ride-card--map"
-                        src={assets.mapThumbnail(ride.id, 375)}
+                        src={assets.mapThumbnail(ride.id, 750)}
                         alt={`Map of ${ride.data.name}`}
                         loading="lazy"
-                        width="300"
-                        height="200"
+                        width="600"
+                        height="600"
                       />
                     )}
                   </div>
