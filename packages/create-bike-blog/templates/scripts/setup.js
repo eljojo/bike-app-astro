@@ -542,7 +542,7 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   // Get Cloudflare API token: wrangler auth token → env var → ask
   let cfToken;
   try {
-    cfToken = run(`${wranglerCmd()} auth token 2>/dev/null`);
+    cfToken = run(`${wranglerCmd()} auth token 2>/dev/null`).trim();
   } catch { /* ignore */ }
 
   if (!cfToken) cfToken = process.env.CLOUDFLARE_API_TOKEN;
@@ -563,20 +563,25 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   }
 
   // Look up zone ID for the domain
+  const cfApi = (path) => {
+    return run(`curl -s -H "Authorization: Bearer ${cfToken}" "https://api.cloudflare.com/client/v4${path}"`);
+  };
+
   let zoneId;
   try {
-    const cfApi = (path) => {
-      return run(`curl -sf -H "Authorization: Bearer ${cfToken}" "https://api.cloudflare.com/client/v4${path}"`);
-    };
-
     const zonesResponse = JSON.parse(cfApi(`/zones?name=${domain}`));
     if (zonesResponse.success && zonesResponse.result?.length > 0) {
       zoneId = zonesResponse.result[0].id;
+    } else if (!zonesResponse.success) {
+      const errMsg = zonesResponse.errors?.[0]?.message || JSON.stringify(zonesResponse.errors);
+      console.log(`\n  ✗ Cloudflare API error: ${errMsg}`);
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.log(`\n  ✗ API call failed: ${err.message}`);
+  }
 
   if (!zoneId) {
-    console.log(`\n  ✗ Could not find zone for "${domain}" on Cloudflare.`);
+    console.log(`  Could not find zone for "${domain}" on Cloudflare.`);
     console.log('  Make sure your domain is set up on Cloudflare DNS.');
     console.log(`  Then set R2_PUBLIC_URL manually: ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
     return;
@@ -586,7 +591,7 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   try {
     const body = JSON.stringify({ domain: cdnDomain, enabled: true, zoneId });
     const result = run(
-      `curl -sf -X POST -H "Authorization: Bearer ${cfToken}" -H "Content-Type: application/json" -d '${body}' "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/domains/custom"`
+      `curl -s -X POST -H "Authorization: Bearer ${cfToken}" -H "Content-Type: application/json" -d '${body}' "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/domains/custom"`
     );
     const parsed = JSON.parse(result);
 
