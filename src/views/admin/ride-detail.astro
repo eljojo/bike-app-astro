@@ -1,0 +1,73 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import RideEditor from '../../components/admin/RideEditor.tsx';
+import EditHistory from '../../components/admin/EditHistory.tsx';
+import adminRideDetails from 'virtual:bike-app/admin-route-detail';
+import { env } from '../../lib/env';
+import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
+import { loadDetailPageData } from '../../lib/load-admin-content';
+import { rideDetailFromCache } from '../../lib/models/ride-model';
+import { rideSlugToDir } from '../../lib/ride-paths';
+
+const { slug } = Astro.params;
+
+// Allow ride slugs: YYYY-MM-DD-name format
+if (slug && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
+  return new Response(null, { status: 404 });
+}
+
+const isNew = !slug;
+
+let rideData;
+if (isNew) {
+  rideData = {
+    slug: '',
+    name: '',
+    tagline: '',
+    tags: [],
+    status: 'published',
+    body: '',
+    media: [],
+    variants: [],
+    contentHash: '',
+    ride_date: '',
+    isNew: true,
+  };
+} else {
+  const result = await loadDetailPageData({
+    contentType: 'rides',
+    id: slug,
+    virtualModuleData: adminRideDetails,
+    fromCache: rideDetailFromCache,
+  });
+
+  if (result.notFound) return new Response(null, { status: 404 });
+  rideData = result.data;
+}
+
+const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const title = isNew ? 'New Ride' : `Edit: ${rideData.name}`;
+
+// Build content path for edit history
+const contentPath = slug ? (() => {
+  const { dir } = rideSlugToDir(slug);
+  return `${dir}/${slug.slice(8)}`;
+})() : '';
+---
+
+<AdminEditorLayout
+  title={title}
+  backLink="/admin/rides"
+  backLabel="Back to rides"
+  viewLink={slug ? `/rides/${slug}` : undefined}
+  hideTitle
+  user={Astro.locals.user}
+  currentTab="routes"
+>
+  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} />
+  {slug && (
+    <EditHistory client:load contentPath={contentPath} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
+  )}
+</AdminEditorLayout>

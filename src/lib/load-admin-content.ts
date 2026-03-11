@@ -2,8 +2,10 @@ import { db as getDb } from './get-db';
 import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import type { AdminRoute, AdminEvent } from '../types/admin';
+import type { AdminRide } from '../loaders/admin-rides';
 import { routeDetailFromCache } from './models/route-model';
 import { eventDetailFromCache } from './models/event-model';
+import { rideDetailFromCache } from './models/ride-model';
 import { deserializeSharedKeys, type SharedKeysMap } from './photo-registry';
 import { CITY } from './config';
 
@@ -206,6 +208,59 @@ export async function loadSharedKeysMap(
       usages as Array<{ type: 'route' | 'place' | 'event' | 'parked'; slug: string }>,
     ]),
   );
+}
+
+/**
+ * Load admin ride list with D1 cache overlay.
+ * Merges cached edits over build-time virtual module data and appends
+ * rides that only exist in the cache (created since last deploy).
+ */
+export async function loadAdminRideList(buildTimeRides: AdminRide[]): Promise<{
+  rides: AdminRide[];
+  pendingSlugs: Set<string>;
+}> {
+  const database = getDb();
+  const cachedEdits = await database.select().from(contentEdits)
+    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, 'rides'))).all();
+
+  const cacheMap = new Map(cachedEdits.flatMap(e => {
+    try {
+      return [[e.contentSlug, rideDetailFromCache(e.data)] as const];
+    } catch {
+      return [];
+    }
+  }));
+
+  const rides = buildTimeRides.map(r => {
+    const cached = cacheMap.get(r.slug);
+    if (!cached) return r;
+    return {
+      ...r,
+      name: cached.name ?? r.name,
+      date: cached.ride_date ?? r.date,
+      country: cached.country ?? r.country,
+      highlight: cached.highlight ?? r.highlight,
+    };
+  });
+
+  // Append D1-only rides (created since last deploy)
+  const existingSlugs = new Set(buildTimeRides.map(r => r.slug));
+  for (const [slug, cached] of cacheMap) {
+    if (!existingSlugs.has(slug) && cached) {
+      rides.push({
+        slug,
+        name: cached.name || slug,
+        date: cached.ride_date || '',
+        distance_km: 0,
+        elevation_m: 0,
+        country: cached.country,
+        highlight: cached.highlight,
+        contentHash: '',
+      });
+    }
+  }
+
+  return { rides, pendingSlugs: new Set(cacheMap.keys()) };
 }
 
 export async function loadParkedPhotosWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {

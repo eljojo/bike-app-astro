@@ -27,6 +27,12 @@ const routes = [
   { pattern: '/admin', entrypoint: view('admin/index.astro') },
   { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
   { pattern: '/admin/places', entrypoint: view('admin/places.astro') },
+  // Blog ride admin pages (static routes before parameterized)
+  ...(isBlogInstance() ? [
+    { pattern: '/admin/rides', entrypoint: view('admin/rides.astro') },
+    { pattern: '/admin/rides/new', entrypoint: view('admin/ride-detail.astro') },
+    { pattern: '/admin/rides/[slug]', entrypoint: view('admin/ride-detail.astro') },
+  ] : []),
   // Admin detail pages
   { pattern: '/admin/routes/new', entrypoint: view('admin/route-new.astro') },
   { pattern: '/admin/routes/[slug]', entrypoint: view('admin/route-detail.astro') },
