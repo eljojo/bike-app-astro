@@ -11,7 +11,7 @@ import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
-import { rideFilePaths } from '../../lib/ride-paths';
+import { rideFilePathsFromRelPath } from '../../lib/ride-paths';
 import { rideDetailToCache, computeRideContentHash } from '../../lib/models/ride-model';
 import { validateSlug } from '../../lib/slug';
 
@@ -48,6 +48,7 @@ const rideUpdateSchema = z.object({
     gpxContent: z.string().optional(),
   })).min(1, 'At least one GPX file is required').optional(),
   contentHash: z.string().optional(),
+  gpxRelativePath: z.string().optional(),
 });
 
 export interface RideUpdate {
@@ -72,227 +73,244 @@ export interface RideUpdate {
     gpxContent?: string;
   }>;
   contentHash?: string;
+  gpxRelativePath?: string;
 }
 
-export const rideHandlers: SaveHandlers<RideUpdate> = {
-  parseRequest(body: unknown): RideUpdate {
-    return rideUpdateSchema.parse(body);
-  },
+/**
+ * Create ride save handlers. Returns a fresh instance per request
+ * to safely capture gpxRelativePath from the parsed request body.
+ */
+function createRideHandlers(): SaveHandlers<RideUpdate> {
+  let gpxRelPath: string | undefined;
 
-  resolveContentId(params): string {
-    return params.slug!;
-  },
+  return {
+    parseRequest(body: unknown): RideUpdate {
+      const parsed = rideUpdateSchema.parse(body);
+      gpxRelPath = parsed.gpxRelativePath;
+      return parsed;
+    },
 
-  validateSlug(slug: string): string | null {
-    // Ride slugs have date prefix (YYYY-MM-DD-name), validate the name part
-    const parts = slug.split('-');
-    if (parts.length < 4) return 'Ride slug must include date prefix (YYYY-MM-DD-name)';
-    const namePart = parts.slice(3).join('-');
-    return validateSlug(namePart);
-  },
+    resolveContentId(params): string {
+      return params.slug!;
+    },
 
-  getFilePaths(slug: string) {
-    const paths = rideFilePaths(slug);
-    return {
-      primary: paths.sidecar,
-      auxiliary: [paths.gpx, paths.media],
-    };
-  },
+    validateSlug(slug: string): string | null {
+      return validateSlug(slug);
+    },
 
-  computeContentHash(currentFiles: CurrentFiles): string {
-    if (!currentFiles.primaryFile) {
-      throw new Error('Cannot compute ride hash without primary file content');
-    }
-    const auxFiles = currentFiles.auxiliaryFiles || {};
-    const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
-    const gpxContent = gpxPath ? auxFiles[gpxPath]?.content : undefined;
-    const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
-    const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
-    return computeRideContentHash(currentFiles.primaryFile.content, gpxContent, mediaContent);
-  },
-
-  buildFreshData(slug: string, currentFiles: CurrentFiles): string {
-    if (!currentFiles.primaryFile) {
-      throw new Error('Cannot build ride cache data without primary file content');
-    }
-
-    const { data: fm, content: body } = matter(currentFiles.primaryFile.content);
-    const auxFiles = currentFiles.auxiliaryFiles || {};
-
-    // Parse GPX for distance/elevation
-    const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
-    const gpxFile = gpxPath ? auxFiles[gpxPath] : null;
-    let distance_km = 0;
-    let elevation_m = 0;
-    let elapsed_time_s: number | undefined;
-    let moving_time_s: number | undefined;
-    let average_speed_kmh: number | undefined;
-    let gpxFilename = '';
-
-    if (gpxFile) {
-      try {
-        const track = parseGpx(gpxFile.content);
-        distance_km = Math.round(track.distance_m / 100) / 10;
-        elevation_m = Math.round(track.elevation_gain_m);
-        elapsed_time_s = track.elapsed_time_s || undefined;
-        moving_time_s = track.moving_time_s || undefined;
-        average_speed_kmh = track.average_speed_kmh || undefined;
-      } catch {
-        // GPX parse failure — leave metrics at defaults
+    getFilePaths(_slug: string) {
+      if (!gpxRelPath) {
+        throw new Error('gpxRelativePath is required for ride saves');
       }
-      if (gpxPath) {
-        const parts = gpxPath.split('/');
-        gpxFilename = parts[parts.length - 1];
+      const paths = rideFilePathsFromRelPath(gpxRelPath);
+      return {
+        primary: paths.sidecar,
+        auxiliary: [paths.gpx, paths.media],
+      };
+    },
+
+    computeContentHash(currentFiles: CurrentFiles): string {
+      if (!currentFiles.primaryFile) {
+        throw new Error('Cannot compute ride hash without primary file content');
       }
-    }
+      const auxFiles = currentFiles.auxiliaryFiles || {};
+      const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
+      const gpxContent = gpxPath ? auxFiles[gpxPath]?.content : undefined;
+      const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
+      const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
+      return computeRideContentHash(currentFiles.primaryFile.content, gpxContent, mediaContent);
+    },
 
-    // Parse media
-    const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
-    const mediaFile = mediaPath ? auxFiles[mediaPath] : null;
-    let media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number }> = [];
-    if (mediaFile) {
-      const rawMedia = (yaml.load(mediaFile.content) as Array<Record<string, unknown>>) || [];
-      media = rawMedia
-        .filter(m => m.type === 'photo')
-        .map(m => {
-          const item: Record<string, unknown> = { key: m.key as string };
-          if (m.caption != null) item.caption = m.caption;
-          if (m.cover != null) item.cover = m.cover;
-          if (m.width != null) item.width = m.width;
-          if (m.height != null) item.height = m.height;
-          if (m.lat != null) item.lat = m.lat;
-          if (m.lng != null) item.lng = m.lng;
-          return item as { key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number };
-        });
-    }
+    buildFreshData(slug: string, currentFiles: CurrentFiles): string {
+      if (!currentFiles.primaryFile) {
+        throw new Error('Cannot build ride cache data without primary file content');
+      }
 
-    const detail: Record<string, unknown> = {
-      slug,
-      name: (fm.name as string) || slug,
-      tagline: (fm.tagline as string) || '',
-      tags: Array.isArray(fm.tags) ? fm.tags : [],
-      status: (fm.status as string) || 'published',
-      body: body.trim(),
-      media,
-      variants: [{
-        name: (fm.name as string) || slug,
-        gpx: gpxFilename,
-        distance_km,
-      }],
-      contentHash: this.computeContentHash(currentFiles),
-      ride_date: (fm.ride_date as string) || '',
-      country: fm.country as string | undefined,
-      tour_slug: fm.tour_slug as string | undefined,
-      highlight: typeof fm.highlight === 'boolean' ? fm.highlight : undefined,
-      elapsed_time_s,
-      moving_time_s,
-      average_speed_kmh,
-    };
+      const { data: fm, content: body } = matter(currentFiles.primaryFile.content);
+      const auxFiles = currentFiles.auxiliaryFiles || {};
 
-    return rideDetailToCache(detail);
-  },
+      // Parse GPX for distance/elevation
+      const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
+      const gpxFile = gpxPath ? auxFiles[gpxPath] : null;
+      let distance_km = 0;
+      let elevation_m = 0;
+      let elapsed_time_s: number | undefined;
+      let moving_time_s: number | undefined;
+      let average_speed_kmh: number | undefined;
+      let gpxFilename = '';
 
-  async buildFileChanges(update, slug, currentFiles) {
-    const paths = rideFilePaths(slug);
-    const files: FileChange[] = [];
-    const deletePaths: string[] = [];
-    const isNew = !currentFiles.primaryFile;
-
-    // Build frontmatter by merging with existing
-    let mergedFrontmatter: Record<string, unknown>;
-
-    if (isNew) {
-      const adminFields: Record<string, unknown> = { ...update.frontmatter };
-      if (!adminFields.status) adminFields.status = 'published';
-      mergedFrontmatter = adminFields;
-    } else {
-      const { data: existingFm } = matter(currentFiles.primaryFile!.content);
-      mergedFrontmatter = { ...existingFm, ...update.frontmatter };
-    }
-
-    // Process variants and GPX
-    if (update.variants) {
-      for (const v of update.variants) {
-        if (v.isNew && v.gpxContent) {
-          const track = parseGpx(v.gpxContent);
-          if (track.points.length < 2) {
-            throw new Error('GPX file must contain at least 2 track points');
-          }
-          // Write GPX directly (not LFS for rides)
-          files.push({ path: `${paths.gpx.replace(/[^/]+$/, v.gpx)}`, content: v.gpxContent });
+      if (gpxFile) {
+        try {
+          const track = parseGpx(gpxFile.content);
+          distance_km = Math.round(track.distance_m / 100) / 10;
+          elevation_m = Math.round(track.elevation_gain_m);
+          elapsed_time_s = track.elapsed_time_s || undefined;
+          moving_time_s = track.moving_time_s || undefined;
+          average_speed_kmh = track.average_speed_kmh || undefined;
+        } catch {
+          // GPX parse failure — leave metrics at defaults
+        }
+        if (gpxPath) {
+          const parts = gpxPath.split('/');
+          gpxFilename = parts[parts.length - 1];
         }
       }
-    }
 
-    // Build sidecar .md
-    const frontmatterStr = yaml.dump(mergedFrontmatter, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
-
-    files.push({
-      path: paths.sidecar,
-      content: update.body.trim()
-        ? `---\n${frontmatterStr}\n---\n\n${update.body}\n`
-        : `---\n${frontmatterStr}\n---\n`,
-    });
-
-    // Build media file
-    if (update.media) {
-      const auxFiles = currentFiles.auxiliaryFiles || {};
+      // Parse media
       const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
-      const currentMedia = mediaPath ? auxFiles[mediaPath] : null;
-      let existingMedia: Array<Record<string, unknown>> = [];
-      if (currentMedia) {
-        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
+      const mediaFile = mediaPath ? auxFiles[mediaPath] : null;
+      let media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number }> = [];
+      if (mediaFile) {
+        const rawMedia = (yaml.load(mediaFile.content) as Array<Record<string, unknown>>) || [];
+        media = rawMedia
+          .filter(m => m.type === 'photo')
+          .map(m => {
+            const item: Record<string, unknown> = { key: m.key as string };
+            if (m.caption != null) item.caption = m.caption;
+            if (m.cover != null) item.cover = m.cover;
+            if (m.width != null) item.width = m.width;
+            if (m.height != null) item.height = m.height;
+            if (m.lat != null) item.lat = m.lat;
+            if (m.lng != null) item.lng = m.lng;
+            return item as { key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number };
+          });
       }
 
-      const merged = mergeMedia(update.media, existingMedia);
-      if (merged.length > 0) {
-        const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
-        files.push({ path: paths.media, content: mediaYaml });
-      } else if (currentMedia) {
-        // All media removed — delete the file
-        deletePaths.push(paths.media);
+      const detail: Record<string, unknown> = {
+        slug,
+        name: (fm.name as string) || slug,
+        tagline: (fm.tagline as string) || '',
+        tags: Array.isArray(fm.tags) ? fm.tags : [],
+        status: (fm.status as string) || 'published',
+        body: body.trim(),
+        media,
+        variants: [{
+          name: (fm.name as string) || slug,
+          gpx: gpxFilename,
+          distance_km,
+        }],
+        contentHash: this.computeContentHash(currentFiles),
+        ride_date: (fm.ride_date as string) || '',
+        country: fm.country as string | undefined,
+        tour_slug: fm.tour_slug as string | undefined,
+        highlight: typeof fm.highlight === 'boolean' ? fm.highlight : undefined,
+        elapsed_time_s,
+        moving_time_s,
+        average_speed_kmh,
+      };
+
+      return rideDetailToCache(detail);
+    },
+
+    async buildFileChanges(update, _slug, currentFiles) {
+      if (!gpxRelPath) {
+        throw new Error('gpxRelativePath is required for ride saves');
       }
-    }
+      const paths = rideFilePathsFromRelPath(gpxRelPath);
+      const files: FileChange[] = [];
+      const deletePaths: string[] = [];
+      const isNew = !currentFiles.primaryFile;
 
-    return { files, deletePaths, isNew };
-  },
+      // Build frontmatter by merging with existing
+      let mergedFrontmatter: Record<string, unknown>;
 
-  buildCommitMessage(update, slug, isNew): string {
-    const paths = rideFilePaths(slug);
-    const title = (update.frontmatter as Record<string, unknown>)?.name as string || slug;
-    const trailer = `\n\nChanges: ${paths.sidecar}`;
-
-    if (isNew) return `Create ride ${title}${trailer}`;
-
-    const parts: string[] = [];
-    if (update.frontmatter) parts.push('Update');
-    if (update.media) {
-      parts.push('media');
-    }
-    if (update.variants) {
-      const newVariants = (update.variants || []).filter(v => v.isNew);
-      if (newVariants.length > 0) {
-        parts.push(`${newVariants.length} GPX`);
+      if (isNew) {
+        const adminFields: Record<string, unknown> = { ...update.frontmatter };
+        if (!adminFields.status) adminFields.status = 'published';
+        mergedFrontmatter = adminFields;
+      } else {
+        const { data: existingFm } = matter(currentFiles.primaryFile!.content);
+        mergedFrontmatter = { ...existingFm, ...update.frontmatter };
       }
-    }
 
-    let subject: string;
-    if (parts.length === 0 || (parts.length === 1 && parts[0] === 'Update')) {
-      subject = `Update ride ${title}`;
-    } else {
-      subject = `${parts.join(' + ')} for ride ${title}`;
-    }
-    return `${subject}${trailer}`;
-  },
+      // Process variants and GPX
+      if (update.variants) {
+        for (const v of update.variants) {
+          if (v.isNew && v.gpxContent) {
+            const track = parseGpx(v.gpxContent);
+            if (track.points.length < 2) {
+              throw new Error('GPX file must contain at least 2 track points');
+            }
+            // Write GPX directly (not LFS for rides)
+            files.push({ path: `${paths.gpx.replace(/[^/]+$/, v.gpx)}`, content: v.gpxContent });
+          }
+        }
+      }
 
-  buildGitHubUrl(slug: string, baseBranch: string): string {
-    const paths = rideFilePaths(slug);
-    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${paths.sidecar}`;
-  },
-};
+      // Build sidecar .md
+      const frontmatterStr = yaml.dump(mergedFrontmatter, {
+        lineWidth: -1, quotingType: '"', forceQuotes: false,
+      }).trimEnd();
+
+      files.push({
+        path: paths.sidecar,
+        content: update.body.trim()
+          ? `---\n${frontmatterStr}\n---\n\n${update.body}\n`
+          : `---\n${frontmatterStr}\n---\n`,
+      });
+
+      // Build media file
+      if (update.media) {
+        const auxFiles = currentFiles.auxiliaryFiles || {};
+        const mediaFilePath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
+        const currentMedia = mediaFilePath ? auxFiles[mediaFilePath] : null;
+        let existingMedia: Array<Record<string, unknown>> = [];
+        if (currentMedia) {
+          existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
+        }
+
+        const merged = mergeMedia(update.media, existingMedia);
+        if (merged.length > 0) {
+          const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
+          files.push({ path: paths.media, content: mediaYaml });
+        } else if (currentMedia) {
+          // All media removed — delete the file
+          deletePaths.push(paths.media);
+        }
+      }
+
+      return { files, deletePaths, isNew };
+    },
+
+    buildCommitMessage(update, _slug, isNew): string {
+      const title = (update.frontmatter as Record<string, unknown>)?.name as string || _slug;
+      const sidecarPath = gpxRelPath
+        ? rideFilePathsFromRelPath(gpxRelPath).sidecar
+        : _slug;
+      const trailer = `\n\nChanges: ${sidecarPath}`;
+
+      if (isNew) return `Create ride ${title}${trailer}`;
+
+      const parts: string[] = [];
+      if (update.frontmatter) parts.push('Update');
+      if (update.media) {
+        parts.push('media');
+      }
+      if (update.variants) {
+        const newVariants = (update.variants || []).filter(v => v.isNew);
+        if (newVariants.length > 0) {
+          parts.push(`${newVariants.length} GPX`);
+        }
+      }
+
+      let subject: string;
+      if (parts.length === 0 || (parts.length === 1 && parts[0] === 'Update')) {
+        subject = `Update ride ${title}`;
+      } else {
+        subject = `${parts.join(' + ')} for ride ${title}`;
+      }
+      return `${subject}${trailer}`;
+    },
+
+    buildGitHubUrl(_slug: string, baseBranch: string): string {
+      const sidecarPath = gpxRelPath
+        ? rideFilePathsFromRelPath(gpxRelPath).sidecar
+        : _slug;
+      return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${sidecarPath}`;
+    },
+  };
+}
 
 export async function POST({ params, request, locals }: APIContext) {
-  return saveContent(request, locals, params, 'rides', rideHandlers);
+  return saveContent(request, locals, params, 'rides', createRideHandlers());
 }

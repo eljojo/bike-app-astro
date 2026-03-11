@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractDateFromPath, detectTours } from '../src/loaders/rides';
+import { extractDateFromPath, detectTours, buildSlug } from '../src/loaders/rides';
 
 describe('extractDateFromPath', () => {
   it('extracts date from YYYY/MM/DD-name.gpx', () => {
@@ -109,5 +109,33 @@ describe('detectTours', () => {
     expect(tours[0].slug).toBe('test-tour');
     expect(tours[0].ridePaths).toHaveLength(2);
     expect(tours[0].ridePaths).not.toContain('2026/01/23-winter-ride.gpx');
+  });
+});
+
+describe('buildSlug', () => {
+  it('produces name-only slug without date prefix', () => {
+    const date = { year: 2026, month: 1, day: 23 };
+    expect(buildSlug(date, '23-winter-ride.gpx')).toBe('winter-ride');
+  });
+
+  it('strips multi-digit day prefix', () => {
+    const date = { year: 2025, month: 5, day: 14 };
+    expect(buildSlug(date, '14-wakefield-ride-with-tony.gpx')).toBe('wakefield-ride-with-tony');
+  });
+
+  it('strips MM-DD prefix for multi-month tours', () => {
+    const date = { year: 2023, month: 1, day: 23 };
+    expect(buildSlug(date, '01-23-first-day.gpx')).toBe('first-day');
+  });
+
+  it('uses handle when provided', () => {
+    const date = { year: 2022, month: 6, day: 17 };
+    expect(buildSlug(date, '17-day-1.gpx', 'day-1-aachen-to-somewhere-in-belgium'))
+      .toBe('day-1-aachen-to-somewhere-in-belgium');
+  });
+
+  it('ignores handle when not provided', () => {
+    const date = { year: 2025, month: 3, day: 5 };
+    expect(buildSlug(date, '05-morning-ride.gpx')).toBe('morning-ride');
   });
 });

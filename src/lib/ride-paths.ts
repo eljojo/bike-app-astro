@@ -1,35 +1,38 @@
 import { CITY } from './config';
 
-/** Parse a ride slug (YYYY-MM-DD-name) into directory and base filename. */
-export function rideSlugToDir(slug: string, city: string = CITY): { dir: string; base: string } {
-  if (!/^\d{4}-\d{2}-\d{2}-.+$/.test(slug)) {
-    throw new Error(`Invalid ride slug format: "${slug}" (expected YYYY-MM-DD-name)`);
-  }
-  const year = slug.slice(0, 4);
-  const month = slug.slice(5, 7);
-  const base = slug.slice(8);
-  return { dir: `${city}/rides/${year}/${month}`, base };
-}
-
-/** Get all file paths for a ride from its slug. */
-export function rideFilePaths(slug: string, city: string = CITY) {
-  const { dir, base } = rideSlugToDir(slug, city);
+/**
+ * Derive file paths from a GPX relative path (relative to rides/ directory).
+ * This is the primary way to get file paths for rides with name-only slugs.
+ */
+export function rideFilePathsFromRelPath(gpxRelPath: string, city: string = CITY) {
+  const base = gpxRelPath.replace(/\.gpx$/i, '');
   return {
-    gpx: `${dir}/${base}.gpx`,
-    sidecar: `${dir}/${base}.md`,
-    media: `${dir}/${base}-media.yml`,
+    gpx: `${city}/rides/${gpxRelPath}`,
+    sidecar: `${city}/rides/${base}.md`,
+    media: `${city}/rides/${base}-media.yml`,
   };
 }
 
-/** Extract a ride slug from a relative path (e.g., rides/2026/01/23-name.gpx → 2026-01-23-name). */
+/**
+ * Extract a name-only ride slug from a relative path.
+ * Strips date prefixes to produce URL-friendly slugs matching Rails handles.
+ *
+ * Examples:
+ *   rides/2026/01/23-winter-ride.gpx → winter-ride
+ *   rides/2025/07/euro-tour/15-paris-to-lyon.gpx → paris-to-lyon
+ *   rides/2023/long-tour/01-23-first-day.gpx → first-day
+ */
 export function rideSlugFromPath(relativePath: string): string {
   const cleaned = relativePath.replace(/^.*?rides\//, '');
   const parts = cleaned.split('/');
   if (parts.length < 3) {
     throw new Error(`Invalid ride path: ${relativePath} (expected at least YYYY/MM/file)`);
   }
-  const year = parts[0];
-  const month = parts[1];
-  const filename = parts[parts.length - 1].replace(/\.(gpx|md)$/, '').replace(/-media\.yml$/, '');
-  return `${year}-${month}-${filename}`;
+  const filename = parts[parts.length - 1]
+    .replace(/\.(gpx|md)$/, '')
+    .replace(/-media\.yml$/, '');
+  // Strip date prefixes (DD- or MM-DD-)
+  return filename
+    .replace(/^\d{1,2}-\d{1,2}-/, '')
+    .replace(/^\d{1,2}-/, '');
 }

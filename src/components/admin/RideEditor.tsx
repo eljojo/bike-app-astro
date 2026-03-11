@@ -14,7 +14,7 @@ import { insertMarkdown } from './markdown-toolbar-utils';
 import type { RideDetail } from '../../lib/models/ride-model';
 
 interface Props {
-  initialData: RideDetail & { contentHash?: string; isNew?: boolean };
+  initialData: RideDetail & { contentHash?: string; isNew?: boolean; gpxRelativePath?: string };
   cdnUrl: string;
   userRole?: string;
   mapThumbnail?: string;
@@ -154,6 +154,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
       body,
       media,
       variants,
+      gpxRelativePath: initialData.gpxRelativePath,
     }),
     onSuccess: (result) => {
       if (initialData.isNew && result.id) {

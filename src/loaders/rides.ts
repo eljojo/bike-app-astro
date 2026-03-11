@@ -132,21 +132,21 @@ export function detectTours(gpxPaths: string[]): Tour[] {
   }));
 }
 
-/** Build a slug from ride date and filename. */
-export function buildSlug(date: RideDate, gpxFilename: string): string {
+/** Build a slug from ride date and filename.
+ * If a `handle` is provided (from sidecar frontmatter), it takes priority.
+ * Otherwise, produce a name-only slug by stripping date prefixes from the filename.
+ */
+export function buildSlug(_date: RideDate, gpxFilename: string, handle?: string): string {
+  if (handle) return handle;
+
   const baseName = gpxFilename.replace(/\.gpx$/i, '');
 
-  // Strip the leading date prefix from the filename to avoid duplication
+  // Strip the leading date prefix from the filename
   // For YYYY/MM/DD-name.gpx: strip DD-
   // For YYYY/tour/MM-DD-name.gpx: strip MM-DD-
-  const stripped = baseName
+  return baseName
     .replace(/^\d{1,2}-\d{1,2}-/, '')  // MM-DD- prefix
     .replace(/^\d{1,2}-/, '');           // DD- prefix
-
-  const mm = String(date.month).padStart(2, '0');
-  const dd = String(date.day).padStart(2, '0');
-
-  return `${date.year}-${mm}-${dd}-${stripped}`;
 }
 
 /** Build an ISO date string from a RideDate. */
@@ -252,7 +252,20 @@ export function rideLoader(): Loader {
         }
 
         const gpxFilename = path.basename(gpxRelPath);
-        const slug = buildSlug(date, gpxFilename);
+        const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+
+        // Load optional sidecar .md (needed before slug generation for handle field)
+        const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+        let sidecarFrontmatter: Record<string, unknown> = {};
+        let body = '';
+        if (fs.existsSync(sidecarPath)) {
+          const raw = fs.readFileSync(sidecarPath, 'utf-8');
+          const parsed = matter(raw);
+          sidecarFrontmatter = parsed.data;
+          body = parsed.content.trim();
+        }
+
+        const slug = buildSlug(date, gpxFilename, sidecarFrontmatter.handle as string | undefined);
 
         // Incremental caching
         const digest = computeRideDigest(ridesDir, gpxRelPath);
@@ -265,7 +278,6 @@ export function rideLoader(): Loader {
         // Parse GPX, then downsample points to limit memory usage.
         // With 600+ rides, full-resolution points exhaust the heap during builds.
         // The elevation profile needs at most 200 samples; the map uses the polyline.
-        const gpxAbsPath = path.join(ridesDir, gpxRelPath);
         let gpxTrack: GpxTrack;
         try {
           const gpxXml = fs.readFileSync(gpxAbsPath, 'utf-8');
@@ -280,17 +292,6 @@ export function rideLoader(): Loader {
           const message = e instanceof Error ? e.message : String(e);
           logger.warn(`Failed to parse GPX ${gpxAbsPath}: ${message}`);
           continue;
-        }
-
-        // Load optional sidecar .md
-        const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-        let sidecarFrontmatter: Record<string, unknown> = {};
-        let body = '';
-        if (fs.existsSync(sidecarPath)) {
-          const raw = fs.readFileSync(sidecarPath, 'utf-8');
-          const parsed = matter(raw);
-          sidecarFrontmatter = parsed.data;
-          body = parsed.content.trim();
         }
 
         // Load optional -media.yml

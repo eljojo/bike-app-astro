@@ -51,6 +51,7 @@ export const routeSchema = z.object({
   })).default({}),
 
   // Ride-specific fields (used by blog instances, ignored by wiki instances)
+  handle: z.string().optional(),
   ride_date: z.string().optional(),
   tour_slug: z.string().optional(),
   country: z.string().optional(),

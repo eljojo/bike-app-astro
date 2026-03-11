@@ -47,6 +47,7 @@ export interface AdminRideDetail {
   elapsed_time_s?: number;
   moving_time_s?: number;
   average_speed_kmh?: number;
+  gpxRelativePath?: string;
 }
 
 export interface AdminTour {
@@ -156,11 +157,24 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     if (!date) continue;
 
     const gpxFilename = path.basename(gpxRelPath);
-    const slug = buildSlug(date, gpxFilename);
+    const gpxAbsPath = path.join(ridesDir, gpxRelPath);
     const isoDate = rideDateToIso(date);
 
+    // Load optional sidecar .md (needed before slug generation for handle field)
+    const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+    let sidecarFrontmatter: Record<string, unknown> = {};
+    let body = '';
+    let sidecarContent: string | undefined;
+    if (fs.existsSync(sidecarPath)) {
+      sidecarContent = fs.readFileSync(sidecarPath, 'utf-8');
+      const parsed = matter(sidecarContent);
+      sidecarFrontmatter = parsed.data;
+      body = parsed.content.trim();
+    }
+
+    const slug = buildSlug(date, gpxFilename, sidecarFrontmatter.handle as string | undefined);
+
     // Parse GPX
-    const gpxAbsPath = path.join(ridesDir, gpxRelPath);
     let gpxContent: string;
     try {
       gpxContent = fs.readFileSync(gpxAbsPath, 'utf-8');
@@ -173,18 +187,6 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       gpxTrack = parseGpx(gpxContent);
     } catch {
       continue;
-    }
-
-    // Load optional sidecar .md
-    const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-    let sidecarFrontmatter: Record<string, unknown> = {};
-    let body = '';
-    let sidecarContent: string | undefined;
-    if (fs.existsSync(sidecarPath)) {
-      sidecarContent = fs.readFileSync(sidecarPath, 'utf-8');
-      const parsed = matter(sidecarContent);
-      sidecarFrontmatter = parsed.data;
-      body = parsed.content.trim();
     }
 
     // Load optional -media.yml
@@ -272,6 +274,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       elapsed_time_s: gpxTrack.elapsed_time_s || undefined,
       moving_time_s: gpxTrack.moving_time_s || undefined,
       average_speed_kmh: gpxTrack.average_speed_kmh || undefined,
+      gpxRelativePath: gpxRelPath,
     };
 
     // Collect data for tour aggregation

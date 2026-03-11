@@ -141,8 +141,17 @@ async function main() {
       if (!date) continue;
 
       const gpxFilename = path.basename(gpxRelPath);
-      const slug = buildSlug(date, gpxFilename);
       const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+
+      // Read sidecar for handle field (used in slug generation)
+      let handle: string | undefined;
+      const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+      if (fs.existsSync(sidecarPath)) {
+        const { data } = matter(fs.readFileSync(sidecarPath, 'utf-8'));
+        handle = data.handle as string | undefined;
+      }
+
+      const slug = buildSlug(date, gpxFilename, handle);
       const gpxContent = fs.readFileSync(gpxAbsPath, 'utf-8');
       const hash = gpxHash(gpxContent);
 
