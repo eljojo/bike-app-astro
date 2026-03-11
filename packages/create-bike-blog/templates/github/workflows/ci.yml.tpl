@@ -25,6 +25,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate map styles
+        run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
+
       - name: Build site
         run: npx astro build
         env:
