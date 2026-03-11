@@ -55,6 +55,10 @@ async function main() {
   const languages = allLocales.map(shortLang);
 
   const routesDir = path.join(CONTENT_DIR, CITY, 'routes');
+  if (!fs.existsSync(routesDir)) {
+    console.log('[maps] No routes directory found — nothing to generate');
+    return;
+  }
   const slugs = fs.readdirSync(routesDir).filter(f =>
     fs.statSync(path.join(routesDir, f)).isDirectory()
   );
