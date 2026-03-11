@@ -23,6 +23,9 @@ import { slugRedirectLines } from './lib/slug-redirects';
 import { buildDataPlugin } from './build-data-plugin';
 import { i18nRoutes } from './integrations/i18n-routes';
 import { appRoutesIntegration } from './integrations/admin-routes';
+import { isBlogInstance } from './lib/city-config';
+import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from './loaders/rides';
+import matter from 'gray-matter';
 
 /**
  * Returns CSP security config for use in defineConfig().
@@ -194,8 +197,6 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
         const contentDir = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
         const city = process.env.CITY || 'ottawa';
         const redirectsPath = path.join(contentDir, city, 'redirects.yml');
-        if (!fs.existsSync(redirectsPath)) return;
-
         const data = fs.existsSync(redirectsPath)
           ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
           : {};
@@ -251,6 +252,72 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           lines.push('');
           lines.push('# Translated slug rewrites and redirects');
           lines.push(...translatedRedirects);
+        }
+
+        // Blog ride redirects: date-prefixed → name-only, /rides/ → /tours/ for tour rides
+        if (isBlogInstance()) {
+          const ridesDir = path.join(contentDir, city, 'rides');
+          if (fs.existsSync(ridesDir)) {
+            const gpxPaths = findGpxFiles(ridesDir);
+            const tours = detectTours(gpxPaths);
+            const tourByGpxPath = new Map<string, string>();
+            for (const tour of tours) {
+              for (const ridePath of tour.ridePaths) {
+                tourByGpxPath.set(ridePath, tour.slug);
+              }
+            }
+
+            const rideRedirects: string[] = [];
+            for (const gpxRelPath of gpxPaths) {
+              const date = extractDateFromPath(gpxRelPath);
+              if (!date) continue;
+
+              const gpxFilename = path.basename(gpxRelPath);
+              const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+
+              // Read sidecar for handle
+              let handle: string | undefined;
+              const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+              if (fs.existsSync(sidecarPath)) {
+                const { data: fm } = matter(fs.readFileSync(sidecarPath, 'utf-8'));
+                handle = fm.handle as string | undefined;
+              }
+
+              const newSlug = buildSlug(date, gpxFilename, handle);
+              const tourSlug = tourByGpxPath.get(gpxRelPath);
+
+              // Compute old date-prefixed slug
+              const baseName = gpxFilename.replace(/\.gpx$/i, '');
+              const stripped = baseName
+                .replace(/^\d{1,2}-\d{1,2}-/, '')
+                .replace(/^\d{1,2}-/, '');
+              const mm = String(date.month).padStart(2, '0');
+              const dd = String(date.day).padStart(2, '0');
+              const oldSlug = `${date.year}-${mm}-${dd}-${stripped}`;
+
+              const canonicalUrl = tourSlug
+                ? `/tours/${tourSlug}/${newSlug}`
+                : `/rides/${newSlug}`;
+
+              // Redirect old date-prefixed URL → canonical
+              if (oldSlug !== newSlug) {
+                rideRedirects.push(`/rides/${oldSlug}  ${canonicalUrl}  301`);
+                rideRedirects.push(`/rides/${oldSlug}/map  ${canonicalUrl}/map  301`);
+              }
+
+              // Redirect /rides/{slug} → /tours/{tour}/{slug} for tour rides
+              if (tourSlug) {
+                rideRedirects.push(`/rides/${newSlug}  /tours/${tourSlug}/${newSlug}  301`);
+                rideRedirects.push(`/rides/${newSlug}/map  /tours/${tourSlug}/${newSlug}/map  301`);
+              }
+            }
+
+            if (rideRedirects.length > 0) {
+              lines.push('');
+              lines.push('# Ride redirects: date-prefixed → name-only, standalone → tour-nested');
+              lines.push(...rideRedirects);
+            }
+          }
         }
 
         const content = lines.join('\n');
