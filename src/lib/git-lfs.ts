@@ -41,6 +41,9 @@ export async function uploadToLfs(
   const oid = createHash('sha256').update(contentBytes).digest('hex');
 
   // 1. Request upload via LFS Batch API
+  // LFS uses Basic auth: base64("username:token")
+  const basicAuth = btoa(`${owner}:${token}`);
+
   const batchResponse = await fetch(
     `${GITHUB_LFS_ENDPOINT}/${owner}/${repo}.git/info/lfs/objects/batch`,
     {
@@ -48,7 +51,7 @@ export async function uploadToLfs(
       headers: {
         'Accept': 'application/vnd.git-lfs+json',
         'Content-Type': 'application/vnd.git-lfs+json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Basic ${basicAuth}`,
         'User-Agent': 'whereto-bike',
       },
       body: JSON.stringify({
@@ -96,7 +99,7 @@ export async function uploadToLfs(
       const verifyHeaders: Record<string, string> = {
         'Accept': 'application/vnd.git-lfs+json',
         'Content-Type': 'application/vnd.git-lfs+json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Basic ${basicAuth}`,
         'User-Agent': 'whereto-bike',
         ...(verifyAction.header || {}),
       };
