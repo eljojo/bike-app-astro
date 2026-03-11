@@ -1074,6 +1074,44 @@ a.go-back-button {
   }
 }
 
+// Tour day navigation on ride detail
+.tour-rides-nav {
+  margin-top: 2em;
+  padding: 1em 0;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75em;
+
+    span { font-weight: normal; }
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    padding: 0.25em 0;
+
+    &.current {
+      font-weight: bold;
+    }
+  }
+
+  &--date {
+    @include muted-text;
+    margin-right: 0.5em;
+    font-size: 0.85em;
+  }
+}
+
 // Rides list (shared between rides index, tour detail, and homepage)
 .rides-list {
   list-style: none;
