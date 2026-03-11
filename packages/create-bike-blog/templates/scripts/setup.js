@@ -314,13 +314,6 @@ async function stepApiKeys() {
     }
   } catch { /* ignore */ }
 
-  // WEBAUTHN vars derived from domain
-  const domain = readDomain();
-  if (domain) {
-    autoVars.push({ name: 'WEBAUTHN_RP_ID', value: domain });
-    autoVars.push({ name: 'WEBAUTHN_RP_NAME', value: domain });
-    autoVars.push({ name: 'WEBAUTHN_ORIGIN', value: `https://${domain}` });
-  }
 
   // --- Classify all items ---
   const secrets = [
@@ -492,11 +485,18 @@ async function stepApiKeys() {
   } else if (collectedSecrets.length > 0 || collectedVars.length > 0) {
     console.log();
   }
+
+  return { accountId, bucketName };
 }
 
-async function stepCdnDomain() {
+async function stepCdnDomain({ accountId, bucketName } = {}) {
   console.log('\n  CDN Domain (R2_PUBLIC_URL)');
   console.log('  ─────────────────────────');
+
+  if (!hasWrangler()) {
+    console.log('  ⚠ wrangler not found — skipping.\n');
+    return;
+  }
 
   // Check if already set
   let existingSecrets = new Set();
@@ -513,23 +513,9 @@ async function stepCdnDomain() {
 
   const domain = readDomain();
   if (!domain) {
-    console.log('  ⚠ Could not read domain from city/config.yml — skipping CDN setup.\n');
+    console.log('  ⚠ Could not read domain from config.yml — skipping CDN setup.\n');
     return;
   }
-
-  // Get account ID
-  let accountId;
-  try {
-    const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
-    accountId = whoami.match(/([a-f0-9]{32})/)?.[1];
-  } catch { /* ignore */ }
-
-  // Get bucket name from wrangler.jsonc
-  let bucketName;
-  try {
-    const config = readWranglerConfig();
-    bucketName = config.r2_buckets?.[0]?.bucket_name;
-  } catch { /* ignore */ }
 
   if (!accountId || !bucketName) {
     console.log('  ⚠ Could not detect account ID or bucket name — skipping CDN auto-setup.');
@@ -647,8 +633,8 @@ async function main() {
 
   await stepCloudflare(folderName);
   await stepGitHub(folderName);
-  await stepApiKeys();
-  await stepCdnDomain();
+  const detected = await stepApiKeys();
+  await stepCdnDomain(detected);
 
   // Offer to commit and push
   let remoteUrl;

@@ -9,9 +9,9 @@ export interface AppEnv {
   BUCKET: BucketLike;
   ASSETS: unknown;
   GITHUB_TOKEN: string;
-  WEBAUTHN_RP_ID: string;
-  WEBAUTHN_RP_NAME: string;
-  WEBAUTHN_ORIGIN: string;
+  WEBAUTHN_RP_ID?: string;
+  WEBAUTHN_RP_NAME?: string;
+  WEBAUTHN_ORIGIN?: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_ACCOUNT_ID: string;
