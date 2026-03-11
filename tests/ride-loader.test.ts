@@ -17,6 +17,11 @@ describe('extractDateFromPath', () => {
     expect(result).toEqual({ year: 2023, month: 1, day: 23 });
   });
 
+  it('extracts date from YYYY/year-prefixed-tour/MM-DD-name.gpx', () => {
+    const result = extractDateFromPath('2025/2025-eurobiketrip/09-09-schiphol.gpx');
+    expect(result).toEqual({ year: 2025, month: 9, day: 9 });
+  });
+
   it('handles single-digit day', () => {
     const result = extractDateFromPath('2025/06/3-morning-ride.gpx');
     expect(result).toEqual({ year: 2025, month: 6, day: 3 });
@@ -126,6 +131,33 @@ describe('buildSlug', () => {
   it('strips MM-DD prefix for multi-month tours', () => {
     const date = { year: 2023, month: 1, day: 23 };
     expect(buildSlug(date, '01-23-first-day.gpx')).toBe('first-day');
+  });
+
+  it('preserves numeric handle ID when stripping day prefix', () => {
+    // filename: DD-{handle}.gpx where handle is 268-afternoon-ride (Rails ID-based)
+    const date = { year: 2020, month: 8, day: 31 };
+    expect(buildSlug(date, '31-268-afternoon-ride.gpx')).toBe('268-afternoon-ride');
+  });
+
+  it('preserves handle starting with hyphen', () => {
+    const date = { year: 2024, month: 3, day: 14 };
+    expect(buildSlug(date, '14--morning-ride.gpx')).toBe('-morning-ride');
+  });
+
+  it('preserves 1-digit handle prefix (6-sprints)', () => {
+    // DD-{handle} where handle is "6-sprints" — must not strip the "6-"
+    const date = { year: 2021, month: 4, day: 14 };
+    expect(buildSlug(date, '14-6-sprints.gpx')).toBe('6-sprints');
+  });
+
+  it('preserves 2-digit handle prefix (31-the-1250)', () => {
+    const date = { year: 2020, month: 11, day: 25 };
+    expect(buildSlug(date, '25-31-the-1250.gpx')).toBe('31-the-1250');
+  });
+
+  it('preserves 3-digit numeric prefix in handle', () => {
+    const date = { year: 2020, month: 7, day: 4 };
+    expect(buildSlug(date, '04-292-great-eclipse.gpx')).toBe('292-great-eclipse');
   });
 
   it('uses handle when provided', () => {

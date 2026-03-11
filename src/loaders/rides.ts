@@ -38,9 +38,10 @@ export function extractDateFromPath(relativePath: string): RideDate | null {
   if (isNaN(year) || year < 1900 || year > 2100) return null;
 
   if (parts.length === 3) {
+    const isNumericDir = /^\d+$/.test(parts[1]);
     const secondPart = parseInt(parts[1], 10);
 
-    if (!isNaN(secondPart) && secondPart >= 1 && secondPart <= 12) {
+    if (isNumericDir && secondPart >= 1 && secondPart <= 12) {
       // YYYY/MM/DD-name.gpx — month from directory, day from filename
       const dayMatch = filename.match(/^(\d{1,2})-/);
       if (dayMatch) {
@@ -49,7 +50,7 @@ export function extractDateFromPath(relativePath: string): RideDate | null {
           return { year, month: secondPart, day };
         }
       }
-    } else if (isNaN(secondPart)) {
+    } else if (!isNumericDir) {
       // YYYY/tour-name/MM-DD-name.gpx — multi-month tour, month+day from filename
       const mmddMatch = filename.match(/^(\d{1,2})-(\d{1,2})-/);
       if (mmddMatch) {
@@ -76,7 +77,7 @@ export function extractDateFromPath(relativePath: string): RideDate | null {
     }
 
     // YYYY/tour-name/MM-DD-name.gpx (multi-month tour)
-    if (isNaN(parseInt(parts[1], 10))) {
+    if (!/^\d+$/.test(parts[1])) {
       const mmddMatch = filename.match(/^(\d{1,2})-(\d{1,2})-/);
       if (mmddMatch) {
         const month2 = parseInt(mmddMatch[1], 10);
@@ -134,19 +135,33 @@ export function detectTours(gpxPaths: string[]): Tour[] {
 
 /** Build a slug from ride date and filename.
  * If a `handle` is provided (from sidecar frontmatter), it takes priority.
- * Otherwise, produce a name-only slug by stripping date prefixes from the filename.
+ * Otherwise, produce a name-only slug by stripping the date prefix from the filename
+ * using the known date to match exactly (avoids greedily stripping numeric handle IDs).
  */
-export function buildSlug(_date: RideDate, gpxFilename: string, handle?: string): string {
+export function buildSlug(date: RideDate, gpxFilename: string, handle?: string): string {
   if (handle) return handle;
 
   const baseName = gpxFilename.replace(/\.gpx$/i, '');
+  const mm = String(date.month).padStart(2, '0');
+  const dd = String(date.day).padStart(2, '0');
 
-  // Strip the leading date prefix from the filename
-  // For YYYY/MM/DD-name.gpx: strip DD-
-  // For YYYY/tour/MM-DD-name.gpx: strip MM-DD-
-  return baseName
-    .replace(/^\d{1,2}-\d{1,2}-/, '')  // MM-DD- prefix
-    .replace(/^\d{1,2}-/, '');           // DD- prefix
+  // Try MM-DD- prefix first (multi-month tours: YYYY/tour-name/MM-DD-name.gpx)
+  const mmddPrefix = `${mm}-${dd}-`;
+  if (baseName.startsWith(mmddPrefix)) {
+    return baseName.slice(mmddPrefix.length);
+  }
+
+  // Try DD- prefix (zero-padded, then non-padded)
+  const ddPrefix = `${dd}-`;
+  if (baseName.startsWith(ddPrefix)) {
+    return baseName.slice(ddPrefix.length);
+  }
+  const dPrefix = `${date.day}-`;
+  if (dPrefix !== ddPrefix && baseName.startsWith(dPrefix)) {
+    return baseName.slice(dPrefix.length);
+  }
+
+  return baseName;
 }
 
 /** Build an ISO date string from a RideDate. */
@@ -207,11 +222,11 @@ function computeRideDigest(ridesDir: string, gpxRelPath: string): string {
 }
 
 /** Extract a human-readable name from a GPX filename. */
-export function nameFromFilename(gpxFilename: string): string {
-  return gpxFilename
-    .replace(/\.gpx$/i, '')
-    .replace(/^\d{1,2}-\d{1,2}-/, '')   // strip MM-DD- prefix
-    .replace(/^\d{1,2}-/, '')             // strip DD- prefix
+export function nameFromFilename(gpxFilename: string, date?: RideDate): string {
+  const slug = date
+    ? buildSlug(date, gpxFilename)
+    : gpxFilename.replace(/\.gpx$/i, '');
+  return slug
     .replace(/-/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -323,7 +338,7 @@ export function rideLoader(): Loader {
         }
 
         const name = (sidecarFrontmatter.name as string)
-          || nameFromFilename(gpxFilename);
+          || nameFromFilename(gpxFilename, date);
         const status = (sidecarFrontmatter.status as string) || 'published';
         const country = (sidecarFrontmatter.country as string)
           || (tourFrontmatter.country as string)

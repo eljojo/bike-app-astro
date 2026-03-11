@@ -288,14 +288,10 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
               const newSlug = buildSlug(date, gpxFilename, handle);
               const tourSlug = tourByGpxPath.get(gpxRelPath);
 
-              // Compute old date-prefixed slug
-              const baseName = gpxFilename.replace(/\.gpx$/i, '');
-              const stripped = baseName
-                .replace(/^\d{1,2}-\d{1,2}-/, '')
-                .replace(/^\d{1,2}-/, '');
+              // Compute old date-prefixed slug using the same date-aware stripping
               const mm = String(date.month).padStart(2, '0');
               const dd = String(date.day).padStart(2, '0');
-              const oldSlug = `${date.year}-${mm}-${dd}-${stripped}`;
+              const oldSlug = `${date.year}-${mm}-${dd}-${newSlug}`;
 
               const canonicalUrl = tourSlug
                 ? `/tours/${tourSlug}/${newSlug}`
@@ -314,10 +310,12 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
               }
             }
 
-            if (rideRedirects.length > 0) {
+            // Deduplicate redirects (multiple rides can share a slug after name stripping)
+            const uniqueRedirects = [...new Set(rideRedirects)];
+            if (uniqueRedirects.length > 0) {
               lines.push('');
               lines.push('# Ride redirects: date-prefixed → name-only, standalone → tour-nested');
-              lines.push(...rideRedirects);
+              lines.push(...uniqueRedirects);
             }
           }
         }
