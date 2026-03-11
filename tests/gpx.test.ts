@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGpx, extractRwgpsUrl, computeElapsedTime, computeMovingTime } from '../src/lib/gpx';
+import { parseGpx, extractRwgpsUrl, computeElapsedTime, computeMovingTime, extractRideDate } from '../src/lib/gpx';
 import type { GpxPoint } from '../src/lib/gpx';
 
 const SAMPLE_GPX = `<?xml version="1.0"?>
@@ -244,5 +244,32 @@ describe('parseGpx time fields', () => {
     expect(track.elapsed_time_s).toBe(0);
     expect(track.moving_time_s).toBe(0);
     expect(track.average_speed_kmh).toBe(0);
+  });
+});
+
+describe('extractRideDate', () => {
+  it('extracts date from first trackpoint time element', () => {
+    const gpx = `<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="45.0" lon="-75.0"><time>2026-01-23T14:30:00Z</time></trkpt>
+        <trkpt lat="45.1" lon="-75.1"><time>2026-01-23T15:00:00Z</time></trkpt>
+      </trkseg></trk></gpx>`;
+    expect(extractRideDate(gpx)).toBe('2026-01-23');
+  });
+
+  it('returns null when no time elements exist', () => {
+    const gpx = `<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="45.0" lon="-75.0"></trkpt>
+      </trkseg></trk></gpx>`;
+    expect(extractRideDate(gpx)).toBeNull();
+  });
+
+  it('handles timezone offsets correctly', () => {
+    const gpx = `<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="45.0" lon="-75.0"><time>2026-01-23T23:30:00+05:00</time></trkpt>
+      </trkseg></trk></gpx>`;
+    expect(extractRideDate(gpx)).toBe('2026-01-23');
   });
 });

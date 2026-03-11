@@ -215,3 +215,11 @@ export function haversine(a: { lat: number; lon: number }, b: { lat: number; lon
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
+
+/** Extract ride date (YYYY-MM-DD) from the first trackpoint's <time> element. */
+export function extractRideDate(gpxXml: string): string | null {
+  const timeMatch = gpxXml.match(/<time>([^<]+)<\/time>/);
+  if (!timeMatch) return null;
+  const isoDate = timeMatch[1].slice(0, 10);
+  return isoDate;
+}
