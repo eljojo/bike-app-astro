@@ -3,7 +3,7 @@
 import { t, localePath } from '../i18n';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
-import { isBlogInstance } from '../lib/city-config';
+import { getCityConfig, isBlogInstance } from '../lib/city-config';
 
 interface Props {
   alternateUrls?: Record<string, string>;
@@ -16,13 +16,19 @@ const showSwitcher = locales.length > 1;
 
 const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
+const blog = isBlogInstance();
+const config = blog ? getCityConfig() : null;
 ---
 <footer class="site-footer">
-  {!isBlogInstance() && (
+  {blog && config?.author?.name ? (
+    <a href={localePath('/about', locale)}>
+      {config.display_name} is curated by {config.author.name}
+    </a>
+  ) : !blog ? (
     <a href={localePath('/about', locale)}>
       {t('footer.community', locale)}
     </a>
-  )}
+  ) : null}
   <a href="https://whereto.bike" class="powered-by" target="_blank" rel="noopener">
     {t('footer.powered_by', locale)}
   </a>
