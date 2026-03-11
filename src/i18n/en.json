@@ -119,7 +119,7 @@
   "tours.days": "days",
   "tours.rides": "rides",
   "tours.dates_label": "Dates",
-  "tours.days_label": "Days",
+  "tours.days_label": "Riding days",
   "tours.countries_label": "Countries",
   "tours.ride_list": "Rides",
   "tours.go_back": "go back to all tours",
@@ -141,5 +141,10 @@
 
   "home.highlights": "Highlights",
   "home.latest_rides": "Latest Rides",
-  "home.all_rides": "View all rides"
+  "home.all_rides": "View all rides",
+
+  "auth.gate_title_blog": "Sign in to continue",
+  "auth.gate_title_wiki": "Edit this page",
+  "auth.gate_subtitle": "Choose how to continue:",
+  "auth.gate_intro": "This site is built by cyclists like you. Your local knowledge helps others discover great routes and events."
 }

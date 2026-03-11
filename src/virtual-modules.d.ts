@@ -9,6 +9,11 @@
  * Canonical types: src/lib/models/event-model.ts (EventDetail)
  */
 
+/**
+ * Interfaces use underscore prefixes (e.g., _AdminRoute, _Tour) to avoid
+ * collisions with identically named types in application code. This file is
+ * ambient (no top-level imports/exports), so all names are globally visible.
+ */
 interface _AdminRoute {
   slug: string;
   name: string;

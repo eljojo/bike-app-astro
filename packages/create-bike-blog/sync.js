@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-function renderTemplate(content, vars) {
+export function renderTemplate(content, vars) {
   return content.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     return key in vars ? vars[key] : match;
   });
@@ -29,7 +29,7 @@ function readYamlField(filePath, field) {
   return match ? match[1] : '';
 }
 
-function syncFile(srcPath, destPath, vars) {
+export function syncFile(srcPath, destPath, vars) {
   let content = fs.readFileSync(srcPath, 'utf-8');
   if (srcPath.endsWith('.tpl')) {
     content = renderTemplate(content, vars);
@@ -44,57 +44,62 @@ function syncFile(srcPath, destPath, vars) {
   return false;
 }
 
-const cwd = process.cwd();
-const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
+// --- Main execution (only when run directly, not when imported) ---
+const isMain = process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;
 
-const configPath = path.join(cwd, 'blog', 'config.yml');
-if (!fs.existsSync(configPath)) {
-  console.error(`  Error: blog/config.yml not found. Is this a bike blog repo?`);
-  process.exit(1);
-}
+if (isMain) {
+  const cwd = process.cwd();
+  const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
 
-const vars = {
-  FOLDER: pkg.name,
-  DOMAIN: readYamlField(configPath, 'domain'),
-  USERNAME: 'blog',
-  TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
-};
-
-const templateRoot = new URL('./templates', import.meta.url).pathname;
-let updated = 0;
-
-// --- Sync CI workflows (.tpl rendered) ---
-const workflowDir = path.join(templateRoot, 'github', 'workflows');
-const outWorkflowDir = path.join(cwd, '.github', 'workflows');
-for (const file of fs.readdirSync(workflowDir)) {
-  const outName = file.replace(/\.tpl$/, '');
-  if (syncFile(path.join(workflowDir, file), path.join(outWorkflowDir, outName), vars)) {
-    console.log(`  updated .github/workflows/${outName}`);
-    updated++;
+  const configPath = path.join(cwd, 'blog', 'config.yml');
+  if (!fs.existsSync(configPath)) {
+    console.error(`  Error: blog/config.yml not found. Is this a bike blog repo?`);
+    process.exit(1);
   }
-}
 
-// --- Sync source files (copied as-is, no templating) ---
-const sourceFiles = [
-  'src/middleware.ts',
-  'src/content.config.ts',
-  'scripts/setup.js',
-  'astro.config.mjs',
-  'tsconfig.json',
-];
+  const vars = {
+    FOLDER: pkg.name,
+    DOMAIN: readYamlField(configPath, 'domain'),
+    USERNAME: 'blog',
+    TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
 
-for (const rel of sourceFiles) {
-  const srcPath = path.join(templateRoot, rel);
-  if (!fs.existsSync(srcPath)) continue;
-  if (syncFile(srcPath, path.join(cwd, rel), vars)) {
-    console.log(`  updated ${rel}`);
-    updated++;
+  const templateRoot = new URL('./templates', import.meta.url).pathname;
+  let updated = 0;
+
+  // --- Sync CI workflows (.tpl rendered) ---
+  const workflowDir = path.join(templateRoot, 'github', 'workflows');
+  const outWorkflowDir = path.join(cwd, '.github', 'workflows');
+  for (const file of fs.readdirSync(workflowDir)) {
+    const outName = file.replace(/\.tpl$/, '');
+    if (syncFile(path.join(workflowDir, file), path.join(outWorkflowDir, outName), vars)) {
+      console.log(`  updated .github/workflows/${outName}`);
+      updated++;
+    }
   }
-}
 
-// --- Summary ---
-if (updated === 0) {
-  console.log('  Everything is up to date.');
-} else {
-  console.log(`\n  ${updated} file(s) updated. Review and commit the changes.`);
+  // --- Sync source files (copied as-is, no templating) ---
+  const sourceFiles = [
+    'src/middleware.ts',
+    'src/content.config.ts',
+    'scripts/setup.js',
+    'astro.config.mjs',
+    'tsconfig.json',
+  ];
+
+  for (const rel of sourceFiles) {
+    const srcPath = path.join(templateRoot, rel);
+    if (!fs.existsSync(srcPath)) continue;
+    if (syncFile(srcPath, path.join(cwd, rel), vars)) {
+      console.log(`  updated ${rel}`);
+      updated++;
+    }
+  }
+
+  // --- Summary ---
+  if (updated === 0) {
+    console.log('  Everything is up to date.');
+  } else {
+    console.log(`\n  ${updated} file(s) updated. Review and commit the changes.`);
+  }
 }

@@ -18,9 +18,10 @@ interface Props {
   cdnUrl: string;
   userRole?: string;
   mapThumbnail?: string;
+  rideLabels?: Record<string, string>;
 }
 
-export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail }: Props) {
+export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels }: Props) {
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -339,6 +340,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
             country={country}
             distanceKm={distanceKm}
             mapThumbnail={mapThumbnail}
+            labels={rideLabels}
           />
         </div>
       </div>

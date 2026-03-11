@@ -1,5 +1,6 @@
 import { useMemo } from 'preact/hooks';
 import { marked } from 'marked';
+import { formatDuration } from '../../lib/date-utils';
 import type { MediaItem } from './MediaManager';
 
 interface Props {
@@ -14,17 +15,12 @@ interface Props {
   movingTimeS?: number;
   averageSpeedKmh?: number;
   mapThumbnail?: string;
-}
-
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m.toString().padStart(2, '0')}m`;
+  labels?: Record<string, string>;
 }
 
 export default function RidePreview({
   name, body, media, cdnUrl, rideDate, country,
-  distanceKm, elevationM, movingTimeS, averageSpeedKmh, mapThumbnail,
+  distanceKm, elevationM, movingTimeS, averageSpeedKmh, mapThumbnail, labels,
 }: Props) {
   const renderedBody = useMemo(() => {
     if (!body) return '';
@@ -57,37 +53,37 @@ export default function RidePreview({
         <div class="ride-preview-stats">
           {rideDate && (
             <div class="ride-preview-stat">
-              <span class="ride-preview-stat-label">Date</span>
+              <span class="ride-preview-stat-label">{labels?.date || 'Date'}</span>
               <span class="ride-preview-stat-value">{rideDate}</span>
             </div>
           )}
           {distanceKm != null && (
             <div class="ride-preview-stat">
-              <span class="ride-preview-stat-label">Distance</span>
+              <span class="ride-preview-stat-label">{labels?.distance || 'Distance'}</span>
               <span class="ride-preview-stat-value">{distanceKm.toFixed(0)} km</span>
             </div>
           )}
           {elevationM != null && (
             <div class="ride-preview-stat">
-              <span class="ride-preview-stat-label">Elevation</span>
+              <span class="ride-preview-stat-label">{labels?.elevation || 'Elevation'}</span>
               <span class="ride-preview-stat-value">{elevationM} m</span>
             </div>
           )}
           {movingTimeS != null && (
             <div class="ride-preview-stat">
-              <span class="ride-preview-stat-label">Moving time</span>
-              <span class="ride-preview-stat-value">{formatTime(movingTimeS)}</span>
+              <span class="ride-preview-stat-label">{labels?.moving_time || 'Moving time'}</span>
+              <span class="ride-preview-stat-value">{formatDuration(movingTimeS)}</span>
             </div>
           )}
           {averageSpeedKmh != null && (
             <div class="ride-preview-stat">
-              <span class="ride-preview-stat-label">Speed</span>
+              <span class="ride-preview-stat-label">{labels?.speed || 'Speed'}</span>
               <span class="ride-preview-stat-value">{averageSpeedKmh.toFixed(1)} km/h</span>
             </div>
           )}
           {country && (
             <div class="ride-preview-stat">
-              <span class="ride-preview-stat-label">Country</span>
+              <span class="ride-preview-stat-label">{labels?.country || 'Country'}</span>
               <span class="ride-preview-stat-value">{country}</span>
             </div>
           )}

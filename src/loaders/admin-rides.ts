@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { cityDir } from '../lib/config';
 import { parseGpx } from '../lib/gpx';
 import { renderMarkdownHtml } from '../lib/markdown-render';
 import type { RouteMedia } from './routes';
+import { computeRideContentHash } from '../lib/models/ride-model';
 import {
   extractDateFromPath,
   detectTours,
@@ -85,13 +85,6 @@ interface AdminRideData {
   details: Record<string, AdminRideDetail>;
   tours: AdminTour[];
   stats: RideStats;
-}
-
-function computeRideContentHash(gpxContent: string, sidecarContent?: string, mediaContent?: string): string {
-  const hash = createHash('md5').update(gpxContent);
-  if (sidecarContent) hash.update(sidecarContent);
-  if (mediaContent) hash.update(mediaContent);
-  return hash.digest('hex');
 }
 
 let cachedRideData: AdminRideData | null = null;
@@ -230,7 +223,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const distance_km = Math.round(gpxTrack.distance_m / 100) / 10;
     const elevation_m = Math.round(gpxTrack.elevation_gain_m);
 
-    const contentHash = computeRideContentHash(gpxContent, sidecarContent, mediaContent);
+    const contentHash = computeRideContentHash(sidecarContent || '', gpxContent, mediaContent);
 
     // Filter media to photos only (matching route pattern)
     const photoMedia = media

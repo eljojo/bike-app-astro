@@ -6,6 +6,7 @@ import { getCityConfig } from '@/lib/city-config';
 import { imageUrl } from '@/lib/image-service';
 import { isPublished } from '@/lib/content-filters';
 import { t } from '@/i18n';
+import { formatDuration } from '@/lib/date-utils';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -25,11 +26,6 @@ for (const ride of rides) {
 }
 const years = [...byYear.keys()].sort((a, b) => b - a);
 
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m.toString().padStart(2, '0')}m`;
-}
 ---
 
 <Base title={`${t('nav.rides', locale)} | ${config.display_name}`} description={t('rides.description', locale)}>
@@ -60,7 +56,7 @@ function formatTime(seconds: number): string {
                     {ride.data.ride_date}
                     {' · '}
                     {ride.data.distance_km.toFixed(0)} km
-                    {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                    {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
                     {ride.data.country ? ` · ${ride.data.country}` : ''}
                   </span>
                 </div>

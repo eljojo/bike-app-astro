@@ -7,6 +7,8 @@ import { getCityConfig, isBlogInstance } from '@/lib/city-config';
 import { t } from '@/i18n';
 import { routeSlug } from '@/lib/paths';
 import { imageUrl } from '@/lib/image-service';
+import { formatDuration } from '@/lib/date-utils';
+import type { CollectionEntry } from 'astro:content';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -15,8 +17,8 @@ const blog = isBlogInstance();
 // For wiki instances, load the traditional homepage data
 // For blog instances, load rides and stats
 let wikiData: Awaited<ReturnType<typeof import('@/lib/route-data').loadHomepageData>> | null = null;
-let blogRides: Array<any> = [];
-let blogHighlights: Array<any> = [];
+let blogRides: CollectionEntry<'routes'>[] = [];
+let blogHighlights: CollectionEntry<'routes'>[] = [];
 
 if (blog) {
   const { getCollection } = await import('astro:content');
@@ -32,11 +34,6 @@ if (blog) {
   wikiData = await loadHomepageData();
 }
 
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m.toString().padStart(2, '0')}m`;
-}
 ---
 
 <Base title={config.display_name} description={config.tagline}>
@@ -72,7 +69,7 @@ function formatTime(seconds: number): string {
                         {ride.data.ride_date}
                         {' · '}
                         {ride.data.distance_km.toFixed(0)} km
-                        {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                        {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
                         {ride.data.country ? ` · ${ride.data.country}` : ''}
                       </span>
                     </div>
@@ -109,7 +106,7 @@ function formatTime(seconds: number): string {
                       {ride.data.ride_date}
                       {' · '}
                       {ride.data.distance_km.toFixed(0)} km
-                      {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                      {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
                       {ride.data.country ? ` · ${ride.data.country}` : ''}
                     </span>
                   </div>

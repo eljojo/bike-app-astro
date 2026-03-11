@@ -272,4 +272,22 @@ describe('extractRideDate', () => {
       </trkseg></trk></gpx>`;
     expect(extractRideDate(gpx)).toBe('2026-01-23');
   });
+
+  it('prefers trackpoint time over metadata time', () => {
+    const gpx = `<?xml version="1.0"?>
+    <gpx><metadata><time>2020-01-01T00:00:00Z</time></metadata>
+    <trk><trkseg>
+      <trkpt lat="45.0" lon="-75.0"><time>2026-01-23T14:30:00Z</time></trkpt>
+    </trkseg></trk></gpx>`;
+    expect(extractRideDate(gpx)).toBe('2026-01-23');
+  });
+
+  it('falls back to metadata time when no trackpoint time exists', () => {
+    const gpx = `<?xml version="1.0"?>
+    <gpx><metadata><time>2026-03-01T00:00:00Z</time></metadata>
+    <trk><trkseg>
+      <trkpt lat="45.0" lon="-75.0"></trkpt>
+    </trkseg></trk></gpx>`;
+    expect(extractRideDate(gpx)).toBe('2026-03-01');
+  });
 });

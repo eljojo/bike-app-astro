@@ -96,5 +96,10 @@
   "category.parking": ["stationnement", "stationnements"],
   "category.meeting-point": ["point de rencontre", "points de rencontre"],
   "category.camping-spot": ["camping", "campings"],
-  "category.wc": ["toilettes", "toilettes"]
+  "category.wc": ["toilettes", "toilettes"],
+
+  "auth.gate_title_blog": "Connectez-vous pour continuer",
+  "auth.gate_title_wiki": "Modifier cette page",
+  "auth.gate_subtitle": "Choisissez comment continuer :",
+  "auth.gate_intro": "Ce site est construit par des cyclistes comme vous. Vos connaissances locales aident les autres à découvrir de belles routes et événements."
 }

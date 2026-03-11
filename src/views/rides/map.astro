@@ -31,8 +31,8 @@ const conclusion = elevation ? elevationConclusion(elevation, allElevations) : n
 const variantKey = variant ? variantKeyFromGpx(variant.gpx) : '';
 
 const photos = route.data.media
-  .filter((m: any) => m.type === 'photo' && m.lat != null && m.lng != null)
-  .map((m: any, i: number) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
+  .filter((m) => m.type === 'photo' && m.lat != null && m.lng != null)
+  .map((m, i) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
 ---
 
 <Base title={`Map: ${name} | ${config.display_name}`}>

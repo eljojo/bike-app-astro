@@ -19,7 +19,7 @@ export default {
       ImportDeclaration(node) {
         const source = node.source.value;
         // Only check imports from model files
-        if (!source.match(/\/models\/(route|event|place)-model/)) return;
+        if (!source.match(/\/models\/(route|event|place|ride)-model/)) return;
 
         // Check that ALL specifiers are type-only imports
         const hasRuntimeImport = node.specifiers.some(s => {

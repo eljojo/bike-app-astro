@@ -93,5 +93,10 @@
   "category.parking": ["estacionamiento", "estacionamientos"],
   "category.meeting-point": ["punto de encuentro", "puntos de encuentro"],
   "category.camping-spot": ["camping", "campings"],
-  "category.wc": ["baño", "baños"]
+  "category.wc": ["baño", "baños"],
+
+  "auth.gate_title_blog": "Inicia sesión para continuar",
+  "auth.gate_title_wiki": "Editar esta página",
+  "auth.gate_subtitle": "Elige cómo continuar:",
+  "auth.gate_intro": "Este sitio está construido por ciclistas como tú. Tu conocimiento local ayuda a otros a descubrir grandes rutas y eventos."
 }

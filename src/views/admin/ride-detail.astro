@@ -10,6 +10,7 @@ import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { rideDetailFromCache } from '../../lib/models/ride-model';
 import { rideSlugToDir } from '../../lib/ride-paths';
+import { t } from '@/i18n';
 
 const { slug } = Astro.params;
 
@@ -49,6 +50,15 @@ if (isNew) {
 
 const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
 const title = isNew ? 'New Ride' : `Edit: ${rideData.name}`;
+const locale = Astro.currentLocale;
+const rideLabels = {
+  date: t('ride.date', locale),
+  distance: t('ride.distance', locale),
+  elevation: t('ride.elevation', locale),
+  moving_time: t('ride.moving_time', locale),
+  speed: t('ride.speed', locale),
+  country: t('ride.country', locale),
+};
 
 // Build content path for edit history
 const contentPath = slug ? (() => {
@@ -66,7 +76,7 @@ const contentPath = slug ? (() => {
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} />
+  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} rideLabels={rideLabels} />
   {slug && (
     <EditHistory client:load contentPath={contentPath} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
   )}

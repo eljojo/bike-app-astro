@@ -36,4 +36,13 @@ describe('rideSlugFromPath', () => {
   it('builds slug from sidecar path', () => {
     expect(rideSlugFromPath('rides/2025/09/05-canal-ride.md')).toBe('2025-09-05-canal-ride');
   });
+
+  it('builds slug from tour ride GPX path', () => {
+    expect(rideSlugFromPath('rides/2025/07/euro-tour/15-paris-to-lyon.gpx'))
+      .toBe('2025-07-15-paris-to-lyon');
+  });
+
+  it('throws on invalid slug format', () => {
+    expect(() => rideSlugToDir('bad-slug', 'blog')).toThrow('Invalid ride slug format');
+  });
 });

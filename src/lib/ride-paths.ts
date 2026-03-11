@@ -2,6 +2,9 @@ import { CITY } from './config';
 
 /** Parse a ride slug (YYYY-MM-DD-name) into directory and base filename. */
 export function rideSlugToDir(slug: string, city: string = CITY): { dir: string; base: string } {
+  if (!/^\d{4}-\d{2}-\d{2}-.+$/.test(slug)) {
+    throw new Error(`Invalid ride slug format: "${slug}" (expected YYYY-MM-DD-name)`);
+  }
   const year = slug.slice(0, 4);
   const month = slug.slice(5, 7);
   const base = slug.slice(8);
@@ -22,8 +25,11 @@ export function rideFilePaths(slug: string, city: string = CITY) {
 export function rideSlugFromPath(relativePath: string): string {
   const cleaned = relativePath.replace(/^.*?rides\//, '');
   const parts = cleaned.split('/');
+  if (parts.length < 3) {
+    throw new Error(`Invalid ride path: ${relativePath} (expected at least YYYY/MM/file)`);
+  }
   const year = parts[0];
   const month = parts[1];
-  const filename = parts[2].replace(/\.(gpx|md)$/, '').replace(/-media\.yml$/, '');
+  const filename = parts[parts.length - 1].replace(/\.(gpx|md)$/, '').replace(/-media\.yml$/, '');
   return `${year}-${month}-${filename}`;
 }

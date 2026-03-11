@@ -7,6 +7,7 @@ import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
 import { getCityConfig } from '@/lib/city-config';
 import { isPublished } from '@/lib/content-filters';
 import { t } from '@/i18n';
+import { formatDuration } from '@/lib/date-utils';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import tours from 'virtual:bike-app/tours';
 
@@ -37,12 +38,6 @@ const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
 const tour = route.data.tour_slug
   ? tours.find(t => t.slug === route.data.tour_slug)
   : null;
-
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m.toString().padStart(2, '0')}m`;
-}
 
 function formatSpeed(kmh: number): string {
   return `${kmh.toFixed(1)} km/h`;
@@ -100,13 +95,13 @@ const seoDescription = route.data.ride_date
           {route.data.moving_time_s && (
             <div class="route-stats--item">
               <span class="route-stats--label">{t('ride.moving_time', locale)}</span>
-              <span class="route-stats--value">{formatTime(route.data.moving_time_s)}</span>
+              <span class="route-stats--value">{formatDuration(route.data.moving_time_s)}</span>
             </div>
           )}
           {route.data.elapsed_time_s && (
             <div class="route-stats--item">
               <span class="route-stats--label">{t('ride.elapsed_time', locale)}</span>
-              <span class="route-stats--value">{formatTime(route.data.elapsed_time_s)}</span>
+              <span class="route-stats--value">{formatDuration(route.data.elapsed_time_s)}</span>
             </div>
           )}
           {route.data.average_speed_kmh && (

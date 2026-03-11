@@ -216,10 +216,14 @@ function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-/** Extract ride date (YYYY-MM-DD) from the first trackpoint's <time> element. */
+/** Extract ride date (YYYY-MM-DD) from GPX trackpoint time, falling back to metadata time. */
 export function extractRideDate(gpxXml: string): string | null {
-  const timeMatch = gpxXml.match(/<time>([^<]+)<\/time>/);
-  if (!timeMatch) return null;
-  const isoDate = timeMatch[1].slice(0, 10);
-  return isoDate;
+  // Prefer <time> inside <trkpt> to avoid matching metadata time
+  const trkptTimeMatch = gpxXml.match(/<trkpt[^>]*>[^]*?<time>([^<]+)<\/time>/);
+  if (trkptTimeMatch) {
+    return trkptTimeMatch[1].slice(0, 10);
+  }
+  // Fall back to first <time> anywhere (some GPX files only have metadata time)
+  const fallbackMatch = gpxXml.match(/<time>([^<]+)<\/time>/);
+  return fallbackMatch ? fallbackMatch[1].slice(0, 10) : null;
 }

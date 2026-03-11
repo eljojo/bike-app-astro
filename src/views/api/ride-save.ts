@@ -1,7 +1,6 @@
 // AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
-import { createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
@@ -13,7 +12,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { rideFilePaths } from '../../lib/ride-paths';
-import { rideDetailToCache } from '../../lib/models/ride-model';
+import { rideDetailToCache, computeRideContentHash } from '../../lib/models/ride-model';
 import { validateSlug } from '../../lib/slug';
 
 export const prerender = false;
@@ -75,13 +74,6 @@ export interface RideUpdate {
   contentHash?: string;
 }
 
-function computeRideContentHash(sidecarContent: string, gpxContent?: string, mediaContent?: string): string {
-  const hash = createHash('md5').update(sidecarContent);
-  if (gpxContent) hash.update(gpxContent);
-  if (mediaContent) hash.update(mediaContent);
-  return hash.digest('hex');
-}
-
 export const rideHandlers: SaveHandlers<RideUpdate> = {
   parseRequest(body: unknown): RideUpdate {
     return rideUpdateSchema.parse(body);
@@ -92,10 +84,10 @@ export const rideHandlers: SaveHandlers<RideUpdate> = {
   },
 
   validateSlug(slug: string): string | null {
-    // Ride slugs have date prefix (YYYY-MM-name), validate the name part
+    // Ride slugs have date prefix (YYYY-MM-DD-name), validate the name part
     const parts = slug.split('-');
-    if (parts.length < 3) return 'Ride slug must include date prefix (YYYY-MM-name)';
-    const namePart = parts.slice(2).join('-');
+    if (parts.length < 4) return 'Ride slug must include date prefix (YYYY-MM-DD-name)';
+    const namePart = parts.slice(3).join('-');
     return validateSlug(namePart);
   },
 

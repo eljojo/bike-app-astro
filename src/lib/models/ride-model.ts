@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'astro/zod';
 
 const mediaItemSchema = z.object({
@@ -40,6 +41,14 @@ const rideDetailSchema = z.object({
 });
 
 export type RideDetail = z.infer<typeof rideDetailSchema>;
+
+/** Compute content hash for ride conflict detection. Canonical order: sidecar, gpx, media. */
+export function computeRideContentHash(sidecarContent: string, gpxContent?: string, mediaContent?: string): string {
+  const hash = createHash('md5').update(sidecarContent);
+  if (gpxContent) hash.update(gpxContent);
+  if (mediaContent) hash.update(mediaContent);
+  return hash.digest('hex');
+}
 
 /** Serialize ride detail for D1 cache storage. */
 export function rideDetailToCache(detail: Record<string, unknown>): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rideDetailFromCache, rideDetailToCache } from '../src/lib/models/ride-model';
+import { rideDetailFromCache, rideDetailToCache, computeRideContentHash } from '../src/lib/models/ride-model';
 
 const sampleDetail = {
   slug: '2026-01-23-winter-ride',
@@ -35,5 +35,19 @@ describe('rideDetailToCache + rideDetailFromCache', () => {
 
   it('returns null for data missing required fields', () => {
     expect(rideDetailFromCache(JSON.stringify({ name: 'only name' }))).toBeNull();
+  });
+});
+
+describe('computeRideContentHash', () => {
+  it('produces deterministic hash', () => {
+    const hash1 = computeRideContentHash('sidecar', 'gpx', 'media');
+    const hash2 = computeRideContentHash('sidecar', 'gpx', 'media');
+    expect(hash1).toBe(hash2);
+  });
+
+  it('differs when arguments change', () => {
+    const hash1 = computeRideContentHash('sidecar', 'gpx', 'media');
+    const hash2 = computeRideContentHash('different', 'gpx', 'media');
+    expect(hash1).not.toBe(hash2);
   });
 });

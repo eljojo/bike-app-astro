@@ -6,6 +6,7 @@ import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/city-config';
 import { imageUrl } from '@/lib/image-service';
 import { t } from '@/i18n';
+import { formatDuration } from '@/lib/date-utils';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -28,12 +29,6 @@ export async function getStaticPaths() {
 }
 
 const { tour, tourRides } = Astro.props;
-
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m.toString().padStart(2, '0')}m`;
-}
 
 const seoTitle = `${tour.name} | ${config.display_name}`;
 const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km over ${tour.days} days`;
@@ -105,7 +100,7 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
                   {ride.data.ride_date}
                   {' · '}
                   {ride.data.distance_km.toFixed(0)} km
-                  {ride.data.moving_time_s ? ` · ${formatTime(ride.data.moving_time_s)}` : ''}
+                  {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
                   {ride.data.country ? ` · ${ride.data.country}` : ''}
                 </span>
               </div>

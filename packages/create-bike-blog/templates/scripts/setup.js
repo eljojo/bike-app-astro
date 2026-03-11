@@ -587,13 +587,16 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   }
 
   // Look up zone ID for the domain
-  const cfApi = (path) => {
-    return run(`curl -s -H "Authorization: Bearer ${cfToken}" "https://api.cloudflare.com/client/v4${path}"`);
+  const cfApi = async (apiPath) => {
+    const res = await fetch(`https://api.cloudflare.com/client/v4${apiPath}`, {
+      headers: { 'Authorization': `Bearer ${cfToken}` },
+    });
+    return res.text();
   };
 
   let zoneId;
   try {
-    const zonesResponse = JSON.parse(cfApi(`/zones?name=${domain}`));
+    const zonesResponse = JSON.parse(await cfApi(`/zones?name=${domain}`));
     if (zonesResponse.success && zonesResponse.result?.length > 0) {
       zoneId = zonesResponse.result[0].id;
     } else if (!zonesResponse.success) {
@@ -613,10 +616,15 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
 
   // Create custom domain on R2 bucket
   try {
-    const body = JSON.stringify({ domain: cdnDomain, enabled: true, zoneId });
-    const result = run(
-      `curl -s -X POST -H "Authorization: Bearer ${cfToken}" -H "Content-Type: application/json" -d '${body}' "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/domains/custom"`
-    );
+    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/domains/custom`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${cfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ domain: cdnDomain, enabled: true, zoneId }),
+    });
+    const result = await res.text();
     const parsed = JSON.parse(result);
 
     if (parsed.success) {

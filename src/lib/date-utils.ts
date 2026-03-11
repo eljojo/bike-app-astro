@@ -57,6 +57,13 @@ export function formatMonthName(dateStr: string, locale?: string): string {
   return parseLocalDate(dateStr).toLocaleString(locale || 'en-CA', { month: 'long' });
 }
 
+/** Format seconds into a compact duration string like "2h05m". */
+export function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h${m.toString().padStart(2, '0')}m`;
+}
+
 /** Format an ISO date string for admin UI (no time). */
 export function formatAdminDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-CA', {
