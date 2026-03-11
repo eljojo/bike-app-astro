@@ -273,9 +273,10 @@ async function stepApiKeys() {
   const autoVars = [];
 
   // R2_BUCKET_NAME from wrangler.jsonc (created in Step 1)
+  let bucketName;
   try {
     const config = readWranglerConfig();
-    const bucketName = config.r2_buckets?.[0]?.bucket_name;
+    bucketName = config.r2_buckets?.[0]?.bucket_name;
     if (bucketName) autoSecrets.push({ name: 'R2_BUCKET_NAME', value: bucketName });
   } catch { /* ignore */ }
 
@@ -306,7 +307,10 @@ async function stepApiKeys() {
     {
       name: 'R2_ACCESS_KEY_ID', kind: 'secret',
       description: 'R2 API key ID for photo upload (presigned URLs)',
-      howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens → Create API token\n      Permissions: Object Read & Write\n      Bucket: apply to your bucket only\n    → copy "Access Key ID"',
+      howTo: `Cloudflare Dashboard → R2 → Manage R2 API Tokens → Create API token
+      Permissions: Object Read & Write
+      Specify bucket: ${bucketName || '<your-bucket>'}
+    → copy "Access Key ID"`,
     },
     {
       name: 'R2_SECRET_ACCESS_KEY', kind: 'secret',
@@ -316,7 +320,8 @@ async function stepApiKeys() {
     {
       name: 'R2_PUBLIC_URL', kind: 'secret',
       description: 'Public URL for your media/images CDN bucket',
-      howTo: 'Your R2 bucket\'s public URL (custom domain or r2.dev URL)',
+      howTo: `R2 → ${bucketName || '<your-bucket>'} → Settings → Custom Domains (or enable r2.dev subdomain)
+    e.g. https://cdn.yourdomain.com — NOT the S3 API endpoint`,
     },
     {
       name: 'THUNDERFOREST_API_KEY', kind: 'secret',
