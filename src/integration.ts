@@ -167,6 +167,8 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           const dest = path.join(dir.pathname, entry.name);
           if (entry.isDirectory()) {
             fs.cpSync(src, dest, { recursive: true, force: false });
+          } else if (entry.isFile() && !fs.existsSync(dest)) {
+            fs.copyFileSync(src, dest);
           }
         }
       },
