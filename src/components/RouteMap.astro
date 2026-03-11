@@ -31,7 +31,7 @@ interface Props {
   zoom?: number;
 }
 
-import { CDN_FALLBACK_URL } from '../lib/config';
+import { getCityConfig } from '../lib/city-config';
 const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 ---
 
@@ -44,7 +44,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     data-center={JSON.stringify(center)}
     data-zoom={zoom?.toString() || '12'}
     data-photos={JSON.stringify(photos)}
-    data-cdn-url={import.meta.env.R2_PUBLIC_URL || CDN_FALLBACK_URL}
+    data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
   ></div>
   <div id="route-map-controls"></div>
 </div>

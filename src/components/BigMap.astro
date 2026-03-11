@@ -40,7 +40,7 @@ interface Props {
   center: [number, number];
 }
 
-import { CDN_FALLBACK_URL } from '../lib/config';
+import { getCityConfig } from '../lib/city-config';
 const { routes, places, photos = [], center } = Astro.props;
 ---
 
@@ -52,7 +52,7 @@ const { routes, places, photos = [], center } = Astro.props;
     data-places={JSON.stringify(places)}
     data-center={JSON.stringify(center)}
     data-photos={JSON.stringify(photos)}
-    data-cdn-url={import.meta.env.R2_PUBLIC_URL || CDN_FALLBACK_URL}
+    data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
   ></div>
   <div id="big-map-controls"></div>
 </div>

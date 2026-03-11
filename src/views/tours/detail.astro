@@ -1,6 +1,7 @@
 ---
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
+import RouteMap from '@/components/RouteMap.astro';
 import tours from 'virtual:bike-app/tours';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/city-config';
@@ -10,12 +11,12 @@ import { countryToFlag } from '@/lib/country-flags';
 import { formatDuration } from '@/lib/date-utils';
 import { paths, assets } from '@/lib/paths';
 import { hasCachedMap } from '@/lib/map-thumbnails';
+import { TOUR_PALETTE } from '@/lib/map-init';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
 export async function getStaticPaths() {
-  // Import tours at build time
   const toursData = (await import('virtual:bike-app/tours')).default;
   const routes = await getCollection('routes');
 
@@ -32,6 +33,26 @@ export async function getStaticPaths() {
 }
 
 const { tour, tourRides } = Astro.props;
+
+const polylines = tourRides
+  .map((ride, i) => {
+    const variant = ride.data.variants[0];
+    if (!variant) return null;
+    const track = ride.data.gpxTracks[variant.gpx];
+    if (!track?.polyline) return null;
+    return {
+      name: ride.data.name,
+      encoded: track.polyline,
+      color: TOUR_PALETTE[i % TOUR_PALETTE.length],
+    };
+  })
+  .filter((p): p is NonNullable<typeof p> => p != null);
+
+const photos = tourRides.flatMap(ride =>
+  ride.data.media
+    .filter(m => m.type === 'photo' && m.lat != null && m.lng != null)
+    .map((m, i) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }))
+);
 
 const seoTitle = `${tour.name} | ${config.display_name}`;
 const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km over ${tour.days} days`;
@@ -74,14 +95,12 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
       )}
     </div>
 
-    <p>
-      <a href={paths.tourMap(tour.slug)} class="action-button">
-        &#x1F5FA;&#xFE0F; {t('tours.view_map', locale)}
-      </a>
-    </p>
-
     {tour.renderedDescription && (
       <div class="route-description" set:html={tour.renderedDescription} />
+    )}
+
+    {polylines.length > 0 && (
+      <RouteMap polylines={polylines} photos={photos} />
     )}
 
     {/* Ride list */}

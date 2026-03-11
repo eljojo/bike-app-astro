@@ -24,7 +24,6 @@ export const paths = {
     tourSlug ? `/tours/${tourSlug}/${slug}/map` : `/rides/${slug}/map`,
   rideGpx: (slug: string, variant: string) => `/rides/${slug}/${variant}.gpx`,
   tour: (slug: string) => `/tours/${slug}`,
-  tourMap: (slug: string) => `/tours/${slug}/map`,
 };
 
 /** Get the correct slug for a route in the given locale. Uses translated slug if available. */
