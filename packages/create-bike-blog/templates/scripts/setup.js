@@ -301,7 +301,7 @@ async function stepApiKeys() {
     {
       name: 'GITHUB_TOKEN', kind: 'secret',
       description: 'Personal access token for saving content edits',
-      howTo: 'GitHub → Settings → Developer settings → Personal access tokens\n    → Fine-grained → Create: repo contents read/write on this repo',
+      howTo: 'https://github.com/settings/personal-access-tokens\n    → Fine-grained → Create: repo contents read/write on this repo',
     },
     {
       name: 'R2_ACCESS_KEY_ID', kind: 'secret',
