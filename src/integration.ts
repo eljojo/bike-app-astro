@@ -205,6 +205,8 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           routes: '/routes/',
           guides: '/guides/',
           videos: '/videos/',
+          rides: '/rides/',
+          tours: '/tours/',
         };
         for (const [key, prefix] of Object.entries(sections)) {
           const entries = data[key] as Array<{ from: string; to: string }> | undefined;
