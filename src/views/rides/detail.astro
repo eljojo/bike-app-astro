@@ -77,47 +77,21 @@ const seoDescription = route.data.ride_date
 
         <h1>{route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}</h1>
 
-        {/* Stats strip */}
-        <div class="route-stats">
-          {route.data.ride_date && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('ride.date', locale)}</span>
-              <span class="route-stats--value">{route.data.ride_date}</span>
-            </div>
+        {/* Compact inline stats matching old Rails site */}
+        <div class="ride-facts">
+          {route.data.ride_date && <span>{route.data.ride_date}</span>}
+          <span>Distance: {distance_km.toFixed(2)} km</span>
+          {route.data.elapsed_time_s && route.data.moving_time_s && (
+            <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
           )}
-          <div class="route-stats--item">
-            <span class="route-stats--label">{t('ride.distance', locale)}</span>
-            <span class="route-stats--value">{distance_km.toFixed(0)} km</span>
-          </div>
-          {primaryTrack?.elevation_gain_m != null && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('ride.elevation', locale)}</span>
-              <span class="route-stats--value">{primaryTrack.elevation_gain_m} m</span>
-            </div>
-          )}
-          {route.data.moving_time_s && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('ride.moving_time', locale)}</span>
-              <span class="route-stats--value">{formatDuration(route.data.moving_time_s)}</span>
-            </div>
-          )}
-          {route.data.elapsed_time_s && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('ride.elapsed_time', locale)}</span>
-              <span class="route-stats--value">{formatDuration(route.data.elapsed_time_s)}</span>
-            </div>
+          {!route.data.elapsed_time_s && route.data.moving_time_s && (
+            <span>Time: {formatDuration(route.data.moving_time_s)}</span>
           )}
           {route.data.average_speed_kmh && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('ride.speed', locale)}</span>
-              <span class="route-stats--value">{formatSpeed(route.data.average_speed_kmh)}</span>
-            </div>
+            <span>Avg. Speed: {route.data.average_speed_kmh.toFixed(2)} km/h</span>
           )}
-          {route.data.country && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('ride.country', locale)}</span>
-              <span class="route-stats--value">{countryToFlag(route.data.country)} {route.data.country}</span>
-            </div>
+          {primaryTrack?.elevation_gain_m != null && (
+            <span>Elevation: {primaryTrack.elevation_gain_m} m</span>
           )}
         </div>
 

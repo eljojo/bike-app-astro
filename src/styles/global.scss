@@ -1074,6 +1074,23 @@ a.go-back-button {
   }
 }
 
+// Compact inline stats for blog ride detail (matching old Rails site)
+.ride-facts {
+  font-size: 0.85em;
+  font-weight: bold;
+  margin: 0.5em 0 1em;
+
+  span {
+    margin-right: 5px;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    span {
+      display: block;
+    }
+  }
+}
+
 // Tour day navigation on ride detail
 .tour-rides-nav {
   margin-top: 2em;
