@@ -1,0 +1,39 @@
+import { describe, it, expect } from 'vitest';
+import { rideDetailFromCache, rideDetailToCache } from '../src/lib/models/ride-model';
+
+const sampleDetail = {
+  slug: '2026-01-23-winter-ride',
+  name: 'Winter Ride',
+  tagline: '',
+  tags: [],
+  status: 'published',
+  body: 'A cold but beautiful ride.',
+  media: [{ key: 'abc123', caption: 'Snow', cover: true }],
+  variants: [{ name: 'main', gpx: '23-winter-ride.gpx', distance_km: 42 }],
+  contentHash: 'hash123',
+  ride_date: '2026-01-23',
+  country: 'Canada',
+  highlight: true,
+};
+
+describe('rideDetailToCache + rideDetailFromCache', () => {
+  it('round-trips through JSON serialization', () => {
+    const cached = rideDetailToCache(sampleDetail);
+    const parsed = rideDetailFromCache(cached);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.name).toBe('Winter Ride');
+    expect(parsed!.ride_date).toBe('2026-01-23');
+    expect(parsed!.country).toBe('Canada');
+    expect(parsed!.highlight).toBe(true);
+    expect(parsed!.media).toHaveLength(1);
+    expect(parsed!.variants).toHaveLength(1);
+  });
+
+  it('returns null for invalid JSON', () => {
+    expect(rideDetailFromCache('not json')).toBeNull();
+  });
+
+  it('returns null for data missing required fields', () => {
+    expect(rideDetailFromCache(JSON.stringify({ name: 'only name' }))).toBeNull();
+  });
+});
