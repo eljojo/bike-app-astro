@@ -5,7 +5,7 @@ import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
 import { getCityConfig, isBlogInstance } from '@/lib/city-config';
 import { t } from '@/i18n';
-import { routeSlug } from '@/lib/paths';
+import { routeSlug, paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/image-service';
 import { formatDuration } from '@/lib/date-utils';
 import type { CollectionEntry } from 'astro:content';
@@ -51,7 +51,7 @@ if (blog) {
               const cover = ride.data.media.find(m => m.cover);
               return (
                 <li class="ride-card">
-                  <a href={`/rides/${ride.id}`} class="ride-card--link">
+                  <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
                     {cover && (
                       <div class="ride-card--cover">
                         <img
@@ -88,7 +88,7 @@ if (blog) {
             const cover = ride.data.media.find(m => m.cover);
             return (
               <li class="ride-card">
-                <a href={`/rides/${ride.id}`} class="ride-card--link">
+                <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
                   {cover && (
                     <div class="ride-card--cover">
                       <img

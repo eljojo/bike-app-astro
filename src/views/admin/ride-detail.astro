@@ -69,7 +69,7 @@ const contentPath = slug && rideData.gpxRelativePath
   title={title}
   backLink="/admin/rides"
   backLabel="Back to rides"
-  viewLink={slug ? `/rides/${slug}` : undefined}
+  viewLink={slug ? (rideData.tour_slug ? `/tours/${rideData.tour_slug}/${slug}` : `/rides/${slug}`) : undefined}
   hideTitle
   user={Astro.locals.user}
   currentTab="routes"

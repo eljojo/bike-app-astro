@@ -321,7 +321,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
             {saved && (
               <div class="save-success">
                 Saved! Your changes will be live in a few minutes.
-                {' '}<a href={`/rides/${initialData.slug}`}>View ride</a>
+                {' '}<a href={initialData.tour_slug ? `/tours/${initialData.tour_slug}/${initialData.slug}` : `/rides/${initialData.slug}`}>View ride</a>
               </div>
             )}
             <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>

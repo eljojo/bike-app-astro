@@ -15,9 +15,9 @@ export async function getStaticPaths() {
   const routes = await getCollection('routes');
   const allElevations = getAllElevations(routes);
 
-  // Only standalone rides — tour rides are at /tours/{tour}/{ride}/map
-  return routes.filter(r => !r.data.tour_slug).map(route => ({
-    params: { slug: route.id },
+  // Only rides that belong to a tour
+  return routes.filter(r => !!r.data.tour_slug).map(route => ({
+    params: { tourSlug: route.data.tour_slug, rideSlug: route.id },
     props: { route, allElevations },
   }));
 }
