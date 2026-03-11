@@ -45,13 +45,19 @@ function hasWrangler() {
 }
 
 function readDomain() {
+  // Config lives in {username}/config.yml — find the directory containing it
   try {
-    const configYml = fs.readFileSync('city/config.yml', 'utf-8');
-    const match = configYml.match(/^domain:\s*(.+)$/m);
-    return match?.[1]?.trim();
-  } catch {
-    return null;
-  }
+    for (const entry of fs.readdirSync('.', { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      const configPath = `${entry.name}/config.yml`;
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        const match = content.match(/^domain:\s*(.+)$/m);
+        if (match) return match[1].trim();
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
 }
 
 function hasGitRemote() {
@@ -308,6 +314,14 @@ async function stepApiKeys() {
     }
   } catch { /* ignore */ }
 
+  // WEBAUTHN vars derived from domain
+  const domain = readDomain();
+  if (domain) {
+    autoVars.push({ name: 'WEBAUTHN_RP_ID', value: domain });
+    autoVars.push({ name: 'WEBAUTHN_RP_NAME', value: domain });
+    autoVars.push({ name: 'WEBAUTHN_ORIGIN', value: `https://${domain}` });
+  }
+
   // --- Classify all items ---
   const secrets = [
     {
@@ -348,21 +362,6 @@ async function stepApiKeys() {
       name: 'RWGPS_AUTH_TOKEN', kind: 'secret',
       description: 'Auth token for RideWithGPS API (paired with API key)',
       howTo: 'Same as RWGPS_API_KEY — provided alongside it',
-    },
-    {
-      name: 'WEBAUTHN_RP_ID', kind: 'var',
-      description: 'WebAuthn relying party domain (for passkey login)',
-      howTo: 'Your domain without protocol (e.g. "eljojo.bike")',
-    },
-    {
-      name: 'WEBAUTHN_RP_NAME', kind: 'var',
-      description: 'Display name shown in passkey prompts',
-      howTo: 'Your blog name (e.g. "El Jojo Bike")',
-    },
-    {
-      name: 'WEBAUTHN_ORIGIN', kind: 'var',
-      description: 'Full origin URL for WebAuthn',
-      howTo: 'Your full URL with protocol (e.g. "https://eljojo.bike")',
     },
   ];
 
