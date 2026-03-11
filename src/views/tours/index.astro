@@ -9,6 +9,7 @@ import { hasCachedMap } from '@/lib/map-thumbnails';
 import { assets } from '@/lib/paths';
 import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
+import { formatDateRange } from '@/lib/date-utils';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -31,56 +32,132 @@ function getTourCover(tour: typeof tours[0]) {
   }
   return undefined;
 }
+
+function truncate(html: string | undefined, maxLen: number): string {
+  if (!html) return '';
+  const text = html.replace(/<[^>]+>/g, '');
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen).replace(/\s+\S*$/, '') + '\u2026';
+}
+
+// Pick hero: top 3 by distance, random selection at build time
+const byDistance = [...sortedTours].sort((a, b) => b.total_distance_km - a.total_distance_km);
+const heroPool = byDistance.slice(0, Math.min(3, byDistance.length));
+const hero = heroPool[Math.floor(Math.random() * heroPool.length)];
+
+// Remaining tours (excluding hero), grouped by year
+const remaining = sortedTours.filter(t => t.slug !== hero?.slug);
+const byYear = new Map<number, typeof remaining>();
+for (const tour of remaining) {
+  const year = tour.start_date ? new Date(tour.start_date + 'T00:00:00').getFullYear() : 0;
+  if (!byYear.has(year)) byYear.set(year, []);
+  byYear.get(year)!.push(tour);
+}
+const years = [...byYear.keys()].sort((a, b) => b - a);
 ---
 
 <Base title={`${t('nav.tours', locale)} | ${config.display_name}`} description={t('tours.description', locale)}>
   <h1>{t('tours.title', locale)}</h1>
-  <ul class="tours-grid">
-    {sortedTours.map(tour => {
-      const coverKey = getTourCover(tour);
-      const hasMap = hasCachedMap(tour.rides[0] || '');
-      const firstRide = tour.rides[0] ? routeMap.get(tour.rides[0]) : null;
-      return (
-        <li class="tour-grid-card">
-          <a href={`/tours/${tour.slug}`} class="tour-grid-card--link">
-            <div class="tour-grid-card--images">
-              {coverKey && (
-                <img
-                  class="tour-grid-card--cover"
-                  src={imageUrl(coverKey, { width: 300, height: 300, fit: 'cover' })}
-                  alt={tour.name}
-                  loading="lazy"
-                  width="300"
-                  height="300"
-                />
-              )}
-              {hasMap && firstRide && (
-                <img
-                  class="tour-grid-card--map"
-                  src={assets.mapThumbnail(firstRide.id, 375)}
-                  alt={`Map of ${tour.name}`}
-                  loading="lazy"
-                  width="300"
-                  height="300"
-                />
-              )}
-            </div>
-            <div class="tour-grid-card--info">
-              <strong class="tour-grid-card--name">{tour.name}</strong>
-              <span class="tour-grid-card--meta">
-                {tour.start_date}
-                {' · '}
-                {tour.days} {t('tours.days', locale)}
-                {' · '}
-                {tour.total_distance_km.toFixed(0)} km
-                {tour.countries.length > 0 ? ` · ${tour.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
-              </span>
-            </div>
-          </a>
-        </li>
-      );
-    })}
-  </ul>
+
+  {/* Hero: featured tour */}
+  {hero && (() => {
+    const coverKey = getTourCover(hero);
+    const hasMap = hasCachedMap(hero.rides[0] || '');
+    const firstRide = hero.rides[0] ? routeMap.get(hero.rides[0]) : null;
+    return (
+      <a href={`/tours/${hero.slug}`} class="tour-hero">
+        <div class="tour-hero--images">
+          {coverKey && (
+            <img
+              class="tour-hero--cover"
+              src={imageUrl(coverKey, { width: 800, height: 450, fit: 'cover' })}
+              alt={hero.name}
+              width="800"
+              height="450"
+            />
+          )}
+          {hasMap && firstRide && (
+            <img
+              class="tour-hero--map"
+              src={assets.mapThumbnail(firstRide.id, 750)}
+              alt={`Map of ${hero.name}`}
+              width="800"
+              height="450"
+            />
+          )}
+        </div>
+        <div class="tour-hero--info">
+          <strong class="tour-hero--name">{hero.name}</strong>
+          <span class="tour-hero--meta">
+            {formatDateRange(hero.start_date, hero.end_date, locale)}
+            {' \u00b7 '}
+            {hero.days} {t('tours.days', locale)}
+            {' \u00b7 '}
+            {hero.total_distance_km.toFixed(0)} km
+            {hero.countries.length > 0 ? ` \u00b7 ${hero.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
+          </span>
+          {hero.renderedDescription && (
+            <p class="tour-hero--excerpt">{truncate(hero.renderedDescription, 150)}</p>
+          )}
+        </div>
+      </a>
+    );
+  })()}
+
+  {/* Timeline: year-grouped postcards */}
+  {years.map(year => (
+    <section>
+      <h2 class="tour-year-header">{year || 'Unknown'}</h2>
+      <div class="tour-postcards">
+        {byYear.get(year)!.map(tour => {
+          const coverKey = getTourCover(tour);
+          const hasMap = hasCachedMap(tour.rides[0] || '');
+          const firstRide = tour.rides[0] ? routeMap.get(tour.rides[0]) : null;
+          return (
+            <a href={`/tours/${tour.slug}`} class="tour-postcard">
+              <div class="tour-postcard--images">
+                {coverKey && (
+                  <img
+                    class="tour-postcard--cover"
+                    src={imageUrl(coverKey, { width: 450, height: 300, fit: 'cover' })}
+                    alt={tour.name}
+                    loading="lazy"
+                    width="450"
+                    height="300"
+                  />
+                )}
+                {hasMap && firstRide && (
+                  <img
+                    class="tour-postcard--map"
+                    src={assets.mapThumbnail(firstRide.id, 375)}
+                    alt={`Map of ${tour.name}`}
+                    loading="lazy"
+                    width="450"
+                    height="300"
+                  />
+                )}
+              </div>
+              <div class="tour-postcard--info">
+                <strong class="tour-postcard--name">{tour.name}</strong>
+                <span class="tour-postcard--meta">
+                  {formatDateRange(tour.start_date, tour.end_date, locale)}
+                  {' \u00b7 '}
+                  {tour.days} {t('tours.days', locale)}
+                  {' \u00b7 '}
+                  {tour.total_distance_km.toFixed(0)} km
+                  {tour.countries.length > 0 ? ` \u00b7 ${tour.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
+                </span>
+                {tour.renderedDescription && (
+                  <p class="tour-postcard--excerpt">{truncate(tour.renderedDescription, 120)}</p>
+                )}
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  ))}
+
   {tours.length > 0 && (
     <p class="tours-summary">
       {t('tours.summary', locale, {

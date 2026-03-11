@@ -1177,11 +1177,11 @@ a.go-back-button {
     object-fit: cover;
   }
 
-  .ride-card--cover { display: none; }
-  .ride-card--map { display: block; }
+  .ride-card--cover { display: block; }
+  .ride-card--map { display: none; }
 
-  // If only cover (no map), show cover by default
-  .ride-card--cover:only-child { display: block; }
+  // If only map (no cover), show map by default
+  .ride-card--map:only-child { display: block; }
 
   @media (max-width: $breakpoint-mobile) {
     display: none;
@@ -1189,8 +1189,8 @@ a.go-back-button {
 }
 
 .ride-card:hover .ride-card--images {
-  .ride-card--cover { display: block; }
-  .ride-card--map { display: none; }
+  .ride-card--cover { display: none; }
+  .ride-card--map { display: block; }
 }
 
 .ride-card--info {
@@ -1205,6 +1205,12 @@ a.go-back-button {
 
 .ride-card--meta {
   font-size: 0.85rem;
+  @include muted-text;
+}
+
+.ride-badge {
+  font-size: 0.8rem;
+  font-style: italic;
   @include muted-text;
 }
 
@@ -1240,7 +1246,7 @@ a.go-back-button {
     // Cover shown by default, map on hover (matches Rails)
     .ride-card--cover { display: block; }
     .ride-card--map { display: none; }
-    .ride-card--cover:only-child { display: block; }
+    .ride-card--map:only-child { display: block; }
 
     @media (max-width: $breakpoint-mobile) {
       display: block;
@@ -1274,20 +1280,107 @@ a.go-back-button {
   margin-bottom: 1.5rem;
 }
 
-.tours-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+// Tour hero (featured tour on /tours/ index)
+.tour-hero {
+  display: flex;
+  gap: 1.5rem;
+  text-decoration: none;
+  color: $color-text;
+  padding: 1rem;
+  border-radius: $border-radius;
+  margin-bottom: 2rem;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: $color-card-hover;
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+    &:hover { background: $color-card-hover-dark; }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 }
 
-.tour-card {
-  margin-bottom: 0.75rem;
+.tour-hero--images {
+  flex: 0 0 55%;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: $border-radius;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tour-hero--cover { display: block; }
+  .tour-hero--map { display: none; }
+  .tour-hero--map:only-child { display: block; }
+
+  @media (max-width: $breakpoint-mobile) {
+    flex: none;
+    width: 100%;
+  }
 }
 
-.tour-card--link {
+.tour-hero:hover .tour-hero--images {
+  .tour-hero--cover { display: none; }
+  .tour-hero--map { display: block; }
+}
+
+.tour-hero--info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.tour-hero--name {
+  font-family: 'Merriweather', serif;
+  font-size: 1.8em;
+  line-height: 1.2;
+}
+
+.tour-hero--meta {
+  font-size: 0.95rem;
+  @include muted-text;
+}
+
+.tour-hero--excerpt {
+  font-size: 0.95rem;
+  margin: 0;
+  @include muted-text;
+}
+
+// Year dividers in tour timeline
+.tour-year-header {
+  font-size: 1.2rem;
+  margin: 2rem 0 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-bottom-color: $color-border-dark;
+  }
+}
+
+// Tour postcards container
+.tour-postcards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+// Tour postcard (horizontal card)
+.tour-postcard {
+  display: flex;
+  gap: 1rem;
   text-decoration: none;
   color: $color-text;
   padding: 0.75rem;
@@ -1300,99 +1393,63 @@ a.go-back-button {
 
   @include dark-mode {
     color: $color-text-dark;
-
-    &:hover {
-      background: $color-card-hover-dark;
-    }
-  }
-}
-
-.tour-card--name {
-  font-size: 1.05rem;
-}
-
-.tour-card--meta {
-  font-size: 0.85rem;
-  @include muted-text;
-}
-
-.tour-card--description {
-  font-size: 0.9rem;
-  @include muted-text;
-}
-
-// Tour image grid (4-column layout matching old Rails site)
-.tours-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.tour-grid-card {
-  flex: 0 0 calc(25% - 0.75rem);
-
-  @media (max-width: $breakpoint-desktop) {
-    flex: 0 0 calc(50% - 0.5rem);
+    &:hover { background: $color-card-hover-dark; }
   }
 
   @media (max-width: $breakpoint-mobile) {
-    flex: 0 0 100%;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 }
 
-.tour-grid-card--link {
-  display: block;
-  text-decoration: none;
-  color: $color-text;
-  border-radius: $border-radius;
-  overflow: hidden;
-  transition: transform 0.15s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-
-  @include dark-mode {
-    color: $color-text-dark;
-  }
-}
-
-.tour-grid-card--images {
+.tour-postcard--images {
+  flex: 0 0 200px;
   position: relative;
-  aspect-ratio: 1;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: $border-radius;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: $border-radius;
   }
 
-  .tour-grid-card--cover { display: none; }
-  .tour-grid-card--map { display: block; }
-  .tour-grid-card--cover:only-child { display: block; }
+  .tour-postcard--cover { display: block; }
+  .tour-postcard--map { display: none; }
+  .tour-postcard--map:only-child { display: block; }
+
+  @media (max-width: $breakpoint-mobile) {
+    flex: none;
+    width: 100%;
+  }
 }
 
-.tour-grid-card:hover .tour-grid-card--images {
-  .tour-grid-card--cover { display: block; }
-  .tour-grid-card--map { display: none; }
+.tour-postcard:hover .tour-postcard--images {
+  .tour-postcard--cover { display: none; }
+  .tour-postcard--map { display: block; }
 }
 
-.tour-grid-card--info {
-  padding: 0.5em 0;
+.tour-postcard--info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
-.tour-grid-card--name {
-  display: block;
-  font-size: 0.95rem;
+.tour-postcard--name {
+  font-family: 'Merriweather', serif;
+  font-size: 1.2em;
 }
 
-.tour-grid-card--meta {
-  display: block;
-  font-size: 0.8rem;
+.tour-postcard--meta {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.tour-postcard--excerpt {
+  font-size: 0.9rem;
+  margin: 0;
   @include muted-text;
 }
 

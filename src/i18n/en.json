@@ -112,6 +112,10 @@
   "ride.country": "Country",
   "ride.view_map": "View Map",
   "ride.go_back": "go back to all rides",
+  "ride.badge.longest": "One of the longest rides",
+  "ride.badge.biggest_climb": "One of the biggest climbs",
+  "ride.badge.part_of_tour": "Part of {tour}",
+  "ride.badge.abroad": "Abroad",
 
   "tours.title": "Bikepacking Tours",
   "tours.description": "All bikepacking tours",

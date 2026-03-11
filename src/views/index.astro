@@ -21,6 +21,7 @@ const blog = isBlogInstance();
 let wikiData: Awaited<ReturnType<typeof import('@/lib/route-data').loadHomepageData>> | null = null;
 let blogRides: CollectionEntry<'routes'>[] = [];
 let blogHighlights: CollectionEntry<'routes'>[] = [];
+let blogBadgeMap = new Map<string, string[]>();
 
 if (blog) {
   const { getCollection } = await import('astro:content');
@@ -31,6 +32,58 @@ if (blog) {
     .sort((a, b) => (b.data.ride_date || '').localeCompare(a.data.ride_date || ''));
   blogHighlights = published.filter(r => r.data.highlight);
   blogRides = published.slice(0, 10);
+
+  // Compute noteworthy badges
+  const badgeMap = new Map<string, string[]>();
+
+  // Top 3 longest rides
+  const byDistance = [...published].sort((a, b) => b.data.distance_km - a.data.distance_km);
+  for (const ride of byDistance.slice(0, 3)) {
+    const badges = badgeMap.get(ride.id) || [];
+    badges.push(t('ride.badge.longest', locale));
+    badgeMap.set(ride.id, badges);
+  }
+
+  // Top 3 biggest climbs
+  const withElevation = published.filter(r => r.data.total_elevation_gain && r.data.total_elevation_gain > 0);
+  const byElevation = [...withElevation].sort((a, b) => (b.data.total_elevation_gain || 0) - (a.data.total_elevation_gain || 0));
+  for (const ride of byElevation.slice(0, 3)) {
+    const badges = badgeMap.get(ride.id) || [];
+    badges.push(t('ride.badge.biggest_climb', locale));
+    badgeMap.set(ride.id, badges);
+  }
+
+  // Part of tour
+  const { default: toursData } = await import('virtual:bike-app/tours');
+  const tourNameMap = new Map(toursData.map((tour: { slug: string; name: string }) => [tour.slug, tour.name]));
+  for (const ride of published) {
+    if (ride.data.tour_slug) {
+      const tourName = tourNameMap.get(ride.data.tour_slug) || ride.data.tour_slug;
+      const badges = badgeMap.get(ride.id) || [];
+      badges.push(t('ride.badge.part_of_tour', locale, { tour: tourName }));
+      badgeMap.set(ride.id, badges);
+    }
+  }
+
+  // Abroad (country differs from most common country)
+  const countryCounts = new Map<string, number>();
+  for (const ride of published) {
+    if (ride.data.country) {
+      countryCounts.set(ride.data.country, (countryCounts.get(ride.data.country) || 0) + 1);
+    }
+  }
+  const homeCountry = [...countryCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (homeCountry) {
+    for (const ride of published) {
+      if (ride.data.country && ride.data.country !== homeCountry) {
+        const badges = badgeMap.get(ride.id) || [];
+        badges.push(t('ride.badge.abroad', locale));
+        badgeMap.set(ride.id, badges);
+      }
+    }
+  }
+
+  blogBadgeMap = badgeMap;
 } else {
   const { loadHomepageData } = await import('@/lib/route-data');
   wikiData = await loadHomepageData();
@@ -79,6 +132,11 @@ if (blog) {
                     </div>
                     <div class="ride-card--info">
                       <strong class="ride-card--name">{ride.data.name}</strong>
+                      {(blogBadgeMap.get(ride.id) || []).length > 0 && (
+                        <span class="ride-badge">
+                          {blogBadgeMap.get(ride.id)!.join(' · ')}
+                        </span>
+                      )}
                       <span class="ride-card--meta">
                         {ride.data.ride_date}
                         {' · '}
@@ -128,6 +186,11 @@ if (blog) {
                   </div>
                   <div class="ride-card--info">
                     <strong class="ride-card--name">{ride.data.name}</strong>
+                    {(blogBadgeMap.get(ride.id) || []).length > 0 && (
+                      <span class="ride-badge">
+                        {blogBadgeMap.get(ride.id)!.join(' · ')}
+                      </span>
+                    )}
                     <span class="ride-card--meta">
                       {ride.data.ride_date}
                       {' · '}
