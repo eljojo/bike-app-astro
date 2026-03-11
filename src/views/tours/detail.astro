@@ -74,6 +74,12 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
       )}
     </div>
 
+    <p>
+      <a href={paths.tourMap(tour.slug)} class="action-button">
+        &#x1F5FA;&#xFE0F; {t('tours.view_map', locale)}
+      </a>
+    </p>
+
     {tour.renderedDescription && (
       <div class="route-description" set:html={tour.renderedDescription} />
     )}
