@@ -10,6 +10,7 @@ import {
   needsRegeneration,
 } from '../src/lib/map-generation';
 import { getCityConfig } from '../src/lib/city-config';
+import { findGpxFiles, extractDateFromPath, buildSlug } from '../src/loaders/rides';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
 const CITY = process.env.CITY || 'ottawa';
@@ -54,52 +55,106 @@ async function main() {
   // Languages to generate: default (no prefix) + additional languages (with prefix)
   const languages = allLocales.map(shortLang);
 
-  const routesDir = path.join(CONTENT_DIR, CITY, 'routes');
-  if (!fs.existsSync(routesDir)) {
-    console.log('[maps] No routes directory found — nothing to generate');
-    return;
-  }
-  const slugs = fs.readdirSync(routesDir).filter(f =>
-    fs.statSync(path.join(routesDir, f)).isDirectory()
-  );
-
   let generated = 0;
   let skipped = 0;
 
-  for (const slug of slugs) {
-    const routeDir = path.join(routesDir, slug);
-    const indexPath = path.join(routeDir, 'index.md');
-    if (!fs.existsSync(indexPath)) continue;
+  // --- Routes (wiki instances): directory-based with index.md + variants ---
+  const routesDir = path.join(CONTENT_DIR, CITY, 'routes');
+  if (fs.existsSync(routesDir)) {
+    const slugs = fs.readdirSync(routesDir).filter(f =>
+      fs.statSync(path.join(routesDir, f)).isDirectory()
+    );
 
-    const { data: fm } = matter(fs.readFileSync(indexPath, 'utf-8'));
-    const variants = fm.variants || [];
-    if (variants.length === 0) continue;
+    for (const slug of slugs) {
+      const routeDir = path.join(routesDir, slug);
+      const indexPath = path.join(routeDir, 'index.md');
+      if (!fs.existsSync(indexPath)) continue;
 
-    for (let i = 0; i < variants.length; i++) {
-      const variant = variants[i];
-      const variantKey = variantKeyFromGpx(variant.gpx);
-      const gpxPath = path.join(routeDir, variant.gpx);
+      const { data: fm } = matter(fs.readFileSync(indexPath, 'utf-8'));
+      const variants = fm.variants || [];
+      if (variants.length === 0) continue;
 
-      if (!fs.existsSync(gpxPath)) {
-        console.log(`[maps] ${slug}/${variantKey}: no GPX, skipping`);
-        continue;
+      for (let i = 0; i < variants.length; i++) {
+        const variant = variants[i];
+        const variantKey = variantKeyFromGpx(variant.gpx);
+        const gpxPath = path.join(routeDir, variant.gpx);
+
+        if (!fs.existsSync(gpxPath)) {
+          console.log(`[maps] ${slug}/${variantKey}: no GPX, skipping`);
+          continue;
+        }
+
+        const gpxContent = fs.readFileSync(gpxPath, 'utf-8');
+        const hash = gpxHash(gpxContent);
+        const variantCacheKey = variantKey;
+
+        for (const lang of languages) {
+          const langPrefix = lang === defaultLang ? undefined : lang;
+          const cacheKey = slug + '/' + variantCacheKey;
+
+          if (!FORCE && !needsRegeneration(cacheKey, hash, langPrefix)) {
+            skipped++;
+            continue;
+          }
+
+          const label = langPrefix ? `${slug}/${variantKey} [${lang}]` : `${slug}/${variantKey}`;
+          console.log(`[maps] ${label}: generating...`);
+
+          const track = parseGpx(gpxContent);
+          if (!track.polyline) {
+            console.log(`[maps] ${label}: empty polyline, skipping`);
+            continue;
+          }
+
+          const url = buildStaticMapUrl(track.polyline, API_KEY!, lang);
+          const response = await fetch(url);
+          if (!response.ok) {
+            console.error(`[maps] ${label}: HTTP ${response.status}`);
+            continue;
+          }
+          const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+          const variantPaths = mapThumbPaths(slug, variantCacheKey, langPrefix);
+          await generateMapImages(pngBuffer, variantPaths);
+          fs.writeFileSync(hashPath(cacheKey, langPrefix), hash);
+
+          // First variant also goes to the route-level cache (used by route cards)
+          if (i === 0) {
+            const routePaths = mapThumbPaths(slug, undefined, langPrefix);
+            await generateMapImages(pngBuffer, routePaths);
+            fs.writeFileSync(hashPath(slug, langPrefix), hash);
+          }
+
+          generated++;
+        }
       }
+    }
+  }
 
-      const gpxContent = fs.readFileSync(gpxPath, 'utf-8');
+  // --- Rides (blog instances): flat GPX files under rides/ ---
+  const ridesDir = path.join(CONTENT_DIR, CITY, 'rides');
+  if (fs.existsSync(ridesDir)) {
+    const gpxPaths = findGpxFiles(ridesDir);
+
+    for (const gpxRelPath of gpxPaths) {
+      const date = extractDateFromPath(gpxRelPath);
+      if (!date) continue;
+
+      const gpxFilename = path.basename(gpxRelPath);
+      const slug = buildSlug(date, gpxFilename);
+      const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+      const gpxContent = fs.readFileSync(gpxAbsPath, 'utf-8');
       const hash = gpxHash(gpxContent);
-      const variantCacheKey = variantKey;
 
       for (const lang of languages) {
-        // Default language maps go at root (no lang prefix), others get a lang/ prefix
         const langPrefix = lang === defaultLang ? undefined : lang;
-        const cacheKey = slug + '/' + variantCacheKey;
 
-        if (!FORCE && !needsRegeneration(cacheKey, hash, langPrefix)) {
+        if (!FORCE && !needsRegeneration(slug, hash, langPrefix)) {
           skipped++;
           continue;
         }
 
-        const label = langPrefix ? `${slug}/${variantKey} [${lang}]` : `${slug}/${variantKey}`;
+        const label = langPrefix ? `${slug} [${lang}]` : slug;
         console.log(`[maps] ${label}: generating...`);
 
         const track = parseGpx(gpxContent);
@@ -116,24 +171,20 @@ async function main() {
         }
         const pngBuffer = Buffer.from(await response.arrayBuffer());
 
-        // Generate variant-specific map images
-        const variantPaths = mapThumbPaths(slug, variantCacheKey, langPrefix);
-        await generateMapImages(pngBuffer, variantPaths);
-        fs.writeFileSync(hashPath(cacheKey, langPrefix), hash);
-
-        // First variant also goes to the route-level cache (used by route cards)
-        if (i === 0) {
-          const routePaths = mapThumbPaths(slug, undefined, langPrefix);
-          await generateMapImages(pngBuffer, routePaths);
-          fs.writeFileSync(hashPath(slug, langPrefix), hash);
-        }
+        const ridePaths = mapThumbPaths(slug, undefined, langPrefix);
+        await generateMapImages(pngBuffer, ridePaths);
+        fs.writeFileSync(hashPath(slug, langPrefix), hash);
 
         generated++;
       }
     }
   }
 
-  console.log(`[maps] Done. Generated: ${generated}, Cached: ${skipped}`);
+  if (generated === 0 && skipped === 0) {
+    console.log('[maps] No routes or rides found — nothing to generate');
+  } else {
+    console.log(`[maps] Done. Generated: ${generated}, Cached: ${skipped}`);
+  }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
