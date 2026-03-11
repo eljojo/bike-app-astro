@@ -23,6 +23,8 @@ declare module 'cloudflare:workers' {
     R2_BUCKET_NAME: string;
     R2_PUBLIC_URL: string;
     STORAGE_KEY_PREFIX?: string;
+    GIT_OWNER?: string;
+    GIT_DATA_REPO?: string;
     GIT_BRANCH?: string;
     ENVIRONMENT?: string;
   }

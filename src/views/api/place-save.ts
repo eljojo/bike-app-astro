@@ -4,7 +4,7 @@ import type { APIContext } from 'astro';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import { CITY } from '../../lib/config';
-import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
@@ -169,7 +169,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
   },
 
   buildGitHubUrl(placeId: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${resolvePlacePath(placeId)}`;
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${resolvePlacePath(placeId)}`;
   },
 };
 

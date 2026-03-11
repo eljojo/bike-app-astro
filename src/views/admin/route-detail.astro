@@ -7,7 +7,7 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import parkedPhotosData from 'virtual:bike-app/parked-photos';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
+import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
 import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/tag-translations';
@@ -45,5 +45,5 @@ const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.ta
   currentTab="routes"
 >
   <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} />
-  <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={GIT_REPO} userRole={Astro.locals.user?.role} />
+  <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

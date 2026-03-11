@@ -4,7 +4,7 @@ import { createGitService } from './git-factory';
 import { db } from './get-db';
 import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from './config';
+import { CITY } from './config';
 import { jsonResponse, jsonError } from './api-response';
 import { computeBlobSha } from './git-service';
 import type { IGitService, FileChange } from './git-service';
@@ -80,8 +80,8 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     const database = db();
     const git = createGitService({
       token: env.GITHUB_TOKEN,
-      owner: GIT_OWNER,
-      repo: GIT_DATA_REPO,
+      owner: env.GIT_OWNER,
+      repo: env.GIT_DATA_REPO,
       branch: baseBranch,
     });
 

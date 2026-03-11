@@ -27,6 +27,8 @@ export function createLocalEnv(): AppEnv {
     R2_BUCKET_NAME: '',
     R2_PUBLIC_URL: process.env.R2_PUBLIC_URL || 'http://localhost:4321/dev-uploads',
     STORAGE_KEY_PREFIX: process.env.STORAGE_KEY_PREFIX || '',
+    GIT_OWNER: process.env.GIT_OWNER || 'eljojo',
+    GIT_DATA_REPO: process.env.GIT_DATA_REPO || 'bike-routes',
     GIT_BRANCH: process.env.GIT_BRANCH || '',
     ENVIRONMENT: process.env.ENVIRONMENT || 'local',
     RWGPS_API_KEY: process.env.RWGPS_API_KEY || '',

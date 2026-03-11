@@ -4,7 +4,8 @@ import type { APIContext } from 'astro';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import adminEvents from 'virtual:bike-app/admin-events';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
+import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';
@@ -200,7 +201,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
   },
 
   buildGitHubUrl(eventId: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${resolveEventPath(eventId)}`;
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${resolveEventPath(eventId)}`;
   },
 };
 

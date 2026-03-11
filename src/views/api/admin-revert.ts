@@ -3,7 +3,7 @@ import matter from 'gray-matter';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { upsertContentCache } from '../../lib/cache';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
@@ -28,8 +28,8 @@ export async function POST({ request, locals }: APIContext) {
   const baseBranch = env.GIT_BRANCH || 'main';
   const git = createGitService({
     token: env.GITHUB_TOKEN,
-    owner: GIT_OWNER,
-    repo: GIT_DATA_REPO,
+    owner: env.GIT_OWNER,
+    repo: env.GIT_DATA_REPO,
     branch: baseBranch,
   });
 

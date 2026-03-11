@@ -1,7 +1,6 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
-import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
@@ -18,8 +17,8 @@ export async function POST({ request, locals }: APIContext) {
 
   const git = createGitService({
     token: env.GITHUB_TOKEN,
-    owner: GIT_OWNER,
-    repo: GIT_DATA_REPO,
+    owner: env.GIT_OWNER,
+    repo: env.GIT_DATA_REPO,
     branch: env.GIT_BRANCH || 'main',
   });
 

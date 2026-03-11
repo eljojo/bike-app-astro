@@ -6,7 +6,7 @@ import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
@@ -227,7 +227,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
           // Upload GPX to LFS and commit pointer file instead of raw content
           const token = env.GITHUB_TOKEN;
           if (token && typeof token === 'string') {
-            const pointer = await uploadToLfs(token, GIT_OWNER, GIT_DATA_REPO, v.gpxContent);
+            const pointer = await uploadToLfs(token, env.GIT_OWNER, env.GIT_DATA_REPO, v.gpxContent);
             files.push({ path: `${basePath}/${v.gpx}`, content: pointer });
           } else {
             // Local dev: commit raw GPX (local git handles LFS via .gitattributes)
@@ -388,7 +388,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
   },
 
   buildGitHubUrl(slug: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
   },
 
   async afterCommit(result, database) {

@@ -5,14 +5,15 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import '../../styles/admin.scss';
-import { CITY, GIT_REPO } from '../../lib/config';
+import { CITY } from '../../lib/config';
+import { env } from '../../lib/env';
 const user = Astro.locals.user;
 ---
 
 <Base title="Edit History" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="history" />
-    <EditHistory client:load city={CITY} gitRepo={GIT_REPO} userRole={user?.role} />
+    <EditHistory client:load city={CITY} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
   </div>
 </Base>
 
