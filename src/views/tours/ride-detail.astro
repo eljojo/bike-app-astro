@@ -9,6 +9,7 @@ import { isPublished } from '@/lib/content-filters';
 import { t } from '@/i18n';
 import { formatDuration } from '@/lib/date-utils';
 import { paths } from '@/lib/paths';
+import { countryToFlag } from '@/lib/country-flags';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import tours from 'virtual:bike-app/tours';
 
@@ -82,7 +83,7 @@ const seoDescription = route.data.ride_date
           </nav>
         )}
 
-        <h1>{name}</h1>
+        <h1>{route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}</h1>
 
         {/* Stats strip */}
         <div class="route-stats">
@@ -123,7 +124,7 @@ const seoDescription = route.data.ride_date
           {route.data.country && (
             <div class="route-stats--item">
               <span class="route-stats--label">{t('ride.country', locale)}</span>
-              <span class="route-stats--value">{route.data.country}</span>
+              <span class="route-stats--value">{countryToFlag(route.data.country)} {route.data.country}</span>
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import Base from '@/layouts/Base.astro';
 import tours from 'virtual:bike-app/tours';
 import { getCityConfig } from '@/lib/city-config';
 import { t } from '@/i18n';
+import { countryToFlag } from '@/lib/country-flags';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -38,7 +39,7 @@ const totalDays = tours.reduce((sum, t) => sum + t.days, 0);
             {tour.total_distance_km.toFixed(0)} km
             {' · '}
             {tour.ride_count} {t('tours.rides', locale)}
-            {tour.countries.length > 0 ? ` · ${tour.countries.join(', ')}` : ''}
+            {tour.countries.length > 0 ? ` · ${tour.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
           </span>
           {tour.description && (
             <span class="tour-card--description">{tour.description}</span>

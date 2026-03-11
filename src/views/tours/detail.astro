@@ -6,6 +6,7 @@ import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/city-config';
 import { imageUrl } from '@/lib/image-service';
 import { t } from '@/i18n';
+import { countryToFlag } from '@/lib/country-flags';
 import { formatDuration } from '@/lib/date-utils';
 import { paths, assets } from '@/lib/paths';
 import { hasCachedMap } from '@/lib/map-thumbnails';
@@ -68,7 +69,7 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
       {tour.countries.length > 0 && (
         <div class="route-stats--item">
           <span class="route-stats--label">{t('tours.countries_label', locale)}</span>
-          <span class="route-stats--value">{tour.countries.join(', ')}</span>
+          <span class="route-stats--value">{tour.countries.map(c => `${countryToFlag(c)} ${c}`).join(', ')}</span>
         </div>
       )}
     </div>
@@ -115,7 +116,7 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
                   {' · '}
                   {ride.data.distance_km.toFixed(0)} km
                   {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
-                  {ride.data.country ? ` · ${ride.data.country}` : ''}
+                  {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
                 </span>
               </div>
             </a>

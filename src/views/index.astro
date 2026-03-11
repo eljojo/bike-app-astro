@@ -9,6 +9,7 @@ import { routeSlug, paths, assets } from '@/lib/paths';
 import { imageUrl } from '@/lib/image-service';
 import { formatDuration } from '@/lib/date-utils';
 import { hasCachedMap } from '@/lib/map-thumbnails';
+import { countryToFlag } from '@/lib/country-flags';
 import type { CollectionEntry } from 'astro:content';
 
 const config = getCityConfig();
@@ -83,7 +84,7 @@ if (blog) {
                         {' · '}
                         {ride.data.distance_km.toFixed(0)} km
                         {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
-                        {ride.data.country ? ` · ${ride.data.country}` : ''}
+                        {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
                       </span>
                     </div>
                   </a>
@@ -132,7 +133,7 @@ if (blog) {
                       {' · '}
                       {ride.data.distance_km.toFixed(0)} km
                       {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
-                      {ride.data.country ? ` · ${ride.data.country}` : ''}
+                      {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
                     </span>
                   </div>
                 </a>
