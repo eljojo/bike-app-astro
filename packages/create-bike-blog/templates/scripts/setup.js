@@ -542,7 +542,9 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   // Get Cloudflare API token: wrangler auth token → env var → ask
   let cfToken;
   try {
-    cfToken = run(`${wranglerCmd()} auth token 2>/dev/null`).trim();
+    const output = run(`${wranglerCmd()} auth token 2>/dev/null`);
+    // wrangler auth token may include a banner line (e.g. "⛅️ wrangler 4.x") — grab the last line
+    cfToken = output.split('\n').pop().trim();
   } catch { /* ignore */ }
 
   if (!cfToken) cfToken = process.env.CLOUDFLARE_API_TOKEN;
