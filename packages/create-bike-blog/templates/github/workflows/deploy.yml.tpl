@@ -42,6 +42,13 @@ jobs:
       - name: Generate map styles
         run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
 
+      - name: Restore map cache
+        uses: actions/cache@v5
+        with:
+          path: public/maps
+          key: maps-${{ hashFiles('blog/rides/**/*.gpx') }}
+          restore-keys: maps-
+
       - name: Generate map thumbnails
         run: npx tsx node_modules/bike-app-astro/scripts/generate-maps.ts
         env:
