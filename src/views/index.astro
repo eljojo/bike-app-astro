@@ -5,9 +5,10 @@ import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
 import { getCityConfig, isBlogInstance } from '@/lib/city-config';
 import { t } from '@/i18n';
-import { routeSlug, paths } from '@/lib/paths';
+import { routeSlug, paths, assets } from '@/lib/paths';
 import { imageUrl } from '@/lib/image-service';
 import { formatDuration } from '@/lib/date-utils';
+import { hasCachedMap } from '@/lib/map-thumbnails';
 import type { CollectionEntry } from 'astro:content';
 
 const config = getCityConfig();
@@ -49,20 +50,32 @@ if (blog) {
           <ul class="rides-list">
             {blogHighlights.map(ride => {
               const cover = ride.data.media.find(m => m.cover);
+              const hasMap = hasCachedMap(ride.id);
               return (
                 <li class="ride-card">
                   <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
-                    {cover && (
-                      <div class="ride-card--cover">
+                    <div class="ride-card--images">
+                      {cover && (
                         <img
+                          class="ride-card--cover"
                           src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
                           alt={ride.data.name}
                           loading="lazy"
                           width="300"
                           height="200"
                         />
-                      </div>
-                    )}
+                      )}
+                      {hasMap && (
+                        <img
+                          class="ride-card--map"
+                          src={assets.mapThumbnail(ride.id, 375)}
+                          alt={`Map of ${ride.data.name}`}
+                          loading="lazy"
+                          width="300"
+                          height="200"
+                        />
+                      )}
+                    </div>
                     <div class="ride-card--info">
                       <strong class="ride-card--name">{ride.data.name}</strong>
                       <span class="ride-card--meta">
@@ -86,20 +99,32 @@ if (blog) {
         <ul class="rides-list">
           {blogRides.map(ride => {
             const cover = ride.data.media.find(m => m.cover);
+            const hasMap = hasCachedMap(ride.id);
             return (
               <li class="ride-card">
                 <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
-                  {cover && (
-                    <div class="ride-card--cover">
+                  <div class="ride-card--images">
+                    {cover && (
                       <img
+                        class="ride-card--cover"
                         src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
                         alt={ride.data.name}
                         loading="lazy"
                         width="300"
                         height="200"
                       />
-                    </div>
-                  )}
+                    )}
+                    {hasMap && (
+                      <img
+                        class="ride-card--map"
+                        src={assets.mapThumbnail(ride.id, 375)}
+                        alt={`Map of ${ride.data.name}`}
+                        loading="lazy"
+                        width="300"
+                        height="200"
+                      />
+                    )}
+                  </div>
                   <div class="ride-card--info">
                     <strong class="ride-card--name">{ride.data.name}</strong>
                     <span class="ride-card--meta">
