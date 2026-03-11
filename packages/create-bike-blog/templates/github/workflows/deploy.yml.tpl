@@ -27,6 +27,13 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate map thumbnails
+        run: npx tsx node_modules/bike-app-astro/scripts/generate-maps.ts
+        env:
+          CONTENT_DIR: .
+          CITY: {{USERNAME}}
+          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
       - name: Build site
         run: npx astro build
         env:

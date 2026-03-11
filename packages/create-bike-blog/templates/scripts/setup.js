@@ -204,61 +204,83 @@ async function stepGitHub(folderName) {
   }
 
   // Check if deploy secrets are already set
-  let hasDeploySecrets = false;
+  let secretList = '';
   try {
-    const secretList = run('gh secret list 2>/dev/null');
-    hasDeploySecrets = secretList.includes('CLOUDFLARE_API_TOKEN');
+    secretList = run('gh secret list 2>/dev/null');
   } catch { /* ignore — repo may not exist yet */ }
 
-  if (hasDeploySecrets) {
+  const hasCfToken = secretList.includes('CLOUDFLARE_API_TOKEN');
+  const hasMapsKey = secretList.includes('GOOGLE_MAPS_STATIC_API_KEY');
+
+  if (hasCfToken && hasMapsKey) {
     console.log('  ✓ Deploy secrets already configured\n');
     return;
   }
 
-  // Deploy secrets (optional — Enter to skip)
-  console.log('  GitHub Actions needs a Cloudflare API token to deploy.\n');
-  console.log('  Create one at:');
-  console.log('    https://dash.cloudflare.com/profile/api-tokens\n');
-  console.log('  Click "Create Token", then "Edit Cloudflare Workers" → "Use template".');
-  console.log('  On the next screen:');
-  console.log('    - Add permission: Account → D1 → Edit');
-  console.log('    - Add permission: Account → Workers R2 Storage → Edit');
-  console.log('    - Account Resources: pick your account');
-  console.log('    - Zone Resources: "All zones" (or pick your domain)');
-  console.log('  Click "Continue to summary" → "Create Token" → copy it.\n');
+  const secretInput = (name, value) => {
+    execSync(`gh secret set ${name}`, {
+      input: value,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  };
 
-  const token = await ask('  Paste your token (Enter to skip): ');
-  if (!token.trim()) {
-    console.log('    → skipped. Set deploy secrets later with:');
-    console.log('      gh secret set CLOUDFLARE_API_TOKEN');
-    console.log('      gh secret set CLOUDFLARE_ACCOUNT_ID\n');
-    return;
+  // Cloudflare deploy token
+  if (!hasCfToken) {
+    console.log('  GitHub Actions needs a Cloudflare API token to deploy.\n');
+    console.log('  Create one at:');
+    console.log('    https://dash.cloudflare.com/profile/api-tokens\n');
+    console.log('  Click "Create Token", then "Edit Cloudflare Workers" → "Use template".');
+    console.log('  On the next screen:');
+    console.log('    - Add permission: Account → D1 → Edit');
+    console.log('    - Add permission: Account → Workers R2 Storage → Edit');
+    console.log('    - Account Resources: pick your account');
+    console.log('    - Zone Resources: "All zones" (or pick your domain)');
+    console.log('  Click "Continue to summary" → "Create Token" → copy it.\n');
+
+    const token = await ask('  Paste your token (Enter to skip): ');
+    if (token.trim()) {
+      let accountId;
+      try {
+        const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
+        accountId = whoami.match(/([a-f0-9]{32})/)?.[1];
+      } catch { /* ignore */ }
+      if (!accountId) {
+        accountId = await ask('  Paste your Cloudflare Account ID: ');
+      }
+
+      try {
+        secretInput('CLOUDFLARE_API_TOKEN', token.trim());
+        secretInput('CLOUDFLARE_ACCOUNT_ID', accountId.trim());
+        console.log('  ✓ Cloudflare deploy secrets configured\n');
+      } catch {
+        console.error('  ✗ Failed to set Cloudflare secrets. Set them manually in repo Settings → Secrets.\n');
+      }
+    } else {
+      console.log('    → skipped. Set later: gh secret set CLOUDFLARE_API_TOKEN\n');
+    }
+  } else {
+    console.log('  ✓ Cloudflare deploy secrets already configured\n');
   }
 
-  // Get account ID
-  let accountId;
-  try {
-    const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
-    accountId = whoami.match(/([a-f0-9]{32})/)?.[1];
-  } catch { /* ignore */ }
-
-  if (!accountId) {
-    accountId = await ask('  Paste your Cloudflare Account ID: ');
-  }
-
-  // Set secrets
-  try {
-    const secretInput = (name, value) => {
-      execSync(`gh secret set ${name}`, {
-        input: value,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-    };
-    secretInput('CLOUDFLARE_API_TOKEN', token.trim());
-    secretInput('CLOUDFLARE_ACCOUNT_ID', accountId.trim());
-    console.log('  ✓ Deploy secrets configured\n');
-  } catch {
-    console.error('\n  ✗ Failed to set secrets. Set them manually in repo Settings → Secrets.\n');
+  // Google Maps Static API key (for map thumbnail generation during build)
+  if (!hasMapsKey) {
+    console.log('  Route pages show a static map thumbnail, generated at build time');
+    console.log('  using the Google Maps Static API.\n');
+    console.log('  Create one at:');
+    console.log('    https://console.cloud.google.com/apis/credentials');
+    console.log('    → Create API Key → restrict to: Maps Static API\n');
+    const mapsKey = await ask('  Google Maps Static API key (Enter to skip): ');
+    if (mapsKey.trim()) {
+      try {
+        secretInput('GOOGLE_MAPS_STATIC_API_KEY', mapsKey.trim());
+        console.log('  ✓ GOOGLE_MAPS_STATIC_API_KEY configured\n');
+      } catch {
+        console.error('  ✗ Failed to set key. Set it manually: gh secret set GOOGLE_MAPS_STATIC_API_KEY\n');
+      }
+    } else {
+      console.log('    → skipped. Routes will build without map thumbnails.');
+      console.log('      Set it later: gh secret set GOOGLE_MAPS_STATIC_API_KEY\n');
+    }
   }
 }
 
