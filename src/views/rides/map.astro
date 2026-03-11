@@ -27,7 +27,7 @@ const { name, variants, gpxTracks } = route.data;
 
 const variant = variants[0];
 const track = variant ? gpxTracks[variant.gpx] : null;
-const elevation = track?.elevation_gain_m;
+const elevation = route.data.total_elevation_gain ?? track?.elevation_gain_m;
 const conclusion = elevation ? elevationConclusion(elevation, allElevations) : null;
 const variantKey = variant ? variantKeyFromGpx(variant.gpx) : '';
 

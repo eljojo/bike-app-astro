@@ -331,6 +331,9 @@ export function rideLoader(): Loader {
         const highlight = typeof sidecarFrontmatter.highlight === 'boolean'
           ? sidecarFrontmatter.highlight
           : undefined;
+        const totalElevationGain = typeof sidecarFrontmatter.total_elevation_gain === 'number'
+          ? sidecarFrontmatter.total_elevation_gain
+          : undefined;
         const tags = Array.isArray(sidecarFrontmatter.tags)
           ? sidecarFrontmatter.tags
           : [];
@@ -368,6 +371,7 @@ export function rideLoader(): Loader {
           tour_slug: tour ? tour.slug : undefined,
           country,
           highlight,
+          total_elevation_gain: totalElevationGain,
           elapsed_time_s: gpxTrack.elapsed_time_s || undefined,
           moving_time_s: gpxTrack.moving_time_s || undefined,
           average_speed_kmh: gpxTrack.average_speed_kmh || undefined,

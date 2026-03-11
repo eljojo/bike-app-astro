@@ -56,6 +56,7 @@ export const routeSchema = z.object({
   tour_slug: z.string().optional(),
   country: z.string().optional(),
   highlight: z.boolean().optional(),
+  total_elevation_gain: z.number().optional(),
   elapsed_time_s: z.number().optional(),
   moving_time_s: z.number().optional(),
   average_speed_kmh: z.number().optional(),

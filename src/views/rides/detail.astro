@@ -90,8 +90,8 @@ const seoDescription = route.data.ride_date
           {route.data.average_speed_kmh && (
             <span>Avg. Speed: {route.data.average_speed_kmh.toFixed(2)} km/h</span>
           )}
-          {primaryTrack?.elevation_gain_m != null && (
-            <span>Elevation: {primaryTrack.elevation_gain_m} m</span>
+          {(route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m) != null && (
+            <span>Elevation: {route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m} m</span>
           )}
         </div>
 
