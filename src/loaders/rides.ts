@@ -262,12 +262,20 @@ export function rideLoader(): Loader {
           continue;
         }
 
-        // Parse GPX
+        // Parse GPX, then downsample points to limit memory usage.
+        // With 600+ rides, full-resolution points exhaust the heap during builds.
+        // The elevation profile needs at most 200 samples; the map uses the polyline.
         const gpxAbsPath = path.join(ridesDir, gpxRelPath);
         let gpxTrack: GpxTrack;
         try {
           const gpxXml = fs.readFileSync(gpxAbsPath, 'utf-8');
-          gpxTrack = parseGpx(gpxXml);
+          const parsed = parseGpx(gpxXml);
+          const MAX_POINTS = 200;
+          if (parsed.points.length > MAX_POINTS) {
+            const step = Math.floor(parsed.points.length / MAX_POINTS);
+            parsed.points = parsed.points.filter((_, i) => i % step === 0 || i === parsed.points.length - 1);
+          }
+          gpxTrack = parsed;
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : String(e);
           logger.warn(`Failed to parse GPX ${gpxAbsPath}: ${message}`);
