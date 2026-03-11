@@ -36,11 +36,6 @@ export function buildStaticMapUrl(polyline: string, apiKey: string, language?: s
   const start = points[0];
   const end = points[points.length - 1];
 
-  // Sample every 5th point to keep URL under Google's 8192 char limit
-  const sampled = points.filter((_: number[], i: number) => i % 5 === 0);
-  if (sampled[sampled.length - 1] !== end) sampled.push(end);
-  const simplifiedPolyline = polylineCodec.encode(sampled);
-
   const params = new URLSearchParams({
     maptype: 'roadmap',
     size: '800x800',
@@ -49,8 +44,23 @@ export function buildStaticMapUrl(polyline: string, apiKey: string, language?: s
     ...(language && { language }),
   });
 
-  return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`
-    + `&path=enc:${simplifiedPolyline}`
+  // Base URL + markers use ~250 chars; leave headroom for encoding overhead.
+  // Google's limit is 8192 chars — target ~6000 for the polyline portion.
+  const baseUrl = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`
     + `&markers=color:yellow|label:S|${start[0]},${start[1]}`
     + `&markers=color:green|label:F|${end[0]},${end[1]}`;
+  const maxPolylineChars = 8192 - baseUrl.length - '&path=enc:'.length - 100;
+
+  // Adaptively sample points — start at every 5th, widen until URL fits
+  let interval = 5;
+  let simplifiedPolyline: string;
+  do {
+    const sampled = points.filter((_: number[], i: number) => i % interval === 0);
+    if (sampled[sampled.length - 1] !== end) sampled.push(end);
+    simplifiedPolyline = polylineCodec.encode(sampled);
+    if (simplifiedPolyline.length <= maxPolylineChars) break;
+    interval = Math.ceil(interval * 1.5);
+  } while (interval < points.length);
+
+  return baseUrl + `&path=enc:${simplifiedPolyline}`;
 }
