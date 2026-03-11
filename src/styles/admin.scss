@@ -1555,3 +1555,292 @@
     color: #e85d4a;
   }
 }
+
+// ─── Ride Editor — split pane layout ───
+
+.ride-editor {
+  position: relative;
+}
+
+.ride-editor-tabs {
+  display: none;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+}
+
+.ride-editor-tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  &--active {
+    border-bottom: 2px solid $color-accent;
+  }
+}
+
+.ride-editor-panes {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: block;
+  }
+}
+
+.ride-editor-edit {
+  flex: 1;
+  min-width: 0;
+}
+
+.ride-editor-preview {
+  flex: 1;
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    position: static;
+    max-height: none;
+  }
+}
+
+.ride-editor-pane--hidden {
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
+  }
+}
+
+// Ride details fieldset
+.ride-details,
+.ride-gpx {
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+  margin-bottom: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  legend {
+    font-weight: 600;
+    padding: 0 0.5rem;
+  }
+}
+
+// GPX info
+.ride-gpx-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ride-gpx-filename {
+  font-family: $font-mono;
+}
+
+.ride-gpx-stat {
+  @include muted-text;
+}
+
+.ride-gpx-empty {
+  text-align: center;
+  padding: 1rem;
+}
+
+.ride-gpx-hint {
+  @include muted-text;
+  margin-left: 0.5rem;
+}
+
+// Auto-detect field
+.auto-detect-field {
+  margin-bottom: 0.75rem;
+
+  label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.auto-detect-value {
+  background: none;
+  border: 1px dashed $color-border;
+  padding: 0.25rem 0.5rem;
+  border-radius: $border-radius;
+  cursor: pointer;
+  color: $color-text;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    color: $color-text-dark;
+  }
+
+  &:hover {
+    border-color: $color-accent;
+  }
+}
+
+.auto-detect-edit-hint {
+  opacity: 0.4;
+  font-size: 0.85em;
+}
+
+// Markdown toolbar
+.markdown-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid $color-border;
+  border-bottom: none;
+  border-radius: $border-radius $border-radius 0 0;
+  background: $color-card-bg;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+
+  button {
+    padding: 4px 8px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: $border-radius;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: $color-text;
+
+    @include dark-mode {
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-bg;
+      border-color: $color-border;
+
+      @include dark-mode {
+        background: $color-bg-dark;
+        border-color: $color-border-dark;
+      }
+    }
+  }
+
+  .toolbar-disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+// Story textarea (connects to toolbar)
+.ride-body-field textarea {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+// Preview styles (mini public page)
+.ride-preview-hero img {
+  width: 100%;
+  border-radius: $border-radius;
+}
+
+.ride-preview-title {
+  font-size: 1.25rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.ride-preview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid $color-border;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.ride-preview-stat-label {
+  display: block;
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.ride-preview-stat-value {
+  font-weight: 600;
+}
+
+.ride-preview-body {
+  line-height: 1.6;
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 1rem 0 0.5rem;
+  }
+
+  p {
+    margin: 0.5rem 0;
+  }
+
+  a {
+    color: $color-accent;
+  }
+}
+
+.ride-preview-map img {
+  width: 100%;
+  border-radius: $border-radius;
+  margin: 1rem 0;
+}
+
+.ride-preview-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  img {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: $border-radius;
+  }
+}
+
+// Inline form field
+.form-field--inline {
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+  }
+}
