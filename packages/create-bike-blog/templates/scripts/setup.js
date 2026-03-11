@@ -36,6 +36,14 @@ function hasResourceIds() {
   }
 }
 
+function wranglerCmd() {
+  return commandExists('wrangler') ? 'wrangler' : 'npx wrangler';
+}
+
+function hasWrangler() {
+  return commandExists('wrangler') || commandExists('npx');
+}
+
 function hasGitRemote() {
   try {
     run('git remote get-url origin');
@@ -56,7 +64,7 @@ async function stepCloudflare(folderName) {
     return;
   }
 
-  if (!commandExists('wrangler')) {
+  if (!hasWrangler()) {
     console.log('  ✗ wrangler not found\n');
     console.log('  You can install it with: npm i -g wrangler\n');
     console.log('  Or set up Cloudflare manually:');
@@ -76,7 +84,7 @@ async function stepCloudflare(folderName) {
 
   // Check login
   try {
-    const whoami = run('wrangler whoami');
+    const whoami = run(`${wranglerCmd()} whoami`);
     const accountMatch = whoami.match(/(\S+@\S+)/);
     console.log(`  ✓ wrangler found, logged in as ${accountMatch?.[1] || 'authenticated'}\n`);
   } catch {
@@ -86,7 +94,7 @@ async function stepCloudflare(folderName) {
       console.log('\n  Log in with: wrangler login\n  Then run npm run setup again.\n');
       process.exit(0);
     }
-    execSync('wrangler login', { stdio: 'inherit' });
+    execSync(`${wranglerCmd()} login`, { stdio: 'inherit' });
     console.log();
   }
 
@@ -108,7 +116,7 @@ async function stepCloudflare(folderName) {
   fs.writeFileSync(stubPath, 'export default { fetch() { return new Response("Setting up — check back soon!"); } };\n');
 
   try {
-    execSync(`wrangler deploy ${stubPath} --x-provision`, { stdio: 'inherit' });
+    execSync(`${wranglerCmd()} deploy ${stubPath} --x-provision`, { stdio: 'inherit' });
     console.log('\n  ✓ Resources created, IDs written to wrangler.jsonc\n');
   } catch {
     console.error('\n  ✗ Deploy failed. Check the error above and try again.\n');
@@ -214,7 +222,7 @@ async function stepGitHub(folderName) {
   // Get account ID
   let accountId;
   try {
-    const whoami = run('wrangler whoami 2>/dev/null');
+    const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
     accountId = whoami.match(/([a-f0-9]{32})/)?.[1];
   } catch { /* ignore */ }
 
@@ -242,7 +250,7 @@ async function stepApiKeys() {
   console.log('\n  Step 3/3: API Keys');
   console.log('  ──────────────────');
 
-  if (!commandExists('wrangler')) {
+  if (!hasWrangler()) {
     console.log('  ⚠ wrangler not found — skipping. Set these secrets manually before deploying.\n');
     return;
   }
@@ -250,7 +258,7 @@ async function stepApiKeys() {
   // --- Detect what's already set ---
   let existingSecrets = new Set();
   try {
-    const secretList = run('wrangler secret list 2>/dev/null');
+    const secretList = run(`${wranglerCmd()} secret list 2>/dev/null`);
     const parsed = JSON.parse(secretList);
     existingSecrets = new Set(parsed.map(s => s.name));
   } catch { /* ignore — may not be deployed yet */ }
@@ -273,7 +281,7 @@ async function stepApiKeys() {
 
   // R2_ACCOUNT_ID from wrangler whoami (already logged in from Step 1)
   try {
-    const whoami = run('wrangler whoami 2>/dev/null');
+    const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
     const id = whoami.match(/([a-f0-9]{32})/)?.[1];
     if (id) autoSecrets.push({ name: 'R2_ACCOUNT_ID', value: id });
   } catch { /* ignore */ }
@@ -429,7 +437,7 @@ async function stepApiKeys() {
   // Set secrets via wrangler
   for (const { name, value } of collectedSecrets) {
     try {
-      execSync(`wrangler secret put ${name}`, {
+      execSync(`${wranglerCmd()} secret put ${name}`, {
         input: value,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
