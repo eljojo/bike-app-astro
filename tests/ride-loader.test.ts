@@ -139,9 +139,9 @@ describe('buildSlug', () => {
     expect(buildSlug(date, '31-268-afternoon-ride.gpx')).toBe('268-afternoon-ride');
   });
 
-  it('preserves handle starting with hyphen', () => {
+  it('strips DD- from renamed file (was DD--name, now DD-name)', () => {
     const date = { year: 2024, month: 3, day: 14 };
-    expect(buildSlug(date, '14--morning-ride.gpx')).toBe('-morning-ride');
+    expect(buildSlug(date, '14-morning-ride.gpx')).toBe('morning-ride');
   });
 
   it('preserves 1-digit handle prefix (6-sprints)', () => {
