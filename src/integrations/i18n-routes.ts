@@ -32,6 +32,7 @@ const blogPages = [
   { pattern: '/rides/[slug]/map', entrypoint: view('rides/map.astro') },
   { pattern: '/tours', entrypoint: view('tours/index.astro') },
   { pattern: '/tours/[slug]', entrypoint: view('tours/detail.astro') },
+  { pattern: '/tours/[slug]/map', entrypoint: view('tours/tour-map.astro') },
   { pattern: '/tours/[tourSlug]/[rideSlug]', entrypoint: view('tours/ride-detail.astro') },
   { pattern: '/tours/[tourSlug]/[rideSlug]/map', entrypoint: view('tours/ride-map.astro') },
   { pattern: '/stats', entrypoint: view('stats.astro') },
