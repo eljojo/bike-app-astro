@@ -1,8 +1,12 @@
 ---
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
 import tours from 'virtual:bike-app/tours';
 import { getCityConfig } from '@/lib/city-config';
+import { imageUrl } from '@/lib/image-service';
+import { hasCachedMap } from '@/lib/map-thumbnails';
+import { assets } from '@/lib/paths';
 import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
 
@@ -12,10 +16,71 @@ const sortedTours = [...tours].sort((a, b) => b.start_date.localeCompare(a.start
 
 const totalDistance = tours.reduce((sum, t) => sum + t.total_distance_km, 0);
 const totalDays = tours.reduce((sum, t) => sum + t.days, 0);
+
+// Load ride collection to get cover images for tour cards
+const allRoutes = await getCollection('routes');
+const routeMap = new Map(allRoutes.map(r => [r.id, r]));
+
+function getTourCover(tour: typeof tours[0]) {
+  for (const rideSlug of tour.rides) {
+    const ride = routeMap.get(rideSlug);
+    if (ride) {
+      const cover = ride.data.media.find(m => m.cover);
+      if (cover) return cover.key;
+    }
+  }
+  return undefined;
+}
 ---
 
 <Base title={`${t('nav.tours', locale)} | ${config.display_name}`} description={t('tours.description', locale)}>
   <h1>{t('tours.title', locale)}</h1>
+  <ul class="tours-grid">
+    {sortedTours.map(tour => {
+      const coverKey = getTourCover(tour);
+      const hasMap = hasCachedMap(tour.rides[0] || '');
+      const firstRide = tour.rides[0] ? routeMap.get(tour.rides[0]) : null;
+      return (
+        <li class="tour-grid-card">
+          <a href={`/tours/${tour.slug}`} class="tour-grid-card--link">
+            <div class="tour-grid-card--images">
+              {coverKey && (
+                <img
+                  class="tour-grid-card--cover"
+                  src={imageUrl(coverKey, { width: 300, height: 300, fit: 'cover' })}
+                  alt={tour.name}
+                  loading="lazy"
+                  width="300"
+                  height="300"
+                />
+              )}
+              {hasMap && firstRide && (
+                <img
+                  class="tour-grid-card--map"
+                  src={assets.mapThumbnail(firstRide.id, 375)}
+                  alt={`Map of ${tour.name}`}
+                  loading="lazy"
+                  width="300"
+                  height="300"
+                />
+              )}
+            </div>
+            <div class="tour-grid-card--info">
+              <strong class="tour-grid-card--name">{tour.name}</strong>
+              <span class="tour-grid-card--meta">
+                {tour.start_date}
+                {' · '}
+                {tour.days} {t('tours.days', locale)}
+                {' · '}
+                {tour.total_distance_km.toFixed(0)} km
+                {tour.countries.length > 0 ? ` · ${tour.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
+              </span>
+            </div>
+          </a>
+        </li>
+      );
+    })}
+  </ul>
   {tours.length > 0 && (
     <p class="tours-summary">
       {t('tours.summary', locale, {
@@ -25,27 +90,4 @@ const totalDays = tours.reduce((sum, t) => sum + t.days, 0);
       })}
     </p>
   )}
-  <ul class="tours-list">
-    {sortedTours.map(tour => (
-      <li class="tour-card">
-        <a href={`/tours/${tour.slug}`} class="tour-card--link">
-          <strong class="tour-card--name">{tour.name}</strong>
-          <span class="tour-card--meta">
-            {tour.start_date}
-            {tour.end_date !== tour.start_date ? ` — ${tour.end_date}` : ''}
-            {' · '}
-            {tour.days} {t('tours.days', locale)}
-            {' · '}
-            {tour.total_distance_km.toFixed(0)} km
-            {' · '}
-            {tour.ride_count} {t('tours.rides', locale)}
-            {tour.countries.length > 0 ? ` · ${tour.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
-          </span>
-          {tour.description && (
-            <span class="tour-card--description">{tour.description}</span>
-          )}
-        </a>
-      </li>
-    ))}
-  </ul>
 </Base>
