@@ -264,11 +264,10 @@ export function rideLoader(): Loader {
 
         // Parse GPX
         const gpxAbsPath = path.join(ridesDir, gpxRelPath);
-        let gpxTrack: GpxTrack & { rawGpx?: string };
+        let gpxTrack: GpxTrack;
         try {
           const gpxXml = fs.readFileSync(gpxAbsPath, 'utf-8');
-          const parsed = parseGpx(gpxXml);
-          gpxTrack = { ...parsed, rawGpx: gpxXml };
+          gpxTrack = parseGpx(gpxXml);
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : String(e);
           logger.warn(`Failed to parse GPX ${gpxAbsPath}: ${message}`);
@@ -331,7 +330,7 @@ export function rideLoader(): Loader {
         const isoDate = rideDateToIso(date);
 
         // Build route-schema-compatible data
-        const gpxTracks: Record<string, GpxTrack & { rawGpx?: string }> = {
+        const gpxTracks: Record<string, GpxTrack> = {
           [gpxFilename]: gpxTrack,
         };
 
@@ -351,6 +350,7 @@ export function rideLoader(): Loader {
           updated_at: isoDate,
           media,
           gpxTracks,
+          gpxRelativePath: gpxRelPath,
           renderedBody,
           translations: {},
 

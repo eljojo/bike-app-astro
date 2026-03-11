@@ -102,15 +102,14 @@ export function routeLoader(): Loader {
         }
 
         // Parse GPX files from variants
-        const gpxTracks: Record<string, GpxTrack & { rawGpx?: string }> = {};
+        const gpxTracks: Record<string, GpxTrack> = {};
         const variants = frontmatter.variants || [];
         for (const variant of variants) {
           const gpxPath = path.join(routeDir, variant.gpx);
           if (fs.existsSync(gpxPath)) {
             try {
               const gpxXml = fs.readFileSync(gpxPath, 'utf-8');
-              const parsed = parseGpx(gpxXml);
-              gpxTracks[variant.gpx] = { ...parsed, rawGpx: gpxXml };
+              gpxTracks[variant.gpx] = parseGpx(gpxXml);
             } catch (e: unknown) {
               const message = e instanceof Error ? e.message : String(e);
               logger.warn(`Failed to parse GPX ${gpxPath}: ${message}`);

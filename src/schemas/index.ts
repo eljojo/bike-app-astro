@@ -41,8 +41,8 @@ export const routeSchema = z.object({
     elevation_gain_m: z.number(),
     max_gradient_pct: z.number(),
     polyline: z.string(),
-    rawGpx: z.string().optional(),
   })).default({}),
+  gpxRelativePath: z.string().optional(),
   renderedBody: z.string().default(''),
   translations: z.record(z.string(), z.looseObject({
     name: z.string().optional(),
