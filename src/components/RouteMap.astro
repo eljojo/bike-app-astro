@@ -24,7 +24,7 @@ interface MapPhoto {
 }
 
 interface Props {
-  polylines: { name: string; encoded: string; color?: string }[];
+  polylines: { name: string; encoded: string; color?: string; url?: string }[];
   places?: Place[];
   photos?: MapPhoto[];
   center?: [number, number];
@@ -79,7 +79,9 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
 
     const polylineData = polylines.map((pl: any) => ({
       encoded: pl.encoded,
-      popup: html`${pl.name}`,
+      popup: pl.url
+        ? `<a href="${pl.url}" style="font-weight:bold;text-decoration:underline">${html`${pl.name}`}</a>`
+        : html`${pl.name}`,
       ...(pl.color && { color: pl.color }),
     }));
 

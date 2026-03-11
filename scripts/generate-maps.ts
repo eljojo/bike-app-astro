@@ -5,12 +5,13 @@ import matter from 'gray-matter';
 import sharp from 'sharp';
 import { parseGpx } from '../src/lib/gpx';
 import {
-  mapThumbPaths, buildStaticMapUrl,
+  mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
   variantKeyFromGpx, gpxHash, hashPath,
   needsRegeneration,
 } from '../src/lib/map-generation';
 import { getCityConfig } from '../src/lib/city-config';
-import { findGpxFiles, extractDateFromPath, buildSlug } from '../src/loaders/rides';
+import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
+import crypto from 'node:crypto';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
 const CITY = process.env.CITY || 'ottawa';
@@ -183,6 +184,59 @@ async function main() {
         const ridePaths = mapThumbPaths(slug, undefined, langPrefix);
         await generateMapImages(pngBuffer, ridePaths);
         fs.writeFileSync(hashPath(slug, langPrefix), hash);
+
+        generated++;
+      }
+    }
+  }
+
+  // --- Tours (blog instances): combined map of all rides in each tour ---
+  if (fs.existsSync(ridesDir)) {
+    const gpxPaths = findGpxFiles(ridesDir);
+    const tours = detectTours(gpxPaths);
+
+    for (const tour of tours) {
+      const polylines: string[] = [];
+      const gpxContents: string[] = [];
+      for (const ridePath of tour.ridePaths) {
+        const absPath = path.join(ridesDir, ridePath);
+        if (!fs.existsSync(absPath)) continue;
+        const content = fs.readFileSync(absPath, 'utf-8');
+        gpxContents.push(content);
+        const track = parseGpx(content);
+        if (track.polyline) polylines.push(track.polyline);
+      }
+      if (polylines.length === 0) continue;
+
+      // Hash all GPX files in the tour for cache invalidation
+      const combinedHash = crypto.createHash('sha256')
+        .update(gpxContents.join('\n'))
+        .digest('hex').slice(0, 16);
+      const tourSlug = `tour-${tour.slug}`;
+
+      for (const lang of languages) {
+        const langPrefix = lang === defaultLang ? undefined : lang;
+
+        if (!FORCE && !needsRegeneration(tourSlug, combinedHash, langPrefix)) {
+          skipped++;
+          continue;
+        }
+
+        const label = langPrefix ? `${tourSlug} [${lang}]` : tourSlug;
+        console.log(`[maps] ${label}: generating tour map (${polylines.length} rides)...`);
+
+        const url = buildStaticMapUrlMulti(polylines, API_KEY!, lang);
+        if (!url) continue;
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`[maps] ${label}: HTTP ${response.status}`);
+          continue;
+        }
+        const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+        const tourPaths = mapThumbPaths(tourSlug, undefined, langPrefix);
+        await generateMapImages(pngBuffer, tourPaths);
+        fs.writeFileSync(hashPath(tourSlug, langPrefix), combinedHash);
 
         generated++;
       }

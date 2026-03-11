@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { MAP_CACHE_DIR } from './map-paths';
 import path from 'node:path';
 
-export { mapThumbPaths, variantKeyFromGpx, buildStaticMapUrl } from './map-paths';
+export { mapThumbPaths, variantKeyFromGpx, buildStaticMapUrl, buildStaticMapUrlMulti } from './map-paths';
 export type { MapThumbPaths } from './map-paths';
 
 export function gpxHash(gpxContent: string): string {

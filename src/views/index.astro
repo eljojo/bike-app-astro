@@ -22,6 +22,7 @@ let wikiData: Awaited<ReturnType<typeof import('@/lib/route-data').loadHomepageD
 let blogRides: CollectionEntry<'routes'>[] = [];
 let blogHighlights: CollectionEntry<'routes'>[] = [];
 let blogBadgeMap = new Map<string, string[]>();
+let blogFeaturedIds = new Set<string>();
 
 if (blog) {
   const { getCollection } = await import('astro:content');
@@ -84,6 +85,11 @@ if (blog) {
   }
 
   blogBadgeMap = badgeMap;
+
+  // Rides with 2+ badges get featured (larger card)
+  for (const [id, badges] of badgeMap) {
+    if (badges.length >= 2) blogFeaturedIds.add(id);
+  }
 } else {
   const { loadHomepageData } = await import('@/lib/route-data');
   wikiData = await loadHomepageData();
@@ -105,8 +111,9 @@ if (blog) {
             {blogHighlights.map(ride => {
               const cover = ride.data.media.find(m => m.cover);
               const hasMap = hasCachedMap(ride.id);
+              const featured = blogFeaturedIds.has(ride.id);
               return (
-                <li class="ride-card">
+                <li class={`ride-card${featured ? ' ride-card--featured' : ''}`}>
                   <a href={ride.data.tour_slug ? paths.tour(ride.data.tour_slug) : paths.ride(ride.id)} class="ride-card--link">
                     <div class="ride-card--images">
                       {cover && (

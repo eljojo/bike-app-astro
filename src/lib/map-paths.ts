@@ -31,6 +31,16 @@ export function variantKeyFromGpx(gpxFilename: string): string {
   return gpxFilename.replace(/\.gpx$/, '').replace(/^variants\//, 'variants-');
 }
 
+/** Build a static map URL combining multiple polylines (e.g. all rides in a tour). */
+export function buildStaticMapUrlMulti(polylines: string[], apiKey: string, language?: string): string {
+  const allPoints: number[][] = [];
+  for (const pl of polylines) {
+    allPoints.push(...polylineCodec.decode(pl));
+  }
+  if (allPoints.length === 0) return '';
+  return buildStaticMapUrl(polylineCodec.encode(allPoints), apiKey, language);
+}
+
 export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string): string {
   const points = polylineCodec.decode(polyline);
   const start = points[0];

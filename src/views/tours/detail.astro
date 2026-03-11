@@ -44,6 +44,7 @@ const polylines = tourRides
       name: ride.data.name,
       encoded: track.polyline,
       color: TOUR_PALETTE[i % TOUR_PALETTE.length],
+      url: paths.ride(ride.id, ride.data.tour_slug),
     };
   })
   .filter((p): p is NonNullable<typeof p> => p != null);

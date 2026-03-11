@@ -62,8 +62,8 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
   {/* Hero: featured tour */}
   {hero && (() => {
     const coverKey = getTourCover(hero);
-    const hasMap = hasCachedMap(hero.rides[0] || '');
-    const firstRide = hero.rides[0] ? routeMap.get(hero.rides[0]) : null;
+    const tourMapSlug = `tour-${hero.slug}`;
+    const hasMap = hasCachedMap(tourMapSlug);
     return (
       <a href={`/tours/${hero.slug}`} class="tour-hero">
         <div class="tour-hero--images">
@@ -76,10 +76,10 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
               height="450"
             />
           )}
-          {hasMap && firstRide && (
+          {hasMap && (
             <img
               class="tour-hero--map"
-              src={assets.mapThumbnail(firstRide.id, 750)}
+              src={assets.mapThumbnail(tourMapSlug, 750)}
               alt={`Map of ${hero.name}`}
               width="800"
               height="450"
@@ -111,8 +111,8 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
       <div class="tour-postcards">
         {byYear.get(year)!.map(tour => {
           const coverKey = getTourCover(tour);
-          const hasMap = hasCachedMap(tour.rides[0] || '');
-          const firstRide = tour.rides[0] ? routeMap.get(tour.rides[0]) : null;
+          const tourMapSlug = `tour-${tour.slug}`;
+          const hasMap = hasCachedMap(tourMapSlug);
           return (
             <a href={`/tours/${tour.slug}`} class="tour-postcard">
               <div class="tour-postcard--images">
@@ -126,10 +126,10 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
                     height="300"
                   />
                 )}
-                {hasMap && firstRide && (
+                {hasMap && (
                   <img
                     class="tour-postcard--map"
-                    src={assets.mapThumbnail(firstRide.id, 375)}
+                    src={assets.mapThumbnail(tourMapSlug, 375)}
                     alt={`Map of ${tour.name}`}
                     loading="lazy"
                     width="450"
