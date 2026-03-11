@@ -1,4 +1,5 @@
 import type { AstroIntegration } from 'astro';
+import { isBlogInstance } from '../lib/city-config';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
@@ -41,6 +42,9 @@ const routes = [
   { pattern: '/api/events/[...id]', entrypoint: view('api/event-save.ts') },
   { pattern: '/api/places/prefill', entrypoint: view('api/places-prefill.ts') },
   { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
+  ...(isBlogInstance() ? [
+    { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
+  ] : []),
   // Media API
   { pattern: '/api/media/presign', entrypoint: view('api/media/presign.ts') },
   { pattern: '/api/media/confirm', entrypoint: view('api/media/confirm.ts') },
