@@ -301,17 +301,17 @@ async function stepApiKeys() {
     {
       name: 'GITHUB_TOKEN', kind: 'secret',
       description: 'Personal access token for saving content edits',
-      howTo: 'https://github.com/settings/personal-access-tokens\n    → Fine-grained → Create: repo contents read/write on this repo',
+      howTo: 'https://github.com/settings/personal-access-tokens\n    → Fine-grained → select this repo → Permissions:\n      Contents: Read and write',
     },
     {
       name: 'R2_ACCESS_KEY_ID', kind: 'secret',
       description: 'R2 API key ID for photo upload (presigned URLs)',
-      howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens\n    → Create API token → read/write on your bucket → copy Access Key ID',
+      howTo: 'Cloudflare Dashboard → R2 → Manage R2 API Tokens → Create API token\n      Permissions: Object Read & Write\n      Bucket: apply to your bucket only\n    → copy "Access Key ID"',
     },
     {
       name: 'R2_SECRET_ACCESS_KEY', kind: 'secret',
       description: 'R2 API secret for photo upload (presigned URLs)',
-      howTo: 'Same token as R2_ACCESS_KEY_ID — copy the Secret Access Key',
+      howTo: 'Same token as above — copy "Secret Access Key"',
     },
     {
       name: 'R2_PUBLIC_URL', kind: 'secret',
@@ -326,7 +326,7 @@ async function stepApiKeys() {
     {
       name: 'GOOGLE_PLACES_API_KEY', kind: 'secret',
       description: 'Auto-populating place details when adding places',
-      howTo: 'Google Cloud Console → APIs & Services → Credentials\n    → Create API Key → Enable Places API',
+      howTo: 'https://console.cloud.google.com/apis/credentials\n    → Create API Key → restrict to: Places API (New)',
     },
     {
       name: 'RWGPS_API_KEY', kind: 'secret',
