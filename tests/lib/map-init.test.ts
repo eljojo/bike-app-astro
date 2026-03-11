@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeToGeoJson, buildPolylineFeature, photoPopupMaxWidth } from '../../src/lib/map-init';
+import { decodeToGeoJson, buildPolylineFeature, photoPopupMaxWidth, TOUR_PALETTE } from '../../src/lib/map-init';
 
 describe('map-init helpers', () => {
   it('decodes an encoded polyline to GeoJSON coordinates', () => {
@@ -18,6 +18,23 @@ describe('map-init helpers', () => {
     const feature = buildPolylineFeature('_p~iF~ps|U_ulLnnqC', 'Test Route');
     expect(feature.properties?.popup).toBe('Test Route');
     expect(feature.geometry.type).toBe('LineString');
+  });
+
+  it('includes color property in feature when provided', () => {
+    const feature = buildPolylineFeature('_p~iF~ps|U_ulLnnqC', 'Test', '#ff0000');
+    expect(feature.properties?.color).toBe('#ff0000');
+  });
+
+  it('omits color property when not provided', () => {
+    const feature = buildPolylineFeature('_p~iF~ps|U_ulLnnqC', 'Test');
+    expect(feature.properties?.color).toBeUndefined();
+  });
+
+  it('exports a tour color palette with at least 6 colors', () => {
+    expect(TOUR_PALETTE.length).toBeGreaterThanOrEqual(6);
+    for (const c of TOUR_PALETTE) {
+      expect(c).toMatch(/^#[0-9a-fA-F]{6}$/);
+    }
   });
 });
 

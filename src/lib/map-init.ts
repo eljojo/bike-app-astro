@@ -7,6 +7,18 @@ import type { MapStyleKey } from './map-style-switch';
 export const ROUTE_COLOR = '#350091';
 const ROUTE_COLOR_HC = '#0077BB';
 
+/** Palette for multi-ride tour maps. 8 distinct, accessible colors. */
+export const TOUR_PALETTE = [
+  '#E6194B', // red
+  '#3CB44B', // green
+  '#4363D8', // blue
+  '#F58231', // orange
+  '#911EB4', // purple
+  '#42D4F4', // cyan
+  '#F032E6', // magenta
+  '#BFEF45', // lime
+];
+
 export function getRouteColor(style?: MapStyleKey): string {
   return style === 'high-contrast' ? ROUTE_COLOR_HC : ROUTE_COLOR;
 }
@@ -50,6 +62,7 @@ export interface MapOptions {
 export interface PolylineOptions {
   encoded: string;
   popup: string;
+  color?: string;
 }
 
 export interface MarkerOptions {
@@ -82,9 +95,9 @@ export function decodeToGeoJson(encoded: string): GeoJSON.Feature<GeoJSON.LineSt
   };
 }
 
-export function buildPolylineFeature(encoded: string, popup: string): GeoJSON.Feature<GeoJSON.LineString> {
+export function buildPolylineFeature(encoded: string, popup: string, color?: string): GeoJSON.Feature<GeoJSON.LineString> {
   const feature = decodeToGeoJson(encoded);
-  feature.properties = { popup };
+  feature.properties = { popup, ...(color && { color }) };
   return feature;
 }
 
@@ -117,8 +130,9 @@ export function addPolylines(
 ): maplibregl.LngLatBounds | null {
   removeSourceAndLayers(map, 'route-polylines');
 
-  const features = polylines.map((p) => buildPolylineFeature(p.encoded, p.popup));
+  const features = polylines.map((p) => buildPolylineFeature(p.encoded, p.popup, p.color));
   const sourceId = 'route-polylines';
+  const hasPerPolylineColors = polylines.some(p => p.color);
 
   map.addSource(sourceId, {
     type: 'geojson',
@@ -130,7 +144,9 @@ export function addPolylines(
     type: 'line',
     source: sourceId,
     paint: {
-      'line-color': getRouteColor(styleKey),
+      'line-color': hasPerPolylineColors
+        ? ['coalesce', ['get', 'color'], getRouteColor(styleKey)]
+        : getRouteColor(styleKey),
       'line-width': 6,
       'line-opacity': 0.9,
     },
