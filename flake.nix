@@ -21,6 +21,7 @@
             nodejs_22
             nodePackages.npm
             vips  # needed by sharp for image processing
+            imagemagick  # needed for HEIC dhash in match-photo-coords
             noto-fonts-color-emoji
             corefonts  # Arial Black (site title)
           ];
