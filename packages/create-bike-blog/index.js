@@ -2,7 +2,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { execSync } from 'node:child_process';
 import readline from 'node:readline';
 
@@ -56,7 +55,6 @@ async function main() {
 
   const folder = args[0];
   const domain = args[1];
-  const username = os.userInfo().username;
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const destDir = path.resolve(folder);
 
@@ -90,7 +88,7 @@ async function main() {
   const vars = {
     FOLDER: folderName,
     DOMAIN: domain,
-    USERNAME: username,
+    USERNAME: 'blog',
     TIMEZONE: timezone,
   };
 
@@ -113,9 +111,9 @@ async function main() {
     fs.renameSync(githubSrc, githubDest);
   }
 
-  // Move city/ to <username>/
+  // Move city/ to blog/
   const citySrc = path.join(destDir, 'city');
-  const cityDest = path.join(destDir, username);
+  const cityDest = path.join(destDir, 'blog');
   if (fs.existsSync(citySrc)) {
     fs.renameSync(citySrc, cityDest);
   }
@@ -148,7 +146,7 @@ async function main() {
   console.log(`  Next steps:
 
     cd ${folder}
-    # edit ${username}/config.yml and ${username}/pages/about.md
+    # edit blog/config.yml and blog/pages/about.md
     npm run setup
 `);
 

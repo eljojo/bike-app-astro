@@ -21,14 +21,12 @@ function renderTemplate(content, vars) {
   });
 }
 
-function parseEnv(envPath) {
-  if (!fs.existsSync(envPath)) return {};
-  const vars = {};
-  for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
-    const match = line.match(/^(\w+)=(.*)$/);
-    if (match) vars[match[1]] = match[2];
-  }
-  return vars;
+/** Read a top-level scalar from a simple YAML file. */
+function readYamlField(filePath, field) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const re = new RegExp(`^${field}:\\s*["']?([^"'\\n]+?)["']?\\s*$`, 'm');
+  const match = content.match(re);
+  return match ? match[1] : '';
 }
 
 function syncFile(srcPath, destPath, vars) {
@@ -48,12 +46,17 @@ function syncFile(srcPath, destPath, vars) {
 
 const cwd = process.cwd();
 const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
-const env = parseEnv(path.join(cwd, '.env'));
+
+const configPath = path.join(cwd, 'blog', 'config.yml');
+if (!fs.existsSync(configPath)) {
+  console.error(`  Error: blog/config.yml not found. Is this a bike blog repo?`);
+  process.exit(1);
+}
 
 const vars = {
   FOLDER: pkg.name,
-  DOMAIN: (env.SITE_URL || '').replace(/^https?:\/\//, ''),
-  USERNAME: env.CITY || 'blog',
+  DOMAIN: readYamlField(configPath, 'domain'),
+  USERNAME: 'blog',
   TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
 };
 

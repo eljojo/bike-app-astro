@@ -1,4 +1,4 @@
 CONTENT_DIR=.
-CITY={{USERNAME}}
+CITY=blog
 RUNTIME=local
 SITE_URL=https://{{DOMAIN}}

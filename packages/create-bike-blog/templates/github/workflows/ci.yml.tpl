@@ -34,3 +34,4 @@ jobs:
           CONTENT_DIR: .
           CITY: {{USERNAME}}
           SITE_URL: https://{{DOMAIN}}
+          NODE_OPTIONS: '--max-old-space-size=4096'
