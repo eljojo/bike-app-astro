@@ -86,9 +86,9 @@ if (blog) {
 
   blogBadgeMap = badgeMap;
 
-  // Rides with 2+ badges get featured (larger card)
+  // Rides with 1+ badge get featured (larger card)
   for (const [id, badges] of badgeMap) {
-    if (badges.length >= 2) blogFeaturedIds.add(id);
+    if (badges.length >= 1) blogFeaturedIds.add(id);
   }
 } else {
   const { loadHomepageData } = await import('@/lib/route-data');

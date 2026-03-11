@@ -1217,33 +1217,25 @@ a.go-back-button {
 // Image grid variant (blog homepage)
 .rides-list--grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.5em;
 
-  @media (max-width: $breakpoint-desktop) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  @media (max-width: $breakpoint-tablet) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   @media (max-width: $breakpoint-mobile) {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .ride-card {
     margin-bottom: 0;
   }
 
-  // Featured cards span 2 columns with landscape image
+  // Featured cards span 2 columns, image stays same height as regular cards
   .ride-card--featured {
     @media screen and (min-width: $breakpoint-mobile) {
       grid-column: span 2;
     }
 
     .ride-card--images {
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 2 / 1;
     }
 
     .ride-card--name {
