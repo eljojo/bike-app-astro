@@ -12,8 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: LFS cache period
+        id: lfs-period
+        run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore LFS cache
+        uses: actions/cache@v5
         with:
-          lfs: true
+          path: .git/lfs
+          key: lfs-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-
+
+      - name: Pull LFS files
+        run: git lfs pull
 
       - uses: actions/setup-node@v6
         with:
