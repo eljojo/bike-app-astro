@@ -4,6 +4,8 @@ display_name: {{DOMAIN}}
 tagline: "bike rides and adventures"
 description: "A cycling blog — rides, tours, and adventures."
 domain: {{DOMAIN}}
+cdn_url: https://cdn.{{DOMAIN}}
+videos_cdn_url: https://cdn.{{DOMAIN}}
 timezone: {{TIMEZONE}}
 locale: en
 locales: [en]

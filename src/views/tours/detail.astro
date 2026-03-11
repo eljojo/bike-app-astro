@@ -76,10 +76,8 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
       )}
     </div>
 
-    {tour.description && (
-      <div class="route-description">
-        <p>{tour.description}</p>
-      </div>
+    {tour.renderedDescription && (
+      <div class="route-description" set:html={tour.renderedDescription} />
     )}
 
     {/* Ride list */}

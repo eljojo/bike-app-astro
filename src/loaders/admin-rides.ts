@@ -5,6 +5,7 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { cityDir } from '../lib/config';
 import { parseGpx } from '../lib/gpx';
+import { renderMarkdownHtml } from '../lib/markdown-render';
 import type { RouteMedia } from './routes';
 import {
   extractDateFromPath,
@@ -52,6 +53,7 @@ export interface AdminTour {
   slug: string;
   name: string;
   description?: string;
+  renderedDescription?: string;
   total_distance_km: number;
   total_elevation_m: number;
   days: number;
@@ -129,15 +131,18 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
   }
 
   // Load tour-level metadata
-  const tourMeta = new Map<string, { name: string; description?: string; country?: string }>();
+  const tourMeta = new Map<string, { name: string; description?: string; renderedDescription?: string; country?: string }>();
   for (const tour of tours) {
     const indexPath = path.join(ridesDir, tour.dirPath, 'index.md');
     if (fs.existsSync(indexPath)) {
       const raw = fs.readFileSync(indexPath, 'utf-8');
       const { data: fm, content } = matter(raw);
+      const description = content.trim() || undefined;
+      const renderedDescription = description ? await renderMarkdownHtml(description) : undefined;
       tourMeta.set(tour.slug, {
         name: (fm.name as string) || tour.slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        description: content.trim() || undefined,
+        description,
+        renderedDescription,
         country: fm.country as string | undefined,
       });
     } else {
@@ -308,6 +313,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       slug: tour.slug,
       name: meta.name,
       description: meta.description,
+      renderedDescription: meta.renderedDescription,
       total_distance_km: Math.round(sortedRides.reduce((sum, r) => sum + r.distance_km, 0) * 10) / 10,
       total_elevation_m: sortedRides.reduce((sum, r) => sum + r.elevation_m, 0),
       days: uniqueDates.size,

@@ -188,6 +188,7 @@ interface _Tour {
   slug: string;
   name: string;
   description?: string;
+  renderedDescription?: string;
   total_distance_km: number;
   total_elevation_m: number;
   days: number;
