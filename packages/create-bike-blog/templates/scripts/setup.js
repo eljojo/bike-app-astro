@@ -44,6 +44,16 @@ function hasWrangler() {
   return commandExists('wrangler') || commandExists('npx');
 }
 
+function readDomain() {
+  try {
+    const configYml = fs.readFileSync('city/config.yml', 'utf-8');
+    const match = configYml.match(/^domain:\s*(.+)$/m);
+    return match?.[1]?.trim();
+  } catch {
+    return null;
+  }
+}
+
 function hasGitRemote() {
   try {
     run('git remote get-url origin');
@@ -281,10 +291,11 @@ async function stepApiKeys() {
   } catch { /* ignore */ }
 
   // R2_ACCOUNT_ID from wrangler whoami (already logged in from Step 1)
+  let accountId;
   try {
     const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
-    const id = whoami.match(/([a-f0-9]{32})/)?.[1];
-    if (id) autoSecrets.push({ name: 'R2_ACCOUNT_ID', value: id });
+    accountId = whoami.match(/([a-f0-9]{32})/)?.[1];
+    if (accountId) autoSecrets.push({ name: 'R2_ACCOUNT_ID', value: accountId });
   } catch { /* ignore */ }
 
   // GIT_OWNER and GIT_DATA_REPO from git remote (blog content lives in same repo)
@@ -317,12 +328,7 @@ async function stepApiKeys() {
       description: 'R2 API secret for photo upload (presigned URLs)',
       howTo: 'Same token as above — copy "Secret Access Key"',
     },
-    {
-      name: 'R2_PUBLIC_URL', kind: 'secret',
-      description: 'Public URL for your media/images CDN bucket',
-      howTo: `R2 → ${bucketName || '<your-bucket>'} → Settings → Custom Domains (or enable r2.dev subdomain)
-    e.g. https://cdn.yourdomain.com — NOT the S3 API endpoint`,
-    },
+    // R2_PUBLIC_URL is handled separately via auto-setup below
     {
       name: 'THUNDERFOREST_API_KEY', kind: 'secret',
       description: 'Map tiles (cycle, outdoors, transport layers)',
@@ -489,6 +495,149 @@ async function stepApiKeys() {
   }
 }
 
+async function stepCdnDomain() {
+  console.log('\n  CDN Domain (R2_PUBLIC_URL)');
+  console.log('  ─────────────────────────');
+
+  // Check if already set
+  let existingSecrets = new Set();
+  try {
+    const secretList = run(`${wranglerCmd()} secret list 2>/dev/null`);
+    const parsed = JSON.parse(secretList);
+    existingSecrets = new Set(parsed.map(s => s.name));
+  } catch { /* ignore */ }
+
+  if (existingSecrets.has('R2_PUBLIC_URL')) {
+    console.log('  ✓ R2_PUBLIC_URL already configured\n');
+    return;
+  }
+
+  const domain = readDomain();
+  if (!domain) {
+    console.log('  ⚠ Could not read domain from city/config.yml — skipping CDN setup.\n');
+    return;
+  }
+
+  // Get account ID
+  let accountId;
+  try {
+    const whoami = run(`${wranglerCmd()} whoami 2>/dev/null`);
+    accountId = whoami.match(/([a-f0-9]{32})/)?.[1];
+  } catch { /* ignore */ }
+
+  // Get bucket name from wrangler.jsonc
+  let bucketName;
+  try {
+    const config = readWranglerConfig();
+    bucketName = config.r2_buckets?.[0]?.bucket_name;
+  } catch { /* ignore */ }
+
+  if (!accountId || !bucketName) {
+    console.log('  ⚠ Could not detect account ID or bucket name — skipping CDN auto-setup.');
+    console.log('  Set R2_PUBLIC_URL manually:\n');
+    console.log(`    ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
+    console.log('  The value should be https://cdn.yourdomain.com (a Cloudflare-proxied');
+    console.log('  subdomain pointing to your R2 bucket).\n');
+    return;
+  }
+
+  const cdnDomain = `cdn.${domain}`;
+  console.log(`  Your blog needs a CDN subdomain for images and media.`);
+  console.log(`  I'll create a custom domain on your R2 bucket:\n`);
+  console.log(`    ${cdnDomain} → ${bucketName}\n`);
+  console.log(`  This requires a DNS record (Cloudflare will add a CNAME automatically).`);
+  console.log(`  Your domain "${domain}" must be on Cloudflare DNS.\n`);
+
+  const answer = await ask(`  Set up ${cdnDomain}? [Y/n] `);
+  if (answer.toLowerCase() === 'n') {
+    console.log('    → skipped. Set R2_PUBLIC_URL manually later.\n');
+    return;
+  }
+
+  // Get Cloudflare API token: wrangler auth token → env var → ask
+  let cfToken;
+  try {
+    cfToken = run(`${wranglerCmd()} auth token 2>/dev/null`);
+  } catch { /* ignore */ }
+
+  if (!cfToken) cfToken = process.env.CLOUDFLARE_API_TOKEN;
+
+  if (!cfToken) {
+    console.log('\n  Could not find wrangler credentials automatically.');
+    console.log('  Paste a Cloudflare API token to continue, or Enter to skip.');
+    console.log('  Create one at: https://dash.cloudflare.com/profile/api-tokens\n');
+    const input = await ask('  Cloudflare API token (Enter to skip): ');
+    cfToken = input.trim() || null;
+  }
+
+  if (!cfToken) {
+    console.log('    → skipped. Set up the CDN domain manually:');
+    console.log(`    Cloudflare Dashboard → R2 → ${bucketName} → Settings → Custom Domains`);
+    console.log(`    Then: ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
+    return;
+  }
+
+  // Look up zone ID for the domain
+  let zoneId;
+  try {
+    const cfApi = (path) => {
+      return run(`curl -sf -H "Authorization: Bearer ${cfToken}" "https://api.cloudflare.com/client/v4${path}"`);
+    };
+
+    const zonesResponse = JSON.parse(cfApi(`/zones?name=${domain}`));
+    if (zonesResponse.success && zonesResponse.result?.length > 0) {
+      zoneId = zonesResponse.result[0].id;
+    }
+  } catch { /* ignore */ }
+
+  if (!zoneId) {
+    console.log(`\n  ✗ Could not find zone for "${domain}" on Cloudflare.`);
+    console.log('  Make sure your domain is set up on Cloudflare DNS.');
+    console.log(`  Then set R2_PUBLIC_URL manually: ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
+    return;
+  }
+
+  // Create custom domain on R2 bucket
+  try {
+    const body = JSON.stringify({ domain: cdnDomain, enabled: true, zoneId });
+    const result = run(
+      `curl -sf -X POST -H "Authorization: Bearer ${cfToken}" -H "Content-Type: application/json" -d '${body}' "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/domains/custom"`
+    );
+    const parsed = JSON.parse(result);
+
+    if (parsed.success) {
+      console.log(`  ✓ Custom domain created: ${cdnDomain}\n`);
+    } else {
+      const errMsg = parsed.errors?.[0]?.message || 'Unknown error';
+      // If domain already exists, that's fine
+      if (errMsg.includes('already') || errMsg.includes('exists')) {
+        console.log(`  ✓ Custom domain already exists: ${cdnDomain}\n`);
+      } else {
+        throw new Error(errMsg);
+      }
+    }
+  } catch (err) {
+    console.log(`\n  ✗ Failed to create custom domain: ${err.message}`);
+    console.log(`  Set it up manually in the Cloudflare dashboard:`);
+    console.log(`    R2 → ${bucketName} → Settings → Custom Domains → Connect Domain`);
+    console.log(`  Then: ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
+    return;
+  }
+
+  // Set R2_PUBLIC_URL secret
+  const publicUrl = `https://${cdnDomain}`;
+  try {
+    execSync(`${wranglerCmd()} secret put R2_PUBLIC_URL`, {
+      input: publicUrl,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    console.log(`  ✓ R2_PUBLIC_URL set to ${publicUrl}\n`);
+  } catch {
+    console.log(`  ✗ Failed to set R2_PUBLIC_URL. Set it manually:`);
+    console.log(`    echo "${publicUrl}" | ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
+  }
+}
+
 // --- Main ---
 
 async function main() {
@@ -500,6 +649,7 @@ async function main() {
   await stepCloudflare(folderName);
   await stepGitHub(folderName);
   await stepApiKeys();
+  await stepCdnDomain();
 
   // Offer to commit and push
   let remoteUrl;
@@ -533,8 +683,6 @@ async function main() {
     console.log('  All done! Commit and push to deploy:\n');
     console.log('    git add wrangler.jsonc && git commit -m "setup complete" && git push -u origin main\n');
   }
-
-  // TODO: offer to configure custom domain on Cloudflare
 
   rl.close();
 }
