@@ -350,12 +350,15 @@ function showPhotoPopup(
     ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
   const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
 
+  // Use fixed 800px width for the image transform; derive display height from aspect ratio
+  const imgWidth = 800;
+  const imgHeight = props.width && props.height ? Math.round(imgWidth * props.height / props.width) : undefined;
+  const sizeAttrs = imgHeight ? ` width="${imgWidth}" height="${imgHeight}"` : '';
+
   const popupHtml = html`
     <div class="photo-popup-content">
       <a href="${raw(fullUrl)}" target="_blank">
-        <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(
-          props.width && props.height ? ` style="aspect-ratio:${props.width}/${props.height};width:100%"` : ''
-        )} />
+        <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
       </a>
       ${raw(captionBlock)}
       ${raw(routeLink)}
@@ -414,59 +417,42 @@ export function addPhotoMarkers(
   // Dynamic minzoom: many photos (city map) require zooming in, few photos (route/tour) show immediately
   const minZoom = photos.length > 200 ? 11 : photos.length > 50 ? 8 : 0;
 
-  // Cluster circles
+  // Invisible cluster layer for queryRenderedFeatures detection
   map.addLayer({
     id: 'photo-clusters',
     type: 'circle',
     source: sourceId,
     filter: ['has', 'point_count'],
     minzoom: minZoom,
-    paint: {
-      'circle-color': getRouteColor(styleKey),
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 8, 11, 12, 15, 18],
-      'circle-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.7, 13, 0.85],
-    },
+    paint: { 'circle-radius': 1, 'circle-opacity': 0 },
   });
 
-  // Cluster count labels
-  map.addLayer({
-    id: 'photo-cluster-count',
-    type: 'symbol',
-    source: sourceId,
-    filter: ['has', 'point_count'],
-    minzoom: minZoom,
-    layout: {
-      'text-field': '{point_count_abbreviated}',
-      'text-font': ['NotoSans_Regular'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 11, 10, 15, 13],
-    },
-    paint: { 'text-color': '#ffffff' },
-  });
-
-  // Invisible layer for unclustered feature detection (queryable but not visible)
+  // Invisible layer for unclustered feature detection
   map.addLayer({
     id: 'photo-unclustered',
     type: 'circle',
     source: sourceId,
     filter: ['!', ['has', 'point_count']],
     minzoom: minZoom,
-    paint: {
-      'circle-radius': 1,
-      'circle-opacity': 0,
-    },
+    paint: { 'circle-radius': 1, 'circle-opacity': 0 },
   });
 
-  // --- DOM photo bubble markers (circular thumbnails) ---
+  // --- DOM markers for both clusters (thumbnail + count badge) and individual photos ---
   const bubbleMarkers = new Map<string, maplibregl.Marker>();
+  const clusterMarkers = new Map<number, maplibregl.Marker>();
 
-  function syncPhotoBubbles() {
-    const features = map.queryRenderedFeatures({ layers: ['photo-unclustered'] });
-    const seen = new Set<string>();
+  async function syncPhotoBubbles() {
+    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
 
-    for (const f of features) {
+    // --- Unclustered individual photos ---
+    const unclustered = map.queryRenderedFeatures({ layers: ['photo-unclustered'] });
+    const seenKeys = new Set<string>();
+
+    for (const f of unclustered) {
       const key = f.properties!.key as string;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
 
       if (!bubbleMarkers.has(key)) {
         const props = f.properties!;
@@ -505,35 +491,80 @@ export function addPhotoMarkers(
 
     // Preload popup images for visible photos
     if (photosVisible.get(map) !== false) {
-      for (const key of seen) {
+      for (const key of seenKeys) {
         preloadImage(`${cdnUrl}/cdn-cgi/image/width=1000,fit=scale-down/${key}`);
       }
     }
 
-    // Remove markers no longer visible (clustered or out of viewport)
+    // Remove individual markers no longer visible
     for (const [key, marker] of bubbleMarkers) {
-      if (!seen.has(key)) {
+      if (!seenKeys.has(key)) {
         marker.remove();
         bubbleMarkers.delete(key);
+      }
+    }
+
+    // --- Clustered photo thumbnails with count badge ---
+    const clusters = map.queryRenderedFeatures({ layers: ['photo-clusters'] });
+    const seenClusterIds = new Set<number>();
+
+    for (const f of clusters) {
+      const clusterId = f.properties?.cluster_id as number;
+      if (seenClusterIds.has(clusterId)) continue;
+      seenClusterIds.add(clusterId);
+
+      if (!clusterMarkers.has(clusterId)) {
+        const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+        const count = f.properties?.point_count as number;
+
+        // Get the first leaf to use as the cluster thumbnail
+        try {
+          const leaves = await source.getClusterLeaves(clusterId, 1, 0);
+          const leafKey = leaves[0]?.properties?.key as string | undefined;
+          if (!leafKey) continue;
+
+          const thumbUrl = `${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${leafKey}`;
+
+          const el = document.createElement('div');
+          el.className = 'photo-bubble photo-bubble--cluster';
+          el.innerHTML = `<img src="${thumbUrl}" alt="" loading="lazy" /><span class="photo-bubble--count">${count}</span>`;
+
+          el.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const zoom = await source.getClusterExpansionZoom(clusterId);
+            map.easeTo({ center: coords, zoom });
+          });
+
+          const marker = new maplibregl.Marker({ element: el })
+            .setLngLat(coords)
+            .addTo(map);
+
+          clusterMarkers.set(clusterId, marker);
+        } catch {
+          // Cluster may have been removed between query and leaf fetch
+        }
+      }
+    }
+
+    // Scale cluster markers with zoom
+    const clusterSize = Math.round(Math.min(52, Math.max(34, (map.getZoom() - 8) * 3 + 34)));
+    for (const [, marker] of clusterMarkers) {
+      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
+      (el as HTMLElement).style.width = `${clusterSize}px`;
+      (el as HTMLElement).style.height = `${clusterSize}px`;
+    }
+
+    // Remove cluster markers no longer visible
+    for (const [id, marker] of clusterMarkers) {
+      if (!seenClusterIds.has(id)) {
+        marker.remove();
+        clusterMarkers.delete(id);
       }
     }
   }
 
   map.on('idle', syncPhotoBubbles);
   photoBubbleSyncHandlers.set(map, syncPhotoBubbles);
-
-  // Click to zoom into cluster
-  map.on('click', 'photo-clusters', async (e) => {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['photo-clusters'] });
-    if (!features.length) return;
-    const clusterId = features[0].properties?.cluster_id;
-    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
-    const zoom = await source.getClusterExpansionZoom(clusterId);
-    map.easeTo({ center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number], zoom });
-  });
-
-  map.on('mouseenter', 'photo-clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'photo-clusters', () => { map.getCanvas().style.cursor = ''; });
 }
 
 // --- GPS location ---
