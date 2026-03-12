@@ -111,9 +111,10 @@ export function detectTours(gpxPaths: string[]): Tour[] {
 
     // Look for a non-numeric directory in the path (not YYYY or MM)
     // Structure: YYYY/MM/tour-name/file.gpx or YYYY/tour-name/file.gpx
+    // Use /^\d+$/ instead of parseInt — parseInt('2025-eurobiketrip') returns 2025, not NaN
     let tourDirIndex = -1;
     for (let i = 1; i < parts.length - 1; i++) {
-      if (isNaN(parseInt(parts[i], 10))) {
+      if (!/^\d+$/.test(parts[i])) {
         tourDirIndex = i;
         break;
       }
@@ -130,7 +131,7 @@ export function detectTours(gpxPaths: string[]): Tour[] {
   }
 
   return Array.from(tourMap.values()).map(({ dirPath, ridePaths }) => {
-    const rawSlug = dirPath.split('/').find((p, i) => i > 0 && isNaN(parseInt(p, 10)))!;
+    const rawSlug = dirPath.split('/').find((p, i) => i > 0 && !/^\d+$/.test(p))!;
     const slug = slugify(rawSlug) || `tour-${dirPath.split('/')[0]}`;
     return { slug, dirPath, ridePaths: ridePaths.sort() };
   });

@@ -79,6 +79,18 @@ describe('detectTours', () => {
     expect(tours[0].ridePaths).toHaveLength(2);
   });
 
+  it('detects tour whose name starts with digits (e.g. 2025-eurobiketrip)', () => {
+    const paths = [
+      '2025/2025-eurobiketrip/09-09-schiphol.gpx',
+      '2025/2025-eurobiketrip/09-10-amsterdam.gpx',
+    ];
+    const tours = detectTours(paths);
+    expect(tours).toHaveLength(1);
+    expect(tours[0].slug).toBe('2025-eurobiketrip');
+    expect(tours[0].dirPath).toBe('2025/2025-eurobiketrip');
+    expect(tours[0].ridePaths).toHaveLength(2);
+  });
+
   it('does not treat numeric directories as tours', () => {
     const paths = [
       '2026/01/23-winter-ride.gpx',
