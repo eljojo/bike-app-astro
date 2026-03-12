@@ -6,7 +6,6 @@ import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { CITY } from '../../lib/config';
 import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
@@ -133,7 +132,6 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
       const gpxFile = gpxPath ? auxFiles[gpxPath] : null;
       let distance_km = 0;
-      let elevation_m = 0;
       let elapsed_time_s: number | undefined;
       let moving_time_s: number | undefined;
       let average_speed_kmh: number | undefined;
@@ -143,7 +141,6 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
         try {
           const track = parseGpx(gpxFile.content);
           distance_km = Math.round(track.distance_m / 100) / 10;
-          elevation_m = Math.round(track.elevation_gain_m);
           elapsed_time_s = track.elapsed_time_s || undefined;
           moving_time_s = track.moving_time_s || undefined;
           average_speed_kmh = track.average_speed_kmh || undefined;

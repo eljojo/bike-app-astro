@@ -31,7 +31,7 @@ export async function POST({ request, cookies }: APIContext): Promise<Response> 
   }
 
   // Delete the passkey (only if it belongs to the user)
-  const result = await database
+  await database
     .delete(credentials)
     .where(
       and(

@@ -107,11 +107,17 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
   const cityLocales = (cityConfig.locales || [cityConfig.locale]).map(
     (l: string) => l.split('-')[0],
   );
+  const multiLocale = cityLocales.length > 1;
   const i18nConfig = {
     defaultLocale: cityLocales[0] as string,
     locales: cityLocales as string[],
     routing: {
       prefixDefaultLocale: false,
+      // redirectToDefaultLocale requires prefixDefaultLocale: true — only valid for multi-locale
+      ...(multiLocale && {
+        redirectToDefaultLocale: true,
+        fallbackType: 'redirect' as const,
+      }),
     },
   };
 
@@ -144,13 +150,6 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
             esbuild: {
               jsx: 'automatic',
               jsxImportSource: 'preact',
-            },
-            css: {
-              preprocessorOptions: {
-                scss: {
-                  api: 'modern-compiler',
-                },
-              },
             },
           },
         });
