@@ -1,12 +1,11 @@
 import type { APIContext } from 'astro';
 import { authorize } from '@/lib/authorize';
 import { buildAuthorizationUrl } from '@/lib/strava-api';
-import { SITE_URL } from '@/lib/config';
 import { env } from '@/lib/env';
 
 export const prerender = false;
 
-export async function GET({ locals, cookies }: APIContext) {
+export async function GET({ locals, cookies, url }: APIContext) {
   const user = authorize(locals, 'strava-connect');
   if (user instanceof Response) return user;
 
@@ -24,11 +23,11 @@ export async function GET({ locals, cookies }: APIContext) {
     maxAge: 600, // 10 minutes
   });
 
-  const redirectUri = `${SITE_URL}/api/auth/strava/callback`;
-  const url = buildAuthorizationUrl(env.STRAVA_CLIENT_ID, redirectUri, state);
+  const redirectUri = `${url.origin}/api/auth/strava/callback`;
+  const authUrl = buildAuthorizationUrl(env.STRAVA_CLIENT_ID, redirectUri, state);
 
   return new Response(null, {
     status: 302,
-    headers: { Location: url },
+    headers: { Location: authUrl },
   });
 }

@@ -1,6 +1,5 @@
 import type { APIContext } from 'astro';
 import { exchangeToken } from '@/lib/strava-api';
-import { SITE_URL } from '@/lib/config';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env';
 import { stravaTokens } from '@/db/schema';
@@ -13,7 +12,7 @@ export async function GET({ url, cookies }: APIContext) {
   const error = url.searchParams.get('error');
 
   if (error) {
-    return new Response(null, { status: 302, headers: { Location: `${SITE_URL}/admin/rides?strava=denied` } });
+    return new Response(null, { status: 302, headers: { Location: `${url.origin}/admin/rides?strava=denied` } });
   }
 
   if (!code || !state) {
@@ -55,5 +54,5 @@ export async function GET({ url, cookies }: APIContext) {
       },
     });
 
-  return new Response(null, { status: 302, headers: { Location: `${SITE_URL}/admin/rides?strava=connected` } });
+  return new Response(null, { status: 302, headers: { Location: `${url.origin}/admin/rides?strava=connected` } });
 }
