@@ -34,6 +34,11 @@ async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof map
   fs.writeFileSync(paths.full, pngBuffer);
 
   await sharp(pngBuffer)
+    .resize(1500, 1500, { fit: 'cover' })
+    .webp({ quality: 80 })
+    .toFile(paths.thumbLarge);
+
+  await sharp(pngBuffer)
     .resize(750, 750, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumb);

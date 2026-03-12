@@ -9,6 +9,7 @@ import polylineCodec from '@mapbox/polyline';
 export const MAP_CACHE_DIR = path.resolve('public', 'maps');
 
 export interface MapThumbPaths {
+  thumbLarge: string;
   thumb: string;
   thumbSmall: string;
   social: string;
@@ -20,6 +21,7 @@ export function mapThumbPaths(routeSlug: string, variantKey?: string, lang?: str
   const base = lang ? path.join(MAP_CACHE_DIR, lang) : MAP_CACHE_DIR;
   const dir = variantKey ? path.join(base, routeSlug, variantKey) : path.join(base, routeSlug);
   return {
+    thumbLarge: path.join(dir, 'map-1500.webp'),
     thumb: path.join(dir, 'map-750.webp'),
     thumbSmall: path.join(dir, 'map-375.webp'),
     social: path.join(dir, 'map-social.jpg'),
@@ -38,7 +40,7 @@ export function buildStaticMapUrlMulti(polylines: string[], apiKey: string, lang
     allPoints.push(...polylineCodec.decode(pl));
   }
   if (allPoints.length === 0) return '';
-  return buildStaticMapUrl(polylineCodec.encode(allPoints), apiKey, language);
+  return buildStaticMapUrl(polylineCodec.encode(allPoints as [number, number][]), apiKey, language);
 }
 
 export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string): string {

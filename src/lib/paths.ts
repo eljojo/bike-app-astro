@@ -38,13 +38,17 @@ export function routeSlug(route: { id: string; data: { translations?: Record<str
 // Static asset paths (map thumbnails)
 // lang prefix is used for non-default locale maps (e.g. /maps/fr/slug/map-750.webp)
 export const assets = {
-  mapThumbnail: (slug: string, size: 375 | 750 = 750, lang?: string) => {
+  mapThumbnail: (slug: string, size: 375 | 750 | 1500 = 750, lang?: string) => {
     const prefix = lang ? `/maps/${lang}` : '/maps';
     return `${prefix}/${slug}/map-${size}.webp`;
   },
   mapThumbnailSrcset: (slug: string, lang?: string) => {
     const prefix = lang ? `/maps/${lang}` : '/maps';
     return `${prefix}/${slug}/map-375.webp 1x, ${prefix}/${slug}/map-750.webp 2x`;
+  },
+  mapThumbnailSrcsetLarge: (slug: string, lang?: string) => {
+    const prefix = lang ? `/maps/${lang}` : '/maps';
+    return `${prefix}/${slug}/map-750.webp 1x, ${prefix}/${slug}/map-1500.webp 2x`;
   },
   mapVariantThumbnail: (slug: string, variant: string, size: 375 | 750 = 750, lang?: string) => {
     const prefix = lang ? `/maps/${lang}` : '/maps';
