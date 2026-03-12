@@ -13,7 +13,7 @@ export async function GET({ url, cookies }: APIContext) {
   const error = url.searchParams.get('error');
 
   if (error) {
-    return Response.redirect(`${SITE_URL}/admin/rides?strava=denied`, 302);
+    return new Response(null, { status: 302, headers: { Location: `${SITE_URL}/admin/rides?strava=denied` } });
   }
 
   if (!code || !state) {
@@ -55,5 +55,5 @@ export async function GET({ url, cookies }: APIContext) {
       },
     });
 
-  return Response.redirect(`${SITE_URL}/admin/rides?strava=connected`, 302);
+  return new Response(null, { status: 302, headers: { Location: `${SITE_URL}/admin/rides?strava=connected` } });
 }

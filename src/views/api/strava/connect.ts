@@ -27,5 +27,8 @@ export async function GET({ locals, cookies }: APIContext) {
   const redirectUri = `${SITE_URL}/api/auth/strava/callback`;
   const url = buildAuthorizationUrl(env.STRAVA_CLIENT_ID, redirectUri, state);
 
-  return Response.redirect(url, 302);
+  return new Response(null, {
+    status: 302,
+    headers: { Location: url },
+  });
 }
