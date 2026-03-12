@@ -113,6 +113,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     locales: cityLocales as string[],
     routing: {
       prefixDefaultLocale: false,
+      redirectToDefaultLocale: false,
       fallbackType: 'redirect' as const,
     },
   };
