@@ -122,6 +122,24 @@ Set as a GitHub Actions secret: `GOOGLE_MAPS_STATIC_API_KEY`
 
 The CI pipeline uses this key when building map thumbnails.
 
+### STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET
+
+Import rides from [Strava](https://www.strava.com) — browse your recent activities in the ride editor, pick one, and it pulls the GPX track and photos automatically.
+
+- Go to [strava.com/settings/api](https://www.strava.com/settings/api) and create an application
+- Set the **Authorization Callback Domain** to your blog's domain
+- Copy the **Client ID** and **Client Secret**
+
+Set them:
+```bash
+wrangler secret put STRAVA_CLIENT_ID
+wrangler secret put STRAVA_CLIENT_SECRET
+```
+
+Once configured, go to your admin panel and click **Connect Strava** to authorize. Then use **Import from Strava** when creating a new ride.
+
+Photos from Strava activities are downloaded to your R2 bucket and their GPS coordinates are estimated by interpolating timestamps against the GPX track.
+
 ### RWGPS_API_KEY and RWGPS_AUTH_TOKEN
 
 Allows importing rides directly from [RideWithGPS](https://ridewithgps.com) into the admin editor.
@@ -170,6 +188,8 @@ highlight: true
 First ride of the season. Cold but clear.
 ```
 
+Supported frontmatter fields: `name`, `country`, `highlight`, `tags`, `status`, `handle` (custom slug), `strava_id`, `privacy_zone`, `total_elevation_gain`.
+
 Push both files to your GitHub repo. GitHub Actions builds and deploys automatically.
 
 ## Data repo structure
@@ -194,6 +214,22 @@ your-blog-repo/
 ```
 
 Any non-numeric subdirectory within a year becomes a **tour** — a multi-day collection of rides shown together on the tours page.
+
+## Privacy zone
+
+You can configure a privacy zone to automatically strip GPS data near your home (or any sensitive location) from the published site. Add this to your `config.yml`:
+
+```yaml
+privacy_zone:
+  lat: 45.4215
+  lng: -75.6972
+  radius_m: 500
+  default_enabled: true
+```
+
+When enabled, the build process removes all track points within the radius and strips GPS coordinates from photos that fall inside the zone. The raw GPX in your data repo stays untouched — privacy filtering is a build-time transform, so you can change the zone later without re-importing rides.
+
+Each ride can override the default with `privacy_zone: true` or `privacy_zone: false` in its sidecar frontmatter. Rides imported from Strava default to `false` since Strava applies its own privacy zone.
 
 ## Local development
 
