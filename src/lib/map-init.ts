@@ -411,17 +411,16 @@ export function addPhotoMarkers(
     clusterMaxZoom: 15,
   });
 
-  // Cluster circles — only show when zoomed in enough to be useful
+  // Cluster circles — visible at all zoom levels so long tours show clusters on overview
   map.addLayer({
     id: 'photo-clusters',
     type: 'circle',
     source: sourceId,
-    minzoom: 11,
     filter: ['has', 'point_count'],
     paint: {
       'circle-color': getRouteColor(styleKey),
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 12, 15, 18],
-      'circle-opacity': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 13, 0.85],
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 8, 11, 12, 15, 18],
+      'circle-opacity': ['interpolate', ['linear'], ['zoom'], 5, 0.7, 13, 0.85],
     },
   });
 
@@ -430,12 +429,11 @@ export function addPhotoMarkers(
     id: 'photo-cluster-count',
     type: 'symbol',
     source: sourceId,
-    minzoom: 11,
     filter: ['has', 'point_count'],
     layout: {
       'text-field': '{point_count_abbreviated}',
       'text-font': ['NotoSans_Regular'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 15, 13],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 11, 10, 15, 13],
     },
     paint: { 'text-color': '#ffffff' },
   });
