@@ -8,6 +8,7 @@ import type { VariantItem } from './VariantManager';
 import NearbyPhotos from './NearbyPhotos';
 import SaveSuccessModal from './SaveSuccessModal';
 import { useEditorState } from './useEditorState';
+import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import { slugify } from '../../lib/slug';
@@ -60,10 +61,8 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     }
   }, [activeLocale]);
 
-  const [dragging, setDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
-  const dragCounterRef = useRef(0);
 
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/routes',
@@ -105,48 +104,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     },
   });
 
-  useEffect(() => {
-    function handleDragEnter(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current++;
-      if (e.dataTransfer?.types.includes('Files')) {
-        setDragging(true);
-      }
-    }
-    function handleDragLeave(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current--;
-      if (dragCounterRef.current === 0) {
-        setDragging(false);
-      }
-    }
-    function handleDragOver(e: DragEvent) {
-      e.preventDefault();
-    }
-    function handleDrop(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current = 0;
-      setDragging(false);
-      const files = e.dataTransfer?.files;
-      if (files?.length) {
-        const allFiles = Array.from(files);
-        const imageFiles = allFiles.filter(f => f.type.startsWith('image/'));
-        const gpxFiles = allFiles.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-        if (imageFiles.length > 0) setPendingFiles(imageFiles);
-        if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
-      }
-    }
-    document.addEventListener('dragenter', handleDragEnter);
-    document.addEventListener('dragleave', handleDragLeave);
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('drop', handleDrop);
-    return () => {
-      document.removeEventListener('dragenter', handleDragEnter);
-      document.removeEventListener('dragleave', handleDragLeave);
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('drop', handleDrop);
-    };
-  }, []);
+  const { dragging } = useDragDrop((files) => {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    const gpxFiles = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
+    if (imageFiles.length > 0) setPendingFiles(imageFiles);
+    if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
+  });
 
   function getField(field: 'name' | 'tagline' | 'body'): string {
     if (activeLocale === defaultLocale) {

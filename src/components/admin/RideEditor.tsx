@@ -1,6 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
+import { useState, useRef, useCallback } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
@@ -8,6 +8,7 @@ import AutoDetectField from './AutoDetectField';
 import MarkdownToolbar from './MarkdownToolbar';
 import RidePreview from './RidePreview';
 import { useEditorState } from './useEditorState';
+import { useTextareaValue, useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
 import { extractRideDate } from '../../lib/gpx';
 import { insertMarkdown } from './markdown-toolbar-utils';
@@ -39,54 +40,16 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Textarea ref (hydration workaround — see AGENTS.md)
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (bodyRef.current && !bodyRef.current.value) {
-      bodyRef.current.value = body;
-    }
-  }, []);
+  const bodyRef = useTextareaValue(body);
 
   // Drag-and-drop
-  const [dragging, setDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const dragCounterRef = useRef(0);
-
-  useEffect(() => {
-    function handleDragEnter(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current++;
-      if (e.dataTransfer?.types.includes('Files')) setDragging(true);
-    }
-    function handleDragLeave(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current--;
-      if (dragCounterRef.current === 0) setDragging(false);
-    }
-    function handleDragOver(e: DragEvent) { e.preventDefault(); }
-    function handleDrop(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current = 0;
-      setDragging(false);
-      const files = e.dataTransfer?.files;
-      if (files?.length) {
-        const allFiles = Array.from(files);
-        const images = allFiles.filter(f => f.type.startsWith('image/'));
-        const gpx = allFiles.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-        if (images.length > 0) setPendingFiles(images);
-        if (gpx.length > 0) handleGpxUpload(gpx[0]);
-      }
-    }
-    document.addEventListener('dragenter', handleDragEnter);
-    document.addEventListener('dragleave', handleDragLeave);
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('drop', handleDrop);
-    return () => {
-      document.removeEventListener('dragenter', handleDragEnter);
-      document.removeEventListener('dragleave', handleDragLeave);
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('drop', handleDrop);
-    };
-  }, []);
+  const { dragging } = useDragDrop((files) => {
+    const images = files.filter(f => f.type.startsWith('image/'));
+    const gpx = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
+    if (images.length > 0) setPendingFiles(images);
+    if (gpx.length > 0) handleGpxUpload(gpx[0]);
+  });
 
   // GPX handling
   function handleGpxUpload(file: File) {
