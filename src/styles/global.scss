@@ -2208,39 +2208,48 @@ a.go-back-button {
   }
 }
 
-.event-route-legend {
+.event-route-selector {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-.event-route-legend-item {
+.event-route-selector-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  text-decoration: none;
   color: $color-text;
   font-size: 0.9rem;
+  cursor: pointer;
 
   @include dark-mode { color: $color-text-dark; }
-  &:hover { text-decoration: underline; }
+
+  input[type="checkbox"] { margin: 0; cursor: pointer; }
 }
 
-.event-route-legend-swatch {
+.event-route-selector-swatch {
   width: 14px;
   height: 4px;
   border-radius: 2px;
   flex-shrink: 0;
 }
 
-.event-route-legend-name {
+.event-route-selector-name {
   font-weight: 600;
 }
 
-.event-route-legend-meta {
+.event-route-selector-meta {
   @include muted-text;
   font-size: 0.85em;
+}
+
+.event-route-selector-link {
+  color: $color-accent;
+  text-decoration: none;
+  margin-left: auto;
+  font-size: 0.9em;
+  &:hover { text-decoration: underline; }
 }
 
 .event-route-single {
@@ -2275,6 +2284,18 @@ a.go-back-button {
   font-weight: 600;
 }
 
+.elevation-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8em;
+  color: #999;
+  padding: 0 0.25rem;
+  margin-left: auto;
+  &:hover { color: $color-text; }
+  @include dark-mode { &:hover { color: $color-text-dark; } }
+}
+
 .elevation-svg {
   width: 100%;
   height: auto;
@@ -2292,6 +2313,35 @@ a.go-back-button {
   border-radius: 3px;
   font-size: 0.8rem;
   pointer-events: none;
+}
+
+// Waypoint markers on map
+.waypoint-marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  &--checkpoint { background: $color-primary; }
+  &--danger { background: #d32f2f; border-radius: 4px; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+  &--poi { background: #1976d2; }
+}
+
+// Elevation cursor dot (map sync)
+.elevation-cursor-dot {
+  width: 12px;
+  height: 12px;
+  background: $color-primary;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 // Club homepage

@@ -100,6 +100,8 @@
   "category.wc": ["restroom", "restrooms"],
 
   "nav.events": "Events",
+  "nav.routes": "Routes",
+  "nav.places": "Places",
   "events.title": "Events",
   "events.go_back": "go back to all events",
   "events.registration": "Registration",

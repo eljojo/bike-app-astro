@@ -21,13 +21,14 @@ export async function getStaticPaths() {
   const events = await getCollection('events');
   const organizers = await getCollection('organizers');
   const allRoutes = await getCollection('routes');
+  const allPlaces = await getCollection('places');
   return events.map(event => ({
     params: { slug: event.id },
-    props: { event, organizers, allRoutes },
+    props: { event, organizers, allRoutes, allPlaces },
   }));
 }
 
-const { event, organizers, allRoutes } = Astro.props;
+const { event, organizers, allRoutes, allPlaces } = Astro.props;
 const { Content } = await render(event);
 const data = event.data;
 

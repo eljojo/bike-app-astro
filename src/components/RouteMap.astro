@@ -23,16 +23,24 @@ interface MapPhoto {
   index: number;
 }
 
+interface WaypointMarker {
+  lat: number;
+  lng: number;
+  type: string;
+  label: string;
+}
+
 interface Props {
   polylines: { name: string; encoded: string; color?: string; url?: string }[];
   places?: Place[];
   photos?: MapPhoto[];
+  waypointMarkers?: WaypointMarker[];
   center?: [number, number];
   zoom?: number;
 }
 
 import { getCityConfig } from '../lib/city-config';
-const { polylines, places = [], photos = [], center, zoom } = Astro.props;
+const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom } = Astro.props;
 ---
 
 <div class="map-container">
@@ -45,12 +53,13 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     data-zoom={zoom?.toString() || '12'}
     data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
+    data-waypoint-markers={JSON.stringify(waypointMarkers)}
   ></div>
   <div id="route-map-controls"></div>
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
@@ -63,6 +72,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     const polylines = JSON.parse(el.dataset.polylines || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
     const photos = JSON.parse(el.dataset.photos || '[]');
+    const waypointMkrs = JSON.parse(el.dataset.waypointMarkers || '[]');
     const zoom = parseInt(el.dataset.zoom || '12');
 
     // Compute center from first polyline instead of defaulting to [0, 0]
@@ -98,6 +108,11 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       }
 
       addMarkers(map, placeData);
+
+      if (waypointMkrs.length > 0) {
+        addWaypointMarkers(map, waypointMkrs);
+      }
+
       return bounds;
     }
 
@@ -106,6 +121,9 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       if (bounds) {
         map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
       }
+
+      // Enable elevation cursor sync (dot follows hover on elevation chart)
+      enableElevationCursorSync(map);
 
       // Render MapControls island
       if (controlsEl) {

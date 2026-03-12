@@ -1,5 +1,6 @@
 ---
 import RouteMap from './RouteMap.astro';
+import EventRouteSelector from './EventRouteSelector.tsx';
 import InteractiveElevation from './admin/InteractiveElevation.tsx';
 import { computeElevationPoints } from '../lib/elevation-profile';
 import { paths } from '../lib/paths';
@@ -11,6 +12,21 @@ interface GpxPoint {
   lat: number;
   lon: number;
   ele?: number;
+}
+
+interface Waypoint {
+  place: string;
+  type: 'checkpoint' | 'danger' | 'poi';
+  label: string;
+  distance_km?: number;
+  opening?: string;
+  closing?: string;
+  route?: string;
+}
+
+interface PlaceData {
+  id: string;
+  data: { lat: number; lng: number; name: string };
 }
 
 interface RouteItem {
@@ -26,9 +42,11 @@ interface RouteItem {
 interface Props {
   routes: RouteItem[];
   locale?: string;
+  waypoints?: Waypoint[];
+  places?: PlaceData[];
 }
 
-const { routes, locale } = Astro.props;
+const { routes, locale, waypoints = [], places = [] } = Astro.props;
 
 // Build polylines from route data — use first variant's track for each route
 const polylines = routes.flatMap((route, idx) => {
@@ -44,7 +62,7 @@ const polylines = routes.flatMap((route, idx) => {
   }];
 });
 
-// Build route info for the legend and elevation profiles
+// Build route info for the selector and elevation profiles
 const routeInfo = routes.map((route, idx) => {
   const variant = route.data.variants[0];
   const track = variant ? route.data.gpxTracks[variant.gpx] : null;
@@ -55,35 +73,41 @@ const routeInfo = routes.map((route, idx) => {
     distance_km: route.data.distance_km,
     elevation_gain_m: track?.elevation_gain_m ?? 0,
     color: PALETTE[idx % PALETTE.length],
+    url: paths.route(route.id, locale),
     elevPoints,
   };
 });
+
+// Resolve waypoints to lat/lng from places collection
+const resolvedWaypoints = waypoints.map(wp => {
+  const place = places.find(p => p.id === wp.place);
+  if (!place) return null;
+  return {
+    lat: place.data.lat,
+    lng: place.data.lng,
+    type: wp.type,
+    label: wp.label,
+  };
+}).filter(Boolean);
 ---
 
 {polylines.length > 0 && (
   <div class="event-route-map">
     <div class="event-route-map-container">
-      <RouteMap polylines={polylines} />
+      <RouteMap polylines={polylines} waypointMarkers={resolvedWaypoints} />
     </div>
 
-    {routeInfo.length > 1 && (
-      <div class="event-route-legend">
-        {routeInfo.map((r) => (
-          <a href={paths.route(r.slug, locale)} class="event-route-legend-item">
-            <span class="event-route-legend-swatch" style={`background: ${r.color}`} />
-            <span class="event-route-legend-name">{r.name}</span>
-            <span class="event-route-legend-meta">{r.distance_km} km, {r.elevation_gain_m}m+</span>
-          </a>
-        ))}
-      </div>
-    )}
-
-    {routeInfo.length === 1 && (
-      <p class="event-route-single">
-        <a href={paths.route(routeInfo[0].slug, locale)}>{routeInfo[0].name}</a>
-        — {routeInfo[0].distance_km} km, {routeInfo[0].elevation_gain_m}m+
-      </p>
-    )}
+    <EventRouteSelector
+      client:visible
+      routes={routeInfo.map(r => ({
+        slug: r.slug,
+        name: r.name,
+        distance_km: r.distance_km,
+        elevation_m: r.elevation_gain_m,
+        color: r.color,
+        url: r.url,
+      }))}
+    />
 
     {routeInfo.map((r) => r.elevPoints.length > 0 && (
       <div class="event-elevation-profile">

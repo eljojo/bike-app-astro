@@ -10,10 +10,18 @@ export interface ElevationPoint {
   lng: number;
 }
 
+interface WaypointTick {
+  km: number;
+  type: string;
+  label: string;
+}
+
 interface Props {
   points: ElevationPoint[];
   label?: string;
   color?: string;
+  waypoints?: WaypointTick[];
+  collapsed?: boolean;
 }
 
 const SVG_W = 800;
@@ -35,8 +43,15 @@ function niceStep(range: number, target: number): number {
   return 10 * mag;
 }
 
-export default function InteractiveElevation({ points, label, color = '#0066cc' }: Props) {
+const WP_COLORS: Record<string, string> = {
+  checkpoint: '#6200ea',
+  danger: '#d32f2f',
+  poi: '#1976d2',
+};
+
+export default function InteractiveElevation({ points, label, color = '#0066cc', waypoints = [], collapsed: initialCollapsed = false }: Props) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [isCollapsed, setCollapsed] = useState(initialCollapsed);
   const svgRef = useRef<SVGSVGElement>(null);
 
   if (points.length === 0) return null;
@@ -115,6 +130,15 @@ export default function InteractiveElevation({ points, label, color = '#0066cc' 
   const hoverY = hoverPoint ? PAD_T + PLOT_H - ((hoverPoint.ele - minEle) / eleRange) * PLOT_H : 0;
   const plotBottom = PAD_T + PLOT_H;
 
+  // Waypoint tick positions
+  const wpTicks = waypoints
+    .filter(wp => wp.km >= 0 && wp.km <= maxKm)
+    .map(wp => ({
+      ...wp,
+      x: PAD_L + (wp.km / maxKm) * PLOT_W,
+      color: WP_COLORS[wp.type] || WP_COLORS.poi,
+    }));
+
   return (
     <div class="interactive-elevation">
       <div class="elevation-stats">
@@ -122,53 +146,74 @@ export default function InteractiveElevation({ points, label, color = '#0066cc' 
         <span>&#x2195; {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
         <span>&#x1F4CF; {maxKm.toFixed(1)} km</span>
         {label && <span class="elevation-label" style={`color: ${color}`}>{label}</span>}
+        <button
+          type="button"
+          class="elevation-toggle"
+          onClick={() => setCollapsed(c => !c)}
+          aria-label={isCollapsed ? 'Show elevation' : 'Hide elevation'}
+        >
+          {isCollapsed ? '▶' : '▼'}
+        </button>
       </div>
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        class="elevation-svg"
-        onMouseMove={handleMove}
-        onMouseLeave={handleLeave}
-      >
-        {/* Grid lines */}
-        {yTicks.map(t => (
-          <line key={t.v} x1={PAD_L} x2={PAD_L + PLOT_W} y1={t.y} y2={t.y}
-                stroke="#ddd" stroke-width="0.5" />
-        ))}
+      {!isCollapsed && (
+        <>
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+            class="elevation-svg"
+            onMouseMove={handleMove}
+            onMouseLeave={handleLeave}
+          >
+            {/* Grid lines */}
+            {yTicks.map(t => (
+              <line key={t.v} x1={PAD_L} x2={PAD_L + PLOT_W} y1={t.y} y2={t.y}
+                    stroke="#ddd" stroke-width="0.5" />
+            ))}
 
-        {/* Elevation area + line */}
-        <path d={areaPath} fill={`${color}26`} />
-        <path d={pathData} fill="none" stroke={color} stroke-width="2" />
+            {/* Elevation area + line */}
+            <path d={areaPath} fill={`${color}26`} />
+            <path d={pathData} fill="none" stroke={color} stroke-width="2" />
 
-        {/* Y-axis labels */}
-        {yTicks.map(t => (
-          <text key={t.v} x={PAD_L - 5} y={t.y + 4} text-anchor="end"
-                font-size="11" fill="#666">{Math.round(t.v)}m</text>
-        ))}
+            {/* Waypoint tick marks */}
+            {wpTicks.map((wp, i) => (
+              <g key={i}>
+                <line x1={wp.x} x2={wp.x} y1={PAD_T} y2={plotBottom}
+                      stroke={wp.color} stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7" />
+                <title>{wp.label} ({wp.km.toFixed(1)} km)</title>
+              </g>
+            ))}
 
-        {/* X-axis labels */}
-        {xTicks.map(t => (
-          <text key={t.v} x={t.x} y={plotBottom + 16} text-anchor="middle"
-                font-size="11" fill="#666">{t.v}</text>
-        ))}
-        <text x={PAD_L + PLOT_W} y={plotBottom + 16} text-anchor="middle"
-              font-size="11" fill="#666">km</text>
+            {/* Y-axis labels */}
+            {yTicks.map(t => (
+              <text key={t.v} x={PAD_L - 5} y={t.y + 4} text-anchor="end"
+                    font-size="11" fill="#666">{Math.round(t.v)}m</text>
+            ))}
 
-        {/* Hover crosshair */}
-        {hoverPoint && (
-          <>
-            <line x1={hoverX} x2={hoverX} y1={PAD_T} y2={plotBottom}
-                  stroke="#666" stroke-width="1" stroke-dasharray="4,3" />
-            <circle cx={hoverX} cy={hoverY} r="4" fill={color} stroke="#fff" stroke-width="2" />
-          </>
-        )}
-      </svg>
+            {/* X-axis labels */}
+            {xTicks.map(t => (
+              <text key={t.v} x={t.x} y={plotBottom + 16} text-anchor="middle"
+                    font-size="11" fill="#666">{t.v}</text>
+            ))}
+            <text x={PAD_L + PLOT_W} y={plotBottom + 16} text-anchor="middle"
+                  font-size="11" fill="#666">km</text>
 
-      {/* Hover tooltip */}
-      {hoverPoint && (
-        <div class="elevation-tooltip">
-          {hoverPoint.km.toFixed(1)} km — {Math.round(hoverPoint.ele)}m
-        </div>
+            {/* Hover crosshair */}
+            {hoverPoint && (
+              <>
+                <line x1={hoverX} x2={hoverX} y1={PAD_T} y2={plotBottom}
+                      stroke="#666" stroke-width="1" stroke-dasharray="4,3" />
+                <circle cx={hoverX} cy={hoverY} r="4" fill={color} stroke="#fff" stroke-width="2" />
+              </>
+            )}
+          </svg>
+
+          {/* Hover tooltip */}
+          {hoverPoint && (
+            <div class="elevation-tooltip">
+              {hoverPoint.km.toFixed(1)} km — {Math.round(hoverPoint.ele)}m
+            </div>
+          )}
+        </>
       )}
     </div>
   );

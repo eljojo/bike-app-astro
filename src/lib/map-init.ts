@@ -567,6 +567,41 @@ export function addPhotoMarkers(
   photoBubbleSyncHandlers.set(map, syncPhotoBubbles);
 }
 
+// --- Waypoint markers (checkpoints, danger, POI) ---
+
+export interface WaypointMarkerOptions {
+  lat: number;
+  lng: number;
+  type: string;
+  label: string;
+}
+
+const waypointDomMarkers = new WeakMap<maplibregl.Map, maplibregl.Marker[]>();
+
+export function addWaypointMarkers(
+  map: maplibregl.Map,
+  waypoints: WaypointMarkerOptions[],
+): void {
+  // Remove previous waypoint markers
+  const prev = waypointDomMarkers.get(map);
+  if (prev) {
+    for (const m of prev) m.remove();
+  }
+
+  const markers: maplibregl.Marker[] = [];
+  waypoints.forEach(wp => {
+    const el = document.createElement('div');
+    el.className = `waypoint-marker waypoint-marker--${wp.type}`;
+    el.title = wp.label;
+
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([wp.lng, wp.lat])
+      .addTo(map);
+    markers.push(marker);
+  });
+  waypointDomMarkers.set(map, markers);
+}
+
 // --- GPS location ---
 
 let gpsMarker: maplibregl.Marker | null = null;
@@ -628,4 +663,31 @@ export function setPlaceMarkersVisible(map: maplibregl.Map, visible: boolean): v
   for (const el of markers) {
     (el as HTMLElement).style.display = visible ? '' : 'none';
   }
+}
+
+// --- Elevation cursor sync ---
+
+/** Add a cursor dot that follows elevation:hover events on the map. */
+export function enableElevationCursorSync(map: maplibregl.Map): void {
+  let cursorMarker: maplibregl.Marker | null = null;
+
+  window.addEventListener('elevation:hover', ((e: CustomEvent) => {
+    const { lat, lng } = e.detail;
+    if (!cursorMarker) {
+      const el = document.createElement('div');
+      el.className = 'elevation-cursor-dot';
+      cursorMarker = new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .addTo(map);
+    } else {
+      cursorMarker.setLngLat([lng, lat]);
+    }
+  }) as EventListener);
+
+  window.addEventListener('elevation:leave', () => {
+    if (cursorMarker) {
+      cursorMarker.remove();
+      cursorMarker = null;
+    }
+  });
 }
