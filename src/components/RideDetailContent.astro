@@ -3,6 +3,7 @@ import { imageUrl } from '@/lib/image-service';
 import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
 import { t } from '@/i18n';
 import { formatDuration } from '@/lib/date-utils';
+import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
 import { paths } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
 import PhotoGallery from '@/components/PhotoGallery.astro';
@@ -54,7 +55,7 @@ const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gai
 
       <div class="ride-facts">
         {route.data.ride_date && <span>{route.data.ride_date}</span>}
-        <span>Distance: {distance_km.toFixed(2)} km</span>
+        <span>Distance: {formatDistance(distance_km, 2)}</span>
         {route.data.elapsed_time_s && route.data.moving_time_s && (
           <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
         )}
@@ -62,10 +63,10 @@ const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gai
           <span>Time: {formatDuration(route.data.moving_time_s)}</span>
         )}
         {route.data.average_speed_kmh && (
-          <span>Avg. Speed: {route.data.average_speed_kmh.toFixed(2)} km/h</span>
+          <span>Avg. Speed: {formatSpeed(route.data.average_speed_kmh, 2)}</span>
         )}
         {elevation != null && (
-          <span>Elevation: {elevation} m</span>
+          <span>Elevation: {formatElevation(elevation)}</span>
         )}
       </div>
 
