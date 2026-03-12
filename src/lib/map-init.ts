@@ -411,12 +411,16 @@ export function addPhotoMarkers(
     clusterMaxZoom: 15,
   });
 
-  // Cluster circles — visible at all zoom levels so long tours show clusters on overview
+  // Dynamic minzoom: many photos (city map) require zooming in, few photos (route/tour) show immediately
+  const minZoom = photos.length > 200 ? 11 : photos.length > 50 ? 8 : 0;
+
+  // Cluster circles
   map.addLayer({
     id: 'photo-clusters',
     type: 'circle',
     source: sourceId,
     filter: ['has', 'point_count'],
+    minzoom: minZoom,
     paint: {
       'circle-color': getRouteColor(styleKey),
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 8, 11, 12, 15, 18],
@@ -430,6 +434,7 @@ export function addPhotoMarkers(
     type: 'symbol',
     source: sourceId,
     filter: ['has', 'point_count'],
+    minzoom: minZoom,
     layout: {
       'text-field': '{point_count_abbreviated}',
       'text-font': ['NotoSans_Regular'],
@@ -444,6 +449,7 @@ export function addPhotoMarkers(
     type: 'circle',
     source: sourceId,
     filter: ['!', ['has', 'point_count']],
+    minzoom: minZoom,
     paint: {
       'circle-radius': 1,
       'circle-opacity': 0,
