@@ -10,6 +10,7 @@ import { assets } from '@/lib/paths';
 import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
 import { formatDateRange } from '@/lib/date-utils';
+import { formatDistance } from '@/lib/format';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -93,7 +94,7 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
             {' \u00b7 '}
             {hero.days} {t('tours.days', locale)}
             {' \u00b7 '}
-            {hero.total_distance_km.toFixed(0)} km
+            {formatDistance(hero.total_distance_km)}
             {hero.countries.length > 0 ? ` \u00b7 ${hero.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
           </span>
           {hero.renderedDescription && (
@@ -144,7 +145,7 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
                   {' \u00b7 '}
                   {tour.days} {t('tours.days', locale)}
                   {' \u00b7 '}
-                  {tour.total_distance_km.toFixed(0)} km
+                  {formatDistance(tour.total_distance_km)}
                   {tour.countries.length > 0 ? ` \u00b7 ${tour.countries.map(c => countryToFlag(c) || c).join(' ')}` : ''}
                 </span>
                 {tour.renderedDescription && (

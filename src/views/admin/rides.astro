@@ -6,6 +6,7 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import adminRidesData from 'virtual:bike-app/admin-routes';
 import type { AdminRide } from '../../loaders/admin-rides';
 import { loadAdminRideList } from '../../lib/load-admin-content';
+import { formatDistance } from '../../lib/format';
 import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
@@ -58,7 +59,7 @@ const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boole
           <span class="route-name">{ride.name}</span>
           <span class="route-meta">
             {ride.date && <span>{ride.date}</span>}
-            {ride.distance_km > 0 && <span>{ride.distance_km.toFixed(0)} km</span>}
+            {ride.distance_km > 0 && <span>{formatDistance(ride.distance_km)}</span>}
             {ride.country && <span>{ride.country}</span>}
             {pendingSlugs.has(ride.slug) && <span class="route-pending">pending</span>}
           </span>

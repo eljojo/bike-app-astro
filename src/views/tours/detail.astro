@@ -9,6 +9,7 @@ import { imageUrl } from '@/lib/image-service';
 import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
 import { formatDuration } from '@/lib/date-utils';
+import { formatDistance, formatElevation } from '@/lib/format';
 import { paths, assets } from '@/lib/paths';
 import { hasCachedMap } from '@/lib/map-thumbnails';
 import { TOUR_PALETTE } from '@/lib/map-init';
@@ -80,11 +81,11 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
           </div>
           <div class="route-stats--item">
             <span class="route-stats--label">{t('ride.distance', locale)}</span>
-            <span class="route-stats--value">{tour.total_distance_km.toFixed(0)} km</span>
+            <span class="route-stats--value">{formatDistance(tour.total_distance_km)}</span>
           </div>
           <div class="route-stats--item">
             <span class="route-stats--label">{t('ride.elevation', locale)}</span>
-            <span class="route-stats--value">{tour.total_elevation_m.toLocaleString()} m</span>
+            <span class="route-stats--value">{formatElevation(tour.total_elevation_m)}</span>
           </div>
           <div class="route-stats--item">
             <span class="route-stats--label">{t('tours.days_label', locale)}</span>
@@ -140,7 +141,7 @@ const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km
                     <span class="tour-ride--meta">
                       {ride.data.ride_date}
                       {' · '}
-                      {ride.data.distance_km.toFixed(0)} km
+                      {formatDistance(ride.data.distance_km)}
                       {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
                     </span>
                   </div>

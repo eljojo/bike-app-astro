@@ -1,6 +1,7 @@
 import { useMemo } from 'preact/hooks';
 import { marked } from 'marked';
 import { formatDuration } from '../../lib/date-utils';
+import { formatDistance, formatSpeed } from '../../lib/format';
 import type { MediaItem } from './MediaManager';
 
 interface Props {
@@ -60,7 +61,7 @@ export default function RidePreview({
           {distanceKm != null && (
             <div class="ride-preview-stat">
               <span class="ride-preview-stat-label">{labels?.distance || 'Distance'}</span>
-              <span class="ride-preview-stat-value">{distanceKm.toFixed(0)} km</span>
+              <span class="ride-preview-stat-value">{formatDistance(distanceKm)}</span>
             </div>
           )}
           {elevationM != null && (
@@ -78,7 +79,7 @@ export default function RidePreview({
           {averageSpeedKmh != null && (
             <div class="ride-preview-stat">
               <span class="ride-preview-stat-label">{labels?.speed || 'Speed'}</span>
-              <span class="ride-preview-stat-value">{averageSpeedKmh.toFixed(1)} km/h</span>
+              <span class="ride-preview-stat-value">{formatSpeed(averageSpeedKmh)}</span>
             </div>
           )}
           {country && (
