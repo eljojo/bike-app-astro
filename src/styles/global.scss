@@ -1129,6 +1129,25 @@ a.go-back-button {
   }
 }
 
+// Content card base (shared structure for ride-card and route-card)
+.content-card {
+  list-style: none;
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+.content-card--name {
+  font-weight: 600;
+}
+
+.content-card--meta {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
 // Rides list (shared between rides index, tour detail, and homepage)
 .rides-list {
   list-style: none;
