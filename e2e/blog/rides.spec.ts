@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
+import path from 'node:path';
 import { seedSession, loginAs, cleanupSession, clearContentEdits } from './helpers.ts';
+import { FIXTURE_DIR } from './fixture-setup.ts';
 
 test.describe('Public rides page filtering', () => {
   test('year filter hides rides from other years', async ({ page }) => {
@@ -192,5 +194,44 @@ test.describe('Ride Editor', () => {
     await page.locator('.ride-editor-tab:has-text("Preview")').click();
     // Preview should be visible
     await expect(page.locator('.ride-editor-preview')).toBeVisible();
+  });
+});
+
+test.describe('Ride save flow', () => {
+  let token: string;
+
+  test.beforeAll(() => {
+    token = seedSession();
+  });
+
+  test.afterAll(() => {
+    cleanupSession(token);
+  });
+
+  test('new ride with GPX upload saves successfully', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/rides/new');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Fill name
+    const nameInput = page.locator('#ride-name');
+    await nameInput.fill('E2E Test Ride');
+
+    // Upload GPX file from fixture
+    const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
+    const gpxPath = path.join(FIXTURE_DIR, 'jose/rides/2026/01/23-winter-ride.gpx');
+    await gpxInput.setInputFiles(gpxPath);
+
+    // Wait for GPX to be processed (file info should appear)
+    await expect(page.locator('.ride-gpx-filename')).toBeVisible({ timeout: 5000 });
+
+    // Save
+    await page.locator('button:has-text("Save")').click();
+
+    // Should redirect to the new ride's edit page
+    await expect(page).toHaveURL(/\/admin\/rides\//, { timeout: 15000 });
+    // Should not be on /new anymore
+    expect(page.url()).not.toContain('/new');
   });
 });
