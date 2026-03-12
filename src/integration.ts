@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import { getCityConfig } from './lib/city-config';
+import { CONTENT_DIR, CITY } from './lib/config';
 import { sharedCspDirectives } from './lib/csp';
 import { slugRedirectLines } from './lib/slug-redirects';
 import { buildDataPlugin } from './build-data-plugin';
@@ -190,8 +191,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     name: 'generate-redirects',
     hooks: {
       'astro:build:done': async ({ dir }) => {
-        const { CONTENT_DIR: contentDir, CITY: city } = await import('./lib/config');
-        const redirectsPath = path.join(contentDir, city, 'redirects.yml');
+        const redirectsPath = path.join(CONTENT_DIR, CITY, 'redirects.yml');
         const data = fs.existsSync(redirectsPath)
           ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
           : {};
@@ -215,7 +215,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
         }
 
         // Per-route redirects from each route's redirects.yml
-        const routesDir = path.join(contentDir, city, 'routes');
+        const routesDir = path.join(CONTENT_DIR, CITY, 'routes');
         if (fs.existsSync(routesDir)) {
           for (const slug of fs.readdirSync(routesDir)) {
             const routeRedirects = path.join(routesDir, slug, 'redirects.yml');
@@ -253,7 +253,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
 
         // Blog ride redirects: date-prefixed → name-only, /rides/ → /tours/ for tour rides
         if (isBlogInstance()) {
-          const ridesDir = path.join(contentDir, city, 'rides');
+          const ridesDir = path.join(CONTENT_DIR, CITY, 'rides');
           if (fs.existsSync(ridesDir)) {
             const gpxPaths = findGpxFiles(ridesDir);
             const tours = detectTours(gpxPaths);
