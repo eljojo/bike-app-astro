@@ -40,6 +40,13 @@ jobs:
       - name: Generate map styles
         run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
 
+      - name: Restore Astro content cache
+        uses: actions/cache@v5
+        with:
+          path: .astro
+          key: astro-${{ hashFiles('{{USERNAME}}/rides/**/*.gpx') }}
+          restore-keys: astro-
+
       - name: Build site
         run: npx astro build
         env:

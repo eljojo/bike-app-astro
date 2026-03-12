@@ -53,6 +53,13 @@ jobs:
           key: maps-${{ steps.map-period.outputs.period }}
           restore-keys: maps-
 
+      - name: Restore Astro content cache
+        uses: actions/cache@v5
+        with:
+          path: .astro
+          key: astro-${{ hashFiles('{{USERNAME}}/rides/**/*.gpx') }}
+          restore-keys: astro-
+
       - name: Generate map thumbnails
         run: npx tsx node_modules/bike-app-astro/scripts/generate-maps.ts
         env:
