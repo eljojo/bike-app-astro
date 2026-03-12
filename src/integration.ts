@@ -108,13 +108,11 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
   const cityLocales = (cityConfig.locales || [cityConfig.locale]).map(
     (l: string) => l.split('-')[0],
   );
-  const multiLocale = cityLocales.length > 1;
   const i18nConfig = {
     defaultLocale: cityLocales[0] as string,
     locales: cityLocales as string[],
     routing: {
       prefixDefaultLocale: false,
-      redirectToDefaultLocale: multiLocale,
       fallbackType: 'redirect' as const,
     },
   };
