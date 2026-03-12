@@ -132,7 +132,7 @@ export function detectTours(gpxPaths: string[]): Tour[] {
   return Array.from(tourMap.values()).map(({ dirPath, ridePaths }) => {
     const rawSlug = dirPath.split('/').find((p, i) => i > 0 && isNaN(parseInt(p, 10)))!;
     const slug = slugify(rawSlug) || `tour-${dirPath.split('/')[0]}`;
-    return { slug, dirPath, ridePaths };
+    return { slug, dirPath, ridePaths: ridePaths.sort() };
   });
 }
 
@@ -190,7 +190,9 @@ export function findGpxFiles(baseDir: string, dir: string = ''): string[] {
 
   if (!fs.existsSync(absDir)) return results;
 
-  for (const entry of fs.readdirSync(absDir, { withFileTypes: true })) {
+  const entries = fs.readdirSync(absDir, { withFileTypes: true });
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
     const relativePath = dir ? `${dir}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       results.push(...findGpxFiles(baseDir, relativePath));
