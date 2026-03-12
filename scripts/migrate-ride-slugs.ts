@@ -81,7 +81,10 @@ export function computeMigrationPlan(rides: RideInfo[]): MigrationEntry[] {
       oldForms.add(`${datePrefix}-${strippedSlug}`);
     }
 
-    // 4. The leading-dash + date form (in case anyone hit that URL)
+    // 4. Leading-dash form (defensive — old redirects.yml had these for all rides)
+    oldForms.add(`-${strippedSlug}`);
+
+    // 5. The leading-dash + date form (in case anyone hit that URL)
     if (ride.currentSlug.startsWith('-')) {
       oldForms.add(`${datePrefix}-${ride.currentSlug}`);
     }
@@ -202,13 +205,24 @@ function main() {
     : '';
   const data = (existingContent ? yaml.load(existingContent) : {}) as Record<string, unknown> || {};
 
-  // Replace rides section entirely
+  // Collect all redirect entries from the migration plan
   const allRedirects: Array<{ from: string; to: string }> = [];
   for (const entry of plan) {
     for (const r of entry.redirects) {
       allRedirects.push(r);
     }
   }
+
+  // Add leading-dash redirects for tour rides (defensive — matches old redirects.yml)
+  // Tour rides are handled by integration.ts for /rides/slug → /tours/tour/slug,
+  // but the leading-dash form (-slug → slug) needs to be in redirects.yml
+  for (const ride of rides) {
+    if (!ride.isTour) continue;
+    const slug = ride.currentSlug.replace(/^-+/, '');
+    if (slug !== ride.currentSlug) continue; // skip if slug already has leading dash
+    allRedirects.push({ from: `-${slug}`, to: slug });
+  }
+
   data.rides = allRedirects;
 
   const newContent = yaml.dump(data, { lineWidth: -1 });

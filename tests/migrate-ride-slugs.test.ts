@@ -11,6 +11,8 @@ describe('computeMigrationPlan', () => {
     expect(plan[0].newSlug).toBe('2025-06-15-perfect-day');
     expect(plan[0].handle).toBe('2025-06-15-perfect-day');
     expect(plan[0].redirects).toContainEqual({ from: 'perfect-day', to: '2025-06-15-perfect-day' });
+    // Defensive leading-dash redirect
+    expect(plan[0].redirects).toContainEqual({ from: '-perfect-day', to: '2025-06-15-perfect-day' });
   });
 
   it('strips leading dash and hex hash suffix', () => {
@@ -67,15 +69,17 @@ describe('computeMigrationPlan', () => {
     expect(slugs).toContain('2024-03-05-afternoon-ride-b890');
   });
 
-  it('does not add redirect when old slug equals new slug', () => {
+  it('still adds leading-dash redirect when old slug equals new slug', () => {
     // A ride that already has the right slug (hypothetical)
     const rides: RideInfo[] = [
       { gpxRelPath: '2025/06/15-perfect-day.gpx', date: { year: 2025, month: 6, day: 15 }, currentSlug: '2025-06-15-perfect-day', isTour: false },
     ];
     const plan = computeMigrationPlan(rides);
-    // handle should still be set (so buildSlug uses it), but no redirects needed
     expect(plan[0].handle).toBe('2025-06-15-perfect-day');
-    expect(plan[0].redirects).toHaveLength(0);
+    // Only the defensive leading-dash redirect
+    expect(plan[0].redirects).toEqual([
+      { from: '-2025-06-15-perfect-day', to: '2025-06-15-perfect-day' },
+    ]);
   });
 
   it('handles ride with leading dash slug (double-dash GPX filename)', () => {
