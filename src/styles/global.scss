@@ -10,6 +10,7 @@ body {
   font-weight: 400;
   color: $color-text;
   background: $color-bg;
+  overflow-x: clip; // prevent horizontal scrollbar from sticky-header full-width bleed
 
   @media (min-width: $breakpoint-mobile) {
     width: $content-width; // route card image placeholder height (calc(85vw/2 - 8px)) depends on this value
