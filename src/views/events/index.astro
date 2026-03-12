@@ -42,7 +42,7 @@ const past = events
       ))}
     </div>
   ) : (
-    <p>No upcoming events.</p>
+    <p>{t('events.no_upcoming', locale)}</p>
   )}
 
   {past.length > 0 && (

@@ -117,7 +117,7 @@ const hasResults = data.results && data.results.length > 0;
         {eventRoutes.length > 0 && (
           <section class="event-detail-section">
             <h2>{t('events.routes', locale)}</h2>
-            <EventRouteMap routes={eventRoutes} locale={locale} />
+            <EventRouteMap routes={eventRoutes} locale={locale} waypoints={data.waypoints} places={allPlaces} />
           </section>
         )}
 

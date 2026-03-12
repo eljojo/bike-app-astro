@@ -25,10 +25,12 @@ let blogFeaturedIds = new Set<string>();
 // Club instance data
 let clubUpcoming: CollectionEntry<'events'>[] = [];
 let clubRecent: CollectionEntry<'events'>[] = [];
+let clubFormatDate: ((start: string, end?: string, loc?: string) => string) | null = null;
 
 if (club) {
   const { getCollection } = await import('astro:content');
-  const { parseLocalDate } = await import('@/lib/date-utils');
+  const { parseLocalDate, formatDateRange } = await import('@/lib/date-utils');
+  clubFormatDate = formatDateRange;
   const events = await getCollection('events');
   const now = new Date();
   clubUpcoming = events
@@ -125,7 +127,7 @@ if (club) {
             {clubUpcoming.map(e => (
               <a href={paths.event(e.id, locale)} class="event-card">
                 <span class="event-name">{e.data.name}</span>
-                <span class="event-dates">{e.data.start_date}</span>
+                <span class="event-dates">{clubFormatDate?.(e.data.start_date, e.data.end_date, locale) || e.data.start_date}</span>
                 {e.data.distances && <span class="event-distances">{e.data.distances}</span>}
               </a>
             ))}
@@ -143,7 +145,7 @@ if (club) {
             {clubRecent.map(e => (
               <a href={paths.event(e.id, locale)} class="event-card">
                 <span class="event-name">{e.data.name}</span>
-                <span class="event-dates">{e.data.start_date}</span>
+                <span class="event-dates">{clubFormatDate?.(e.data.start_date, e.data.end_date, locale) || e.data.start_date}</span>
                 {e.data.distances && <span class="event-distances">{e.data.distances}</span>}
               </a>
             ))}

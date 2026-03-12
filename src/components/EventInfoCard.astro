@@ -33,11 +33,11 @@ const regUrl = registration?.url || registrationUrl;
 
 <div class="event-info-card">
   <dl class="event-info-list">
-    <dt>Date</dt>
+    <dt>{t('events.date', locale)}</dt>
     <dd>{dateDisplay}{startTime && <span class="event-start-time"> — {startTime}</span>}</dd>
 
     {distances && (
-      <dt>Distance</dt>
+      <dt>{t('events.distance', locale)}</dt>
       <dd>{distances}</dd>
     )}
 
@@ -47,7 +47,7 @@ const regUrl = registration?.url || registrationUrl;
     )}
 
     {location && (
-      <dt>Location</dt>
+      <dt>{t('events.location', locale)}</dt>
       <dd>{location}</dd>
     )}
 

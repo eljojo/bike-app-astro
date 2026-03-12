@@ -59,7 +59,7 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
+  import { initMap, addPolylines, buildPolylineFeature, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
   import { buildPlacePopup, html } from '../lib/map-helpers';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
@@ -124,6 +124,33 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
 
       // Enable elevation cursor sync (dot follows hover on elevation chart)
       enableElevationCursorSync(map);
+
+      // Listen for route:toggle events from EventRouteSelector
+      const hiddenSlugs = new Set<string>();
+      window.addEventListener('route:toggle', ((e: CustomEvent) => {
+        const { slug, visible: isVisible } = e.detail;
+        if (isVisible) hiddenSlugs.delete(slug);
+        else hiddenSlugs.add(slug);
+
+        const source = map.getSource('route-polylines') as maplibregl.GeoJSONSource | undefined;
+        if (!source) return;
+        const features = polylineData.map((p: any, i: number) => {
+          const feature = buildPolylineFeature(p.encoded, p.popup, p.color);
+          // Check if this polyline's URL ends with the slug
+          const plUrl = polylines[i]?.url || '';
+          const plSlug = plUrl.split('/').pop() || '';
+          if (hiddenSlugs.has(plSlug)) {
+            feature.properties!.hidden = true;
+          }
+          return feature;
+        });
+        source.setData({ type: 'FeatureCollection', features });
+
+        // Use a filter to hide features marked as hidden
+        if (map.getLayer('route-lines')) {
+          map.setFilter('route-lines', ['!', ['has', 'hidden']]);
+        }
+      }) as EventListener);
 
       // Render MapControls island
       if (controlsEl) {
