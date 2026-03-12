@@ -23,5 +23,12 @@ export function hashPath(routeSlug: string, lang?: string): string {
 export function needsRegeneration(routeSlug: string, currentHash: string, lang?: string): boolean {
   const hp = hashPath(routeSlug, lang);
   if (!fs.existsSync(hp)) return true;
-  return fs.readFileSync(hp, 'utf-8').trim() !== currentHash;
+  if (fs.readFileSync(hp, 'utf-8').trim() !== currentHash) return true;
+  // Regenerate if any expected output file is missing (e.g. thumbLarge added later)
+  const base = lang ? path.join(MAP_CACHE_DIR, lang) : MAP_CACHE_DIR;
+  const dir = path.join(base, routeSlug);
+  for (const file of ['map-1500.webp', 'map-750.webp', 'map-375.webp']) {
+    if (!fs.existsSync(path.join(dir, file))) return true;
+  }
+  return false;
 }
