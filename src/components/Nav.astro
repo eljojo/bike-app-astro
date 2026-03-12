@@ -30,7 +30,6 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
     ) : features.hasEnrichedEvents ? (
       <>
         <li><a href={localePath('/events', locale)}>{t('nav.events', locale)}</a></li>
-        <li><a href={localePath('/routes', locale)}>{t('nav.routes', locale)}</a></li>
         <li><a href={localePath('/places', locale)}>{t('nav.places', locale)}</a></li>
         <li class="nav-about"><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
       </>
