@@ -156,6 +156,29 @@ describe('buildLayers', () => {
     });
   });
 
+  describe('water layers', () => {
+    it('has an ocean layer using the ocean source-layer', () => {
+      const ocean = defaultLayers.find((l: any) => l.id === 'ocean');
+      expect(ocean).toBeDefined();
+      expect(ocean!['source-layer']).toBe('ocean');
+      expect(ocean!.type).toBe('fill');
+    });
+
+    it('ocean layer renders before water (so inland water draws on top)', () => {
+      const oceanIdx = defaultLayers.findIndex((l: any) => l.id === 'ocean');
+      const waterIdx = defaultLayers.findIndex((l: any) => l.id === 'water');
+      expect(oceanIdx).toBeGreaterThan(-1);
+      expect(waterIdx).toBeGreaterThan(-1);
+      expect(oceanIdx).toBeLessThan(waterIdx);
+    });
+
+    it('has a water fill layer for inland water bodies', () => {
+      const water = defaultLayers.find((l: any) => l.id === 'water');
+      expect(water).toBeDefined();
+      expect(water!['source-layer']).toBe('water');
+    });
+  });
+
   describe('road label layers', () => {
     const ids = layerIds(defaultLayers);
 
