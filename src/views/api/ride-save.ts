@@ -11,10 +11,10 @@ import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
-import { rideFilePathsFromRelPath, deriveGpxRelativePath } from '../../lib/ride-paths';
+import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug } from '../../lib/ride-paths';
 import { CITY } from '../../lib/config';
 import { computeRideContentHashFromFiles, buildFreshRideData } from '../../lib/models/ride-model';
-import { validateSlug, slugify } from '../../lib/slug';
+import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git-gpx';
 
 export const prerender = false;
@@ -106,8 +106,11 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
     resolveContentId(params, update): string {
       const slug = params.slug;
       if (slug === 'new') {
-        const name = (update.frontmatter as Record<string, unknown>).name as string;
-        return slugify(name);
+        const fm = update.frontmatter as Record<string, unknown>;
+        const name = fm.name as string;
+        const rideDate = fm.ride_date as string;
+        const tourSlug = fm.tour_slug as string | undefined;
+        return resolveNewRideSlug(name, rideDate, tourSlug);
       }
       return slug!;
     },

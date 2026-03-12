@@ -1,3 +1,5 @@
+import { slugify } from './slug';
+
 /**
  * Derive file paths from a GPX relative path (relative to rides/ directory).
  * This is the primary way to get file paths for rides with name-only slugs.
@@ -37,6 +39,19 @@ export function deriveGpxRelativePath(rideDate: string, gpxFilename: string, tou
   if (tourSlug) parts.push(tourSlug);
   parts.push(gpxFilename);
   return parts.join('/');
+}
+
+/**
+ * Compute the slug for a new ride.
+ * Standalone rides get date-prefixed slugs (2026-03-15-morning-ride).
+ * Tour rides keep name-only slugs (day-1) since the tour directory scopes them.
+ */
+export function resolveNewRideSlug(name: string, rideDate: string, tourSlug?: string): string {
+  const nameSlug = slugify(name);
+  if (tourSlug) return nameSlug;
+
+  const [year, month, day] = rideDate.split('-');
+  return `${year}-${month}-${day}-${nameSlug}`;
 }
 
 /**
