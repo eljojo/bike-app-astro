@@ -14,6 +14,19 @@ export function rideFilePathsFromRelPath(gpxRelPath: string, city: string = CITY
 }
 
 /**
+ * Compute file paths for a ride when its tour assignment changes.
+ * Inserts/removes the tour slug directory in the path structure.
+ */
+export function rideFilePathsWithTour(gpxRelPath: string, tourSlug: string | undefined, city: string = CITY) {
+  if (!tourSlug) return rideFilePathsFromRelPath(gpxRelPath, city);
+
+  const parts = gpxRelPath.split('/');
+  const filename = parts.pop()!;
+  const newPath = [...parts, tourSlug, filename].join('/');
+  return rideFilePathsFromRelPath(newPath, city);
+}
+
+/**
  * Extract a name-only ride slug from a relative path.
  * Strips date prefixes to produce URL-friendly slugs matching Rails handles.
  *

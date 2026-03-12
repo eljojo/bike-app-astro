@@ -12,7 +12,16 @@ import { useTextareaValue, useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
 import { extractRideDate } from '../../lib/gpx';
 import { insertMarkdown } from './markdown-toolbar-utils';
+import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
+
+interface TourInfo {
+  slug: string;
+  name: string;
+  start_date?: string;
+  end_date?: string;
+  ride_count?: number;
+}
 
 interface Props {
   initialData: RideDetail & { contentHash?: string; isNew?: boolean; gpxRelativePath?: string };
@@ -20,9 +29,10 @@ interface Props {
   userRole?: string;
   mapThumbnail?: string;
   rideLabels?: Record<string, string>;
+  tours?: TourInfo[];
 }
 
-export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels }: Props) {
+export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels, tours = [] }: Props) {
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -200,10 +210,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
               <label>Country</label>
               <input type="text" value={country} onInput={(e) => setCountry((e.target as HTMLInputElement).value)} />
             </div>
-            <div class="form-field">
-              <label>Tour</label>
-              <input type="text" value={tourSlug} onInput={(e) => setTourSlug((e.target as HTMLInputElement).value)} placeholder="Tour slug (optional)" />
-            </div>
+            <TourPicker tours={tours} value={tourSlug} onChange={setTourSlug} />
             <div class="form-field form-field--inline">
               <label>
                 <input type="checkbox" checked={highlight} onChange={() => setHighlight(!highlight)} />

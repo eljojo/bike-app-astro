@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rideFilePathsFromRelPath, rideSlugFromPath } from '../src/lib/ride-paths';
+import { rideFilePathsFromRelPath, rideFilePathsWithTour, rideSlugFromPath } from '../src/lib/ride-paths';
 
 describe('rideFilePathsFromRelPath', () => {
   it('returns gpx, sidecar, and media paths from relative GPX path', () => {
@@ -18,6 +18,18 @@ describe('rideFilePathsFromRelPath', () => {
       sidecar: 'blog/rides/2025/07/euro-tour/15-paris-to-lyon.md',
       media: 'blog/rides/2025/07/euro-tour/15-paris-to-lyon-media.yml',
     });
+  });
+});
+
+describe('rideFilePathsWithTour', () => {
+  it('inserts tour slug into path', () => {
+    const result = rideFilePathsWithTour('2026/01/15-sprint.gpx', 'euro-trip', 'blog');
+    expect(result.gpx).toBe('blog/rides/2026/01/euro-trip/15-sprint.gpx');
+  });
+
+  it('returns unchanged paths when no tour', () => {
+    const result = rideFilePathsWithTour('2026/01/15-sprint.gpx', undefined, 'blog');
+    expect(result.gpx).toBe('blog/rides/2026/01/15-sprint.gpx');
   });
 });
 

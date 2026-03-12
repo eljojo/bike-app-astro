@@ -1844,3 +1844,122 @@
     cursor: pointer;
   }
 }
+
+// Tour picker
+.tour-picker {
+  position: relative;
+}
+
+.tour-picker--trigger {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $radius;
+  background: $color-bg;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.tour-picker--arrow {
+  margin-left: 0.5rem;
+  opacity: 0.5;
+}
+
+.tour-picker--dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: $radius;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 0.25rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tour-picker--search {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-bottom: 1px solid $color-border;
+  background: transparent;
+  color: $color-text;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.tour-picker--options {
+  display: flex;
+  flex-direction: column;
+}
+
+.tour-picker--option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+  width: 100%;
+
+  &:hover {
+    background: rgba($color-accent, 0.1);
+  }
+
+  &--selected {
+    background: rgba($color-accent, 0.15);
+  }
+}
+
+.tour-picker--option-meta {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.tour-picker--create {
+  border-top: 1px solid $color-border;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.tour-picker--create-form {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid $color-border;
+
+  input {
+    flex: 1;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid $color-border;
+    border-radius: $radius;
+    font-size: 0.875rem;
+    background: $color-bg;
+    color: $color-text;
+  }
+
+  button {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid $color-accent;
+    border-radius: $radius;
+    background: $color-accent;
+    color: #000;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+}
