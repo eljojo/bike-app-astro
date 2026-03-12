@@ -73,12 +73,12 @@ const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boole
 </Base>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
-    const filtersEl = document.getElementById('ride-filters');
-    const listEl = document.getElementById('ride-list');
-    const yearSelect = document.getElementById('year-filter') as HTMLSelectElement | null;
-    if (!filtersEl || !listEl) return;
-
+  // Astro compiles <script> to <script type="module"> which is deferred,
+  // so the DOM is ready when this runs — no event wrapper needed.
+  const filtersEl = document.getElementById('ride-filters');
+  const listEl = document.getElementById('ride-list');
+  const yearSelect = document.getElementById('year-filter') as HTMLSelectElement | null;
+  if (filtersEl && listEl) {
     const pills = filtersEl.querySelectorAll<HTMLButtonElement>('.admin-filter-pill');
     const items = listEl.querySelectorAll<HTMLElement>('.route-list-item');
 
@@ -136,7 +136,7 @@ const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boole
         applyFilters();
       }
     }
-  });
+  }
 </script>
 
 <style lang="scss">

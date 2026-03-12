@@ -55,12 +55,12 @@ const publicFilters = rideFilters.filter(f => !f.adminOnly);
 </aside>
 
 <script>
-  document.addEventListener('astro:page-load', () => {
-    const sidebar = document.getElementById('rides-sidebar');
-    const rideList = document.getElementById('rides-grid');
-    const countEl = document.getElementById('rides-count');
-    if (!sidebar || !rideList) return;
-
+  // Astro compiles <script> to <script type="module"> which is deferred,
+  // so the DOM is ready when this runs — no event wrapper needed.
+  const sidebar = document.getElementById('rides-sidebar');
+  const rideList = document.getElementById('rides-grid');
+  const countEl = document.getElementById('rides-count');
+  if (sidebar && rideList) {
     const cards = rideList.querySelectorAll<HTMLElement>('.ride-card');
     const monthSections = rideList.querySelectorAll<HTMLElement>('.rides-month-section');
 
@@ -213,5 +213,5 @@ const publicFilters = rideFilters.filter(f => !f.adminOnly);
     } else if (countEl) {
       countEl.textContent = `${cards.length} rides`;
     }
-  });
+  }
 </script>

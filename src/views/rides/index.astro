@@ -122,11 +122,9 @@ const filterData = published.map(r => ({
   </div>
 
   <script>
-    document.addEventListener('astro:page-load', () => {
-      const params = new URLSearchParams(window.location.search);
-      if (!params.has('filter') && !params.has('year') && !params.has('country')) {
-        window.scrollTo(0, document.body.scrollHeight);
-      }
-    });
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('filter') && !params.has('year') && !params.has('country')) {
+      window.scrollTo(0, document.body.scrollHeight);
+    }
   </script>
 </Base>

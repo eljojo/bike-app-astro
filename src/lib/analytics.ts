@@ -88,7 +88,6 @@ function recordVisit() {
 trackSocialReferral();
 recordVisit();
 
-document.addEventListener('DOMContentLoaded', () => {
-  trackVideoPlays();
-  trackLinkClicks();
-});
+// Module scripts are deferred — DOM is ready when this runs.
+trackVideoPlays();
+trackLinkClicks();

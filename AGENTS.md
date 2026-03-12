@@ -75,7 +75,7 @@ Additional gotchas not covered by directory files:
 - **Prerender flags**: every page/API endpoint MUST export `prerender` (true or false).
 - **Virtual module types**: `src/virtual-modules.d.ts` is ambient — NO top-level imports or it breaks all declarations.
 - **Path resolution**: never use `path.resolve('relative/path')` — use `import.meta.dirname`.
-- **View Transitions**: use `astro:page-load` event, not `DOMContentLoaded`.
+- **No ClientRouter**: the site does NOT use Astro's `<ClientRouter />` (View Transitions). Use `DOMContentLoaded`, not `astro:page-load`.
 - **Middleware exclusions**: `/api/auth/*` and `/api/reactions/*` skip auth — don't put protected endpoints there.
 - **Wrangler config**: never add `main` field — it breaks builds.
 - **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
