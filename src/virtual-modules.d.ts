@@ -43,8 +43,12 @@ interface _AdminEvent {
   name: string;
   start_date: string;
   end_date?: string;
+  status?: string;
+  routes?: string[];
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
+  mediaCount: number;
+  waypointCount: number;
   contentHash: string;
 }
 
@@ -55,10 +59,39 @@ interface _AdminEventDetail {
   year: string;
   name: string;
   start_date: string;
+  event_date?: string;
   start_time?: string;
   end_date?: string;
   end_time?: string;
+  time_limit_hours?: number;
+  status?: string;
+  routes?: string[];
+  registration?: {
+    url?: string;
+    slots?: number;
+    price?: string;
+    deadline?: string;
+    departure_groups?: string[];
+  };
   registration_url?: string;
+  waypoints?: Array<{
+    place: string;
+    type: 'checkpoint' | 'danger' | 'poi';
+    label: string;
+    distance_km?: number;
+    opening?: string;
+    closing?: string;
+    route?: string;
+  }>;
+  results?: Array<{
+    brevet_no?: number;
+    last_name: string;
+    first_name?: string;
+    time?: string;
+    homologation?: string;
+    status?: 'DNS' | 'DNF' | 'DQ';
+  }>;
+  gpx_include_waypoints?: boolean;
   distances?: string;
   location?: string;
   review_url?: string;
@@ -66,6 +99,16 @@ interface _AdminEventDetail {
   poster_key?: string;
   poster_content_type?: string;
   body: string;
+  media?: Array<{
+    key: string;
+    caption?: string;
+    cover?: boolean;
+    width?: number;
+    height?: number;
+    lat?: number;
+    lng?: number;
+    type?: string;
+  }>;
   contentHash?: string;
 }
 

@@ -17,8 +17,12 @@ export interface AdminEvent {
   name: string;
   start_date: string;
   end_date?: string;
+  status?: string;
+  routes?: string[];
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
+  mediaCount: number;
+  waypointCount: number;
   contentHash: string;
 }
 

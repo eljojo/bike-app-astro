@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
+import yaml from 'js-yaml';
 import { cityDir } from '../lib/config';
 import type { AdminEvent } from '../types/admin';
 import { eventDetailFromGit, computeEventContentHash, type EventDetail } from '../lib/models/event-model';
@@ -13,6 +14,77 @@ interface AdminEventData {
 }
 
 let cachedEventData: AdminEventData | null = null;
+
+/** Load a flat .md event file. */
+function loadFlatEvent(yearDir: string, slug: string, filePath: string): {
+  event: AdminEvent;
+  detail: EventDetail & { contentHash: string };
+} {
+  const id = `${yearDir}/${slug}`;
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  const contentHash = computeEventContentHash(raw);
+  const { data: fm, content: body } = matter(raw);
+
+  const event: AdminEvent = {
+    id,
+    slug,
+    year: yearDir,
+    name: fm.name as string,
+    start_date: fm.start_date as string,
+    end_date: fm.end_date as string | undefined,
+    status: fm.status as string | undefined,
+    routes: (fm.routes as string[]) ?? [],
+    organizer: fm.organizer as string | { name: string; website?: string; instagram?: string } | undefined,
+    poster_key: fm.poster_key as string | undefined,
+    mediaCount: 0,
+    waypointCount: Array.isArray(fm.waypoints) ? fm.waypoints.length : 0,
+    contentHash,
+  };
+
+  const detail = eventDetailFromGit(id, fm, body.trim());
+  return { event, detail: { ...detail, contentHash } };
+}
+
+/** Load a directory-based event (slug/ with index.md + optional media.yml). */
+function loadDirectoryEvent(yearDir: string, slug: string, eventDir: string): {
+  event: AdminEvent;
+  detail: EventDetail & { contentHash: string };
+} {
+  const id = `${yearDir}/${slug}`;
+  const indexPath = path.join(eventDir, 'index.md');
+  const raw = fs.readFileSync(indexPath, 'utf-8');
+
+  const mediaPath = path.join(eventDir, 'media.yml');
+  let mediaYml: string | undefined;
+  let mediaCount = 0;
+  if (fs.existsSync(mediaPath)) {
+    mediaYml = fs.readFileSync(mediaPath, 'utf-8');
+    const parsed = yaml.load(mediaYml);
+    if (Array.isArray(parsed)) mediaCount = parsed.length;
+  }
+
+  const contentHash = computeEventContentHash(raw, mediaYml);
+  const { data: fm, content: body } = matter(raw);
+
+  const event: AdminEvent = {
+    id,
+    slug,
+    year: yearDir,
+    name: fm.name as string,
+    start_date: fm.start_date as string,
+    end_date: fm.end_date as string | undefined,
+    status: fm.status as string | undefined,
+    routes: (fm.routes as string[]) ?? [],
+    organizer: fm.organizer as string | { name: string; website?: string; instagram?: string } | undefined,
+    poster_key: fm.poster_key as string | undefined,
+    mediaCount,
+    waypointCount: Array.isArray(fm.waypoints) ? fm.waypoints.length : 0,
+    contentHash,
+  };
+
+  const detail = eventDetailFromGit(id, fm, body.trim(), mediaYml);
+  return { event, detail: { ...detail, contentHash } };
+}
 
 export async function loadAdminEventData(): Promise<AdminEventData> {
   if (cachedEventData) return cachedEventData;
@@ -30,33 +102,28 @@ export async function loadAdminEventData(): Promise<AdminEventData> {
     const yearPath = path.join(eventsDir, yearDir);
     if (!fs.statSync(yearPath).isDirectory()) continue;
 
-    for (const file of fs.readdirSync(yearPath)) {
-      if (!file.endsWith('.md')) continue;
-      // Skip translation files like event.fr.md
-      const parts = file.replace('.md', '').split('.');
-      if (parts.length > 1) continue;
+    for (const entry of fs.readdirSync(yearPath)) {
+      const entryPath = path.join(yearPath, entry);
+      const stat = fs.statSync(entryPath);
 
-      const slug = file.replace('.md', '');
-      const id = `${yearDir}/${slug}`;
-      const filePath = path.join(yearPath, file);
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      const contentHash = computeEventContentHash(raw);
-      const { data: fm, content: body } = matter(raw);
+      if (stat.isDirectory()) {
+        // Directory-based event: slug/ with index.md
+        const indexPath = path.join(entryPath, 'index.md');
+        if (!fs.existsSync(indexPath)) continue;
 
-      events.push({
-        id,
-        slug,
-        year: yearDir,
-        name: fm.name as string,
-        start_date: fm.start_date as string,
-        end_date: fm.end_date as string | undefined,
-        organizer: fm.organizer as string | { name: string; website?: string; instagram?: string } | undefined,
-        poster_key: fm.poster_key as string | undefined,
-        contentHash,
-      });
+        const { event, detail } = loadDirectoryEvent(yearDir, entry, entryPath);
+        events.push(event);
+        details[event.id] = detail;
+      } else if (entry.endsWith('.md')) {
+        // Flat .md event — skip translation files like event.fr.md
+        const parts = entry.replace('.md', '').split('.');
+        if (parts.length > 1) continue;
 
-      const detail = eventDetailFromGit(id, fm, body.trim());
-      details[id] = { ...detail, contentHash };
+        const slug = entry.replace('.md', '');
+        const { event, detail } = loadFlatEvent(yearDir, slug, entryPath);
+        events.push(event);
+        details[event.id] = detail;
+      }
     }
   }
 
@@ -65,4 +132,3 @@ export async function loadAdminEventData(): Promise<AdminEventData> {
   cachedEventData = { events, details };
   return cachedEventData;
 }
-

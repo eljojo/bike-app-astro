@@ -152,7 +152,15 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
   const events = buildTimeEvents.map(e => {
     const cached = cacheMap.get(e.id);
     if (!cached) return e;
-    return { ...e, name: cached.name ?? e.name, start_date: cached.start_date ?? e.start_date };
+    return {
+      ...e,
+      name: cached.name ?? e.name,
+      start_date: cached.start_date ?? e.start_date,
+      status: cached.status ?? e.status,
+      routes: cached.routes ?? e.routes,
+      mediaCount: cached.media?.length ?? e.mediaCount,
+      waypointCount: cached.waypoints?.length ?? e.waypointCount,
+    };
   });
 
   // Append D1-only events (created since last deploy)
@@ -167,8 +175,12 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
         name: cached.name || id,
         start_date: cached.start_date || '',
         end_date: cached.end_date,
+        status: cached.status,
+        routes: cached.routes,
         organizer: cached.organizer,
         poster_key: cached.poster_key,
+        mediaCount: cached.media?.length ?? 0,
+        waypointCount: cached.waypoints?.length ?? 0,
         contentHash: '',
       });
     }
