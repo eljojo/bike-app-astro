@@ -2,7 +2,8 @@
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { getCityConfig, isBlogInstance } from '@/lib/city-config';
+import { getCityConfig } from '@/lib/city-config';
+import { getInstanceFeatures } from '@/lib/instance-features';
 import { defaultLocale } from '@/lib/locale-utils';
 import contributors from 'virtual:bike-app/contributors';
 
@@ -46,7 +47,7 @@ const renderedBody = body
       </div>
     </div>
   )}
-  {!isBlogInstance() && (
+  {getInstanceFeatures().showsContributeLink && (
     <div class="about-contribute">
       <p>
         This is a community project — anyone can contribute.

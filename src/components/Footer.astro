@@ -3,7 +3,8 @@
 import { t, localePath } from '../i18n';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
-import { getCityConfig, isBlogInstance, isClubInstance } from '../lib/city-config';
+import { getCityConfig } from '../lib/city-config';
+import { getInstanceFeatures } from '../lib/instance-features';
 
 interface Props {
   alternateUrls?: Record<string, string>;
@@ -16,21 +17,20 @@ const showSwitcher = locales.length > 1;
 
 const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
-const blog = isBlogInstance();
-const club = isClubInstance();
-const config = (blog || club) ? getCityConfig() : null;
+const features = getInstanceFeatures();
+const config = (features.hasRides || features.hasEnrichedEvents) ? getCityConfig() : null;
 ---
 <footer class="site-footer">
-  {blog && config?.author?.name ? (
+  {features.hasRides && config?.author?.name ? (
     <a href={localePath('/about', locale)}>
       {config.display_name} is curated by {config.author.name}
     </a>
-  ) : club && config ? (
+  ) : features.hasEnrichedEvents && config ? (
     <a href={localePath('/about', locale)}>
       {config.display_name}
       {config.acp_club_code && <span class="footer-acp"> &middot; ACP {config.acp_club_code}</span>}
     </a>
-  ) : !blog && !club ? (
+  ) : !features.hasRides && !features.hasEnrichedEvents ? (
     <a href={localePath('/about', locale)}>
       {t('footer.community', locale)}
     </a>

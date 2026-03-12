@@ -15,7 +15,8 @@ import { t, tCategory, localePath, formatLocale } from '@/i18n';
 import { findNearbyPlaces } from '@/lib/proximity';
 import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
-import { getCityConfig, isBlogInstance } from '@/lib/city-config';
+import { getCityConfig } from '@/lib/city-config';
+import { getInstanceFeatures } from '@/lib/instance-features';
 import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/locale-utils';
 import { tTag } from '@/lib/tag-translations';
@@ -226,7 +227,7 @@ const breadcrumbs = breadcrumbJsonLd([
             </p>
           )}
 
-          {!isBlogInstance() && (
+          {getInstanceFeatures().allowsReactions && (
             <ReactionsWidget client:idle contentType="route" contentSlug={route.id} labels={[
               { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
               { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },

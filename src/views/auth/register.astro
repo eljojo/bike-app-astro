@@ -3,9 +3,9 @@ export const prerender = false;
 
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import RegisterForm from '../../components/admin/RegisterForm.tsx';
-import { isBlogInstance } from '../../lib/city-config';
+import { getInstanceFeatures } from '../../lib/instance-features';
 
-if (isBlogInstance()) {
+if (!getInstanceFeatures().allowsRegistration) {
   return new Response(null, { status: 404 });
 }
 

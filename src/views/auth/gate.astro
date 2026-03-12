@@ -3,19 +3,19 @@ export const prerender = false;
 
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import AuthGate from '../../components/admin/AuthGate.tsx';
-import { isBlogInstance } from '../../lib/city-config';
+import { getInstanceFeatures } from '../../lib/instance-features';
 import { t } from '@/i18n';
 
 const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
-const blog = isBlogInstance();
+const features = getInstanceFeatures();
 const locale = Astro.currentLocale;
 ---
 
-<AuthCardLayout title={blog ? t('auth.gate_title_blog', locale) : t('auth.gate_title_wiki', locale)} subtitle={blog ? undefined : t('auth.gate_subtitle', locale)}>
-  {!blog && (
+<AuthCardLayout title={!features.allowsGuestAccess ? t('auth.gate_title_blog', locale) : t('auth.gate_title_wiki', locale)} subtitle={features.allowsGuestAccess ? t('auth.gate_subtitle', locale) : undefined}>
+  {features.allowsGuestAccess && (
     <p slot="description" class="gate-intro">
       {t('auth.gate_intro', locale)}
     </p>
   )}
-  <AuthGate client:load returnTo={returnTo} blogMode={blog} />
+  <AuthGate client:load returnTo={returnTo} blogMode={!features.allowsGuestAccess} />
 </AuthCardLayout>
