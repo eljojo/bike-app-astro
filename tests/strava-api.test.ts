@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildGpxFromStravaStreams, parseStravaActivityUrl } from '../src/lib/strava-api';
+import { buildGpxFromStravaStreams, parseStravaActivityUrl, buildAuthorizationUrl, RIDE_SPORT_TYPES } from '../src/lib/strava-api';
 
 describe('parseStravaActivityUrl', () => {
   it('extracts activity ID from standard URL', () => {
@@ -57,5 +57,53 @@ describe('buildGpxFromStravaStreams', () => {
     const gpx = buildGpxFromStravaStreams('Test', streams, new Date());
     expect(gpx).toContain('lat="45"');
     expect(gpx).not.toContain('<ele>');
+  });
+
+  it('handles missing time data', () => {
+    const streams = {
+      latlng: { data: [[45.0, -75.0]] as [number, number][] },
+      altitude: { data: [100] },
+    };
+    const gpx = buildGpxFromStravaStreams('Test', streams, new Date());
+    expect(gpx).toContain('<ele>100</ele>');
+    expect(gpx).not.toContain('<time>');
+  });
+
+  it('handles empty latlng data', () => {
+    const streams = { latlng: { data: [] as [number, number][] } };
+    const gpx = buildGpxFromStravaStreams('Empty', streams, new Date());
+    expect(gpx).toContain('<name>Empty</name>');
+    expect(gpx).not.toContain('<trkpt');
+  });
+});
+
+describe('buildAuthorizationUrl', () => {
+  it('builds correct Strava OAuth URL', () => {
+    const url = buildAuthorizationUrl('my-client-id', 'https://example.com/callback', 'random-state');
+    expect(url).toContain('https://www.strava.com/oauth/authorize');
+    expect(url).toContain('client_id=my-client-id');
+    expect(url).toContain('redirect_uri=');
+    expect(url).toContain('response_type=code');
+    expect(url).toContain('scope=activity%3Aread');
+    expect(url).toContain('state=random-state');
+  });
+
+  it('includes approval_prompt=auto', () => {
+    const url = buildAuthorizationUrl('id', 'https://x.com/cb', 'state');
+    expect(url).toContain('approval_prompt=auto');
+  });
+});
+
+describe('RIDE_SPORT_TYPES', () => {
+  it('includes standard cycling sport types', () => {
+    expect(RIDE_SPORT_TYPES).toContain('Ride');
+    expect(RIDE_SPORT_TYPES).toContain('EBikeRide');
+    expect(RIDE_SPORT_TYPES).toContain('GravelRide');
+    expect(RIDE_SPORT_TYPES).toContain('VirtualRide');
+  });
+
+  it('does not include non-cycling types', () => {
+    expect(RIDE_SPORT_TYPES).not.toContain('Run');
+    expect(RIDE_SPORT_TYPES).not.toContain('Swim');
   });
 });

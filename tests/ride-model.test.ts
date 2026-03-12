@@ -36,6 +36,27 @@ describe('rideDetailToCache + rideDetailFromCache', () => {
   it('returns null for data missing required fields', () => {
     expect(rideDetailFromCache(JSON.stringify({ name: 'only name' }))).toBeNull();
   });
+
+  it('round-trips strava_id and privacy_zone fields', () => {
+    const withStrava = {
+      ...sampleDetail,
+      strava_id: '1234567890',
+      privacy_zone: true,
+    };
+    const cached = rideDetailToCache(withStrava);
+    const parsed = rideDetailFromCache(cached);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.strava_id).toBe('1234567890');
+    expect(parsed!.privacy_zone).toBe(true);
+  });
+
+  it('handles missing strava_id and privacy_zone (optional)', () => {
+    const cached = rideDetailToCache(sampleDetail);
+    const parsed = rideDetailFromCache(cached);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.strava_id).toBeUndefined();
+    expect(parsed!.privacy_zone).toBeUndefined();
+  });
 });
 
 describe('computeRideContentHash', () => {
