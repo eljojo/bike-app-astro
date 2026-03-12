@@ -27,6 +27,21 @@ export function rideFilePathsWithTour(gpxRelPath: string, tourSlug: string | und
 }
 
 /**
+ * Compute gpxRelativePath for a new ride from its date, GPX filename, and optional tour.
+ * Used by ride-save.ts when creating new rides (no pre-existing path).
+ */
+export function deriveGpxRelativePath(rideDate: string, gpxFilename: string, tourSlug?: string): string {
+  if (!rideDate) throw new Error('ride_date is required to compute GPX path');
+  if (!gpxFilename) throw new Error('GPX filename is required to compute GPX path');
+  const [year, month] = rideDate.split('-');
+  if (!year || !month) throw new Error(`Invalid ride_date format: ${rideDate}`);
+  const parts = [year, month];
+  if (tourSlug) parts.push(tourSlug);
+  parts.push(gpxFilename);
+  return parts.join('/');
+}
+
+/**
  * Extract a name-only ride slug from a relative path.
  * Strips date prefixes to produce URL-friendly slugs matching Rails handles.
  *

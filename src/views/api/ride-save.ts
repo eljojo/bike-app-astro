@@ -10,7 +10,7 @@ import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
-import { rideFilePathsFromRelPath } from '../../lib/ride-paths';
+import { rideFilePathsFromRelPath, deriveGpxRelativePath } from '../../lib/ride-paths';
 import { rideDetailToCache, computeRideContentHash } from '../../lib/models/ride-model';
 import { validateSlug } from '../../lib/slug';
 
@@ -88,6 +88,15 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
     parseRequest(body: unknown): RideUpdate {
       const parsed = rideUpdateSchema.parse(body);
       gpxRelPath = parsed.gpxRelativePath;
+
+      // For new rides: derive path from ride_date + first variant's GPX filename
+      if (!gpxRelPath && parsed.variants?.[0]?.gpxContent) {
+        const rideDate = (parsed.frontmatter as Record<string, unknown>).ride_date as string;
+        const tourSlug = (parsed.frontmatter as Record<string, unknown>).tour_slug as string | undefined;
+        const gpxFilename = parsed.variants[0].gpx;
+        gpxRelPath = deriveGpxRelativePath(rideDate, gpxFilename, tourSlug);
+      }
+
       return parsed;
     },
 
