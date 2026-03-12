@@ -9,6 +9,8 @@ import { countryToFlag } from '@/lib/country-flags';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import ContentDetail from '@/components/patterns/ContentDetail.astro';
 import StatBar from '@/components/StatBar.astro';
+import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import type { NearbyPlace } from '@/lib/proximity';
 
 interface Props {
   route: any;
@@ -16,9 +18,10 @@ interface Props {
   tourRides?: any[];
   backLink: string;
   backLabel: string;
+  nearbyPlaces?: NearbyPlace[];
 }
 
-const { route, tour, tourRides = [], backLink, backLabel } = Astro.props;
+const { route, tour, tourRides = [], backLink, backLabel, nearbyPlaces = [] } = Astro.props;
 const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
 const locale = Astro.currentLocale;
 
@@ -95,6 +98,9 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
             alt={`Map of ${name}`}
           />
         </a>
+        {nearbyPlaces.length > 0 && (
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+        )}
       </div>
     )}
   </Fragment>

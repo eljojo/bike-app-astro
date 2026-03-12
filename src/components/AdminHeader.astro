@@ -85,7 +85,7 @@ const avatarUrl = avatarHash
     <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
   )}
   {!blog && <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>}
-  {!blog && <a href="/admin/places" class:list={['admin-nav-link', { active: currentTab === 'places' }]}>Places</a>}
+  <a href="/admin/places" class:list={['admin-nav-link', { active: currentTab === 'places' }]}>Places</a>
   <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
   {user.role === 'admin' && !blog && (
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>

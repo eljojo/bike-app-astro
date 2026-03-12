@@ -6,22 +6,30 @@ import { imageUrl } from '@/lib/image-service';
 import { getCityConfig } from '@/lib/city-config';
 import RideDetailContent from '@/components/RideDetailContent.astro';
 import { t } from '@/i18n';
+import { toPlaceData } from '@/lib/places';
+import { findNearbyPlaces } from '@/lib/proximity';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
+  const allPlaces = await getCollection('places');
+  const placeData = toPlaceData(allPlaces);
   return routes.filter(r => !r.data.tour_slug).map(route => ({
     params: { slug: route.id },
-    props: { route },
+    props: { route, placeData },
   }));
 }
 
-const { route } = Astro.props;
+const { route, placeData } = Astro.props;
 const { name, distance_km, media } = route.data;
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+
+const primaryGpx = route.data.variants[0]?.gpx;
+const primaryTrack = primaryGpx ? route.data.gpxTracks[primaryGpx] : null;
+const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 
 const seoTitle = `${name} | ${config.display_name}`;
 const seoDescription = route.data.ride_date
@@ -34,5 +42,6 @@ const seoDescription = route.data.ride_date
     route={route}
     backLink="/rides"
     backLabel={t('ride.go_back', locale)}
+    nearbyPlaces={nearbyPlaces}
   />
 </Base>
