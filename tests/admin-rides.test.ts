@@ -1,15 +1,105 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
-// Point to jose blog fixtures
-vi.stubEnv('CITY', 'jose');
-vi.stubEnv('CONTENT_DIR', '.data/e2e-content');
+// Create a temp fixture directory for this test
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'admin-rides-test-'));
+
+vi.stubEnv('CITY', 'blog');
+vi.stubEnv('CONTENT_DIR', tmpDir);
 
 // The admin-rides loader imports city-config which caches. Clear the module cache first.
 let loadAdminRideData: typeof import('../src/loaders/admin-rides').loadAdminRideData;
 
 beforeAll(async () => {
+  // Create fixture files
+  const cityDir = path.join(tmpDir, 'blog');
+  const ridesDir = path.join(cityDir, 'rides');
+
+  // Winter ride (standalone, 2026-01-23, CA)
+  const winterDir = path.join(ridesDir, '2026', '01');
+  fs.mkdirSync(winterDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(winterDir, '23-winter-ride.gpx'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+  <trk>
+    <name>Winter Ride</name>
+    <trkseg>
+      <trkpt lat="45.3485" lon="-75.8154"><ele>64</ele><time>2026-01-23T14:30:00Z</time></trkpt>
+      <trkpt lat="45.3600" lon="-75.8300"><ele>70</ele><time>2026-01-23T14:45:00Z</time></trkpt>
+      <trkpt lat="45.3700" lon="-75.8500"><ele>75</ele><time>2026-01-23T15:00:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>`
+  );
+
+  fs.writeFileSync(
+    path.join(winterDir, '23-winter-ride.md'),
+    `---
+name: Winter Ride on the Canal
+status: published
+ride_date: "2026-01-23"
+country: CA
+highlight: true
+---
+
+A cold but beautiful ride along the frozen canal.`
+  );
+
+  // Tour rides (test-tour, 2025-09-09 and 2025-09-10, NL)
+  const tourDir = path.join(ridesDir, '2025', '09', 'test-tour');
+  fs.mkdirSync(tourDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(tourDir, 'index.md'),
+    `---
+name: "Euro Bike Trip"
+country: NL
+---
+
+A two-day cycling tour through the Netherlands.`
+  );
+
+  fs.writeFileSync(
+    path.join(tourDir, '09-day-one.gpx'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test">
+  <trk>
+    <name>Day One</name>
+    <trkseg>
+      <trkpt lat="52.3676" lon="4.9041"><ele>2</ele><time>2025-09-09T08:00:00Z</time></trkpt>
+      <trkpt lat="52.3776" lon="4.9141"><ele>3</ele><time>2025-09-09T08:30:00Z</time></trkpt>
+      <trkpt lat="52.3876" lon="4.9241"><ele>1</ele><time>2025-09-09T09:00:00Z</time></trkpt>
+      <trkpt lat="52.3976" lon="4.9341"><ele>2</ele><time>2025-09-09T09:30:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>`
+  );
+
+  fs.writeFileSync(
+    path.join(tourDir, '10-day-two.gpx'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test">
+  <trk>
+    <name>Day Two</name>
+    <trkseg>
+      <trkpt lat="52.0907" lon="5.1214"><ele>5</ele><time>2025-09-10T09:00:00Z</time></trkpt>
+      <trkpt lat="52.1007" lon="5.1314"><ele>8</ele><time>2025-09-10T09:20:00Z</time></trkpt>
+      <trkpt lat="52.1107" lon="5.1414"><ele>4</ele><time>2025-09-10T09:40:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>`
+  );
+
   const mod = await import('../src/loaders/admin-rides');
   loadAdminRideData = mod.loadAdminRideData;
+});
+
+afterAll(() => {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
 describe('loadAdminRideData', () => {
