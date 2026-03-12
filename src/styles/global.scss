@@ -1232,17 +1232,15 @@ a.go-back-button {
 
   img {
     border-radius: $border-radius;
-    display: block;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
-  .ride-card--cover { display: block; }
-  .ride-card--map { display: none; }
-
-  // If only map (no cover), show map by default
-  .ride-card--map:only-child { display: block; }
+  .ride-card--cover { z-index: 1; }
+  .ride-card--map { z-index: 0; }
 
   @media (max-width: $breakpoint-mobile) {
     display: none;
@@ -1250,8 +1248,8 @@ a.go-back-button {
 }
 
 .ride-card:hover .ride-card--images {
-  .ride-card--cover { display: none; }
-  .ride-card--map { display: block; }
+  .ride-card--cover { z-index: 0; }
+  .ride-card--map { z-index: 1; }
 }
 
 .ride-card--info {
@@ -2216,4 +2214,44 @@ a.go-back-button {
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
+}
+
+.event-elevation-profile {
+  margin-top: 1rem;
+}
+
+// Interactive elevation chart (Preact island on public pages)
+.interactive-elevation {
+  position: relative;
+}
+
+.elevation-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85em;
+  @include muted-text;
+  margin-bottom: 0.5rem;
+}
+
+.elevation-label {
+  font-weight: 600;
+}
+
+.elevation-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: crosshair;
+}
+
+.elevation-tooltip {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  pointer-events: none;
 }

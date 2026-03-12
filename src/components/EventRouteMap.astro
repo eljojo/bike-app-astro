@@ -1,9 +1,17 @@
 ---
 import RouteMap from './RouteMap.astro';
+import InteractiveElevation from './admin/InteractiveElevation.tsx';
+import { computeElevationPoints } from '../lib/elevation-profile';
 import { paths } from '../lib/paths';
 
-/** Same palette as PALETTE in map-init.ts (duplicated to avoid importing client-only module). */
+/** Same palette as TOUR_PALETTE in map-init.ts (duplicated to avoid importing client-only module). */
 const PALETTE = ['#E6194B', '#3CB44B', '#4363D8', '#F58231', '#911EB4', '#42D4F4', '#F032E6', '#BFEF45'];
+
+interface GpxPoint {
+  lat: number;
+  lon: number;
+  ele?: number;
+}
 
 interface RouteItem {
   id: string;
@@ -11,7 +19,7 @@ interface RouteItem {
     name: string;
     distance_km: number;
     variants: { gpx: string; distance_km?: number }[];
-    gpxTracks: Record<string, { polyline: string; distance_m: number; elevation_gain_m: number }>;
+    gpxTracks: Record<string, { polyline: string; distance_m: number; elevation_gain_m: number; points: GpxPoint[] }>;
   };
 }
 
@@ -36,16 +44,18 @@ const polylines = routes.flatMap((route, idx) => {
   }];
 });
 
-// Build route info for the legend
+// Build route info for the legend and elevation profiles
 const routeInfo = routes.map((route, idx) => {
   const variant = route.data.variants[0];
   const track = variant ? route.data.gpxTracks[variant.gpx] : null;
+  const elevPoints = track?.points ? computeElevationPoints(track.points, track.distance_m) : [];
   return {
     name: route.data.name,
     slug: route.id,
     distance_km: route.data.distance_km,
     elevation_gain_m: track?.elevation_gain_m ?? 0,
     color: PALETTE[idx % PALETTE.length],
+    elevPoints,
   };
 });
 ---
@@ -74,5 +84,16 @@ const routeInfo = routes.map((route, idx) => {
         — {routeInfo[0].distance_km} km, {routeInfo[0].elevation_gain_m}m+
       </p>
     )}
+
+    {routeInfo.map((r) => r.elevPoints.length > 0 && (
+      <div class="event-elevation-profile">
+        <InteractiveElevation
+          client:visible
+          points={r.elevPoints}
+          label={routeInfo.length > 1 ? r.name : undefined}
+          color={r.color}
+        />
+      </div>
+    ))}
   </div>
 )}
