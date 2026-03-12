@@ -7,11 +7,16 @@ import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env';
 import { loadAdminRouteList } from '../../lib/load-admin-content';
+import { isBlogInstance } from '../../lib/city-config';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
 const isStaging = env.ENVIRONMENT === 'staging';
 const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha';
+
+if (isBlogInstance()) {
+  return Astro.redirect('/admin/rides');
+}
 
 const { routes: mergedRoutes, pendingSlugs } = await loadAdminRouteList(adminRoutes);
 
