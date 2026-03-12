@@ -1,5 +1,4 @@
 import type { Loader } from 'astro/loaders';
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -7,6 +6,7 @@ import yaml from 'js-yaml';
 import { parseGpx, buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx';
 import { cityDir } from '../lib/config';
 import { getCityConfig } from '../lib/city-config';
+import { computeFileDigest } from '../lib/directory-digest';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown-render';
 import { slugify } from '../lib/slug';
@@ -204,34 +204,6 @@ export function findGpxFiles(baseDir: string, dir: string = ''): string[] {
   return results;
 }
 
-/**
- * Compute an MD5 digest of a ride's relevant files for incremental caching.
- */
-function computeRideDigest(ridesDir: string, gpxRelPath: string): string {
-  const hash = createHash('md5');
-  const gpxAbsPath = path.join(ridesDir, gpxRelPath);
-
-  // Hash the GPX file
-  const gpxStat = fs.statSync(gpxAbsPath);
-  hash.update(`${gpxRelPath}:${gpxStat.mtimeMs}`);
-
-  // Hash sidecar .md if it exists
-  const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-  if (fs.existsSync(sidecarPath)) {
-    const sidecarStat = fs.statSync(sidecarPath);
-    hash.update(`sidecar:${sidecarStat.mtimeMs}`);
-  }
-
-  // Hash sidecar -media.yml if it exists
-  const mediaPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
-  if (fs.existsSync(mediaPath)) {
-    const mediaStat = fs.statSync(mediaPath);
-    hash.update(`media:${mediaStat.mtimeMs}`);
-  }
-
-  return hash.digest('hex');
-}
-
 /** Extract a human-readable name from a GPX filename. */
 export function nameFromFilename(gpxFilename: string, date?: RideDate): string {
   const slug = date
@@ -296,8 +268,9 @@ export function rideLoader(): Loader {
 
         const slug = buildSlug(date, gpxFilename, sidecarFrontmatter.handle as string | undefined);
 
-        // Incremental caching
-        const digest = computeRideDigest(ridesDir, gpxRelPath);
+        // Incremental caching — hash GPX + optional sidecar + optional media YAML
+        const mediaYmlDigestPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
+        const digest = computeFileDigest([gpxAbsPath, sidecarPath, mediaYmlDigestPath]);
         const lastDigest = meta.get(`ride:${slug}:digest`);
         if (lastDigest === digest) {
           skipped++;

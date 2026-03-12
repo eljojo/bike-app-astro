@@ -1,11 +1,11 @@
 import type { Loader } from 'astro/loaders';
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { cityDir } from '../lib/config';
+import { computeDirectoryDigest } from '../lib/directory-digest';
 import { renderMarkdownHtml } from '../lib/markdown-render';
 import { loadLocaleTranslations } from './locale-content';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
@@ -27,37 +27,6 @@ export interface RouteMedia {
   lng?: number;
   uploaded_by?: string;
   captured_at?: string;
-}
-
-/**
- * Compute an MD5 digest of a route directory based on file mtimes.
- * Includes top-level files and any files in the variants/ subdirectory.
- */
-function computeRouteDigest(routeDir: string): string {
-  const hash = createHash('md5');
-
-  // Hash top-level files by their mtimes
-  for (const file of fs.readdirSync(routeDir)) {
-    const filePath = path.join(routeDir, file);
-    const stat = fs.statSync(filePath);
-    if (stat.isFile()) {
-      hash.update(`${file}:${stat.mtimeMs}`);
-    }
-  }
-
-  // Hash variant files
-  const variantsDir = path.join(routeDir, 'variants');
-  if (fs.existsSync(variantsDir)) {
-    for (const file of fs.readdirSync(variantsDir)) {
-      const filePath = path.join(variantsDir, file);
-      const stat = fs.statSync(filePath);
-      if (stat.isFile()) {
-        hash.update(`variants/${file}:${stat.mtimeMs}`);
-      }
-    }
-  }
-
-  return hash.digest('hex');
 }
 
 export function routeLoader(): Loader {
@@ -82,7 +51,7 @@ export function routeLoader(): Loader {
         if (!fs.existsSync(indexPath)) continue;
 
         // Incremental caching: skip unchanged routes
-        const digest = computeRouteDigest(routeDir);
+        const digest = computeDirectoryDigest(routeDir, { includeSubdirs: ['variants'] });
         const lastDigest = meta.get(`route:${slug}:digest`);
         if (lastDigest === digest) {
           logger.info(`Skipping unchanged route: ${slug}`);
