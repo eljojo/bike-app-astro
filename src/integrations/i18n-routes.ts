@@ -49,7 +49,7 @@ const blogStaticRoutes = [
 /** Club-only pages (randonneuring clubs, cycling organizations). */
 const clubPages = [
   { pattern: '/events', entrypoint: view('events/index.astro') },
-  { pattern: '/events/[slug]', entrypoint: view('events/club-detail.astro') },
+  { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
   { pattern: '/routes', entrypoint: view('routes/index.astro') },
   { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
   { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
@@ -58,7 +58,7 @@ const clubPages = [
 
 const clubStaticRoutes = [
   ...wikiStaticRoutes,
-  { pattern: '/events/[slug]/[route].gpx', entrypoint: view('events/download-gpx.ts') },
+  { pattern: '/events/[...path].gpx', entrypoint: view('events/download-gpx.ts') },
 ];
 
 export function i18nRoutes(): AstroIntegration {

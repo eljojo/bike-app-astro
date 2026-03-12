@@ -10,7 +10,7 @@ export const prerender = true;
 export const getStaticPaths: GetStaticPaths = async () => {
   const events = await getCollection('events');
   const allRoutes = await getCollection('routes');
-  const results: { params: { slug: string; route: string }; props: Record<string, unknown> }[] = [];
+  const results: { params: { path: string }; props: Record<string, unknown> }[] = [];
 
   for (const event of events) {
     const routeSlugs = event.data.routes ?? [];
@@ -25,7 +25,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
         const gpxFilePath = path.join(cityDir, 'routes', route.id, variant.gpx);
         if (fs.existsSync(gpxFilePath)) {
           results.push({
-            params: { slug: event.id, route: `${routeSlug}-${variantKey}` },
+            params: { path: `${event.id}/${routeSlug}-${variantKey}` },
             props: {
               gpxFilePath,
               filename: `${event.data.name}-${route.data.name}-${variantKey}.gpx`,
