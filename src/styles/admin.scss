@@ -2166,3 +2166,123 @@
     font-size: 0.8rem;
   }
 }
+
+// Strava import button
+.strava-import-btn {
+  margin-left: 0.5rem;
+}
+
+// Strava activity browser overlay
+.strava-browser-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.strava-browser {
+  background: $color-bg;
+  border-radius: $border-radius;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+  }
+}
+
+.strava-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid $color-border;
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+}
+
+.strava-browser-loading,
+.strava-browser-empty {
+  padding: 2rem;
+  text-align: center;
+  color: $color-text-muted;
+}
+
+.strava-activity-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.strava-activity-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+}
+
+.strava-activity-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+}
+
+.strava-activity-name {
+  font-weight: 600;
+}
+
+.strava-activity-date {
+  font-size: 0.85rem;
+  color: $color-text-muted;
+}
+
+.strava-activity-card-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: $color-text-muted;
+}
+
+.strava-activity-type {
+  padding: 0.1rem 0.4rem;
+  border-radius: $border-radius;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 0.75rem;
+}
+
+.strava-browser-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid $color-border;
+}

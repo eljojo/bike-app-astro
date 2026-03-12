@@ -23,6 +23,18 @@ interface TourInfo {
   ride_count?: number;
 }
 
+interface StravaActivityItem {
+  id: number;
+  name: string;
+  sport_type: string;
+  distance: number;
+  elapsed_time: number;
+  start_date: string;
+  start_date_local: string;
+  map: { summary_polyline: string };
+  photo_count: number;
+}
+
 interface Props {
   initialData: RideDetail & { contentHash?: string; isNew?: boolean; gpxRelativePath?: string };
   cdnUrl: string;
@@ -30,9 +42,28 @@ interface Props {
   mapThumbnail?: string;
   rideLabels?: Record<string, string>;
   tours?: TourInfo[];
+  stravaConnected?: boolean;
 }
 
-export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels, tours = [] }: Props) {
+function formatDistance(meters: number): string {
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -45,6 +76,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   const [country, setCountry] = useState(initialData.country || '');
   const [tourSlug, setTourSlug] = useState(initialData.tour_slug || '');
   const [highlight, setHighlight] = useState(initialData.highlight || false);
+  const [privacyZone, setPrivacyZone] = useState(initialData.privacy_zone ?? false);
+  const [stravaId, setStravaId] = useState(initialData.strava_id || '');
 
   // Mobile tabs
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
@@ -54,6 +87,14 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
 
   // Textarea ref (hydration workaround — see AGENTS.md)
   const bodyRef = useTextareaValue(body);
+
+  // Strava browser state
+  const [stravaBrowsing, setStravaBrowsing] = useState(false);
+  const [stravaActivities, setStravaActivities] = useState<StravaActivityItem[]>([]);
+  const [stravaLoading, setStravaLoading] = useState(false);
+  const [stravaImporting, setStravaImporting] = useState(false);
+  const [stravaError, setStravaError] = useState('');
+  const [stravaPage, setStravaPage] = useState(1);
 
   // Drag-and-drop
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -79,6 +120,89 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
       }]);
     };
     reader.readAsText(file);
+  }
+
+  // Strava import
+  async function openStravaBrowser() {
+    setStravaBrowsing(true);
+    setStravaError('');
+    setStravaPage(1);
+    await loadStravaActivities(1);
+  }
+
+  async function loadStravaActivities(page: number) {
+    setStravaLoading(true);
+    setStravaError('');
+    try {
+      const res = await fetch(`/api/strava/activities?page=${page}&per_page=20`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to load activities (${res.status})`);
+      }
+      const activities: StravaActivityItem[] = await res.json();
+      setStravaActivities(activities);
+      setStravaPage(page);
+    } catch (err) {
+      setStravaError(err instanceof Error ? err.message : 'Failed to load activities');
+    } finally {
+      setStravaLoading(false);
+    }
+  }
+
+  async function importStravaActivity(activity: StravaActivityItem) {
+    setStravaImporting(true);
+    setStravaError('');
+    try {
+      const res = await fetch('/api/strava/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activityId: activity.id,
+          activityName: activity.name,
+          startDate: activity.start_date,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Import failed (${res.status})`);
+      }
+      const result = await res.json();
+
+      // Populate editor with imported data
+      setName(result.name || activity.name);
+      setStravaId(result.strava_id);
+      setPrivacyZone(false); // Strava already trims
+
+      // Set GPX variant
+      const dateStr = activity.start_date_local?.split('T')[0] || '';
+      const gpxFilename = `${dateStr}-${slugify(activity.name)}.gpx`;
+      if (dateStr && !rideDate) setRideDate(dateStr);
+      setSlug(slugify(`${dateStr}-${activity.name}`));
+      setVariants([{
+        name: activity.name,
+        gpx: gpxFilename,
+        isNew: true,
+        gpxContent: result.gpxContent,
+      }]);
+
+      // Add imported photos as media
+      if (result.photos?.length) {
+        const importedMedia: MediaItem[] = result.photos.map((p: { key: string; caption: string; lat?: number; lng?: number }, i: number) => ({
+          key: p.key,
+          caption: p.caption,
+          lat: p.lat,
+          lng: p.lng,
+          cover: i === 0,
+        }));
+        setMedia(importedMedia);
+      }
+
+      setStravaBrowsing(false);
+    } catch (err) {
+      setStravaError(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setStravaImporting(false);
+    }
   }
 
   // Keyboard shortcuts for markdown
@@ -126,6 +250,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
         country: country || undefined,
         tour_slug: tourSlug || undefined,
         highlight: highlight || undefined,
+        strava_id: stravaId || undefined,
+        privacy_zone: privacyZone || undefined,
       },
       body,
       media,
@@ -147,6 +273,61 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
       {dragging && (
         <div class="drop-overlay">
           <div class="drop-overlay-content">Drop photos or GPX files to add to ride</div>
+        </div>
+      )}
+
+      {/* Strava activity browser modal */}
+      {stravaBrowsing && (
+        <div class="strava-browser-overlay" onClick={(e) => { if (e.target === e.currentTarget) setStravaBrowsing(false); }}>
+          <div class="strava-browser">
+            <div class="strava-browser-header">
+              <h3>Import from Strava</h3>
+              <button type="button" class="btn-small" onClick={() => setStravaBrowsing(false)}>Close</button>
+            </div>
+            {stravaError && <div class="auth-error">{stravaError}</div>}
+            {stravaLoading ? (
+              <div class="strava-browser-loading">Loading activities...</div>
+            ) : (
+              <div class="strava-activity-list">
+                {stravaActivities.map((activity) => (
+                  <button
+                    key={activity.id}
+                    type="button"
+                    class="strava-activity-card"
+                    onClick={() => importStravaActivity(activity)}
+                    disabled={stravaImporting}
+                  >
+                    <div class="strava-activity-card-main">
+                      <span class="strava-activity-name">{activity.name}</span>
+                      <span class="strava-activity-date">{formatDate(activity.start_date_local)}</span>
+                    </div>
+                    <div class="strava-activity-card-meta">
+                      <span>{formatDistance(activity.distance)}</span>
+                      <span>{formatDuration(activity.elapsed_time)}</span>
+                      <span class="strava-activity-type">{activity.sport_type}</span>
+                      {activity.photo_count > 0 && <span>{activity.photo_count} photos</span>}
+                    </div>
+                  </button>
+                ))}
+                {stravaActivities.length === 0 && !stravaLoading && (
+                  <div class="strava-browser-empty">No cycling activities found.</div>
+                )}
+              </div>
+            )}
+            {stravaImporting && <div class="strava-browser-loading">Importing activity...</div>}
+            <div class="strava-browser-pagination">
+              {stravaPage > 1 && (
+                <button type="button" class="btn-small" onClick={() => loadStravaActivities(stravaPage - 1)} disabled={stravaLoading}>
+                  Previous
+                </button>
+              )}
+              {stravaActivities.length === 20 && (
+                <button type="button" class="btn-small" onClick={() => loadStravaActivities(stravaPage + 1)} disabled={stravaLoading}>
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -245,6 +426,13 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
                     {' '}Highlight on home page
                   </label>
                 </div>
+
+                <div class="form-field form-field--inline">
+                  <label>
+                    <input type="checkbox" checked={privacyZone} onChange={() => setPrivacyZone(!privacyZone)} />
+                    {' '}Apply privacy zone
+                  </label>
+                </div>
               </div>
             )}
           </div>
@@ -272,6 +460,11 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
                 <button type="button" class="btn-primary" onClick={() => gpxInputRef.current?.click()}>
                   Upload GPX file
                 </button>
+                {stravaConnected && (
+                  <button type="button" class="btn-secondary strava-import-btn" onClick={openStravaBrowser}>
+                    Import from Strava
+                  </button>
+                )}
                 <span class="ride-gpx-hint">or drag and drop</span>
               </div>
             )}
