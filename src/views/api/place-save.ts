@@ -1,8 +1,8 @@
 // AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
-import yaml from 'js-yaml';
 import { z } from 'astro/zod';
+import { serializeMdFile } from '../../lib/file-serializers';
 import { CITY } from '../../lib/config';
 import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
@@ -145,12 +145,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
       fm.photo_key = update.frontmatter.photo_key;
     }
 
-    const frontmatterStr = yaml.dump(fm, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
-
-    const content = `---\n${frontmatterStr}\n---\n`;
-    files.push({ path: placePath, content });
+    files.push({ path: placePath, content: serializeMdFile(fm) });
 
     return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, placeSlug: placeId, mergedParked };
   },

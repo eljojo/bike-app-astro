@@ -4,6 +4,7 @@ import type { APIContext } from 'astro';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import adminEvents from 'virtual:bike-app/admin-events';
+import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { CITY } from '../../lib/config';
 import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
@@ -210,21 +211,13 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
         if (update.organizer.website) orgFm.website = update.organizer.website;
         if (update.organizer.instagram) orgFm.instagram = update.organizer.instagram;
 
-        const orgContent = `---\n${yaml.dump(orgFm, { lineWidth: -1, quotingType: '"', forceQuotes: false }).trimEnd()}\n---\n`;
+        const orgContent = serializeMdFile(orgFm);
         files.push({ path: `${CITY}/organizers/${orgSlug}.md`, content: orgContent });
       }
     }
 
     // Serialize event file
-    const frontmatterStr = yaml.dump(fm, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
-
-    const eventContent = update.body.trim()
-      ? `---\n${frontmatterStr}\n---\n\n${update.body}\n`
-      : `---\n${frontmatterStr}\n---\n`;
-
-    files.unshift({ path: eventPath, content: eventContent });
+    files.unshift({ path: eventPath, content: serializeMdFile(fm, update.body) });
 
     // Build media.yml for directory-based events
     let addedMediaKeys: string[] = [];
@@ -256,8 +249,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
           if (m.type != null) entry.type = m.type;
           return entry;
         });
-        const mediaYaml = yaml.dump(mediaItems, { flowLevel: -1, lineWidth: -1 });
-        files.push({ path: mediaPath, content: mediaYaml });
+        files.push({ path: mediaPath, content: serializeYamlFile(mediaItems) });
       } else if (currentMedia) {
         deletePaths.push(mediaPath);
       }

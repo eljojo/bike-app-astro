@@ -4,6 +4,7 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
+import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env';
@@ -260,16 +261,7 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       }
 
       // Build sidecar .md
-      const frontmatterStr = yaml.dump(mergedFrontmatter, {
-        lineWidth: -1, quotingType: '"', forceQuotes: false,
-      }).trimEnd();
-
-      files.push({
-        path: paths.sidecar,
-        content: update.body.trim()
-          ? `---\n${frontmatterStr}\n---\n\n${update.body}\n`
-          : `---\n${frontmatterStr}\n---\n`,
-      });
+      files.push({ path: paths.sidecar, content: serializeMdFile(mergedFrontmatter, update.body) });
 
       // Build media file
       if (update.media) {
@@ -283,8 +275,7 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
 
         const merged = mergeMedia(update.media, existingMedia);
         if (merged.length > 0) {
-          const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
-          files.push({ path: paths.media, content: mediaYaml });
+          files.push({ path: paths.media, content: serializeYamlFile(merged) });
         } else if (currentMedia) {
           // All media removed — delete the file
           deletePaths.push(paths.media);

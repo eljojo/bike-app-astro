@@ -4,6 +4,7 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
+import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { CITY } from '../../lib/config';
@@ -253,11 +254,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     }
 
     // Build index.md
-    const frontmatterStr = yaml.dump(mergedFrontmatter, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
-
-    files.push({ path: `${basePath}/index.md`, content: `---\n${frontmatterStr}\n---\n\n${update.body}\n` });
+    files.push({ path: `${basePath}/index.md`, content: serializeMdFile(mergedFrontmatter, update.body) });
 
     // Build translation files (index.fr.md, etc.)
     if (update.translations) {
@@ -275,14 +272,8 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
           const transFm: Record<string, string> = { ...existingTransFm };
           if (trans.name) transFm.name = trans.name;
           if (trans.tagline) transFm.tagline = trans.tagline;
-          const fmStr = Object.keys(transFm).length > 0
-            ? yaml.dump(transFm, { lineWidth: -1, quotingType: '"', forceQuotes: false }).trimEnd()
-            : '';
-          const transContent = trans.body.trim()
-            ? `---\n${fmStr}\n---\n\n${trans.body}\n`
-            : fmStr ? `---\n${fmStr}\n---\n` : '';
-          if (transContent) {
-            files.push({ path: transPath, content: transContent });
+          if (Object.keys(transFm).length > 0 || trans.body.trim()) {
+            files.push({ path: transPath, content: serializeMdFile(transFm, trans.body) });
           }
         } else {
           // All fields empty — delete the translation file if it exists
@@ -311,8 +302,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
 
       const merged = mergeMedia(update.media, existingMedia);
       if (merged.length > 0) {
-        const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
-        files.push({ path: `${basePath}/media.yml`, content: mediaYaml });
+        files.push({ path: `${basePath}/media.yml`, content: serializeYamlFile(merged) });
       }
     }
 
@@ -340,7 +330,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     const mergedParked = mergeParkedPhotos(existingParked, toAdd, unparkedKeys);
 
     if (mergedParked.length > 0) {
-      files.push({ path: parkedPath, content: yaml.dump(mergedParked, { flowLevel: -1, lineWidth: -1 }) });
+      files.push({ path: parkedPath, content: serializeYamlFile(mergedParked) });
     } else if (existingParked.length > 0) {
       deletePaths.push(parkedPath);
     }
