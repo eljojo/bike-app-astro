@@ -31,7 +31,7 @@ interface WaypointMarker {
 }
 
 interface Props {
-  polylines: { name: string; encoded: string; color?: string; url?: string }[];
+  polylines: { name: string; encoded: string; color?: string; url?: string; distance_km?: number; ride_date?: string; moving_time_s?: number }[];
   places?: Place[];
   photos?: MapPhoto[];
   waypointMarkers?: WaypointMarker[];
@@ -87,11 +87,31 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
     const styleKey = loadStylePreference();
     const map = initMap({ el, center, zoom, styleUrl: getStyleUrl(styleKey) });
 
+    function buildPolylinePopup(pl: any): string {
+      const title = pl.url
+        ? `<a href="${pl.url}" style="font-weight:bold;text-decoration:underline">${html`${pl.name}`}</a>`
+        : html`${pl.name}`;
+
+      if (!pl.distance_km && !pl.ride_date) return title;
+
+      const meta: string[] = [];
+      if (pl.ride_date) {
+        const [y, m, d] = pl.ride_date.split('-').map(Number);
+        meta.push(new Date(y, m - 1, d).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }));
+      }
+      if (pl.distance_km) meta.push(`${Math.round(pl.distance_km)} km`);
+      if (pl.moving_time_s) {
+        const h = Math.floor(pl.moving_time_s / 3600);
+        const m = Math.floor((pl.moving_time_s % 3600) / 60);
+        meta.push(h > 0 ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m`);
+      }
+
+      return `<div class="ride-popup">${title}<div class="ride-popup-meta">${meta.join(' · ')}</div></div>`;
+    }
+
     const polylineData = polylines.map((pl: any) => ({
       encoded: pl.encoded,
-      popup: pl.url
-        ? `<a href="${pl.url}" style="font-weight:bold;text-decoration:underline">${html`${pl.name}`}</a>`
-        : html`${pl.name}`,
+      popup: buildPolylinePopup(pl),
       ...(pl.color && { color: pl.color }),
     }));
 

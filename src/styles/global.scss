@@ -469,6 +469,17 @@ a.go-back-button {
     color: $color-accent;
   }
 }
+.ride-popup {
+  min-width: 180px;
+  max-width: 280px;
+  line-height: 1.4;
+  font-size: 0.875rem;
+}
+.ride-popup-meta {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin-top: 0.125rem;
+}
 .gps-dot {
   width: 16px;
   height: 16px;
