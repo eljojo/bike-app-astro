@@ -30,6 +30,19 @@ If you change the exports of these files, you MUST also update the transform in 
 - `authorize()` in `authorize.ts` returns `SessionUser | Response` (401/403) — NOT a boolean. For boolean UI-level checks, use `can()`.
 - `withBatch()` in `db/transaction.ts` collects unawaited query builders. Do NOT await inside the callback — it executes prematurely instead of batching.
 
+## Instance Feature Flags
+
+Use `getInstanceFeatures()` from `instance-features.ts` for all feature/capability checks. It returns an `InstanceFeatures` object with semantic boolean flags like `hasRides`, `hasEvents`, `allowsRegistration`, `showsLicenseNotice`.
+
+**Prefer feature flags over identity checks.** Instead of `if (isBlogInstance())`, write `if (!features.allowsRegistration)` or `if (features.hasRides)`. The flags communicate *why* something is enabled/disabled.
+
+**Keep `isBlogInstance()`/`isClubInstance()` only for structural decisions** — choosing which content loaders, virtual modules, route sets, or admin pages to register. These are about instance identity, not features. They live in:
+- `content.config.ts` — choosing ride vs route loader
+- `build-data-plugin.ts` — which virtual modules to register
+- `integrations/i18n-routes.ts` — which route sets to inject
+- `integrations/admin-routes.ts` — which admin pages to register
+- `integration.ts` — redirect generation
+
 ## CSP
 
 When adding external domains or inline scripts, update `csp.ts`. For SSR pages, use `is:inline nonce={cspNonce}`. For static pages (prerender=true), use bare `<script>` tags — Astro hashes them. Never use `is:inline` on static pages.
