@@ -127,94 +127,11 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
     },
 
     computeContentHash(currentFiles: CurrentFiles): string {
-      if (!currentFiles.primaryFile) {
-        throw new Error('Cannot compute ride hash without primary file content');
-      }
-      const auxFiles = currentFiles.auxiliaryFiles || {};
-      const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
-      const gpxContent = gpxPath ? auxFiles[gpxPath]?.content : undefined;
-      const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
-      const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
-      return computeRideContentHash(currentFiles.primaryFile.content, gpxContent, mediaContent);
+      return computeRideContentHashFromFiles(currentFiles);
     },
 
     buildFreshData(slug: string, currentFiles: CurrentFiles): string {
-      if (!currentFiles.primaryFile) {
-        throw new Error('Cannot build ride cache data without primary file content');
-      }
-
-      const { data: fm, content: body } = matter(currentFiles.primaryFile.content);
-      const auxFiles = currentFiles.auxiliaryFiles || {};
-
-      // Parse GPX for distance/elevation
-      const gpxPath = Object.keys(auxFiles).find(p => p.endsWith('.gpx'));
-      const gpxFile = gpxPath ? auxFiles[gpxPath] : null;
-      let distance_km = 0;
-      let elapsed_time_s: number | undefined;
-      let moving_time_s: number | undefined;
-      let average_speed_kmh: number | undefined;
-      let gpxFilename = '';
-
-      if (gpxFile) {
-        try {
-          const track = parseGpx(gpxFile.content);
-          distance_km = Math.round(track.distance_m / 100) / 10;
-          elapsed_time_s = track.elapsed_time_s || undefined;
-          moving_time_s = track.moving_time_s || undefined;
-          average_speed_kmh = track.average_speed_kmh || undefined;
-        } catch {
-          // GPX parse failure — leave metrics at defaults
-        }
-        if (gpxPath) {
-          const parts = gpxPath.split('/');
-          gpxFilename = parts[parts.length - 1];
-        }
-      }
-
-      // Parse media
-      const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
-      const mediaFile = mediaPath ? auxFiles[mediaPath] : null;
-      let media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number }> = [];
-      if (mediaFile) {
-        const rawMedia = (yaml.load(mediaFile.content) as Array<Record<string, unknown>>) || [];
-        media = rawMedia
-          .filter(m => m.type === 'photo')
-          .map(m => {
-            const item: Record<string, unknown> = { key: m.key as string };
-            if (m.caption != null) item.caption = m.caption;
-            if (m.cover != null) item.cover = m.cover;
-            if (m.width != null) item.width = m.width;
-            if (m.height != null) item.height = m.height;
-            if (m.lat != null) item.lat = m.lat;
-            if (m.lng != null) item.lng = m.lng;
-            return item as { key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number };
-          });
-      }
-
-      const detail: Record<string, unknown> = {
-        slug,
-        name: (fm.name as string) || slug,
-        tagline: (fm.tagline as string) || '',
-        tags: Array.isArray(fm.tags) ? fm.tags : [],
-        status: (fm.status as string) || 'published',
-        body: body.trim(),
-        media,
-        variants: [{
-          name: (fm.name as string) || slug,
-          gpx: gpxFilename,
-          distance_km,
-        }],
-        contentHash: this.computeContentHash(currentFiles),
-        ride_date: (fm.ride_date as string) || '',
-        country: fm.country as string | undefined,
-        tour_slug: fm.tour_slug as string | undefined,
-        highlight: typeof fm.highlight === 'boolean' ? fm.highlight : undefined,
-        elapsed_time_s,
-        moving_time_s,
-        average_speed_kmh,
-      };
-
-      return rideDetailToCache(detail);
+      return buildFreshRideData(slug, currentFiles);
     },
 
     async buildFileChanges(update, _slug, currentFiles) {
