@@ -6,6 +6,7 @@ import { getCollection } from 'astro:content';
 import { parseLocalDate } from '@/lib/date-utils';
 import { getCityConfig } from '@/lib/city-config';
 import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -20,6 +21,19 @@ const upcoming = events
 const past = events
   .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
   .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime());
+
+function groupByYear(evts: typeof events) {
+  const groups: Record<number, typeof events> = {};
+  for (const e of evts) {
+    const year = parseLocalDate(e.data.start_date).getFullYear();
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(e);
+  }
+  return Object.entries(groups)
+    .sort(([a], [b]) => Number(b) - Number(a));
+}
+
+const pastByYear = groupByYear(past);
 ---
 
 <Base title={`${t('events.title', locale)} | ${config.display_name}`}>
@@ -38,6 +52,7 @@ const past = events
           organizer={e.data.organizer}
           poster_key={e.data.poster_key}
           eventId={e.id}
+          href={paths.event(e.id, locale)}
         />
       ))}
     </div>
@@ -45,41 +60,24 @@ const past = events
     <p>{t('events.no_upcoming', locale)}</p>
   )}
 
-  {past.length > 0 && (
+  {pastByYear.length > 0 && pastByYear.map(([year, evts]) => (
     <div>
-      <h2>{t('calendar.past', locale)}</h2>
-      <button class="action-button" id="show-past-events"
-        data-show={t('calendar.show_past', locale)}
-        data-hide={t('calendar.hide_past', locale)}>
-        {t('calendar.show_past', locale)}
-      </button>
-      <div class="past-events" style="display: none;">
-        <div class="events-grid">
-          {past.map(e => (
-            <EventCard
-              name={e.data.name}
-              start_date={e.data.start_date}
-              end_date={e.data.end_date}
-              distances={e.data.distances}
-              location={e.data.location}
-              organizer={e.data.organizer}
-              poster_key={e.data.poster_key}
-              eventId={e.id}
-            />
-          ))}
-        </div>
+      <h2>{year}</h2>
+      <div class="events-grid">
+        {evts.map(e => (
+          <EventCard
+            name={e.data.name}
+            start_date={e.data.start_date}
+            end_date={e.data.end_date}
+            distances={e.data.distances}
+            location={e.data.location}
+            organizer={e.data.organizer}
+            poster_key={e.data.poster_key}
+            eventId={e.id}
+            href={paths.event(e.id, locale)}
+          />
+        ))}
       </div>
     </div>
-  )}
-
-  <script>
-    document.getElementById('show-past-events')?.addEventListener('click', (e) => {
-      const target = (e.target as HTMLElement);
-      const pastEl = document.querySelector('.past-events') as HTMLElement;
-      if (pastEl) {
-        pastEl.style.display = pastEl.style.display === 'none' ? '' : 'none';
-        target.textContent = pastEl.style.display === 'none' ? target.dataset.show! : target.dataset.hide!;
-      }
-    });
-  </script>
+  ))}
 </Base>
