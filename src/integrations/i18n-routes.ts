@@ -14,6 +14,7 @@ const sharedPages = [
 /** Wiki-only pages. */
 const wikiPages = [
   { pattern: '/calendar', entrypoint: view('calendar.astro') },
+  { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
   { pattern: '/map', entrypoint: view('map.astro') },
   { pattern: '/routes', entrypoint: view('routes/index.astro') },
   { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
