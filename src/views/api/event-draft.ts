@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { getCityConfig } from '../../lib/city-config';
 import { db } from '../../lib/get-db';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/rate-limit';
@@ -213,7 +213,7 @@ type AiBinding = { run(model: string, input: unknown): Promise<{ response?: stri
 async function extractFromPoster(
   ai: AiBinding, model: string, posterKey: string,
 ): Promise<{ extracted: Record<string, unknown>; durationMs: number }> {
-  const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+  const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
   const imageUrl = `${cdnUrl}/${posterKey}`;
   const imageResponse = await fetch(imageUrl);
   if (!imageResponse.ok) {

@@ -6,13 +6,13 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import adminEvents from 'virtual:bike-app/admin-events';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL } from '../../lib/config';
 import { loadAdminEventList } from '../../lib/load-admin-content';
+import { getCityConfig } from '../../lib/city-config';
 import '../../styles/admin.scss';
 
 const { events, pendingIds } = await loadAdminEventList(adminEvents);
 const orgMap = new Map(adminOrganizers.map(o => [o.slug, o.name]));
-const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
 // Resolve organizer display name from either slug or inline object
 function orgName(organizer?: string | { name: string }) {

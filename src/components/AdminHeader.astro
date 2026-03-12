@@ -1,8 +1,7 @@
 ---
 import { createHash } from 'node:crypto';
 import { env } from '../lib/env';
-import { CONTACT_EMAIL } from '../lib/config';
-import { isBlogInstance } from '../lib/city-config';
+import { getCityConfig, isBlogInstance } from '../lib/city-config';
 
 interface Props {
   user: { username: string; role: string; email?: string | null };
@@ -12,6 +11,7 @@ interface Props {
 const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
 const blog = isBlogInstance();
+const contactEmail = getCityConfig().author.email;
 const cspNonce = Astro.locals.cspNonce;
 const avatarHash = user.email
   ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
@@ -28,7 +28,7 @@ const avatarUrl = avatarHash
   <div class="community-banner" id="community-banner">
     This is a community wiki — feel free to browse and edit routes and events.
     Your changes go live within a few minutes.
-    Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+    Questions? Email <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
     <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
   </div>
 )}

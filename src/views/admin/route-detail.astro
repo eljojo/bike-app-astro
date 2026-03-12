@@ -7,12 +7,12 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import parkedPhotosData from 'virtual:bike-app/parked-photos';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/tag-translations';
 import { defaultLocale } from '../../lib/locale-utils';
-import { isBlogInstance } from '../../lib/city-config';
+import { getCityConfig, isBlogInstance } from '../../lib/city-config';
 
 const { slug } = Astro.params;
 
@@ -31,7 +31,7 @@ if (result.notFound) return new Response(null, { status: 404 });
 const routeData = result.data;
 
 const parkedPhotos = await loadParkedPhotosWithOverlay(parkedPhotosData);
-const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const tagTranslations = loadTagTranslations();
 const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.tags))].sort();
 ---

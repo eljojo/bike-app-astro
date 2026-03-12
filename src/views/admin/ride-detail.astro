@@ -6,7 +6,8 @@ import RideEditor from '../../components/admin/RideEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRideDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
+import { getCityConfig } from '../../lib/city-config';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { rideDetailFromCache } from '../../lib/models/ride-model';
 import { t } from '@/i18n';
@@ -51,7 +52,7 @@ if (isNew) {
   rideData = result.data;
 }
 
-const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const title = isNew ? 'New Ride' : `Edit: ${rideData.name}`;
 const locale = Astro.currentLocale;
 const rideLabels = {

@@ -22,7 +22,7 @@ If you change the exports of these files, you MUST also update the transform in 
 
 ## Config Layers — Don't Confuse Them
 
-- **Build-time** (`config.ts`): reads `process.env` at module evaluation. `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
+- **Build-time** (`config.ts`): reads `process.env` at module evaluation. `CONTENT_DIR`, `CITY`, `cityDir`.
 - **Runtime** (`env.ts`): reads Cloudflare bindings or local env at request time. `GITHUB_TOKEN`, `GIT_OWNER`, `GIT_DATA_REPO`, `DB`, `BUCKET`, etc. via `AppEnv`.
 
 ## Key Function Signatures

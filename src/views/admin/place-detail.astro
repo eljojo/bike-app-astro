@@ -6,7 +6,7 @@ import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminPlaceDetails from 'virtual:bike-app/admin-place-detail';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { placeDetailFromCache } from '../../lib/models/place-model';
@@ -22,7 +22,7 @@ const result = await loadDetailPageData({
 if (result.notFound) return new Response(null, { status: 404 });
 const placeData = result.data;
 
-const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const user = Astro.locals.user;
 const cityConfig = getCityConfig();
