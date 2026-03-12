@@ -10,7 +10,7 @@ import RidePreview from './RidePreview';
 import { useEditorState } from './useEditorState';
 import { useTextareaValue, useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
-import { extractRideDate } from '../../lib/gpx';
+import { extractRideDate, parseGpx } from '../../lib/gpx';
 import { insertMarkdown } from './markdown-toolbar-utils';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
@@ -123,6 +123,32 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
       setPrivacyZone(false);
     } catch { /* ignore malformed data */ }
   }, []);
+
+  // Auto-detect country from GPX first trackpoint via Nominatim
+  useEffect(() => {
+    if (country) return; // Don't override existing country
+    const gpx = variants[0];
+    if (!gpx?.gpxContent) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const track = parseGpx(gpx.gpxContent!);
+        if (!track.points.length) return;
+        const { lat, lon } = track.points[0];
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=3`,
+          { headers: { 'Accept-Language': 'en' } },
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const code = data?.address?.country_code;
+        if (code && !cancelled) setCountry(code.toUpperCase());
+      } catch { /* Nominatim failures are non-critical */ }
+    })();
+
+    return () => { cancelled = true; };
+  }, [variants]);
 
   // Drag-and-drop
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
