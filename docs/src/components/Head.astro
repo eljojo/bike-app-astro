@@ -8,7 +8,6 @@ const isProduction = import.meta.env.DOCS_ENV !== 'staging';
 <Default {...Astro.props}><slot /></Default>
 <ViewTransitions />
 {isProduction && <script>
-  import Plausible from 'plausible-tracker';
-  const { enableAutoPageviews } = Plausible({ domain: 'whereto.bike' });
-  enableAutoPageviews();
+  import { init } from '@plausible-analytics/tracker';
+  init({ domain: 'whereto.bike', autoCapturePageviews: true });
 </script>}
