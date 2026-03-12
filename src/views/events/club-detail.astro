@@ -1,6 +1,7 @@
 ---
 import Base from '@/layouts/Base.astro';
 import EventInfoCard from '@/components/EventInfoCard.astro';
+import EventRouteMap from '@/components/EventRouteMap.astro';
 import WaypointTimeline from '@/components/WaypointTimeline.astro';
 import ResultsTable from '@/components/ResultsTable.astro';
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
@@ -19,13 +20,14 @@ export const prerender = true;
 export async function getStaticPaths() {
   const events = await getCollection('events');
   const organizers = await getCollection('organizers');
+  const allRoutes = await getCollection('routes');
   return events.map(event => ({
     params: { slug: event.id },
-    props: { event, organizers },
+    props: { event, organizers, allRoutes },
   }));
 }
 
-const { event, organizers } = Astro.props;
+const { event, organizers, allRoutes } = Astro.props;
 const { Content } = await render(event);
 const data = event.data;
 
@@ -62,6 +64,12 @@ const jsonLd = eventJsonLd({
   organizer_url: organizerUrl,
   poster_key: data.poster_key,
 });
+
+// Resolve event routes to route collection items
+const routeSlugs = data.routes ?? [];
+const eventRoutes = routeSlugs
+  .map((slug: string) => allRoutes.find((r: { id: string }) => r.id === slug))
+  .filter(Boolean);
 
 const hasWaypoints = data.waypoints && data.waypoints.length > 0;
 const hasResults = data.results && data.results.length > 0;
@@ -104,6 +112,13 @@ const hasResults = data.results && data.results.length > 0;
         <div class="event-detail-body">
           <Content />
         </div>
+
+        {eventRoutes.length > 0 && (
+          <section class="event-detail-section">
+            <h2>{t('events.routes', locale)}</h2>
+            <EventRouteMap routes={eventRoutes} locale={locale} />
+          </section>
+        )}
 
         {hasWaypoints && (
           <section class="event-detail-section">

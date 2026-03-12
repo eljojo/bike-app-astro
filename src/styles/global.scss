@@ -2160,3 +2160,60 @@ a.go-back-button {
     &:hover { text-decoration: underline; }
   }
 }
+
+// Event route map
+.event-route-map-container {
+  height: 400px;
+  border-radius: $border-radius;
+  overflow: hidden;
+
+  .map-container {
+    height: 100%;
+  }
+}
+
+.event-route-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.event-route-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: $color-text;
+  font-size: 0.9rem;
+
+  @include dark-mode { color: $color-text-dark; }
+  &:hover { text-decoration: underline; }
+}
+
+.event-route-legend-swatch {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.event-route-legend-name {
+  font-weight: 600;
+}
+
+.event-route-legend-meta {
+  @include muted-text;
+  font-size: 0.85em;
+}
+
+.event-route-single {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
