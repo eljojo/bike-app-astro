@@ -12,7 +12,7 @@ import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
-import { uploadToLfs } from '../../lib/git-lfs';
+import { commitGpxFile } from '../../lib/git-gpx';
 import { env } from '../../lib/env';
 import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
@@ -228,15 +228,13 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
 
       for (const v of update.variants) {
         if (v.isNew && v.gpxContent) {
-          // Upload GPX to LFS and commit pointer file instead of raw content
-          const token = env.GITHUB_TOKEN;
-          if (token && typeof token === 'string') {
-            const pointer = await uploadToLfs(token, env.GIT_OWNER, env.GIT_DATA_REPO, v.gpxContent);
-            files.push({ path: `${basePath}/${v.gpx}`, content: pointer });
-          } else {
-            // Local dev: commit raw GPX (local git handles LFS via .gitattributes)
-            files.push({ path: `${basePath}/${v.gpx}`, content: v.gpxContent });
-          }
+          files.push(await commitGpxFile({
+            path: `${basePath}/${v.gpx}`,
+            content: v.gpxContent,
+            token: env.GITHUB_TOKEN,
+            owner: env.GIT_OWNER,
+            repo: env.GIT_DATA_REPO,
+          }));
         }
       }
 
