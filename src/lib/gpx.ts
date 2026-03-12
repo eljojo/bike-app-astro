@@ -202,6 +202,28 @@ function computeMaxGradient(points: GpxPoint[]): number {
   return Math.round(maxGrad * 10) / 10;
 }
 
+/** Recompute all GpxTrack metrics from a (possibly filtered) set of points. */
+export function buildTrackFromPoints(points: GpxPoint[]): GpxTrack {
+  if (points.length === 0) return emptyTrack();
+
+  const distance_m = computeDistance(points);
+  const moving_time_s = computeMovingTime(points);
+  const average_speed_kmh = moving_time_s > 0
+    ? Math.round((distance_m / 1000) / (moving_time_s / 3600) * 10) / 10
+    : 0;
+
+  return {
+    points,
+    distance_m,
+    elevation_gain_m: computeElevationGain(points),
+    max_gradient_pct: computeMaxGradient(points),
+    polyline: polyline.encode(points.map(p => [p.lat, p.lon])),
+    elapsed_time_s: computeElapsedTime(points),
+    moving_time_s,
+    average_speed_kmh,
+  };
+}
+
 export function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const R = 6371000;
   const dLat = toRad(b.lat - a.lat);

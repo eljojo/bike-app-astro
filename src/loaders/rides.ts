@@ -4,8 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { parseGpx, type GpxTrack } from '../lib/gpx';
+import { parseGpx, buildTrackFromPoints, type GpxTrack } from '../lib/gpx';
 import { cityDir } from '../lib/config';
+import { getCityConfig } from '../lib/city-config';
+import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown-render';
 import { slugify } from '../lib/slug';
 import type { RouteMedia } from './routes';
@@ -263,6 +265,9 @@ export function rideLoader(): Loader {
         }
       }
 
+      // Load privacy zone config once (if configured for this city)
+      const privacyZone = getCityConfig().privacy_zone;
+
       let loaded = 0;
       let skipped = 0;
 
@@ -297,19 +302,36 @@ export function rideLoader(): Loader {
           continue;
         }
 
-        // Parse GPX, then downsample points to limit memory usage.
+        // Parse GPX, apply privacy zone filter, then downsample points.
         // With 600+ rides, full-resolution points exhaust the heap during builds.
         // The elevation profile needs at most 200 samples; the map uses the polyline.
         let gpxTrack: GpxTrack;
         try {
           const gpxXml = fs.readFileSync(gpxAbsPath, 'utf-8');
           const parsed = parseGpx(gpxXml);
-          const MAX_POINTS = 200;
-          if (parsed.points.length > MAX_POINTS) {
-            const step = Math.floor(parsed.points.length / MAX_POINTS);
-            parsed.points = parsed.points.filter((_, i) => i % step === 0 || i === parsed.points.length - 1);
+
+          // Apply privacy zone filter if enabled for this ride
+          const privacyZoneEnabled = typeof sidecarFrontmatter.privacy_zone === 'boolean'
+            ? sidecarFrontmatter.privacy_zone
+            : privacyZone?.default_enabled ?? false;
+
+          let filteredPoints = parsed.points;
+          if (privacyZoneEnabled && privacyZone) {
+            const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
+            // GpxPoint uses `lon`, privacy zone uses `lng` — map between them
+            const mappedPoints = parsed.points.map(p => ({ ...p, lng: p.lon }));
+            const filtered = filterPrivacyZone(mappedPoints, zone);
+            filteredPoints = filtered.map(({ lng: _lng, ...rest }) => rest);
           }
-          gpxTrack = parsed;
+
+          const MAX_POINTS = 200;
+          if (filteredPoints.length > MAX_POINTS) {
+            const step = Math.floor(filteredPoints.length / MAX_POINTS);
+            filteredPoints = filteredPoints.filter((_, i) => i % step === 0 || i === filteredPoints.length - 1);
+          }
+
+          // Recompute metrics from filtered (and possibly downsampled) points
+          gpxTrack = buildTrackFromPoints(filteredPoints);
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : String(e);
           logger.warn(`Failed to parse GPX ${gpxAbsPath}: ${message}`);
@@ -322,6 +344,17 @@ export function rideLoader(): Loader {
         if (fs.existsSync(mediaYmlPath)) {
           const mediaRaw = fs.readFileSync(mediaYmlPath, 'utf-8');
           media = (yaml.load(mediaRaw) as RouteMedia[]) || [];
+        }
+
+        // Strip photo GPS coordinates that fall inside the privacy zone
+        if (privacyZone && media.length > 0) {
+          const privacyEnabled = typeof sidecarFrontmatter.privacy_zone === 'boolean'
+            ? sidecarFrontmatter.privacy_zone
+            : privacyZone.default_enabled;
+          if (privacyEnabled) {
+            const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
+            media = stripPrivacyPhotos(media, zone);
+          }
         }
 
         // Load tour-level metadata if this ride belongs to a tour
@@ -347,6 +380,12 @@ export function rideLoader(): Loader {
           : undefined;
         const totalElevationGain = typeof sidecarFrontmatter.total_elevation_gain === 'number'
           ? sidecarFrontmatter.total_elevation_gain
+          : undefined;
+        const stravaId = typeof sidecarFrontmatter.strava_id === 'string'
+          ? sidecarFrontmatter.strava_id
+          : undefined;
+        const ridePrivacyZone = typeof sidecarFrontmatter.privacy_zone === 'boolean'
+          ? sidecarFrontmatter.privacy_zone
           : undefined;
         const tags = Array.isArray(sidecarFrontmatter.tags)
           ? sidecarFrontmatter.tags
@@ -386,6 +425,8 @@ export function rideLoader(): Loader {
           country,
           highlight,
           total_elevation_gain: totalElevationGain,
+          strava_id: stravaId,
+          privacy_zone: ridePrivacyZone,
           elapsed_time_s: gpxTrack.elapsed_time_s || undefined,
           moving_time_s: gpxTrack.moving_time_s || undefined,
           average_speed_kmh: gpxTrack.average_speed_kmh || undefined,
