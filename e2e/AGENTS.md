@@ -23,9 +23,12 @@ The Astro preview server holds a persistent connection to `.data/local.db`. Dele
 
 Each writing spec owns its own route/content fixture. Don't share mutable fixtures across specs.
 
-## Screenshot Tests Use CITY=demo
+## Screenshot Tests
 
-Build against the `demo` fixture city, not Ottawa. Baselines tracked with Git LFS.
+- Build against the `demo` fixture city (or `blog`/`demo-club` for instance-specific tests), not Ottawa.
+- Baselines tracked with Git LFS.
+- **Never generate or update snapshots locally.** Playwright screenshots are platform-dependent (fonts, rendering). Baselines are generated on CI only via `--update-snapshots`. When adding new screenshot tests, commit the spec file without snapshots — CI will generate them.
+- Screenshot spec files should be separate from functional test specs (e.g., `blog-screenshots.spec.ts`, not mixed into `rides.spec.ts`).
 
 ## Generated Files May Not Exist
 
