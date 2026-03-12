@@ -47,15 +47,23 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
     <LocaleRedirect cspNonce={cspNonce} />
   </head>
   <body>
-    <header class="site-header">
-      <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
-    </header>
-    {!admin && <Nav alternateUrls={alternateUrls} />}
+    <div class="sticky-header">
+      <header class="site-header">
+        <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
+      </header>
+      {!admin && <Nav alternateUrls={alternateUrls} />}
+    </div>
     <main>
       <slot />
     </main>
     <Footer alternateUrls={alternateUrls} />
     <script>
+      const sh = document.querySelector('.sticky-header');
+      if (sh) {
+        const update = () => document.documentElement.style.setProperty('--sticky-header-h', sh.offsetHeight + 'px');
+        update();
+        window.addEventListener('resize', update);
+      }
       document.addEventListener('click', (e) => {
         const origin = e.target;
         if (!(origin instanceof Element)) return;
