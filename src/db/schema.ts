@@ -94,3 +94,11 @@ export const userSettings = sqliteTable('user_settings', {
   emailInCommits: integer('email_in_commits', { mode: 'boolean' }).notNull().default(false),
   analyticsOptOut: integer('analytics_opt_out', { mode: 'boolean' }).notNull().default(false),
 });
+
+export const stravaTokens = sqliteTable('strava_tokens', {
+  id: integer('id').primaryKey().default(1),
+  athleteId: text('athlete_id').notNull(),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token').notNull(),
+  expiresAt: integer('expires_at').notNull(),
+});
