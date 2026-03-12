@@ -45,7 +45,11 @@ export default function RidePreview({
       <div class="ride-preview-content">
         {cover && (
           <div class="ride-preview-hero">
-            <img src={imageUrl(cover.key, { width: 800 })} alt={name} />
+            <img
+              src={imageUrl(cover.key, { width: 830 })}
+              srcset={`${imageUrl(cover.key, { width: 1660 })} 2x`}
+              alt={name}
+            />
           </div>
         )}
 

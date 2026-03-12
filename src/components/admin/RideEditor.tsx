@@ -49,6 +49,9 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // Mobile tabs
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
+  // Collapsible details (collapsed by default for existing rides)
+  const [detailsOpen, setDetailsOpen] = useState(!!initialData.isNew);
+
   // Textarea ref (hydration workaround — see AGENTS.md)
   const bodyRef = useTextareaValue(body);
 
@@ -176,57 +179,75 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
             />
           </div>
 
-          {/* Slug */}
-          <div class="editor-slug">
-            {editingSlug ? (
-              <div class="editor-slug-edit">
-                <span class="editor-slug-prefix">/rides/</span>
-                <input
-                  type="text"
-                  value={slug}
-                  onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
-                  class="editor-slug-input"
-                />
-                <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
+          {/* Ride Details (collapsible) */}
+          <div class={`ride-details ${detailsOpen ? 'ride-details--open' : ''}`}>
+            <button type="button" class="ride-details-toggle" onClick={() => setDetailsOpen(!detailsOpen)}>
+              <span class="ride-details-toggle-label">
+                Details
+                {!detailsOpen && (rideDate || country) && (
+                  <span class="ride-details-summary">
+                    {[rideDate, country].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </span>
+              <span class="ride-details-toggle-arrow">{detailsOpen ? '\u25be' : '\u25b8'}</span>
+            </button>
+            {detailsOpen && (
+              <div class="ride-details-body">
+                {/* Slug */}
+                <div class="ride-detail-row">
+                  <label>URL</label>
+                  {editingSlug ? (
+                    <div class="ride-slug-edit">
+                      <span class="ride-slug-prefix">/rides/</span>
+                      <input
+                        type="text"
+                        value={slug}
+                        onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
+                        class="ride-slug-input"
+                      />
+                      <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
+                    </div>
+                  ) : (
+                    <button type="button" class="ride-slug-toggle" onClick={() => setEditingSlug(true)}>
+                      /rides/{slug}
+                    </button>
+                  )}
+                </div>
+
+                <div class="ride-detail-grid">
+                  <AutoDetectField
+                    label="Date"
+                    value={rideDate}
+                    autoDetected={!!initialData.ride_date || !!rideDate}
+                    onChange={setRideDate}
+                    type="date"
+                  />
+                  <div class="form-field">
+                    <label>Country</label>
+                    <input type="text" value={country} onInput={(e) => setCountry((e.target as HTMLInputElement).value)} />
+                  </div>
+                  <TourPicker tours={tours} value={tourSlug} onChange={setTourSlug} />
+                  {userRole === 'admin' && (
+                    <div class="form-field">
+                      <label for="ride-status">Status</label>
+                      <select id="ride-status" value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}>
+                        <option value="published">Published</option>
+                        <option value="draft">Draft</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div class="form-field form-field--inline">
+                  <label>
+                    <input type="checkbox" checked={highlight} onChange={() => setHighlight(!highlight)} />
+                    {' '}Highlight on home page
+                  </label>
+                </div>
               </div>
-            ) : (
-              <button type="button" class="editor-slug-toggle" onClick={() => setEditingSlug(true)}>
-                /rides/{slug}
-              </button>
             )}
           </div>
-
-          {/* Ride Details */}
-          <fieldset class="ride-details">
-            <legend>Ride Details</legend>
-            <AutoDetectField
-              label="Date"
-              value={rideDate}
-              autoDetected={!!initialData.ride_date || !!rideDate}
-              onChange={setRideDate}
-              type="date"
-            />
-            <div class="form-field">
-              <label>Country</label>
-              <input type="text" value={country} onInput={(e) => setCountry((e.target as HTMLInputElement).value)} />
-            </div>
-            <TourPicker tours={tours} value={tourSlug} onChange={setTourSlug} />
-            <div class="form-field form-field--inline">
-              <label>
-                <input type="checkbox" checked={highlight} onChange={() => setHighlight(!highlight)} />
-                {' '}Highlight on home page
-              </label>
-            </div>
-            {userRole === 'admin' && (
-              <div class="form-field">
-                <label for="ride-status">Status</label>
-                <select id="ride-status" value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}>
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
-            )}
-          </fieldset>
 
           {/* GPX */}
           <fieldset class="ride-gpx">
@@ -235,7 +256,16 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
               <div class="ride-gpx-info">
                 <span class="ride-gpx-filename">{gpxVariant.gpx}</span>
                 {distanceKm != null && <span class="ride-gpx-stat">{distanceKm.toFixed(0)} km</span>}
-                <button type="button" class="btn-small" onClick={() => gpxInputRef.current?.click()}>Replace</button>
+                <div class="ride-gpx-actions">
+                  {!gpxVariant.isNew && !initialData.isNew && (
+                    <a
+                      href={`/rides/${initialData.slug}/${gpxVariant.gpx.replace(/\.gpx$/i, '').replace(/^variants\//, '')}.gpx`}
+                      download={gpxVariant.gpx.replace(/^variants\//, '')}
+                      class="btn-small"
+                    >Download</a>
+                  )}
+                  <button type="button" class="btn-small" onClick={() => gpxInputRef.current?.click()}>Replace</button>
+                </div>
               </div>
             ) : (
               <div class="ride-gpx-empty">
