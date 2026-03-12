@@ -28,6 +28,12 @@ export interface CityConfig {
   center: { lat: number; lng: number };
   bounds: { north: number; south: number; east: number; west: number };
   place_categories: Record<string, string[]>;
+  privacy_zone?: {
+    lat: number;
+    lng: number;
+    radius_m: number;
+    default_enabled: boolean;
+  };
 }
 
 let cached: CityConfig | null = null;
