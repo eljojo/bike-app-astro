@@ -29,8 +29,9 @@ Run the scaffolder to create a new blog repo:
 ```bash
 npx create-bike-blog my-blog yourdomain.com
 cd my-blog
-npm install
 ```
+
+The scaffolder will prompt you to install dependencies. If you skipped that, run `npm install` manually.
 
 This copies all the templates, sets your domain and timezone, and wires up the Astro config.
 
@@ -44,7 +45,8 @@ The setup script walks you through provisioning all required cloud resources:
 
 1. **Cloudflare resources** — creates a D1 database, an R2 bucket, and a KV namespace using `wrangler`. If you don't have `wrangler` installed, it will prompt you to install it or skip and configure manually.
 2. **GitHub secrets** — sets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `GOOGLE_MAPS_STATIC_API_KEY` on your repo using the `gh` CLI.
-3. **Worker secrets** — sets API keys on your Cloudflare Worker via `wrangler secret put`.
+3. **Worker secrets** — prompts for optional API keys (Thunderforest, RideWithGPS, Google Places) and sets them on your Cloudflare Worker via `wrangler secret put`. Skip any you don't have yet.
+4. **CDN domain** — sets the public URL for your R2 bucket (`R2_PUBLIC_URL`) automatically. This makes your photos accessible at `https://cdn.yourdomain.com`.
 
 You can run `npm run setup` multiple times — it skips anything already configured.
 
@@ -81,13 +83,13 @@ wrangler secret put R2_SECRET_ACCESS_KEY
 
 The public URL of your R2 bucket, used to serve photos. Typically `https://cdn.yourdomain.com`.
 
-Set it: `wrangler secret put R2_PUBLIC_URL`
+The `npm run setup` script configures this automatically. If you need to set it manually: `wrangler secret put R2_PUBLIC_URL`
 
 ### CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
 
 Used by GitHub Actions to deploy your Worker on every push.
 
-- Create an API token with **Workers:Edit** permission
+- Create an API token with **Workers:Edit**, **D1:Edit**, and **Workers R2 Storage:Edit** permissions
 - Find your account ID in the Cloudflare Dashboard sidebar
 
 Set as GitHub repo secrets (Settings → Secrets → Actions):
@@ -133,6 +135,15 @@ wrangler secret put RWGPS_API_KEY
 wrangler secret put RWGPS_AUTH_TOKEN
 ```
 
+### GOOGLE_PLACES_API_KEY
+
+Auto-populates place details when adding places to your blog. Not needed for basic ride journaling.
+
+- [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create API Key
+- Restrict to: **Places API (New)**
+
+Set it: `wrangler secret put GOOGLE_PLACES_API_KEY`
+
 ## Add your first ride
 
 Drop a GPX file into your data repo:
@@ -163,8 +174,10 @@ Push both files to your GitHub repo. GitHub Actions builds and deploys automatic
 
 ## Data repo structure
 
+The scaffolder creates a single repo containing both the app and your ride data:
+
 ```
-my-blog/
+your-blog-repo/
 └── blog/
     ├── config.yml          ← site name, domain, timezone, author
     ├── rides/
@@ -187,9 +200,9 @@ Any non-numeric subdirectory within a year becomes a **tour** — a multi-day co
 Set `RUNTIME=local` in your `.env` file to run without any cloud dependencies:
 
 ```
-RUNTIME=local
 CONTENT_DIR=.
 CITY=blog
+RUNTIME=local
 SITE_URL=http://localhost:4321
 ```
 
