@@ -272,6 +272,69 @@
   }
 }
 
+.waypoint-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.waypoint-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: 4px;
+  background: $color-bg;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+    background: $color-bg-dark;
+  }
+
+  &.dragging {
+    opacity: 0.5;
+  }
+}
+
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+  padding: 0.25rem;
+  color: $color-text-muted;
+}
+
+.waypoint-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.waypoint-main-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+
+  select {
+    flex: 1;
+  }
+}
+
+.waypoint-detail-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.waypoint-distance {
+  width: 5rem;
+}
+
+.waypoint-time-labels {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+}
+
 .organizer-inline-form {
   display: flex;
   flex-direction: column;

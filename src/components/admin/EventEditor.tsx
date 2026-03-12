@@ -6,6 +6,8 @@ import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
+import WaypointEditor from './WaypointEditor';
+import type { Waypoint } from './WaypointEditor';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
@@ -32,6 +34,7 @@ interface Props {
   showLicenseNotice?: boolean;
   isClub?: boolean;
   routeOptions?: RouteOption[];
+  placeOptions?: Array<{ id: string; name: string }>;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -62,7 +65,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [] }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [] }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -88,6 +91,17 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       ...(m.height != null && { height: m.height }),
       ...(m.lat != null && { lat: m.lat }),
       ...(m.lng != null && { lng: m.lng }),
+    }))
+  );
+  const [waypoints, setWaypoints] = useState<Waypoint[]>(
+    (initialData.waypoints || []).map(w => ({
+      place: w.place,
+      type: w.type,
+      label: w.label,
+      ...(w.distance_km != null && { distance_km: w.distance_km }),
+      ...(w.opening && { opening: w.opening }),
+      ...(w.closing && { closing: w.closing }),
+      ...(w.route && { route: w.route }),
     }))
   );
 
@@ -139,6 +153,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(reviewUrl && { review_url: reviewUrl }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
+          ...(isClub && waypoints.length > 0 && { waypoints }),
         },
         body,
         ...(isClub && media.length > 0 && { media }),
@@ -363,6 +378,18 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             onChange={setMedia}
             cdnUrl={cdnUrl}
             userRole={userRole}
+          />
+        </section>
+      )}
+
+      {isClub && placeOptions.length > 0 && (
+        <section class="editor-section">
+          <h2>Waypoints</h2>
+          <WaypointEditor
+            waypoints={waypoints}
+            onChange={setWaypoints}
+            places={placeOptions}
+            routes={selectedRoutes.length > 1 ? selectedRoutes : undefined}
           />
         </section>
       )}
