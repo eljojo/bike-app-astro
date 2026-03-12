@@ -7,6 +7,7 @@ import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
 import { paths } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
 import PhotoGallery from '@/components/PhotoGallery.astro';
+import ContentDetail from '@/components/patterns/ContentDetail.astro';
 
 interface Props {
   route: any;
@@ -28,67 +29,67 @@ const mapLang = cachedMapLocale(route.id, undefined, locale);
 const primaryGpx = route.data.variants[0]?.gpx;
 const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
 const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m;
+
+const heroImage = cover ? imageUrl(cover.key, { width: 1170 }) : undefined;
 ---
 
-<div class="route-detail">
-  {cover && (
-    <div class="route-detail--hero">
-      <img
-        src={imageUrl(cover.key, { width: 1170 })}
-        alt={name}
-        class="gallery-cover-photo"
-      />
-    </div>
-  )}
+<ContentDetail title={name} heroImage={heroImage} heroAlt={name}>
+  <Fragment slot="breadcrumb">
+    {tour && (
+      <nav class="ride-breadcrumb">
+        <a href="/tours">{t('nav.tours', locale)}</a>
+        {' / '}
+        <a href={paths.tour(tour.slug)}>{tour.name}</a>
+      </nav>
+    )}
+  </Fragment>
 
-  <div class="route-detail--content">
-    <div class="route-detail--body">
-      {tour && (
-        <nav class="ride-breadcrumb">
-          <a href="/tours">{t('nav.tours', locale)}</a>
-          {' / '}
-          <a href={paths.tour(tour.slug)}>{tour.name}</a>
-        </nav>
+  <Fragment slot="title">
+    {route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}
+  </Fragment>
+
+  <Fragment slot="stats">
+    <div class="ride-facts">
+      {route.data.ride_date && <span>{route.data.ride_date}</span>}
+      <span>Distance: {formatDistance(distance_km, 2)}</span>
+      {route.data.elapsed_time_s && route.data.moving_time_s && (
+        <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
       )}
-
-      <h1>{route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}</h1>
-
-      <div class="ride-facts">
-        {route.data.ride_date && <span>{route.data.ride_date}</span>}
-        <span>Distance: {formatDistance(distance_km, 2)}</span>
-        {route.data.elapsed_time_s && route.data.moving_time_s && (
-          <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
-        )}
-        {!route.data.elapsed_time_s && route.data.moving_time_s && (
-          <span>Time: {formatDuration(route.data.moving_time_s)}</span>
-        )}
-        {route.data.average_speed_kmh && (
-          <span>Avg. Speed: {formatSpeed(route.data.average_speed_kmh, 2)}</span>
-        )}
-        {elevation != null && (
-          <span>Elevation: {formatElevation(elevation)}</span>
-        )}
-      </div>
-
-      {renderedBody && <div class="route-description" set:html={renderedBody} />}
-
-      <div class="route-actions">
-        <p>
-          <a href={paths.rideMap(route.id, route.data.tour_slug)} class="action-button --primary --wider">
-            &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
-          </a>
-          {route.data.variants[0]?.strava_url && (
-            <Fragment>
-              {' '}
-              <a href={route.data.variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-              </a>
-            </Fragment>
-          )}
-        </p>
-      </div>
+      {!route.data.elapsed_time_s && route.data.moving_time_s && (
+        <span>Time: {formatDuration(route.data.moving_time_s)}</span>
+      )}
+      {route.data.average_speed_kmh && (
+        <span>Avg. Speed: {formatSpeed(route.data.average_speed_kmh, 2)}</span>
+      )}
+      {elevation != null && (
+        <span>Elevation: {formatElevation(elevation)}</span>
+      )}
     </div>
+  </Fragment>
 
+  <Fragment slot="body">
+    {renderedBody && <div class="route-description" set:html={renderedBody} />}
+  </Fragment>
+
+  <Fragment slot="actions">
+    <div class="route-actions">
+      <p>
+        <a href={paths.rideMap(route.id, route.data.tour_slug)} class="action-button --primary --wider">
+          &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
+        </a>
+        {route.data.variants[0]?.strava_url && (
+          <Fragment>
+            {' '}
+            <a href={route.data.variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
+              <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+            </a>
+          </Fragment>
+        )}
+      </p>
+    </div>
+  </Fragment>
+
+  <Fragment slot="sidebar">
     {hasMap && (
       <div class="route-detail--static-map">
         <a href={paths.rideMap(route.id, route.data.tour_slug)} title={t('ride.view_map', locale)}>
@@ -99,33 +100,37 @@ const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gai
         </a>
       </div>
     )}
-  </div>
+  </Fragment>
 
-  {photos.length > 0 && (
-    <PhotoGallery photos={photos} routeName={name} />
-  )}
+  <Fragment slot="gallery">
+    {photos.length > 0 && (
+      <PhotoGallery photos={photos} routeName={name} />
+    )}
+  </Fragment>
 
-  {tour && tourRides.length > 0 && (
-    <section class="tour-rides-nav">
-      <h2>
-        <span>Tour: </span>
-        <a href={paths.tour(tour.slug)}>{tour.name}</a>
-      </h2>
-      <ul>
-        {tourRides.map(tourRide => (
-          <li class={tourRide.id === route.id ? 'current' : ''}>
-            <span class="tour-rides-nav--date">{tourRide.data.ride_date}</span>
-            {tourRide.id === route.id
-              ? <span>{tourRide.data.name}</span>
-              : <a href={paths.ride(tourRide.id, tour.slug)}>{tourRide.data.name}</a>
-            }
-          </li>
-        ))}
-      </ul>
-    </section>
-  )}
+  <Fragment slot="after">
+    {tour && tourRides.length > 0 && (
+      <section class="tour-rides-nav">
+        <h2>
+          <span>Tour: </span>
+          <a href={paths.tour(tour.slug)}>{tour.name}</a>
+        </h2>
+        <ul>
+          {tourRides.map(tourRide => (
+            <li class={tourRide.id === route.id ? 'current' : ''}>
+              <span class="tour-rides-nav--date">{tourRide.data.ride_date}</span>
+              {tourRide.id === route.id
+                ? <span>{tourRide.data.name}</span>
+                : <a href={paths.ride(tourRide.id, tour.slug)}>{tourRide.data.name}</a>
+              }
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
-  <p class="route-similar">
-    <a href={backLink} class="go-back-button">&larr; {backLabel}</a>
-  </p>
-</div>
+    <p class="route-similar">
+      <a href={backLink} class="go-back-button">&larr; {backLabel}</a>
+    </p>
+  </Fragment>
+</ContentDetail>
