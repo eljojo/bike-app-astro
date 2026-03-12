@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { parseGpx, buildTrackFromPoints, type GpxTrack } from '../lib/gpx';
+import { parseGpx, buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx';
 import { cityDir } from '../lib/config';
 import { getCityConfig } from '../lib/city-config';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/privacy-zone';
@@ -321,9 +321,9 @@ export function rideLoader(): Loader {
           if (privacyZoneEnabled && privacyZone) {
             const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
             // GpxPoint uses `lon`, privacy zone uses `lng` — map between them
-            const mappedPoints = parsed.points.map(p => ({ ...p, lng: p.lon }));
+            const mappedPoints = parsed.points.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
             const filtered = filterPrivacyZone(mappedPoints, zone);
-            filteredPoints = filtered.map(({ lng: _lng, ...rest }) => rest);
+            filteredPoints = filtered.map(p => ({ lat: p.lat, lon: p.lng, ele: p.ele } as GpxPoint));
           }
 
           const MAX_POINTS = 200;

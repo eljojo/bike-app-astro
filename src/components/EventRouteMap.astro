@@ -1,12 +1,10 @@
 ---
 import RouteMap from './RouteMap.astro';
 import EventRouteSelector from './EventRouteSelector.tsx';
-import InteractiveElevation from './admin/InteractiveElevation.tsx';
+import InteractiveElevation from './InteractiveElevation.tsx';
 import { computeElevationPoints } from '../lib/elevation-profile';
 import { paths } from '../lib/paths';
-
-/** Same palette as TOUR_PALETTE in map-init.ts (duplicated to avoid importing client-only module). */
-const PALETTE = ['#E6194B', '#3CB44B', '#4363D8', '#F58231', '#911EB4', '#42D4F4', '#F032E6', '#BFEF45'];
+import { TOUR_PALETTE } from '../lib/map-init';
 
 interface GpxPoint {
   lat: number;
@@ -57,7 +55,7 @@ const polylines = routes.flatMap((route, idx) => {
   return [{
     name: route.data.name,
     encoded: track.polyline,
-    color: PALETTE[idx % PALETTE.length],
+    color: TOUR_PALETTE[idx % TOUR_PALETTE.length],
     url: paths.route(route.id, locale),
   }];
 });
@@ -72,7 +70,7 @@ const routeInfo = routes.map((route, idx) => {
     slug: route.id,
     distance_km: route.data.distance_km,
     elevation_gain_m: track?.elevation_gain_m ?? 0,
-    color: PALETTE[idx % PALETTE.length],
+    color: TOUR_PALETTE[idx % TOUR_PALETTE.length],
     url: paths.route(route.id, locale),
     elevPoints,
   };

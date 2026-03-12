@@ -20,18 +20,18 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const routes = await getCollection('routes');
-  const route = routes.find(r => r.id === routeSlug);
+  const route = routes.find((r: { id: string }) => r.id === routeSlug);
 
   if (!route) {
     return new Response(JSON.stringify({ error: 'Route not found' }), { status: 404 });
   }
 
   const places = await getCollection('places');
-  const placeData = places.map(p => ({
+  const placeData = places.map((p: { id: string; data: { name: string; name_fr?: string; category?: string; lat: number; lng: number; address?: string; website?: string; phone?: string } }) => ({
     id: p.id,
     name: p.data.name,
     name_fr: p.data.name_fr,
-    category: p.data.category,
+    category: p.data.category || '',
     lat: p.data.lat,
     lng: p.data.lng,
     address: p.data.address,

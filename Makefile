@@ -33,7 +33,7 @@ test-update: map-style ## Update screenshot baselines
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: test typecheck lint test-e2e test-admin ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e)
+full: test typecheck lint test-e2e test-admin test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, club e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts

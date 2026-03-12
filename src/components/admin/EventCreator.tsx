@@ -173,6 +173,10 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
       poster_key: posterKey,
       poster_content_type: posterContentType,
       body: (source.body as string) || '',
+      routes: (source.routes as string[]) || [],
+      waypoints: (source.waypoints as EventDetail['waypoints']) || [],
+      results: (source.results as EventDetail['results']) || [],
+      media: (source.media as EventDetail['media']) || [],
       isNew: true,
     };
   }

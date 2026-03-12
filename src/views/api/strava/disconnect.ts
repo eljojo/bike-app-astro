@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { authorize } from '@/lib/authorize';
-import { jsonResponse, jsonError } from '@/lib/api-response';
+import { jsonResponse } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
 import { stravaTokens } from '@/db/schema';
 

@@ -23,10 +23,10 @@ describe('privacy zone with GpxPoint mapping', () => {
   ];
 
   it('filters GpxPoints after lon→lng mapping', () => {
-    // Simulate the rides loader's mapping logic
-    const mappedPoints = gpxPoints.map(p => ({ ...p, lng: p.lon }));
+    // Simulate the rides loader's mapping logic (only pass fields filterPrivacyZone needs)
+    const mappedPoints = gpxPoints.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
     const filtered = filterPrivacyZone(mappedPoints, zone);
-    const result = filtered.map(({ lng: _lng, ...rest }) => rest);
+    const result = filtered.map(p => ({ lat: p.lat, lon: p.lng, ele: p.ele } as GpxPoint));
 
     // First two points are within 500m of zone center → removed
     expect(result.length).toBe(3);
@@ -42,7 +42,7 @@ describe('privacy zone with GpxPoint mapping', () => {
 
   it('preserves all points when none are in zone', () => {
     const farZone: PrivacyZoneConfig = { lat: 0, lng: 0, radius_m: 100 };
-    const mappedPoints = gpxPoints.map(p => ({ ...p, lng: p.lon }));
+    const mappedPoints = gpxPoints.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
     const filtered = filterPrivacyZone(mappedPoints, farZone);
     expect(filtered).toHaveLength(5);
   });
@@ -51,9 +51,9 @@ describe('privacy zone with GpxPoint mapping', () => {
     const fullTrack = buildTrackFromPoints(gpxPoints);
 
     // Filter and recompute
-    const mappedPoints = gpxPoints.map(p => ({ ...p, lng: p.lon }));
+    const mappedPoints = gpxPoints.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
     const filtered = filterPrivacyZone(mappedPoints, zone);
-    const filteredGpxPoints: GpxPoint[] = filtered.map(({ lng: _lng, ...rest }) => rest);
+    const filteredGpxPoints: GpxPoint[] = filtered.map(p => ({ lat: p.lat, lon: p.lng, ele: p.ele }));
     const filteredTrack = buildTrackFromPoints(filteredGpxPoints);
 
     // Filtered track should have fewer points and different distance

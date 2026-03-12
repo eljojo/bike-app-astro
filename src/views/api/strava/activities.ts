@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { authorize } from '@/lib/authorize';
-import { jsonResponse, jsonError } from '@/lib/api-response';
+import { jsonError } from '@/lib/api-response';
 import { fetchActivities } from '@/lib/strava-api';
 import { createStravaTokenProvider } from '@/lib/strava-token-provider';
 import { db } from '@/lib/get-db';
@@ -24,7 +24,9 @@ export async function GET({ locals, url }: APIContext) {
 
   try {
     const activities = await fetchActivities(tokenProvider, page, Math.min(perPage, 50));
-    return jsonResponse(activities);
+    return new Response(JSON.stringify(activities), {
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err) {
     console.error('Strava activities fetch error:', err);
     return jsonError('Failed to fetch activities from Strava', 502);

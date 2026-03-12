@@ -1,6 +1,4 @@
-// AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
-// All styles in admin.scss (admin islands) or global.scss (public pages).
-// This component is used on public pages, so styles go in global.scss.
+// Public Preact island. Styles in global.scss.
 import { useState, useRef } from 'preact/hooks';
 
 export interface ElevationPoint {

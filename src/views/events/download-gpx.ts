@@ -17,7 +17,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
     if (routeSlugs.length === 0) continue;
 
     for (const routeSlug of routeSlugs) {
-      const route = allRoutes.find(r => r.id === routeSlug);
+      const route = allRoutes.find((r: { id: string }) => r.id === routeSlug);
       if (!route) continue;
 
       for (const variant of route.data.variants) {
@@ -58,7 +58,7 @@ export const GET: APIRoute = async ({ props }) => {
     const gpxWaypoints: GpxWaypoint[] = [];
 
     for (const wp of eventWaypoints) {
-      const place = places.find(p => p.id === wp.place);
+      const place = places.find((p: { id: string }) => p.id === wp.place);
       if (!place) continue;
 
       let desc: string | undefined;
