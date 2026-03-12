@@ -72,6 +72,7 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
             <img
               class="tour-hero--cover"
               src={imageUrl(coverKey, { width: 800, height: 450, fit: 'cover' })}
+              srcset={`${imageUrl(coverKey, { width: 1600, height: 900, fit: 'cover' })} 2x`}
               alt={hero.name}
               width="800"
               height="450"
@@ -81,6 +82,7 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
             <img
               class="tour-hero--map"
               src={assets.mapThumbnail(tourMapSlug, 750)}
+              srcset={assets.mapThumbnailSrcsetLarge(tourMapSlug)}
               alt={`Map of ${hero.name}`}
               width="800"
               height="450"
@@ -121,6 +123,7 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
                   <img
                     class="tour-postcard--cover"
                     src={imageUrl(coverKey, { width: 450, height: 300, fit: 'cover' })}
+                    srcset={`${imageUrl(coverKey, { width: 900, height: 600, fit: 'cover' })} 2x`}
                     alt={tour.name}
                     loading="lazy"
                     width="450"
@@ -131,6 +134,7 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
                   <img
                     class="tour-postcard--map"
                     src={assets.mapThumbnail(tourMapSlug, 375)}
+                    srcset={assets.mapThumbnailSrcset(tourMapSlug)}
                     alt={`Map of ${tour.name}`}
                     loading="lazy"
                     width="450"

@@ -117,6 +117,7 @@ const breadcrumbs = breadcrumbJsonLd([
       <div class="route-detail--hero">
         <img
           src={imageUrl(cover.key, { width: 1170 })}
+          srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
           alt={cover.caption || localeName}
           class="gallery-cover-photo"
         />
@@ -240,6 +241,7 @@ const breadcrumbs = breadcrumbJsonLd([
           <a href={paths.routeMap(slug, locale)} title={t('route.view_map', locale, { name: localeName })}>
             <img
               src={assets.mapThumbnail(route.id, 750, mapLang)}
+              srcset={assets.mapThumbnailSrcsetLarge(route.id, mapLang)}
               alt={t('route.map_of', locale, { name: localeName })}
             />
           </a>

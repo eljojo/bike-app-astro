@@ -70,6 +70,7 @@ const filterData = rides.map(r => ({
                         <img
                           class="ride-card--cover"
                           src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                          srcset={`${imageUrl(cover.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
                           alt={ride.data.name}
                           loading="lazy"
                           width="300"
@@ -80,6 +81,7 @@ const filterData = rides.map(r => ({
                         <img
                           class="ride-card--map"
                           src={assets.mapThumbnail(ride.id, 375)}
+                          srcset={assets.mapThumbnailSrcset(ride.id)}
                           alt={`Map of ${ride.data.name}`}
                           loading="lazy"
                           width="300"

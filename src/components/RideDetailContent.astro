@@ -32,6 +32,7 @@ const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
 const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m;
 
 const heroImage = cover ? imageUrl(cover.key, { width: 1170 }) : undefined;
+const heroImageSrcset = cover ? `${imageUrl(cover.key, { width: 2340 })} 2x` : undefined;
 
 const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
   ? `${formatDuration(route.data.elapsed_time_s)} (${formatDuration(route.data.moving_time_s)} moving)`
@@ -40,7 +41,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
     : '';
 ---
 
-<ContentDetail title={name} heroImage={heroImage} heroAlt={name}>
+<ContentDetail title={name} heroImage={heroImage} heroImageSrcset={heroImageSrcset} heroAlt={name}>
   <Fragment slot="breadcrumb">
     {tour && (
       <nav class="ride-breadcrumb">
