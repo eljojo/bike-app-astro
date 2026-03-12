@@ -27,7 +27,7 @@ describe('loadAdminRouteData routes', () => {
       expect(typeof route.status).toBe('string');
       expect(typeof route.contentHash).toBe('string');
       // Should not have extra fields
-      expect(Object.keys(route).sort()).toEqual(['contentHash', 'difficultyScore', 'mediaCount', 'name', 'slug', 'status']);
+      expect(Object.keys(route).sort()).toEqual(['contentHash', 'coverKey', 'difficultyScore', 'mediaCount', 'name', 'slug', 'status']);
     }
   });
 

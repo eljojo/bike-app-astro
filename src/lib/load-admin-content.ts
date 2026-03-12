@@ -102,11 +102,13 @@ export async function loadAdminRouteList(buildTimeRoutes: AdminRoute[]): Promise
   const routes = buildTimeRoutes.map(r => {
     const cached = cacheMap.get(r.slug);
     if (!cached) return r;
+    const cachedCover = cached.media?.find(m => m.cover) || cached.media?.[0];
     return {
       ...r,
       name: cached.name ?? r.name,
       mediaCount: cached.media?.length ?? r.mediaCount,
       status: cached.status ?? r.status,
+      coverKey: cachedCover?.key ?? r.coverKey,
     };
   });
 
@@ -114,6 +116,7 @@ export async function loadAdminRouteList(buildTimeRoutes: AdminRoute[]): Promise
   const existingSlugs = new Set(buildTimeRoutes.map(r => r.slug));
   for (const [slug, cached] of cacheMap) {
     if (!existingSlugs.has(slug)) {
+      const newCover = cached.media?.find(m => m.cover) || cached.media?.[0];
       routes.push({
         slug,
         name: cached.name || slug,
@@ -121,6 +124,7 @@ export async function loadAdminRouteList(buildTimeRoutes: AdminRoute[]): Promise
         status: cached.status || 'draft',
         contentHash: '',
         difficultyScore: null,
+        coverKey: newCover?.key,
       });
     }
   }

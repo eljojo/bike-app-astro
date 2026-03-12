@@ -6,12 +6,14 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env';
+import { CDN_FALLBACK_URL } from '../../lib/config';
 import { loadAdminRouteList } from '../../lib/load-admin-content';
 import { isBlogInstance, isClubInstance } from '../../lib/city-config';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
 const isStaging = env.ENVIRONMENT === 'staging';
+const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
 const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha';
 
 if (isBlogInstance()) {
@@ -51,18 +53,31 @@ let routes = mergedRoutes.sort((a, b) => {
       <span class="sort-label">Sort:</span>
       <a href="/admin" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
       <a href="/admin?sort=score" class:list={['sort-option', { active: sortBy === 'score' }]}>Difficulty</a>
+      <label class="photo-toggle">
+        <input type="checkbox" id="photo-toggle" checked /> Photos
+      </label>
     </div>
 
-    <div class="route-list">
+    <div class="route-list" id="route-list">
       {routes.map((route) => (
         <a href={`/admin/routes/${route.slug}`} class="route-list-item">
-          <span class="route-name">{route.name}</span>
-          <span class="route-meta">
-            {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
-            {route.mediaCount} media
-            {route.status === 'draft' && <span class="route-draft">draft</span>}
-            {pendingSlugs.has(route.slug) && <span class="route-pending">pending</span>}
-          </span>
+          {route.coverKey && (
+            <img
+              src={`${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${route.coverKey}`}
+              alt=""
+              loading="lazy"
+              class="route-cover-thumb"
+            />
+          )}
+          <div class="route-card-info">
+            <span class="route-name">{route.name}</span>
+            <span class="route-meta">
+              {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
+              {route.mediaCount} media
+              {route.status === 'draft' && <span class="route-draft">draft</span>}
+              {pendingSlugs.has(route.slug) && <span class="route-pending">pending</span>}
+            </span>
+          </div>
         </a>
       ))}
       {routes.length === 0 && (
@@ -78,6 +93,23 @@ let routes = mergedRoutes.sort((a, b) => {
     )}
   </div>
 </Base>
+
+<script>
+  const toggle = document.getElementById('photo-toggle') as HTMLInputElement | null;
+  const list = document.getElementById('route-list');
+  if (toggle && list) {
+    const key = 'admin-routes-photos';
+    const saved = localStorage.getItem(key);
+    if (saved === 'off') {
+      toggle.checked = false;
+      list.classList.add('compact');
+    }
+    toggle.addEventListener('change', () => {
+      list.classList.toggle('compact', !toggle.checked);
+      localStorage.setItem(key, toggle.checked ? 'on' : 'off');
+    });
+  }
+</script>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
@@ -151,9 +183,9 @@ let routes = mergedRoutes.sort((a, b) => {
 
   .route-list-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
     background: $color-card-bg;
     color: $color-text;
     text-decoration: none;
@@ -172,13 +204,47 @@ let routes = mergedRoutes.sort((a, b) => {
     }
   }
 
+  .route-cover-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: $border-radius;
+    object-fit: cover;
+    flex-shrink: 0;
+
+    .compact & { display: none; }
+  }
+
+  .route-card-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
   .route-name {
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .route-meta {
     font-size: 0.8125rem;
+    flex-shrink: 0;
     @include muted-text;
+  }
+
+  .photo-toggle {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    @include muted-text;
+
+    input { cursor: pointer; }
   }
 
   .route-score {

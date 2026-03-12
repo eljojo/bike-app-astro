@@ -8,6 +8,7 @@ export interface AdminRoute {
   status: string;
   contentHash: string;
   difficultyScore: number | null;
+  coverKey?: string;
 }
 
 export interface AdminEvent {

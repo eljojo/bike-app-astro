@@ -93,6 +93,7 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
       },
     });
 
+    const coverItem = detail.media.find(m => m.cover) || detail.media[0];
     routes.push({
       slug,
       name: frontmatter.name as string,
@@ -100,6 +101,7 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
       status: frontmatter.status as string,
       contentHash,
       difficultyScore: scores.length > 0 ? Math.min(...scores) : null,
+      coverKey: coverItem?.key,
     });
 
     details[slug] = { ...detail, contentHash };
