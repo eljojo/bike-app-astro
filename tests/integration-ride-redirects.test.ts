@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateTourRedirects } from '../src/lib/tour-redirects';
+import { generateTourRedirects, generateRideRedirectLines } from '../src/lib/tour-redirects';
 
 describe('generateTourRedirects', () => {
   it('generates /rides/slug → /tours/tour/slug redirect for tour rides', () => {
@@ -59,5 +59,18 @@ describe('generateTourRedirects', () => {
       { gpxRelPath: '2026/01/23-solo-ride.gpx', slug: '2026-01-23-solo-ride' },
     ]);
     expect(lines).toEqual([]);
+  });
+});
+
+describe('generateRideRedirectLines', () => {
+  it('emits /map variant for ride redirects', () => {
+    const entries = [{ from: 'old-slug', to: '2025-06-15-new-slug' }];
+    const lines = generateRideRedirectLines(entries);
+    expect(lines).toContain('/rides/old-slug  /rides/2025-06-15-new-slug  301');
+    expect(lines).toContain('/rides/old-slug/map  /rides/2025-06-15-new-slug/map  301');
+  });
+
+  it('returns empty array for empty entries', () => {
+    expect(generateRideRedirectLines([])).toEqual([]);
   });
 });

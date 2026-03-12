@@ -31,3 +31,16 @@ export function generateTourRedirects(tours: Tour[], rides: RideSlugEntry[]): st
 
   return [...new Set(lines)];
 }
+
+/**
+ * Generate _redirects lines for ride redirect entries from redirects.yml.
+ * Adds /map variants for each ride redirect.
+ */
+export function generateRideRedirectLines(entries: Array<{ from: string; to: string }>): string[] {
+  const lines: string[] = [];
+  for (const r of entries) {
+    lines.push(`/rides/${r.from}  /rides/${r.to}  301`);
+    lines.push(`/rides/${r.from}/map  /rides/${r.to}/map  301`);
+  }
+  return lines;
+}

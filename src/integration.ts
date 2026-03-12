@@ -26,7 +26,7 @@ import { i18nRoutes } from './integrations/i18n-routes';
 import { appRoutesIntegration } from './integrations/admin-routes';
 import { isBlogInstance } from './lib/city-config';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from './loaders/rides';
-import { generateTourRedirects } from './lib/tour-redirects';
+import { generateTourRedirects, generateRideRedirectLines } from './lib/tour-redirects';
 import matter from 'gray-matter';
 
 /**
@@ -200,7 +200,6 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           routes: '/routes/',
           guides: '/guides/',
           videos: '/videos/',
-          rides: '/rides/',
           tours: '/tours/',
         };
         for (const [key, prefix] of Object.entries(sections)) {
@@ -208,6 +207,12 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           if (entries) {
             for (const r of entries) lines.push(`${prefix}${r.from}  ${prefix}${r.to}  301`);
           }
+        }
+
+        // Ride redirects get /map variants
+        const rideEntries = data.rides as Array<{ from: string; to: string }> | undefined;
+        if (rideEntries) {
+          lines.push(...generateRideRedirectLines(rideEntries));
         }
         const shortUrls = data.short_urls as Array<{ from: string; to: string }> | undefined;
         if (shortUrls) {
