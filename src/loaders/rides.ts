@@ -7,6 +7,7 @@ import yaml from 'js-yaml';
 import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { cityDir } from '../lib/config';
 import { renderMarkdownHtml } from '../lib/markdown-render';
+import { slugify } from '../lib/slug';
 import type { RouteMedia } from './routes';
 
 export interface RideDate {
@@ -126,11 +127,11 @@ export function detectTours(gpxPaths: string[]): Tour[] {
     tourMap.get(dirPath)!.ridePaths.push(gpxPath);
   }
 
-  return Array.from(tourMap.values()).map(({ dirPath, ridePaths }) => ({
-    slug: dirPath.split('/').find((p, i) => i > 0 && isNaN(parseInt(p, 10)))!,
-    dirPath,
-    ridePaths,
-  }));
+  return Array.from(tourMap.values()).map(({ dirPath, ridePaths }) => {
+    const rawSlug = dirPath.split('/').find((p, i) => i > 0 && isNaN(parseInt(p, 10)))!;
+    const slug = slugify(rawSlug) || `tour-${dirPath.split('/')[0]}`;
+    return { slug, dirPath, ridePaths };
+  });
 }
 
 /** Build a slug from ride date and filename.
@@ -139,7 +140,9 @@ export function detectTours(gpxPaths: string[]): Tour[] {
  * using the known date to match exactly (avoids greedily stripping numeric handle IDs).
  */
 export function buildSlug(date: RideDate, gpxFilename: string, handle?: string): string {
-  if (handle) return handle;
+  const dateFallback = `ride-${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+
+  if (handle) return slugify(handle) || dateFallback;
 
   const baseName = gpxFilename.replace(/\.gpx$/i, '');
   const mm = String(date.month).padStart(2, '0');
@@ -148,20 +151,24 @@ export function buildSlug(date: RideDate, gpxFilename: string, handle?: string):
   // Try MM-DD- prefix first (multi-month tours: YYYY/tour-name/MM-DD-name.gpx)
   const mmddPrefix = `${mm}-${dd}-`;
   if (baseName.startsWith(mmddPrefix)) {
-    return baseName.slice(mmddPrefix.length);
+    const slug = slugify(baseName.slice(mmddPrefix.length));
+    return slug || dateFallback;
   }
 
   // Try DD- prefix (zero-padded, then non-padded)
   const ddPrefix = `${dd}-`;
   if (baseName.startsWith(ddPrefix)) {
-    return baseName.slice(ddPrefix.length);
+    const slug = slugify(baseName.slice(ddPrefix.length));
+    return slug || dateFallback;
   }
   const dPrefix = `${date.day}-`;
   if (dPrefix !== ddPrefix && baseName.startsWith(dPrefix)) {
-    return baseName.slice(dPrefix.length);
+    const slug = slugify(baseName.slice(dPrefix.length));
+    return slug || dateFallback;
   }
 
-  return baseName;
+  const slug = slugify(baseName);
+  return slug || dateFallback;
 }
 
 /** Build an ISO date string from a RideDate. */

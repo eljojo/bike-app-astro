@@ -14,8 +14,20 @@ describe('slugify', () => {
     expect(slugify('a   b!!!c')).toBe('a-b-c');
   });
 
-  it('handles accented characters by stripping them', () => {
-    expect(slugify('café')).toBe('caf');
+  it('transliterates accented characters', () => {
+    expect(slugify('café-résumé')).toBe('cafe-resume');
+  });
+
+  it('strips emoji characters', () => {
+    expect(slugify('🎯-sprint')).toBe('sprint');
+  });
+
+  it('falls back for emoji-only input', () => {
+    expect(slugify('🎯🚀')).toBe('');
+  });
+
+  it('handles mixed emoji and text', () => {
+    expect(slugify('hello-🌍-world')).toBe('hello-world');
   });
 });
 

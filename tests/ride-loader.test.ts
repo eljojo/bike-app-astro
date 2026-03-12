@@ -170,4 +170,24 @@ describe('buildSlug', () => {
     const date = { year: 2025, month: 3, day: 5 };
     expect(buildSlug(date, '05-morning-ride.gpx')).toBe('morning-ride');
   });
+
+  it('strips emoji from slug', () => {
+    const date = { year: 2026, month: 1, day: 15 };
+    expect(buildSlug(date, '15-🎯-sprint.gpx')).toBe('sprint');
+  });
+
+  it('falls back to date for emoji-only filename', () => {
+    const date = { year: 2026, month: 1, day: 15 };
+    expect(buildSlug(date, '15-🎯.gpx')).toBe('ride-2026-01-15');
+  });
+
+  it('sanitizes handle with emoji', () => {
+    const date = { year: 2026, month: 1, day: 15 };
+    expect(buildSlug(date, '15-whatever.gpx', '🎯')).toBe('ride-2026-01-15');
+  });
+
+  it('transliterates accented handle', () => {
+    const date = { year: 2026, month: 1, day: 15 };
+    expect(buildSlug(date, '15-whatever.gpx', 'café-ride')).toBe('cafe-ride');
+  });
 });
