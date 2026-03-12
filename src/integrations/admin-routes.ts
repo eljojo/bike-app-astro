@@ -28,6 +28,7 @@ const routes = [
   { pattern: '/api/auth/list-passkeys', entrypoint: view('api/auth/list-passkeys.ts') },
   { pattern: '/api/auth/add-passkey', entrypoint: view('api/auth/add-passkey.ts') },
   { pattern: '/api/auth/remove-passkey', entrypoint: view('api/auth/remove-passkey.ts') },
+  { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
   // Admin list pages
   { pattern: '/admin', entrypoint: view('admin/index.astro') },
   { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
@@ -55,6 +56,9 @@ const routes = [
   { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
   ...(isBlogInstance() ? [
     { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
+    { pattern: '/api/strava/connect', entrypoint: view('api/strava/connect.ts') },
+    { pattern: '/api/strava/activities', entrypoint: view('api/strava/activities.ts') },
+    { pattern: '/api/strava/import', entrypoint: view('api/strava/import.ts') },
   ] : []),
   // Media API
   { pattern: '/api/media/presign', entrypoint: view('api/media/presign.ts') },
