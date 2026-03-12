@@ -98,13 +98,48 @@ export const pageSchema = z.object({
   })).default({}),
 });
 
+export const waypointSchema = z.object({
+  place: z.string(),
+  type: z.enum(['checkpoint', 'danger', 'poi']),
+  label: z.string(),
+  distance_km: z.number().optional(),
+  opening: z.string().optional(),
+  closing: z.string().optional(),
+  route: z.string().optional(),
+});
+
+export const registrationSchema = z.object({
+  url: z.string().optional(),
+  slots: z.number().optional(),
+  price: z.string().optional(),
+  deadline: z.string().optional(),
+  departure_groups: z.array(z.string()).optional(),
+});
+
+export const resultSchema = z.object({
+  brevet_no: z.number().optional(),
+  last_name: z.string(),
+  first_name: z.string().optional(),
+  time: z.string().optional(),
+  homologation: z.string().optional(),
+  status: z.enum(['DNS', 'DNF', 'DQ']).optional(),
+});
+
 export const eventSchema = z.object({
   name: z.string(),
   start_date: z.string(),
+  event_date: z.string().optional(),
   start_time: z.string().optional(),
   end_date: z.string().optional(),
   end_time: z.string().optional(),
+  time_limit_hours: z.number().optional(),
+  status: z.enum(['upcoming', 'open', 'closed', 'past']).optional(),
+  routes: z.array(z.string()).optional(),
+  registration: registrationSchema.optional(),
   registration_url: z.string().optional(),
+  waypoints: z.array(waypointSchema).optional(),
+  results: z.array(resultSchema).optional(),
+  gpx_include_waypoints: z.boolean().optional(),
   distances: z.string().optional(),
   location: z.string().optional(),
   review_url: z.string().optional(),
