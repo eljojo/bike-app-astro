@@ -37,14 +37,14 @@ test.describe('Settings page', () => {
   test('can change username and save', async ({ page }) => {
     const usernameInput = page.locator('#settings-username');
     await usernameInput.fill('New Username');
-    await page.locator('button.btn-primary').click();
+    await page.locator('button.btn-primary', { hasText: 'Save' }).click();
     await expect(page.locator('.save-success')).toBeVisible({ timeout: 5000 });
   });
 
   test('analytics opt-out checkbox works', async ({ page }) => {
     const analyticsCheckbox = page.locator('input[type="checkbox"]').last();
     await analyticsCheckbox.check();
-    await page.locator('button.btn-primary').click();
+    await page.locator('button.btn-primary', { hasText: 'Save' }).click();
     await expect(page.locator('.save-success')).toBeVisible({ timeout: 5000 });
 
     const plausibleIgnore = await page.evaluate(() => localStorage.getItem('plausible_ignore'));

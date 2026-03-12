@@ -271,7 +271,14 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
   handlers: SaveHandlers<T, R>,
   sha: string,
 ): Promise<Response> {
-  const committedPrimary = files.find(f => f.path === filePaths.primary);
+  let committedPrimary = files.find(f => f.path === filePaths.primary);
+  // Events can be flat (.md) or directory-based (index.md). The primary path
+  // targets the directory format, but the actual committed file may be at an
+  // auxiliary path (the flat format). Fall back to auxiliary paths so the D1
+  // cache is still updated after saving flat-format content.
+  if (!committedPrimary && filePaths.auxiliary) {
+    committedPrimary = files.find(f => filePaths.auxiliary!.includes(f.path) && f.path.endsWith('.md'));
+  }
   if (!committedPrimary) {
     return jsonResponse({ success: true, sha, id: contentId });
   }
