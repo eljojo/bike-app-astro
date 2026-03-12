@@ -8,6 +8,7 @@ import { paths } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import ContentDetail from '@/components/patterns/ContentDetail.astro';
+import StatBar from '@/components/StatBar.astro';
 
 interface Props {
   route: any;
@@ -31,6 +32,12 @@ const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
 const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m;
 
 const heroImage = cover ? imageUrl(cover.key, { width: 1170 }) : undefined;
+
+const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
+  ? `${formatDuration(route.data.elapsed_time_s)} (${formatDuration(route.data.moving_time_s)} moving)`
+  : route.data.moving_time_s
+    ? formatDuration(route.data.moving_time_s)
+    : '';
 ---
 
 <ContentDetail title={name} heroImage={heroImage} heroAlt={name}>
@@ -48,24 +55,13 @@ const heroImage = cover ? imageUrl(cover.key, { width: 1170 }) : undefined;
     {route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}
   </Fragment>
 
-  <Fragment slot="stats">
-    <div class="ride-facts">
-      {route.data.ride_date && <span>{route.data.ride_date}</span>}
-      <span>Distance: {formatDistance(distance_km, 2)}</span>
-      {route.data.elapsed_time_s && route.data.moving_time_s && (
-        <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
-      )}
-      {!route.data.elapsed_time_s && route.data.moving_time_s && (
-        <span>Time: {formatDuration(route.data.moving_time_s)}</span>
-      )}
-      {route.data.average_speed_kmh && (
-        <span>Avg. Speed: {formatSpeed(route.data.average_speed_kmh, 2)}</span>
-      )}
-      {elevation != null && (
-        <span>Elevation: {formatElevation(elevation)}</span>
-      )}
-    </div>
-  </Fragment>
+  <StatBar slot="stats" items={[
+    { label: '', value: route.data.ride_date || '' },
+    { label: 'Distance', value: formatDistance(distance_km, 2) },
+    { label: 'Time', value: timeDisplay },
+    { label: 'Avg. Speed', value: route.data.average_speed_kmh ? formatSpeed(route.data.average_speed_kmh, 2) : '' },
+    { label: 'Elevation', value: elevation != null ? formatElevation(elevation) : '' },
+  ]} />
 
   <Fragment slot="body">
     {renderedBody && <div class="route-description" set:html={renderedBody} />}

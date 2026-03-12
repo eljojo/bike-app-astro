@@ -1,0 +1,18 @@
+---
+interface StatItem {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  items: StatItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="ride-facts">
+  {items.filter(i => i.value).map(item => (
+    <span>{item.label ? `${item.label}: ` : ''}{item.value}</span>
+  ))}
+</div>
