@@ -1317,10 +1317,8 @@ a.go-back-button {
     height: auto;
     aspect-ratio: 1;
 
-    // Cover shown by default, map on hover (matches Rails)
-    .ride-card--cover { display: block; }
-    .ride-card--map { display: none; }
-    .ride-card--map:only-child { display: block; }
+    .ride-card--cover { z-index: 1; }
+    .ride-card--map { z-index: 0; }
 
     @media (max-width: $breakpoint-mobile) {
       display: block;
@@ -1328,8 +1326,8 @@ a.go-back-button {
   }
 
   .ride-card:hover .ride-card--images {
-    .ride-card--cover { display: none; }
-    .ride-card--map { display: block; }
+    .ride-card--cover { z-index: 0; }
+    .ride-card--map { z-index: 1; }
   }
 
   .ride-card--info {
