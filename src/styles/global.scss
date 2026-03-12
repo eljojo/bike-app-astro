@@ -2253,3 +2253,23 @@ a.go-back-button {
   font-size: 0.8rem;
   pointer-events: none;
 }
+
+// Club homepage
+.club-home--section {
+  margin-top: 2rem;
+}
+
+.club-home--more {
+  margin-top: 1rem;
+
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.event-distances {
+  font-size: 0.9em;
+  @include muted-text;
+}

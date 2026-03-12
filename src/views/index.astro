@@ -3,15 +3,16 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
-import { getCityConfig, isBlogInstance } from '@/lib/city-config';
-import { t } from '@/i18n';
-import { routeSlug } from '@/lib/paths';
+import { getCityConfig, isBlogInstance, isClubInstance } from '@/lib/city-config';
+import { t, localePath } from '@/i18n';
+import { routeSlug, paths } from '@/lib/paths';
 import type { CollectionEntry } from 'astro:content';
 import RideCard from '@/components/RideCard.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const blog = isBlogInstance();
+const club = isClubInstance();
 
 // For wiki instances, load the traditional homepage data
 // For blog instances, load rides and stats
@@ -21,7 +22,23 @@ let blogHighlights: CollectionEntry<'routes'>[] = [];
 let blogBadgeMap = new Map<string, string[]>();
 let blogFeaturedIds = new Set<string>();
 
-if (blog) {
+// Club instance data
+let clubUpcoming: CollectionEntry<'events'>[] = [];
+let clubRecent: CollectionEntry<'events'>[] = [];
+
+if (club) {
+  const { getCollection } = await import('astro:content');
+  const { parseLocalDate } = await import('@/lib/date-utils');
+  const events = await getCollection('events');
+  const now = new Date();
+  clubUpcoming = events
+    .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
+    .sort((a, b) => parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime());
+  clubRecent = events
+    .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
+    .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime())
+    .slice(0, 5);
+} else if (blog) {
   const { getCollection } = await import('astro:content');
   const { isPublished } = await import('@/lib/content-filters');
   const allRoutes = await getCollection('routes');
@@ -87,7 +104,7 @@ if (blog) {
   for (const [id, badges] of badgeMap) {
     if (badges.length >= 1) blogFeaturedIds.add(id);
   }
-} else {
+} else if (!club) {
   const { loadHomepageData } = await import('@/lib/route-data');
   wikiData = await loadHomepageData();
 }
@@ -95,7 +112,46 @@ if (blog) {
 ---
 
 <Base title={config.display_name} description={config.tagline}>
-  {blog ? (
+  {club ? (
+    <div class="club-home">
+      <div class="welcome-message">
+        <h3>{config.tagline}</h3>
+      </div>
+
+      {clubUpcoming.length > 0 && (
+        <section class="club-home--section">
+          <h2>{t('events.title', locale)}</h2>
+          <div class="events-grid">
+            {clubUpcoming.map(e => (
+              <a href={paths.event(e.id, locale)} class="event-card">
+                <span class="event-name">{e.data.name}</span>
+                <span class="event-dates">{e.data.start_date}</span>
+                {e.data.distances && <span class="event-distances">{e.data.distances}</span>}
+              </a>
+            ))}
+          </div>
+          <p class="club-home--more">
+            <a href={localePath('/events', locale)}>{t('events.title', locale)}</a>
+          </p>
+        </section>
+      )}
+
+      {clubRecent.length > 0 && (
+        <section class="club-home--section">
+          <h2>{t('calendar.past', locale)}</h2>
+          <div class="events-grid">
+            {clubRecent.map(e => (
+              <a href={paths.event(e.id, locale)} class="event-card">
+                <span class="event-name">{e.data.name}</span>
+                <span class="event-dates">{e.data.start_date}</span>
+                {e.data.distances && <span class="event-distances">{e.data.distances}</span>}
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  ) : blog ? (
     <div class="blog-home">
       <div class="welcome-message">
         <h3>{config.tagline}</h3>
