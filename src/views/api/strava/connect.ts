@@ -7,7 +7,7 @@ import { env } from '@/lib/env';
 export const prerender = false;
 
 export async function GET({ locals, cookies }: APIContext) {
-  const user = authorize(locals, 'edit-content');
+  const user = authorize(locals, 'strava-connect');
   if (user instanceof Response) return user;
 
   if (!env.STRAVA_CLIENT_ID) {
