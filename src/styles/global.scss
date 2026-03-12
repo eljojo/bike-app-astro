@@ -1688,3 +1688,77 @@ a.go-back-button {
 .rides-year-section {
   margin-bottom: 2rem;
 }
+
+// Rides page layout (sidebar + grid)
+.rides-page {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rides-sidebar {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+
+  @media (max-width: $breakpoint-mobile) {
+    position: static;
+  }
+}
+
+.rides-sidebar--section {
+  margin-bottom: 1rem;
+}
+
+.rides-sidebar--heading {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  @include muted-text;
+  margin: 0 0 0.375rem;
+}
+
+.rides-sidebar--pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.rides-sidebar--pill {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid $color-border;
+  border-radius: 1rem;
+  background: transparent;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 0.8125rem;
+
+  @include dark-mode {
+    color: $color-text-dark;
+    border-color: #555;
+  }
+
+  &.active {
+    background: $color-accent;
+    color: #000;
+    border-color: $color-accent;
+  }
+
+  &:hover:not(.active) {
+    background: $color-card-hover;
+
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.rides-sidebar--count {
+  font-size: 0.8125rem;
+  @include muted-text;
+  margin-top: 0.5rem;
+}

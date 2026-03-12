@@ -10,6 +10,7 @@ import { formatDuration } from '@/lib/date-utils';
 import { paths, assets } from '@/lib/paths';
 import { hasCachedMap } from '@/lib/map-thumbnails';
 import { countryToFlag } from '@/lib/country-flags';
+import RideFilterSidebar from '@/components/RideFilterSidebar.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -29,57 +30,79 @@ for (const ride of rides) {
 }
 const years = [...byYear.keys()].sort((a, b) => b - a);
 
+// Build filter input data for sidebar
+const filterData = rides.map(r => ({
+  distance_km: r.data.distance_km,
+  moving_time_s: r.data.moving_time_s,
+  average_speed_kmh: r.data.average_speed_kmh,
+  tour_slug: r.data.tour_slug,
+  country: r.data.country,
+  ride_date: r.data.ride_date,
+}));
 ---
 
 <Base title={`${t('nav.rides', locale)} | ${config.display_name}`} description={t('rides.description', locale)}>
   <h1>{t('nav.rides', locale)}</h1>
-  {years.map(year => (
-    <section class="rides-year-section">
-      <h2>{year || 'Unknown'}</h2>
-      <ul class="rides-list">
-        {byYear.get(year)!.map(ride => {
-          const cover = ride.data.media.find(m => m.cover);
-          const hasMap = hasCachedMap(ride.id);
-          return (
-            <li class="ride-card">
-              <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
-                <div class="ride-card--images">
-                  {cover && (
-                    <img
-                      class="ride-card--cover"
-                      src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
-                      alt={ride.data.name}
-                      loading="lazy"
-                      width="300"
-                      height="200"
-                    />
-                  )}
-                  {hasMap && (
-                    <img
-                      class="ride-card--map"
-                      src={assets.mapThumbnail(ride.id, 375)}
-                      alt={`Map of ${ride.data.name}`}
-                      loading="lazy"
-                      width="300"
-                      height="200"
-                    />
-                  )}
-                </div>
-                <div class="ride-card--info">
-                  <strong class="ride-card--name">{ride.data.name}</strong>
-                  <span class="ride-card--meta">
-                    {ride.data.ride_date}
-                    {' · '}
-                    {ride.data.distance_km.toFixed(0)} km
-                    {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
-                    {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
-                  </span>
-                </div>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  ))}
+  <div class="rides-page">
+    <RideFilterSidebar rides={filterData} />
+    <div id="rides-grid">
+      {years.map(year => (
+        <section class="rides-year-section">
+          <h2>{year || 'Unknown'}</h2>
+          <ul class="rides-list">
+            {byYear.get(year)!.map(ride => {
+              const cover = ride.data.media.find(m => m.cover);
+              const hasMap = hasCachedMap(ride.id);
+              return (
+                <li
+                  class="ride-card"
+                  data-distance={ride.data.distance_km}
+                  data-time={ride.data.moving_time_s || 0}
+                  data-speed={ride.data.average_speed_kmh || 0}
+                  data-tour={ride.data.tour_slug || ''}
+                  data-country={ride.data.country || ''}
+                  data-date={ride.data.ride_date || ''}
+                >
+                  <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
+                    <div class="ride-card--images">
+                      {cover && (
+                        <img
+                          class="ride-card--cover"
+                          src={imageUrl(cover.key, { width: 300, height: 200, fit: 'cover' })}
+                          alt={ride.data.name}
+                          loading="lazy"
+                          width="300"
+                          height="200"
+                        />
+                      )}
+                      {hasMap && (
+                        <img
+                          class="ride-card--map"
+                          src={assets.mapThumbnail(ride.id, 375)}
+                          alt={`Map of ${ride.data.name}`}
+                          loading="lazy"
+                          width="300"
+                          height="200"
+                        />
+                      )}
+                    </div>
+                    <div class="ride-card--info">
+                      <strong class="ride-card--name">{ride.data.name}</strong>
+                      <span class="ride-card--meta">
+                        {ride.data.ride_date}
+                        {' · '}
+                        {ride.data.distance_km.toFixed(0)} km
+                        {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
+                        {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
+                      </span>
+                    </div>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </div>
+  </div>
 </Base>
