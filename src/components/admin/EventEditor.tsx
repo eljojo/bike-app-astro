@@ -4,6 +4,8 @@ import { useState } from 'preact/hooks';
 import { useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
+import MediaManager from './MediaManager';
+import type { MediaItem } from './MediaManager';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
@@ -16,6 +18,11 @@ interface OrganizerData {
   instagram?: string;
 }
 
+interface RouteOption {
+  slug: string;
+  name: string;
+}
+
 interface Props {
   initialData: EventDetail & { contentHash?: string; isNew?: boolean };
   organizers: OrganizerData[];
@@ -23,6 +30,8 @@ interface Props {
   readOnly?: boolean;
   userRole?: string;
   showLicenseNotice?: boolean;
+  isClub?: boolean;
+  routeOptions?: RouteOption[];
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -53,7 +62,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [] }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -67,6 +76,20 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
   const [body, setBody] = useState(initialData.body);
   const bodyRef = useTextareaValue(body);
+
+  // Club-specific state
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>(initialData.routes || []);
+  const [media, setMedia] = useState<MediaItem[]>(
+    (initialData.media || []).map(m => ({
+      key: m.key,
+      ...(m.caption != null && { caption: m.caption }),
+      ...(m.cover != null && { cover: m.cover }),
+      ...(m.width != null && { width: m.width }),
+      ...(m.height != null && { height: m.height }),
+      ...(m.lat != null && { lat: m.lat }),
+      ...(m.lng != null && { lng: m.lng }),
+    }))
+  );
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
@@ -115,8 +138,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(location && { location }),
           ...(reviewUrl && { review_url: reviewUrl }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
+          ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
         },
         body,
+        ...(isClub && media.length > 0 && { media }),
       };
       if (showOrgForm && orgName) {
         payload.organizer = {
@@ -299,6 +324,48 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             }}
           />
         </div>
+
+      {isClub && routeOptions.length > 0 && (
+        <section class="editor-section">
+          <h2>Routes</h2>
+          <div class="auth-form">
+            {selectedRoutes.map((slug, i) => (
+              <div class="route-selector-row" key={`route-${i}`}>
+                <select value={slug}
+                  onChange={(e) => {
+                    const val = (e.target as HTMLSelectElement).value;
+                    setSelectedRoutes(prev => prev.map((s, j) => j === i ? val : s));
+                  }}>
+                  <option value="">-- Select route --</option>
+                  {routeOptions.map(r => (
+                    <option key={r.slug} value={r.slug}>{r.name}</option>
+                  ))}
+                </select>
+                <button type="button" class="btn-link btn-danger"
+                  onClick={() => setSelectedRoutes(prev => prev.filter((_, j) => j !== i))}>
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button type="button" class="btn-link"
+              onClick={() => setSelectedRoutes(prev => [...prev, ''])}>
+              Add route
+            </button>
+          </div>
+        </section>
+      )}
+
+      {isClub && (
+        <section class="editor-section">
+          <h2>Photos</h2>
+          <MediaManager
+            media={media}
+            onChange={setMedia}
+            cdnUrl={cdnUrl}
+            userRole={userRole}
+          />
+        </section>
+      )}
 
       <section class="editor-section">
         <h2>Organizer</h2>
