@@ -13,6 +13,7 @@ import type { FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath } from '../../lib/ride-paths';
 import { rideDetailToCache, computeRideContentHash } from '../../lib/models/ride-model';
 import { validateSlug, slugify } from '../../lib/slug';
+import { uploadToLfs } from '../../lib/git-lfs';
 
 export const prerender = false;
 
@@ -244,8 +245,16 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
             if (track.points.length < 2) {
               throw new Error('GPX file must contain at least 2 track points');
             }
-            // Write GPX directly (not LFS for rides)
-            files.push({ path: `${paths.gpx.replace(/[^/]+$/, v.gpx)}`, content: v.gpxContent });
+            // Upload GPX to LFS and commit pointer file instead of raw content
+            const gpxPath = paths.gpx.replace(/[^/]+$/, v.gpx);
+            const token = env.GITHUB_TOKEN;
+            if (token && typeof token === 'string') {
+              const pointer = await uploadToLfs(token, env.GIT_OWNER, env.GIT_DATA_REPO, v.gpxContent);
+              files.push({ path: gpxPath, content: pointer });
+            } else {
+              // Local dev: commit raw GPX (local git handles LFS via .gitattributes)
+              files.push({ path: gpxPath, content: v.gpxContent });
+            }
           }
         }
       }
