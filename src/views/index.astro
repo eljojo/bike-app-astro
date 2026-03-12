@@ -5,13 +5,9 @@ import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
 import { getCityConfig, isBlogInstance } from '@/lib/city-config';
 import { t } from '@/i18n';
-import { routeSlug, paths, assets } from '@/lib/paths';
-import { imageUrl } from '@/lib/image-service';
-import { formatDuration } from '@/lib/date-utils';
-import { formatDistance } from '@/lib/format';
-import { hasCachedMap } from '@/lib/map-thumbnails';
-import { countryToFlag } from '@/lib/country-flags';
+import { routeSlug } from '@/lib/paths';
 import type { CollectionEntry } from 'astro:content';
+import RideCard from '@/components/RideCard.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -109,54 +105,13 @@ if (blog) {
         <section class="blog-home--section">
           <h2>{t('home.highlights', locale)}</h2>
           <ul class="rides-list rides-list--grid">
-            {blogHighlights.map(ride => {
-              const cover = ride.data.media.find(m => m.cover);
-              const hasMap = hasCachedMap(ride.id);
-              const featured = blogFeaturedIds.has(ride.id);
-              return (
-                <li class={`ride-card${featured ? ' ride-card--featured' : ''}`}>
-                  <a href={ride.data.tour_slug ? paths.tour(ride.data.tour_slug) : paths.ride(ride.id)} class="ride-card--link">
-                    <div class="ride-card--images">
-                      {cover && (
-                        <img
-                          class="ride-card--cover"
-                          src={imageUrl(cover.key, { width: 600, height: 600, fit: 'cover' })}
-                          alt={ride.data.name}
-                          loading="lazy"
-                          width="600"
-                          height="600"
-                        />
-                      )}
-                      {hasMap && (
-                        <img
-                          class="ride-card--map"
-                          src={assets.mapThumbnail(ride.id, 750)}
-                          alt={`Map of ${ride.data.name}`}
-                          loading="lazy"
-                          width="600"
-                          height="600"
-                        />
-                      )}
-                    </div>
-                    <div class="ride-card--info">
-                      <strong class="ride-card--name">{ride.data.name}</strong>
-                      {(blogBadgeMap.get(ride.id) || []).length > 0 && (
-                        <span class="ride-badge">
-                          {blogBadgeMap.get(ride.id)!.join(' · ')}
-                        </span>
-                      )}
-                      <span class="ride-card--meta">
-                        {ride.data.ride_date}
-                        {' · '}
-                        {formatDistance(ride.data.distance_km)}
-                        {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
-                        {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
-                      </span>
-                    </div>
-                  </a>
-                </li>
-              );
-            })}
+            {blogHighlights.map(ride => (
+              <RideCard
+                ride={ride}
+                featured={blogFeaturedIds.has(ride.id)}
+                badges={blogBadgeMap.get(ride.id) || []}
+              />
+            ))}
           </ul>
         </section>
       )}
@@ -164,53 +119,12 @@ if (blog) {
       <section class="blog-home--section">
         <h2>{t('home.latest_rides', locale)}</h2>
         <ul class="rides-list rides-list--grid">
-          {blogRides.map(ride => {
-            const cover = ride.data.media.find(m => m.cover);
-            const hasMap = hasCachedMap(ride.id);
-            return (
-              <li class="ride-card">
-                <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
-                  <div class="ride-card--images">
-                    {cover && (
-                      <img
-                        class="ride-card--cover"
-                        src={imageUrl(cover.key, { width: 600, height: 600, fit: 'cover' })}
-                        alt={ride.data.name}
-                        loading="lazy"
-                        width="600"
-                        height="600"
-                      />
-                    )}
-                    {hasMap && (
-                      <img
-                        class="ride-card--map"
-                        src={assets.mapThumbnail(ride.id, 750)}
-                        alt={`Map of ${ride.data.name}`}
-                        loading="lazy"
-                        width="600"
-                        height="600"
-                      />
-                    )}
-                  </div>
-                  <div class="ride-card--info">
-                    <strong class="ride-card--name">{ride.data.name}</strong>
-                    {(blogBadgeMap.get(ride.id) || []).length > 0 && (
-                      <span class="ride-badge">
-                        {blogBadgeMap.get(ride.id)!.join(' · ')}
-                      </span>
-                    )}
-                    <span class="ride-card--meta">
-                      {ride.data.ride_date}
-                      {' · '}
-                      {formatDistance(ride.data.distance_km)}
-                      {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
-                      {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
-                    </span>
-                  </div>
-                </a>
-              </li>
-            );
-          })}
+          {blogRides.map(ride => (
+            <RideCard
+              ride={ride}
+              badges={blogBadgeMap.get(ride.id) || []}
+            />
+          ))}
         </ul>
         <p class="blog-home--more">
           <a href="/rides">{t('home.all_rides', locale)}</a>
