@@ -94,13 +94,33 @@ export function computeEventContentHash(content: string, mediaContent?: string):
   return hash.digest('hex');
 }
 
+/**
+ * Find the effective primary file from git file snapshots.
+ * Handles both directory-based events (index.md primary) and flat events
+ * (flat .md in auxiliaries when index.md primary doesn't exist).
+ */
+export function resolveEffectivePrimary(currentFiles: EventGitFiles): { content: string; sha: string } | null {
+  if (currentFiles.primaryFile) return currentFiles.primaryFile;
+  // Check auxiliaries for either index.md or flat .md
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  for (const p of Object.keys(auxFiles)) {
+    if ((p.endsWith('/index.md') || p.endsWith('.md')) && auxFiles[p]) {
+      return auxFiles[p];
+    }
+  }
+  return null;
+}
+
 /** Compute event hash directly from git file snapshots used by the save pipeline. */
 export function computeEventContentHashFromFiles(currentFiles: EventGitFiles): string {
-  if (!currentFiles.primaryFile) {
+  const primary = resolveEffectivePrimary(currentFiles);
+  if (!primary) {
     throw new Error('Cannot compute event hash without primary file content');
   }
-  const mediaContent = currentFiles.auxiliaryFiles?.['media.yml']?.content;
-  return computeEventContentHash(currentFiles.primaryFile.content, mediaContent ?? undefined);
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('media.yml'));
+  const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
+  return computeEventContentHash(primary.content, mediaContent ?? undefined);
 }
 
 /** Parse media.yml content into media items array. */
@@ -170,12 +190,15 @@ export function eventDetailToCache(detail: EventDetail): string {
 
 /** Build fresh event cache JSON directly from git file snapshots used by the save pipeline. */
 export function buildFreshEventData(eventId: string, currentFiles: EventGitFiles): string {
-  if (!currentFiles.primaryFile) {
+  const primary = resolveEffectivePrimary(currentFiles);
+  if (!primary) {
     throw new Error('Cannot build event cache data without primary file content');
   }
 
-  const { data: ghFrontmatter, content: ghBody } = matter(currentFiles.primaryFile.content);
-  const mediaContent = currentFiles.auxiliaryFiles?.['media.yml']?.content;
+  const { data: ghFrontmatter, content: ghBody } = matter(primary.content);
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  const mediaPath = Object.keys(auxFiles).find(p => p.endsWith('media.yml'));
+  const mediaContent = mediaPath ? auxFiles[mediaPath]?.content : undefined;
   const detail = eventDetailFromGit(eventId, ghFrontmatter, ghBody, mediaContent);
   return eventDetailToCache(detail);
 }
