@@ -334,14 +334,6 @@ export function rideLoader(): Loader {
             tourFrontmatter = matter(tourRaw).data;
           }
 
-          // Also check for tour-level media.yml if ride has no media
-          if (media.length === 0) {
-            const tourMediaPath = path.join(ridesDir, tour.dirPath, 'media.yml');
-            if (fs.existsSync(tourMediaPath)) {
-              const tourMediaRaw = fs.readFileSync(tourMediaPath, 'utf-8');
-              media = (yaml.load(tourMediaRaw) as RouteMedia[]) || [];
-            }
-          }
         }
 
         const name = (sidecarFrontmatter.name as string)

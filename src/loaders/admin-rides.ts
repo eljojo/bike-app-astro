@@ -203,14 +203,6 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const tourSlug = tourInfo?.slug;
     const tourData = tourSlug ? tourMeta.get(tourSlug) : undefined;
 
-    // Also check for tour-level media if ride has no media
-    if (media.length === 0 && tourInfo) {
-      const tourMediaPath = path.join(ridesDir, tourInfo.dirPath, 'media.yml');
-      if (fs.existsSync(tourMediaPath)) {
-        const tourMediaRaw = fs.readFileSync(tourMediaPath, 'utf-8');
-        media = (yaml.load(tourMediaRaw) as RouteMedia[]) || [];
-      }
-    }
 
     const name = (sidecarFrontmatter.name as string) || nameFromFilename(gpxFilename);
     const status = (sidecarFrontmatter.status as string) || 'published';
