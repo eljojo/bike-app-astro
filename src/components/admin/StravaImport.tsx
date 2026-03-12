@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 
 interface StravaActivity {
   id: number;
@@ -35,7 +35,6 @@ function formatDate(iso: string): string {
 
 export default function StravaImport() {
   const [open, setOpen] = useState(false);
-  const [connected, setConnected] = useState<boolean | null>(null);
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState<number | null>(null);
@@ -43,22 +42,6 @@ export default function StravaImport() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [imported, setImported] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    checkStatus();
-  }, []);
-
-  async function checkStatus() {
-    try {
-      const res = await fetch('/api/strava/status');
-      if (res.ok) {
-        const data = await res.json();
-        setConnected(data.connected);
-      }
-    } catch {
-      setConnected(false);
-    }
-  }
 
   async function loadActivities(p: number) {
     setLoading(true);
@@ -126,9 +109,6 @@ export default function StravaImport() {
       setImporting(null);
     }
   }
-
-  // Don't show anything if not connected
-  if (connected === null || connected === false) return null;
 
   if (!open) {
     return (

@@ -8,12 +8,23 @@ import adminRidesData from 'virtual:bike-app/admin-routes';
 import type { AdminRide } from '../../loaders/admin-rides';
 import { loadAdminRideList } from '../../lib/load-admin-content';
 import { formatDistance } from '../../lib/format';
+import { db } from '../../lib/get-db';
+import { stravaTokens } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
 
 const { rides, pendingSlugs } = await loadAdminRideList(adminRidesData as unknown as AdminRide[]);
+
+let stravaConnected = false;
+try {
+  const rows = await db().select({ id: stravaTokens.id }).from(stravaTokens).where(eq(stravaTokens.id, 1));
+  stravaConnected = rows.length > 0;
+} catch {
+  // Table may not exist yet
+}
 const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
 // Extract unique years for year filter
@@ -30,7 +41,7 @@ const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boole
 
     <div class="admin-actions">
       <a href="/admin/rides/new" class="btn-new-route">+ New ride</a>
-      {user.role === 'admin' && <StravaImport client:load />}
+      {user.role === 'admin' && stravaConnected && <StravaImport client:load />}
     </div>
 
     <div class="admin-filters" id="ride-filters">
