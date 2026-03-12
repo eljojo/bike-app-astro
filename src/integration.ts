@@ -26,6 +26,7 @@ import { i18nRoutes } from './integrations/i18n-routes';
 import { appRoutesIntegration } from './integrations/admin-routes';
 import { isBlogInstance } from './lib/city-config';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from './loaders/rides';
+import { generateTourRedirects } from './lib/tour-redirects';
 import matter from 'gray-matter';
 
 /**
@@ -250,28 +251,21 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           lines.push(...translatedRedirects);
         }
 
-        // Blog ride redirects: date-prefixed → name-only, /rides/ → /tours/ for tour rides
+        // Blog tour ride redirects: /rides/{slug} → /tours/{tour}/{slug}
         if (isBlogInstance()) {
           const ridesDir = path.join(CONTENT_DIR, CITY, 'rides');
           if (fs.existsSync(ridesDir)) {
             const gpxPaths = findGpxFiles(ridesDir);
             const tours = detectTours(gpxPaths);
-            const tourByGpxPath = new Map<string, string>();
-            for (const tour of tours) {
-              for (const ridePath of tour.ridePaths) {
-                tourByGpxPath.set(ridePath, tour.slug);
-              }
-            }
 
-            const rideRedirects: string[] = [];
+            // Build slug entries for all rides
+            const rideEntries: Array<{ gpxRelPath: string; slug: string }> = [];
             for (const gpxRelPath of gpxPaths) {
               const date = extractDateFromPath(gpxRelPath);
               if (!date) continue;
-
               const gpxFilename = path.basename(gpxRelPath);
               const gpxAbsPath = path.join(ridesDir, gpxRelPath);
 
-              // Read sidecar for handle
               let handle: string | undefined;
               const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
               if (fs.existsSync(sidecarPath)) {
@@ -279,37 +273,17 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
                 handle = fm.handle as string | undefined;
               }
 
-              const newSlug = buildSlug(date, gpxFilename, handle);
-              const tourSlug = tourByGpxPath.get(gpxRelPath);
-
-              // Compute old date-prefixed slug using the same date-aware stripping
-              const mm = String(date.month).padStart(2, '0');
-              const dd = String(date.day).padStart(2, '0');
-              const oldSlug = `${date.year}-${mm}-${dd}-${newSlug}`;
-
-              const canonicalUrl = tourSlug
-                ? `/tours/${tourSlug}/${newSlug}`
-                : `/rides/${newSlug}`;
-
-              // Redirect old date-prefixed URL → canonical
-              if (oldSlug !== newSlug) {
-                rideRedirects.push(`/rides/${oldSlug}  ${canonicalUrl}  301`);
-                rideRedirects.push(`/rides/${oldSlug}/map  ${canonicalUrl}/map  301`);
-              }
-
-              // Redirect /rides/{slug} → /tours/{tour}/{slug} for tour rides
-              if (tourSlug) {
-                rideRedirects.push(`/rides/${newSlug}  /tours/${tourSlug}/${newSlug}  301`);
-                rideRedirects.push(`/rides/${newSlug}/map  /tours/${tourSlug}/${newSlug}/map  301`);
-              }
+              rideEntries.push({
+                gpxRelPath,
+                slug: buildSlug(date, gpxFilename, handle),
+              });
             }
 
-            // Deduplicate redirects (multiple rides can share a slug after name stripping)
-            const uniqueRedirects = [...new Set(rideRedirects)];
-            if (uniqueRedirects.length > 0) {
+            const tourRedirects = generateTourRedirects(tours, rideEntries);
+            if (tourRedirects.length > 0) {
               lines.push('');
-              lines.push('# Ride redirects: date-prefixed → name-only, standalone → tour-nested');
-              lines.push(...uniqueRedirects);
+              lines.push('# Tour ride redirects: /rides/ → /tours/');
+              lines.push(...tourRedirects);
             }
           }
         }
