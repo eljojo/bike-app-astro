@@ -35,6 +35,8 @@ const rideDetailSchema = z.object({
   country: z.string().optional(),
   tour_slug: z.string().optional(),
   highlight: z.boolean().optional(),
+  strava_id: z.string().optional(),
+  privacy_zone: z.boolean().optional(),
   elapsed_time_s: z.number().optional(),
   moving_time_s: z.number().optional(),
   average_speed_kmh: z.number().optional(),

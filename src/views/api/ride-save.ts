@@ -26,6 +26,8 @@ const rideUpdateSchema = z.object({
     country: z.string().optional(),
     tour_slug: z.string().optional(),
     highlight: z.boolean().optional(),
+    strava_id: z.string().optional(),
+    privacy_zone: z.boolean().optional(),
   }),
   body: z.string(),
   media: z.array(z.object({
