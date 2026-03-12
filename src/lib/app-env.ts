@@ -28,4 +28,9 @@ export interface AppEnv {
   THUNDERFOREST_API_KEY?: string;
   TILE_CACHE?: unknown; // KV namespace in prod, undefined locally (handled by env-local)
   AI?: unknown; // Workers AI binding, used for poster vision extraction
+  SMTP_HOST?: string;
+  SMTP_PORT?: string;
+  SMTP_USER?: string;
+  SMTP_PASS?: string;
+  SMTP_FROM?: string;
 }
