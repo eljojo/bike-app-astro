@@ -390,23 +390,33 @@ async function stepApiKeys() {
     },
     {
       name: 'SES_ACCESS_KEY_ID', kind: 'secret',
-      description: 'AWS IAM access key for sending login emails via SES',
-      howTo: 'IAM → Users → Create user → Attach policy: AmazonSESFullAccess\n    → Security credentials → Create access key → copy "Access key ID"',
+      description: 'AWS IAM access key for sending login emails via Amazon SES',
+      howTo: `https://console.aws.amazon.com/iam/home#/users
+    1. Create a new IAM user (e.g., "blog-ses-sender")
+    2. Attach the "AmazonSESFullAccess" managed policy
+    3. Go to Security credentials → Create access key → choose "Application running outside AWS"
+    4. Copy the "Access key ID"`,
     },
     {
       name: 'SES_SECRET_ACCESS_KEY', kind: 'secret',
       description: 'AWS IAM secret key (paired with access key above)',
-      howTo: 'Same screen → copy "Secret access key"',
+      howTo: 'Same screen as above → copy "Secret access key" (shown only once)',
     },
     {
       name: 'SES_REGION', kind: 'secret',
-      description: 'AWS region for SES (e.g., us-east-1)',
-      howTo: 'The region where your SES identities are verified',
+      description: 'AWS region where your SES identity is verified (e.g., us-east-1)',
+      howTo: `https://console.aws.amazon.com/ses/home
+    Check the region in the top-right corner of the SES console.
+    Common regions: us-east-1, eu-west-1, ap-southeast-2`,
     },
     {
       name: 'SES_FROM', kind: 'secret',
-      description: 'From address for login emails',
-      howTo: 'e.g., noreply@yourdomain.com (must be verified in SES)',
+      description: 'From address for login emails (must be verified in SES)',
+      howTo: `https://console.aws.amazon.com/ses/home#/verified-identities
+    Verify either a domain or a specific email address.
+    For a new AWS account in sandbox mode, you must also verify recipient addresses.
+    To send to anyone, request production access in the SES console.
+    Example: noreply@yourdomain.com`,
     },
   ];
 
