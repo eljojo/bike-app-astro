@@ -126,5 +126,20 @@ const filterData = published.map(r => ({
     if (!params.has('filter') && !params.has('year') && !params.has('country')) {
       window.scrollTo(0, document.body.scrollHeight);
     }
+
+    // Make header sticky on rides page only — month labels and sidebar offset below it
+    const header = document.querySelector('.site-header');
+    const nav = header?.nextElementSibling as HTMLElement | null;
+    if (header && nav) {
+      document.body.style.overflowX = 'clip'; // prevent horizontal scrollbar from full-width shadow
+      const wrapper = document.createElement('div');
+      wrapper.className = 'sticky-header';
+      header.parentNode!.insertBefore(wrapper, header);
+      wrapper.appendChild(header);
+      wrapper.appendChild(nav);
+      const update = () => document.documentElement.style.setProperty('--sticky-header-h', wrapper.offsetHeight + 'px');
+      update();
+      window.addEventListener('resize', update);
+    }
   </script>
 </Base>

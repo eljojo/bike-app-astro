@@ -4,7 +4,7 @@ import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
 import { t } from '@/i18n';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
-import { paths } from '@/lib/paths';
+import { paths, assets } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import ContentDetail from '@/components/patterns/ContentDetail.astro';
@@ -103,6 +103,57 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
         )}
       </div>
     )}
+    {tour && tourRides.length > 0 && (
+      <section class="tour-rides-sidebar">
+        <h2>
+          <a href={paths.tour(tour.slug)}>{tour.name}</a>
+        </h2>
+        <ul class="tour-detail--rides">
+          {tourRides.map(tourRide => {
+            const rideCover = tourRide.data.media.find((m: any) => m.cover);
+            const rideHasMap = hasCachedMap(tourRide.id);
+            const isCurrent = tourRide.id === route.id;
+            return (
+              <li class={`tour-ride${isCurrent ? ' current' : ''}`}>
+                <a href={isCurrent ? '#' : paths.ride(tourRide.id, tour.slug)} class="tour-ride--link" aria-current={isCurrent ? 'page' : undefined}>
+                  <div class="tour-ride--images">
+                    {rideCover && (
+                      <img
+                        class="tour-ride--cover"
+                        src={imageUrl(rideCover.key, { width: 160, height: 160, fit: 'cover' })}
+                        alt={tourRide.data.name}
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      />
+                    )}
+                    {rideHasMap && (
+                      <img
+                        class="tour-ride--map"
+                        src={assets.mapThumbnail(tourRide.id, 375)}
+                        alt={`Map of ${tourRide.data.name}`}
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      />
+                    )}
+                  </div>
+                  <div class="tour-ride--info">
+                    <strong class="tour-ride--name">{tourRide.data.name}</strong>
+                    <span class="tour-ride--meta">
+                      {tourRide.data.ride_date}
+                      {' · '}
+                      {formatDistance(tourRide.data.distance_km)}
+                      {tourRide.data.country ? ` · ${countryToFlag(tourRide.data.country) || tourRide.data.country}` : ''}
+                    </span>
+                  </div>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    )}
   </Fragment>
 
   <Fragment slot="gallery">
@@ -112,26 +163,6 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
   </Fragment>
 
   <Fragment slot="after">
-    {tour && tourRides.length > 0 && (
-      <section class="tour-rides-nav">
-        <h2>
-          <span>Tour: </span>
-          <a href={paths.tour(tour.slug)}>{tour.name}</a>
-        </h2>
-        <ul>
-          {tourRides.map(tourRide => (
-            <li class={tourRide.id === route.id ? 'current' : ''}>
-              <span class="tour-rides-nav--date">{tourRide.data.ride_date}</span>
-              {tourRide.id === route.id
-                ? <span>{tourRide.data.name}</span>
-                : <a href={paths.ride(tourRide.id, tour.slug)}>{tourRide.data.name}</a>
-              }
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
-
     <p class="route-similar">
       <a href={backLink} class="go-back-button">&larr; {backLabel}</a>
     </p>

@@ -3,14 +3,11 @@
 @use 'webfonts';
 
 * { box-sizing: border-box; }
-:root { --sticky-header-h: 0px; }
-
 body {
   font-family: $font-body;
   font-weight: 400;
   color: $color-text;
   background: $color-bg;
-  overflow-x: clip; // prevent horizontal scrollbar from sticky-header full-width bleed
 
   @media (min-width: $breakpoint-mobile) {
     width: $content-width; // route card image placeholder height (calc(85vw/2 - 8px)) depends on this value
@@ -124,28 +121,6 @@ a.go-back-button {
 // ============================================================
 // Layout
 // ============================================================
-
-.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: $color-bg;
-  padding-bottom: 0.25rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-
-  @include dark-mode {
-    background: $color-bg-dark;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  }
-
-  @media (min-width: $breakpoint-mobile) {
-    // counteract body width: 85% — stretch shadow to viewport edges
-    margin-left: calc(-50vw + 50%);
-    margin-right: calc(-50vw + 50%);
-    padding-left: calc(50vw - 50%);
-    padding-right: calc(50vw - 50%);
-  }
-}
 
 .site-header {
   margin-bottom: 10px;
@@ -1134,41 +1109,28 @@ a.go-back-button {
   }
 }
 
-// Tour day navigation on ride detail
-.tour-rides-nav {
-  margin-top: 2em;
-  padding: 1em 0;
-  border-top: 1px solid $color-border;
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-  }
+// Tour rides in sidebar on ride detail (below map, like nearby-places)
+.tour-rides-sidebar {
+  margin-top: 1.5em;
 
   h2 {
     font-size: 1.1rem;
-    margin-bottom: 0.75em;
+    margin-bottom: 0.5em;
 
-    span { font-weight: normal; }
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  li {
-    padding: 0.25em 0;
-
-    &.current {
-      font-weight: bold;
+    a {
+      color: inherit;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
     }
   }
+}
 
-  &--date {
-    @include muted-text;
-    margin-right: 0.5em;
-    font-size: 0.85em;
+.tour-ride.current .tour-ride--link {
+  background: $color-card-hover;
+  font-weight: bold;
+
+  @include dark-mode {
+    background: $color-card-hover-dark;
   }
 }
 
@@ -1778,6 +1740,29 @@ a.go-back-button {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+// Sticky header (rides index only — injected by page script)
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: $color-bg;
+  padding-bottom: 0.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  @media (min-width: $breakpoint-mobile) {
+    // counteract body width: 85% — stretch shadow to viewport edges
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    padding-left: calc(50vw - 50%);
+    padding-right: calc(50vw - 50%);
+  }
 }
 
 // Rides page layout (sidebar + grid)
