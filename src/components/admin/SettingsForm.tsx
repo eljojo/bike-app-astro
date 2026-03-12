@@ -7,6 +7,12 @@ interface Passkey {
   createdAt: string;
 }
 
+interface StravaStatusData {
+  configured: boolean;
+  connected: boolean;
+  athleteId: string | null;
+}
+
 interface Props {
   username: string;
   email: string | null;
@@ -15,9 +21,10 @@ interface Props {
   analyticsOptOut: boolean;
   role: 'admin' | 'editor' | 'guest';
   isBlog?: boolean;
+  stravaStatus?: StravaStatusData | null;
 }
 
-export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog, stravaStatus: initialStravaStatus }: Props) {
   const isGuest = role === 'guest';
   const isAdmin = role === 'admin';
   const [username, setUsername] = useState(initialUsername);
@@ -34,7 +41,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
   const [passkeyError, setPasskeyError] = useState('');
 
   // Strava integration
-  const [stravaStatus, setStravaStatus] = useState<{ configured: boolean; connected: boolean; athleteId: string | null } | null>(null);
+  const [stravaStatus, setStravaStatus] = useState<StravaStatusData | null>(initialStravaStatus ?? null);
   const [stravaLoading, setStravaLoading] = useState(false);
 
   const emailModified = email.trim().toLowerCase() !== (initialEmail ?? '').toLowerCase();
@@ -45,7 +52,6 @@ export default function SettingsForm({ username: initialUsername, email: initial
 
   useEffect(() => {
     if (!isGuest) loadPasskeys();
-    if (isBlog && isAdmin) loadStravaStatus();
   }, []);
 
   async function loadPasskeys() {
@@ -57,15 +63,6 @@ export default function SettingsForm({ username: initialUsername, email: initial
       }
     } catch {
       // Silently ignore — passkeys section just won't show data
-    }
-  }
-
-  async function loadStravaStatus() {
-    try {
-      const res = await fetch('/api/strava/status');
-      if (res.ok) setStravaStatus(await res.json());
-    } catch {
-      // Strava section just won't show
     }
   }
 

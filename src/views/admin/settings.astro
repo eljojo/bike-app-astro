@@ -6,11 +6,29 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import SettingsForm from '../../components/admin/SettingsForm.tsx';
 import { getInstanceFeatures } from '../../lib/instance-features';
+import { db } from '../../lib/get-db';
+import { env } from '../../lib/env';
+import { stravaTokens } from '../../db/schema';
 import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
 const features = getInstanceFeatures();
 const isBlog = features.hasRides;
+
+let stravaStatus: { configured: boolean; connected: boolean; athleteId: string | null } | null = null;
+if (isBlog && user.role === 'admin') {
+  const configured = !!(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET);
+  if (configured) {
+    try {
+      const rows = await db().select().from(stravaTokens).limit(1).all();
+      const token = rows[0];
+      stravaStatus = { configured: true, connected: !!token, athleteId: token?.athleteId ?? null };
+    } catch {
+      stravaStatus = { configured: true, connected: false, athleteId: null };
+    }
+  }
+}
+
 const emailHash = user.email
   ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
   : null;
@@ -28,6 +46,7 @@ const emailHash = user.email
       analyticsOptOut={user.analyticsOptOut}
       role={user.role}
       isBlog={isBlog}
+      stravaStatus={stravaStatus}
     />
   </div>
 </Base>

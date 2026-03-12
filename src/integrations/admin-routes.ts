@@ -56,7 +56,6 @@ const routes = [
   { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
   ...(isBlogInstance() ? [
     { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
-    { pattern: '/api/strava/status', entrypoint: view('api/strava/status.ts') },
     { pattern: '/api/strava/connect', entrypoint: view('api/strava/connect.ts') },
     { pattern: '/api/strava/disconnect', entrypoint: view('api/strava/disconnect.ts') },
     { pattern: '/api/strava/activities', entrypoint: view('api/strava/activities.ts') },
