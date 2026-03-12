@@ -18,27 +18,22 @@ test.describe('Club homepage', () => {
 });
 
 test.describe('Club events list', () => {
-  test('shows upcoming events and toggle for past events', async ({ page }) => {
+  test('shows upcoming and past events grouped by year', async ({ page }) => {
     await page.goto('/events');
     await page.waitForLoadState('networkidle');
 
     // Title
     await expect(page.locator('h1')).toContainText('Events');
 
-    // Upcoming event card
-    await expect(page.locator('.events-grid .event-card')).toHaveCount(1);
+    // Upcoming event card links to detail page
+    const upcomingCard = page.locator('.events-grid .event-card').first();
+    await expect(upcomingCard).toContainText('BRM 200 Ruta del Vino');
+    const link = upcomingCard.locator('a.event-name');
+    await expect(link).toHaveAttribute('href', /\/events\/2099\//);
 
-    // Past events toggle exists
-    await expect(page.locator('#show-past-events')).toBeVisible();
-
-    // Past events hidden by default
-    await expect(page.locator('.past-events')).not.toBeVisible();
-
-    // Click to show past events
-    await page.locator('#show-past-events').click();
-    await expect(page.locator('.past-events')).toBeVisible();
-    await expect(page.locator('.past-events .event-card')).toHaveCount(1);
-    await expect(page.locator('.past-events')).toContainText('BRM 300 Vuelta Rocas');
+    // Past events visible with year headings (no toggle)
+    await expect(page.locator('h2')).toContainText('2024');
+    await expect(page.locator('.event-card')).toHaveCount(2);
   });
 });
 

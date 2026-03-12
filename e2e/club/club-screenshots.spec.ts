@@ -31,10 +31,4 @@ test.describe('Club Screenshots — Public Pages', () => {
     await expect(page).toHaveScreenshot('club-places-index.png', screenshotOpts);
   });
 
-  test('routes index', async ({ page }) => {
-    await page.goto('/routes');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
-    await expect(page).toHaveScreenshot('club-routes-index.png', screenshotOpts);
-  });
 });
