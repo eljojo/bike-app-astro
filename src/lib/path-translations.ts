@@ -10,6 +10,7 @@ const segmentTranslations: Record<string, Record<string, string>> = {
   map: { fr: 'carte', es: 'mapa' },
   routes: { fr: 'parcours', es: 'rutas' },
   events: { fr: 'evenements', es: 'eventos' },
+  places: { fr: 'lieux', es: 'lugares' },
   // guides and videos stay the same in French and Spanish
 };
 
