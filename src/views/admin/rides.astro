@@ -11,9 +11,11 @@ import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
 
-// Virtual module is typed as AdminRoute[] but contains AdminRide[] for blog instances
 const { rides, pendingSlugs } = await loadAdminRideList(adminRidesData as unknown as AdminRide[]);
 const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+// Extract unique years for year filter
+const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boolean))].sort((a, b) => b!.localeCompare(a!));
 ---
 
 <Base title="Rides" admin>
@@ -28,9 +30,31 @@ const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.dat
       <a href="/admin/rides/new" class="btn-new-route">+ New ride</a>
     </div>
 
-    <div class="route-list">
+    <div class="admin-filters" id="ride-filters">
+      <button type="button" class="admin-filter-pill active" data-filter="all">All</button>
+      <button type="button" class="admin-filter-pill" data-filter="long">Long (50km+)</button>
+      <button type="button" class="admin-filter-pill" data-filter="century">Century (100km+)</button>
+      <button type="button" class="admin-filter-pill" data-filter="tours">Tours</button>
+      {years.length > 1 && (
+        <select class="admin-filter-year" id="year-filter">
+          <option value="">All years</option>
+          {years.map(year => (
+            <option value={year}>{year}</option>
+          ))}
+        </select>
+      )}
+    </div>
+
+    <div class="route-list" id="ride-list">
       {sortedRides.map((ride) => (
-        <a href={`/admin/rides/${ride.slug}`} class="route-list-item">
+        <a
+          href={`/admin/rides/${ride.slug}`}
+          class="route-list-item"
+          data-distance={ride.distance_km}
+          data-tour={ride.tour_slug || ''}
+          data-country={ride.country || ''}
+          data-date={ride.date || ''}
+        >
           <span class="route-name">{ride.name}</span>
           <span class="route-meta">
             {ride.date && <span>{ride.date}</span>}
@@ -46,6 +70,73 @@ const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.dat
     </div>
   </div>
 </Base>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const filtersEl = document.getElementById('ride-filters');
+    const listEl = document.getElementById('ride-list');
+    const yearSelect = document.getElementById('year-filter') as HTMLSelectElement | null;
+    if (!filtersEl || !listEl) return;
+
+    const pills = filtersEl.querySelectorAll<HTMLButtonElement>('.admin-filter-pill');
+    const items = listEl.querySelectorAll<HTMLElement>('.route-list-item');
+
+    let activeFilter = 'all';
+    let activeYear = '';
+
+    function applyFilters() {
+      let visible = 0;
+      items.forEach(item => {
+        const distance = parseFloat(item.dataset.distance || '0');
+        const tour = item.dataset.tour || '';
+        const date = item.dataset.date || '';
+        const year = date.slice(0, 4);
+
+        let show = true;
+
+        // Type filter
+        if (activeFilter === 'long') show = distance >= 50;
+        else if (activeFilter === 'century') show = distance >= 100;
+        else if (activeFilter === 'tours') show = !!tour;
+
+        // Year filter
+        if (show && activeYear) show = year === activeYear;
+
+        item.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+    }
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeFilter = pill.dataset.filter || 'all';
+        applyFilters();
+      });
+    });
+
+    if (yearSelect) {
+      yearSelect.addEventListener('change', () => {
+        activeYear = yearSelect.value;
+        applyFilters();
+      });
+    }
+
+    // Check URL for initial filter
+    const params = new URLSearchParams(window.location.search);
+    const urlFilter = params.get('filter');
+    if (urlFilter) {
+      const matchPill = filtersEl.querySelector<HTMLButtonElement>(`[data-filter="${urlFilter}"]`);
+      if (matchPill) {
+        pills.forEach(p => p.classList.remove('active'));
+        matchPill.classList.add('active');
+        activeFilter = urlFilter;
+        applyFilters();
+      }
+    }
+  });
+</script>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
@@ -73,6 +164,51 @@ const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.dat
 
     &:hover {
       opacity: 0.9;
+    }
+  }
+
+  .admin-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+    align-items: center;
+  }
+
+  .admin-filter-pill {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid $color-border;
+    border-radius: 1rem;
+    background: transparent;
+    color: $color-text;
+    cursor: pointer;
+    font-size: 0.8125rem;
+
+    @include dark-mode {
+      color: $color-text-dark;
+      border-color: #555;
+    }
+
+    &.active {
+      background: $color-accent;
+      color: #000;
+      border-color: $color-accent;
+    }
+  }
+
+  .admin-filter-year {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background: transparent;
+    color: $color-text;
+    font-size: 0.8125rem;
+    margin-left: 0.25rem;
+
+    @include dark-mode {
+      color: $color-text-dark;
+      border-color: #555;
+      background: $color-card-bg-dark;
     }
   }
 
