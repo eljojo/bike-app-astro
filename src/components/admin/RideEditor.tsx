@@ -140,7 +140,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
         const { lat, lon } = track.points[0];
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=3`,
-          { headers: { 'Accept-Language': 'en' } },
+          { headers: { 'Accept-Language': 'en' } }, // eslint-disable-line bike-app/no-hardcoded-city-locale -- Nominatim API language, not a locale setting
         );
         if (!res.ok || cancelled) return;
         const data = await res.json();

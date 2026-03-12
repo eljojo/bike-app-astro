@@ -378,11 +378,15 @@ See `src/styles/AGENTS.md` for styling rules. Key: use SCSS variables from `_var
 ## Testing
 
 ```sh
+make lint          # ESLint checks (src/)
+make typecheck     # TypeScript type checking (tsc --noEmit)
 make test          # vitest unit tests (tests/)
 make test-e2e      # build (CITY=demo) + playwright screenshot tests
 make test-admin    # admin E2E tests (save flow, community editing, etc.)
 make full          # build + validate + unit + all E2E
 ```
+
+**Run `make lint` and `make typecheck` before committing.** CI enforces both — catch errors locally first.
 
 Screenshot tests build against `CITY=demo` (a fixture city), not Ottawa. See `e2e/AGENTS.md` for fixture system details.
 
