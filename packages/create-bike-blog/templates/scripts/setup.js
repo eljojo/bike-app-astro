@@ -379,6 +379,16 @@ async function stepApiKeys() {
       howTo: 'Same as RWGPS_API_KEY — provided alongside it',
     },
     {
+      name: 'STRAVA_CLIENT_ID', kind: 'secret',
+      description: 'Import rides from Strava (optional)',
+      howTo: 'https://www.strava.com/settings/api → Create an app → Client ID',
+    },
+    {
+      name: 'STRAVA_CLIENT_SECRET', kind: 'secret',
+      description: 'Strava app secret (paired with Client ID)',
+      howTo: 'Same app page → Client Secret',
+    },
+    {
       name: 'SMTP_HOST', kind: 'secret',
       description: 'SMTP server for sending login emails',
       howTo: 'Amazon SES: email-smtp.{region}.amazonaws.com',
