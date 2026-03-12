@@ -27,9 +27,14 @@ const isNew = !slug;
 
 let rideData;
 if (isNew) {
+  // Pre-fill from query params (e.g. Strava import redirect)
+  const qName = Astro.url.searchParams.get('name') || '';
+  const qDate = Astro.url.searchParams.get('date') || '';
+  const qStravaId = Astro.url.searchParams.get('strava_id') || '';
+
   rideData = {
     slug: '',
-    name: '',
+    name: qName,
     tagline: '',
     tags: [],
     status: 'published',
@@ -37,7 +42,8 @@ if (isNew) {
     media: [],
     variants: [],
     contentHash: '',
-    ride_date: '',
+    ride_date: qDate,
+    strava_id: qStravaId,
     isNew: true,
   };
 } else {

@@ -109,7 +109,11 @@ export default function StravaImport() {
       const result: ImportResult = await res.json();
       setImported(prev => new Set([...prev, activity.id]));
 
-      // Redirect to new ride page with imported data
+      // Stash full import result (GPX, photos) for the editor to pick up
+      sessionStorage.setItem('strava-import', JSON.stringify({
+        ...result,
+        start_date_local: activity.start_date,
+      }));
       const params = new URLSearchParams({
         name: result.name,
         strava_id: result.strava_id,

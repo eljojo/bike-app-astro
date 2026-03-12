@@ -1,6 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useCallback } from 'preact/hooks';
+import { useState, useRef, useCallback, useEffect } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
@@ -95,6 +95,34 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   const [stravaImporting, setStravaImporting] = useState(false);
   const [stravaError, setStravaError] = useState('');
   const [stravaPage, setStravaPage] = useState(1);
+
+  // Hydrate from Strava import stashed in sessionStorage (from rides list page)
+  useEffect(() => {
+    if (!initialData.isNew) return;
+    const raw = sessionStorage.getItem('strava-import');
+    if (!raw) return;
+    sessionStorage.removeItem('strava-import');
+    try {
+      const result = JSON.parse(raw);
+      if (result.name) setName(result.name);
+      if (result.strava_id) setStravaId(result.strava_id);
+      const dateStr = result.start_date_local?.split('T')[0] || result.start_date?.slice(0, 10) || '';
+      if (dateStr) {
+        setRideDate(dateStr);
+        setSlug(slugify(`${dateStr}-${result.name}`));
+      }
+      if (result.gpxContent) {
+        const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
+        setVariants([{ name: result.name, gpx: gpxFilename, isNew: true, gpxContent: result.gpxContent }]);
+      }
+      if (result.photos?.length) {
+        setMedia(result.photos.map((p: { key: string; caption: string; lat?: number; lng?: number }, i: number) => ({
+          key: p.key, caption: p.caption, lat: p.lat, lng: p.lng, cover: i === 0,
+        })));
+      }
+      setPrivacyZone(false);
+    } catch { /* ignore malformed data */ }
+  }, []);
 
   // Drag-and-drop
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
