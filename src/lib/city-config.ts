@@ -4,7 +4,7 @@ import yaml from 'js-yaml';
 import { cityDir } from './config';
 
 export interface CityConfig {
-  instance_type?: 'blog' | 'wiki';
+  instance_type?: 'blog' | 'wiki' | 'club';
   name: string;
   display_name: string;
   tagline: string;
@@ -34,6 +34,8 @@ export interface CityConfig {
     radius_m: number;
     default_enabled: boolean;
   };
+  acp_club_code?: string;
+  results_privacy?: 'full_name' | 'last_name_only' | 'initials';
 }
 
 let cached: CityConfig | null = null;
@@ -61,4 +63,8 @@ export function getCityConfig(): CityConfig {
 
 export function isBlogInstance(): boolean {
   return getCityConfig().instance_type === 'blog';
+}
+
+export function isClubInstance(): boolean {
+  return getCityConfig().instance_type === 'club';
 }

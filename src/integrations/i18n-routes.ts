@@ -1,6 +1,6 @@
 import type { AstroIntegration } from 'astro';
 import { translatePath } from '../lib/path-translations';
-import { isBlogInstance } from '../lib/city-config';
+import { isBlogInstance, isClubInstance } from '../lib/city-config';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
@@ -46,6 +46,21 @@ const blogStaticRoutes = [
   { pattern: '/rides/[slug]/[variant].gpx', entrypoint: view('rides/download-gpx.ts') },
 ];
 
+/** Club-only pages (randonneuring clubs, cycling organizations). */
+const clubPages = [
+  { pattern: '/events', entrypoint: view('events/index.astro') },
+  { pattern: '/events/[slug]', entrypoint: view('events/club-detail.astro') },
+  { pattern: '/routes', entrypoint: view('routes/index.astro') },
+  { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
+  { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
+  { pattern: '/places', entrypoint: view('places/index.astro') },
+];
+
+const clubStaticRoutes = [
+  ...wikiStaticRoutes,
+  { pattern: '/events/[slug]/[route].gpx', entrypoint: view('events/download-gpx.ts') },
+];
+
 export function i18nRoutes(): AstroIntegration {
   return {
     name: 'i18n-routes',
@@ -54,10 +69,11 @@ export function i18nRoutes(): AstroIntegration {
         const locales = (config.i18n?.locales || ['en']) as string[];
         const defaultLocale = config.i18n?.defaultLocale || 'en';
         const blog = isBlogInstance();
+        const club = isClubInstance();
 
         const localePages = [
           ...sharedPages,
-          ...(blog ? blogPages : wikiPages),
+          ...(blog ? blogPages : club ? clubPages : wikiPages),
         ];
 
         for (const page of localePages) {
@@ -76,7 +92,7 @@ export function i18nRoutes(): AstroIntegration {
         }
 
         // Static routes (no locale variants needed)
-        const staticRoutes = blog ? blogStaticRoutes : wikiStaticRoutes;
+        const staticRoutes = blog ? blogStaticRoutes : club ? clubStaticRoutes : wikiStaticRoutes;
         for (const page of staticRoutes) {
           injectRoute({ pattern: page.pattern, entrypoint: page.entrypoint });
         }

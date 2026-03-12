@@ -303,6 +303,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 const _data = ${JSON.stringify(cityConfig)};
 export function getCityConfig() { return _data; }
 export function isBlogInstance() { return _data.instance_type === 'blog'; }
+export function isClubInstance() { return _data.instance_type === 'club'; }
 `,
           map: null,
         };
