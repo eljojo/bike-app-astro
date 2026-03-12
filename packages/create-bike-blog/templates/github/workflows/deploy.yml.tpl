@@ -39,6 +39,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Record build start time
+        run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Generate map styles
         run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
 
@@ -96,6 +99,12 @@ jobs:
 
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy --config wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Clear stale content edits cache
+        run: npx wrangler d1 execute DB --config wrangler.jsonc --remote --command "DELETE FROM content_edits WHERE updated_at < '${{ env.BUILD_START }}'"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
