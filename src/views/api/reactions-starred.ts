@@ -1,3 +1,4 @@
+/* eslint-disable bike-app/require-authorize-call -- public endpoint, excluded from auth middleware */
 import type { APIContext } from 'astro';
 import { jsonResponse } from '@/lib/api-response';
 import { db } from '@/lib/get-db';

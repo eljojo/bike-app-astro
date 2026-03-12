@@ -1,4 +1,3 @@
-// eslint-disable-next-line bike-app/require-authorize-call -- local-dev only, guarded by RUNTIME check
 export const prerender = false;
 
 import type { APIContext } from 'astro';

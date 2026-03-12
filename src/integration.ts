@@ -190,8 +190,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     name: 'generate-redirects',
     hooks: {
       'astro:build:done': async ({ dir }) => {
-        const contentDir = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
-        const city = process.env.CITY || 'ottawa';
+        const { CONTENT_DIR: contentDir, CITY: city } = await import('./lib/config');
         const redirectsPath = path.join(contentDir, city, 'redirects.yml');
         const data = fs.existsSync(redirectsPath)
           ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}

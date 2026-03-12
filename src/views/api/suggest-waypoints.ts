@@ -8,10 +8,13 @@ import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { findNearbyPlaces } from '@/lib/proximity';
 import { haversineM } from '@/lib/proximity';
+import { authorize } from '@/lib/authorize';
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
+  const auth = authorize(locals, 'edit-content');
+  if (auth instanceof Response) return auth;
   const body = await request.json();
   const routeSlug = body.routeSlug as string;
 

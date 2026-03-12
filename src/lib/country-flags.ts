@@ -3,6 +3,7 @@
  * using regional indicator symbols.
  */
 
+/* eslint-disable bike-app/no-hardcoded-city-locale -- ISO 3166-1 alpha-2 country codes, not locale identifiers */
 const COUNTRY_CODES: Record<string, string> = {
   'afghanistan': 'AF', 'albania': 'AL', 'algeria': 'DZ', 'argentina': 'AR',
   'australia': 'AU', 'austria': 'AT', 'belgium': 'BE', 'bolivia': 'BO',
@@ -23,6 +24,7 @@ const COUNTRY_CODES: Record<string, string> = {
   'turkey': 'TR', 'ukraine': 'UA', 'united kingdom': 'GB', 'uk': 'GB',
   'united states': 'US', 'usa': 'US', 'uruguay': 'UY', 'vietnam': 'VN',
 };
+/* eslint-enable bike-app/no-hardcoded-city-locale */
 
 function isoToFlag(code: string): string {
   return String.fromCodePoint(
