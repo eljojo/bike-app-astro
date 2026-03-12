@@ -2423,3 +2423,81 @@
   padding: 0.75rem;
   border-top: 1px solid $color-border;
 }
+
+// Strava activity browser
+.strava-browser {
+  margin-top: 0.75rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  overflow: hidden;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.strava-browser--header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: $color-card-bg;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.strava-browser--list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.strava-activity {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  &:last-child { border-bottom: none; }
+}
+
+.strava-activity--info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.strava-activity--name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strava-activity--meta {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.strava-browser--more {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.5rem;
+  border-top: 1px solid $color-border;
+  border-radius: 0;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}

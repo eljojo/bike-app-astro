@@ -14,10 +14,12 @@ interface Props {
   emailInCommits: boolean;
   analyticsOptOut: boolean;
   role: 'admin' | 'editor' | 'guest';
+  isBlog?: boolean;
 }
 
-export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog }: Props) {
   const isGuest = role === 'guest';
+  const isAdmin = role === 'admin';
   const [username, setUsername] = useState(initialUsername);
   const [email, setEmail] = useState(initialEmail ?? '');
   const [emailInCommits, setEmailInCommits] = useState(initialEmailInCommits);
@@ -31,6 +33,10 @@ export default function SettingsForm({ username: initialUsername, email: initial
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState('');
 
+  // Strava integration
+  const [stravaStatus, setStravaStatus] = useState<{ configured: boolean; connected: boolean; athleteId: string | null } | null>(null);
+  const [stravaLoading, setStravaLoading] = useState(false);
+
   const emailModified = email.trim().toLowerCase() !== (initialEmail ?? '').toLowerCase();
 
   const avatarUrl = emailHash
@@ -39,6 +45,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
 
   useEffect(() => {
     if (!isGuest) loadPasskeys();
+    if (isBlog && isAdmin) loadStravaStatus();
   }, []);
 
   async function loadPasskeys() {
@@ -50,6 +57,27 @@ export default function SettingsForm({ username: initialUsername, email: initial
       }
     } catch {
       // Silently ignore — passkeys section just won't show data
+    }
+  }
+
+  async function loadStravaStatus() {
+    try {
+      const res = await fetch('/api/strava/status');
+      if (res.ok) setStravaStatus(await res.json());
+    } catch {
+      // Strava section just won't show
+    }
+  }
+
+  async function handleStravaDisconnect() {
+    setStravaLoading(true);
+    try {
+      const res = await fetch('/api/strava/disconnect', { method: 'POST' });
+      if (res.ok) setStravaStatus({ configured: true, connected: false, athleteId: null });
+    } catch {
+      // ignore
+    } finally {
+      setStravaLoading(false);
     }
   }
 
@@ -280,6 +308,38 @@ export default function SettingsForm({ username: initialUsername, email: initial
             >
               {passkeyLoading ? 'Adding...' : 'Add new passkey'}
             </button>
+          </div>
+        </>
+      )}
+
+      {stravaStatus?.configured && isAdmin && (
+        <>
+          <h2>Strava</h2>
+          <div class="auth-form">
+            {stravaStatus.connected ? (
+              <>
+                <p class="settings-help">
+                  Connected to Strava{stravaStatus.athleteId ? ` (athlete ${stravaStatus.athleteId})` : ''}. You can import rides from the <a href="/admin/rides">rides page</a>.
+                </p>
+                <button
+                  type="button"
+                  class="btn-small btn-small--danger"
+                  onClick={handleStravaDisconnect}
+                  disabled={stravaLoading}
+                >
+                  {stravaLoading ? 'Disconnecting...' : 'Disconnect Strava'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p class="settings-help">
+                  Connect your Strava account to import rides with GPS data and photos.
+                </p>
+                <a href="/api/strava/connect" class="btn-primary">
+                  Connect Strava
+                </a>
+              </>
+            )}
           </div>
         </>
       )}

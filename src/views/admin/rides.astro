@@ -3,6 +3,7 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
+import StravaImport from '../../components/admin/StravaImport.tsx';
 import adminRidesData from 'virtual:bike-app/admin-routes';
 import type { AdminRide } from '../../loaders/admin-rides';
 import { loadAdminRideList } from '../../lib/load-admin-content';
@@ -29,6 +30,7 @@ const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boole
 
     <div class="admin-actions">
       <a href="/admin/rides/new" class="btn-new-route">+ New ride</a>
+      {user.role === 'admin' && <StravaImport client:load />}
     </div>
 
     <div class="admin-filters" id="ride-filters">
