@@ -10,6 +10,7 @@ import RidePreview from './RidePreview';
 import { useEditorState } from './useEditorState';
 import { useTextareaValue, useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
+import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx';
 import { computeElevationProfile } from '../../lib/elevation-profile';
 import type { ElevationProfileData } from '../../lib/elevation-profile';
@@ -69,7 +70,6 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
-  const [editingSlug, setEditingSlug] = useState(false);
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media as MediaItem[]);
@@ -446,22 +446,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
                 {/* Slug */}
                 <div class="ride-detail-row">
                   <label>URL</label>
-                  {editingSlug ? (
-                    <div class="ride-slug-edit">
-                      <span class="ride-slug-prefix">/rides/</span>
-                      <input
-                        type="text"
-                        value={slug}
-                        onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
-                        class="ride-slug-input"
-                      />
-                      <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
-                    </div>
-                  ) : (
-                    <button type="button" class="ride-slug-toggle" onClick={() => setEditingSlug(true)}>
-                      /rides/{slug}
-                    </button>
-                  )}
+                  <SlugEditor slug={slug} onSlugChange={setSlug} prefix="/rides/" />
                 </div>
 
                 <div class="ride-detail-grid">

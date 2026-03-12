@@ -1930,36 +1930,6 @@
   }
 }
 
-.ride-slug-edit {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex: 1;
-}
-
-.ride-slug-prefix {
-  @include muted-text;
-  font-family: $font-mono;
-  font-size: 0.85em;
-}
-
-.ride-slug-input {
-  font-family: $font-mono;
-  font-size: 0.85em;
-  @include form-control;
-  flex: 1;
-}
-
-.ride-slug-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: $font-mono;
-  font-size: 0.85em;
-  color: $color-accent;
-  padding: 0;
-}
-
 .ride-detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
