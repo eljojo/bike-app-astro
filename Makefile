@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
+.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -40,6 +40,9 @@ test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 
 test-blog: ## Run blog E2E tests (ride editor)
 	npx playwright test --config e2e/blog/fixture.ts
+
+test-club: ## Run club E2E tests (events, results, waypoints)
+	npx playwright test --config e2e/club/fixture.ts
 
 screenshots: map-style ## Update all screenshot baselines (public + admin)
 	CITY=demo npx astro build
