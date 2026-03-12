@@ -12,7 +12,7 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath } from '../../lib/ride-paths';
 import { rideDetailToCache, computeRideContentHash } from '../../lib/models/ride-model';
-import { validateSlug } from '../../lib/slug';
+import { validateSlug, slugify } from '../../lib/slug';
 
 export const prerender = false;
 
@@ -100,8 +100,13 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       return parsed;
     },
 
-    resolveContentId(params): string {
-      return params.slug!;
+    resolveContentId(params, update): string {
+      const slug = params.slug;
+      if (slug === 'new') {
+        const name = (update.frontmatter as Record<string, unknown>).name as string;
+        return slugify(name);
+      }
+      return slug!;
     },
 
     validateSlug(slug: string): string | null {
