@@ -12,6 +12,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath } from '../../lib/ride-paths';
+import { CITY } from '../../lib/config';
 import { computeRideContentHashFromFiles, buildFreshRideData } from '../../lib/models/ride-model';
 import { validateSlug, slugify } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git-gpx';
@@ -119,7 +120,7 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       if (!gpxRelPath) {
         throw new Error('gpxRelativePath is required for ride saves');
       }
-      const paths = rideFilePathsFromRelPath(gpxRelPath);
+      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
       return {
         primary: paths.sidecar,
         auxiliary: [paths.gpx, paths.media],
@@ -138,7 +139,7 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       if (!gpxRelPath) {
         throw new Error('gpxRelativePath is required for ride saves');
       }
-      const paths = rideFilePathsFromRelPath(gpxRelPath);
+      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
       const files: FileChange[] = [];
       const deletePaths: string[] = [];
       const isNew = !currentFiles.primaryFile;
@@ -203,7 +204,7 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
     buildCommitMessage(update, _slug, isNew): string {
       const title = (update.frontmatter as Record<string, unknown>)?.name as string || _slug;
       const sidecarPath = gpxRelPath
-        ? rideFilePathsFromRelPath(gpxRelPath).sidecar
+        ? rideFilePathsFromRelPath(gpxRelPath, CITY).sidecar
         : _slug;
       const trailer = `\n\nChanges: ${sidecarPath}`;
 
@@ -232,7 +233,7 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
 
     buildGitHubUrl(_slug: string, baseBranch: string): string {
       const sidecarPath = gpxRelPath
-        ? rideFilePathsFromRelPath(gpxRelPath).sidecar
+        ? rideFilePathsFromRelPath(gpxRelPath, CITY).sidecar
         : _slug;
       return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${sidecarPath}`;
     },

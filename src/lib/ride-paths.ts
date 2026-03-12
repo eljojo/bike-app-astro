@@ -1,10 +1,8 @@
-import { CITY } from './config';
-
 /**
  * Derive file paths from a GPX relative path (relative to rides/ directory).
  * This is the primary way to get file paths for rides with name-only slugs.
  */
-export function rideFilePathsFromRelPath(gpxRelPath: string, city: string = CITY) {
+export function rideFilePathsFromRelPath(gpxRelPath: string, city: string) {
   const base = gpxRelPath.replace(/\.gpx$/i, '');
   return {
     gpx: `${city}/rides/${gpxRelPath}`,
@@ -17,7 +15,7 @@ export function rideFilePathsFromRelPath(gpxRelPath: string, city: string = CITY
  * Compute file paths for a ride when its tour assignment changes.
  * Inserts/removes the tour slug directory in the path structure.
  */
-export function rideFilePathsWithTour(gpxRelPath: string, tourSlug: string | undefined, city: string = CITY) {
+export function rideFilePathsWithTour(gpxRelPath: string, tourSlug: string | undefined, city: string) {
   if (!tourSlug) return rideFilePathsFromRelPath(gpxRelPath, city);
 
   const parts = gpxRelPath.split('/');
