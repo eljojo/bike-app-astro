@@ -37,6 +37,18 @@ test.describe('Public rides page filtering', () => {
     await expect(page.locator('.ride-card:visible')).toContainText('Long Summer Ride');
   });
 
+  test('rides are grouped by month with month labels', async ({ page }) => {
+    await page.goto('/rides');
+    await page.waitForLoadState('networkidle');
+
+    // Should have month sections
+    const sections = page.locator('.rides-month-section');
+    expect(await sections.count()).toBeGreaterThan(0);
+
+    // Each section should have a label
+    await expect(page.locator('.rides-month-label').first()).toBeVisible();
+  });
+
   test('filter count updates after filtering', async ({ page }) => {
     await page.goto('/rides');
     await page.waitForLoadState('networkidle');

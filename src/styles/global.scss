@@ -1704,8 +1704,41 @@ a.go-back-button {
   }
 }
 
-.rides-year-section {
-  margin-bottom: 2rem;
+.rides-month-section {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0 1.5rem;
+  margin-bottom: 2.5rem;
+  align-items: start;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rides-month-label {
+  position: sticky;
+  top: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+  padding-top: 0.25rem;
+  writing-mode: horizontal-tb;
+
+  @media (max-width: $breakpoint-mobile) {
+    position: static;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.rides-month-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 // Rides page layout (sidebar + grid)

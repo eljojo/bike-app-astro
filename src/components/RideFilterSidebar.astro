@@ -62,7 +62,7 @@ const publicFilters = rideFilters.filter(f => !f.adminOnly);
     if (!sidebar || !rideList) return;
 
     const cards = rideList.querySelectorAll<HTMLElement>('.ride-card');
-    const yearHeaders = rideList.querySelectorAll<HTMLElement>('.rides-year-section');
+    const monthSections = rideList.querySelectorAll<HTMLElement>('.rides-month-section');
 
     let activeFilter = 'all';
     let activeYear = '';
@@ -111,8 +111,8 @@ const publicFilters = rideFilters.filter(f => !f.adminOnly);
         if (show) visible++;
       });
 
-      // Show/hide year section headers based on whether they have visible cards
-      yearHeaders.forEach(section => {
+      // Show/hide month sections based on whether they have visible cards
+      monthSections.forEach(section => {
         const visibleCards = section.querySelectorAll('.ride-card:not([style*="display: none"])');
         section.style.display = visibleCards.length ? '' : 'none';
       });
