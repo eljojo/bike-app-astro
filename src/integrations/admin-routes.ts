@@ -14,6 +14,7 @@ const routes = [
   { pattern: '/login', entrypoint: view('auth/login.astro') },
   { pattern: '/gate', entrypoint: view('auth/gate.astro') },
   { pattern: '/register', entrypoint: view('auth/register.astro') },
+  { pattern: '/auth/verify', entrypoint: view('auth/verify.astro') },
   // Auth API
   { pattern: '/api/auth/login-options', entrypoint: view('api/auth/login-options.ts') },
   { pattern: '/api/auth/login', entrypoint: view('api/auth/login.ts') },
@@ -23,6 +24,7 @@ const routes = [
   { pattern: '/api/auth/register-options', entrypoint: view('api/auth/register-options.ts') },
   { pattern: '/api/auth/upgrade', entrypoint: view('api/auth/upgrade.ts') },
   { pattern: '/api/auth/upgrade-options', entrypoint: view('api/auth/upgrade-options.ts') },
+  { pattern: '/api/auth/email-login', entrypoint: view('api/auth/email-login.ts') },
   // Admin list pages
   { pattern: '/admin', entrypoint: view('admin/index.astro') },
   { pattern: '/admin/events', entrypoint: view('admin/events.astro') },

@@ -91,6 +91,43 @@
   }
 }
 
+.auth-success {
+  color: $color-success;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  background: $color-success-bg;
+  border: 1px solid $color-success-border;
+  border-radius: $border-radius;
+
+  @include dark-mode {
+    background: $color-success-bg-dark;
+    color: $color-success-dark;
+    border-color: $color-success-border-dark;
+  }
+}
+
+.auth-mode-toggle {
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  padding: 0;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+
+  &:hover {
+    color: $color-text;
+
+    @include dark-mode {
+      color: $color-text-dark;
+    }
+  }
+}
+
 .admin-notice {
   font-size: 0.875rem;
   padding: 0.5rem 0.75rem;

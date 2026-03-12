@@ -1,0 +1,55 @@
+---
+export const prerender = false;
+
+import AuthCardLayout from '../../components/AuthCardLayout.astro';
+import { db } from '../../lib/get-db';
+import { emailTokens } from '../../db/schema';
+import { createSessionWithCookies } from '../../lib/auth';
+import { eq, and, gt, isNull } from 'drizzle-orm';
+
+const token = Astro.url.searchParams.get('token');
+let error = '';
+
+if (token) {
+  const database = db();
+  const now = new Date().toISOString();
+
+  // Find valid, unused token
+  const result = await database
+    .select()
+    .from(emailTokens)
+    .where(
+      and(
+        eq(emailTokens.token, token),
+        gt(emailTokens.expiresAt, now),
+        isNull(emailTokens.usedAt),
+      ),
+    )
+    .limit(1);
+
+  const tokenRow = result[0];
+
+  if (tokenRow && tokenRow.userId) {
+    // Mark token as used
+    await database
+      .update(emailTokens)
+      .set({ usedAt: now })
+      .where(eq(emailTokens.id, tokenRow.id));
+
+    // Create session
+    await createSessionWithCookies(database, tokenRow.userId, Astro.cookies);
+
+    // Redirect to admin
+    return Astro.redirect('/admin');
+  } else {
+    error = 'This link is invalid or has expired. Please request a new one.';
+  }
+} else {
+  error = 'No verification token provided.';
+}
+---
+
+<AuthCardLayout title="Sign in">
+  <div class="auth-error">{error}</div>
+  <p><a href="/login">Back to sign in</a></p>
+</AuthCardLayout>

@@ -4,7 +4,7 @@ import { jsonError } from './lib/api-response';
 import { db } from './lib/get-db';
 import { buildNonceCspHeader, createCspNonce } from './lib/csp';
 
-const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate']);
+const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate', '/auth/verify']);
 
 function needsNonceCsp(pathname: string): boolean {
   return pathname.startsWith('/admin') || NONCE_CSP_PATHS.has(pathname);
