@@ -16,12 +16,12 @@ import {
 import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { withBatch } from '../../../db/transaction';
-import { isBlogInstance } from '../../../lib/city-config';
+import { getInstanceFeatures } from '../../../lib/instance-features';
 
 export const prerender = false;
 
 export async function POST({ request, cookies }: APIContext) {
-  if (isBlogInstance()) {
+  if (!getInstanceFeatures().allowsRegistration) {
     return new Response(null, { status: 404 });
   }
   // Upgrade endpoints are under /api/auth/ which the middleware skips,

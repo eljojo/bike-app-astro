@@ -11,7 +11,7 @@ import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
 import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
 import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
-import { isBlogInstance } from '../../lib/city-config';
+import { getInstanceFeatures } from '../../lib/instance-features';
 import type { IGitService } from '../../lib/git-service';
 import type { Database } from '../../db';
 
@@ -128,7 +128,7 @@ async function rebuildContentCache(
   restoreFiles: { path: string; content: string }[],
 ): Promise<void> {
   let primaryPath: string;
-  if (parsed.contentType === 'routes' && isBlogInstance()) {
+  if (parsed.contentType === 'routes' && getInstanceFeatures().hasRides) {
     // With name-only slugs, derive the sidecar path from restoreFiles
     const sidecarFile = restoreFiles.find(f => f.path.endsWith('.md') && !f.path.includes('-media'));
     primaryPath = sidecarFile?.path || `${CITY}/rides/${parsed.contentSlug}.md`;
