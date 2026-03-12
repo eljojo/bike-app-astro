@@ -1,6 +1,116 @@
 import { test, expect } from '@playwright/test';
 import { seedSession, loginAs, cleanupSession, clearContentEdits } from './helpers.ts';
 
+test.describe('Public rides page filtering', () => {
+  test('year filter hides rides from other years', async ({ page }) => {
+    await page.goto('/rides');
+    await page.waitForLoadState('networkidle');
+
+    // All rides visible initially
+    await expect(page.locator('.ride-card')).toHaveCount(3);
+
+    // Click 2026 year filter
+    await page.locator('[data-year="2026"]').click();
+
+    // Only the winter ride (2026) should be visible
+    await expect(page.locator('.ride-card:visible')).toHaveCount(1);
+    await expect(page.locator('.ride-card:visible')).toContainText('Winter Ride');
+  });
+
+  test('tour filter shows only tour rides', async ({ page }) => {
+    await page.goto('/rides');
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('[data-filter="tours"]').click();
+
+    await expect(page.locator('.ride-card:visible')).toHaveCount(1);
+    await expect(page.locator('.ride-card:visible')).toContainText('Tour Day One');
+  });
+
+  test('long filter shows rides 50km or more', async ({ page }) => {
+    await page.goto('/rides');
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('[data-filter="long"]').click();
+
+    await expect(page.locator('.ride-card:visible')).toHaveCount(1);
+    await expect(page.locator('.ride-card:visible')).toContainText('Long Summer Ride');
+  });
+
+  test('filter count updates after filtering', async ({ page }) => {
+    await page.goto('/rides');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.locator('#rides-count')).toHaveText('3 rides');
+
+    await page.locator('[data-year="2026"]').click();
+    await expect(page.locator('#rides-count')).toHaveText('1 of 3 rides');
+  });
+});
+
+test.describe('Admin rides page', () => {
+  let token: string;
+
+  test.beforeAll(() => {
+    token = seedSession();
+  });
+
+  test.afterAll(() => {
+    cleanupSession(token);
+  });
+
+  test('/admin redirects to /admin/rides for blog instance', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin');
+    await page.waitForLoadState('networkidle');
+
+    expect(page.url()).toContain('/admin/rides');
+  });
+
+  test('admin/rides shows "Rides" in header title', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/rides');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.locator('.admin-header h1')).toHaveText('Rides');
+  });
+
+  test('admin/rides shows "Rides" in nav, not "Routes"', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/rides');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.locator('.admin-nav-link.active')).toHaveText('Rides');
+    await expect(page.locator('.admin-nav')).not.toContainText('Routes');
+  });
+
+  test('admin/rides year filter hides rides from other years', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/rides');
+    await page.waitForLoadState('networkidle');
+
+    // All rides visible initially
+    await expect(page.locator('.route-list-item')).toHaveCount(3);
+
+    // Select 2026 in year dropdown
+    await page.locator('#year-filter').selectOption('2026');
+
+    await expect(page.locator('.route-list-item:visible')).toHaveCount(1);
+    await expect(page.locator('.route-list-item:visible')).toContainText('Winter Ride');
+  });
+
+  test('admin/rides tour filter shows only tour rides', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/rides');
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('[data-filter="tours"]').click();
+
+    await expect(page.locator('.route-list-item:visible')).toHaveCount(1);
+    await expect(page.locator('.route-list-item:visible')).toContainText('Tour Day One');
+  });
+});
+
 test.describe('Ride Editor', () => {
   let token: string;
 

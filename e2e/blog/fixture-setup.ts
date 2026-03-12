@@ -95,6 +95,76 @@ A cold but beautiful ride along the frozen canal.
 `
   );
 
+  // Ride fixture: long ride (60km) in 2025
+  const rideDir2025 = path.join(CITY_DIR, 'rides', '2025', '06');
+  fs.mkdirSync(rideDir2025, { recursive: true });
+
+  // Build a ~60km GPX by spacing points far apart
+  const longRidePoints = Array.from({ length: 20 }, (_, i) => {
+    const lat = (45.35 + i * 0.03).toFixed(6);
+    const lon = (-75.82 + i * 0.02).toFixed(6);
+    return `      <trkpt lat="${lat}" lon="${lon}"><ele>70</ele><time>2025-06-15T${String(10 + Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}:00Z</time></trkpt>`;
+  }).join('\n');
+
+  fs.writeFileSync(
+    path.join(rideDir2025, '15-long-summer-ride.gpx'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+  <trk>
+    <name>Long Summer Ride</name>
+    <trkseg>
+${longRidePoints}
+    </trkseg>
+  </trk>
+</gpx>
+`
+  );
+
+  fs.writeFileSync(
+    path.join(rideDir2025, '15-long-summer-ride.md'),
+    `---
+name: Long Summer Ride
+status: published
+ride_date: "2025-06-15"
+country: CA
+---
+
+A long summer day out.
+`
+  );
+
+  // Ride fixture: tour ride in 2025
+  const tourDir = path.join(CITY_DIR, 'rides', '2025', '08', 'summer-tour');
+  fs.mkdirSync(tourDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(tourDir, '01-tour-day-one.gpx'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1">
+  <trk>
+    <name>Tour Day One</name>
+    <trkseg>
+      <trkpt lat="45.35" lon="-75.82"><ele>64</ele><time>2025-08-01T09:00:00Z</time></trkpt>
+      <trkpt lat="45.40" lon="-75.90"><ele>70</ele><time>2025-08-01T10:00:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+`
+  );
+
+  fs.writeFileSync(
+    path.join(tourDir, '01-tour-day-one.md'),
+    `---
+name: Tour Day One
+status: published
+ride_date: "2025-08-01"
+country: CA
+---
+
+First day of the summer tour.
+`
+  );
+
   // About page (required for pre-rendered site)
   const pagesDir = path.join(CITY_DIR, 'pages');
   fs.mkdirSync(pagesDir, { recursive: true });
