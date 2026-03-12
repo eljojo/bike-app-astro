@@ -1,4 +1,11 @@
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
+import { startRegistration } from '@simplewebauthn/browser';
+
+interface Passkey {
+  id: string;
+  credentialId: string;
+  createdAt: string;
+}
 
 interface Props {
   username: string;
@@ -19,11 +26,99 @@ export default function SettingsForm({ username: initialUsername, email: initial
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
+  // Passkey management
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState('');
+
   const emailModified = email.trim().toLowerCase() !== (initialEmail ?? '').toLowerCase();
 
   const avatarUrl = emailHash
     ? `https://www.gravatar.com/avatar/${emailHash}?d=mp&s=80`
     : 'https://www.gravatar.com/avatar/?d=mp&s=80';
+
+  useEffect(() => {
+    if (!isGuest) loadPasskeys();
+  }, []);
+
+  async function loadPasskeys() {
+    try {
+      const res = await fetch('/api/auth/list-passkeys');
+      if (res.ok) {
+        const data = await res.json();
+        setPasskeys(data.passkeys);
+      }
+    } catch {
+      // Silently ignore — passkeys section just won't show data
+    }
+  }
+
+  async function handleAddPasskey() {
+    setPasskeyError('');
+    setPasskeyLoading(true);
+
+    try {
+      // Step 1: Get registration options
+      const optionsRes = await fetch('/api/auth/add-passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!optionsRes.ok) {
+        const data = await optionsRes.json();
+        throw new Error(data.error || 'Failed to get registration options');
+      }
+
+      const options = await optionsRes.json();
+
+      // Step 2: Start WebAuthn ceremony
+      const credential = await startRegistration({ optionsJSON: options });
+
+      // Step 3: Verify with server
+      const verifyRes = await fetch('/api/auth/add-passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      });
+
+      if (!verifyRes.ok) {
+        const data = await verifyRes.json();
+        throw new Error(data.error || 'Passkey registration failed');
+      }
+
+      await loadPasskeys();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'NotAllowedError') {
+        setPasskeyError('Passkey registration was cancelled');
+      } else {
+        setPasskeyError(err instanceof Error ? err.message : 'Failed to add passkey');
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
+  async function handleRemovePasskey(id: string) {
+    setPasskeyError('');
+
+    try {
+      const res = await fetch('/api/auth/remove-passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove passkey');
+      }
+
+      await loadPasskeys();
+    } catch (err: unknown) {
+      setPasskeyError(err instanceof Error ? err.message : 'Failed to remove passkey');
+    }
+  }
 
   async function handleSave() {
     setError('');
@@ -148,6 +243,46 @@ export default function SettingsForm({ username: initialUsername, email: initial
           Your page views won't be included in the site's Plausible analytics.
         </p>
       </div>
+
+      {!isGuest && (
+        <>
+          <h2>Passkeys</h2>
+          <div class="auth-form">
+            {passkeyError && <div class="auth-error">{passkeyError}</div>}
+            {passkeys.length > 0 ? (
+              <ul class="passkey-list">
+                {passkeys.map(pk => (
+                  <li key={pk.id} class="passkey-item">
+                    <span class="passkey-info">
+                      <span class="passkey-id">{pk.credentialId.slice(0, 8)}...</span>
+                      <span class="passkey-date">Added {new Date(pk.createdAt).toLocaleDateString()}</span>
+                    </span>
+                    <button
+                      type="button"
+                      class="btn-small btn-small--danger"
+                      onClick={() => handleRemovePasskey(pk.id)}
+                      disabled={passkeys.length <= 1 && !email.trim()}
+                      title={passkeys.length <= 1 && !email.trim() ? 'Add an email before removing your only passkey' : 'Remove passkey'}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p class="settings-help">No passkeys registered.</p>
+            )}
+            <button
+              type="button"
+              class="btn-primary"
+              onClick={handleAddPasskey}
+              disabled={passkeyLoading}
+            >
+              {passkeyLoading ? 'Adding...' : 'Add new passkey'}
+            </button>
+          </div>
+        </>
+      )}
 
       <div class="editor-actions">
         {error && <div class="auth-error">{error}</div>}

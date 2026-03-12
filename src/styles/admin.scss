@@ -1210,6 +1210,63 @@
   }
 }
 
+// Passkey management
+.passkey-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.passkey-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.passkey-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.passkey-id {
+  font-family: $font-mono;
+  font-size: 0.8125rem;
+}
+
+.passkey-date {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.btn-small--danger {
+  color: $color-error;
+  border-color: $color-error;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+
+  &:hover:not(:disabled) {
+    background: $color-error-bg;
+
+    @include dark-mode {
+      background: $color-error-bg-dark;
+    }
+  }
+}
+
 // Cross-route photo suggestions
 .nearby-photos {
   margin-top: 1.5rem;

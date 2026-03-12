@@ -25,6 +25,9 @@ const routes = [
   { pattern: '/api/auth/upgrade', entrypoint: view('api/auth/upgrade.ts') },
   { pattern: '/api/auth/upgrade-options', entrypoint: view('api/auth/upgrade-options.ts') },
   { pattern: '/api/auth/email-login', entrypoint: view('api/auth/email-login.ts') },
+  { pattern: '/api/auth/list-passkeys', entrypoint: view('api/auth/list-passkeys.ts') },
+  { pattern: '/api/auth/add-passkey', entrypoint: view('api/auth/add-passkey.ts') },
+  { pattern: '/api/auth/remove-passkey', entrypoint: view('api/auth/remove-passkey.ts') },
   // Admin list pages
   { pattern: '/admin', entrypoint: view('admin/index.astro') },
   { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
