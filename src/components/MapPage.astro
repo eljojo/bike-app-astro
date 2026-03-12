@@ -11,6 +11,7 @@ interface Variant {
   gpx: string;
   strava_url?: string;
   rwgps_url?: string;
+  komoot_url?: string;
 }
 
 interface MapPlace {
@@ -101,6 +102,14 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
       {' '}
       <a href={variant.rwgps_url} class="action-button --light --logo" target="_blank" rel="noopener">
         <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
+      </a>
+    </Fragment>
+  )}
+  {variant.komoot_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener">
+        <img src="/komoot.svg" width="80" alt={t('komoot.open', locale)} />
       </a>
     </Fragment>
   )}

@@ -22,6 +22,7 @@ const adminVariantSchema = z.object({
   strava_url: z.string().optional(),
   rwgps_url: z.string().optional(),
   google_maps_url: z.string().optional(),
+  komoot_url: z.string().optional(),
 });
 
 const localeContentSchema = z.object({

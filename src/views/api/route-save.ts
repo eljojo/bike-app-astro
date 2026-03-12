@@ -29,6 +29,7 @@ interface VariantPayload {
   strava_url?: string;
   rwgps_url?: string;
   google_maps_url?: string;
+  komoot_url?: string;
   isNew?: boolean;
   gpxContent?: string;
 }
@@ -62,6 +63,7 @@ const routeUpdateSchema = z.object({
     strava_url: z.string().optional(),
     rwgps_url: z.string().optional(),
     google_maps_url: z.string().optional(),
+    komoot_url: z.string().optional(),
     isNew: z.boolean().optional(),
     gpxContent: z.string().optional(),
   })).min(1, 'At least one route option is required').optional(),
@@ -213,6 +215,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
         if (v.strava_url) entry.strava_url = v.strava_url;
         if (v.rwgps_url) entry.rwgps_url = v.rwgps_url;
         if (v.google_maps_url) entry.google_maps_url = v.google_maps_url;
+        if (v.komoot_url) entry.komoot_url = v.komoot_url;
         return entry;
       });
       mergedFrontmatter.variants = variantMeta;
