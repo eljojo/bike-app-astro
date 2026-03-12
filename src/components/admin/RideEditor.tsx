@@ -1,6 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useCallback, useEffect } from 'preact/hooks';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
@@ -11,6 +11,8 @@ import { useEditorState } from './useEditorState';
 import { useTextareaValue, useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
 import { extractRideDate, parseGpx } from '../../lib/gpx';
+import { computeElevationProfile } from '../../lib/elevation-profile';
+import type { ElevationProfileData } from '../../lib/elevation-profile';
 import { insertMarkdown } from './markdown-toolbar-utils';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
@@ -284,6 +286,18 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // GPX stats from variant
   const gpxVariant = variants[0];
   const distanceKm = gpxVariant?.distance_km;
+
+  // Parse GPX for map preview + elevation
+  const gpxContent = gpxVariant?.gpxContent;
+  const track = useMemo(() => gpxContent ? parseGpx(gpxContent) : null, [gpxContent]);
+  const elevation: ElevationProfileData | null = useMemo(
+    () => track ? computeElevationProfile(track.points, track.distance_m) : null,
+    [track],
+  );
+  const coordinates = useMemo(
+    () => track ? track.points.map(p => [p.lon, p.lat] as [number, number]) : [],
+    [track],
+  );
 
   // Save
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
@@ -587,8 +601,13 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
             rideDate={rideDate}
             country={country}
             distanceKm={distanceKm}
+            elevationM={elevation ? elevation.elevGain : undefined}
+            movingTimeS={track?.moving_time_s}
+            averageSpeedKmh={track?.average_speed_kmh}
             mapThumbnail={mapThumbnail}
             labels={rideLabels}
+            coordinates={coordinates}
+            elevation={elevation}
           />
         </div>
       </div>

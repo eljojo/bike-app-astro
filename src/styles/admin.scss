@@ -2156,10 +2156,26 @@
   }
 }
 
-.ride-preview-map img {
+.ride-preview-map {
   width: 100%;
+  height: 250px;
   border-radius: $border-radius;
-  margin: 1rem 0;
+  overflow: hidden;
+  margin-bottom: 1rem;
+
+  img {
+    width: 100%;
+    border-radius: $border-radius;
+  }
+}
+
+.ride-preview-elevation {
+  margin-bottom: 1rem;
+}
+
+.ride-preview-elevation-svg {
+  width: 100%;
+  height: auto;
 }
 
 .ride-preview-gallery {
