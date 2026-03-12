@@ -4,8 +4,9 @@ import { useState } from 'preact/hooks';
 import { useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
-import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
+import EventRouteSection from './EventRouteSection';
+import EventMediaSection from './EventMediaSection';
 import WaypointEditor from './WaypointEditor';
 import type { Waypoint } from './WaypointEditor';
 import ResultsEditor from './ResultsEditor';
@@ -354,45 +355,20 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         </div>
 
       {isClub && routeOptions.length > 0 && (
-        <section class="editor-section">
-          <h2>Routes</h2>
-          <div class="auth-form">
-            {selectedRoutes.map((slug, i) => (
-              <div class="route-selector-row" key={`route-${i}`}>
-                <select value={slug}
-                  onChange={(e) => {
-                    const val = (e.target as HTMLSelectElement).value;
-                    setSelectedRoutes(prev => prev.map((s, j) => j === i ? val : s));
-                  }}>
-                  <option value="">-- Select route --</option>
-                  {routeOptions.map(r => (
-                    <option key={r.slug} value={r.slug}>{r.name}</option>
-                  ))}
-                </select>
-                <button type="button" class="btn-link btn-danger"
-                  onClick={() => setSelectedRoutes(prev => prev.filter((_, j) => j !== i))}>
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button type="button" class="btn-link"
-              onClick={() => setSelectedRoutes(prev => [...prev, ''])}>
-              Add route
-            </button>
-          </div>
-        </section>
+        <EventRouteSection
+          routeOptions={routeOptions}
+          selectedRoutes={selectedRoutes}
+          onRoutesChange={setSelectedRoutes}
+        />
       )}
 
       {isClub && (
-        <section class="editor-section">
-          <h2>Photos</h2>
-          <MediaManager
-            media={media}
-            onChange={setMedia}
-            cdnUrl={cdnUrl}
-            userRole={userRole}
-          />
-        </section>
+        <EventMediaSection
+          media={media}
+          onMediaChange={setMedia}
+          cdnUrl={cdnUrl}
+          userRole={userRole}
+        />
       )}
 
       {isClub && placeOptions.length > 0 && (
