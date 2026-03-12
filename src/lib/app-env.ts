@@ -28,11 +28,10 @@ export interface AppEnv {
   THUNDERFOREST_API_KEY?: string;
   TILE_CACHE?: unknown; // KV namespace in prod, undefined locally (handled by env-local)
   AI?: unknown; // Workers AI binding, used for poster vision extraction
-  SMTP_HOST?: string;
-  SMTP_PORT?: string;
-  SMTP_USER?: string;
-  SMTP_PASS?: string;
-  SMTP_FROM?: string;
+  SES_ACCESS_KEY_ID?: string;
+  SES_SECRET_ACCESS_KEY?: string;
+  SES_REGION?: string;
+  SES_FROM?: string;
   STRAVA_CLIENT_ID?: string;
   STRAVA_CLIENT_SECRET?: string;
 }
