@@ -7,7 +7,8 @@ import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env';
 import { loadAdminRouteList } from '../../lib/load-admin-content';
-import { getCityConfig, isBlogInstance, isClubInstance } from '../../lib/city-config';
+import { getCityConfig } from '../../lib/city-config';
+import { getInstanceFeatures } from '../../lib/instance-features';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
@@ -15,10 +16,11 @@ const isStaging = env.ENVIRONMENT === 'staging';
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha';
 
-if (isBlogInstance()) {
+const features = getInstanceFeatures();
+if (features.hasRides) {
   return Astro.redirect('/admin/rides');
 }
-if (isClubInstance()) {
+if (features.hasEnrichedEvents) {
   return Astro.redirect('/admin/events');
 }
 

@@ -13,7 +13,8 @@ import { can } from '../../lib/authorize';
 import { CITY } from '../../lib/config';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { eventDetailFromCache } from '../../lib/models/event-model';
-import { getCityConfig, isBlogInstance, isClubInstance } from '../../lib/city-config';
+import { getCityConfig } from '../../lib/city-config';
+import { getInstanceFeatures } from '../../lib/instance-features';
 
 const result = await loadDetailPageData({
   contentType: 'events',
@@ -26,9 +27,9 @@ if (result.notFound) return new Response(null, { status: 404 });
 const eventData = result.data;
 
 const organizers = adminOrganizers;
-const isClub = isClubInstance();
-const routeOptions = isClub ? adminRoutes.map((r: { slug: string; name: string }) => ({ slug: r.slug, name: r.name })) : [];
-const placeOptions = isClub ? adminPlaces.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })) : [];
+const features = getInstanceFeatures();
+const routeOptions = features.hasEnrichedEvents ? adminRoutes.map((r: { slug: string; name: string }) => ({ slug: r.slug, name: r.name })) : [];
+const placeOptions = features.hasEnrichedEvents ? adminPlaces.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })) : [];
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const user = Astro.locals.user;
 const today = new Date().toISOString().slice(0, 10);
@@ -38,6 +39,6 @@ const readOnly = isPast && !can(user, 'edit-past-event');
 
 <AdminEditorLayout title={`Edit: ${eventData.name}`} backLink="/admin/events" backLabel="Back to events" hideTitle user={user} currentTab="events">
   {readOnly && <p class="admin-notice">This event is in the past. Only admins can edit past events.</p>}
-  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} readOnly={readOnly} userRole={user?.role} showLicenseNotice={!isBlogInstance()} isClub={isClub} routeOptions={routeOptions} placeOptions={placeOptions} />
+  <EventEditor client:load initialData={eventData} organizers={organizers} cdnUrl={cdnUrl} readOnly={readOnly} userRole={user?.role} showLicenseNotice={features.showsLicenseNotice} isClub={features.hasEnrichedEvents} routeOptions={routeOptions} placeOptions={placeOptions} />
   <EditHistory client:load contentPath={`${CITY}/events/${Astro.params.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>
