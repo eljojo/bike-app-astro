@@ -11,10 +11,11 @@ import { useEditorState } from './useEditorState';
 import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
-import { slugify } from '../../lib/slug';
+import SlugEditor from './SlugEditor';
 import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
 import { toParkedEntry } from '../../lib/media-merge';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
+import { localeLabel } from '../../lib/locale-utils';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
@@ -41,8 +42,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [deletedParkedKeys, setDeletedParkedKeys] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const [slug, setSlug] = useState(initialData.slug);
-  const [editingSlug, setEditingSlug] = useState(false);
-  const canEditSlug = userRole !== 'guest';
 
   const [activeLocale, setActiveLocale] = useState(defaultLocale);
   const [translations, setTranslations] = useState<Record<string, { name: string; tagline: string; body: string }>>(
@@ -134,16 +133,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     }));
   }
 
-  function localeLabel(locale: string): string {
-    try {
-      const display = new Intl.DisplayNames([locale], { type: 'language' });
-      const name = display.of(locale);
-      return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
-    } catch {
-      return locale;
-    }
-  }
-
   function displayTag(tag: string): string {
     if (activeLocale === defaultLocale) return tag;
     return tagTranslations[tag]?.[activeLocale] ?? tag;
@@ -212,24 +201,9 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
             />
           </div>
 
-          {canEditSlug && (
+          {userRole !== 'guest' && (
             <div class="editor-slug">
-              {editingSlug ? (
-                <div class="editor-slug-edit">
-                  <span class="editor-slug-prefix">/routes/</span>
-                  <input
-                    type="text"
-                    value={slug}
-                    onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
-                    class="editor-slug-input"
-                  />
-                  <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
-                </div>
-              ) : (
-                <button type="button" class="editor-slug-toggle" onClick={() => setEditingSlug(true)}>
-                  Edit URL ›
-                </button>
-              )}
+              <SlugEditor slug={slug} onSlugChange={setSlug} prefix="/routes/" />
               {slug !== initialData.slug && (
                 <span class="editor-slug-changed">URL will change — old URL will redirect</span>
               )}

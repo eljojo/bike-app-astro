@@ -10,6 +10,7 @@ import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
+import { localeLabel } from '../../lib/locale-utils';
 
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
@@ -70,15 +71,6 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
     setTranslations(prev => ({ ...prev, [locale]: value }));
   }
 
-  function localeLabel(locale: string): string {
-    try {
-      const display = new Intl.DisplayNames([locale], { type: 'language' });
-      const name = display.of(locale);
-      return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
-    } catch {
-      return locale;
-    }
-  }
   const [category, setCategory] = useState(initialData.category || 'other');
   const [lat, setLat] = useState(initialData.lat || 0);
   const [lng, setLng] = useState(initialData.lng || 0);

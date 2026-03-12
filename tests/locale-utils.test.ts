@@ -7,7 +7,7 @@ vi.mock('../src/lib/city-config', () => ({
   })),
 }));
 
-import { shortLocale, fullLocale, defaultLocale, supportedLocales } from '../src/lib/locale-utils';
+import { shortLocale, fullLocale, defaultLocale, supportedLocales, localeLabel } from '../src/lib/locale-utils';
 
 describe('locale-utils', () => {
   it('shortLocale extracts language code', () => {
@@ -31,5 +31,23 @@ describe('locale-utils', () => {
 
   it('supportedLocales returns short codes', () => {
     expect(supportedLocales()).toEqual(['en', 'fr']);
+  });
+});
+
+describe('localeLabel', () => {
+  it('capitalizes English locale name', () => {
+    expect(localeLabel('en')).toBe('English');
+  });
+
+  it('capitalizes French locale name', () => {
+    expect(localeLabel('fr')).toBe('Français');
+  });
+
+  it('returns a string for any locale input', () => {
+    // Even for unknown locales, Intl.DisplayNames may produce a display name
+    // rather than throwing — the function should always return a non-empty string
+    const result = localeLabel('xx-INVALID');
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
   });
 });
