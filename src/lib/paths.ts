@@ -17,6 +17,8 @@ export const paths = {
   routeGpx: (slug: string, variant: string) => `/routes/${slug}/${variant}.gpx`,  // GPX never localized
   guide: (slug: string, locale?: string) => localize(`/guides/${slug}`, locale),
   video: (handle: string, locale?: string) => localize(`/videos/${handle}`, locale),
+  // Club instance paths
+  event: (slug: string, locale?: string) => localize(`/events/${slug}`, locale),
   // Blog instance paths
   ride: (slug: string, tourSlug?: string | null) =>
     tourSlug ? `/tours/${tourSlug}/${slug}` : `/rides/${slug}`,

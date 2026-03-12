@@ -1856,3 +1856,307 @@ a.go-back-button {
   @include muted-text;
   margin-top: 0.5rem;
 }
+
+// -----------------------------------------------
+// Club event detail styles
+// -----------------------------------------------
+
+.event-detail {
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.event-detail-hero {
+  margin: -1rem -1rem 1.5rem;
+  max-height: 400px;
+  overflow: hidden;
+
+  @media (min-width: $breakpoint-tablet) {
+    margin: -1rem calc(-50vw + 50%) 1.5rem;
+    max-width: 100vw;
+  }
+}
+
+.event-detail-poster {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 400px;
+}
+
+.event-detail-header {
+  margin-bottom: 1.5rem;
+}
+
+.event-detail-date {
+  font-size: 1.2em;
+  margin: 0.25em 0;
+}
+
+.event-detail-organizer {
+  @include muted-text;
+  font-size: 0.95em;
+  margin: 0.25em 0;
+
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.event-detail-distances {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin: 0.25em 0;
+}
+
+.event-detail-layout {
+  display: flex;
+  gap: 2rem;
+
+  @media (max-width: $breakpoint-tablet) {
+    flex-direction: column;
+  }
+}
+
+.event-detail-main {
+  flex: 1;
+  min-width: 0;
+
+  p { line-height: 1.5; }
+  a { color: inherit; text-decoration: underline; }
+}
+
+.event-detail-body {
+  font-size: 1.05em;
+  margin-bottom: 2rem;
+}
+
+.event-detail-sidebar {
+  flex: 0 0 280px;
+
+  @media (max-width: $breakpoint-tablet) {
+    flex: none;
+    order: -1;
+  }
+}
+
+.event-detail-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+}
+
+// Event info card (sidebar)
+.event-info-card {
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 1.25rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.event-info-list {
+  margin: 0;
+
+  dt {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    @include muted-text;
+    margin-top: 0.75rem;
+
+    &:first-child { margin-top: 0; }
+  }
+
+  dd {
+    margin: 0.15rem 0 0;
+    font-size: 0.95rem;
+  }
+}
+
+.event-start-time {
+  @include muted-text;
+}
+
+.departure-groups {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+
+  li {
+    padding: 0.15rem 0;
+    font-size: 0.9rem;
+  }
+}
+
+.event-register-btn {
+  display: block;
+  text-align: center;
+  margin-top: 1.25rem;
+  padding: 0.6rem 1rem;
+  background: $color-accent;
+  color: #000;
+  text-decoration: none;
+  border-radius: $border-radius;
+  font-weight: 600;
+  font-size: 0.95rem;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+// Waypoint timeline
+.waypoint-timeline {
+  position: relative;
+  padding-left: 1.5rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0.45rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 2px;
+    background: $color-border;
+
+    @include dark-mode {
+      background: $color-border-dark;
+    }
+  }
+}
+
+.waypoint-timeline-item {
+  position: relative;
+  padding: 0.5rem 0;
+}
+
+.waypoint-timeline-marker {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.85rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: $color-accent;
+  border: 2px solid $color-card-bg;
+
+  @include dark-mode {
+    border-color: $color-card-bg-dark;
+  }
+
+  .waypoint-type-danger & {
+    background: #e74c3c;
+  }
+
+  .waypoint-type-poi & {
+    background: #3498db;
+  }
+}
+
+.waypoint-timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.waypoint-timeline-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.waypoint-timeline-distance {
+  font-size: 0.85em;
+  @include muted-text;
+}
+
+.waypoint-timeline-type {
+  font-size: 0.8em;
+  @include muted-text;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.waypoint-timeline-times {
+  font-size: 0.85em;
+  display: flex;
+  gap: 1rem;
+  @include muted-text;
+}
+
+.waypoint-timeline-route {
+  font-size: 0.8em;
+  @include muted-text;
+  font-style: italic;
+}
+
+// Results table (public page)
+.results-section {
+  overflow-x: auto;
+}
+
+.results-summary {
+  @include muted-text;
+  font-size: 0.9em;
+  margin-bottom: 0.75rem;
+}
+
+.event-results-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    text-align: left;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+
+  th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    @include muted-text;
+  }
+
+  td {
+    font-size: 0.9rem;
+  }
+
+  tbody tr:hover {
+    background: $color-card-hover;
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+}
+
+.non-finishers {
+  margin-top: 1rem;
+
+  summary {
+    cursor: pointer;
+    @include muted-text;
+    font-size: 0.9em;
+
+    &:hover { text-decoration: underline; }
+  }
+}

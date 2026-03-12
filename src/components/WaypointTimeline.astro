@@ -1,0 +1,50 @@
+---
+import { t } from '@/i18n';
+
+interface Waypoint {
+  place: string;
+  type: 'checkpoint' | 'danger' | 'poi';
+  label: string;
+  distance_km?: number;
+  opening?: string;
+  closing?: string;
+  route?: string;
+}
+
+interface Props {
+  waypoints: Waypoint[];
+  locale?: string;
+}
+
+const { waypoints, locale } = Astro.props;
+
+const typeLabels: Record<string, string> = {
+  checkpoint: t('events.checkpoint', locale),
+  danger: t('events.danger', locale),
+  poi: t('events.poi', locale),
+};
+---
+
+<div class="waypoint-timeline">
+  {waypoints.map((wp) => (
+    <div class={`waypoint-timeline-item waypoint-type-${wp.type}`}>
+      <div class="waypoint-timeline-marker" />
+      <div class="waypoint-timeline-content">
+        <div class="waypoint-timeline-header">
+          <strong>{wp.label}</strong>
+          {wp.distance_km != null && (
+            <span class="waypoint-timeline-distance">{wp.distance_km} {t('events.km', locale)}</span>
+          )}
+        </div>
+        <span class="waypoint-timeline-type">{typeLabels[wp.type]}</span>
+        {wp.type === 'checkpoint' && (wp.opening || wp.closing) && (
+          <div class="waypoint-timeline-times">
+            {wp.opening && <span>Open: {wp.opening}</span>}
+            {wp.closing && <span>Close: {wp.closing}</span>}
+          </div>
+        )}
+        {wp.route && <span class="waypoint-timeline-route">{wp.route}</span>}
+      </div>
+    </div>
+  ))}
+</div>

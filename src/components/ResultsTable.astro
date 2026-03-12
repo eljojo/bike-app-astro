@@ -1,0 +1,72 @@
+---
+import { t } from '@/i18n';
+
+interface Result {
+  brevet_no?: number;
+  last_name: string;
+  first_name?: string;
+  time?: string;
+  homologation?: string;
+  status?: 'DNS' | 'DNF' | 'DQ';
+}
+
+interface Props {
+  results: Result[];
+  locale?: string;
+}
+
+const { results, locale } = Astro.props;
+
+const finishers = results.filter(r => !r.status);
+const nonFinishers = results.filter(r => !!r.status);
+
+const statusLabels: Record<string, string> = {
+  DNS: t('events.status.dns', locale),
+  DNF: t('events.status.dnf', locale),
+  DQ: t('events.status.dq', locale),
+};
+---
+
+<div class="results-section">
+  <p class="results-summary">{t('events.results_count', locale, { count: String(finishers.length) })}</p>
+
+  {finishers.length > 0 && (
+    <table class="event-results-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Time</th>
+          {finishers.some(r => r.homologation) && <th>Homol.</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {finishers.map((r) => (
+          <tr>
+            <td>{r.brevet_no ?? ''}</td>
+            <td>{r.last_name}{r.first_name ? `, ${r.first_name}` : ''}</td>
+            <td>{r.time || ''}</td>
+            {finishers.some(r => r.homologation) && <td>{r.homologation || ''}</td>}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+
+  {nonFinishers.length > 0 && (
+    <details class="non-finishers">
+      <summary>{nonFinishers.length} non-finisher{nonFinishers.length !== 1 ? 's' : ''}</summary>
+      <table class="event-results-table">
+        <tbody>
+          {nonFinishers.map((r) => (
+            <tr>
+              <td>{r.brevet_no ?? ''}</td>
+              <td>{r.last_name}{r.first_name ? `, ${r.first_name}` : ''}</td>
+              <td>{statusLabels[r.status!] || r.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  )}
+</div>
