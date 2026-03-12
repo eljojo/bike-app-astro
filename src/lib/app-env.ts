@@ -33,4 +33,6 @@ export interface AppEnv {
   SMTP_USER?: string;
   SMTP_PASS?: string;
   SMTP_FROM?: string;
+  STRAVA_CLIENT_ID?: string;
+  STRAVA_CLIENT_SECRET?: string;
 }

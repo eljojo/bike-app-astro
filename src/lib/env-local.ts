@@ -40,6 +40,8 @@ export function createLocalEnv(): AppEnv {
     SMTP_USER: process.env.SMTP_USER,
     SMTP_PASS: process.env.SMTP_PASS,
     SMTP_FROM: process.env.SMTP_FROM || 'noreply@localhost',
+    STRAVA_CLIENT_ID: process.env.STRAVA_CLIENT_ID,
+    STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET,
   };
 }
 
