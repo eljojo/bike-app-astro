@@ -378,6 +378,31 @@ async function stepApiKeys() {
       description: 'Auth token for RideWithGPS API (paired with API key)',
       howTo: 'Same as RWGPS_API_KEY — provided alongside it',
     },
+    {
+      name: 'SMTP_HOST', kind: 'secret',
+      description: 'SMTP server for sending login emails',
+      howTo: 'Amazon SES: email-smtp.{region}.amazonaws.com',
+    },
+    {
+      name: 'SMTP_PORT', kind: 'secret',
+      description: 'SMTP port (usually 587 for STARTTLS)',
+      howTo: 'Usually 587 (STARTTLS) or 465 (SSL)',
+    },
+    {
+      name: 'SMTP_USER', kind: 'secret',
+      description: 'SMTP username',
+      howTo: 'For SES: your SMTP credentials (not AWS access key)',
+    },
+    {
+      name: 'SMTP_PASS', kind: 'secret',
+      description: 'SMTP password',
+      howTo: 'For SES: the SMTP password generated in the console',
+    },
+    {
+      name: 'SMTP_FROM', kind: 'secret',
+      description: 'From address for login emails',
+      howTo: 'e.g., noreply@yourdomain.com (must be verified in SES)',
+    },
   ];
 
   // Build auto-detected map (name → {name, value, kind}) for items that aren't already set
