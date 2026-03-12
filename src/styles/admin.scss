@@ -335,6 +335,69 @@
   color: $color-text-muted;
 }
 
+.csv-drop-zone {
+  border: 2px dashed $color-border;
+  border-radius: 4px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  &.drag-over {
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
+  }
+
+  p {
+    margin: 0;
+    color: $color-text-muted;
+  }
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+
+  th, td {
+    padding: 0.25rem 0.375rem;
+    border-bottom: 1px solid $color-border;
+    text-align: left;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+
+  th {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: $color-text-muted;
+  }
+
+  input, select {
+    width: 100%;
+    font-size: 0.875rem;
+    padding: 0.125rem 0.25rem;
+  }
+}
+
+.result-brevet {
+  width: 4rem !important;
+}
+
+.results-count {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  margin-top: 0.25rem;
+}
+
 .organizer-inline-form {
   display: flex;
   flex-direction: column;

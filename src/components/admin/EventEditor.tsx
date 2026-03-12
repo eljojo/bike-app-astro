@@ -8,6 +8,8 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import WaypointEditor from './WaypointEditor';
 import type { Waypoint } from './WaypointEditor';
+import ResultsEditor from './ResultsEditor';
+import type { Result } from './ResultsEditor';
 import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
@@ -104,6 +106,16 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       ...(w.route && { route: w.route }),
     }))
   );
+  const [eventResults, setEventResults] = useState<Result[]>(
+    (initialData.results || []).map(r => ({
+      last_name: r.last_name,
+      ...(r.brevet_no != null && { brevet_no: r.brevet_no }),
+      ...(r.first_name && { first_name: r.first_name }),
+      ...(r.time && { time: r.time }),
+      ...(r.homologation && { homologation: r.homologation }),
+      ...(r.status && { status: r.status }),
+    }))
+  );
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
@@ -154,6 +166,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
           ...(isClub && waypoints.length > 0 && { waypoints }),
+          ...(isClub && eventResults.length > 0 && { results: eventResults }),
         },
         body,
         ...(isClub && media.length > 0 && { media }),
@@ -390,6 +403,16 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             onChange={setWaypoints}
             places={placeOptions}
             routes={selectedRoutes.length > 1 ? selectedRoutes : undefined}
+          />
+        </section>
+      )}
+
+      {isClub && (
+        <section class="editor-section">
+          <h2>Results</h2>
+          <ResultsEditor
+            results={eventResults}
+            onChange={setEventResults}
           />
         </section>
       )}
