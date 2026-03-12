@@ -9,6 +9,7 @@ import { t, localePath } from '@/i18n';
 import { routeSlug, paths } from '@/lib/paths';
 import type { CollectionEntry } from 'astro:content';
 import RideCard from '@/components/RideCard.astro';
+import EventCard from '@/components/EventCard.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -25,12 +26,9 @@ let blogFeaturedIds = new Set<string>();
 // Club instance data
 let clubUpcoming: CollectionEntry<'events'>[] = [];
 let clubRecent: CollectionEntry<'events'>[] = [];
-let clubFormatDate: ((start: string, end?: string, loc?: string) => string) | null = null;
-
 if (features.hasEnrichedEvents) {
   const { getCollection } = await import('astro:content');
-  const { parseLocalDate, formatDateRange } = await import('@/lib/date-utils');
-  clubFormatDate = formatDateRange;
+  const { parseLocalDate } = await import('@/lib/date-utils');
   const events = await getCollection('events');
   const now = new Date();
   clubUpcoming = events
@@ -125,11 +123,15 @@ if (features.hasEnrichedEvents) {
           <h2>{t('events.title', locale)}</h2>
           <div class="events-grid">
             {clubUpcoming.map(e => (
-              <a href={paths.event(e.id, locale)} class="event-card">
-                <span class="event-name">{e.data.name}</span>
-                <span class="event-dates">{clubFormatDate?.(e.data.start_date, e.data.end_date, locale) || e.data.start_date}</span>
-                {e.data.distances && <span class="event-distances">{e.data.distances}</span>}
-              </a>
+              <EventCard
+                name={e.data.name}
+                start_date={e.data.start_date}
+                end_date={e.data.end_date}
+                distances={e.data.distances}
+                organizer={e.data.organizer}
+                poster_key={e.data.poster_key}
+                href={paths.event(e.id, locale)}
+              />
             ))}
           </div>
           <p class="club-home--more">
@@ -143,11 +145,15 @@ if (features.hasEnrichedEvents) {
           <h2>{t('calendar.past', locale)}</h2>
           <div class="events-grid">
             {clubRecent.map(e => (
-              <a href={paths.event(e.id, locale)} class="event-card">
-                <span class="event-name">{e.data.name}</span>
-                <span class="event-dates">{clubFormatDate?.(e.data.start_date, e.data.end_date, locale) || e.data.start_date}</span>
-                {e.data.distances && <span class="event-distances">{e.data.distances}</span>}
-              </a>
+              <EventCard
+                name={e.data.name}
+                start_date={e.data.start_date}
+                end_date={e.data.end_date}
+                distances={e.data.distances}
+                organizer={e.data.organizer}
+                poster_key={e.data.poster_key}
+                href={paths.event(e.id, locale)}
+              />
             ))}
           </div>
         </section>
