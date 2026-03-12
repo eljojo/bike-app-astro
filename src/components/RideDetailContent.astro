@@ -1,0 +1,130 @@
+---
+import { imageUrl } from '@/lib/image-service';
+import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
+import { t } from '@/i18n';
+import { formatDuration } from '@/lib/date-utils';
+import { paths } from '@/lib/paths';
+import { countryToFlag } from '@/lib/country-flags';
+import PhotoGallery from '@/components/PhotoGallery.astro';
+
+interface Props {
+  route: any;
+  tour?: { slug: string; name: string } | null;
+  tourRides?: any[];
+  backLink: string;
+  backLabel: string;
+}
+
+const { route, tour, tourRides = [], backLink, backLabel } = Astro.props;
+const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
+const locale = Astro.currentLocale;
+
+const cover = media.find((m: any) => m.cover);
+const photos = media.filter((m: any) => m.type === 'photo').sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+const hasMap = hasCachedMap(route.id);
+const mapLang = cachedMapLocale(route.id, undefined, locale);
+
+const primaryGpx = route.data.variants[0]?.gpx;
+const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
+const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m;
+---
+
+<div class="route-detail">
+  {cover && (
+    <div class="route-detail--hero">
+      <img
+        src={imageUrl(cover.key, { width: 1170 })}
+        alt={name}
+        class="gallery-cover-photo"
+      />
+    </div>
+  )}
+
+  <div class="route-detail--content">
+    <div class="route-detail--body">
+      {tour && (
+        <nav class="ride-breadcrumb">
+          <a href="/tours">{t('nav.tours', locale)}</a>
+          {' / '}
+          <a href={paths.tour(tour.slug)}>{tour.name}</a>
+        </nav>
+      )}
+
+      <h1>{route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}</h1>
+
+      <div class="ride-facts">
+        {route.data.ride_date && <span>{route.data.ride_date}</span>}
+        <span>Distance: {distance_km.toFixed(2)} km</span>
+        {route.data.elapsed_time_s && route.data.moving_time_s && (
+          <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
+        )}
+        {!route.data.elapsed_time_s && route.data.moving_time_s && (
+          <span>Time: {formatDuration(route.data.moving_time_s)}</span>
+        )}
+        {route.data.average_speed_kmh && (
+          <span>Avg. Speed: {route.data.average_speed_kmh.toFixed(2)} km/h</span>
+        )}
+        {elevation != null && (
+          <span>Elevation: {elevation} m</span>
+        )}
+      </div>
+
+      {renderedBody && <div class="route-description" set:html={renderedBody} />}
+
+      <div class="route-actions">
+        <p>
+          <a href={paths.rideMap(route.id, route.data.tour_slug)} class="action-button --primary --wider">
+            &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
+          </a>
+          {route.data.variants[0]?.strava_url && (
+            <Fragment>
+              {' '}
+              <a href={route.data.variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
+                <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+              </a>
+            </Fragment>
+          )}
+        </p>
+      </div>
+    </div>
+
+    {hasMap && (
+      <div class="route-detail--static-map">
+        <a href={paths.rideMap(route.id, route.data.tour_slug)} title={t('ride.view_map', locale)}>
+          <img
+            src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
+            alt={`Map of ${name}`}
+          />
+        </a>
+      </div>
+    )}
+  </div>
+
+  {photos.length > 0 && (
+    <PhotoGallery photos={photos} routeName={name} />
+  )}
+
+  {tour && tourRides.length > 0 && (
+    <section class="tour-rides-nav">
+      <h2>
+        <span>Tour: </span>
+        <a href={paths.tour(tour.slug)}>{tour.name}</a>
+      </h2>
+      <ul>
+        {tourRides.map(tourRide => (
+          <li class={tourRide.id === route.id ? 'current' : ''}>
+            <span class="tour-rides-nav--date">{tourRide.data.ride_date}</span>
+            {tourRide.id === route.id
+              ? <span>{tourRide.data.name}</span>
+              : <a href={paths.ride(tourRide.id, tour.slug)}>{tourRide.data.name}</a>
+            }
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <p class="route-similar">
+    <a href={backLink} class="go-back-button">&larr; {backLabel}</a>
+  </p>
+</div>

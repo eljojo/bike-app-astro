@@ -3,22 +3,15 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/image-service';
-import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
 import { getCityConfig } from '@/lib/city-config';
-import { isPublished } from '@/lib/content-filters';
+import RideDetailContent from '@/components/RideDetailContent.astro';
 import { t } from '@/i18n';
-import { formatDuration } from '@/lib/date-utils';
-import { paths } from '@/lib/paths';
-import { countryToFlag } from '@/lib/country-flags';
-import PhotoGallery from '@/components/PhotoGallery.astro';
-import tours from 'virtual:bike-app/tours';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
-  // Only generate standalone rides (not in a tour) — tour rides live at /tours/{tour}/{ride}
   return routes.filter(r => !r.data.tour_slug).map(route => ({
     params: { slug: route.id },
     props: { route },
@@ -26,25 +19,9 @@ export async function getStaticPaths() {
 }
 
 const { route } = Astro.props;
-const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
-
+const { name, distance_km, media } = route.data;
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
-const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
-const hasMap = hasCachedMap(route.id);
-const mapLang = cachedMapLocale(route.id, undefined, locale);
-
-const primaryGpx = route.data.variants[0]?.gpx;
-const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
-
-// Tour info
-const tour = route.data.tour_slug
-  ? tours.find(t => t.slug === route.data.tour_slug)
-  : null;
-
-function formatSpeed(kmh: number): string {
-  return `${kmh.toFixed(1)} km/h`;
-}
 
 const seoTitle = `${name} | ${config.display_name}`;
 const seoDescription = route.data.ride_date
@@ -53,87 +30,9 @@ const seoDescription = route.data.ride_date
 ---
 
 <Base title={seoTitle} description={seoDescription} ogImage={coverUrl} ogImageAlt={name}>
-  <div class="route-detail">
-    {cover && (
-      <div class="route-detail--hero">
-        <img
-          src={imageUrl(cover.key, { width: 1170 })}
-          alt={name}
-          class="gallery-cover-photo"
-        />
-      </div>
-    )}
-
-    <div class="route-detail--content">
-      <div class="route-detail--body">
-        {/* Breadcrumb for tour */}
-        {tour && (
-          <nav class="ride-breadcrumb">
-            <a href="/tours">{t('nav.tours', locale)}</a>
-            {' / '}
-            <a href={`/tours/${tour.slug}`}>{tour.name}</a>
-          </nav>
-        )}
-
-        <h1>{route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}</h1>
-
-        {/* Compact inline stats matching old Rails site */}
-        <div class="ride-facts">
-          {route.data.ride_date && <span>{route.data.ride_date}</span>}
-          <span>Distance: {distance_km.toFixed(2)} km</span>
-          {route.data.elapsed_time_s && route.data.moving_time_s && (
-            <span>Time: {formatDuration(route.data.elapsed_time_s)} ({formatDuration(route.data.moving_time_s)} moving)</span>
-          )}
-          {!route.data.elapsed_time_s && route.data.moving_time_s && (
-            <span>Time: {formatDuration(route.data.moving_time_s)}</span>
-          )}
-          {route.data.average_speed_kmh && (
-            <span>Avg. Speed: {route.data.average_speed_kmh.toFixed(2)} km/h</span>
-          )}
-          {(route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m) != null && (
-            <span>Elevation: {route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m} m</span>
-          )}
-        </div>
-
-        {/* Description */}
-        {renderedBody && <div class="route-description" set:html={renderedBody} />}
-
-        {/* Map action */}
-        <div class="route-actions">
-          <p>
-            <a href={paths.rideMap(route.id)} class="action-button --primary --wider">
-              &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
-            </a>
-            {route.data.variants[0]?.strava_url && (
-              <Fragment>
-                {' '}
-                <a href={route.data.variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                  <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                </a>
-              </Fragment>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {hasMap && (
-        <div class="route-detail--static-map">
-          <a href={paths.rideMap(route.id)} title={t('ride.view_map', locale)}>
-            <img
-              src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
-              alt={`Map of ${name}`}
-            />
-          </a>
-        </div>
-      )}
-    </div>
-
-    {photos.length > 0 && (
-      <PhotoGallery photos={photos} routeName={name} />
-    )}
-
-    <p class="route-similar">
-      <a href="/rides" class="go-back-button">&larr; {t('ride.go_back', locale)}</a>
-    </p>
-  </div>
+  <RideDetailContent
+    route={route}
+    backLink="/rides"
+    backLabel={t('ride.go_back', locale)}
+  />
 </Base>
