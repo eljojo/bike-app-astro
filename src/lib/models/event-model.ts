@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
+import { computeHashFromParts } from './content-model';
 
 const organizerRefSchema = z.object({
   name: z.string(),
@@ -89,9 +89,7 @@ export interface EventGitFiles {
 
 /** Compute content hash for event conflict detection. Hashes primary content + optional media.yml. */
 export function computeEventContentHash(content: string, mediaContent?: string): string {
-  const hash = createHash('md5').update(content);
-  if (mediaContent) hash.update(mediaContent);
-  return hash.digest('hex');
+  return computeHashFromParts(content, mediaContent);
 }
 
 /**

@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto';
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { parseGpx } from '../gpx';
-import type { GitFiles } from './content-model';
+import { computeHashFromParts, type GitFiles } from './content-model';
 
 const mediaItemSchema = z.object({
   key: z.string(),
@@ -56,10 +55,7 @@ export interface RideGitFiles extends GitFiles {
 
 /** Compute content hash for ride conflict detection. Canonical order: sidecar, gpx, media. */
 export function computeRideContentHash(sidecarContent: string, gpxContent?: string, mediaContent?: string): string {
-  const hash = createHash('md5').update(sidecarContent);
-  if (gpxContent) hash.update(gpxContent);
-  if (mediaContent) hash.update(mediaContent);
-  return hash.digest('hex');
+  return computeHashFromParts(sidecarContent, gpxContent, mediaContent);
 }
 
 /** Compute ride hash directly from git file snapshots used by the save pipeline. */

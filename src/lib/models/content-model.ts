@@ -1,4 +1,17 @@
+import { createHash } from 'node:crypto';
 import type { z } from 'astro/zod';
+
+/**
+ * Compute content hash from one or more file content strings.
+ * Undefined parts are skipped. Used by all content model hash functions.
+ */
+export function computeHashFromParts(...parts: (string | undefined)[]): string {
+  const hash = createHash('md5');
+  for (const part of parts) {
+    if (part !== undefined) hash.update(part);
+  }
+  return hash.digest('hex');
+}
 
 export interface GitFileSnapshot {
   content: string;

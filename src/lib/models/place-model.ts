@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import { z } from 'astro/zod';
 import matter from 'gray-matter';
+import { computeHashFromParts } from './content-model';
 
 export const placeDetailSchema = z.object({
   id: z.string(),
@@ -30,7 +30,7 @@ export interface PlaceGitFiles {
 
 /** Compute content hash for place conflict detection. */
 export function computePlaceContentHash(content: string): string {
-  return createHash('md5').update(content).digest('hex');
+  return computeHashFromParts(content);
 }
 
 /** Compute place hash from git file snapshots. */
