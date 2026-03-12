@@ -50,7 +50,6 @@ const blogStaticRoutes = [
 const clubPages = [
   { pattern: '/events', entrypoint: view('events/index.astro') },
   { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
-  { pattern: '/routes', entrypoint: view('routes/index.astro') },
   { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
   { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
   { pattern: '/places', entrypoint: view('places/index.astro') },
