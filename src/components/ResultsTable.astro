@@ -10,12 +10,15 @@ interface Result {
   status?: 'DNS' | 'DNF' | 'DQ';
 }
 
+type Privacy = 'full_name' | 'last_name_only' | 'initials';
+
 interface Props {
   results: Result[];
   locale?: string;
+  privacy?: Privacy;
 }
 
-const { results, locale } = Astro.props;
+const { results, locale, privacy = 'full_name' } = Astro.props;
 
 const finishers = results.filter(r => !r.status);
 const nonFinishers = results.filter(r => !!r.status);
@@ -25,6 +28,17 @@ const statusLabels: Record<string, string> = {
   DNF: t('events.status.dnf', locale),
   DQ: t('events.status.dq', locale),
 };
+
+function formatName(r: Result): string {
+  switch (privacy) {
+    case 'initials':
+      return `${r.last_name.charAt(0)}.${r.first_name ? ` ${r.first_name.charAt(0)}.` : ''}`;
+    case 'last_name_only':
+      return r.last_name;
+    default:
+      return `${r.last_name}${r.first_name ? `, ${r.first_name}` : ''}`;
+  }
+}
 ---
 
 <div class="results-section">
@@ -44,7 +58,7 @@ const statusLabels: Record<string, string> = {
         {finishers.map((r) => (
           <tr>
             <td>{r.brevet_no ?? ''}</td>
-            <td>{r.last_name}{r.first_name ? `, ${r.first_name}` : ''}</td>
+            <td>{formatName(r)}</td>
             <td>{r.time || ''}</td>
             {finishers.some(r => r.homologation) && <td>{r.homologation || ''}</td>}
           </tr>
@@ -61,7 +75,7 @@ const statusLabels: Record<string, string> = {
           {nonFinishers.map((r) => (
             <tr>
               <td>{r.brevet_no ?? ''}</td>
-              <td>{r.last_name}{r.first_name ? `, ${r.first_name}` : ''}</td>
+              <td>{formatName(r)}</td>
               <td>{statusLabels[r.status!] || r.status}</td>
             </tr>
           ))}

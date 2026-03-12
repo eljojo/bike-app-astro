@@ -1933,6 +1933,45 @@ a.go-back-button {
   margin-bottom: 2rem;
 }
 
+.faq-section {
+  margin-top: 1.5rem;
+
+  details {
+    border: 1px solid $color-border;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    padding: 0;
+
+    &[open] summary::after {
+      transform: rotate(90deg);
+    }
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &::after {
+      content: '›';
+      font-size: 1.2em;
+      transition: transform 0.2s;
+    }
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+  }
+
+  details > :not(summary) {
+    padding: 0 1rem 0.75rem;
+  }
+}
+
 .event-detail-sidebar {
   flex: 0 0 280px;
 

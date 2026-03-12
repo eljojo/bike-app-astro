@@ -130,7 +130,7 @@ const hasResults = data.results && data.results.length > 0;
         {hasResults && (
           <section class="event-detail-section">
             <h2>{t('events.results', locale)}</h2>
-            <ResultsTable results={data.results!} locale={locale} />
+            <ResultsTable results={data.results!} locale={locale} privacy={config.results_privacy} />
           </section>
         )}
       </div>
@@ -154,4 +154,54 @@ const hasResults = data.results && data.results.length > 0;
   <p style="margin-top: 2em;">
     <a href={localePath('/events', locale)} class="go-back-button">&#x21A9; {t('events.go_back', locale)}</a>
   </p>
+
+  <script>
+    /** Convert FAQ section: h3 headings after an h2 "FAQ" become collapsible details/summary. */
+    document.addEventListener('DOMContentLoaded', () => {
+      const body = document.querySelector('.event-detail-body');
+      if (!body) return;
+
+      const headings = Array.from(body.querySelectorAll('h2'));
+      const faqH2 = headings.find(h => /^faq$/i.test(h.textContent?.trim() || ''));
+      if (!faqH2) return;
+
+      // Collect all siblings after the FAQ h2 until the next h2
+      const faqItems: Array<{ heading: HTMLElement; content: Node[] }> = [];
+      let current: { heading: HTMLElement; content: Node[] } | null = null;
+      let sibling = faqH2.nextElementSibling as HTMLElement | null;
+
+      while (sibling && sibling.tagName !== 'H2') {
+        if (sibling.tagName === 'H3') {
+          if (current) faqItems.push(current);
+          current = { heading: sibling, content: [] };
+        } else if (current) {
+          current.content.push(sibling);
+        }
+        sibling = sibling.nextElementSibling as HTMLElement | null;
+      }
+      if (current) faqItems.push(current);
+      if (faqItems.length === 0) return;
+
+      // Replace FAQ heading + items with details/summary
+      const faqSection = document.createElement('div');
+      faqSection.className = 'faq-section';
+
+      for (const item of faqItems) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = item.heading.textContent;
+        details.appendChild(summary);
+        for (const node of item.content) {
+          details.appendChild(node);
+        }
+        faqSection.appendChild(details);
+      }
+
+      // Remove original elements and insert faq section after the h2
+      for (const item of faqItems) {
+        item.heading.remove();
+      }
+      faqH2.after(faqSection);
+    });
+  </script>
 </Base>

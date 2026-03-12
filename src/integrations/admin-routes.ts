@@ -56,7 +56,9 @@ const routes = [
   { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
   ...(isBlogInstance() ? [
     { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
+    { pattern: '/api/strava/status', entrypoint: view('api/strava/status.ts') },
     { pattern: '/api/strava/connect', entrypoint: view('api/strava/connect.ts') },
+    { pattern: '/api/strava/disconnect', entrypoint: view('api/strava/disconnect.ts') },
     { pattern: '/api/strava/activities', entrypoint: view('api/strava/activities.ts') },
     { pattern: '/api/strava/import', entrypoint: view('api/strava/import.ts') },
   ] : []),
@@ -73,6 +75,7 @@ const routes = [
   { pattern: '/api/admin/event-draft', entrypoint: view('api/event-draft.ts') },
   { pattern: '/api/admin/fetch-image', entrypoint: view('api/fetch-image.ts') },
   { pattern: '/api/settings', entrypoint: view('api/settings.ts') },
+  { pattern: '/api/suggest-waypoints', entrypoint: view('api/suggest-waypoints.ts') },
   { pattern: '/api/gpx/import', entrypoint: view('api/gpx/import.ts') },
   // Reactions (static _starred must precede parameterized to avoid matching as params)
   { pattern: '/api/reactions', entrypoint: view('api/reactions.ts') },
