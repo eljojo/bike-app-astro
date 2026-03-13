@@ -17,6 +17,7 @@ const waypointDetailSchema = z.object({
   opening: z.string().optional(),
   closing: z.string().optional(),
   route: z.string().optional(),
+  note: z.string().optional(),
 });
 
 const registrationDetailSchema = z.object({

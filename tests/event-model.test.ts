@@ -54,7 +54,8 @@ describe('enriched event fields', () => {
       routes: ['vuelta-rocas-300'],
       waypoints: [
         { place: 'plaza-pomaire', type: 'checkpoint', label: 'PC1', distance_km: 87,
-          opening: '2024-01-20 08:34', closing: '2024-01-20 11:48' },
+          opening: '2024-01-20 08:34', closing: '2024-01-20 11:48',
+          note: 'Fill bottles here' },
         { place: 'cruce-ruta-5', type: 'danger', label: 'Danger zone', distance_km: 120 },
       ],
       registration: { url: 'https://example.com', slots: 300, price: 'CLP $22k' },
@@ -67,6 +68,8 @@ describe('enriched event fields', () => {
     expect(detail.routes).toEqual(['vuelta-rocas-300']);
     expect(detail.waypoints).toHaveLength(2);
     expect(detail.waypoints![0].type).toBe('checkpoint');
+    expect(detail.waypoints![0].note).toBe('Fill bottles here');
+    expect(detail.waypoints![1].note).toBeUndefined();
     expect(detail.registration?.slots).toBe(300);
     expect(detail.results).toHaveLength(2);
   });
