@@ -7,7 +7,7 @@ import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
 import MarkdownEditor from './MarkdownEditor';
 import NearbyPhotos from './NearbyPhotos';
-import SaveSuccessModal from './SaveSuccessModal';
+import EditorActions from './EditorActions';
 import { useEditorState } from './useEditorState';
 import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
@@ -341,52 +341,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
         />
       </section>
 
-      <div class="editor-actions">
-        {error && !githubUrl && (
-          <div class="auth-error">{error}</div>
-        )}
-        {githubUrl && (
-          <div class="conflict-notice">
-            <strong>Save blocked — this route was changed on GitHub</strong>
-            <p>
-              Someone (or an automated process) modified this route's files on GitHub
-              since you started editing. Your changes are still in the form above — nothing was lost.
-            </p>
-            <p><strong>To resolve this:</strong></p>
-            <ol>
-              <li>Open the file on GitHub to see what changed</li>
-              <li>Copy your edits from the form above (they're safe until you navigate away)</li>
-              <li>Either apply your changes directly on GitHub, or wait for the site to rebuild, then reload this page and re-enter your edits</li>
-            </ol>
-            <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary" style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
-              View file on GitHub
-            </a>
-          </div>
-        )}
-        {saved && userRole === 'guest' && (
-          <SaveSuccessModal viewLink={`/routes/${initialData.slug}`} />
-        )}
-        {saved && userRole !== 'guest' && (
-          <div class="save-success">
-            Saved! Your edit will be live in a few minutes.
-            {' '}<a href={`/routes/${initialData.slug}`}>View live</a>
-          </div>
-        )}
-        {showLicenseNotice !== false && (
-          <p class="editor-license-notice">
-            By saving, you agree to release your contribution under{' '}
-            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-          </p>
-        )}
-        <button
-          type="button"
-          class="btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      <EditorActions
+        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
+        onSave={handleSave} contentType="route" userRole={userRole}
+        viewLink={`/routes/${initialData.slug}`}
+        showLicenseNotice={showLicenseNotice !== false}
+      />
     </div>
   );
 }

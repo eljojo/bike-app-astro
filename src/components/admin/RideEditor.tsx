@@ -6,6 +6,7 @@ import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import AutoDetectField from './AutoDetectField';
 import MarkdownEditor from './MarkdownEditor';
+import EditorActions from './EditorActions';
 import RidePreview from './RidePreview';
 import { useEditorState } from './useEditorState';
 import { useDragDrop } from '../../lib/hooks';
@@ -529,18 +530,12 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
           </section>
 
           {/* Save */}
-          <div class="editor-actions">
-            {error && !githubUrl && <div class="auth-error">{error}</div>}
-            {saved && (
-              <div class="save-success">
-                Saved! Your changes will be live in a few minutes.
-                {' '}<a href={initialData.tour_slug ? `/tours/${initialData.tour_slug}/${initialData.slug}` : `/rides/${initialData.slug}`}>View ride</a>
-              </div>
-            )}
-            <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
+          <EditorActions
+            error={error} githubUrl={githubUrl} saved={saved} saving={saving}
+            onSave={handleSave} contentType="ride"
+            viewLink={initialData.tour_slug ? `/tours/${initialData.tour_slug}/${initialData.slug}` : `/rides/${initialData.slug}`}
+            showLicenseNotice={false}
+          />
         </div>
 
         {/* RIGHT PANE: Preview */}

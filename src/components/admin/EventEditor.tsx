@@ -3,6 +3,7 @@
 import { useState } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
 import MarkdownEditor from './MarkdownEditor';
+import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
 import type { MediaItem } from './MediaManager';
 import EventRouteSection from './EventRouteSection';
@@ -11,7 +12,6 @@ import WaypointEditor from './WaypointEditor';
 import type { Waypoint } from './WaypointEditor';
 import ResultsEditor from './ResultsEditor';
 import type { Result } from './ResultsEditor';
-import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
@@ -426,37 +426,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         </div>
       </section>
 
-      <div class="editor-actions">
-        {error && !githubUrl && <div class="auth-error">{error}</div>}
-        {githubUrl && (
-          <div class="conflict-notice">
-            <strong>Save blocked -- this event was changed on GitHub</strong>
-            <p>Someone modified this event since you started editing.</p>
-            <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary"
-              style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
-              View file on GitHub
-            </a>
-          </div>
-        )}
-        {saved && userRole === 'guest' && (
-          <SaveSuccessModal viewLink={`/events/${initialData.id}`} />
-        )}
-        {saved && userRole !== 'guest' && (
-          <div class="save-success">
-            Saved! Your edit will be live in a few minutes.
-            {' '}<a href={`/events/${initialData.id}`}>View live</a>
-          </div>
-        )}
-        {showLicenseNotice !== false && (
-          <p class="editor-license-notice">
-            By saving, you agree to release your contribution under{' '}
-            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-          </p>
-        )}
-        <button type="button" class="btn-primary" onClick={handleSave} disabled={saving || readOnly}>
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      <EditorActions
+        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
+        onSave={handleSave} contentType="event" userRole={userRole}
+        viewLink={`/events/${initialData.id}`}
+        showLicenseNotice={showLicenseNotice !== false}
+        disabled={readOnly}
+      />
     </fieldset>
   );
 }
