@@ -11,6 +11,7 @@ import RidePreview from './RidePreview';
 import StravaActivityBrowser from './StravaActivityBrowser';
 import type { StravaImportResult } from './StravaActivityBrowser';
 import { useEditorState } from './useEditorState';
+import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
@@ -183,16 +184,17 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, userRole
   );
 
   // Save
+  const { validate } = useFormValidation([
+    { field: 'ride-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: '', check: () => !variants.length, message: 'A GPX file is required' },
+  ]);
+
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/rides',
     contentId: initialData.isNew ? null : initialData.slug,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) return 'Name is required';
-      if (!variants.length) return 'A GPX file is required';
-      return null;
-    },
+    validate,
     buildPayload: () => ({
       frontmatter: {
         name,
