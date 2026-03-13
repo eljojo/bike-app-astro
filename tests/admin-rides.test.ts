@@ -147,7 +147,7 @@ describe('loadAdminRideData', () => {
 
   it('populates ride-specific fields in details', async () => {
     const { details } = await loadAdminRideData();
-    const winterSlug = 'winter-ride';
+    const winterSlug = '2026-01-23-winter-ride';
     const winter = details[winterSlug];
     expect(winter).toBeDefined();
     expect(winter.ride_date).toBe('2026-01-23');
