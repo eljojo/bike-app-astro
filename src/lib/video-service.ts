@@ -1,7 +1,7 @@
 /**
  * Video service — Cloudflare R2 implementation.
  *
- * Generates video source URLs for HLS, AV1, and H.264 formats.
+ * Generates video source URLs for AV1 and H.264 formats.
  * Videos are stored in R2 under CDN_URL/videos/{blobKey}/ with
  * transcoded outputs from AWS MediaConvert.
  *
@@ -21,7 +21,6 @@ interface VideoSource {
 export function videoPlaybackSources(blobKey: string): VideoSource[] {
   const base = `${VIDEOS_CDN}/${blobKey}/${blobKey}`;
   return [
-    { src: `${base}.m3u8`, type: 'application/x-mpegURL' },
     { src: `${base}-av1.mp4`, type: 'video/mp4; codecs=av01.0.05M.08' },
     { src: `${base}-h264.mp4`, type: 'video/mp4; codecs=avc1' },
   ];
