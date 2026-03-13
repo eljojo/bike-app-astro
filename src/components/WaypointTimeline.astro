@@ -9,6 +9,7 @@ interface Waypoint {
   opening?: string;
   closing?: string;
   route?: string;
+  note?: string;
 }
 
 interface Props {
@@ -44,6 +45,7 @@ const typeLabels: Record<string, string> = {
           </div>
         )}
         {wp.route && <span class="waypoint-timeline-route">{wp.route}</span>}
+        {wp.note && <div class="waypoint-timeline-note">{wp.note}</div>}
       </div>
     </div>
   ))}

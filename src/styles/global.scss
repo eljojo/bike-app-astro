@@ -2192,6 +2192,12 @@ a.go-back-button {
   @include muted-text;
   font-style: italic;
 }
+.waypoint-timeline-note {
+  font-size: 0.8125rem;
+  font-style: italic;
+  @include muted-text;
+  margin-top: 0.125rem;
+}
 
 // Results table (public page)
 .results-section {
