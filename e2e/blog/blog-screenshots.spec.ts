@@ -1,9 +1,22 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, loginAs, cleanupSession } from './helpers.ts';
+import { seedSession, loginAs, cleanupSession, proxyTiles } from './helpers.ts';
 
 const screenshotOpts = { fullPage: true, maxDiffPixelRatio: 0.04 };
+const FIXED_DATE = new Date('2025-06-15T16:00:00.000Z');
 
 test.describe('Blog Screenshots — Public Pages', () => {
+  test('homepage', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Blog homepage shows highlighted rides and latest rides
+    await expect(page.locator('.blog-home')).toBeVisible();
+    await expect(page.locator('h3')).toContainText('Bike adventures');
+
+    await expect(page).toHaveScreenshot('blog-homepage.png', screenshotOpts);
+  });
+
   test('rides index', async ({ page }) => {
     await page.goto('/rides');
     await page.waitForLoadState('networkidle');
@@ -66,7 +79,9 @@ test.describe('Blog Screenshots — Admin Pages', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: FIXED_DATE });
     await loginAs(page, token);
+    await proxyTiles(page);
   });
 
   test('rides list', async ({ page }) => {
@@ -88,5 +103,16 @@ test.describe('Blog Screenshots — Admin Pages', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('admin-ride-creation.png', screenshotOpts);
+  });
+
+  test('settings', async ({ page }) => {
+    await page.goto('/admin/settings');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Blog settings shows profile section
+    await expect(page.locator('.settings-form h2')).toContainText('Profile');
+
+    await expect(page).toHaveScreenshot('admin-settings.png', screenshotOpts);
   });
 });
