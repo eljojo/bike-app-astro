@@ -52,8 +52,9 @@ export function mergeParkedPhotos(
   return result;
 }
 
-interface AdminPhoto {
+interface AdminMediaInput {
   key: string;
+  type?: 'photo' | 'video';
   caption?: string;
   cover?: boolean;
   width?: number;
@@ -62,63 +63,77 @@ interface AdminPhoto {
   lng?: number;
   uploaded_by?: string;
   captured_at?: string;
+  title?: string;
+  handle?: string;
+  duration?: string;
+  orientation?: string;
+  poster_key?: string;
 }
 
 type MediaEntry = Record<string, unknown>;
 
 /**
- * Merge admin photo changes into existing media.yml entries.
+ * Merge admin media changes into existing media.yml entries.
  *
  * - Preserves all fields on existing entries (score, width, height, handle, etc.)
- * - Overlays caption and cover from admin
- * - Preserves admin's photo ordering
+ * - Overlays admin-editable fields (caption, cover for photos; title for videos)
+ * - Admin array drives ordering for all media types
  * - New photos get type: "photo" and score: 1
- * - Non-photo entries (videos) are appended at the end unchanged
- * - Photos removed by admin (not in adminPhotos) are dropped
+ * - New videos get type: "video" and admin-supplied fields
+ * - Media removed by admin (not in adminMedia) are dropped
  */
-export function mergeMedia(adminPhotos: AdminPhoto[], existing: MediaEntry[]): MediaEntry[] {
+export function mergeMedia(adminMedia: AdminMediaInput[], existing: MediaEntry[]): MediaEntry[] {
   const lookup = new Map<string, MediaEntry>();
-  const nonPhotos: MediaEntry[] = [];
-
-  // TODO(C7): merge all media types when video management is added to admin UI
   for (const entry of existing) {
-    if (entry.type === 'photo') {
-      lookup.set(entry.key as string, entry);
-    } else {
-      nonPhotos.push(entry);
-    }
+    lookup.set(entry.key as string, entry);
   }
 
   const result: MediaEntry[] = [];
 
-  for (const photo of adminPhotos) {
-    const base = lookup.get(photo.key);
+  for (const item of adminMedia) {
+    const isVideo = item.type === 'video';
+    const base = lookup.get(item.key);
     if (base) {
-      // Existing photo — preserve all fields, overlay admin changes
+      // Existing entry — preserve all fields, overlay admin changes
       const merged = { ...base };
-      if (photo.caption != null) merged.caption = photo.caption;
-      else delete merged.caption;
-      if (photo.cover) merged.cover = true;
+      if (isVideo) {
+        if (item.title != null) merged.title = item.title;
+      } else {
+        if (item.caption != null) merged.caption = item.caption;
+        else delete merged.caption;
+      }
+      if (item.cover) merged.cover = true;
       else delete merged.cover;
       result.push(merged);
+    } else if (isVideo) {
+      // New video
+      const entry: MediaEntry = { type: 'video', key: item.key };
+      if (item.title) entry.title = item.title;
+      if (item.handle) entry.handle = item.handle;
+      if (item.duration) entry.duration = item.duration;
+      if (item.width) entry.width = item.width;
+      if (item.height) entry.height = item.height;
+      if (item.orientation) entry.orientation = item.orientation;
+      if (item.poster_key) entry.poster_key = item.poster_key;
+      if (item.lat != null) entry.lat = item.lat;
+      if (item.lng != null) entry.lng = item.lng;
+      if (item.captured_at) entry.captured_at = item.captured_at;
+      result.push(entry);
     } else {
       // New photo
-      const entry: MediaEntry = { type: 'photo', key: photo.key };
-      if (photo.caption) entry.caption = photo.caption;
-      if (photo.cover) entry.cover = true;
+      const entry: MediaEntry = { type: 'photo', key: item.key };
+      if (item.caption) entry.caption = item.caption;
+      if (item.cover) entry.cover = true;
       entry.score = 1;
-      if (photo.width) entry.width = photo.width;
-      if (photo.height) entry.height = photo.height;
-      if (photo.lat != null) entry.lat = photo.lat;
-      if (photo.lng != null) entry.lng = photo.lng;
-      if (photo.uploaded_by) entry.uploaded_by = photo.uploaded_by;
-      if (photo.captured_at) entry.captured_at = photo.captured_at;
+      if (item.width) entry.width = item.width;
+      if (item.height) entry.height = item.height;
+      if (item.lat != null) entry.lat = item.lat;
+      if (item.lng != null) entry.lng = item.lng;
+      if (item.uploaded_by) entry.uploaded_by = item.uploaded_by;
+      if (item.captured_at) entry.captured_at = item.captured_at;
       result.push(entry);
     }
   }
-
-  // Append non-photo entries (videos etc.) unchanged
-  result.push(...nonPhotos);
 
   return result;
 }
