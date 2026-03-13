@@ -18,7 +18,8 @@
         "GIT_OWNER": "eljojo",
         "GIT_DATA_REPO": "bike-routes",
         "ENVIRONMENT": "staging",
-        "STORAGE_KEY_PREFIX": "staging/"
+        "STORAGE_KEY_PREFIX": "staging/",
+        "MEDIACONVERT_REGION": "us-east-1"
       },
       "d1_databases": [
         {
@@ -51,7 +52,8 @@
         "GIT_OWNER": "eljojo",
         "GIT_DATA_REPO": "bike-routes",
         "ENVIRONMENT": "production",
-        "STORAGE_KEY_PREFIX": ""
+        "STORAGE_KEY_PREFIX": "",
+        "MEDIACONVERT_REGION": "us-east-1"
       },
       "d1_databases": [
         {
