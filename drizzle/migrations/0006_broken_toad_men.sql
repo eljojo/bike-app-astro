@@ -1,7 +1,7 @@
 CREATE TABLE `video_jobs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`key` text NOT NULL,
-	`content_type` text NOT NULL,
+	`content_kind` text NOT NULL,
 	`content_slug` text NOT NULL,
 	`job_id` text,
 	`status` text DEFAULT 'uploading' NOT NULL,
