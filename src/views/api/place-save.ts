@@ -11,7 +11,7 @@ import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-
 import type { FileChange } from '../../lib/git-service';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../../lib/models/place-model';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges } from '../../lib/save-helpers';
+import { buildPhotoKeyChanges, buildCommitTrailer } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
@@ -159,7 +159,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
   buildCommitMessage(update, placeId, isNew): string {
     const resourcePath = `${CITY}/places/${placeId}`;
     const title = update.frontmatter.name || placeId;
-    const trailer = `\n\nChanges: ${resourcePath}`;
+    const trailer = buildCommitTrailer(resourcePath);
     return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
   },
 
