@@ -1,5 +1,5 @@
 instance_type: blog
-name: "{{USERNAME}}'s Bike Blog"
+name: "My Bike Blog"
 display_name: {{DOMAIN}}
 tagline: "bike rides and adventures"
 description: "A cycling blog — rides, tours, and adventures."
@@ -10,7 +10,7 @@ timezone: {{TIMEZONE}}
 locale: en
 locales: [en]
 author:
-  name: "{{USERNAME}}"
+  name: ""
   email: ""
   url: https://{{DOMAIN}}
 center:

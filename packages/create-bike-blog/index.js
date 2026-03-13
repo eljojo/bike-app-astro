@@ -88,7 +88,6 @@ async function main() {
   const vars = {
     FOLDER: folderName,
     DOMAIN: domain,
-    USERNAME: 'blog',
     TIMEZONE: timezone,
   };
 

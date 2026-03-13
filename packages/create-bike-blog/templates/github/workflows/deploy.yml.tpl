@@ -60,21 +60,21 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-${{ hashFiles('{{USERNAME}}/rides/**/*.gpx') }}
+          key: astro-${{ hashFiles('blog/rides/**/*.gpx') }}
           restore-keys: astro-
 
       - name: Generate map thumbnails
         run: npx tsx node_modules/bike-app-astro/scripts/generate-maps.ts
         env:
           CONTENT_DIR: .
-          CITY: {{USERNAME}}
+          CITY: blog
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
       - name: Build site
         run: npx astro build
         env:
           CONTENT_DIR: .
-          CITY: {{USERNAME}}
+          CITY: blog
           SITE_URL: https://{{DOMAIN}}
           NODE_OPTIONS: '--max-old-space-size=4096'
 

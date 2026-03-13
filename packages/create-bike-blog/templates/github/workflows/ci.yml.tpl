@@ -44,13 +44,13 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-${{ hashFiles('{{USERNAME}}/rides/**/*.gpx') }}
+          key: astro-${{ hashFiles('blog/rides/**/*.gpx') }}
           restore-keys: astro-
 
       - name: Build site
         run: npx astro build
         env:
           CONTENT_DIR: .
-          CITY: {{USERNAME}}
+          CITY: blog
           SITE_URL: https://{{DOMAIN}}
           NODE_OPTIONS: '--max-old-space-size=4096'
