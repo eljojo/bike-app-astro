@@ -99,8 +99,9 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
   function handleMove(e: MouseEvent) {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width;
-    const km = relX * maxKm;
+    const svgX = (e.clientX - rect.left) / rect.width * SVG_W;
+    const plotX = Math.max(0, Math.min(PLOT_W, svgX - PAD_L));
+    const km = (plotX / PLOT_W) * maxKm;
 
     // Find nearest point
     let bestIdx = 0;
