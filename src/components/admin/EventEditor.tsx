@@ -3,6 +3,7 @@
 import { useState } from 'preact/hooks';
 import { useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
+import MarkdownToolbar from './MarkdownToolbar';
 import PhotoField from './PhotoField';
 import type { MediaItem } from './MediaManager';
 import EventRouteSection from './EventRouteSection';
@@ -332,13 +333,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           </div>
 
           <div class="form-field">
-            <label for="event-body">
-              Description (markdown)
-              {' · '}
-              <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" class="btn-link">
-                formatting help
-              </a>
-            </label>
+            <label for="event-body">Description (markdown)</label>
+            <MarkdownToolbar textareaRef={bodyRef} onTextChange={setBody} />
             <textarea id="event-body" ref={bodyRef} value={body}
               onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)} rows={6} />
           </div>

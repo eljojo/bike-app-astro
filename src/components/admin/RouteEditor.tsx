@@ -5,6 +5,7 @@ import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
+import MarkdownToolbar from './MarkdownToolbar';
 import NearbyPhotos from './NearbyPhotos';
 import SaveSuccessModal from './SaveSuccessModal';
 import { useEditorState } from './useEditorState';
@@ -279,13 +280,8 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           )}
 
           <div class="form-field">
-            <label for="route-body">
-              Body (markdown)
-              {' · '}
-              <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" class="btn-link">
-                formatting help
-              </a>
-            </label>
+            <label for="route-body">Body (markdown)</label>
+            <MarkdownToolbar textareaRef={bodyRef} onTextChange={(text) => setField('body', text)} />
             <textarea
               key={`body-${activeLocale}`}
               ref={bodyRef}
