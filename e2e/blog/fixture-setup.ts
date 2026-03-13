@@ -1,5 +1,5 @@
 /**
- * Blog E2E fixture setup — creates a jose blog instance fixture.
+ * Blog E2E fixture setup — creates a blog instance fixture.
  * Separate from admin fixtures to avoid CITY=demo conflicts.
  */
 import { execSync } from 'node:child_process';
@@ -13,7 +13,7 @@ export const FIXTURE_DIR = path.resolve(PROJECT_ROOT, '.data', 'blog-e2e-content
 export const DB_PATH = path.resolve(PROJECT_ROOT, '.data', 'blog-local.db');
 export const UPLOADS_DIR = path.resolve(PROJECT_ROOT, '.data', 'blog-uploads');
 
-const CITY_DIR = path.join(FIXTURE_DIR, 'jose');
+const CITY_DIR = path.join(FIXTURE_DIR, 'blog');
 
 export default function setup() {
   const uploadsDir = UPLOADS_DIR;

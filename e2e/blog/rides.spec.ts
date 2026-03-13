@@ -220,7 +220,7 @@ test.describe('Ride save flow', () => {
 
     // Upload GPX file from fixture
     const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
-    const gpxPath = path.join(FIXTURE_DIR, 'jose/rides/2026/01/23-winter-ride.gpx');
+    const gpxPath = path.join(FIXTURE_DIR, 'blog/rides/2026/01/23-winter-ride.gpx');
     await gpxInput.setInputFiles(gpxPath);
 
     // Wait for GPX to be processed (file info should appear)

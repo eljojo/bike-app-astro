@@ -1,6 +1,6 @@
 /**
  * Playwright config for blog E2E tests.
- * Builds with CITY=jose (blog instance) on port 4325.
+ * Builds with CITY=blog (blog instance) on port 4325.
  */
 import { defineConfig } from '@playwright/test';
 import {
@@ -30,7 +30,7 @@ export default defineConfig({
     browserName: 'chromium',
   },
   webServer: {
-    command: `RUNTIME=local CITY=jose CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro build && RUNTIME=local CITY=jose CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro preview --port ${port}`,
+    command: `RUNTIME=local CITY=blog CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro build && RUNTIME=local CITY=blog CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro preview --port ${port}`,
     port,
     cwd: '../..',
     reuseExistingServer: false,

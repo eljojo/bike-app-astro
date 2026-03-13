@@ -6,7 +6,7 @@
  *
  *   import { wheretoBike } from 'bike-app-astro';
  *   export default defineConfig({
- *     integrations: [preact(), ...wheretoBike({ contentDir: '.', city: 'jose' })],
+ *     integrations: [preact(), ...wheretoBike({ contentDir: '.', city: 'blog' })],
  *   });
  *
  * When called without options (dogfooding from this repo's own astro.config.mjs),
@@ -24,10 +24,6 @@ import { slugRedirectLines } from './lib/slug-redirects';
 import { buildDataPlugin } from './build-data-plugin';
 import { i18nRoutes } from './integrations/i18n-routes';
 import { appRoutesIntegration } from './integrations/admin-routes';
-import { isBlogInstance } from './lib/city-config';
-import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from './loaders/rides';
-import { generateTourRedirects, generateRideRedirectLines } from './lib/tour-redirects';
-import matter from 'gray-matter';
 
 /**
  * Returns CSP security config for use in defineConfig().
@@ -209,11 +205,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           }
         }
 
-        // Ride redirects get /map variants
-        const rideEntries = data.rides as Array<{ from: string; to: string }> | undefined;
-        if (rideEntries) {
-          lines.push(...generateRideRedirectLines(rideEntries));
-        }
+        // Ride redirects are handled by middleware (virtual:bike-app/ride-redirects)
         const shortUrls = data.short_urls as Array<{ from: string; to: string }> | undefined;
         if (shortUrls) {
           for (const r of shortUrls) lines.push(`/${r.from}  ${r.to}  301`);
@@ -254,43 +246,6 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           lines.push('');
           lines.push('# Translated slug rewrites and redirects');
           lines.push(...translatedRedirects);
-        }
-
-        // Blog tour ride redirects: /rides/{slug} → /tours/{tour}/{slug}
-        if (isBlogInstance()) {
-          const ridesDir = path.join(CONTENT_DIR, CITY, 'rides');
-          if (fs.existsSync(ridesDir)) {
-            const gpxPaths = findGpxFiles(ridesDir);
-            const tours = detectTours(gpxPaths);
-
-            // Build slug entries for all rides
-            const rideEntries: Array<{ gpxRelPath: string; slug: string }> = [];
-            for (const gpxRelPath of gpxPaths) {
-              const date = extractDateFromPath(gpxRelPath);
-              if (!date) continue;
-              const gpxFilename = path.basename(gpxRelPath);
-              const gpxAbsPath = path.join(ridesDir, gpxRelPath);
-
-              let handle: string | undefined;
-              const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-              if (fs.existsSync(sidecarPath)) {
-                const { data: fm } = matter(fs.readFileSync(sidecarPath, 'utf-8'));
-                handle = fm.handle as string | undefined;
-              }
-
-              rideEntries.push({
-                gpxRelPath,
-                slug: buildSlug(date, gpxFilename, handle),
-              });
-            }
-
-            const tourRedirects = generateTourRedirects(tours, rideEntries);
-            if (tourRedirects.length > 0) {
-              lines.push('');
-              lines.push('# Tour ride redirects: /rides/ → /tours/');
-              lines.push(...tourRedirects);
-            }
-          }
         }
 
         const content = lines.join('\n');
