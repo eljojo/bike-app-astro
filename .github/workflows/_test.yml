@@ -174,6 +174,16 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Run blog E2E tests
+        run: >-
+          npx playwright test --config e2e/blog/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+
+      - name: Run club E2E tests
+        run: >-
+          npx playwright test --config e2e/club/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+
       - name: Update screenshot baselines
         id: update-screenshots
         if: ${{ inputs.update-screenshots }}
@@ -184,7 +194,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/
+          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/ e2e/blog/blog-screenshots.spec.ts-snapshots/ e2e/club/club-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
             echo "No screenshot changes"
             exit 0
