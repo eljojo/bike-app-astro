@@ -109,6 +109,12 @@ export default function WaypointEditor({ waypoints, onChange, places, routes }: 
                 </select>
               </div>
             )}
+
+            <div class="waypoint-detail-row">
+              <input type="text" value={wp.note || ''} placeholder="Note (e.g. fill bottles here)"
+                class="waypoint-note"
+                onInput={(e) => updateWaypoint(i, { note: (e.target as HTMLInputElement).value || undefined })} />
+            </div>
           </div>
         </div>
       ))}

@@ -334,6 +334,9 @@
   font-size: 0.75rem;
   color: $color-text-muted;
 }
+.waypoint-note {
+  flex: 1;
+}
 
 .csv-drop-zone {
   border: 2px dashed $color-border;
