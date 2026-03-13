@@ -1,12 +1,11 @@
+import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
+import { cityDir } from '../src/lib/config';
 
 // Cloudflare adapter outputs to dist/client/, plain Astro to dist/
 const base = path.resolve('dist');
 const distDir = fs.existsSync(path.join(base, 'client')) ? path.join(base, 'client') : base;
-const contentDir = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
-const city = process.env.CITY || 'ottawa';
-const cityDir = path.join(contentDir, city);
 
 const expectedPages = [
   'index.html', 'about/index.html', 'calendar/index.html',
