@@ -3,6 +3,7 @@ import { validateSession } from './lib/auth';
 import { jsonError } from './lib/api-response';
 import { db } from './lib/get-db';
 import { buildNonceCspHeader, createCspNonce } from './lib/csp';
+import rideRedirects from 'virtual:bike-app/ride-redirects';
 
 const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate', '/auth/verify']);
 
@@ -40,6 +41,13 @@ async function applyNonceCsp(response: Response, nonce: string): Promise<Respons
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
+
+  // Ride redirects: old slugs → canonical URLs (from redirects.yml + tour mappings)
+  const rideTarget = rideRedirects[pathname];
+  if (rideTarget) {
+    return context.redirect(rideTarget, 301);
+  }
+
   const withNonceCsp = needsNonceCsp(pathname);
 
   if (withNonceCsp) {

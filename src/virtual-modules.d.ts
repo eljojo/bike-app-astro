@@ -272,3 +272,9 @@ declare module 'virtual:bike-app/ride-stats' {
   const stats: _RideStats;
   export default stats;
 }
+
+declare module 'virtual:bike-app/ride-redirects' {
+  /** Map of source path → target path for ride 301 redirects */
+  const redirects: Record<string, string>;
+  export default redirects;
+}
