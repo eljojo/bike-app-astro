@@ -25,14 +25,14 @@ test.describe('Blog Screenshots — Public Pages', () => {
   });
 
   test('ride detail', async ({ page }) => {
-    await page.goto('/rides/winter-ride');
+    await page.goto('/rides/2026-01-23-winter-ride');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('ride-detail.png', screenshotOpts);
   });
 
   test('ride map', async ({ page }) => {
-    await page.goto('/rides/winter-ride/map');
+    await page.goto('/rides/2026-01-23-winter-ride/map');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     await expect(page).toHaveScreenshot('ride-map.png', { maxDiffPixelRatio: 0.04 });
@@ -92,7 +92,7 @@ test.describe('Blog Screenshots — Admin Pages', () => {
   });
 
   test('ride editor', async ({ page }) => {
-    await page.goto('/admin/rides/winter-ride');
+    await page.goto('/admin/rides/2026-01-23-winter-ride');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('admin-ride-editor.png', screenshotOpts);
@@ -111,7 +111,7 @@ test.describe('Blog Screenshots — Admin Pages', () => {
     await page.waitForTimeout(2000);
 
     // Blog settings shows profile section
-    await expect(page.locator('.settings-form h2')).toContainText('Profile');
+    await expect(page.locator('.settings-form h2').first()).toContainText('Profile');
 
     await expect(page).toHaveScreenshot('admin-settings.png', screenshotOpts);
   });

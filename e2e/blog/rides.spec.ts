@@ -229,9 +229,7 @@ test.describe('Ride save flow', () => {
     // Save
     await page.locator('button:has-text("Save")').click();
 
-    // Should redirect to the new ride's edit page
-    await expect(page).toHaveURL(/\/admin\/rides\//, { timeout: 15000 });
-    // Should not be on /new anymore
-    expect(page.url()).not.toContain('/new');
+    // Should redirect to the new ride's edit page (not /new)
+    await expect(page).toHaveURL(/\/admin\/rides\/\d{4}-/, { timeout: 15000 });
   });
 });
