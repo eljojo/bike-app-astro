@@ -11,9 +11,9 @@ test.describe('Club homepage', () => {
     // Upcoming events section exists
     await expect(page.locator('.club-home')).toBeVisible();
 
-    // Upcoming 2099 event visible
-    await expect(page.locator('.event-card')).toHaveCount(1);
-    await expect(page.locator('.event-card')).toContainText('BRM 200 Ruta del Vino');
+    // Upcoming + recent past event cards visible
+    await expect(page.locator('.event-card')).toHaveCount(2);
+    await expect(page.locator('.event-card').first()).toContainText('BRM 200 Ruta del Vino');
   });
 });
 
@@ -22,8 +22,8 @@ test.describe('Club events list', () => {
     await page.goto('/events');
     await page.waitForLoadState('networkidle');
 
-    // Title
-    await expect(page.locator('h1')).toContainText('Events');
+    // Title (es-CL locale)
+    await expect(page.locator('h1')).toContainText('Eventos');
 
     // Upcoming event card links to detail page
     const upcomingCard = page.locator('.events-grid .event-card').first();
@@ -107,8 +107,8 @@ test.describe('Club event detail — past event with results', () => {
     // Results summary shows finisher count
     await expect(results.locator('.results-summary')).toContainText('3');
 
-    // Finishers table
-    const rows = results.locator('.event-results-table tbody tr');
+    // Finishers table (exclude non-finishers section)
+    const rows = results.locator('> .event-results-table tbody tr');
     await expect(rows).toHaveCount(3);
 
     // Check first finisher

@@ -13,7 +13,7 @@ test.describe('Club Screenshots — Public Pages', () => {
     // Club homepage shows tagline and upcoming events
     await expect(page.locator('.club-home')).toBeVisible();
     await expect(page.locator('h3')).toContainText('A demo randonneuring club');
-    await expect(page.locator('.event-card')).toHaveCount(1);
+    await expect(page.locator('.event-card')).toHaveCount(2);
 
     await expect(page).toHaveScreenshot('club-homepage.png', screenshotOpts);
   });
@@ -109,7 +109,7 @@ test.describe('Club Screenshots — Admin Pages', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    await expect(page.locator('.settings-form h2')).toContainText('Profile');
+    await expect(page.locator('.settings-form h2').first()).toContainText('Profile');
 
     await expect(page).toHaveScreenshot('club-admin-settings.png', screenshotOpts);
   });

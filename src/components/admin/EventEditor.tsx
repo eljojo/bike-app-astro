@@ -93,6 +93,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       ...(w.opening && { opening: w.opening }),
       ...(w.closing && { closing: w.closing }),
       ...(w.route && { route: w.route }),
+      ...(w.note && { note: w.note }),
     }))
   );
   const [eventResults, setEventResults] = useState<Result[]>(

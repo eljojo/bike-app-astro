@@ -107,6 +107,7 @@ export const waypointSchema = z.object({
   opening: z.string().optional(),
   closing: z.string().optional(),
   route: z.string().optional(),
+  note: z.string().optional(),
 });
 
 export const registrationSchema = z.object({
