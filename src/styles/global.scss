@@ -480,6 +480,52 @@ a.go-back-button {
   color: $color-text-muted;
   margin-top: 0.125rem;
 }
+// Waypoint popups
+.waypoint-popup {
+  min-width: 180px;
+  max-width: 280px;
+  line-height: 1.4;
+  font-size: 0.875rem;
+}
+.waypoint-popup-photo {
+  width: 100%;
+  border-radius: $border-radius;
+  margin-bottom: 0.375rem;
+  display: block;
+}
+.waypoint-popup-meta {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin-top: 0.125rem;
+}
+.waypoint-popup-times {
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+.waypoint-popup-note {
+  font-size: 0.8125rem;
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+.waypoint-popup-description {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin-top: 0.25rem;
+}
+.waypoint-popup-address {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin-top: 0.125rem;
+}
+.waypoint-popup-links {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+
+  a {
+    color: $color-accent;
+  }
+}
 .gps-dot {
   width: 16px;
   height: 16px;
@@ -621,6 +667,14 @@ a.go-back-button {
   }
   .photo-popup-caption {
     color: $color-text-muted-dark;
+  }
+  .waypoint-popup-meta,
+  .waypoint-popup-description,
+  .waypoint-popup-address {
+    color: $color-text-muted-dark;
+  }
+  .waypoint-popup-links a {
+    color: $color-accent;
   }
 }
 
