@@ -130,76 +130,43 @@ describe('detectTours', () => {
 });
 
 describe('buildSlug', () => {
-  it('produces name-only slug without date prefix', () => {
+  it('produces date-prefixed slug for standalone rides', () => {
     const date = { year: 2026, month: 1, day: 23 };
-    expect(buildSlug(date, '23-winter-ride.gpx')).toBe('winter-ride');
+    expect(buildSlug(date, '23-winter-ride.gpx')).toBe('2026-01-23-winter-ride');
   });
 
-  it('strips multi-digit day prefix', () => {
+  it('strips multi-digit day prefix and adds date', () => {
     const date = { year: 2025, month: 5, day: 14 };
-    expect(buildSlug(date, '14-wakefield-ride-with-tony.gpx')).toBe('wakefield-ride-with-tony');
+    expect(buildSlug(date, '14-wakefield-ride-with-tony.gpx')).toBe('2025-05-14-wakefield-ride-with-tony');
   });
 
-  it('strips MM-DD prefix for multi-month tours', () => {
+  it('produces name-only slug for tour rides', () => {
     const date = { year: 2023, month: 1, day: 23 };
-    expect(buildSlug(date, '01-23-first-day.gpx')).toBe('first-day');
+    expect(buildSlug(date, '01-23-first-day.gpx', true)).toBe('first-day');
   });
 
   it('preserves numeric handle ID when stripping day prefix', () => {
-    // filename: DD-{handle}.gpx where handle is 268-afternoon-ride (Rails ID-based)
     const date = { year: 2020, month: 8, day: 31 };
-    expect(buildSlug(date, '31-268-afternoon-ride.gpx')).toBe('268-afternoon-ride');
+    expect(buildSlug(date, '31-268-afternoon-ride.gpx')).toBe('2020-08-31-268-afternoon-ride');
   });
 
-  it('strips DD- from renamed file (was DD--name, now DD-name)', () => {
-    const date = { year: 2024, month: 3, day: 14 };
-    expect(buildSlug(date, '14-morning-ride.gpx')).toBe('morning-ride');
-  });
-
-  it('preserves 1-digit handle prefix (6-sprints)', () => {
-    // DD-{handle} where handle is "6-sprints" — must not strip the "6-"
-    const date = { year: 2021, month: 4, day: 14 };
-    expect(buildSlug(date, '14-6-sprints.gpx')).toBe('6-sprints');
-  });
-
-  it('preserves 2-digit handle prefix (31-the-1250)', () => {
-    const date = { year: 2020, month: 11, day: 25 };
-    expect(buildSlug(date, '25-31-the-1250.gpx')).toBe('31-the-1250');
-  });
-
-  it('preserves 3-digit numeric prefix in handle', () => {
-    const date = { year: 2020, month: 7, day: 4 };
-    expect(buildSlug(date, '04-292-great-eclipse.gpx')).toBe('292-great-eclipse');
-  });
-
-  it('uses handle when provided', () => {
-    const date = { year: 2022, month: 6, day: 17 };
-    expect(buildSlug(date, '17-day-1.gpx', 'day-1-aachen-to-somewhere-in-belgium'))
-      .toBe('day-1-aachen-to-somewhere-in-belgium');
-  });
-
-  it('ignores handle when not provided', () => {
-    const date = { year: 2025, month: 3, day: 5 };
-    expect(buildSlug(date, '05-morning-ride.gpx')).toBe('morning-ride');
+  it('tour ride with DD- prefix returns name only', () => {
+    const date = { year: 2025, month: 9, day: 9 };
+    expect(buildSlug(date, '09-amsterdam.gpx', true)).toBe('amsterdam');
   });
 
   it('strips emoji from slug', () => {
     const date = { year: 2026, month: 1, day: 15 };
-    expect(buildSlug(date, '15-🎯-sprint.gpx')).toBe('sprint');
+    expect(buildSlug(date, '15-🎯-sprint.gpx')).toBe('2026-01-15-sprint');
   });
 
-  it('falls back to date for emoji-only filename', () => {
+  it('falls back to date-only for emoji-only filename', () => {
     const date = { year: 2026, month: 1, day: 15 };
     expect(buildSlug(date, '15-🎯.gpx')).toBe('ride-2026-01-15');
   });
 
-  it('sanitizes handle with emoji', () => {
+  it('transliterates accented characters', () => {
     const date = { year: 2026, month: 1, day: 15 };
-    expect(buildSlug(date, '15-whatever.gpx', '🎯')).toBe('ride-2026-01-15');
-  });
-
-  it('transliterates accented handle', () => {
-    const date = { year: 2026, month: 1, day: 15 };
-    expect(buildSlug(date, '15-whatever.gpx', 'café-ride')).toBe('cafe-ride');
+    expect(buildSlug(date, '15-café-ride.gpx')).toBe('2026-01-15-cafe-ride');
   });
 });

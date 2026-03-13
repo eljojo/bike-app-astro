@@ -138,40 +138,41 @@ export function detectTours(gpxPaths: string[]): Tour[] {
 }
 
 /** Build a slug from ride date and filename.
- * If a `handle` is provided (from sidecar frontmatter), it takes priority.
- * Otherwise, produce a name-only slug by stripping the date prefix from the filename
- * using the known date to match exactly (avoids greedily stripping numeric handle IDs).
+ * Standalone rides get date-prefixed slugs (2026-01-23-winter-ride).
+ * Tour rides get name-only slugs (scoped by tour directory).
  */
-export function buildSlug(date: RideDate, gpxFilename: string, handle?: string): string {
-  const dateFallback = `ride-${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-
-  if (handle) return slugify(handle) || dateFallback;
-
-  const baseName = gpxFilename.replace(/\.gpx$/i, '');
+export function buildSlug(date: RideDate, gpxFilename: string, isTour?: boolean): string {
+  const yyyy = String(date.year);
   const mm = String(date.month).padStart(2, '0');
   const dd = String(date.day).padStart(2, '0');
+  const dateFallback = `ride-${yyyy}-${mm}-${dd}`;
+
+  const baseName = gpxFilename.replace(/\.gpx$/i, '');
+
+  // Strip date prefix from filename to get the name portion
+  let name: string;
 
   // Try MM-DD- prefix first (multi-month tours: YYYY/tour-name/MM-DD-name.gpx)
   const mmddPrefix = `${mm}-${dd}-`;
   if (baseName.startsWith(mmddPrefix)) {
-    const slug = slugify(baseName.slice(mmddPrefix.length));
-    return slug || dateFallback;
-  }
-
+    name = baseName.slice(mmddPrefix.length);
   // Try DD- prefix (zero-padded, then non-padded)
-  const ddPrefix = `${dd}-`;
-  if (baseName.startsWith(ddPrefix)) {
-    const slug = slugify(baseName.slice(ddPrefix.length));
-    return slug || dateFallback;
-  }
-  const dPrefix = `${date.day}-`;
-  if (dPrefix !== ddPrefix && baseName.startsWith(dPrefix)) {
-    const slug = slugify(baseName.slice(dPrefix.length));
-    return slug || dateFallback;
+  } else if (baseName.startsWith(`${dd}-`)) {
+    name = baseName.slice(`${dd}-`.length);
+  } else if (`${date.day}-` !== `${dd}-` && baseName.startsWith(`${date.day}-`)) {
+    name = baseName.slice(`${date.day}-`.length);
+  } else {
+    name = baseName;
   }
 
-  const slug = slugify(baseName);
-  return slug || dateFallback;
+  const slug = slugify(name);
+  if (!slug) return dateFallback;
+
+  // Tour rides: name-only slug (scoped by tour directory)
+  if (isTour) return slug;
+
+  // Standalone rides: date-prefixed slug
+  return `${yyyy}-${mm}-${dd}-${slug}`;
 }
 
 /** Build an ISO date string from a RideDate. */
@@ -256,7 +257,7 @@ export function rideLoader(): Loader {
         const gpxFilename = path.basename(gpxRelPath);
         const gpxAbsPath = path.join(ridesDir, gpxRelPath);
 
-        // Load optional sidecar .md (needed before slug generation for handle field)
+        // Load optional sidecar .md
         const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
         let sidecarFrontmatter: Record<string, unknown> = {};
         let body = '';
@@ -267,7 +268,8 @@ export function rideLoader(): Loader {
           body = parsed.content.trim();
         }
 
-        const slug = buildSlug(date, gpxFilename, sidecarFrontmatter.handle as string | undefined);
+        const isTour = tourByGpxPath.has(gpxRelPath);
+        const slug = buildSlug(date, gpxFilename, isTour);
 
         // Incremental caching — hash GPX + optional sidecar + optional media YAML
         const mediaYmlDigestPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');

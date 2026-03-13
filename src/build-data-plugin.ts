@@ -31,7 +31,6 @@ import { isBlogInstance } from './lib/city-config';
 import { generateTourRedirects } from './lib/tour-redirects';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from './loaders/rides';
-import matter from 'gray-matter';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -312,23 +311,17 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
             const gpxPaths = findGpxFiles(ridesDir);
             const tours = detectTours(gpxPaths);
 
+            const tourGpxPaths = new Set(tours.flatMap(t => t.ridePaths));
+
             const slugEntries: Array<{ gpxRelPath: string; slug: string }> = [];
             for (const gpxRelPath of gpxPaths) {
               const date = extractDateFromPath(gpxRelPath);
               if (!date) continue;
               const gpxFilename = path.basename(gpxRelPath);
-              const gpxAbsPath = path.join(ridesDir, gpxRelPath);
-
-              let handle: string | undefined;
-              const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-              if (fs.existsSync(sidecarPath)) {
-                const { data: fm } = matter(fs.readFileSync(sidecarPath, 'utf-8'));
-                handle = fm.handle as string | undefined;
-              }
 
               slugEntries.push({
                 gpxRelPath,
-                slug: buildSlug(date, gpxFilename, handle),
+                slug: buildSlug(date, gpxFilename, tourGpxPaths.has(gpxRelPath)),
               });
             }
 

@@ -139,6 +139,8 @@ async function main() {
   const ridesDir = path.join(CONTENT_DIR, CITY, 'rides');
   if (fs.existsSync(ridesDir)) {
     const gpxPaths = findGpxFiles(ridesDir);
+    const tours = detectTours(gpxPaths);
+    const tourGpxPaths = new Set(tours.flatMap(t => t.ridePaths));
 
     for (const gpxRelPath of gpxPaths) {
       const date = extractDateFromPath(gpxRelPath);
@@ -147,15 +149,7 @@ async function main() {
       const gpxFilename = path.basename(gpxRelPath);
       const gpxAbsPath = path.join(ridesDir, gpxRelPath);
 
-      // Read sidecar for handle field (used in slug generation)
-      let handle: string | undefined;
-      const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-      if (fs.existsSync(sidecarPath)) {
-        const { data } = matter(fs.readFileSync(sidecarPath, 'utf-8'));
-        handle = data.handle as string | undefined;
-      }
-
-      const slug = buildSlug(date, gpxFilename, handle);
+      const slug = buildSlug(date, gpxFilename, tourGpxPaths.has(gpxRelPath));
       const gpxContent = fs.readFileSync(gpxAbsPath, 'utf-8');
       const hash = gpxHash(gpxContent);
 

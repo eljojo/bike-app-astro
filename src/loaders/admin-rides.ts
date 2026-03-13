@@ -160,7 +160,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const gpxAbsPath = path.join(ridesDir, gpxRelPath);
     const isoDate = rideDateToIso(date);
 
-    // Load optional sidecar .md (needed before slug generation for handle field)
+    // Load optional sidecar .md
     const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
     let sidecarFrontmatter: Record<string, unknown> = {};
     let body = '';
@@ -172,7 +172,8 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       body = parsed.content.trim();
     }
 
-    const slug = buildSlug(date, gpxFilename, sidecarFrontmatter.handle as string | undefined);
+    const isTour = tourByGpxPath.has(gpxRelPath);
+    const slug = buildSlug(date, gpxFilename, isTour);
 
     // Parse GPX
     let gpxContent: string;
