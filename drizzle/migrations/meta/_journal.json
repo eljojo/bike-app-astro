@@ -50,6 +50,13 @@
       "when": 1773625200000,
       "tag": "0007_strava_tokens_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1773374998188,
+      "tag": "0006_broken_toad_men",
+      "breakpoints": true
     }
   ]
 }
