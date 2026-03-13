@@ -260,10 +260,9 @@ export async function POST({ params, request, locals }: APIContext) {
   }
 
   // For new events, checkExistence should run; for existing events, it shouldn't
-  const id = params.id;
-  const handlers = id === 'new'
-    ? eventHandlers
-    : { ...eventHandlers, checkExistence: undefined };
-
-  return saveContent(request, locals, params, 'events', handlers);
+  if (params.id === 'new') {
+    return saveContent(request, locals, params, 'events', eventHandlers);
+  }
+  const { checkExistence, ...editHandlers } = eventHandlers;
+  return saveContent(request, locals, params, 'events', editHandlers);
 }

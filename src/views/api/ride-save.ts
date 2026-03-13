@@ -251,9 +251,10 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithS
 
 export async function POST({ params, request, locals }: APIContext) {
   const handlers = createRideHandlers();
-  // Only deduplicate when creating new rides — editing an existing ride keeps its path
-  const effectiveHandlers = params.slug === 'new'
-    ? handlers
-    : { ...handlers, checkExistence: undefined };
-  return saveContent(request, locals, params, 'rides', effectiveHandlers);
+  if (params.slug === 'new') {
+    return saveContent(request, locals, params, 'rides', handlers);
+  }
+  // For edits, omit checkExistence — only deduplicate when creating new rides
+  const { checkExistence, ...editHandlers } = handlers;
+  return saveContent(request, locals, params, 'rides', editHandlers);
 }

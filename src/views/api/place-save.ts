@@ -169,10 +169,10 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSl
 };
 
 export async function POST({ params, request, locals }: APIContext) {
-  const id = params.id;
-  const handlers = id === 'new'
-    ? placeHandlers
-    : { ...placeHandlers, checkExistence: undefined };
-
-  return saveContent(request, locals, params, 'places', handlers);
+  if (params.id === 'new') {
+    return saveContent(request, locals, params, 'places', placeHandlers);
+  }
+  // For edits, omit checkExistence — only check when creating new places
+  const { checkExistence, ...editHandlers } = placeHandlers;
+  return saveContent(request, locals, params, 'places', editHandlers);
 }
