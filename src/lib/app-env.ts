@@ -43,4 +43,5 @@ export interface AppEnv {
   MEDIACONVERT_REGION?: string;
   S3_ORIGINALS_BUCKET?: string;
   S3_OUTPUTS_BUCKET?: string;
+  CRON_SECRET?: string;
 }

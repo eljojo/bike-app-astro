@@ -68,11 +68,13 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
       }
     }
 
+    const newItems: MediaItem[] = [];
+
     // Upload images (existing flow)
     if (imageFiles.length > 0) {
       const results = await fileUpload.upload(imageFiles);
-      if (results.length > 0) {
-        const newItems: MediaItem[] = results.map(r => ({
+      for (const r of results) {
+        newItems.push({
           key: r.key,
           width: r.width,
           height: r.height,
@@ -80,19 +82,20 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
           ...(r.lng != null && { lng: r.lng }),
           ...(r.uploaded_by && { uploaded_by: r.uploaded_by }),
           ...(r.captured_at && { captured_at: r.captured_at }),
-        }));
-        onChange([...media, ...newItems]);
+        });
       }
     }
 
     // Upload videos (new flow)
-    if (contentSlug) {
+    if (contentSlug && videoFiles.length > 0) {
       for (const file of videoFiles) {
         const item = await videoUpload.uploadVideo(file, contentSlug, contentKind || 'route');
-        if (item) {
-          onChange([...media, item as MediaItem]);
-        }
+        if (item) newItems.push(item as MediaItem);
       }
+    }
+
+    if (newItems.length > 0) {
+      onChange([...media, ...newItems]);
     }
   }
 

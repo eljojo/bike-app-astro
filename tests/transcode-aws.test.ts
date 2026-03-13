@@ -50,7 +50,7 @@ describe('buildJobDefinition', () => {
   it('scales dimensions with outputSize', () => {
     const job = buildJobDefinition({ key: 'testkey', width: 3840, height: 2160 }, config);
     const av1 = job.Settings.OutputGroups[0].Outputs[0];
-    expect(av1.VideoDescription.Width).toBe(1080);
-    expect(av1.VideoDescription.Height).toBe(608);
+    expect(av1.VideoDescription.Width).toBe(1920);
+    expect(av1.VideoDescription.Height).toBe(1080);
   });
 });

@@ -36,13 +36,14 @@ export async function POST({ request, locals }: APIContext) {
   if (!width || !height) return jsonError('Missing dimensions');
 
   try {
-    const service = createTranscodeService(env);
+    const service = await createTranscodeService(env);
     const job = await service.createJob({ key, width, height });
 
+    const isLocal = job.jobId.startsWith('local-');
     const database = db();
     await database.update(videoJobs)
       .set({
-        status: 'transcoding',
+        status: isLocal ? 'ready' : 'transcoding',
         jobId: job.jobId,
         width,
         height,
@@ -57,7 +58,7 @@ export async function POST({ request, locals }: APIContext) {
       })
       .where(eq(videoJobs.key, key));
 
-    return jsonResponse({ jobId: job.jobId, key });
+    return jsonResponse({ jobId: job.jobId, key, status: isLocal ? 'ready' : 'transcoding' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return jsonError(message, 500);
