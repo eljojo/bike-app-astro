@@ -10,11 +10,9 @@ import {
   needsRegeneration,
 } from '../src/lib/map-generation';
 import { getCityConfig } from '../src/lib/city-config';
+import { CONTENT_DIR, CITY } from '../src/lib/config';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
-
-const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
-const CITY = process.env.CITY || 'ottawa';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
 
