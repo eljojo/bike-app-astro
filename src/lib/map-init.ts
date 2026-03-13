@@ -574,6 +574,7 @@ export interface WaypointMarkerOptions {
   lng: number;
   type: string;
   label: string;
+  popup?: string;
 }
 
 const waypointDomMarkers = new WeakMap<maplibregl.Map, maplibregl.Marker[]>();
@@ -592,11 +593,17 @@ export function addWaypointMarkers(
   waypoints.forEach(wp => {
     const el = document.createElement('div');
     el.className = `waypoint-marker waypoint-marker--${wp.type}`;
-    el.title = wp.label;
 
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([wp.lng, wp.lat])
       .addTo(map);
+
+    if (wp.popup) {
+      marker.setPopup(new maplibregl.Popup({ offset: 14, maxWidth: '300px' }).setHTML(wp.popup));
+    } else {
+      el.title = wp.label;
+    }
+
     markers.push(marker);
   });
   waypointDomMarkers.set(map, markers);

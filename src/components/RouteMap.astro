@@ -69,7 +69,7 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
 
 <script>
   import { initMap, addPolylines, buildPolylineFeature, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
-  import { buildPlacePopup, html } from '../lib/map-helpers';
+  import { buildPlacePopup, buildWaypointPopup, html } from '../lib/map-helpers';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
@@ -139,7 +139,11 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
       addMarkers(map, placeData);
 
       if (waypointMkrs.length > 0) {
-        addWaypointMarkers(map, waypointMkrs);
+        const waypointData = waypointMkrs.map((wp: any) => ({
+          ...wp,
+          popup: buildWaypointPopup(wp, cdnUrl),
+        }));
+        addWaypointMarkers(map, waypointData);
       }
 
       return bounds;
