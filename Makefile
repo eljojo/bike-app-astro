@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
+.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean hooks
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -75,6 +75,9 @@ docs-build: ## Build docs site
 
 docs-preview: ## Preview built docs site
 	npm run preview -w docs
+
+hooks: ## Install pre-commit hook (lint + typecheck)
+	bash scripts/setup-hooks.sh
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/
