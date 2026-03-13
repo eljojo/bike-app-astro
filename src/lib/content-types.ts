@@ -15,8 +15,6 @@ export interface ContentTypeConfig {
   singular: string;
   /** Display label for admin nav */
   label: string;
-  /** Admin data loader — returns { list, details } for virtual modules */
-  loader: () => Promise<{ list: unknown; details: unknown }>;
   /** Admin list page route */
   adminListRoute?: ContentTypeRoute;
   /** Admin detail + new page routes (static before parameterized) */
@@ -40,7 +38,6 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'route',
     label: 'Routes',
     featureGate: 'hasRoutes',
-    loader: () => import('../loaders/admin-routes').then(m => m.loadAdminRouteData()).then(d => ({ list: d.routes, details: d.details })),
     adminListRoute: { pattern: '/admin', entrypoint: view('admin/index.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/routes/new', entrypoint: view('admin/route-new.astro') },
@@ -55,7 +52,6 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'event',
     label: 'Events',
     featureGate: 'hasEvents',
-    loader: () => import('../loaders/admin-events').then(m => m.loadAdminEventData()).then(d => ({ list: d.events, details: d.details })),
     adminListRoute: { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/events/new', entrypoint: view('admin/event-new.astro') },
@@ -69,7 +65,6 @@ export const contentTypes: ContentTypeConfig[] = [
     name: 'places',
     singular: 'place',
     label: 'Places',
-    loader: () => import('../loaders/admin-places').then(m => m.loadAdminPlaceData()).then(d => ({ list: d.places, details: d.details })),
     adminListRoute: { pattern: '/admin/places', entrypoint: view('admin/places.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/places/new', entrypoint: view('admin/place-new.astro') },
@@ -85,7 +80,6 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'ride',
     label: 'Rides',
     featureGate: 'hasRides',
-    loader: () => import('../loaders/admin-rides').then(m => m.loadAdminRideData()).then(d => ({ list: d.rides, details: d.details })),
     adminListRoute: { pattern: '/admin/rides', entrypoint: view('admin/rides.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/rides/new', entrypoint: view('admin/ride-detail.astro') },

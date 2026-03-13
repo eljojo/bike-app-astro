@@ -28,6 +28,7 @@ import { loadAdminRideData } from './loaders/admin-rides';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/photo-registry';
 import { isBlogInstance } from './lib/city-config';
+import { getContentTypes } from './lib/content-types';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
@@ -195,16 +196,29 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const adminPlaceDataPromise = loadAdminPlaceData();
   const adminOrganizersPromise = loadAdminOrganizers();
 
-  // For blog instances, the 'routes' admin module uses ride data instead
-  const routesLoader = isBlog
-    ? async () => { const d = await adminRideDataPromise!; return { list: d.rides, details: d.details }; }
-    : async () => { const d = await adminRouteDataPromise!; return { list: d.routes, details: d.details }; };
+  // Map content type names to loaders using statically-imported functions.
+  // Dynamic import() can't be used here — Vite's module runner isn't available
+  // during astro:config:setup. Blog instances register ride data under the
+  // 'routes' module name since admin components import virtual:bike-app/admin-routes.
+  const loaderMap: Record<string, () => Promise<{ list: unknown; details: unknown }>> = {
+    routes: isBlog
+      ? async () => { const d = await adminRideDataPromise!; return { list: d.rides, details: d.details }; }
+      : async () => { const d = await adminRouteDataPromise!; return { list: d.routes, details: d.details }; },
+    events: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; },
+    places: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; },
+  };
 
-  const adminModules = registerAdminModules([
-    { name: 'routes', loader: routesLoader },
-    { name: 'events', loader: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; } },
-    { name: 'places', loader: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; } },
-  ]);
+  // Build admin modules from the content type registry, using the loader map
+  const activeTypes = getContentTypes();
+  const adminModuleConfigs = activeTypes
+    .map(ct => {
+      // Blog: rides type serves the routes virtual module
+      const moduleName = (isBlog && ct.name === 'rides') ? 'routes' : ct.name;
+      return loaderMap[moduleName] ? { name: moduleName, loader: loaderMap[moduleName] } : null;
+    })
+    .filter((c): c is AdminModuleConfig => c !== null);
+
+  const adminModules = registerAdminModules(adminModuleConfigs);
 
   return {
     name: 'bike-app-build-data',
