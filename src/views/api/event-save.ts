@@ -1,7 +1,6 @@
 // AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
-import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import adminEvents from 'virtual:bike-app/admin-events';
 import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
@@ -15,7 +14,7 @@ import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
 import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges } from '../../lib/save-helpers';
+import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
@@ -193,17 +192,8 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
     if (useDirectory && update.media) {
       const dirBase = `${CITY}/events/${year}/${slug}`;
       const mediaPath = `${dirBase}/media.yml`;
-      const currentMediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
-      const currentMedia = currentMediaPath ? currentFiles.auxiliaryFiles![currentMediaPath] : null;
-      let existingMedia: Array<Record<string, unknown>> = [];
-      if (currentMedia) {
-        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
-      }
-
-      const oldKeys = new Set(existingMedia.map(m => m.key as string));
-      const newKeys = new Set(update.media.map(m => m.key));
-      addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
-      removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
+      const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
+      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, update.media));
 
       if (update.media.length > 0) {
         const mediaItems = update.media.map(m => {
@@ -218,7 +208,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
           return entry;
         });
         files.push({ path: mediaPath, content: serializeYamlFile(mediaItems) });
-      } else if (currentMedia) {
+      } else if (existingMedia.length > 0) {
         deletePaths.push(mediaPath);
       }
     }
@@ -234,8 +224,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
     const { oldPosterKey, newPosterKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
     const changes = [
       ...buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
-      ...removedMediaKeys.map(key => ({ key, usage: { type: 'event' as const, slug: eventSlug }, action: 'remove' as const })),
-      ...addedMediaKeys.map(key => ({ key, usage: { type: 'event' as const, slug: eventSlug }, action: 'add' as const })),
+      ...buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'event', eventSlug),
     ];
     await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
@@ -243,7 +232,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
   buildCommitMessage(update, eventId, isNew): string {
     const resourcePath = `${CITY}/events/${eventId}`;
     const title = (update.frontmatter as Record<string, unknown>)?.name as string || eventId;
-    const trailer = `\n\nChanges: ${resourcePath}`;
+    const trailer = buildCommitTrailer(resourcePath);
     return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
   },
 

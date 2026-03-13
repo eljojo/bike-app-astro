@@ -20,6 +20,7 @@ import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/save-helpers';
 
 export const prerender = false;
 
@@ -121,20 +122,8 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     }
 
     // Build frontmatter
-    let mergedFrontmatter: Record<string, unknown>;
-    let existingFrontmatter: Record<string, unknown> = {};
-
-    if (isNew) {
-      const adminFields: Record<string, unknown> = { ...update.frontmatter };
-      if (!adminFields.status) adminFields.status = 'published';
-      adminFields.created_at = new Date().toISOString().split('T')[0];
-      adminFields.updated_at = new Date().toISOString().split('T')[0];
-      mergedFrontmatter = adminFields;
-    } else {
-      const { data } = matter(currentFiles.primaryFile!.content);
-      existingFrontmatter = data;
-      mergedFrontmatter = { ...existingFrontmatter, ...update.frontmatter };
-    }
+    const mergedFrontmatter = mergeFrontmatter(isNew, currentFiles.primaryFile?.content ?? null, update.frontmatter as Record<string, unknown>);
+    const existingFrontmatter: Record<string, unknown> = isNew ? {} : matter(currentFiles.primaryFile!.content).data;
 
     // Process variants
     if (update.variants) {
@@ -221,18 +210,8 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     let addedMediaKeys: string[] = [];
     let removedMediaKeys: string[] = [];
     if (update.media) {
-      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
-      const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
-      let existingMedia: Array<Record<string, unknown>> = [];
-      if (currentMedia) {
-        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
-      }
-
-      // Compute diffs for shared-keys map
-      const oldKeys = new Set(existingMedia.map(m => m.key as string));
-      const newKeys = new Set(update.media.map(m => m.key));
-      addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
-      removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
+      const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
+      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, update.media));
 
       const merged = mergeMedia(update.media, existingMedia);
       if (merged.length > 0) {
@@ -276,7 +255,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
     const resourcePath = `${CITY}/routes/${targetSlug}`;
     const title = (update.frontmatter as Record<string, unknown>)?.name as string || slug;
-    const trailer = `\n\nChanges: ${resourcePath}`;
+    const trailer = buildCommitTrailer(resourcePath);
 
     if (targetSlug !== slug) {
       return `Rename ${title}: ${slug} → ${targetSlug}${trailer}`;
@@ -320,10 +299,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
 
   async afterCommit(result, database) {
     const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug } = result;
-    const changes = [
-      ...removedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: routeSlug }, action: 'remove' as const })),
-      ...addedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: routeSlug }, action: 'add' as const })),
-    ];
+    const changes = buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'route', routeSlug);
     await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
 };
