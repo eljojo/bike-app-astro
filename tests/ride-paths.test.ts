@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rideFilePathsFromRelPath, rideFilePathsWithTour, rideSlugFromPath, renameGpxRelPath } from '../src/lib/ride-paths';
+import { rideFilePathsFromRelPath, rideFilePathsWithTour, renameGpxRelPath } from '../src/lib/ride-paths';
 
 describe('rideFilePathsFromRelPath', () => {
   it('returns gpx, sidecar, and media paths from relative GPX path', () => {
@@ -45,26 +45,3 @@ describe('renameGpxRelPath', () => {
   });
 });
 
-describe('rideSlugFromPath', () => {
-  it('returns name-only slug from relative GPX path', () => {
-    expect(rideSlugFromPath('rides/2026/01/23-winter-ride.gpx')).toBe('winter-ride');
-  });
-
-  it('returns name-only slug from sidecar path', () => {
-    expect(rideSlugFromPath('rides/2025/09/05-canal-ride.md')).toBe('canal-ride');
-  });
-
-  it('returns name-only slug from tour ride GPX path', () => {
-    expect(rideSlugFromPath('rides/2025/07/euro-tour/15-paris-to-lyon.gpx'))
-      .toBe('paris-to-lyon');
-  });
-
-  it('strips MM-DD prefix for multi-month tours', () => {
-    expect(rideSlugFromPath('rides/2023/long-tour/01-23-first-day.gpx'))
-      .toBe('first-day');
-  });
-
-  it('throws on invalid path format', () => {
-    expect(() => rideSlugFromPath('rides/ride.gpx')).toThrow('Invalid ride path');
-  });
-});

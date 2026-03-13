@@ -73,27 +73,3 @@ export function renameGpxRelPath(gpxRelPath: string, newSlug: string): string {
   parts[parts.length - 1] = `${datePrefix}${nameOnly}.gpx`;
   return parts.join('/');
 }
-
-/**
- * Extract a name-only ride slug from a relative path.
- * Strips date prefixes to produce URL-friendly slugs matching Rails handles.
- *
- * Examples:
- *   rides/2026/01/23-winter-ride.gpx → winter-ride
- *   rides/2025/07/euro-tour/15-paris-to-lyon.gpx → paris-to-lyon
- *   rides/2023/long-tour/01-23-first-day.gpx → first-day
- */
-export function rideSlugFromPath(relativePath: string): string {
-  const cleaned = relativePath.replace(/^.*?rides\//, '');
-  const parts = cleaned.split('/');
-  if (parts.length < 3) {
-    throw new Error(`Invalid ride path: ${relativePath} (expected at least YYYY/MM/file)`);
-  }
-  const filename = parts[parts.length - 1]
-    .replace(/\.(gpx|md)$/, '')
-    .replace(/-media\.yml$/, '');
-  // Strip date prefixes (DD- or MM-DD-)
-  return filename
-    .replace(/^\d{1,2}-\d{1,2}-/, '')
-    .replace(/^\d{1,2}-/, '');
-}
