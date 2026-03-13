@@ -88,7 +88,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-demo-${{ hashFiles('bike-routes/demo/routes/**') }}
+          key: astro-demo-${{ hashFiles('bike-routes/demo/**') }}
           restore-keys: |
             astro-demo-
 
@@ -133,6 +133,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-
 
       - name: Cache Microsoft core fonts
         id: msfonts-cache

@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-${{ hashFiles('blog/rides/**/*.gpx') }}
+          key: astro-${{ hashFiles('blog/**') }}
           restore-keys: astro-
 
       - name: Generate map thumbnails
