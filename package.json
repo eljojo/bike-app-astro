@@ -10,7 +10,8 @@
     "./schemas": "./src/schemas/index.ts",
     "./plugin": "./src/build-data-plugin.ts",
     "./lib/adapter": "./src/lib/adapter.ts",
-    "./middleware": "./src/middleware.ts"
+    "./middleware": "./src/middleware.ts",
+    "./content-collections": "./src/content-collections.ts"
   },
   "workspaces": [
     "docs",
