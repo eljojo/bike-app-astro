@@ -19,5 +19,6 @@ export default defineConfig({
   plugins: [buildDataPlugin()],
   test: {
     exclude: ['e2e/**', 'node_modules/**', 'docs/**'],
+    setupFiles: ['./tests/setup.ts'],
   },
 });
