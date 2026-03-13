@@ -10,7 +10,7 @@ import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
-import type { IGitService, FileChange } from '../../lib/git-service';
+import type { FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { CITY } from '../../lib/config';
@@ -18,7 +18,7 @@ import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema 
 import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git-gpx';
-import { jsonError } from '../../lib/api-response';
+
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
@@ -115,16 +115,6 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
 
     buildFreshData(slug: string, currentFiles: CurrentFiles): string {
       return buildFreshRideData(slug, currentFiles);
-    },
-
-    async checkExistence(git: IGitService): Promise<Response | null> {
-      if (!gpxRelPath) return null;
-      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
-      const existing = await git.readFile(paths.sidecar);
-      if (existing) {
-        return jsonError(`Ride already exists at ${gpxRelPath}`, 409);
-      }
-      return null;
     },
 
     async buildFileChanges(update, _slug, currentFiles, git) {
@@ -259,10 +249,5 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
 }
 
 export async function POST({ params, request, locals }: APIContext) {
-  const handlers = createRideHandlers();
-  // Only check for duplicate rides when creating new ones
-  const effectiveHandlers = params.slug === 'new'
-    ? handlers
-    : { ...handlers, checkExistence: undefined };
-  return saveContent(request, locals, params, 'rides', effectiveHandlers);
+  return saveContent(request, locals, params, 'rides', createRideHandlers());
 }
