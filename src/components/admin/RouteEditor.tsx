@@ -1,11 +1,11 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
-import MarkdownToolbar from './MarkdownToolbar';
+import MarkdownEditor from './MarkdownEditor';
 import NearbyPhotos from './NearbyPhotos';
 import SaveSuccessModal from './SaveSuccessModal';
 import { useEditorState } from './useEditorState';
@@ -53,13 +53,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
       ])
     )
   );
-
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (bodyRef.current && !bodyRef.current.value) {
-      bodyRef.current.value = getField('body');
-    }
-  }, [activeLocale]);
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
@@ -281,13 +274,11 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
 
           <div class="form-field">
             <label for="route-body">Body (markdown)</label>
-            <MarkdownToolbar textareaRef={bodyRef} onTextChange={(text) => setField('body', text)} />
-            <textarea
-              key={`body-${activeLocale}`}
-              ref={bodyRef}
+            <MarkdownEditor
               id="route-body"
               value={getField('body')}
-              onInput={(e) => setField('body', (e.target as HTMLTextAreaElement).value)}
+              onChange={(text) => setField('body', text)}
+              textareaKey={`body-${activeLocale}`}
               rows={12}
             />
           </div>

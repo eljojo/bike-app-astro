@@ -1,9 +1,8 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState } from 'preact/hooks';
-import { useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
-import MarkdownToolbar from './MarkdownToolbar';
+import MarkdownEditor from './MarkdownEditor';
 import PhotoField from './PhotoField';
 import type { MediaItem } from './MediaManager';
 import EventRouteSection from './EventRouteSection';
@@ -82,7 +81,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
   const [body, setBody] = useState(initialData.body);
-  const bodyRef = useTextareaValue(body);
 
   // Club-specific state
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>(initialData.routes || []);
@@ -334,9 +332,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
           <div class="form-field">
             <label for="event-body">Description (markdown)</label>
-            <MarkdownToolbar textareaRef={bodyRef} onTextChange={setBody} />
-            <textarea id="event-body" ref={bodyRef} value={body}
-              onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)} rows={6} />
+            <MarkdownEditor
+              id="event-body"
+              value={body}
+              onChange={setBody}
+              rows={6}
+            />
           </div>
 
           <PhotoField

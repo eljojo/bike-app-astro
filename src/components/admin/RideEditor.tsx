@@ -1,20 +1,19 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useCallback, useEffect, useMemo } from 'preact/hooks';
+import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import AutoDetectField from './AutoDetectField';
-import MarkdownToolbar from './MarkdownToolbar';
+import MarkdownEditor from './MarkdownEditor';
 import RidePreview from './RidePreview';
 import { useEditorState } from './useEditorState';
-import { useTextareaValue, useDragDrop } from '../../lib/hooks';
+import { useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx';
 import { computeElevationProfile } from '../../lib/elevation-profile';
 import type { ElevationProfileData } from '../../lib/elevation-profile';
-import { insertMarkdown } from './markdown-toolbar-utils';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
 
@@ -87,8 +86,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // Collapsible details (collapsed by default for existing rides)
   const [detailsOpen, setDetailsOpen] = useState(!!initialData.isNew);
 
-  // Textarea ref (hydration workaround — see AGENTS.md)
-  const bodyRef = useTextareaValue(body);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Strava browser state
   const [stravaBrowsing, setStravaBrowsing] = useState(false);
@@ -260,28 +258,6 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
       setStravaImporting(false);
     }
   }
-
-  // Keyboard shortcuts for markdown
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    const ta = bodyRef.current;
-    if (!ta) return;
-
-    let action: 'bold' | 'italic' | 'link' | null = null;
-    if (e.key === 'b') action = 'bold';
-    else if (e.key === 'i') action = 'italic';
-    else if (e.key === 'k') action = 'link';
-
-    if (action) {
-      e.preventDefault();
-      const result = insertMarkdown(ta.value, ta.selectionStart, ta.selectionEnd, action);
-      setBody(result.text);
-      requestAnimationFrame(() => {
-        ta.focus();
-        ta.setSelectionRange(result.cursor, result.cursor);
-      });
-    }
-  }, []);
 
   // GPX stats from variant
   const gpxVariant = variants[0];
@@ -536,13 +512,11 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
           {/* Markdown editor */}
           <div class="form-field ride-body-field">
             <label for="ride-body">Story</label>
-            <MarkdownToolbar textareaRef={bodyRef} onTextChange={setBody} />
-            <textarea
-              ref={bodyRef}
+            <MarkdownEditor
               id="ride-body"
               value={body}
-              onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
-              onKeyDown={handleKeyDown}
+              onChange={setBody}
+              textareaRef={bodyRef}
               rows={16}
               placeholder="Write about your ride..."
             />
