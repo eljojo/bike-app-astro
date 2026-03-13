@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPhotoKeyChanges, computeMediaKeyDiff, buildMediaKeyChanges, buildCommitTrailer } from '../../src/lib/save-helpers';
+import { buildPhotoKeyChanges, computeMediaKeyDiff, buildMediaKeyChanges, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../src/lib/save-helpers';
 
 describe('buildPhotoKeyChanges', () => {
   it('returns empty array when keys are the same', () => {
@@ -88,5 +88,76 @@ describe('buildMediaKeyChanges', () => {
 describe('buildCommitTrailer', () => {
   it('formats the Changes trailer line', () => {
     expect(buildCommitTrailer('ottawa/routes/britannia')).toBe('\n\nChanges: ottawa/routes/britannia');
+  });
+});
+
+describe('mergeFrontmatter', () => {
+  it('adds default status and timestamps for new content', () => {
+    const result = mergeFrontmatter(true, null, { name: 'My Route' });
+    expect(result.name).toBe('My Route');
+    expect(result.status).toBe('published');
+    expect(result.created_at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('does not overwrite explicit status for new content', () => {
+    const result = mergeFrontmatter(true, null, { name: 'Draft', status: 'draft' });
+    expect(result.status).toBe('draft');
+  });
+
+  it('overlays updates onto existing frontmatter', () => {
+    const existing = '---\nname: Old Name\ntags:\n  - cycling\nstatus: published\n---\nBody text';
+    const result = mergeFrontmatter(false, existing, { name: 'New Name' });
+    expect(result.name).toBe('New Name');
+    expect(result.tags).toEqual(['cycling']);
+    expect(result.status).toBe('published');
+  });
+
+  it('returns updates as-is when existing content is null but not new', () => {
+    const result = mergeFrontmatter(false, null, { name: 'Orphan' });
+    expect(result.name).toBe('Orphan');
+    expect(result.status).toBeUndefined();
+  });
+});
+
+describe('loadExistingMedia', () => {
+  it('returns empty array when no auxiliary files exist', () => {
+    expect(loadExistingMedia({})).toEqual([]);
+  });
+
+  it('returns empty array when no media.yml found', () => {
+    expect(loadExistingMedia({ 'index.md': { content: '---\n---', sha: 'abc' } })).toEqual([]);
+  });
+
+  it('parses media.yml content', () => {
+    const files = {
+      'routes/test/media.yml': {
+        content: '- key: photo1\n  caption: A photo\n- key: photo2\n',
+        sha: 'abc',
+      },
+    };
+    const result = loadExistingMedia(files);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ key: 'photo1', caption: 'A photo' });
+    expect(result[1]).toEqual({ key: 'photo2' });
+  });
+
+  it('matches both media.yml and -media.yml suffixes', () => {
+    const files = {
+      'rides/2026-01-01-test-media.yml': {
+        content: '- key: ride-photo\n',
+        sha: 'abc',
+      },
+    };
+    const result = loadExistingMedia(files);
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe('ride-photo');
+  });
+
+  it('returns empty array for null file entries', () => {
+    const files: Record<string, { content: string; sha: string } | null> = {
+      'routes/test/media.yml': null,
+    };
+    expect(loadExistingMedia(files)).toEqual([]);
   });
 });

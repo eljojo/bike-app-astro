@@ -1,3 +1,5 @@
+import matter from 'gray-matter';
+import yaml from 'js-yaml';
 import type { PhotoKeyChange } from './photo-parking';
 import type { PhotoUsage } from './photo-registry';
 
@@ -58,4 +60,43 @@ export function buildMediaKeyChanges(
  */
 export function buildCommitTrailer(resourcePath: string): string {
   return `\n\nChanges: ${resourcePath}`;
+}
+
+/**
+ * Merge frontmatter for a save operation. For new content, adds default
+ * status and timestamps. For existing content, parses the current
+ * frontmatter and overlays the update.
+ */
+export function mergeFrontmatter(
+  isNew: boolean,
+  existingContent: string | null,
+  updates: Record<string, unknown>,
+): Record<string, unknown> {
+  if (isNew) {
+    const fm: Record<string, unknown> = { ...updates };
+    if (!fm.status) fm.status = 'published';
+    const today = new Date().toISOString().split('T')[0];
+    fm.created_at = today;
+    fm.updated_at = today;
+    return fm;
+  }
+  if (!existingContent) return { ...updates };
+  const { data } = matter(existingContent);
+  return { ...data, ...updates };
+}
+
+/**
+ * Load existing media entries from auxiliary files.
+ * Finds the first file matching *media.yml and parses it.
+ * Used by route-save, ride-save, and event-save.
+ */
+export function loadExistingMedia(
+  auxiliaryFiles: Record<string, { content: string; sha: string } | null> | undefined,
+): Array<Record<string, unknown>> {
+  if (!auxiliaryFiles) return [];
+  const mediaPath = Object.keys(auxiliaryFiles).find(p => p.endsWith('media.yml'));
+  if (!mediaPath) return [];
+  const file = auxiliaryFiles[mediaPath];
+  if (!file) return [];
+  return (yaml.load(file.content) as Array<Record<string, unknown>>) || [];
 }
