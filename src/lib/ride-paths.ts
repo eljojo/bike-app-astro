@@ -68,7 +68,9 @@ export function renameGpxRelPath(gpxRelPath: string, newSlug: string): string {
   // Extract date prefix (DD- or MM-DD-) from filename
   const dateMatch = filename.match(/^(\d{1,2}-\d{1,2}-|\d{1,2}-)/);
   const datePrefix = dateMatch ? dateMatch[0] : '';
-  parts[parts.length - 1] = `${datePrefix}${newSlug}.gpx`;
+  // Strip YYYY-MM-DD- prefix from slug if present (standalone rides have date-prefixed slugs)
+  const nameOnly = newSlug.replace(/^\d{4}-\d{2}-\d{2}-/, '');
+  parts[parts.length - 1] = `${datePrefix}${nameOnly}.gpx`;
   return parts.join('/');
 }
 
