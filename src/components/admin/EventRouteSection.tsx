@@ -1,10 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // All styles in admin.scss.
-
-interface RouteOption {
-  slug: string;
-  name: string;
-}
+import type { RouteOption } from '../../types/admin';
 
 interface Props {
   routeOptions: RouteOption[];

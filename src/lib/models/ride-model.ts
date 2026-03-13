@@ -2,21 +2,14 @@ import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { parseGpx } from '../gpx';
-import { computeHashFromParts, type GitFiles } from './content-model';
+import { computeHashFromParts, baseMediaItemSchema, type GitFiles } from './content-model';
 
-const mediaItemSchema = z.object({
-  key: z.string(),
-  caption: z.string().optional(),
-  cover: z.boolean().optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+export const rideMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),
   score: z.number().optional(),
 });
 
-const variantSchema = z.object({
+export const rideVariantSchema = z.object({
   name: z.string(),
   gpx: z.string(),
   distance_km: z.number().optional(),
@@ -31,8 +24,8 @@ export const rideDetailSchema = z.object({
   tags: z.array(z.string()).default([]),
   status: z.string().default('published'),
   body: z.string().default(''),
-  media: z.array(mediaItemSchema).default([]),
-  variants: z.array(variantSchema).default([]),
+  media: z.array(rideMediaItemSchema).default([]),
+  variants: z.array(rideVariantSchema).default([]),
   contentHash: z.string(),
   ride_date: z.string().default(''),
   country: z.string().optional(),
@@ -46,7 +39,7 @@ export const rideDetailSchema = z.object({
 });
 
 export type RideDetail = z.infer<typeof rideDetailSchema>;
-export type RideMediaItem = z.infer<typeof mediaItemSchema>;
+export type RideMediaItem = z.infer<typeof rideMediaItemSchema>;
 
 export interface RideGitFiles extends GitFiles {
   primaryFile: { content: string; sha: string } | null;

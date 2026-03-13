@@ -15,22 +15,11 @@ import SaveSuccessModal from './SaveSuccessModal';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
-
-interface OrganizerData {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
-
-interface RouteOption {
-  slug: string;
-  name: string;
-}
+import type { AdminOrganizer, RouteOption } from '../../types/admin';
 
 interface Props {
   initialData: EventDetail & { contentHash?: string; isNew?: boolean };
-  organizers: OrganizerData[];
+  organizers: AdminOrganizer[];
   cdnUrl: string;
   readOnly?: boolean;
   userRole?: string;
@@ -43,7 +32,7 @@ interface Props {
 /** Resolve the initial organizer state from the union field */
 function resolveOrganizer(
   organizer: EventDetail['organizer'],
-  allOrganizers: OrganizerData[],
+  allOrganizers: AdminOrganizer[],
 ) {
   if (!organizer) return { slug: '', name: '', website: '', instagram: '', isRef: false };
 

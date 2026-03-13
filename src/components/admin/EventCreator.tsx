@@ -2,17 +2,11 @@ import { useState, useRef, useCallback } from 'preact/hooks';
 import EventEditor from './EventEditor';
 import { useFileUpload } from '../../lib/hooks';
 import type { EventDetail } from '../../lib/models/event-model';
-
-interface OrganizerData {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
+import type { AdminOrganizer } from '../../types/admin';
 
 interface Props {
   cdnUrl: string;
-  organizers: OrganizerData[];
+  organizers: AdminOrganizer[];
   copyData?: Partial<EventDetail>;
 }
 

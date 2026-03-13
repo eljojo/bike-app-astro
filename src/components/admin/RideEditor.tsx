@@ -16,14 +16,7 @@ import { computeElevationProfile } from '../../lib/elevation-profile';
 import type { ElevationProfileData } from '../../lib/elevation-profile';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
-
-interface TourInfo {
-  slug: string;
-  name: string;
-  start_date?: string;
-  end_date?: string;
-  ride_count?: number;
-}
+import type { TourSummary } from '../../types/admin';
 
 interface StravaActivityItem {
   id: number;
@@ -43,7 +36,7 @@ interface Props {
   userRole?: string;
   mapThumbnail?: string;
   rideLabels?: Record<string, string>;
-  tours?: TourInfo[];
+  tours?: TourSummary[];
   stravaConnected?: boolean;
 }
 

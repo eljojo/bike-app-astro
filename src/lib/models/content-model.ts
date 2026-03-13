@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { z } from 'astro/zod';
+import { z } from 'astro/zod';
 
 /**
  * Compute content hash from one or more file content strings.
@@ -12,6 +12,19 @@ export function computeHashFromParts(...parts: (string | undefined)[]): string {
   }
   return hash.digest('hex');
 }
+
+/** Base media item schema shared by all content types. */
+export const baseMediaItemSchema = z.object({
+  key: z.string(),
+  caption: z.string().optional(),
+  cover: z.boolean().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+});
+
+export type BaseMediaItem = z.infer<typeof baseMediaItemSchema>;
 
 export interface GitFileSnapshot {
   content: string;

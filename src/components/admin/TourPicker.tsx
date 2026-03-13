@@ -1,16 +1,9 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { slugify } from '../../lib/slug';
-
-interface Tour {
-  slug: string;
-  name: string;
-  start_date?: string;
-  end_date?: string;
-  ride_count?: number;
-}
+import type { TourSummary } from '../../types/admin';
 
 interface Props {
-  tours: Tour[];
+  tours: TourSummary[];
   value: string;
   onChange: (slug: string) => void;
 }

@@ -42,3 +42,18 @@ export interface AdminOrganizer {
   website?: string;
   instagram?: string;
 }
+
+/** Minimal route reference used by event editors. */
+export interface RouteOption {
+  slug: string;
+  name: string;
+}
+
+/** Tour summary used by ride editor and tour picker. */
+export interface TourSummary {
+  slug: string;
+  name: string;
+  start_date?: string;
+  end_date?: string;
+  ride_count?: number;
+}

@@ -1,7 +1,7 @@
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { computeHashFromParts } from './content-model';
+import { computeHashFromParts, baseMediaItemSchema } from './content-model';
 
 const organizerRefSchema = z.object({
   name: z.string(),
@@ -36,14 +36,7 @@ const resultDetailSchema = z.object({
   status: z.enum(['DNS', 'DNF', 'DQ']).optional(),
 });
 
-const mediaItemSchema = z.object({
-  key: z.string(),
-  caption: z.string().optional(),
-  cover: z.boolean().optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+export const eventMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),
 });
 
@@ -72,10 +65,14 @@ export const eventDetailSchema = z.object({
   poster_key: z.string().optional(),
   poster_content_type: z.string().optional(),
   body: z.string(),
-  media: z.array(mediaItemSchema).default([]),
+  media: z.array(eventMediaItemSchema).default([]),
 });
 
 export type EventDetail = z.infer<typeof eventDetailSchema>;
+export type EventWaypoint = z.infer<typeof waypointDetailSchema>;
+export type EventResult = z.infer<typeof resultDetailSchema>;
+export type EventRegistration = z.infer<typeof registrationDetailSchema>;
+export type EventOrganizerRef = z.infer<typeof organizerRefSchema>;
 
 interface GitFileSnapshot {
   content: string;
@@ -122,7 +119,7 @@ export function computeEventContentHashFromFiles(currentFiles: EventGitFiles): s
 }
 
 /** Parse media.yml content into media items array. */
-function parseMediaYaml(yml: string): z.infer<typeof mediaItemSchema>[] {
+function parseMediaYaml(yml: string): z.infer<typeof eventMediaItemSchema>[] {
   if (!yml.trim()) return [];
   const parsed = yaml.load(yml);
   if (!Array.isArray(parsed)) return [];
@@ -135,7 +132,7 @@ function parseMediaYaml(yml: string): z.infer<typeof mediaItemSchema>[] {
     if (item.lat != null) entry.lat = item.lat;
     if (item.lng != null) entry.lng = item.lng;
     if (item.type != null) entry.type = item.type;
-    return entry as z.infer<typeof mediaItemSchema>;
+    return entry as z.infer<typeof eventMediaItemSchema>;
   });
 }
 

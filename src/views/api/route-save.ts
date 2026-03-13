@@ -14,7 +14,7 @@ import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-
 import type { FileChange } from '../../lib/git-service';
 import { commitGpxFile } from '../../lib/git-gpx';
 import { env } from '../../lib/env';
-import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib/models/route-model';
+import { buildFreshRouteData, computeRouteContentHashFromFiles, adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { updateRedirectsYaml } from '../../lib/redirects';
@@ -23,17 +23,11 @@ import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
 
-interface VariantPayload {
-  name: string;
-  gpx: string;
-  distance_km?: number;
-  strava_url?: string;
-  rwgps_url?: string;
-  google_maps_url?: string;
-  komoot_url?: string;
-  isNew?: boolean;
-  gpxContent?: string;
-}
+/** Variant with client-only upload fields. */
+const variantPayloadSchema = adminVariantSchema.extend({
+  isNew: z.boolean().optional(),
+  gpxContent: z.string().optional(),
+});
 
 const routeUpdateSchema = z.object({
   frontmatter: z.object({
@@ -46,38 +40,9 @@ const routeUpdateSchema = z.object({
     title: z.string().optional(),
   }).strict(),
   body: z.string(),
-  media: z.array(z.object({
-    key: z.string(),
-    caption: z.string().optional(),
-    cover: z.boolean().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-    uploaded_by: z.string().optional(),
-    captured_at: z.string().optional(),
-  })).optional(),
-  variants: z.array(z.object({
-    name: z.string(),
-    gpx: z.string(),
-    distance_km: z.number().optional(),
-    strava_url: z.string().optional(),
-    rwgps_url: z.string().optional(),
-    google_maps_url: z.string().optional(),
-    komoot_url: z.string().optional(),
-    isNew: z.boolean().optional(),
-    gpxContent: z.string().optional(),
-  })).min(1, 'At least one route option is required').optional(),
-  parkedPhotos: z.array(z.object({
-    key: z.string(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-    caption: z.string().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    uploaded_by: z.string().optional(),
-    captured_at: z.string().optional(),
-  })).optional(),
+  media: z.array(adminMediaItemSchema).optional(),
+  variants: z.array(variantPayloadSchema).min(1, 'At least one route option is required').optional(),
+  parkedPhotos: z.array(adminMediaItemSchema).optional(),
   deletedParkedKeys: z.array(z.string()).optional(),
   newSlug: z.string().optional(),
   contentHash: z.string().optional(),
@@ -88,27 +53,7 @@ const routeUpdateSchema = z.object({
   })).optional(),
 });
 
-export interface RouteUpdate {
-  frontmatter: Record<string, unknown>;
-  body: string;
-  newSlug?: string;
-  media?: Array<{
-    key: string;
-    caption?: string;
-    cover?: boolean;
-    width?: number;
-    height?: number;
-    lat?: number;
-    lng?: number;
-    uploaded_by?: string;
-    captured_at?: string;
-  }>;
-  parkedPhotos?: ParkedPhotoEntry[];
-  deletedParkedKeys?: string[];
-  variants?: VariantPayload[];
-  contentHash?: string;
-  translations?: Record<string, { name: string; tagline: string; body: string }>;
-}
+export type RouteUpdate = z.infer<typeof routeUpdateSchema>;
 
 interface RouteBuildResult extends BuildResult {
   mergedParked: ParkedPhotoEntry[] | undefined;

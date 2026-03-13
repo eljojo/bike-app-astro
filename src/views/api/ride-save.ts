@@ -13,11 +13,18 @@ import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug } from '../../lib/ride-paths';
 import { CITY } from '../../lib/config';
-import { computeRideContentHashFromFiles, buildFreshRideData } from '../../lib/models/ride-model';
+import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema } from '../../lib/models/ride-model';
+import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git-gpx';
 
 export const prerender = false;
+
+/** Variant with client-only upload fields. */
+const rideVariantPayloadSchema = rideVariantSchema.extend({
+  isNew: z.boolean().optional(),
+  gpxContent: z.string().optional(),
+});
 
 const rideUpdateSchema = z.object({
   frontmatter: z.object({
@@ -33,52 +40,13 @@ const rideUpdateSchema = z.object({
     privacy_zone: z.boolean().optional(),
   }),
   body: z.string(),
-  media: z.array(z.object({
-    key: z.string(),
-    caption: z.string().optional(),
-    cover: z.boolean().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-  })).optional(),
-  variants: z.array(z.object({
-    name: z.string(),
-    gpx: z.string(),
-    distance_km: z.number().optional(),
-    strava_url: z.string().optional(),
-    rwgps_url: z.string().optional(),
-    isNew: z.boolean().optional(),
-    gpxContent: z.string().optional(),
-  })).min(1, 'At least one GPX file is required').optional(),
+  media: z.array(baseMediaItemSchema).optional(),
+  variants: z.array(rideVariantPayloadSchema).min(1, 'At least one GPX file is required').optional(),
   contentHash: z.string().optional(),
   gpxRelativePath: z.string().optional(),
 });
 
-export interface RideUpdate {
-  frontmatter: Record<string, unknown>;
-  body: string;
-  media?: Array<{
-    key: string;
-    caption?: string;
-    cover?: boolean;
-    width?: number;
-    height?: number;
-    lat?: number;
-    lng?: number;
-  }>;
-  variants?: Array<{
-    name: string;
-    gpx: string;
-    distance_km?: number;
-    strava_url?: string;
-    rwgps_url?: string;
-    isNew?: boolean;
-    gpxContent?: string;
-  }>;
-  contentHash?: string;
-  gpxRelativePath?: string;
-}
+export type RideUpdate = z.infer<typeof rideUpdateSchema>;
 
 /**
  * Create ride save handlers. Returns a fresh instance per request

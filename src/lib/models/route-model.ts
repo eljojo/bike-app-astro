@@ -1,21 +1,14 @@
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { computeHashFromParts } from './content-model';
+import { computeHashFromParts, baseMediaItemSchema } from './content-model';
 
-const adminMediaItemSchema = z.object({
-  key: z.string(),
-  caption: z.string().optional(),
-  cover: z.boolean().optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+export const adminMediaItemSchema = baseMediaItemSchema.extend({
   uploaded_by: z.string().optional(),
   captured_at: z.string().optional(),
 });
 
-const adminVariantSchema = z.object({
+export const adminVariantSchema = z.object({
   name: z.string(),
   gpx: z.string(),
   distance_km: z.number().optional(),

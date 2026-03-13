@@ -1,16 +1,9 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // All styles in admin.scss.
 import { useDragReorder } from '../../lib/hooks';
+import type { EventWaypoint } from '../../lib/models/event-model';
 
-export interface Waypoint {
-  place: string;
-  type: 'checkpoint' | 'danger' | 'poi';
-  label: string;
-  distance_km?: number;
-  opening?: string;
-  closing?: string;
-  route?: string;
-}
+export type Waypoint = EventWaypoint;
 
 interface PlaceOption {
   id: string;

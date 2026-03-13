@@ -13,7 +13,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
-import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary } from '../../lib/models/event-model';
+import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
@@ -21,13 +21,6 @@ import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
-
-interface OrganizerPayload {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
 
 const eventUpdateSchema = z.object({
   frontmatter: z.record(z.string(), z.unknown()),
@@ -39,36 +32,11 @@ const eventUpdateSchema = z.object({
     website: z.string().optional(),
     instagram: z.string().optional(),
   }).optional(),
-  media: z.array(z.object({
-    key: z.string(),
-    caption: z.string().optional(),
-    cover: z.boolean().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-    type: z.string().optional(),
-  })).optional(),
+  media: z.array(eventMediaItemSchema).optional(),
   slug: z.string().optional(),
 });
 
-export interface EventUpdate {
-  frontmatter: Record<string, unknown>;
-  body: string;
-  contentHash?: string;
-  organizer?: OrganizerPayload;
-  media?: Array<{
-    key: string;
-    caption?: string;
-    cover?: boolean;
-    width?: number;
-    height?: number;
-    lat?: number;
-    lng?: number;
-    type?: string;
-  }>;
-  slug?: string;   // for new events
-}
+export type EventUpdate = z.infer<typeof eventUpdateSchema>;
 
 interface EventBuildResult extends BuildResult {
   oldPosterKey: string | undefined;
