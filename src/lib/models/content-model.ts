@@ -16,12 +16,19 @@ export function computeHashFromParts(...parts: (string | undefined)[]): string {
 /** Base media item schema shared by all content types. */
 export const baseMediaItemSchema = z.object({
   key: z.string(),
+  type: z.enum(['photo', 'video']).optional(),
   caption: z.string().optional(),
   cover: z.boolean().optional(),
   width: z.number().optional(),
   height: z.number().optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
+  // Video-specific fields
+  title: z.string().optional(),
+  handle: z.string().optional(),
+  duration: z.string().optional(),
+  orientation: z.string().optional(),
+  poster_key: z.string().optional(),
 });
 
 export type BaseMediaItem = z.infer<typeof baseMediaItemSchema>;
