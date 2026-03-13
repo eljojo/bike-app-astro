@@ -143,4 +143,19 @@ describe('mergeMedia', () => {
     expect(merged[0].title).toBe('New Video');
     expect(merged[0].handle).toBe('new-video');
   });
+
+  it('preserves transcoding video metadata through save', () => {
+    const adminMedia = [
+      { key: 'photo1', cover: true },
+      { key: 'video1', type: 'video' as const, title: 'My Ride', handle: 'my-ride' },
+    ];
+    const existing = [
+      { type: 'photo', key: 'photo1', width: 1600, height: 1200, handle: 'cover' },
+    ];
+    const merged = mergeMedia(adminMedia, existing);
+    expect(merged).toHaveLength(2);
+    expect(merged[1].type).toBe('video');
+    expect(merged[1].title).toBe('My Ride');
+    expect(merged[1].handle).toBe('my-ride');
+  });
 });
