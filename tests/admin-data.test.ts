@@ -78,14 +78,14 @@ describe('loadAdminRouteData details', () => {
     expect(detail.body).not.toMatch(/^<p>/); // should NOT be rendered HTML
   });
 
-  it('media items only include key, caption, and cover fields', async () => {
+  it('media items only include known fields', async () => {
     const { details } = await loadAdminRouteData();
+    const allowedKeys = ['key', 'type', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at', 'width', 'height', 'title', 'handle', 'duration', 'orientation', 'poster_key'];
     for (const detail of Object.values(details)) {
       for (const item of detail.media) {
         const keys = Object.keys(item);
-        // Only allowed keys: key, caption, cover, and optional coordinate/upload fields
         for (const k of keys) {
-          expect(['key', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at', 'width', 'height']).toContain(k);
+          expect(allowedKeys).toContain(k);
         }
         // key is always required
         expect(item).toHaveProperty('key');
