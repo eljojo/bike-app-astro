@@ -110,12 +110,6 @@ async function main() {
     fs.renameSync(githubSrc, githubDest);
   }
 
-  // Move city/ to blog/
-  const citySrc = path.join(destDir, 'city');
-  const cityDest = path.join(destDir, 'blog');
-  if (fs.existsSync(citySrc)) {
-    fs.renameSync(citySrc, cityDest);
-  }
 
   console.log(`  Files created in ${folder}/\n`);
 
