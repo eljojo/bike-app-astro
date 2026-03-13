@@ -1,7 +1,12 @@
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import type { PhotoKeyChange } from './photo-parking';
 import type { PhotoUsage } from './photo-registry';
+
+export interface PhotoKeyChange {
+  key: string;
+  usage: PhotoUsage;
+  action: 'add' | 'remove';
+}
 
 /**
  * Build the photo-key change list for afterCommit photo registry updates.

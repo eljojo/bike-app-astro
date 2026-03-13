@@ -6,6 +6,7 @@ import { mergeParkedPhotos, type ParkedPhotoEntry } from './media-merge';
 import { upsertContentCache } from './cache';
 import type { IGitService, FileChange } from './git-service';
 import type { db } from './get-db';
+import type { PhotoKeyChange } from './save-helpers';
 
 /**
  * Extract a field value from a markdown file's YAML frontmatter.
@@ -52,12 +53,6 @@ export async function parkOrphanedPhoto(opts: {
   };
 
   return { mergedParked, fileChange };
-}
-
-export interface PhotoKeyChange {
-  key: string;
-  usage: PhotoUsage;
-  action: 'add' | 'remove';
 }
 
 /**
