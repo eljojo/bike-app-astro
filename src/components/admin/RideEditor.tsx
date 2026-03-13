@@ -390,6 +390,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
               pendingFiles={pendingFiles}
               onPendingProcessed={() => setPendingFiles([])}
               userRole={userRole}
+              contentSlug={slug}
+              contentKind="ride"
             />
           </section>
 

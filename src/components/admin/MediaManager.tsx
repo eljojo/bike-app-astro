@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { useDragReorder, useFileUpload } from '../../lib/hooks';
+import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem;
@@ -23,10 +23,13 @@ interface Props {
   onSuggestionDrop?: (photo: MediaItem, wasParked: boolean) => void;
   userRole?: string;
   onParkPhoto?: (photo: MediaItem) => void;
+  contentSlug?: string;
+  contentKind?: string;
 }
 
-export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto }: Props) {
+export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind }: Props) {
   const fileUpload = useFileUpload();
+  const videoUpload = useVideoUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [suggestionDragOver, setSuggestionDragOver] = useState(false);
@@ -54,18 +57,42 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
   }
 
   async function uploadFiles(files: FileList | File[]) {
-    const results = await fileUpload.upload(Array.from(files));
-    if (results.length > 0) {
-      const newItems: MediaItem[] = results.map(r => ({
-        key: r.key,
-        width: r.width,
-        height: r.height,
-        ...(r.lat != null && { lat: r.lat }),
-        ...(r.lng != null && { lng: r.lng }),
-        ...(r.uploaded_by && { uploaded_by: r.uploaded_by }),
-        ...(r.captured_at && { captured_at: r.captured_at }),
-      }));
-      onChange([...media, ...newItems]);
+    const imageFiles: File[] = [];
+    const videoFiles: File[] = [];
+
+    for (const file of Array.from(files)) {
+      if (file.type.startsWith('video/')) {
+        videoFiles.push(file);
+      } else {
+        imageFiles.push(file);
+      }
+    }
+
+    // Upload images (existing flow)
+    if (imageFiles.length > 0) {
+      const results = await fileUpload.upload(imageFiles);
+      if (results.length > 0) {
+        const newItems: MediaItem[] = results.map(r => ({
+          key: r.key,
+          width: r.width,
+          height: r.height,
+          ...(r.lat != null && { lat: r.lat }),
+          ...(r.lng != null && { lng: r.lng }),
+          ...(r.uploaded_by && { uploaded_by: r.uploaded_by }),
+          ...(r.captured_at && { captured_at: r.captured_at }),
+        }));
+        onChange([...media, ...newItems]);
+      }
+    }
+
+    // Upload videos (new flow)
+    if (contentSlug) {
+      for (const file of videoFiles) {
+        const item = await videoUpload.uploadVideo(file, contentSlug, contentKind || 'route');
+        if (item) {
+          onChange([...media, item as MediaItem]);
+        }
+      }
     }
   }
 
@@ -149,7 +176,7 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        {fileUpload.uploading ? 'Uploading...' : 'Drop photos or videos here, or click to add'}
+        {fileUpload.uploading || videoUpload.videos.size > 0 ? 'Uploading...' : 'Drop photos or videos here, or click to add'}
         <input
           ref={fileInputRef}
           type="file"
@@ -160,7 +187,9 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
         />
       </div>
 
-      {fileUpload.error && <div class="auth-error">{fileUpload.error}</div>}
+      {(fileUpload.error || videoUpload.error) && (
+        <div class="auth-error">{fileUpload.error || videoUpload.error}</div>
+      )}
 
       <div
         class={`photo-grid${suggestionDragOver ? ' photo-grid--drop-target' : ''}`}
@@ -184,7 +213,13 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
                 ) : (
                   <div class="video-thumb-placeholder" />
                 )}
-                <span class="video-play-icon" />
+                {videoUpload.videos.get(item.key)?.status === 'transcoding' ? (
+                  <span class="video-transcoding-indicator">Processing...</span>
+                ) : videoUpload.videos.get(item.key)?.status === 'uploading' ? (
+                  <span class="video-transcoding-indicator">Uploading...</span>
+                ) : (
+                  <span class="video-play-icon" />
+                )}
               </div>
             ) : (
               <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />

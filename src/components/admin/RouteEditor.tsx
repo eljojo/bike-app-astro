@@ -293,6 +293,8 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           pendingFiles={pendingFiles}
           onPendingProcessed={() => setPendingFiles([])}
           userRole={userRole}
+          contentSlug={initialData.slug}
+          contentKind="route"
           onParkPhoto={(photo) => {
             const entry = toParkedEntry(photo);
             setParkedPhotos(prev => [...prev, entry]);
