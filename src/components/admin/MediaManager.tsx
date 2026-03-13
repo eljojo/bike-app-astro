@@ -4,6 +4,16 @@ import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem;
 
+function formatDuration(iso: string): string {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return '';
+  const h = parseInt(match[1] || '0');
+  const m = parseInt(match[2] || '0');
+  const s = parseInt(match[3] || '0');
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 interface Props {
   media: MediaItem[];
   onChange: (media: MediaItem[]) => void;
@@ -31,6 +41,16 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
 
   function thumbnailUrl(key: string): string {
     return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
+  }
+
+  function posterUrl(posterKey: string): string {
+    return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${posterKey}`;
+  }
+
+  function updateTitle(idx: number, title: string) {
+    const updated = [...media];
+    updated[idx] = { ...updated[idx], title };
+    onChange(updated);
   }
 
   async function uploadFiles(files: FileList | File[]) {
@@ -129,11 +149,11 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        {fileUpload.uploading ? 'Uploading...' : 'Drop photos here or click to add'}
+        {fileUpload.uploading ? 'Uploading...' : 'Drop photos or videos here, or click to add'}
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic"
+          accept="image/jpeg,image/png,image/webp,image/heic,video/mp4,video/quicktime,video/webm"
           multiple
           style="display:none"
           onChange={handleFileSelect}
@@ -157,16 +177,29 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
             onDragOver={(e: DragEvent) => drag.handleDragOver(e, idx)}
             onDragEnd={drag.handleDragEnd}
           >
-            <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />
+            {item.type === 'video' ? (
+              <div class="video-thumb">
+                {item.poster_key ? (
+                  <img src={posterUrl(item.poster_key)} alt={item.title || ''} loading="lazy" />
+                ) : (
+                  <div class="video-thumb-placeholder" />
+                )}
+                <span class="video-play-icon" />
+              </div>
+            ) : (
+              <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />
+            )}
             <div class="photo-actions">
-              <button
-                type="button"
-                class={`btn-star ${item.cover ? 'btn-star--active' : ''}`}
-                onClick={() => setCover(idx)}
-                title="Set as cover"
-              >
-                {item.cover ? '\u2605' : '\u2606'}
-              </button>
+              {item.type !== 'video' && (
+                <button
+                  type="button"
+                  class={`btn-star ${item.cover ? 'btn-star--active' : ''}`}
+                  onClick={() => setCover(idx)}
+                  title="Set as cover"
+                >
+                  {item.cover ? '\u2605' : '\u2606'}
+                </button>
+              )}
               <button
                 type="button"
                 class="btn-remove"
@@ -176,13 +209,26 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
                 {'×'}
               </button>
             </div>
-            <input
-              type="text"
-              class="photo-caption"
-              placeholder="Caption"
-              value={item.caption || ''}
-              onInput={(e) => updateCaption(idx, (e.target as HTMLInputElement).value)}
-            />
+            {item.type === 'video' ? (
+              <div class="video-meta">
+                <input
+                  type="text"
+                  class="photo-caption"
+                  value={item.title || ''}
+                  placeholder="Video title"
+                  onInput={(e) => updateTitle(idx, (e.target as HTMLInputElement).value)}
+                />
+                {item.duration && <span class="video-duration">{formatDuration(item.duration)}</span>}
+              </div>
+            ) : (
+              <input
+                type="text"
+                class="photo-caption"
+                placeholder="Caption"
+                value={item.caption || ''}
+                onInput={(e) => updateCaption(idx, (e.target as HTMLInputElement).value)}
+              />
+            )}
           </div>
         ))}
       </div>
