@@ -20,11 +20,17 @@ interface Waypoint {
   opening?: string;
   closing?: string;
   route?: string;
+  note?: string;
 }
 
 interface PlaceData {
   id: string;
-  data: { lat: number; lng: number; name: string };
+  data: {
+    lat: number; lng: number; name: string;
+    description?: string; address?: string;
+    phone?: string; website?: string;
+    google_maps_url?: string; photo_key?: string;
+  };
 }
 
 interface RouteItem {
@@ -85,6 +91,15 @@ const resolvedWaypoints = waypoints.map(wp => {
     lng: place.data.lng,
     type: wp.type,
     label: wp.label,
+    distance_km: wp.distance_km,
+    opening: wp.opening,
+    closing: wp.closing,
+    note: wp.note,
+    description: place.data.description,
+    address: place.data.address,
+    photo_key: place.data.photo_key,
+    website: place.data.website,
+    google_maps_url: place.data.google_maps_url,
   };
 }).filter(Boolean);
 ---
