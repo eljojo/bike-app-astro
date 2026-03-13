@@ -70,6 +70,7 @@ export const placeSchema = z.object({
   lat: z.number(),
   lng: z.number(),
   status: z.literal('published').default('published'),
+  description: z.string().optional(),
   address: z.string().optional(),
   website: z.string().optional(),
   phone: z.string().optional(),
