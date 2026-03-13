@@ -1,124 +1,26 @@
 /**
- * Shared test helpers for admin E2E specs.
- *
- * Provides session seeding/cleanup against the local SQLite DB
- * used by RUNTIME=local admin tests.
- *
- * All DB connections use WAL mode and a busy timeout to handle
- * concurrent access from parallel Playwright workers.
+ * Admin test helpers — thin wrapper around shared helpers bound to admin DB,
+ * plus admin-specific fixture restoration functions.
  */
-import Database from 'better-sqlite3';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { DB_PATH, FIXTURE_DIR } from './fixture-setup.ts';
-import { initSchema } from '../../src/db/init-schema';
+import {
+  seedSession as _seedSession,
+  loginAs,
+  cleanupSession as _cleanupSession,
+  clearContentEdits as _clearContentEdits,
+  proxyTiles,
+  type SeedOptions,
+} from '../shared-helpers.ts';
 
-/** Open a DB connection with WAL mode and busy timeout for concurrent access. */
-function openDb(): InstanceType<typeof Database> {
-  const db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('busy_timeout = 5000');
-  return db;
-}
+export const seedSession = (opts?: SeedOptions) => _seedSession(DB_PATH, opts);
+export const cleanupSession = (token: string) => _cleanupSession(DB_PATH, token);
+export const clearContentEdits = (contentType: string, slug: string) => _clearContentEdits(DB_PATH, contentType, slug);
+export { loginAs, proxyTiles };
 
-interface SeedOptions {
-  role?: 'admin' | 'editor' | 'guest';
-  username?: string;
-  email?: string | null;
-}
-
-/** Insert a user + session into the local DB and return the session token. */
-export function seedSession(opts: SeedOptions = {}): string {
-  const suffix = crypto.randomUUID().slice(0, 8);
-  const {
-    role = 'admin',
-    username = `Playwright Test ${suffix}`,
-    email = `playwright-${suffix}@test.local`,
-  } = opts;
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const db = openDb();
-  initSchema(db);
-  const userId = crypto.randomUUID();
-  const token = crypto.randomBytes(32).toString('hex');
-  // Fixed future dates for deterministic tests. The server checks expiry against
-  // Date.now(), so these must be far enough in the future to remain valid.
-  const now = '2099-01-01T00:00:00.000Z';
-  const expiresAt = '2099-01-02T00:00:00.000Z';
-
-  db.prepare(
-    'INSERT OR REPLACE INTO users (id, email, username, role, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(userId, email, username, role, now);
-
-  db.prepare(
-    'INSERT INTO sessions (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(crypto.randomUUID(), userId, token, expiresAt, now);
-
-  db.close();
-
-  return token;
-}
-
-// Staging origin used to proxy tile requests in E2E — CI has no Thunderforest
-// API key, so we intercept /api/tiles/* and forward to staging which has one.
-const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';
-
-/**
- * Intercept tile/font requests and proxy them through staging.
- * Playwright's route() intercepts at the network level, bypassing CORS.
- */
-export async function proxyTiles(page: import('@playwright/test').Page) {
-  await page.route('**/api/tiles/**', async (route) => {
-    const url = new URL(route.request().url());
-    const upstream = `${TILE_PROXY_ORIGIN}${url.pathname}`;
-    try {
-      const res = await fetch(upstream);
-      const body = Buffer.from(await res.arrayBuffer());
-      await route.fulfill({
-        status: res.status,
-        headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream' },
-        body,
-      });
-    } catch {
-      await route.abort();
-    }
-  });
-}
-
-/** Set session cookie on a Playwright page. */
-export async function loginAs(page: import('@playwright/test').Page, token: string) {
-  await page.context().addCookies([{
-    name: 'session_token', value: token,
-    domain: 'localhost', path: '/', httpOnly: true, secure: false,
-  }]);
-}
-
-/** Clear content_edits cache for a route/event so retries see clean state. */
-export function clearContentEdits(contentType: string, slug: string) {
-  if (!fs.existsSync(DB_PATH)) return;
-  const db = openDb();
-  try {
-    db.prepare('DELETE FROM content_edits WHERE content_type = ? AND content_slug = ?').run(contentType, slug);
-  } catch {}
-  db.close();
-}
-
-/** Remove the user and session created by seedSession. */
-export function cleanupSession(token: string) {
-  if (!fs.existsSync(DB_PATH)) return;
-  const db = openDb();
-  const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
-  if (!hasTable) { db.close(); return; }
-  const session = db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(token) as any;
-  if (session) {
-    try { db.prepare('DELETE FROM banned_ips WHERE user_id = ?').run(session.user_id); } catch {}
-    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-    db.prepare('DELETE FROM users WHERE id = ?').run(session.user_id);
-  }
-  db.close();
-}
+// --- Admin-only helpers below ---
 
 /** Get the root commit SHA of the fixture repo (the "initial fixture" commit). */
 let rootCommit: string | undefined;
