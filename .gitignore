@@ -40,6 +40,7 @@ public/map-style-*
 # playwright test artifacts
 test-results/
 e2e/test-results/
+e2e/test-results-club/
 
 # worktrees
 .worktrees/
