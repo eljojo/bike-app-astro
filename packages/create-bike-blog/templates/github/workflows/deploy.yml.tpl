@@ -45,15 +45,11 @@ jobs:
       - name: Generate map styles
         run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
 
-      - name: Map cache period
-        id: map-period
-        run: echo "period=$(( $(date +%s) / 2592000 ))" >> "$GITHUB_OUTPUT"
-
       - name: Restore map cache
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-${{ steps.map-period.outputs.period }}
+          key: maps-${{ hashFiles('blog/rides/**/*.gpx', 'node_modules/bike-app-astro/scripts/generate-maps.ts', 'node_modules/bike-app-astro/src/loaders/rides.ts') }}
           restore-keys: maps-
 
       - name: Restore Astro content cache
