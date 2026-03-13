@@ -114,7 +114,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/routes/**/variants/*.gpx', inputs.city), format('bike-routes/{0}/routes/**/*.gpx', inputs.city)) }}
+          key: maps-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/routes/**/variants/*.gpx', inputs.city), format('bike-routes/{0}/routes/**/*.gpx', inputs.city), format('bike-routes/{0}/rides/**/*.gpx', inputs.city), 'scripts/generate-maps.ts', 'src/loaders/rides.ts', 'src/lib/map-paths.ts') }}
           restore-keys: |
             maps-${{ inputs.city }}-
 

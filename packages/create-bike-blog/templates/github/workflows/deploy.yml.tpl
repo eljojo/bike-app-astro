@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-${{ hashFiles('blog/rides/**/*.gpx', 'node_modules/bike-app-astro/scripts/generate-maps.ts', 'node_modules/bike-app-astro/src/loaders/rides.ts') }}
+          key: maps-${{ hashFiles('blog/rides/**/*.gpx', 'package-lock.json') }}
           restore-keys: maps-
 
       - name: Restore Astro content cache
