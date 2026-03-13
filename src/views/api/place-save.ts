@@ -7,7 +7,7 @@ import { CITY } from '../../lib/config';
 import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../../lib/models/place-model';
 import { slugify } from '../../lib/slug';
@@ -63,7 +63,7 @@ function resolvePlacePath(placeId: string): string {
   return `${CITY}/places/${placeId}.md`;
 }
 
-export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
+export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<PlaceBuildResult> = {
   parseRequest(body: unknown): PlaceUpdate {
     return placeUpdateSchema.parse(body);
   },

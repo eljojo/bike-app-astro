@@ -9,7 +9,7 @@ import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
 import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
@@ -61,7 +61,7 @@ function resolveEventPath(eventId: string, isDirectory: boolean): string {
     : `${CITY}/events/${year}/${slug}.md`;
 }
 
-export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
+export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<EventBuildResult> = {
   parseRequest(body: unknown): EventUpdate {
     return eventUpdateSchema.parse(body);
   },
