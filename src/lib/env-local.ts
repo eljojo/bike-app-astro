@@ -41,6 +41,15 @@ export function createLocalEnv(): AppEnv {
     SES_FROM: process.env.SES_FROM || 'noreply@localhost',
     STRAVA_CLIENT_ID: process.env.STRAVA_CLIENT_ID,
     STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET,
+    // Video transcoding — local dev uses no-op adapter, these are unused
+    MEDIACONVERT_ENDPOINT: '',
+    MEDIACONVERT_QUEUE: '',
+    MEDIACONVERT_ROLE: '',
+    MEDIACONVERT_ACCESS_KEY_ID: '',
+    MEDIACONVERT_SECRET_ACCESS_KEY: '',
+    MEDIACONVERT_REGION: '',
+    S3_ORIGINALS_BUCKET: '',
+    S3_OUTPUTS_BUCKET: '',
   };
 }
 
