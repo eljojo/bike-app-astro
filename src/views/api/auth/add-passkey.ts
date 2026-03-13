@@ -76,7 +76,14 @@ export async function POST({ request, cookies }: APIContext): Promise<Response> 
       body.credential.response?.transports,
     );
 
-    return jsonResponse({ success: true });
+    // Return the newly created passkey so the client can update its list
+    const rows = await database
+      .select({ id: credentials.id, credentialId: credentials.credentialId, createdAt: credentials.createdAt })
+      .from(credentials)
+      .where(eq(credentials.userId, user.id));
+
+    const newPasskey = rows.find(r => r.credentialId === credential.id);
+    return jsonResponse({ success: true, passkey: newPasskey });
   } catch (err) {
     console.error('add-passkey verification error:', err);
     return jsonError('Passkey registration failed', 400);

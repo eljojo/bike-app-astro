@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { startRegistration } from '@simplewebauthn/browser';
 
 interface Passkey {
@@ -22,9 +22,10 @@ interface Props {
   role: 'admin' | 'editor' | 'guest';
   isBlog?: boolean;
   stravaStatus?: StravaStatusData | null;
+  passkeys?: Passkey[];
 }
 
-export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog, stravaStatus: initialStravaStatus }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
   const isGuest = role === 'guest';
   const isAdmin = role === 'admin';
   const [username, setUsername] = useState(initialUsername);
@@ -36,7 +37,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
   const [saved, setSaved] = useState(false);
 
   // Passkey management
-  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+  const [passkeys, setPasskeys] = useState<Passkey[]>(initialPasskeys ?? []);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState('');
 
@@ -49,22 +50,6 @@ export default function SettingsForm({ username: initialUsername, email: initial
   const avatarUrl = emailHash
     ? `https://www.gravatar.com/avatar/${emailHash}?d=mp&s=80`
     : 'https://www.gravatar.com/avatar/?d=mp&s=80';
-
-  useEffect(() => {
-    if (!isGuest) loadPasskeys();
-  }, []);
-
-  async function loadPasskeys() {
-    try {
-      const res = await fetch('/api/auth/list-passkeys');
-      if (res.ok) {
-        const data = await res.json();
-        setPasskeys(data.passkeys);
-      }
-    } catch {
-      // Silently ignore — passkeys section just won't show data
-    }
-  }
 
   async function handleStravaDisconnect() {
     setStravaLoading(true);
@@ -112,7 +97,10 @@ export default function SettingsForm({ username: initialUsername, email: initial
         throw new Error(data.error || 'Passkey registration failed');
       }
 
-      await loadPasskeys();
+      const result = await verifyRes.json();
+      if (result.passkey) {
+        setPasskeys(prev => [...prev, result.passkey]);
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'NotAllowedError') {
         setPasskeyError('Passkey registration was cancelled');
@@ -139,7 +127,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
         throw new Error(data.error || 'Failed to remove passkey');
       }
 
-      await loadPasskeys();
+      setPasskeys(prev => prev.filter(pk => pk.id !== id));
     } catch (err: unknown) {
       setPasskeyError(err instanceof Error ? err.message : 'Failed to remove passkey');
     }
