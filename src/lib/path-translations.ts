@@ -1,21 +1,45 @@
 import { defaultLocale } from './locale-utils';
 
+export interface LocalePageWithSegments {
+  pattern: string;
+  entrypoint: string;
+  segments?: Record<string, Record<string, string>>;
+}
+
+/**
+ * Collect segment translations from route definitions into a single map.
+ * This is the bridge between colocated route+translation definitions
+ * and the translatePath/reverseTranslatePath functions.
+ */
+export function buildSegmentTranslations(
+  pages: LocalePageWithSegments[],
+): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {};
+  for (const page of pages) {
+    if (!page.segments) continue;
+    for (const [segment, locales] of Object.entries(page.segments)) {
+      if (!result[segment]) result[segment] = {};
+      Object.assign(result[segment], locales);
+    }
+  }
+  return result;
+}
+
 /**
  * URL path segment translations by locale.
  * Only segments that differ from the default (English) need an entry.
+ * Initialized by setSegmentTranslations() during astro:config:setup.
  */
-const segmentTranslations: Record<string, Record<string, string>> = {
-  about: { fr: 'a-propos', es: 'acerca-de' },
-  calendar: { fr: 'calendrier', es: 'calendario' },
-  map: { fr: 'carte', es: 'mapa' },
-  routes: { fr: 'parcours', es: 'rutas' },
-  events: { fr: 'evenements', es: 'eventos' },
-  places: { fr: 'lieux', es: 'lugares' },
-  rides: { fr: 'sorties', es: 'recorridos' },
-  tours: { fr: 'voyages', es: 'viajes' },
-  stats: { fr: 'statistiques', es: 'estadisticas' },
-  // guides and videos stay the same in French and Spanish
-};
+let segmentTranslations: Record<string, Record<string, string>> = {};
+
+/**
+ * Initialize segment translations. Called once by the i18n-routes integration
+ * during astro:config:setup. After this call, translatePath and
+ * reverseTranslatePath use the provided translations.
+ */
+export function setSegmentTranslations(translations: Record<string, Record<string, string>>): void {
+  segmentTranslations = translations;
+}
 
 /**
  * Translate a URL path's segments for a given locale.
