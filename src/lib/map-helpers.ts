@@ -59,3 +59,64 @@ export function buildPlacePopup(place: PlacePopupData, cdnUrl?: string): string 
   popup += '</div>';
   return popup;
 }
+
+export interface WaypointPopupData {
+  label: string;
+  type: string;
+  distance_km?: number;
+  opening?: string;
+  closing?: string;
+  note?: string;
+  description?: string;
+  address?: string;
+  photo_key?: string;
+  website?: string;
+  google_maps_url?: string;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  checkpoint: 'Checkpoint',
+  danger: 'Danger',
+  poi: 'Point of interest',
+};
+
+export function buildWaypointPopup(wp: WaypointPopupData, cdnUrl?: string): string {
+  let popup = '<div class="waypoint-popup">';
+
+  if (wp.photo_key && cdnUrl) {
+    popup += html`<img class="waypoint-popup-photo" src="${cdnUrl}/cdn-cgi/image/width=280,height=160,fit=cover/${wp.photo_key}" alt="" />`;
+  }
+
+  popup += html`<strong>${wp.label}</strong>`;
+
+  // Type badge + distance
+  const typeParts: string[] = [TYPE_LABELS[wp.type] || wp.type];
+  if (wp.distance_km != null) typeParts.push(`${wp.distance_km} km`);
+  popup += html`<div class="waypoint-popup-meta">${raw(typeParts.join(' \u00b7 '))}</div>`;
+
+  // Opening/closing (checkpoints only)
+  if (wp.type === 'checkpoint' && (wp.opening || wp.closing)) {
+    const times = [wp.opening, wp.closing].filter(Boolean).join(' \u2014 ');
+    popup += html`<div class="waypoint-popup-times">${times}</div>`;
+  }
+
+  if (wp.note) {
+    popup += html`<div class="waypoint-popup-note">${wp.note}</div>`;
+  }
+
+  if (wp.description) {
+    popup += html`<div class="waypoint-popup-description">${wp.description}</div>`;
+  }
+
+  if (wp.address) {
+    popup += html`<div class="waypoint-popup-address">${wp.address}</div>`;
+  }
+
+  const links: string[] = [];
+  if (wp.website) links.push(html`<a href="${wp.website}" target="_blank" rel="noopener">Website</a>`);
+  if (wp.google_maps_url) links.push(html`<a href="${wp.google_maps_url}" target="_blank" rel="noopener">Google Maps</a>`);
+  if (links.length) popup += `<div class="waypoint-popup-links">${links.join(' \u00b7 ')}</div>`;
+
+  popup += '</div>';
+  return popup;
+}
