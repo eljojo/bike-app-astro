@@ -34,4 +34,13 @@ export interface AppEnv {
   SES_FROM?: string;
   STRAVA_CLIENT_ID?: string;
   STRAVA_CLIENT_SECRET?: string;
+  // Video transcoding (AWS MediaConvert)
+  MEDIACONVERT_ENDPOINT?: string;
+  MEDIACONVERT_QUEUE?: string;
+  MEDIACONVERT_ROLE?: string;
+  MEDIACONVERT_ACCESS_KEY_ID?: string;
+  MEDIACONVERT_SECRET_ACCESS_KEY?: string;
+  MEDIACONVERT_REGION?: string;
+  S3_ORIGINALS_BUCKET?: string;
+  S3_OUTPUTS_BUCKET?: string;
 }
