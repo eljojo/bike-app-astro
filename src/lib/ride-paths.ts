@@ -55,6 +55,24 @@ export function resolveNewRideSlug(name: string, rideDate: string, tourSlug?: st
 }
 
 /**
+ * Compute a new gpxRelPath by replacing the slug portion of the filename.
+ * Preserves the date prefix and directory structure.
+ *
+ * Examples:
+ *   ("2026/03/23-morning-ride.gpx", "sunrise-ride") → "2026/03/23-sunrise-ride.gpx"
+ *   ("2025/07/euro-tour/15-paris-to-lyon.gpx", "paris-lyon") → "2025/07/euro-tour/15-paris-lyon.gpx"
+ */
+export function renameGpxRelPath(gpxRelPath: string, newSlug: string): string {
+  const parts = gpxRelPath.split('/');
+  const filename = parts[parts.length - 1];
+  // Extract date prefix (DD- or MM-DD-) from filename
+  const dateMatch = filename.match(/^(\d{1,2}-\d{1,2}-|\d{1,2}-)/);
+  const datePrefix = dateMatch ? dateMatch[0] : '';
+  parts[parts.length - 1] = `${datePrefix}${newSlug}.gpx`;
+  return parts.join('/');
+}
+
+/**
  * Extract a name-only ride slug from a relative path.
  * Strips date prefixes to produce URL-friendly slugs matching Rails handles.
  *

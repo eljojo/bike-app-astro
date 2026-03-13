@@ -1,4 +1,6 @@
 import yaml from 'js-yaml';
+import type { FileChange } from './git-service';
+import { CITY } from './config';
 
 interface RedirectEntry {
   from: string;
@@ -39,4 +41,20 @@ export function updateRedirectsYaml(
   entries.push({ from: fromSlug, to: toSlug });
 
   return yaml.dump(data, { lineWidth: -1 });
+}
+
+/**
+ * Build a FileChange that adds a redirect entry to the city's redirects.yml.
+ * Reads the current file via git, applies the redirect, returns the updated file.
+ */
+export async function buildRedirectFileChange(
+  git: { readFile(path: string): Promise<{ content: string } | null> },
+  section: string,
+  fromSlug: string,
+  toSlug: string,
+): Promise<FileChange> {
+  const redirectsPath = `${CITY}/redirects.yml`;
+  const existing = await git.readFile(redirectsPath);
+  const content = updateRedirectsYaml(existing?.content || '', section, fromSlug, toSlug);
+  return { path: redirectsPath, content };
 }

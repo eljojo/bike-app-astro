@@ -11,7 +11,8 @@ import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
-import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug } from '../../lib/ride-paths';
+import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath } from '../../lib/ride-paths';
+import { buildRedirectFileChange } from '../../lib/redirects';
 import { CITY } from '../../lib/config';
 import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema } from '../../lib/models/ride-model';
 import { baseMediaItemSchema } from '../../lib/models/content-model';
@@ -42,6 +43,7 @@ const rideUpdateSchema = z.object({
   body: z.string(),
   media: z.array(baseMediaItemSchema).optional(),
   variants: z.array(rideVariantPayloadSchema).min(1, 'At least one GPX file is required').optional(),
+  newSlug: z.string().optional(),
   contentHash: z.string().optional(),
   gpxRelativePath: z.string().optional(),
 });
@@ -106,14 +108,24 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       return buildFreshRideData(slug, currentFiles);
     },
 
-    async buildFileChanges(update, _slug, currentFiles) {
+    async buildFileChanges(update, _slug, currentFiles, git) {
       if (!gpxRelPath) {
         throw new Error('gpxRelativePath is required for ride saves');
       }
-      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
+      const isNew = !currentFiles.primaryFile;
       const files: FileChange[] = [];
       const deletePaths: string[] = [];
-      const isNew = !currentFiles.primaryFile;
+
+      // Handle slug rename: update gpxRelPath, delete old files, add redirect
+      if (update.newSlug && update.newSlug !== _slug && !isNew) {
+        const oldPaths = rideFilePathsFromRelPath(gpxRelPath, CITY);
+        deletePaths.push(oldPaths.sidecar, oldPaths.media, oldPaths.gpx);
+
+        gpxRelPath = renameGpxRelPath(gpxRelPath, update.newSlug);
+        files.push(await buildRedirectFileChange(git, 'rides', _slug, update.newSlug));
+      }
+
+      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
 
       // Build frontmatter by merging with existing
       let mergedFrontmatter: Record<string, unknown>;

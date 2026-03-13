@@ -17,7 +17,7 @@ import { env } from '../../lib/env';
 import { buildFreshRouteData, computeRouteContentHashFromFiles, adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
-import { updateRedirectsYaml } from '../../lib/redirects';
+import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
@@ -117,16 +117,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
         }
       }
 
-      // Add redirect entry
-      const redirectsPath = `${CITY}/redirects.yml`;
-      const redirectsFile = await git.readFile(redirectsPath);
-      const updatedRedirects = updateRedirectsYaml(
-        redirectsFile?.content || '',
-        'routes',
-        slug,
-        targetSlug,
-      );
-      files.push({ path: redirectsPath, content: updatedRedirects });
+      files.push(await buildRedirectFileChange(git, 'routes', slug, targetSlug));
     }
 
     // Build frontmatter

@@ -294,6 +294,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
       body,
       media,
       variants,
+      ...(slug !== initialData.slug ? { newSlug: slug } : {}),
       gpxRelativePath: initialData.gpxRelativePath,
     }),
     onSuccess: (result) => {
