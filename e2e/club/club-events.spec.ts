@@ -91,6 +91,7 @@ test.describe('Club event detail — past event with results', () => {
     // First checkpoint
     await expect(timeline.locator('.waypoint-timeline-item').first()).toContainText('CP1 Pomaire');
     await expect(timeline.locator('.waypoint-timeline-item').first()).toContainText('85');
+    await expect(timeline.locator('.waypoint-timeline-item').first()).toContainText('Fill bottles here');
 
     // Second checkpoint
     await expect(timeline.locator('.waypoint-timeline-item').nth(1)).toContainText('CP2 Rapel');

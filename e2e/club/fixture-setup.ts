@@ -202,6 +202,7 @@ category: cafe
 lat: -33.64
 lng: -71.17
 address: Plaza de Armas, Pomaire
+description: Traditional pottery village. Good sandwiches at the corner stand.
 ---
 `
   );
@@ -214,6 +215,7 @@ category: restaurant
 lat: -33.95
 lng: -71.62
 address: Ruta 66 km 120, Rapel
+description: Rest stop near the lake.
 ---
 `
   );
@@ -257,6 +259,7 @@ waypoints:
     distance_km: 85
     opening: "08:30"
     closing: "11:40"
+    note: "Fill bottles here — next water is 75 km"
   - place: control-rapel
     type: checkpoint
     label: CP2 Rapel
