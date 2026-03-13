@@ -18,16 +18,20 @@ export interface TranscodeService {
 }
 
 /**
- * Resolution scaling: fit within 1080p, preserving aspect ratio.
+ * Resolution scaling: fit within 1080p (1920x1080), preserving aspect ratio.
+ * Long edge capped at 1920, short edge capped at 1080.
  * MediaConvert requires even dimensions.
  */
 export function outputSize(
   width: number,
   height: number,
 ): { width: number; height: number } {
-  const maxDimension = 1080;
+  const maxLong = 1920;
+  const maxShort = 1080;
   const landscape = width >= height;
-  const scale = maxDimension / (landscape ? width : height);
+  const longEdge = landscape ? width : height;
+  const shortEdge = landscape ? height : width;
+  const scale = Math.min(maxLong / longEdge, maxShort / shortEdge, 1);
   if (scale >= 1) return { width, height };
   return {
     width: Math.round((width * scale) / 2) * 2,
@@ -35,11 +39,10 @@ export function outputSize(
   };
 }
 
-export function createTranscodeService(env: AppEnv): TranscodeService {
+export async function createTranscodeService(env: AppEnv): Promise<TranscodeService> {
   if (process.env.RUNTIME === 'local') {
     return createLocalTranscodeService();
   }
-  // Dynamic import to avoid bundling AWS code locally
-  const { createAwsTranscodeService } = require('./transcode-aws');
+  const { createAwsTranscodeService } = await import('./transcode-aws');
   return createAwsTranscodeService(env);
 }

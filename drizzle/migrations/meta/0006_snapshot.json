@@ -710,8 +710,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "content_type": {
-          "name": "content_type",
+        "content_kind": {
+          "name": "content_kind",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

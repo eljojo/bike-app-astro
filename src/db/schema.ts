@@ -107,7 +107,7 @@ export const stravaTokens = sqliteTable('strava_tokens', {
 export const videoJobs = sqliteTable('video_jobs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   key: text('key').notNull().unique(),
-  contentType: text('content_type').notNull(),
+  contentKind: text('content_kind').notNull(),
   contentSlug: text('content_slug').notNull(),
   jobId: text('job_id'),
   status: text('status').notNull().default('uploading'),

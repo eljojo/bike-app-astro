@@ -31,8 +31,7 @@ describe('loadAdminRouteData routes', () => {
     }
   });
 
-  it('counts only admin-managed media (photos, not videos yet)', async () => {
-    // TODO(C7): update when video management is added
+  it('counts all media items including videos', async () => {
     const { routes } = await loadAdminRouteData();
     const withMedia = routes.find((r) => r.mediaCount > 0);
     expect(withMedia).toBeDefined();
@@ -94,9 +93,8 @@ describe('loadAdminRouteData details', () => {
     }
   });
 
-  it('filters out non-photo media', async () => {
+  it('all media items have a key', async () => {
     const { details } = await loadAdminRouteData();
-    // Find a route with media to verify all items have keys
     const withMedia = Object.values(details).find((d) => d.media.length > 0);
     expect(withMedia).toBeDefined();
     for (const item of withMedia!.media) {

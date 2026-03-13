@@ -46,13 +46,13 @@ export async function POST({ request, locals }: APIContext) {
 
   try {
     const key = crypto.randomUUID().replaceAll('-', '').slice(0, 24);
-    const service = createTranscodeService(env);
+    const service = await createTranscodeService(env);
     const uploadUrl = await service.presignUpload(key, contentType);
 
     const database = db();
     await database.insert(videoJobs).values({
       key,
-      contentType: contentKind || 'route',
+      contentKind: contentKind || 'route',
       contentSlug,
       status: 'uploading',
       title: filename?.replace(/\.[^.]+$/, '') || undefined,

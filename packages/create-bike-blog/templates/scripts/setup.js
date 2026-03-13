@@ -411,6 +411,95 @@ async function stepApiKeys() {
     To send to anyone, request production access in the SES console.
     Example: noreply@yourdomain.com`,
     },
+    // --- Video Transcoding (optional — needed for video uploads) ---
+    {
+      name: 'MEDIACONVERT_ACCESS_KEY_ID', kind: 'secret',
+      description: 'AWS IAM access key for video transcoding (S3 upload + MediaConvert)',
+      howTo: `Video transcoding uses AWS MediaConvert to convert uploaded videos
+    into AV1 + H.264 formats with poster frame extraction.
+
+    You need these AWS resources (one-time setup):
+
+    1. Two S3 buckets (one for originals, one for transcoded output):
+       https://s3.console.aws.amazon.com/s3/buckets
+       → Create bucket (e.g., "myblog-video-originals")
+       → Create another (e.g., "myblog-video-outputs")
+       No public access needed — the app uses presigned URLs.
+       Region: pick one close to you (e.g., us-east-1).
+       Both buckets must be in the same region.
+
+    2. An IAM role for MediaConvert:
+       https://console.aws.amazon.com/iam/home#/roles
+       → Create role → Trusted entity: AWS service → MediaConvert
+       → Attach policy: AmazonS3FullAccess (or scope to your two buckets)
+       → Name it (e.g., "MediaConvertRole")
+       → Copy the Role ARN — you'll need it for MEDIACONVERT_ROLE
+
+    3. An IAM user for the app:
+       https://console.aws.amazon.com/iam/home#/users
+       → Create user (e.g., "myblog-video")
+       → Attach these policies:
+         • AmazonS3FullAccess (or scoped to your two buckets)
+         • AWSElementalMediaConvertFullAccess
+       → Security credentials → Create access key
+         → Choose "Application running outside AWS"
+       → Copy Access Key ID (paste it here) and Secret Access Key (next prompt)
+
+       If you already have keys from a Rails app using the same AWS resources,
+       you can reuse those — the same IAM user works for both.
+
+    4. MediaConvert queue and endpoint:
+       https://console.aws.amazon.com/mediaconvert
+       → The "Default" queue is created automatically
+       → Queues → Default → copy the ARN (for MEDIACONVERT_QUEUE)
+       → Account → API endpoint → copy the https:// URL (for MEDIACONVERT_ENDPOINT)
+
+       The endpoint is account-specific and looks like:
+       https://abcd1234.mediaconvert.us-east-1.amazonaws.com`,
+    },
+    {
+      name: 'MEDIACONVERT_SECRET_ACCESS_KEY', kind: 'secret',
+      description: 'AWS IAM secret key (paired with access key above)',
+      howTo: 'Same IAM user as above — copy "Secret access key" (shown only once when creating the key)',
+    },
+    {
+      name: 'S3_ORIGINALS_BUCKET', kind: 'secret',
+      description: 'S3 bucket name for raw video uploads',
+      howTo: `The bucket name you created in step 1 for originals (e.g., "myblog-video-originals").
+    Just the name, not the full ARN or URL.`,
+    },
+    {
+      name: 'S3_OUTPUTS_BUCKET', kind: 'secret',
+      description: 'S3 bucket name for transcoded video output',
+      howTo: `The bucket name you created in step 1 for outputs (e.g., "myblog-video-outputs").
+    Can be the same bucket as originals if you prefer — transcoded files go into subfolders.`,
+    },
+    {
+      name: 'MEDIACONVERT_QUEUE', kind: 'secret',
+      description: 'ARN of the MediaConvert queue',
+      howTo: `https://console.aws.amazon.com/mediaconvert → Queues → Default → copy the ARN.
+    Looks like: arn:aws:mediaconvert:us-east-1:123456789:queues/Default`,
+    },
+    {
+      name: 'MEDIACONVERT_ROLE', kind: 'secret',
+      description: 'IAM role ARN that MediaConvert assumes to read/write S3',
+      howTo: `The role you created in step 2 above.
+    https://console.aws.amazon.com/iam/home#/roles → find your role → copy the ARN.
+    Looks like: arn:aws:iam::123456789:role/MediaConvertRole`,
+    },
+    {
+      name: 'MEDIACONVERT_ENDPOINT', kind: 'secret',
+      description: 'Account-specific MediaConvert API endpoint URL',
+      howTo: `https://console.aws.amazon.com/mediaconvert → Account → API endpoint.
+    Copy the full https:// URL. It's account-specific and looks like:
+    https://abcd1234.mediaconvert.us-east-1.amazonaws.com`,
+    },
+    {
+      name: 'MEDIACONVERT_REGION', kind: 'var',
+      description: 'AWS region for your S3 buckets and MediaConvert (e.g., us-east-1)',
+      howTo: `The AWS region where you created your S3 buckets and MediaConvert resources.
+    All resources must be in the same region. Common choices: us-east-1, eu-west-1, ap-southeast-2`,
+    },
   ];
 
   // Build auto-detected map (name → {name, value, kind}) for items that aren't already set

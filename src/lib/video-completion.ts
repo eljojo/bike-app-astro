@@ -1,9 +1,9 @@
 /**
- * Background video completion — checks pending video jobs and updates their status.
+ * Video transcoding helpers and background completion processing.
  *
- * Used by the cron API endpoint. When a transcoding job completes (output files
- * appear in the bucket), the job status is updated to 'ready'. Jobs that have
- * been transcoding for more than 2 hours are marked as 'failed'.
+ * Output key conventions: MediaConvert writes transcoded files to
+ * `{key}/{key}-{codec}.mp4` and poster frames to `{key}/{key}-poster.0000000.jpg`.
+ * These helpers centralize that naming so it's defined once.
  */
 
 import { eq } from 'drizzle-orm';
@@ -12,6 +12,26 @@ import type { BucketLike } from './storage';
 import { db } from './get-db';
 import { videoJobs } from '../db/schema';
 
+/** H.264 output key — used to check if transcoding is complete. */
+export function h264OutputKey(key: string): string {
+  return `${key}/${key}-h264.mp4`;
+}
+
+/** Poster frame key — MediaConvert frame capture output. */
+export function posterKeyForVideo(key: string): string {
+  return `${key}/${key}-poster.0000000.jpg`;
+}
+
+/** Check whether the H.264 output file exists in the bucket. */
+export async function checkVideoReady(bucket: BucketLike, key: string): Promise<boolean> {
+  const result = await bucket.head(h264OutputKey(key));
+  return result !== null;
+}
+
+/**
+ * Process pending video jobs — called by the cron endpoint.
+ * Updates completed jobs to 'ready', marks stale ones (>2h) as 'failed'.
+ */
 export async function processPendingVideos(_env: AppEnv): Promise<{ processed: number; ready: number; failed: number }> {
   const database = db();
   const pending = await database
@@ -27,11 +47,10 @@ export async function processPendingVideos(_env: AppEnv): Promise<{ processed: n
     const isReady = await checkVideoReady(_env.BUCKET, job.key);
 
     if (isReady) {
-      const posterKey = `${job.key}/${job.key}-poster.0000000.jpg`;
       await database.update(videoJobs)
         .set({
           status: 'ready',
-          posterKey,
+          posterKey: posterKeyForVideo(job.key),
           updatedAt: new Date().toISOString(),
         })
         .where(eq(videoJobs.id, job.id));
@@ -49,10 +68,4 @@ export async function processPendingVideos(_env: AppEnv): Promise<{ processed: n
   }
 
   return { processed: pending.length, ready, failed };
-}
-
-async function checkVideoReady(bucket: BucketLike, key: string): Promise<boolean> {
-  const h264Key = `${key}/${key}-h264.mp4`;
-  const result = await bucket.head(h264Key);
-  return result !== null;
 }
