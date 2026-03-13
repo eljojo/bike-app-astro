@@ -55,6 +55,22 @@ export function resolveNewRideSlug(name: string, rideDate: string, tourSlug?: st
 }
 
 /**
+ * Append a numeric suffix to a GPX relative path.
+ * "2026/03/13-morning-ride.gpx" + 2 → "2026/03/13-morning-ride-2.gpx"
+ */
+export function suffixGpxRelPath(gpxRelPath: string, n: number): string {
+  return gpxRelPath.replace(/\.gpx$/i, `-${n}.gpx`);
+}
+
+/**
+ * Append a numeric suffix to a ride slug.
+ * "2026-03-13-morning-ride" + 2 → "2026-03-13-morning-ride-2"
+ */
+export function suffixRideSlug(slug: string, n: number): string {
+  return `${slug}-${n}`;
+}
+
+/**
  * Compute a new gpxRelPath by replacing the slug portion of the filename.
  * Preserves the date prefix and directory structure.
  *

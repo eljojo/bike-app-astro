@@ -10,8 +10,8 @@ import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
-import type { FileChange } from '../../lib/git-service';
-import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath } from '../../lib/ride-paths';
+import type { IGitService, FileChange } from '../../lib/git-service';
+import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath, suffixGpxRelPath, suffixRideSlug } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { CITY } from '../../lib/config';
 import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema } from '../../lib/models/ride-model';
@@ -115,6 +115,27 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
 
     buildFreshData(slug: string, currentFiles: CurrentFiles): string {
       return buildFreshRideData(slug, currentFiles);
+    },
+
+    async checkExistence(git: IGitService, contentId: string): Promise<Response | string | null> {
+      if (!gpxRelPath) return null;
+      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
+      const existing = await git.readFile(paths.sidecar);
+      if (!existing) return null;
+
+      // Path collision — find a free slot by appending -2, -3, etc.
+      for (let n = 2; n <= 99; n++) {
+        const candidatePath = suffixGpxRelPath(gpxRelPath, n);
+        const candidatePaths = rideFilePathsFromRelPath(candidatePath, CITY);
+        const found = await git.readFile(candidatePaths.sidecar);
+        if (!found) {
+          gpxRelPath = candidatePath;
+          return suffixRideSlug(contentId, n);
+        }
+      }
+      return new Response(JSON.stringify({ error: 'Too many rides with the same name on this date' }), {
+        status: 409, headers: { 'Content-Type': 'application/json' },
+      });
     },
 
     async buildFileChanges(update, _slug, currentFiles, git) {
@@ -249,5 +270,10 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
 }
 
 export async function POST({ params, request, locals }: APIContext) {
-  return saveContent(request, locals, params, 'rides', createRideHandlers());
+  const handlers = createRideHandlers();
+  // Only deduplicate when creating new rides — editing an existing ride keeps its path
+  const effectiveHandlers = params.slug === 'new'
+    ? handlers
+    : { ...handlers, checkExistence: undefined };
+  return saveContent(request, locals, params, 'rides', effectiveHandlers);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rideFilePathsFromRelPath, rideFilePathsWithTour, renameGpxRelPath } from '../src/lib/ride-paths';
+import { rideFilePathsFromRelPath, rideFilePathsWithTour, renameGpxRelPath, suffixGpxRelPath, suffixRideSlug } from '../src/lib/ride-paths';
 
 describe('rideFilePathsFromRelPath', () => {
   it('returns gpx, sidecar, and media paths from relative GPX path', () => {
@@ -42,6 +42,30 @@ describe('renameGpxRelPath', () => {
   it('handles tour ride slug without date prefix', () => {
     expect(renameGpxRelPath('2025/07/euro-tour/15-paris-to-lyon.gpx', 'paris-lyon'))
       .toBe('2025/07/euro-tour/15-paris-lyon.gpx');
+  });
+});
+
+describe('suffixGpxRelPath', () => {
+  it('appends numeric suffix before .gpx extension', () => {
+    expect(suffixGpxRelPath('2026/03/13-morning-ride.gpx', 2))
+      .toBe('2026/03/13-morning-ride-2.gpx');
+  });
+
+  it('works with tour paths', () => {
+    expect(suffixGpxRelPath('2025/07/euro-tour/15-paris.gpx', 3))
+      .toBe('2025/07/euro-tour/15-paris-3.gpx');
+  });
+});
+
+describe('suffixRideSlug', () => {
+  it('appends numeric suffix to slug', () => {
+    expect(suffixRideSlug('2026-03-13-morning-ride', 2))
+      .toBe('2026-03-13-morning-ride-2');
+  });
+
+  it('works with tour slugs', () => {
+    expect(suffixRideSlug('day-1', 4))
+      .toBe('day-1-4');
   });
 });
 
