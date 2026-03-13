@@ -2,6 +2,8 @@
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
+import { useProgressiveDisclosure } from './useProgressiveDisclosure';
+import { useFormValidation } from './useFormValidation';
 import MarkdownEditor from './MarkdownEditor';
 import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
@@ -107,22 +109,29 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     }))
   );
 
-  // Progressive disclosure — show fields when data exists or user clicks link
-  const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
-  const [showEndDate, setShowEndDate] = useState(!!initialData.end_date);
-  const [showEndTime, setShowEndTime] = useState(!!initialData.end_time);
-  const [showLocation, setShowLocation] = useState(!!initialData.location);
-  const [showDistances, setShowDistances] = useState(!!initialData.distances);
-  const [showRegistration, setShowRegistration] = useState(!!initialData.registration_url);
-  const [showReview, setShowReview] = useState(!!initialData.review_url);
-
   // Organizer state
   const initOrg = resolveOrganizer(initialData.organizer, organizers);
   const [orgSlug, setOrgSlug] = useState(initOrg.slug);
   const [orgName, setOrgName] = useState(initOrg.name);
   const [orgWebsite, setOrgWebsite] = useState(initOrg.website);
   const [orgInstagram, setOrgInstagram] = useState(initOrg.instagram);
-  const [showOrgForm, setShowOrgForm] = useState(initOrg.name !== '');
+
+  // Progressive disclosure — show fields when data exists or user clicks link
+  const disclosure = useProgressiveDisclosure({
+    time: !!(initialData.start_time || initialData.end_time),
+    endDate: !!initialData.end_date,
+    endTime: !!initialData.end_time,
+    location: !!initialData.location,
+    distances: !!initialData.distances,
+    registration: !!initialData.registration_url,
+    review: !!initialData.review_url,
+    orgForm: initOrg.name !== '',
+  });
+
+  const { validate } = useFormValidation([
+    { field: 'event-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: 'event-start-date', check: () => !startDate, message: 'Start date is required' },
+  ]);
 
   // Save state
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
@@ -130,17 +139,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     contentId: initialData.isNew ? null : initialData.id,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) {
-        document.getElementById('event-name')?.focus();
-        return 'Name is required';
-      }
-      if (!startDate) {
-        document.getElementById('event-start-date')?.focus();
-        return 'Start date is required';
-      }
-      return null;
-    },
+    validate,
     buildPayload: () => {
       const payload: EventUpdate = {
         frontmatter: {
@@ -161,7 +160,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         body,
         ...(media.length > 0 && { media }),
       };
-      if (showOrgForm && orgName) {
+      if (disclosure.isOpen('orgForm') && orgName) {
         payload.organizer = {
           slug: orgSlug || slugify(orgName),
           name: orgName,
@@ -185,12 +184,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       setOrgName(org.name);
       setOrgWebsite(org.website || '');
       setOrgInstagram(org.instagram || '');
-      setShowOrgForm(true);
+      disclosure.open('orgForm');
     } else {
       setOrgName('');
       setOrgWebsite('');
       setOrgInstagram('');
-      setShowOrgForm(false);
+      disclosure.close('orgForm');
     }
   }
 
@@ -199,7 +198,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     setOrgName('');
     setOrgWebsite('');
     setOrgInstagram('');
-    setShowOrgForm(true);
+    disclosure.open('orgForm');
   }
 
   return (
@@ -212,20 +211,20 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           </div>
 
           <div class="form-field">
-            <label for="event-start-date">{showEndDate ? 'Start date' : 'Date'}</label>
+            <label for="event-start-date">{disclosure.isOpen('endDate') ? 'Start date' : 'Date'}</label>
             <input id="event-start-date" type="date" value={startDate}
               onInput={(e) => setStartDate((e.target as HTMLInputElement).value)} />
           </div>
 
-          {showTime && (
+          {disclosure.isOpen('time') && (
             <div class="form-field">
-              <label for="event-start-time">{showEndDate ? 'Start time' : 'Time'}</label>
+              <label for="event-start-time">{disclosure.isOpen('endDate') ? 'Start time' : 'Time'}</label>
               <input id="event-start-time" type="time" value={startTime}
                 onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
             </div>
           )}
 
-          {showEndTime && !showEndDate && (
+          {disclosure.isOpen('endTime') && !disclosure.isOpen('endDate') && (
             <div class="form-field">
               <label for="event-end-time">End time</label>
               <input id="event-end-time" type="time" value={endTime}
@@ -233,14 +232,14 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           )}
 
-          {showEndDate && (
+          {disclosure.isOpen('endDate') && (
             <>
               <div class="form-field">
                 <label for="event-end-date">End date</label>
                 <input id="event-end-date" type="date" value={endDate}
                   onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
               </div>
-              {showEndTime && (
+              {disclosure.isOpen('endTime') && (
                 <div class="form-field">
                   <label for="event-end-time">End time</label>
                   <input id="event-end-time" type="time" value={endTime}
@@ -251,15 +250,15 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           )}
 
           <div class="disclosure-links">
-            {!showTime && (
-              <button type="button" class="btn-link" onClick={() => setShowTime(true)}>Set time</button>
+            {!disclosure.isOpen('time') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('time')}>Set time</button>
             )}
-            {showTime && !showEndTime && (
-              <button type="button" class="btn-link" onClick={() => setShowEndTime(true)}>Set end time</button>
+            {disclosure.isOpen('time') && !disclosure.isOpen('endTime') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('endTime')}>Set end time</button>
             )}
-            {!showEndDate && (
+            {!disclosure.isOpen('endDate') && (
               <button type="button" class="btn-link" onClick={() => {
-                setShowEndDate(true);
+                disclosure.open('endDate');
                 if (!endDate) {
                   const next = new Date(startDate);
                   next.setDate(next.getDate() + 1);
@@ -269,7 +268,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             )}
           </div>
 
-          {showLocation && (
+          {disclosure.isOpen('location') && (
             <div class="form-field">
               <label for="event-location">Location</label>
               <input id="event-location" type="text" value={location}
@@ -278,7 +277,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           )}
 
-          {showDistances && (
+          {disclosure.isOpen('distances') && (
             <div class="form-field">
               <label for="event-distances">Distances</label>
               <input id="event-distances" type="text" value={distances}
@@ -287,7 +286,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           )}
 
-          {showRegistration && (
+          {disclosure.isOpen('registration') && (
             <div class="form-field">
               <label for="event-registration">Registration URL</label>
               <input id="event-registration" type="url" value={registrationUrl}
@@ -296,7 +295,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           )}
 
-          {showReview && (
+          {disclosure.isOpen('review') && (
             <div class="form-field">
               <label for="event-review">Review URL</label>
               <input id="event-review" type="url" value={reviewUrl}
@@ -306,17 +305,17 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           )}
 
           <div class="disclosure-links">
-            {!showLocation && (
-              <button type="button" class="btn-link" onClick={() => setShowLocation(true)}>Add location</button>
+            {!disclosure.isOpen('location') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('location')}>Add location</button>
             )}
-            {!showDistances && (
-              <button type="button" class="btn-link" onClick={() => setShowDistances(true)}>Add distance info</button>
+            {!disclosure.isOpen('distances') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('distances')}>Add distance info</button>
             )}
-            {!showRegistration && (
-              <button type="button" class="btn-link" onClick={() => setShowRegistration(true)}>Add registration link</button>
+            {!disclosure.isOpen('registration') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('registration')}>Add registration link</button>
             )}
-            {!showReview && (
-              <button type="button" class="btn-link" onClick={() => setShowReview(true)}>Add review link</button>
+            {!disclosure.isOpen('review') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('review')}>Add review link</button>
             )}
           </div>
 
@@ -384,14 +383,14 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           <div class="form-field">
             <label>Select organizer</label>
             <div class="organizer-select-row">
-              <select value={orgSlug || (showOrgForm && orgName ? '__custom__' : '')}
+              <select value={orgSlug || (disclosure.isOpen('orgForm') && orgName ? '__custom__' : '')}
                 onChange={(e) => {
                   const val = (e.target as HTMLSelectElement).value;
                   if (val === '__custom__') return;
                   selectOrganizer(val);
                 }}>
                 <option value="">-- None --</option>
-                {showOrgForm && orgName && !organizers.find(o => o.slug === orgSlug) && (
+                {disclosure.isOpen('orgForm') && orgName && !organizers.find(o => o.slug === orgSlug) && (
                   <option value="__custom__">{orgName} (custom)</option>
                 )}
                 {organizers.map(o => (
@@ -404,7 +403,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           </div>
 
-          {showOrgForm && (
+          {disclosure.isOpen('orgForm') && (
             <div class="organizer-inline-form">
               <div class="form-field">
                 <label for="org-name">Organizer Name</label>
