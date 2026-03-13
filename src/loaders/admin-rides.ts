@@ -6,7 +6,7 @@ import { cityDir } from '../lib/config';
 import { parseGpx } from '../lib/gpx';
 import { renderMarkdownHtml } from '../lib/markdown-render';
 import type { RouteMedia } from './routes';
-import { computeRideContentHash } from '../lib/models/ride-model';
+import { computeRideContentHash, type RideDetail } from '../lib/models/ride-model';
 import {
   extractDateFromPath,
   detectTours,
@@ -15,38 +15,13 @@ import {
   rideDateToIso,
   nameFromFilename,
 } from './rides';
+import type { AdminRide } from '../types/admin';
+
+export type { AdminRide };
 
 const CITY_DIR = cityDir;
 
-export interface AdminRide {
-  slug: string;
-  name: string;
-  date: string;
-  distance_km: number;
-  elevation_m: number;
-  country?: string;
-  tour_slug?: string;
-  highlight?: boolean;
-  contentHash: string;
-}
-
-export interface AdminRideDetail {
-  slug: string;
-  name: string;
-  tagline: string;
-  tags: string[];
-  status: string;
-  body: string;
-  media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number }>;
-  variants: Array<{ name: string; gpx: string; distance_km?: number }>;
-  contentHash: string;
-  ride_date: string;
-  country?: string;
-  tour_slug?: string;
-  highlight?: boolean;
-  elapsed_time_s?: number;
-  moving_time_s?: number;
-  average_speed_kmh?: number;
+export interface AdminRideDetail extends RideDetail {
   gpxRelativePath?: string;
 }
 

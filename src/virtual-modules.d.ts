@@ -14,16 +14,33 @@
  * collisions with identically named types in application code. This file is
  * ambient (no top-level imports/exports), so all names are globally visible.
  */
+/**
+ * Admin route list item. On blog instances, the admin-routes module serves
+ * ride data instead — ride-specific fields are marked optional so both
+ * shapes satisfy this type.
+ */
 interface _AdminRoute {
   slug: string;
   name: string;
-  mediaCount: number;
   status: string;
   contentHash?: string;
+  // Route-specific (wiki)
+  mediaCount?: number;
   difficultyScore?: number;
+  coverKey?: string;
+  // Ride-specific (blog)
+  date?: string;
+  distance_km?: number;
+  elevation_m?: number;
+  country?: string;
+  tour_slug?: string;
+  highlight?: boolean;
 }
 
-/** Mirrors RouteDetail from src/lib/models/route-model.ts + contentHash */
+/**
+ * Admin route detail. On blog instances, the admin-route-detail module serves
+ * ride details — ride-specific fields are marked optional.
+ */
 interface _AdminRouteDetail {
   slug: string;
   name: string;
@@ -34,6 +51,15 @@ interface _AdminRouteDetail {
   media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number; uploaded_by?: string; captured_at?: string }>;
   contentHash?: string;
   variants?: Array<{ name: string; gpx: string; distance_km?: number; strava_url?: string; rwgps_url?: string; komoot_url?: string }>;
+  // Ride-specific (blog)
+  ride_date?: string;
+  country?: string;
+  tour_slug?: string;
+  highlight?: boolean;
+  elapsed_time_s?: number;
+  moving_time_s?: number;
+  average_speed_kmh?: number;
+  gpxRelativePath?: string;
 }
 
 interface _AdminEvent {

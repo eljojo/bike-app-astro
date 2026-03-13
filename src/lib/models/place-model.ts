@@ -1,6 +1,6 @@
 import { z } from 'astro/zod';
 import matter from 'gray-matter';
-import { computeHashFromParts } from './content-model';
+import { computeHashFromParts, type GitFiles } from './content-model';
 
 export const placeDetailSchema = z.object({
   id: z.string(),
@@ -19,14 +19,7 @@ export const placeDetailSchema = z.object({
 
 export type PlaceDetail = z.infer<typeof placeDetailSchema>;
 
-interface GitFileSnapshot {
-  content: string;
-  sha: string;
-}
-
-export interface PlaceGitFiles {
-  primaryFile: GitFileSnapshot | null;
-}
+export type PlaceGitFiles = GitFiles;
 
 /** Compute content hash for place conflict detection. */
 export function computePlaceContentHash(content: string): string {

@@ -1,7 +1,7 @@
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { computeHashFromParts, baseMediaItemSchema } from './content-model';
+import { computeHashFromParts, baseMediaItemSchema, type GitFiles } from './content-model';
 
 export const adminMediaItemSchema = baseMediaItemSchema.extend({
   uploaded_by: z.string().optional(),
@@ -41,15 +41,7 @@ export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type AdminMediaItem = z.infer<typeof adminMediaItemSchema>;
 export type AdminVariant = z.infer<typeof adminVariantSchema>;
 
-interface GitFileSnapshot {
-  content: string;
-  sha: string;
-}
-
-export interface RouteGitFiles {
-  primaryFile: GitFileSnapshot | null;
-  auxiliaryFiles?: Record<string, GitFileSnapshot | null>;
-}
+export type RouteGitFiles = GitFiles;
 
 /** Compute content hash for route conflict detection. Hashes primary + media + translation content. */
 export function computeRouteContentHash(primaryContent: string, mediaContent: string | undefined, translationContents?: Record<string, string>): string {

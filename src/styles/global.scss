@@ -668,6 +668,7 @@ a.go-back-button {
   .photo-popup-caption {
     color: $color-text-muted-dark;
   }
+  .ride-popup-meta,
   .waypoint-popup-meta,
   .waypoint-popup-description,
   .waypoint-popup-address {
@@ -1787,7 +1788,7 @@ a.go-back-button {
   top: calc(var(--sticky-header-h) + 1rem);
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--color-muted, #888);
+  @include muted-text;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
@@ -1880,12 +1881,12 @@ a.go-back-button {
 
   @include dark-mode {
     color: $color-text-dark;
-    border-color: #555;
+    border-color: $color-border-dark;
   }
 
   &.active {
     background: $color-accent;
-    color: #000;
+    color: $color-text;
     border-color: $color-accent;
   }
 
@@ -1991,6 +1992,10 @@ a.go-back-button {
     border-radius: 4px;
     margin-bottom: 0.5rem;
     padding: 0;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
 
     &[open] summary::after {
       transform: rotate(90deg);
@@ -2345,7 +2350,7 @@ a.go-back-button {
   border: none;
   cursor: pointer;
   font-size: 0.8em;
-  color: #999;
+  @include muted-text;
   padding: 0 0.25rem;
   margin-left: auto;
   &:hover { color: $color-text; }

@@ -49,6 +49,18 @@ export interface RouteOption {
   name: string;
 }
 
+export interface AdminRide {
+  slug: string;
+  name: string;
+  date: string;
+  distance_km: number;
+  elevation_m: number;
+  country?: string;
+  tour_slug?: string;
+  highlight?: boolean;
+  contentHash: string;
+}
+
 /** Tour summary used by ride editor and tour picker. */
 export interface TourSummary {
   slug: string;

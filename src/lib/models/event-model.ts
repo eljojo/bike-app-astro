@@ -1,7 +1,7 @@
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { computeHashFromParts, baseMediaItemSchema } from './content-model';
+import { computeHashFromParts, baseMediaItemSchema, type GitFiles } from './content-model';
 
 const organizerRefSchema = z.object({
   name: z.string(),
@@ -75,15 +75,7 @@ export type EventResult = z.infer<typeof resultDetailSchema>;
 export type EventRegistration = z.infer<typeof registrationDetailSchema>;
 export type EventOrganizerRef = z.infer<typeof organizerRefSchema>;
 
-interface GitFileSnapshot {
-  content: string;
-  sha: string;
-}
-
-export interface EventGitFiles {
-  primaryFile: GitFileSnapshot | null;
-  auxiliaryFiles?: Record<string, GitFileSnapshot | null>;
-}
+export type EventGitFiles = GitFiles;
 
 /** Compute content hash for event conflict detection. Hashes primary content + optional media.yml. */
 export function computeEventContentHash(content: string, mediaContent?: string): string {

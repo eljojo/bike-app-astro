@@ -9,8 +9,8 @@ import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, CurrentFiles } from '../../lib/content-save';
-import type { FileChange } from '../../lib/git-service';
+import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
+import type { IGitService, FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { CITY } from '../../lib/config';
@@ -18,6 +18,9 @@ import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema 
 import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git-gpx';
+import { jsonError } from '../../lib/api-response';
+import { updatePhotoRegistryCache } from '../../lib/photo-parking';
+import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
 
@@ -50,11 +53,17 @@ const rideUpdateSchema = z.object({
 
 export type RideUpdate = z.infer<typeof rideUpdateSchema>;
 
+interface RideBuildResult extends BuildResult {
+  rideSlug: string;
+  addedMediaKeys: string[];
+  removedMediaKeys: string[];
+}
+
 /**
  * Create ride save handlers. Returns a fresh instance per request
  * to safely capture gpxRelativePath from the parsed request body.
  */
-function createRideHandlers(): SaveHandlers<RideUpdate> {
+function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
   let gpxRelPath: string | undefined;
 
   return {
@@ -106,6 +115,16 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
 
     buildFreshData(slug: string, currentFiles: CurrentFiles): string {
       return buildFreshRideData(slug, currentFiles);
+    },
+
+    async checkExistence(git: IGitService): Promise<Response | null> {
+      if (!gpxRelPath) return null;
+      const paths = rideFilePathsFromRelPath(gpxRelPath, CITY);
+      const existing = await git.readFile(paths.sidecar);
+      if (existing) {
+        return jsonError(`Ride already exists at ${gpxRelPath}`, 409);
+      }
+      return null;
     },
 
     async buildFileChanges(update, _slug, currentFiles, git) {
@@ -162,7 +181,9 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
       // Build sidecar .md
       files.push({ path: paths.sidecar, content: serializeMdFile(mergedFrontmatter, update.body) });
 
-      // Build media file
+      // Build media file and track key changes for shared-keys registry
+      let addedMediaKeys: string[] = [];
+      let removedMediaKeys: string[] = [];
       if (update.media) {
         const auxFiles = currentFiles.auxiliaryFiles || {};
         const mediaFilePath = Object.keys(auxFiles).find(p => p.endsWith('-media.yml'));
@@ -171,6 +192,11 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
         if (currentMedia) {
           existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
         }
+
+        const oldKeys = new Set(existingMedia.map(m => m.key as string));
+        const newKeys = new Set(update.media.map(m => m.key));
+        addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
+        removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
 
         const merged = mergeMedia(update.media, existingMedia);
         if (merged.length > 0) {
@@ -181,7 +207,16 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
         }
       }
 
-      return { files, deletePaths, isNew };
+      return { files, deletePaths, isNew, rideSlug: _slug, addedMediaKeys, removedMediaKeys };
+    },
+
+    async afterCommit(result, database) {
+      const { rideSlug, addedMediaKeys, removedMediaKeys } = result;
+      const changes = [
+        ...removedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: rideSlug }, action: 'remove' as const })),
+        ...addedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: rideSlug }, action: 'add' as const })),
+      ];
+      await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes });
     },
 
     buildCommitMessage(update, _slug, isNew): string {
@@ -224,5 +259,10 @@ function createRideHandlers(): SaveHandlers<RideUpdate> {
 }
 
 export async function POST({ params, request, locals }: APIContext) {
-  return saveContent(request, locals, params, 'rides', createRideHandlers());
+  const handlers = createRideHandlers();
+  // Only check for duplicate rides when creating new ones
+  const effectiveHandlers = params.slug === 'new'
+    ? handlers
+    : { ...handlers, checkExistence: undefined };
+  return saveContent(request, locals, params, 'rides', effectiveHandlers);
 }

@@ -176,6 +176,16 @@ Additional gotchas not covered by directory files:
 
 ## Architecture
 
+### Instance Types
+
+The codebase serves three instance types from one codebase: **wiki** (community route database, default), **blog** (personal ride journal), and **club** (randonneuring/event archive). The type is set via `instance_type` in the city's `config.yml`.
+
+**Feature flags, not identity checks.** Use `getInstanceFeatures()` from `src/lib/instance-features.ts` for capability checks (e.g., `features.hasRides`, `features.hasEvents`, `features.allowsRegistration`). Reserve `isBlogInstance()`/`isClubInstance()` for structural decisions like which loaders, virtual modules, or admin routes to register. See `src/lib/AGENTS.md` for details.
+
+**Rides reuse the routes infrastructure.** Blog instances store rides as GPX files with optional sidecar Markdown, but they flow through the same `routes` content collection, the same `admin-routes`/`admin-route-detail` virtual modules, and the same admin editor pipeline. The admin-rides loader (`src/loaders/admin-rides.ts`) populates these modules on blog instances instead of the route loader. Ride-specific types (`RideDetail`, `AdminRideDetail`) extend the shared content model in `src/lib/models/ride-model.ts`.
+
+**Shared content model base.** All content types share `GitFileSnapshot`, `GitFiles`, `computeHashFromParts`, and `baseMediaItemSchema` from `src/lib/models/content-model.ts`. Type-specific models (`route-model.ts`, `ride-model.ts`, `event-model.ts`, `place-model.ts`) extend from these.
+
 ### Content Pipeline
 
 Content lives in a separate data repo (`~/code/bike-routes`) and is loaded via Astro content collections. The `CONTENT_DIR` env var points to it (defaults to `../bike-routes`). The `CITY` env var (defaults to `ottawa`) selects which city's data to load. City config is read from `{CONTENT_DIR}/{CITY}/config.yml`.
@@ -187,6 +197,8 @@ Routes are special — they use a custom loader (`src/loaders/routes.ts`) that:
 - Implements incremental caching via MD5 digest of file mtimes
 - Parses GPX XML and renders markdown at load time
 - Loads locale translations from sidecar files
+
+Rides (blog instances) live under `{CITY}/rides/` as GPX files with optional sidecar `.md` and `-media.yml` files. Tour grouping is detected from directory structure. The rides loader (`src/loaders/rides.ts`) handles GPX parsing and tour detection; the admin rides loader (`src/loaders/admin-rides.ts`) builds tour aggregates and ride stats.
 
 Pages use a custom loader (`src/loaders/pages.ts`). Other collections use Astro's `glob` loader.
 
@@ -258,7 +270,7 @@ Editor → `POST /api/{content-type}/{slug}` → `content-save.ts` orchestrator 
 
 The `SaveHandlers<T, R>` interface (`src/lib/content-save.ts`) has 10 methods: `parseRequest`, `resolveContentId`, `validateSlug?`, `getFilePaths`, `computeContentHash`, `buildFreshData`, `checkExistence?`, `buildFileChanges`, `buildCommitMessage`, `buildGitHubUrl`, `afterCommit?`.
 
-Implementations: `src/views/api/route-save.ts`, `src/views/api/event-save.ts`, `src/views/api/place-save.ts`.
+Implementations: `src/views/api/route-save.ts`, `src/views/api/ride-save.ts`, `src/views/api/event-save.ts`, `src/views/api/place-save.ts`.
 
 Key behaviors:
 - **Conflict detection**: compare-and-swap using blob SHAs in D1 cache
@@ -294,7 +306,7 @@ src/
   integrations/   # Astro integrations (route injection, i18n, build plugins)
   layouts/        # Base.astro (shell with header, nav, footer)
   lib/            # Service modules, adapters, save pipeline, auth
-  lib/models/     # Canonical type defs: route-model.ts, event-model.ts, place-model.ts
+  lib/models/     # Canonical type defs: content-model.ts (shared base), route-model.ts, ride-model.ts, event-model.ts, place-model.ts
   loaders/        # Custom Astro content loaders (routes, pages, admin data)
   schemas/        # Zod schemas for content collections (barrel export via index.ts)
   styles/         # SCSS — _variables.scss is the design token source of truth
