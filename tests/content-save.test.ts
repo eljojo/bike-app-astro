@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SaveHandlers, CurrentFiles } from '../src/lib/content-save';
+import type { SaveHandlers, WithSlugValidation, CurrentFiles } from '../src/lib/content-save';
 
 // Existing handler interface tests (preserved)
 describe('SaveHandlers interface', () => {
-  const testHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
+  const testHandlers: SaveHandlers<{ body: string; contentHash?: string }> & WithSlugValidation = {
     parseRequest: (body: unknown) => body as { body: string; contentHash?: string },
     resolveContentId: (params) => params.slug!,
-    validateSlug: (slug) => slug.length < 2 ? 'Too short' : null,
+    validateSlug: (slug: string) => slug.length < 2 ? 'Too short' : null,
     getFilePaths: (slug) => ({ primary: `test/${slug}.md` }),
     computeContentHash: (files) => `hash-${files.primaryFile?.sha || 'none'}`,
     buildFreshData: (id, files) => JSON.stringify({ id, content: files.primaryFile?.content }),

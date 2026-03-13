@@ -7,7 +7,7 @@ import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath, suffixGpxRelPath, suffixRideSlug } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
@@ -62,7 +62,7 @@ interface RideBuildResult extends BuildResult {
  * Create ride save handlers. Returns a fresh instance per request
  * to safely capture gpxRelativePath from the parsed request body.
  */
-function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
+function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<RideBuildResult> {
   let gpxRelPath: string | undefined;
 
   return {

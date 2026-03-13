@@ -10,7 +10,7 @@ import { parseGpx } from '../../lib/gpx';
 import { CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithAfterCommit } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { commitGpxFile } from '../../lib/git-gpx';
 import { env } from '../../lib/env';
@@ -63,7 +63,7 @@ interface RouteBuildResult extends BuildResult {
   slug: string;
 }
 
-export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
+export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSlugValidation & WithAfterCommit<RouteBuildResult> = {
   parseRequest(body: unknown): RouteUpdate {
     return routeUpdateSchema.parse(body);
   },

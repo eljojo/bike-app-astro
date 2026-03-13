@@ -31,9 +31,6 @@ export interface SaveHandlers<T, R extends BuildResult = BuildResult> {
   /** Resolve the content slug/id from route params and parsed update. */
   resolveContentId(params: Record<string, string | undefined>, update: T): string;
 
-  /** Validate the content slug. Return error message or null. */
-  validateSlug?(slug: string): string | null;
-
   /** Get file paths to read from git. Returns primary path and optional auxiliary paths. */
   getFilePaths(contentId: string): { primary: string; auxiliary?: string[] };
 
@@ -43,15 +40,6 @@ export interface SaveHandlers<T, R extends BuildResult = BuildResult> {
   /** Build fresh data for D1 cache on conflict. */
   buildFreshData(contentId: string, currentFiles: CurrentFiles): string;
 
-  /**
-   * Check for existence conflicts (new content).
-   * Return error Response to abort, a new contentId string to deduplicate, or null to proceed.
-   * Returning a string signals that the original contentId collided and the handler resolved
-   * it to a new unique id (e.g. appending "-2"). The orchestrator will use the new id for
-   * all subsequent steps (file paths, cache keys, response).
-   */
-  checkExistence?(git: IGitService, contentId: string): Promise<Response | string | null>;
-
   /** Build the file changes and delete paths for the git commit. */
   buildFileChanges(
     update: T,
@@ -60,9 +48,6 @@ export interface SaveHandlers<T, R extends BuildResult = BuildResult> {
     git: IGitService,
   ): Promise<R>;
 
-  /** Optional callback invoked after a successful commit with the buildFileChanges result. */
-  afterCommit?(result: R, database: ReturnType<typeof db>): Promise<void>;
-
   /** Build the commit message. */
   buildCommitMessage(update: T, contentId: string, isNew: boolean, currentFiles: CurrentFiles): string;
 
@@ -70,12 +55,24 @@ export interface SaveHandlers<T, R extends BuildResult = BuildResult> {
   buildGitHubUrl(contentId: string, baseBranch: string): string;
 }
 
+export interface WithSlugValidation {
+  validateSlug(slug: string): string | null;
+}
+
+export interface WithExistenceCheck {
+  checkExistence(git: IGitService, contentId: string): Promise<Response | string | null>;
+}
+
+export interface WithAfterCommit<R extends BuildResult = BuildResult> {
+  afterCommit(result: R, database: ReturnType<typeof db>): Promise<void>;
+}
+
 export async function saveContent<T extends { contentHash?: string }, R extends BuildResult = BuildResult>(
   request: Request,
   locals: APIContext['locals'],
   params: Record<string, string | undefined>,
   contentType: string,
-  handlers: SaveHandlers<T, R>,
+  handlers: SaveHandlers<T, R> & Partial<WithSlugValidation & WithExistenceCheck & WithAfterCommit<R>>,
 ): Promise<Response> {
   const auth = await authenticateAndParse(request, locals, params, handlers);
   if (auth instanceof Response) return auth;
@@ -92,7 +89,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
       branch: baseBranch,
     });
 
-    if (handlers.checkExistence) {
+    if ('checkExistence' in handlers && handlers.checkExistence) {
       const result = await handlers.checkExistence(git, contentId);
       if (result instanceof Response) return result;
       if (typeof result === 'string') contentId = result;
@@ -128,7 +125,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
 
     const response = await updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
 
-    if (response.ok && handlers.afterCommit) {
+    if (response.ok && 'afterCommit' in handlers && handlers.afterCommit) {
       try {
         await handlers.afterCommit(buildResult, database);
       } catch (err) {
@@ -148,7 +145,7 @@ async function authenticateAndParse<T, R extends BuildResult>(
   request: Request,
   locals: APIContext['locals'],
   params: Record<string, string | undefined>,
-  handlers: SaveHandlers<T, R>,
+  handlers: SaveHandlers<T, R> & Partial<WithSlugValidation>,
 ): Promise<{ user: SessionUser; update: T; contentId: string } | Response> {
   const user = authorize(locals, 'edit-content');
   if (user instanceof Response) return user;
@@ -174,7 +171,7 @@ async function authenticateAndParse<T, R extends BuildResult>(
   }
 
   const contentId = handlers.resolveContentId(params, update);
-  if (handlers.validateSlug) {
+  if ('validateSlug' in handlers && handlers.validateSlug) {
     const slugError = handlers.validateSlug(contentId);
     if (slugError) return jsonError(slugError);
   }
