@@ -60,7 +60,6 @@ if (isMain) {
   const vars = {
     FOLDER: pkg.name,
     DOMAIN: readYamlField(configPath, 'domain'),
-    USERNAME: 'blog',
     TIMEZONE: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
 
