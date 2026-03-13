@@ -170,7 +170,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(isClub && eventResults.length > 0 && { results: eventResults }),
         },
         body,
-        ...(isClub && media.length > 0 && { media }),
+        ...(media.length > 0 && { media }),
       };
       if (showOrgForm && orgName) {
         payload.organizer = {
@@ -362,14 +362,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         />
       )}
 
-      {isClub && (
-        <EventMediaSection
-          media={media}
-          onMediaChange={setMedia}
-          cdnUrl={cdnUrl}
-          userRole={userRole}
-        />
-      )}
+      <EventMediaSection
+        media={media}
+        onMediaChange={setMedia}
+        cdnUrl={cdnUrl}
+        userRole={userRole}
+      />
 
       {isClub && placeOptions.length > 0 && (
         <section class="editor-section">
