@@ -45,17 +45,10 @@ function hasWrangler() {
 }
 
 function readDomain() {
-  // Config lives in {username}/config.yml — find the directory containing it
   try {
-    for (const entry of fs.readdirSync('.', { withFileTypes: true })) {
-      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-      const configPath = `${entry.name}/config.yml`;
-      if (fs.existsSync(configPath)) {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        const match = content.match(/^domain:\s*(.+)$/m);
-        if (match) return match[1].trim();
-      }
-    }
+    const content = fs.readFileSync('blog/config.yml', 'utf-8');
+    const match = content.match(/^domain:\s*(.+)$/m);
+    if (match) return match[1].trim();
   } catch { /* ignore */ }
   return null;
 }
