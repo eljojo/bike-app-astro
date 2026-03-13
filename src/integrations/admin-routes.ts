@@ -60,6 +60,11 @@ const routes = [
     { pattern: '/api/strava/activities', entrypoint: view('api/strava/activities.ts') },
     { pattern: '/api/strava/import', entrypoint: view('api/strava/import.ts') },
   ] : []),
+  // Video API (static routes before parameterized)
+  { pattern: '/api/video/presign', entrypoint: view('api/video-presign.ts') },
+  { pattern: '/api/video/transcode', entrypoint: view('api/video-transcode.ts') },
+  { pattern: '/api/video/upload-local', entrypoint: view('api/video-upload-local.ts') },
+  { pattern: '/api/video/status/[key]', entrypoint: view('api/video-status.ts') },
   // Media API
   { pattern: '/api/media/presign', entrypoint: view('api/media/presign.ts') },
   { pattern: '/api/media/confirm', entrypoint: view('api/media/confirm.ts') },
