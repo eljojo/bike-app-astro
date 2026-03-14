@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makePreview } from '../src/lib/markdown-preview';
+import { makePreview } from '../src/lib/markdown/markdown-preview';
 
 describe('makePreview', () => {
   it('returns empty array for undefined', () => {

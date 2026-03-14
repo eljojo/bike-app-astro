@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config';
-import { renderMarkdownHtml } from '../lib/markdown-render';
+import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 
 export function pageLoader(): Loader {
   return {
