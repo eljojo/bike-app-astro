@@ -57,29 +57,8 @@ test.describe('Route Creation', () => {
     const gpxPath = path.join(FIXTURE_DIR, 'demo/routes/carp/main.gpx');
     await gpxInput.setInputFiles(gpxPath);
 
-    // Wait for the map element to appear in DOM, then diagnose visibility
+    // Wait for the map preview to be visible
     const previewMap = page.locator('.route-preview-map');
-    await previewMap.waitFor({ state: 'attached', timeout: 15000 });
-
-    // Diagnostic: capture bounding box and computed styles
-    const diag = await previewMap.evaluate((el) => {
-      const rect = el.getBoundingClientRect();
-      const style = window.getComputedStyle(el);
-      return {
-        rect: { width: rect.width, height: rect.height, top: rect.top, left: rect.left },
-        display: style.display,
-        visibility: style.visibility,
-        overflow: style.overflow,
-        opacity: style.opacity,
-        position: style.position,
-        classes: el.className,
-        parentRect: el.parentElement?.getBoundingClientRect(),
-        parentDisplay: el.parentElement ? window.getComputedStyle(el.parentElement).display : null,
-        grandparentRect: el.parentElement?.parentElement?.getBoundingClientRect(),
-      };
-    });
-    console.log('MAP DIAGNOSTICS:', JSON.stringify(diag, null, 2));
-
     await expect(previewMap).toBeVisible({ timeout: 15000 });
 
     // Stats should be visible
