@@ -434,6 +434,32 @@ Build integrations in `astro.config.mjs`: `copy-map-cache`, `generate-redirects`
 - Do not auto-commit — wait for explicit instructions
 - PNGs are tracked with Git LFS
 
+### Commit Granularity — Tell a Story
+
+Each commit should be a **coherent, shippable unit of work** that a reviewer can understand on its own. Group meaningfully connected changes. The goal is to aid human review — someone reading `git log` should see a narrative of features and fixes, not a play-by-play of implementation steps.
+
+**The test:** Could this commit be cherry-picked to another branch and make sense? If not, it's probably too granular.
+
+**Group these into one commit:**
+
+- **Extract + wire.** Creating a helper/module and using it is one logical change. Don't commit the extraction separately from the code that uses it. `extract route-file-reader with tests` + `wire into public loader` + `wire into admin loader` = one commit: `refactor: use shared route-file-reader in both loaders`.
+
+- **Schema + pipeline + UI for one feature.** Adding a field to a schema, threading it through the data pipeline, rendering it in the UI, and styling it is one feature. Waypoint popups (schema → popup builder → map integration → styles → editor) should be 1–2 commits, not 7.
+
+- **Code change + its test updates.** If your change breaks tests, fix them in the same commit. A date-prefix feature and the test updates it requires are one commit.
+
+- **Code change + its docs.** Header comments, AGENTS.md updates, and doc changes that describe the code you just wrote belong in the same commit.
+
+- **Mechanical refactors across multiple files.** Moving 12 modules into subdirectories can be 2–3 commits grouped by theme (e.g., infrastructure modules, domain modules), not one per file.
+
+**Keep separate when:**
+
+- Changes are truly independent (a bugfix and an unrelated feature)
+- A commit would be too large to review (~400+ lines of non-mechanical changes)
+- Different changes have different risk profiles (safe refactor vs. behaviour change)
+
+**Plan steps ≠ commits.** Implementation plans break work into small steps for clarity and testability. That doesn't mean each step is a commit. Steps are how you work; commits are how you communicate what changed.
+
 ## Related Repos
 
 - `~/code/bike-app` — Rails app (production source of truth for CSS matching). Plans/design docs go in `~/code/bike-app/docs/plans/`
