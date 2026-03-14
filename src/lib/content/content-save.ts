@@ -1,16 +1,16 @@
 import type { APIContext } from 'astro';
-import { env } from './env/env.service';
-import { createGitService } from './git/git-factory';
-import { db } from './get-db';
-import { contentEdits } from '../db/schema';
+import { env } from '../env/env.service';
+import { createGitService } from '../git/git-factory';
+import { db } from '../get-db';
+import { contentEdits } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CITY } from './config/config';
-import { jsonResponse, jsonError } from './api-response';
-import { computeBlobSha } from './git/git.adapter-github';
-import type { IGitService, FileChange } from './git/git.adapter-github';
-import type { SessionUser } from './auth/auth';
-import { authorize, can } from './auth/authorize';
-import { buildAuthorEmail } from './git/commit-author';
+import { CITY } from '../config/config';
+import { jsonResponse, jsonError } from '../api-response';
+import { computeBlobSha } from '../git/git.adapter-github';
+import type { IGitService, FileChange } from '../git/git.adapter-github';
+import type { SessionUser } from '../auth/auth';
+import { authorize, can } from '../auth/authorize';
+import { buildAuthorEmail } from '../git/commit-author';
 import { upsertContentCache } from './cache';
 
 export interface CurrentFiles {

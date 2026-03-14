@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPhotoKeyChanges, computeMediaKeyDiff, buildMediaKeyChanges, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../src/lib/save-helpers';
+import { buildPhotoKeyChanges, computeMediaKeyDiff, buildMediaKeyChanges, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../src/lib/content/save-helpers';
 
 describe('buildPhotoKeyChanges', () => {
   it('returns empty array when keys are the same', () => {

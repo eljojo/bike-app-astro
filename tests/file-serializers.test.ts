@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serializeMdFile, serializeYamlFile } from '../src/lib/file-serializers';
+import { serializeMdFile, serializeYamlFile } from '../src/lib/content/file-serializers';
 
 describe('serializeMdFile', () => {
   it('serializes frontmatter + body', () => {

@@ -40,7 +40,7 @@ if (features.hasEnrichedEvents) {
     .slice(0, 5);
 } else if (features.hasRides) {
   const { getCollection } = await import('astro:content');
-  const { isPublished } = await import('@/lib/content-filters');
+  const { isPublished } = await import('@/lib/content/content-filters');
   const allRoutes = await getCollection('routes');
   const published = allRoutes
     .filter(isPublished)

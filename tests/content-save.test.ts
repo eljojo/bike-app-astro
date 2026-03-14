@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SaveHandlers, WithSlugValidation, CurrentFiles } from '../src/lib/content-save';
+import type { SaveHandlers, WithSlugValidation, CurrentFiles } from '../src/lib/content/content-save';
 
 // Existing handler interface tests (preserved)
 describe('SaveHandlers interface', () => {
@@ -117,7 +117,7 @@ vi.mock('../src/lib/get-db', () => ({
   }),
 }));
 
-const { saveContent } = await import('../src/lib/content-save');
+const { saveContent } = await import('../src/lib/content/content-save');
 
 function makeRequest(body: object): Request {
   return new Request('http://localhost/api/test', {

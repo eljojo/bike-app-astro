@@ -2,12 +2,12 @@
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
-import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
+import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
 import { mergeMedia } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env/env.service';
-import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
+import { saveContent } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
 import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath, suffixGpxRelPath, suffixRideSlug } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
@@ -19,7 +19,7 @@ import { commitGpxFile } from '../../lib/git/git-gpx';
 
 import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
-import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/save-helpers';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
 
 export const prerender = false;
 

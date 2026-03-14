@@ -3,7 +3,7 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
-import { isPublished } from '@/lib/content-filters';
+import { isPublished } from '@/lib/content/content-filters';
 import { t } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';

@@ -1,6 +1,6 @@
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import type { PhotoUsage } from './media/photo-registry';
+import type { PhotoUsage } from '../media/photo-registry';
 
 export interface PhotoKeyChange {
   key: string;

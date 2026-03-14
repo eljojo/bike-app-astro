@@ -5,7 +5,7 @@ import { CITY } from '../src/lib/config/config';
 vi.mock('../src/lib/env/env.service', () => ({ env: { GITHUB_TOKEN: 'test', GIT_BRANCH: 'main' } }));
 
 import yaml from 'js-yaml';
-import type { CurrentFiles } from '../src/lib/content-save';
+import type { CurrentFiles } from '../src/lib/content/content-save';
 
 const { routeHandlers } = await import('../src/views/api/route-save');
 

@@ -1,6 +1,6 @@
 import type { AstroIntegration } from 'astro';
 import { isBlogInstance } from '../lib/config/city-config';
-import { getContentTypes } from '../lib/content-types';
+import { getContentTypes } from '../lib/content/content-types';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;

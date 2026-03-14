@@ -4,13 +4,13 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
-import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
+import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { CITY } from '../../lib/config/config';
 import { jsonError } from '../../lib/api-response';
-import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content-save';
+import { saveContent } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { commitGpxFile } from '../../lib/git/git-gpx';
 import { env } from '../../lib/env/env.service';
@@ -21,7 +21,7 @@ import { routeOps } from '../../lib/content-ops';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
-import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/save-helpers';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
 
 export const prerender = false;
 

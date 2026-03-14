@@ -23,7 +23,7 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 describe('loadAdminContent', () => {
-  let loadAdminContent: typeof import('../src/lib/load-admin-content').loadAdminContent;
+  let loadAdminContent: typeof import('../src/lib/content/load-admin-content').loadAdminContent;
 
   const virtualData = {
     'test-slug': { name: 'Virtual Route', slug: 'test-slug' },
@@ -38,7 +38,7 @@ describe('loadAdminContent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockDbSelect.mockResolvedValue(null);
-    const mod = await import('../src/lib/load-admin-content');
+    const mod = await import('../src/lib/content/load-admin-content');
     loadAdminContent = mod.loadAdminContent;
   });
 
