@@ -53,6 +53,13 @@ export default defineConfig({
             { label: 'Moderation', slug: 'guides/moderation' },
           ],
         },
+        {
+          label: 'Experimental',
+          items: [
+            { label: 'Bike blog', slug: 'experimental/bike-blog' },
+            { label: 'Club instance', slug: 'experimental/club-instance' },
+          ],
+        },
       ],
     }),
   ],

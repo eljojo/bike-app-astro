@@ -21,7 +21,6 @@ jobs:
       - name: Checkout astro repo
         uses: actions/checkout@v6
         with:
-          lfs: true
           ref: ${{ github.head_ref || github.ref }}
 
       - name: Checkout data repo
@@ -35,6 +34,16 @@ jobs:
       - name: LFS cache period
         id: lfs-period
         run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore app repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-app-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-app-
+
+      - name: Pull app repo LFS files
+        run: git lfs pull
 
       - name: Restore data repo LFS cache
         uses: actions/cache@v5
@@ -79,7 +88,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-demo-${{ hashFiles('bike-routes/demo/routes/**') }}
+          key: astro-demo-${{ hashFiles('bike-routes/demo/**') }}
           restore-keys: |
             astro-demo-
 
@@ -87,7 +96,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx') }}
+          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/map-paths.ts') }}
           restore-keys: |
             maps-demo-
 
@@ -124,6 +133,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-
 
       - name: Cache Microsoft core fonts
         id: msfonts-cache
@@ -165,6 +175,16 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Run blog E2E tests
+        run: >-
+          npx playwright test --config e2e/blog/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+
+      - name: Run club E2E tests
+        run: >-
+          npx playwright test --config e2e/club/fixture.ts
+          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+
       - name: Update screenshot baselines
         id: update-screenshots
         if: ${{ inputs.update-screenshots }}
@@ -175,7 +195,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/
+          git add e2e/snapshots/ e2e/admin/admin-screenshots.spec.ts-snapshots/ e2e/blog/blog-screenshots.spec.ts-snapshots/ e2e/club/club-screenshots.spec.ts-snapshots/
           if git diff --cached --quiet; then
             echo "No screenshot changes"
             exit 0

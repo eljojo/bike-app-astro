@@ -1,0 +1,11 @@
+{
+  "name": "create-bike-blog",
+  "version": "0.1.0",
+  "description": "Scaffold a new whereto.bike cycling blog",
+  "type": "module",
+  "bin": {
+    "create-bike-blog": "./index.js"
+  },
+  "files": ["index.js", "sync.js", "templates/"],
+  "license": "AGPL-3.0"
+}

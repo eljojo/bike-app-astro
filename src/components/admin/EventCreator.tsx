@@ -2,17 +2,11 @@ import { useState, useRef, useCallback } from 'preact/hooks';
 import EventEditor from './EventEditor';
 import { useFileUpload } from '../../lib/hooks';
 import type { EventDetail } from '../../lib/models/event-model';
-
-interface OrganizerData {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
+import type { AdminOrganizer } from '../../types/admin';
 
 interface Props {
   cdnUrl: string;
-  organizers: OrganizerData[];
+  organizers: AdminOrganizer[];
   copyData?: Partial<EventDetail>;
 }
 
@@ -173,6 +167,10 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
       poster_key: posterKey,
       poster_content_type: posterContentType,
       body: (source.body as string) || '',
+      routes: (source.routes as string[]) || [],
+      waypoints: (source.waypoints as EventDetail['waypoints']) || [],
+      results: (source.results as EventDetail['results']) || [],
+      media: (source.media as EventDetail['media']) || [],
       isNew: true,
     };
   }

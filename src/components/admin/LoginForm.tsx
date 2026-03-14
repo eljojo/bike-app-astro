@@ -9,14 +9,15 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
   const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'passkey' | 'email'>('passkey');
+  const [emailSent, setEmailSent] = useState(false);
 
-  async function handleSubmit(e: Event) {
+  async function handlePasskeyLogin(e: Event) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // Step 1: Get login options
       const optionsRes = await fetch('/api/auth/login-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -29,11 +30,8 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
       }
 
       const options = await optionsRes.json();
-
-      // Step 2: Start passkey ceremony
       const credential = await startAuthentication({ optionsJSON: options });
 
-      // Step 3: Verify with server
       const verifyRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -45,7 +43,6 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Success — redirect
       window.location.href = returnTo;
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'NotAllowedError') {
@@ -58,23 +55,73 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
     }
   }
 
+  async function handleEmailLogin(e: Event) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/email-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: identifier }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to send login email');
+      }
+
+      setEmailSent(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send login email');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (emailSent) {
+    return (
+      <div class="auth-form">
+        <div class="auth-success">
+          Check your email for a sign-in link. It expires in 15 minutes.
+        </div>
+        <button type="button" class="auth-mode-toggle" onClick={() => { setEmailSent(false); setMode('passkey'); }}>
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <form class="auth-form" onSubmit={handleSubmit}>
+    <form class="auth-form" onSubmit={mode === 'passkey' ? handlePasskeyLogin : handleEmailLogin}>
       {error && <div class="auth-error">{error}</div>}
       <div class="form-field">
-        <label for="identifier">Email or username</label>
+        <label for="identifier">{mode === 'email' ? 'Email' : 'Email or username'}</label>
         <input
           id="identifier"
-          type="text"
+          type={mode === 'email' ? 'email' : 'text'}
           value={identifier}
           onInput={(e) => setIdentifier((e.target as HTMLInputElement).value)}
           required
-          autoComplete="username webauthn"
+          autoComplete={mode === 'email' ? 'email' : 'username webauthn'}
           autoFocus
         />
       </div>
       <button type="submit" class="btn-primary" disabled={loading}>
-        {loading ? 'Signing in...' : 'Sign in with passkey'}
+        {loading
+          ? 'Signing in...'
+          : mode === 'passkey'
+            ? 'Sign in with passkey'
+            : 'Send sign-in link'
+        }
+      </button>
+      <button
+        type="button"
+        class="auth-mode-toggle"
+        onClick={() => { setMode(mode === 'passkey' ? 'email' : 'passkey'); setError(''); }}
+      >
+        {mode === 'passkey' ? 'Sign in with email instead' : 'Sign in with passkey instead'}
       </button>
     </form>
   );

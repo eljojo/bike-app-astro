@@ -25,3 +25,14 @@ export function supportedLocales(): LocaleShort[] {
   const all = config.locales || [config.locale];
   return all.map(shortLocale);
 }
+
+/** Get the human-readable display name for a locale, capitalised (e.g. 'fr' → 'Français') */
+export function localeLabel(locale: string): string {
+  try {
+    const display = new Intl.DisplayNames([locale], { type: 'language' });
+    const name = display.of(locale);
+    return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
+  } catch {
+    return locale;
+  }
+}

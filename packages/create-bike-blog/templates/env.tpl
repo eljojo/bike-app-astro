@@ -1,0 +1,4 @@
+CONTENT_DIR=.
+CITY=blog
+RUNTIME=local
+SITE_URL=https://{{DOMAIN}}

@@ -1,0 +1,83 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import EventCard from '@/components/EventCard.astro';
+import { getCollection } from 'astro:content';
+import { parseLocalDate } from '@/lib/date-utils';
+import { getCityConfig } from '@/lib/city-config';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+const events = await getCollection('events');
+const now = new Date();
+
+const upcoming = events
+  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
+  .sort((a, b) => parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime());
+
+const past = events
+  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
+  .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime());
+
+function groupByYear(evts: typeof events) {
+  const groups: Record<number, typeof events> = {};
+  for (const e of evts) {
+    const year = parseLocalDate(e.data.start_date).getFullYear();
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(e);
+  }
+  return Object.entries(groups)
+    .sort(([a], [b]) => Number(b) - Number(a));
+}
+
+const pastByYear = groupByYear(past);
+---
+
+<Base title={`${t('events.title', locale)} | ${config.display_name}`}>
+  <h1>{t('events.title', locale)}</h1>
+
+  {upcoming.length > 0 ? (
+    <div class="events-grid">
+      {upcoming.map(e => (
+        <EventCard
+          name={e.data.name}
+          start_date={e.data.start_date}
+          end_date={e.data.end_date}
+          distances={e.data.distances}
+          location={e.data.location}
+          registration_url={e.data.registration?.url || e.data.registration_url}
+          organizer={e.data.organizer}
+          poster_key={e.data.poster_key}
+          eventId={e.id}
+          href={paths.event(e.id, locale)}
+        />
+      ))}
+    </div>
+  ) : (
+    <p>{t('events.no_upcoming', locale)}</p>
+  )}
+
+  {pastByYear.length > 0 && pastByYear.map(([year, evts]) => (
+    <div>
+      <h2>{year}</h2>
+      <div class="events-grid">
+        {evts.map(e => (
+          <EventCard
+            name={e.data.name}
+            start_date={e.data.start_date}
+            end_date={e.data.end_date}
+            distances={e.data.distances}
+            location={e.data.location}
+            organizer={e.data.organizer}
+            poster_key={e.data.poster_key}
+            eventId={e.id}
+            href={paths.event(e.id, locale)}
+          />
+        ))}
+      </div>
+    </div>
+  ))}
+</Base>

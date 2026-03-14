@@ -34,6 +34,15 @@ describe('routeDetailFromGit', () => {
     expect(result.variants).toEqual([{ name: 'Main', gpx: 'main.gpx', distance_km: 12.5 }]);
   });
 
+  it('preserves komoot_url in variants', () => {
+    const frontmatter = {
+      name: 'Test', status: 'published', distance_km: 10,
+      variants: [{ name: 'Main', gpx: 'route.gpx', komoot_url: 'https://www.komoot.com/tour/123' }],
+    };
+    const result = routeDetailFromGit('test', frontmatter, '', '');
+    expect(result.variants[0].komoot_url).toBe('https://www.komoot.com/tour/123');
+  });
+
   it('handles missing optional fields', () => {
     const result = routeDetailFromGit('minimal', { name: 'Min', status: 'draft' }, '', '');
     expect(result.tagline).toBe('');

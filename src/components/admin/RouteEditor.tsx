@@ -1,19 +1,22 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
+import MarkdownEditor from './MarkdownEditor';
 import NearbyPhotos from './NearbyPhotos';
-import SaveSuccessModal from './SaveSuccessModal';
+import EditorActions from './EditorActions';
 import { useEditorState } from './useEditorState';
+import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
-import { slugify } from '../../lib/slug';
+import SlugEditor from './SlugEditor';
 import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
 import { toParkedEntry } from '../../lib/media-merge';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
+import { localeLabel } from '../../lib/locale-utils';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
@@ -23,10 +26,11 @@ interface Props {
   knownTags?: string[];
   defaultLocale?: string;
   userRole?: string;
+  showLicenseNotice?: boolean;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -39,8 +43,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [deletedParkedKeys, setDeletedParkedKeys] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const [slug, setSlug] = useState(initialData.slug);
-  const [editingSlug, setEditingSlug] = useState(false);
-  const canEditSlug = userRole !== 'guest';
 
   const [activeLocale, setActiveLocale] = useState(defaultLocale);
   const [translations, setTranslations] = useState<Record<string, { name: string; tagline: string; body: string }>>(
@@ -52,17 +54,8 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     )
   );
 
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (bodyRef.current && !bodyRef.current.value) {
-      bodyRef.current.value = getField('body');
-    }
-  }, [activeLocale]);
-
-  const [dragging, setDragging] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
-  const dragCounterRef = useRef(0);
 
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/routes',
@@ -104,48 +97,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     },
   });
 
-  useEffect(() => {
-    function handleDragEnter(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current++;
-      if (e.dataTransfer?.types.includes('Files')) {
-        setDragging(true);
-      }
-    }
-    function handleDragLeave(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current--;
-      if (dragCounterRef.current === 0) {
-        setDragging(false);
-      }
-    }
-    function handleDragOver(e: DragEvent) {
-      e.preventDefault();
-    }
-    function handleDrop(e: DragEvent) {
-      e.preventDefault();
-      dragCounterRef.current = 0;
-      setDragging(false);
-      const files = e.dataTransfer?.files;
-      if (files?.length) {
-        const allFiles = Array.from(files);
-        const imageFiles = allFiles.filter(f => f.type.startsWith('image/'));
-        const gpxFiles = allFiles.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-        if (imageFiles.length > 0) setPendingFiles(imageFiles);
-        if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
-      }
-    }
-    document.addEventListener('dragenter', handleDragEnter);
-    document.addEventListener('dragleave', handleDragLeave);
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('drop', handleDrop);
-    return () => {
-      document.removeEventListener('dragenter', handleDragEnter);
-      document.removeEventListener('dragleave', handleDragLeave);
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('drop', handleDrop);
-    };
-  }, []);
+  const { dragging } = useDragDrop((files) => {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    const gpxFiles = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
+    if (imageFiles.length > 0) setPendingFiles(imageFiles);
+    if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
+  });
 
   function getField(field: 'name' | 'tagline' | 'body'): string {
     if (activeLocale === defaultLocale) {
@@ -168,16 +125,6 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
         [field]: value,
       },
     }));
-  }
-
-  function localeLabel(locale: string): string {
-    try {
-      const display = new Intl.DisplayNames([locale], { type: 'language' });
-      const name = display.of(locale);
-      return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
-    } catch {
-      return locale;
-    }
   }
 
   function displayTag(tag: string): string {
@@ -248,24 +195,9 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
             />
           </div>
 
-          {canEditSlug && (
+          {userRole !== 'guest' && (
             <div class="editor-slug">
-              {editingSlug ? (
-                <div class="editor-slug-edit">
-                  <span class="editor-slug-prefix">/routes/</span>
-                  <input
-                    type="text"
-                    value={slug}
-                    onInput={(e) => setSlug(slugify((e.target as HTMLInputElement).value))}
-                    class="editor-slug-input"
-                  />
-                  <button type="button" class="btn-small" onClick={() => setEditingSlug(false)}>Done</button>
-                </div>
-              ) : (
-                <button type="button" class="editor-slug-toggle" onClick={() => setEditingSlug(true)}>
-                  Edit URL ›
-                </button>
-              )}
+              <SlugEditor slug={slug} onSlugChange={setSlug} prefix="/routes/" />
               {slug !== initialData.slug && (
                 <span class="editor-slug-changed">URL will change — old URL will redirect</span>
               )}
@@ -341,19 +273,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           )}
 
           <div class="form-field">
-            <label for="route-body">
-              Body (markdown)
-              {' · '}
-              <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" class="btn-link">
-                formatting help
-              </a>
-            </label>
-            <textarea
-              key={`body-${activeLocale}`}
-              ref={bodyRef}
+            <label for="route-body">Body (markdown)</label>
+            <MarkdownEditor
               id="route-body"
               value={getField('body')}
-              onInput={(e) => setField('body', (e.target as HTMLTextAreaElement).value)}
+              onChange={(text) => setField('body', text)}
+              textareaKey={`body-${activeLocale}`}
               rows={12}
             />
           </div>
@@ -416,50 +341,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
         />
       </section>
 
-      <div class="editor-actions">
-        {error && !githubUrl && (
-          <div class="auth-error">{error}</div>
-        )}
-        {githubUrl && (
-          <div class="conflict-notice">
-            <strong>Save blocked — this route was changed on GitHub</strong>
-            <p>
-              Someone (or an automated process) modified this route's files on GitHub
-              since you started editing. Your changes are still in the form above — nothing was lost.
-            </p>
-            <p><strong>To resolve this:</strong></p>
-            <ol>
-              <li>Open the file on GitHub to see what changed</li>
-              <li>Copy your edits from the form above (they're safe until you navigate away)</li>
-              <li>Either apply your changes directly on GitHub, or wait for the site to rebuild, then reload this page and re-enter your edits</li>
-            </ol>
-            <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary" style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
-              View file on GitHub
-            </a>
-          </div>
-        )}
-        {saved && userRole === 'guest' && (
-          <SaveSuccessModal viewLink={`/routes/${initialData.slug}`} />
-        )}
-        {saved && userRole !== 'guest' && (
-          <div class="save-success">
-            Saved! Your edit will be live in a few minutes.
-            {' '}<a href={`/routes/${initialData.slug}`}>View live</a>
-          </div>
-        )}
-        <p class="editor-license-notice">
-          By saving, you agree to release your contribution under{' '}
-          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-        </p>
-        <button
-          type="button"
-          class="btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      <EditorActions
+        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
+        onSave={handleSave} contentType="route" userRole={userRole}
+        viewLink={`/routes/${initialData.slug}`}
+        showLicenseNotice={showLicenseNotice !== false}
+      />
     </div>
   );
 }

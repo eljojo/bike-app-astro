@@ -3,6 +3,8 @@
 import { t, localePath } from '../i18n';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
+import { getCityConfig } from '../lib/city-config';
+import { getInstanceFeatures } from '../lib/instance-features';
 
 interface Props {
   alternateUrls?: Record<string, string>;
@@ -15,11 +17,24 @@ const showSwitcher = locales.length > 1;
 
 const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
+const features = getInstanceFeatures();
+const config = (features.hasRides || features.hasEnrichedEvents) ? getCityConfig() : null;
 ---
 <footer class="site-footer">
-  <a href={localePath('/about', locale)}>
-    {t('footer.community', locale)}
-  </a>
+  {features.hasRides && config?.author?.name ? (
+    <a href={localePath('/about', locale)}>
+      {config.display_name} is curated by {config.author.name}
+    </a>
+  ) : features.hasEnrichedEvents && config ? (
+    <a href={localePath('/about', locale)}>
+      {config.display_name}
+      {config.acp_club_code && <span class="footer-acp"> &middot; ACP {config.acp_club_code}</span>}
+    </a>
+  ) : !features.hasRides && !features.hasEnrichedEvents ? (
+    <a href={localePath('/about', locale)}>
+      {t('footer.community', locale)}
+    </a>
+  ) : null}
   <a href="https://whereto.bike" class="powered-by" target="_blank" rel="noopener">
     {t('footer.powered_by', locale)}
   </a>

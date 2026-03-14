@@ -1,6 +1,7 @@
 ---
 import RouteMap from './RouteMap.astro';
-import ElevationProfile from './ElevationProfile.astro';
+import InteractiveElevation from './InteractiveElevation.tsx';
+import { computeElevationPoints } from '../lib/elevation-profile';
 import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '../lib/map-thumbnails';
 import { getCityConfig } from '../lib/city-config';
 import { t } from '../i18n';
@@ -11,6 +12,7 @@ interface Variant {
   gpx: string;
   strava_url?: string;
   rwgps_url?: string;
+  komoot_url?: string;
 }
 
 interface MapPlace {
@@ -53,9 +55,13 @@ interface Props {
   photos?: MapPhoto[];
   trackPoints?: GpxPoint[];
   trackDistanceM?: number;
+  /** Override GPX download path (for blog rides that use /rides/ instead of /routes/) */
+  gpxPath?: string;
+  /** Override "back to" link path */
+  backPath?: string;
 }
 
-const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM } = Astro.props;
+const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM, gpxPath, backPath } = Astro.props;
 const linkSlug = routeLocaleSlug || routeSlug;
 const siteUrl = import.meta.env.SITE || getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
@@ -66,7 +72,7 @@ function gpxStudioUrl(gpxUrl: string): string {
   return `https://gpx.studio/?state=%7B%22urls%22:%5B%22${urlParam}%22%5D%7D&distance&slope`;
 }
 
-const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, variantKey)}`;
+const gpxUrl = `${siteUrl}${gpxPath || paths.routeGpx(routeSlug, variantKey)}`;
 const exploreUrl = gpxStudioUrl(gpxUrl);
 const hasVariantMap = hasCachedMap(routeSlug, variantKey, locale);
 const variantMapLang = cachedMapLocale(routeSlug, variantKey, locale);
@@ -100,6 +106,14 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
       </a>
     </Fragment>
   )}
+  {variant.komoot_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener">
+        <img src="/komoot.svg" width="80" alt={t('komoot.open', locale)} />
+      </a>
+    </Fragment>
+  )}
   {hasVariantMap && (
     <Fragment>
       {' '}
@@ -122,10 +136,13 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
         </Fragment>
       )}
     </h3>
-    <ElevationProfile points={trackPoints} distance_m={trackDistanceM} />
+    <InteractiveElevation
+      client:visible
+      points={computeElevationPoints(trackPoints, trackDistanceM)}
+    />
   </div>
 )}
 
 <p style="margin-top: 1em;">
-  <a href={paths.route(linkSlug, locale)} class="go-back-button">&#x21A9; {t('map.back_to', locale, { name: routeName })}</a>
+  <a href={backPath || paths.route(linkSlug, locale)} class="go-back-button">&#x21A9; {t('map.back_to', locale, { name: routeName })}</a>
 </p>

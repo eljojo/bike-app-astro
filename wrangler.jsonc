@@ -15,6 +15,8 @@
       "ai": { "binding": "AI" },
       "vars": {
         "GIT_BRANCH": "staging",
+        "GIT_OWNER": "eljojo",
+        "GIT_DATA_REPO": "bike-routes",
         "ENVIRONMENT": "staging",
         "STORAGE_KEY_PREFIX": "staging/"
       },
@@ -46,6 +48,8 @@
       "ai": { "binding": "AI" },
       "vars": {
         "GIT_BRANCH": "main",
+        "GIT_OWNER": "eljojo",
+        "GIT_DATA_REPO": "bike-routes",
         "ENVIRONMENT": "production",
         "STORAGE_KEY_PREFIX": ""
       },
@@ -77,8 +81,43 @@
       "ai": { "binding": "AI" },
       "vars": {
         "GIT_BRANCH": "main",
+        "GIT_OWNER": "eljojo",
+        "GIT_DATA_REPO": "bike-routes",
         "ENVIRONMENT": "production",
         "STORAGE_KEY_PREFIX": "demo/"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bike-admin-production",
+          "database_id": "9bec7997-6dbb-4099-875c-6be0681b6aea",
+          "migrations_dir": "./drizzle/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "eljojo-bike-prod"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "TILE_CACHE",
+          "id": "295e43f49e3a4497aae86c3898b7c507"
+        }
+      ]
+    },
+    "brevet-production": {
+      "name": "bike-brevet-production",
+      "observability": { "enabled": true },
+      "traces": { "enabled": true },
+      "ai": { "binding": "AI" },
+      "vars": {
+        "GIT_BRANCH": "blogs",
+        "GIT_OWNER": "eljojo",
+        "GIT_DATA_REPO": "bike-routes",
+        "ENVIRONMENT": "production",
+        "STORAGE_KEY_PREFIX": "brevet/"
       },
       "d1_databases": [
         {

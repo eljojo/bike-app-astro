@@ -3,6 +3,7 @@
 import { getCollection } from 'astro:content';
 import ResponsiveImage from './ResponsiveImage.astro';
 import { formatDateRange } from '../lib/date-utils';
+import { getInstanceFeatures } from '../lib/instance-features';
 
 interface Props {
   name: string;
@@ -10,6 +11,7 @@ interface Props {
   end_date?: string;
   distances?: string;
   location?: string;
+  href?: string;
   registration_url?: string;
   review_url?: string;
   organizer?: string | { name: string; website?: string; instagram?: string };
@@ -33,9 +35,11 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
 
 <div class="event-card">
   {organizerName && <span class="event-organizer">{organizerName}</span>}
-  {props.registration_url
-    ? <a href={props.registration_url} class="event-name" target="_blank" rel="noopener">{props.name}</a>
-    : <span class="event-name">{props.name}</span>
+  {props.href
+    ? <a href={props.href} class="event-name">{props.name}</a>
+    : props.registration_url
+      ? <a href={props.registration_url} class="event-name" target="_blank" rel="noopener">{props.name}</a>
+      : <span class="event-name">{props.name}</span>
   }
   <span class="event-dates">{dateDisplay}</span>
   {props.distances && <span class="event-distances">{props.distances}</span>}
@@ -49,7 +53,7 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
   {props.review_url && (
     <a href={props.review_url} class="event-review">Read my review!</a>
   )}
-  {props.eventId && (
+  {props.eventId && getInstanceFeatures().showsContributeLink && (
     <a href={`/admin/events/${props.eventId}`} class="suggest-edit-link">Suggest an edit</a>
   )}
 </div>

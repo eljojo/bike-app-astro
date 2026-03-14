@@ -1,0 +1,145 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import stats from 'virtual:bike-app/ride-stats';
+import { getCityConfig } from '@/lib/city-config';
+import { t } from '@/i18n';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+const yearKeys = Object.keys(stats.by_year).sort((a, b) => b.localeCompare(a));
+const countryKeys = Object.keys(stats.by_country).sort((a, b) =>
+  stats.by_country[b].distance_km - stats.by_country[a].distance_km
+);
+---
+
+<Base title={`${t('nav.stats', locale)} | ${config.display_name}`} description={t('stats.description', locale)}>
+  <h1>{t('nav.stats', locale)}</h1>
+
+  {/* Headline stats */}
+  <div class="route-stats stats-headline">
+    <div class="route-stats--item">
+      <span class="route-stats--label">{t('stats.total_rides', locale)}</span>
+      <span class="route-stats--value">{stats.total_rides}</span>
+    </div>
+    <div class="route-stats--item">
+      <span class="route-stats--label">{t('stats.total_distance', locale)}</span>
+      <span class="route-stats--value">{stats.total_distance_km.toLocaleString()} km</span>
+    </div>
+    <div class="route-stats--item">
+      <span class="route-stats--label">{t('stats.total_elevation', locale)}</span>
+      <span class="route-stats--value">{stats.total_elevation_m.toLocaleString()} m</span>
+    </div>
+    <div class="route-stats--item">
+      <span class="route-stats--label">{t('stats.total_tours', locale)}</span>
+      <span class="route-stats--value">{stats.total_tours}</span>
+    </div>
+    <div class="route-stats--item">
+      <span class="route-stats--label">{t('stats.riding_days', locale)}</span>
+      <span class="route-stats--value">{stats.total_days}</span>
+    </div>
+    {stats.countries.length > 0 && (
+      <div class="route-stats--item">
+        <span class="route-stats--label">{t('stats.countries', locale)}</span>
+        <span class="route-stats--value">{stats.countries.length}</span>
+      </div>
+    )}
+  </div>
+
+  {/* Records */}
+  {(stats.records.longest_ride || stats.records.most_elevation || stats.records.longest_tour) && (
+    <section class="stats-section">
+      <h2>{t('stats.records', locale)}</h2>
+      <div class="stats-records">
+        {stats.records.longest_ride && (
+          <div class="stats-record-card">
+            <span class="stats-record-card--label">{t('stats.longest_ride', locale)}</span>
+            <a href={`/rides/${stats.records.longest_ride.slug}`} class="stats-record-card--value">
+              {stats.records.longest_ride.name}
+            </a>
+            <span class="stats-record-card--detail">{stats.records.longest_ride.distance_km} km</span>
+          </div>
+        )}
+        {stats.records.most_elevation && (
+          <div class="stats-record-card">
+            <span class="stats-record-card--label">{t('stats.most_elevation', locale)}</span>
+            <a href={`/rides/${stats.records.most_elevation.slug}`} class="stats-record-card--value">
+              {stats.records.most_elevation.name}
+            </a>
+            <span class="stats-record-card--detail">{stats.records.most_elevation.elevation_m.toLocaleString()} m</span>
+          </div>
+        )}
+        {stats.records.longest_tour && (
+          <div class="stats-record-card">
+            <span class="stats-record-card--label">{t('stats.longest_tour', locale)}</span>
+            <a href={`/tours/${stats.records.longest_tour.slug}`} class="stats-record-card--value">
+              {stats.records.longest_tour.name}
+            </a>
+            <span class="stats-record-card--detail">
+              {stats.records.longest_tour.distance_km} km · {stats.records.longest_tour.days} {t('tours.days', locale)}
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  )}
+
+  {/* By year */}
+  {yearKeys.length > 0 && (
+    <section class="stats-section">
+      <h2>{t('stats.by_year', locale)}</h2>
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>{t('stats.year', locale)}</th>
+            <th>{t('nav.rides', locale)}</th>
+            <th>{t('ride.distance', locale)}</th>
+            <th>{t('ride.elevation', locale)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {yearKeys.map(year => {
+            const data = stats.by_year[year];
+            return (
+              <tr>
+                <td>{year}</td>
+                <td>{data.rides}</td>
+                <td>{data.distance_km.toLocaleString()} km</td>
+                <td>{data.elevation_m.toLocaleString()} m</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  )}
+
+  {/* By country */}
+  {countryKeys.length > 0 && (
+    <section class="stats-section">
+      <h2>{t('stats.by_country', locale)}</h2>
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>{t('ride.country', locale)}</th>
+            <th>{t('nav.rides', locale)}</th>
+            <th>{t('ride.distance', locale)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {countryKeys.map(country => {
+            const data = stats.by_country[country];
+            return (
+              <tr>
+                <td>{country}</td>
+                <td>{data.rides}</td>
+                <td>{data.distance_km.toLocaleString()} km</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  )}
+</Base>

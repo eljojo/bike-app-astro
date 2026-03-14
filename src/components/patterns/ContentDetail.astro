@@ -1,0 +1,33 @@
+---
+interface Props {
+  title: string;
+  heroImage?: string;
+  heroImageSrcset?: string;
+  heroAlt?: string;
+}
+
+const { title, heroImage, heroImageSrcset, heroAlt } = Astro.props;
+---
+
+<div class="route-detail">
+  {heroImage && (
+    <div class="route-detail--hero">
+      <img src={heroImage} srcset={heroImageSrcset} alt={heroAlt || title} class="gallery-cover-photo" />
+    </div>
+  )}
+
+  <div class="route-detail--content">
+    <div class="route-detail--body">
+      <slot name="breadcrumb" />
+      <h1><slot name="title">{title}</slot></h1>
+      <slot name="stats" />
+      <slot name="body" />
+      <slot name="actions" />
+    </div>
+
+    <slot name="sidebar" />
+  </div>
+
+  <slot name="gallery" />
+  <slot name="after" />
+</div>

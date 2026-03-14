@@ -42,6 +42,50 @@ export function useDragReorder<T>(items: T[], onChange: (items: T[]) => void) {
   };
 }
 
+/**
+ * Full-page drag-and-drop for file uploads.
+ * Handles dragenter/leave/over/drop with counter-based tracking
+ * to avoid flicker from nested element enter/leave events.
+ */
+export function useDragDrop(onFilesDropped: (files: File[]) => void) {
+  const [dragging, setDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  useEffect(() => {
+    function handleDragEnter(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current++;
+      if (e.dataTransfer?.types.includes('Files')) setDragging(true);
+    }
+    function handleDragLeave(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current--;
+      if (dragCounterRef.current === 0) setDragging(false);
+    }
+    function handleDragOver(e: DragEvent) { e.preventDefault(); }
+    function handleDrop(e: DragEvent) {
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragging(false);
+      const files = e.dataTransfer?.files;
+      if (files?.length) onFilesDropped(Array.from(files));
+    }
+
+    document.addEventListener('dragenter', handleDragEnter);
+    document.addEventListener('dragleave', handleDragLeave);
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+    return () => {
+      document.removeEventListener('dragenter', handleDragEnter);
+      document.removeEventListener('dragleave', handleDragLeave);
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
+  }, []);
+
+  return { dragging };
+}
+
 export interface UploadedFile {
   key: string;
   width?: number;

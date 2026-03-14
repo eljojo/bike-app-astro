@@ -24,8 +24,11 @@ import { loadAdminRouteData, loadRouteTrackPoints } from './loaders/admin-routes
 import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
 import { loadAdminPlaceData } from './loaders/admin-places';
+import { loadAdminRideData } from './loaders/admin-rides';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/photo-registry';
+import { isBlogInstance } from './lib/city-config';
+import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -35,6 +38,7 @@ export { loadAdminRouteData };
 export { loadAdminEventData };
 export { loadAdminOrganizers };
 export { loadAdminPlaceData };
+export { loadAdminRideData };
 
 const CITY_DIR = cityDir;
 
@@ -97,8 +101,8 @@ function loadFontPreloads() {
   return [...urls];
 }
 
-function loadContributors(): Array<{ username: string; gravatarHash: string }> {
-  const filePath = path.join(PROJECT_ROOT, '.astro', 'contributors.json');
+function loadContributors(rootDir?: string): Array<{ username: string; gravatarHash: string }> {
+  const filePath = path.join(rootDir || PROJECT_ROOT, '.astro', 'contributors.json');
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 }
@@ -123,8 +127,8 @@ function scanMapDir(dir: string, prefix?: string) {
   return maps;
 }
 
-function loadCachedMaps() {
-  const cacheDir = path.join(PROJECT_ROOT, 'public', 'maps');
+function loadCachedMaps(rootDir?: string) {
+  const cacheDir = path.join(rootDir || PROJECT_ROOT, 'public', 'maps');
   const maps: string[] = scanMapDir(cacheDir);
   // Scan locale subdirectories (2-letter dirs like "fr", "es")
   if (fs.existsSync(cacheDir)) {
@@ -172,22 +176,32 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
   };
 }
 
-export function buildDataPlugin(): Plugin {
+export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
+  // CONSUMER_ROOT = the project that depends on this package (for public/, .astro/, _cache/).
+  // PROJECT_ROOT = this package itself (for src/styles/, internal assets).
+  const CONSUMER_ROOT = options?.consumerRoot || PROJECT_ROOT;
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
   const fontPreloads = loadFontPreloads();
-  const cachedMaps = loadCachedMaps();
-  const contributors = loadContributors();
+  const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
+  const contributors = loadContributors(CONSUMER_ROOT);
 
   // Load admin data eagerly (async) so it's ready when load() is called.
   // Merged loaders compute routes+details and events+details in single passes.
-  const adminRouteDataPromise = loadAdminRouteData();
+  const isBlog = isBlogInstance();
+  const adminRouteDataPromise = isBlog ? null : loadAdminRouteData();
+  const adminRideDataPromise = isBlog ? loadAdminRideData() : null;
   const adminEventDataPromise = loadAdminEventData();
   const adminPlaceDataPromise = loadAdminPlaceData();
   const adminOrganizersPromise = loadAdminOrganizers();
 
+  // For blog instances, the 'routes' admin module uses ride data instead
+  const routesLoader = isBlog
+    ? async () => { const d = await adminRideDataPromise!; return { list: d.rides, details: d.details }; }
+    : async () => { const d = await adminRouteDataPromise!; return { list: d.routes, details: d.details }; };
+
   const adminModules = registerAdminModules([
-    { name: 'routes', loader: async () => { const d = await adminRouteDataPromise; return { list: d.routes, details: d.details }; } },
+    { name: 'routes', loader: routesLoader },
     { name: 'events', loader: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; } },
     { name: 'places', loader: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; } },
   ]);
@@ -206,6 +220,9 @@ export function buildDataPlugin(): Plugin {
       if (id === 'virtual:bike-app/nearby-photos') return '\0virtual:bike-app/nearby-photos';
       if (id === 'virtual:bike-app/parked-photos') return '\0virtual:bike-app/parked-photos';
       if (id === 'virtual:bike-app/photo-shared-keys') return '\0virtual:bike-app/photo-shared-keys';
+      if (id === 'virtual:bike-app/tours') return '\0virtual:bike-app/tours';
+      if (id === 'virtual:bike-app/ride-stats') return '\0virtual:bike-app/ride-stats';
+      if (id === 'virtual:bike-app/ride-redirects') return '\0virtual:bike-app/ride-redirects';
     },
     async load(id: string) {
       const adminLoaded = await adminModules.load(id);
@@ -221,13 +238,19 @@ export function buildDataPlugin(): Plugin {
         return `export default ${JSON.stringify(contributors)};`;
       }
       if (id === '\0virtual:bike-app/photo-locations') {
-        const { details } = await adminRouteDataPromise;
+        const details = isBlog
+          ? (await adminRideDataPromise!).details
+          : (await adminRouteDataPromise!).details;
         const parked = loadParkedPhotos();
         const locations = buildPhotoLocations(details, parked);
         return `export default ${JSON.stringify(locations)};`;
       }
       if (id === '\0virtual:bike-app/nearby-photos') {
-        const { details } = await adminRouteDataPromise;
+        if (isBlog) {
+          // Blog instances don't use nearby photos (no route track points)
+          return `export default ${JSON.stringify({})};`;
+        }
+        const { details } = await adminRouteDataPromise!;
         const parked = loadParkedPhotos();
         const locations = buildPhotoLocations(details, parked);
         const tracks = loadRouteTrackPoints();
@@ -239,9 +262,11 @@ export function buildDataPlugin(): Plugin {
         return `export default ${JSON.stringify(parked)};`;
       }
       if (id === '\0virtual:bike-app/photo-shared-keys') {
-        const { details } = await adminRouteDataPromise;
+        const routeDetails = isBlog
+          ? (await adminRideDataPromise!).details
+          : (await adminRouteDataPromise!).details;
         const routeData: Record<string, { media: Array<{ key: string }> }> = {};
-        for (const [slug, detail] of Object.entries(details)) {
+        for (const [slug, detail] of Object.entries(routeDetails)) {
           routeData[slug] = { media: detail.media || [] };
         }
         const parked = loadParkedPhotos();
@@ -249,6 +274,35 @@ export function buildDataPlugin(): Plugin {
         const events = loadEventPosterKeys();
         const map = buildSharedKeysMap(routeData, places, events, parked);
         return `export default ${serializeSharedKeys(map)};`;
+      }
+      if (id === '\0virtual:bike-app/tours') {
+        if (adminRideDataPromise) {
+          const { tours } = await adminRideDataPromise;
+          return `export default ${JSON.stringify(tours)};`;
+        }
+        return `export default [];`;
+      }
+      if (id === '\0virtual:bike-app/ride-stats') {
+        if (adminRideDataPromise) {
+          const { stats } = await adminRideDataPromise;
+          return `export default ${JSON.stringify(stats)};`;
+        }
+        return `export default ${JSON.stringify({
+          total_distance_km: 0, total_elevation_m: 0, total_rides: 0,
+          total_tours: 0, total_days: 0, countries: [],
+          by_year: {}, by_country: {}, records: {},
+        })};`;
+      }
+      if (id === '\0virtual:bike-app/ride-redirects') {
+        // Load ride redirects from redirects.yml (includes tour ride redirects)
+        const redirectsPath = path.join(CITY_DIR, 'redirects.yml');
+        const data = fs.existsSync(redirectsPath)
+          ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
+          : {};
+        const rideEntries = (data.rides as Array<{ from: string; to: string }>) || [];
+
+        const map = buildRideRedirectMap(rideEntries);
+        return `export default ${JSON.stringify(map)};`;
       }
     },
 
@@ -261,6 +315,8 @@ export function buildDataPlugin(): Plugin {
           code: `
 const _data = ${JSON.stringify(cityConfig)};
 export function getCityConfig() { return _data; }
+export function isBlogInstance() { return _data.instance_type === 'blog'; }
+export function isClubInstance() { return _data.instance_type === 'club'; }
 `,
           map: null,
         };

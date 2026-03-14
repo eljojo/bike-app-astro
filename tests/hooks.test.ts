@@ -1,4 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { useDragDrop } from '../src/lib/hooks';
+
+describe('useDragDrop', () => {
+  it('is exported as a function', () => {
+    expect(typeof useDragDrop).toBe('function');
+  });
+});
 
 describe('useDragReorder logic', () => {
   // Test the reorder algorithm directly (same logic as the hook)

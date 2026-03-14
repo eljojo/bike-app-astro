@@ -3,7 +3,7 @@ import matter from 'gray-matter';
 import { env } from '../../lib/env';
 import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { upsertContentCache } from '../../lib/cache';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
@@ -11,6 +11,7 @@ import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
 import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
 import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { getInstanceFeatures } from '../../lib/instance-features';
 import type { IGitService } from '../../lib/git-service';
 import type { Database } from '../../db';
 
@@ -28,8 +29,8 @@ export async function POST({ request, locals }: APIContext) {
   const baseBranch = env.GIT_BRANCH || 'main';
   const git = createGitService({
     token: env.GITHUB_TOKEN,
-    owner: GIT_OWNER,
-    repo: GIT_DATA_REPO,
+    owner: env.GIT_OWNER,
+    repo: env.GIT_DATA_REPO,
     branch: baseBranch,
   });
 
@@ -126,9 +127,16 @@ async function rebuildContentCache(
   parsed: { contentType: string; contentSlug: string },
   restoreFiles: { path: string; content: string }[],
 ): Promise<void> {
-  const primaryPath = parsed.contentType === 'routes'
-    ? `${CITY}/routes/${parsed.contentSlug}/index.md`
-    : `${CITY}/events/${parsed.contentSlug}.md`;
+  let primaryPath: string;
+  if (parsed.contentType === 'routes' && getInstanceFeatures().hasRides) {
+    // With name-only slugs, derive the sidecar path from restoreFiles
+    const sidecarFile = restoreFiles.find(f => f.path.endsWith('.md') && !f.path.includes('-media'));
+    primaryPath = sidecarFile?.path || `${CITY}/rides/${parsed.contentSlug}.md`;
+  } else if (parsed.contentType === 'routes') {
+    primaryPath = `${CITY}/routes/${parsed.contentSlug}/index.md`;
+  } else {
+    primaryPath = `${CITY}/events/${parsed.contentSlug}.md`;
+  }
 
   const newFile = await git.readFile(primaryPath);
   if (!newFile) return;

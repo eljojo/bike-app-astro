@@ -1,25 +1,64 @@
 import type { AstroIntegration } from 'astro';
 import { translatePath } from '../lib/path-translations';
+import { isBlogInstance, isClubInstance } from '../lib/city-config';
 
-/** Pages that get locale-prefixed copies for each non-default locale. */
-const localePages = [
-  { pattern: '/', entrypoint: './src/views/index.astro' },
-  { pattern: '/about', entrypoint: './src/views/about.astro' },
-  { pattern: '/calendar', entrypoint: './src/views/calendar.astro' },
-  { pattern: '/map', entrypoint: './src/views/map.astro' },
-  { pattern: '/routes', entrypoint: './src/views/routes/index.astro' },
-  { pattern: '/routes/[slug]', entrypoint: './src/views/routes/detail.astro' },
-  { pattern: '/routes/[slug]/map', entrypoint: './src/views/routes/map.astro' },
-  { pattern: '/routes/[slug]/map/[variant]', entrypoint: './src/views/routes/map-variant.astro' },
-  { pattern: '/guides', entrypoint: './src/views/guides/index.astro' },
-  { pattern: '/guides/[slug]', entrypoint: './src/views/guides/detail.astro' },
-  { pattern: '/videos', entrypoint: './src/views/videos/index.astro' },
-  { pattern: '/videos/[handle]', entrypoint: './src/views/videos/detail.astro' },
+/** Resolve a view path relative to this file's location (works from node_modules too). */
+const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
+
+/** Pages shared between both wiki and blog instance types. */
+const sharedPages = [
+  { pattern: '/', entrypoint: view('index.astro') },
+  { pattern: '/about', entrypoint: view('about.astro') },
+];
+
+/** Wiki-only pages. */
+const wikiPages = [
+  { pattern: '/calendar', entrypoint: view('calendar.astro') },
+  { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
+  { pattern: '/map', entrypoint: view('map.astro') },
+  { pattern: '/routes', entrypoint: view('routes/index.astro') },
+  { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
+  { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
+  { pattern: '/routes/[slug]/map/[variant]', entrypoint: view('routes/map-variant.astro') },
+  { pattern: '/guides', entrypoint: view('guides/index.astro') },
+  { pattern: '/guides/[slug]', entrypoint: view('guides/detail.astro') },
+  { pattern: '/videos', entrypoint: view('videos/index.astro') },
+  { pattern: '/videos/[handle]', entrypoint: view('videos/detail.astro') },
+];
+
+/** Blog-only pages. */
+const blogPages = [
+  { pattern: '/rides', entrypoint: view('rides/index.astro') },
+  { pattern: '/rides/[slug]', entrypoint: view('rides/detail.astro') },
+  { pattern: '/rides/[slug]/map', entrypoint: view('rides/map.astro') },
+  { pattern: '/tours', entrypoint: view('tours/index.astro') },
+  { pattern: '/tours/[slug]', entrypoint: view('tours/detail.astro') },
+  { pattern: '/tours/[tourSlug]/[rideSlug]', entrypoint: view('tours/ride-detail.astro') },
+  { pattern: '/tours/[tourSlug]/[rideSlug]/map', entrypoint: view('tours/ride-map.astro') },
+  { pattern: '/stats', entrypoint: view('stats.astro') },
 ];
 
 /** Routes that don't need locale variants (downloads, feeds, etc.). */
-const staticRoutes = [
-  { pattern: '/routes/[slug]/[variant].gpx', entrypoint: './src/views/routes/download-gpx.ts' },
+const wikiStaticRoutes = [
+  { pattern: '/routes/[slug]/[variant].gpx', entrypoint: view('routes/download-gpx.ts') },
+];
+
+const blogStaticRoutes = [
+  { pattern: '/rides/[slug]/[variant].gpx', entrypoint: view('rides/download-gpx.ts') },
+];
+
+/** Club-only pages (randonneuring clubs, cycling organizations). */
+const clubPages = [
+  { pattern: '/events', entrypoint: view('events/index.astro') },
+  { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
+  { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
+  { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
+  { pattern: '/places', entrypoint: view('places/index.astro') },
+];
+
+const clubStaticRoutes = [
+  ...wikiStaticRoutes,
+  { pattern: '/events/[...path].gpx', entrypoint: view('events/download-gpx.ts') },
 ];
 
 export function i18nRoutes(): AstroIntegration {
@@ -29,6 +68,13 @@ export function i18nRoutes(): AstroIntegration {
       'astro:config:setup': ({ injectRoute, config }) => {
         const locales = (config.i18n?.locales || ['en']) as string[];
         const defaultLocale = config.i18n?.defaultLocale || 'en';
+        const blog = isBlogInstance();
+        const club = isClubInstance();
+
+        const localePages = [
+          ...sharedPages,
+          ...(blog ? blogPages : club ? clubPages : wikiPages),
+        ];
 
         for (const page of localePages) {
           // Default locale: routes at root (no prefix)
@@ -46,6 +92,7 @@ export function i18nRoutes(): AstroIntegration {
         }
 
         // Static routes (no locale variants needed)
+        const staticRoutes = blog ? blogStaticRoutes : club ? clubStaticRoutes : wikiStaticRoutes;
         for (const page of staticRoutes) {
           injectRoute({ pattern: page.pattern, entrypoint: page.entrypoint });
         }

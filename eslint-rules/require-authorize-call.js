@@ -13,8 +13,8 @@ export default {
   create(context) {
     const filename = context.filename || context.getFilename();
 
-    // Only apply to src/pages/api/ (not src/pages/api/auth/ which is intentionally public)
-    if (!filename.match(/src\/pages\/api\//) || filename.match(/src\/pages\/api\/auth\//)) return {};
+    // Only apply to src/views/api/ (not src/views/api/auth/ which is intentionally public)
+    if (!filename.match(/src\/views\/api\//) || filename.match(/src\/views\/api\/auth\//)) return {};
 
     let hasAuthorize = false;
     let hasRouteHandler = false;

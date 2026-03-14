@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { CONTENT_DIR, CITY } from '../src/lib/config';
 
 interface AuthorEntry {
   name: string;
@@ -182,9 +184,6 @@ const isDirectRun = process.argv[1] && (
 );
 
 if (isDirectRun) {
-  const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve(import.meta.dirname, '../../bike-routes');
-  const CITY = process.env.CITY || 'ottawa';
-
   const gitLog = execSync(
     `git -C "${CONTENT_DIR}" log --format="%ae%n%an%n%b%x00" -- "${CITY}/"`,
     { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },

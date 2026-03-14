@@ -1,0 +1,217 @@
+---
+import { rideFilters, getYears, getCountries } from '../lib/ride-filters';
+import { countryToFlag } from '../lib/country-flags';
+import type { RideFilterInput } from '../lib/ride-filters';
+
+interface Props {
+  rides: RideFilterInput[];
+}
+
+const { rides } = Astro.props;
+const years = getYears(rides);
+const countries = getCountries(rides);
+const publicFilters = rideFilters.filter(f => !f.adminOnly);
+---
+
+<aside class="rides-sidebar" id="rides-sidebar">
+  <div class="rides-sidebar--section">
+    <h3 class="rides-sidebar--heading">Type</h3>
+    <div class="rides-sidebar--pills">
+      {publicFilters.map(f => (
+        <button type="button" class={`rides-sidebar--pill ${f.id === 'all' ? 'active' : ''}`} data-filter={f.id}>
+          {f.label}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  {years.length > 1 && (
+    <div class="rides-sidebar--section">
+      <h3 class="rides-sidebar--heading">Year</h3>
+      <div class="rides-sidebar--pills">
+        {years.map(year => (
+          <button type="button" class="rides-sidebar--pill" data-year={year}>
+            {year}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {countries.length > 1 && (
+    <div class="rides-sidebar--section">
+      <h3 class="rides-sidebar--heading">Country</h3>
+      <div class="rides-sidebar--pills">
+        {countries.map(c => (
+          <button type="button" class="rides-sidebar--pill" data-country={c}>
+            {countryToFlag(c) || c}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <div class="rides-sidebar--count" id="rides-count"></div>
+</aside>
+
+<script>
+  // Astro compiles <script> to <script type="module"> which is deferred,
+  // so the DOM is ready when this runs — no event wrapper needed.
+  const sidebar = document.getElementById('rides-sidebar');
+  const rideList = document.getElementById('rides-grid');
+  const countEl = document.getElementById('rides-count');
+  if (sidebar && rideList) {
+    const cards = rideList.querySelectorAll<HTMLElement>('.ride-card');
+    const monthSections = rideList.querySelectorAll<HTMLElement>('.rides-month-section');
+
+    let activeFilter = 'all';
+    let activeYear = '';
+    let activeCountry = '';
+
+    // Restore from URL
+    const params = new URL(window.location.href).searchParams;
+    const urlFilter = params.get('filter');
+    const urlYear = params.get('year');
+    const urlCountry = params.get('country');
+
+    function applyFilters() {
+      let visible = 0;
+
+      cards.forEach(card => {
+        const distance = parseFloat(card.dataset.distance || '0');
+        const time = parseInt(card.dataset.time || '0', 10);
+        const speed = parseFloat(card.dataset.speed || '0');
+        const tour = card.dataset.tour || '';
+        const country = card.dataset.country || '';
+        const date = card.dataset.date || '';
+        const year = date.slice(0, 4);
+
+        let show = true;
+
+        // Type filter
+        if (activeFilter === 'chill') {
+          show = distance <= 32 && (!time || time <= 10800) && (!speed || speed < 20) && !tour;
+        } else if (activeFilter === 'long') {
+          show = distance >= 50 || (time > 0 && time >= 18000);
+        } else if (activeFilter === 'fast') {
+          show = speed > 22;
+        } else if (activeFilter === 'century') {
+          show = distance >= 100;
+        } else if (activeFilter === 'tours') {
+          show = !!tour;
+        }
+
+        // Year filter
+        if (show && activeYear) show = year === activeYear;
+
+        // Country filter
+        if (show && activeCountry) show = country === activeCountry;
+
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+
+      // Show/hide month sections based on whether they have visible cards
+      monthSections.forEach(section => {
+        const visibleCards = section.querySelectorAll('.ride-card:not([style*="display: none"])');
+        section.style.display = visibleCards.length ? '' : 'none';
+      });
+
+      // Update count
+      if (countEl) {
+        const total = cards.length;
+        if (visible === total) {
+          countEl.textContent = `${total} rides`;
+        } else {
+          countEl.textContent = `${visible} of ${total} rides`;
+        }
+      }
+
+      // Update URL
+      updateUrl();
+    }
+
+    function updateUrl() {
+      const url = new URL(window.location.href);
+      if (activeFilter && activeFilter !== 'all') {
+        url.searchParams.set('filter', activeFilter);
+      } else {
+        url.searchParams.delete('filter');
+      }
+      if (activeYear) {
+        url.searchParams.set('year', activeYear);
+      } else {
+        url.searchParams.delete('year');
+      }
+      if (activeCountry) {
+        url.searchParams.set('country', activeCountry);
+      } else {
+        url.searchParams.delete('country');
+      }
+      const newUrl = url.pathname + url.search;
+      if (newUrl !== window.location.pathname + window.location.search) {
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+
+    // Type filter pills
+    sidebar.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach(pill => {
+      if (urlFilter && pill.dataset.filter === urlFilter) {
+        sidebar.querySelectorAll('[data-filter]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeFilter = urlFilter;
+      }
+      pill.addEventListener('click', () => {
+        sidebar.querySelectorAll('[data-filter]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeFilter = pill.dataset.filter || 'all';
+        applyFilters();
+      });
+    });
+
+    // Year pills (toggle)
+    sidebar.querySelectorAll<HTMLButtonElement>('[data-year]').forEach(pill => {
+      if (urlYear && pill.dataset.year === urlYear) {
+        pill.classList.add('active');
+        activeYear = urlYear;
+      }
+      pill.addEventListener('click', () => {
+        const wasActive = pill.classList.contains('active');
+        sidebar.querySelectorAll('[data-year]').forEach(p => p.classList.remove('active'));
+        if (!wasActive) {
+          pill.classList.add('active');
+          activeYear = pill.dataset.year || '';
+        } else {
+          activeYear = '';
+        }
+        applyFilters();
+      });
+    });
+
+    // Country pills (toggle)
+    sidebar.querySelectorAll<HTMLButtonElement>('[data-country]').forEach(pill => {
+      if (urlCountry && pill.dataset.country === urlCountry) {
+        pill.classList.add('active');
+        activeCountry = urlCountry;
+      }
+      pill.addEventListener('click', () => {
+        const wasActive = pill.classList.contains('active');
+        sidebar.querySelectorAll('[data-country]').forEach(p => p.classList.remove('active'));
+        if (!wasActive) {
+          pill.classList.add('active');
+          activeCountry = pill.dataset.country || '';
+        } else {
+          activeCountry = '';
+        }
+        applyFilters();
+      });
+    });
+
+    // Apply initial filters if any were set via URL
+    if (urlFilter || urlYear || urlCountry) {
+      applyFilters();
+    } else if (countEl) {
+      countEl.textContent = `${cards.length} rides`;
+    }
+  }
+</script>

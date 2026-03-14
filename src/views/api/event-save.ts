@@ -4,14 +4,16 @@ import type { APIContext } from 'astro';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import adminEvents from 'virtual:bike-app/admin-events';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
+import { CITY } from '../../lib/config';
+import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
-import { buildFreshEventData, computeEventContentHashFromFiles } from '../../lib/models/event-model';
+import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
@@ -19,13 +21,6 @@ import type { ParkedPhotoEntry } from '../../lib/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
-
-interface OrganizerPayload {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
 
 const eventUpdateSchema = z.object({
   frontmatter: z.record(z.string(), z.unknown()),
@@ -37,22 +32,19 @@ const eventUpdateSchema = z.object({
     website: z.string().optional(),
     instagram: z.string().optional(),
   }).optional(),
+  media: z.array(eventMediaItemSchema).optional(),
   slug: z.string().optional(),
 });
 
-export interface EventUpdate {
-  frontmatter: Record<string, unknown>;
-  body: string;
-  contentHash?: string;
-  organizer?: OrganizerPayload;
-  slug?: string;   // for new events
-}
+export type EventUpdate = z.infer<typeof eventUpdateSchema>;
 
 interface EventBuildResult extends BuildResult {
   oldPosterKey: string | undefined;
   newPosterKey: string | undefined;
   eventSlug: string;
   mergedParked: ParkedPhotoEntry[] | undefined;
+  addedMediaKeys: string[];
+  removedMediaKeys: string[];
 }
 
 function countOrganizerReferences(orgSlug: string, excludeEventId: string): number {
@@ -62,9 +54,12 @@ function countOrganizerReferences(orgSlug: string, excludeEventId: string): numb
   }).length;
 }
 
-function resolveEventPath(eventId: string): string {
+/** Resolve the primary file path for an event. Directory-based events use index.md. */
+function resolveEventPath(eventId: string, isDirectory: boolean): string {
   const [year, slug] = eventId.split('/');
-  return `${CITY}/events/${year}/${slug}.md`;
+  return isDirectory
+    ? `${CITY}/events/${year}/${slug}/index.md`
+    : `${CITY}/events/${year}/${slug}.md`;
 }
 
 export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
@@ -91,7 +86,14 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
   },
 
   getFilePaths(eventId: string) {
-    return { primary: resolveEventPath(eventId) };
+    const [year, slug] = eventId.split('/');
+    const dirBase = `${CITY}/events/${year}/${slug}`;
+    // Primary tries directory index.md; flat .md and media.yml are auxiliaries.
+    // resolveEffectivePrimary in event-model handles promotion when needed.
+    return {
+      primary: `${dirBase}/index.md`,
+      auxiliary: [`${dirBase}.md`, `${dirBase}/media.yml`],
+    };
   },
 
   computeContentHash(currentFiles: CurrentFiles): string {
@@ -103,23 +105,37 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
   },
 
   async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {
-    const eventPath = resolveEventPath(eventId);
-    const existing = await git.readFile(eventPath);
-    if (existing) {
+    const [year, slug] = eventId.split('/');
+    // Check both flat and directory formats
+    const flatPath = `${CITY}/events/${year}/${slug}.md`;
+    const dirPath = `${CITY}/events/${year}/${slug}/index.md`;
+    const [flat, dir] = await Promise.all([git.readFile(flatPath), git.readFile(dirPath)]);
+    if (flat || dir) {
       return jsonError(`Event ${eventId} already exists`, 409);
     }
     return null;
   },
 
   async buildFileChanges(update, eventId, currentFiles, git) {
-    const eventPath = resolveEventPath(eventId);
     const files: FileChange[] = [];
     const deletePaths: string[] = [];
-    const isNew = !currentFiles.primaryFile;
+    const effectivePrimary = resolveEffectivePrimary(currentFiles);
+    const isNew = !effectivePrimary;
+    const [year, slug] = eventId.split('/');
+
+    // Determine layout: directory if already directory-based or update includes media
+    const wasDirectory = currentFiles.primaryFile != null; // primary is index.md path
+    const useDirectory = wasDirectory || (update.media != null && update.media.length > 0);
+    const eventPath = resolveEventPath(eventId, useDirectory);
+
+    // If switching from flat to directory, delete the old flat file
+    if (!isNew && !wasDirectory && useDirectory) {
+      deletePaths.push(`${CITY}/events/${year}/${slug}.md`);
+    }
 
     // Detect poster_key change and park orphaned photo
-    const oldPosterKey = currentFiles.primaryFile
-      ? extractFrontmatterField(currentFiles.primaryFile.content, 'poster_key')
+    const oldPosterKey = effectivePrimary
+      ? extractFrontmatterField(effectivePrimary.content, 'poster_key')
       : undefined;
     const newPosterKey = update.frontmatter.poster_key as string | undefined;
 
@@ -146,49 +162,81 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
       const otherRefs = countOrganizerReferences(orgSlug, eventId);
 
       if (otherRefs === 0) {
-        // This is the only event for this organizer — inline it
         const orgObj: Record<string, string> = { name: update.organizer.name };
         if (update.organizer.website) orgObj.website = update.organizer.website;
         if (update.organizer.instagram) orgObj.instagram = update.organizer.instagram;
         fm.organizer = orgObj;
 
-        // Delete the separate organizer file if it exists
         const orgFilePath = `${CITY}/organizers/${orgSlug}.md`;
         const existingOrg = await git.readFile(orgFilePath);
         if (existingOrg) {
           deletePaths.push(orgFilePath);
         }
       } else {
-        // Other events reference this organizer — keep/create separate file
         fm.organizer = orgSlug;
 
         const orgFm: Record<string, string> = { name: update.organizer.name };
         if (update.organizer.website) orgFm.website = update.organizer.website;
         if (update.organizer.instagram) orgFm.instagram = update.organizer.instagram;
 
-        const orgContent = `---\n${yaml.dump(orgFm, { lineWidth: -1, quotingType: '"', forceQuotes: false }).trimEnd()}\n---\n`;
+        const orgContent = serializeMdFile(orgFm);
         files.push({ path: `${CITY}/organizers/${orgSlug}.md`, content: orgContent });
       }
     }
 
     // Serialize event file
-    const frontmatterStr = yaml.dump(fm, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
+    files.unshift({ path: eventPath, content: serializeMdFile(fm, update.body) });
 
-    const eventContent = update.body.trim()
-      ? `---\n${frontmatterStr}\n---\n\n${update.body}\n`
-      : `---\n${frontmatterStr}\n---\n`;
+    // Build media.yml for directory-based events
+    let addedMediaKeys: string[] = [];
+    let removedMediaKeys: string[] = [];
+    if (useDirectory && update.media) {
+      const dirBase = `${CITY}/events/${year}/${slug}`;
+      const mediaPath = `${dirBase}/media.yml`;
+      const currentMediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
+      const currentMedia = currentMediaPath ? currentFiles.auxiliaryFiles![currentMediaPath] : null;
+      let existingMedia: Array<Record<string, unknown>> = [];
+      if (currentMedia) {
+        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
+      }
 
-    // Event file goes first in the commit
-    files.unshift({ path: eventPath, content: eventContent });
+      const oldKeys = new Set(existingMedia.map(m => m.key as string));
+      const newKeys = new Set(update.media.map(m => m.key));
+      addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
+      removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
 
-    return { files, deletePaths, isNew, oldPosterKey, newPosterKey, eventSlug: eventId, mergedParked };
+      if (update.media.length > 0) {
+        const mediaItems = update.media.map(m => {
+          const entry: Record<string, unknown> = { key: m.key };
+          if (m.caption != null) entry.caption = m.caption;
+          if (m.cover != null) entry.cover = m.cover;
+          if (m.width != null) entry.width = m.width;
+          if (m.height != null) entry.height = m.height;
+          if (m.lat != null) entry.lat = m.lat;
+          if (m.lng != null) entry.lng = m.lng;
+          if (m.type != null) entry.type = m.type;
+          return entry;
+        });
+        files.push({ path: mediaPath, content: serializeYamlFile(mediaItems) });
+      } else if (currentMedia) {
+        deletePaths.push(mediaPath);
+      }
+    }
+
+    return {
+      files, deletePaths, isNew,
+      oldPosterKey, newPosterKey, eventSlug: eventId,
+      mergedParked, addedMediaKeys, removedMediaKeys,
+    };
   },
 
   async afterCommit(result, database) {
-    const { oldPosterKey, newPosterKey, eventSlug, mergedParked } = result;
-    const changes = buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug);
+    const { oldPosterKey, newPosterKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
+    const changes = [
+      ...buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
+      ...removedMediaKeys.map(key => ({ key, usage: { type: 'event' as const, slug: eventSlug }, action: 'remove' as const })),
+      ...addedMediaKeys.map(key => ({ key, usage: { type: 'event' as const, slug: eventSlug }, action: 'add' as const })),
+    ];
     await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
   },
 
@@ -200,7 +248,8 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
   },
 
   buildGitHubUrl(eventId: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${resolveEventPath(eventId)}`;
+    const [year, slug] = eventId.split('/');
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/events/${year}/${slug}`;
   },
 };
 

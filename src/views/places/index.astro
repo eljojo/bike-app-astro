@@ -1,0 +1,28 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '@/lib/city-config';
+import { categoryEmoji } from '@/lib/place-categories';
+
+const config = getCityConfig();
+
+const places = await getCollection('places');
+const sorted = places
+  .filter(p => p.data.status === 'published')
+  .sort((a, b) => a.data.name.localeCompare(b.data.name));
+---
+
+<Base title={`Places | ${config.display_name}`}>
+  <h1>Places</h1>
+  <ul class="guides-list">
+    {sorted.map(place => (
+      <li class="guides-list--guide">
+        <span class="guide--name">
+          {categoryEmoji[place.data.category] || '\u{1F4CD}'} {place.data.name}
+        </span>
+        {place.data.address && <span class="guide--tagline">{place.data.address}</span>}
+      </li>
+    ))}
+  </ul>
+</Base>

@@ -4,7 +4,7 @@ import { createGitService } from '../../lib/git-factory';
 import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
@@ -23,8 +23,8 @@ export async function POST({ locals }: APIContext) {
   try {
     const git = createGitService({
       token: env.GITHUB_TOKEN,
-      owner: GIT_OWNER,
-      repo: GIT_DATA_REPO,
+      owner: env.GIT_OWNER,
+      repo: env.GIT_DATA_REPO,
       branch: 'staging',
     });
 

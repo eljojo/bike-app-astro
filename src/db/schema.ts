@@ -76,8 +76,29 @@ export const reactions = sqliteTable('reactions', {
   uniqueIndex('reactions_unique_idx').on(table.city, table.userId, table.contentType, table.contentSlug, table.reactionType),
 ]);
 
+export const emailTokens = sqliteTable('email_tokens', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  token: text('token').notNull().unique(),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').notNull(),
+  usedAt: text('used_at'),
+}, (table) => [
+  index('email_tokens_token_idx').on(table.token),
+  index('email_tokens_email_idx').on(table.email),
+]);
+
 export const userSettings = sqliteTable('user_settings', {
   userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   emailInCommits: integer('email_in_commits', { mode: 'boolean' }).notNull().default(false),
   analyticsOptOut: integer('analytics_opt_out', { mode: 'boolean' }).notNull().default(false),
+});
+
+export const stravaTokens = sqliteTable('strava_tokens', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  athleteId: text('athlete_id').notNull(),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token').notNull(),
+  expiresAt: integer('expires_at').notNull(),
 });

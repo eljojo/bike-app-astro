@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean
+.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean hooks
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -33,10 +33,16 @@ test-update: map-style ## Update screenshot baselines
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: test typecheck lint test-e2e test-admin ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e)
+full: test typecheck lint test-e2e test-admin test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, club e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts
+
+test-blog: ## Run blog E2E tests (ride editor)
+	npx playwright test --config e2e/blog/fixture.ts
+
+test-club: ## Run club E2E tests (events, results, waypoints)
+	npx playwright test --config e2e/club/fixture.ts
 
 screenshots: map-style ## Update all screenshot baselines (public + admin)
 	CITY=demo npx astro build
@@ -69,6 +75,9 @@ docs-build: ## Build docs site
 
 docs-preview: ## Preview built docs site
 	npm run preview -w docs
+
+hooks: ## Install pre-commit hook (lint + typecheck)
+	bash scripts/setup-hooks.sh
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/

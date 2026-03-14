@@ -1,0 +1,136 @@
+---
+import RouteMap from './RouteMap.astro';
+import EventRouteSelector from './EventRouteSelector.tsx';
+import InteractiveElevation from './InteractiveElevation.tsx';
+import { computeElevationPoints } from '../lib/elevation-profile';
+import { paths } from '../lib/paths';
+import { TOUR_PALETTE } from '../lib/map-init';
+
+interface GpxPoint {
+  lat: number;
+  lon: number;
+  ele?: number;
+}
+
+interface Waypoint {
+  place: string;
+  type: 'checkpoint' | 'danger' | 'poi';
+  label: string;
+  distance_km?: number;
+  opening?: string;
+  closing?: string;
+  route?: string;
+  note?: string;
+}
+
+interface PlaceData {
+  id: string;
+  data: {
+    lat: number; lng: number; name: string;
+    description?: string; address?: string;
+    phone?: string; website?: string;
+    google_maps_url?: string; photo_key?: string;
+  };
+}
+
+interface RouteItem {
+  id: string;
+  data: {
+    name: string;
+    distance_km: number;
+    variants: { gpx: string; distance_km?: number }[];
+    gpxTracks: Record<string, { polyline: string; distance_m: number; elevation_gain_m: number; points: GpxPoint[] }>;
+  };
+}
+
+interface Props {
+  routes: RouteItem[];
+  locale?: string;
+  waypoints?: Waypoint[];
+  places?: PlaceData[];
+}
+
+const { routes, locale, waypoints = [], places = [] } = Astro.props;
+
+// Build polylines from route data — use first variant's track for each route
+const polylines = routes.flatMap((route, idx) => {
+  const variant = route.data.variants[0];
+  if (!variant) return [];
+  const track = route.data.gpxTracks[variant.gpx];
+  if (!track) return [];
+  return [{
+    name: route.data.name,
+    encoded: track.polyline,
+    color: TOUR_PALETTE[idx % TOUR_PALETTE.length],
+    url: paths.route(route.id, locale),
+  }];
+});
+
+// Build route info for the selector and elevation profiles
+const routeInfo = routes.map((route, idx) => {
+  const variant = route.data.variants[0];
+  const track = variant ? route.data.gpxTracks[variant.gpx] : null;
+  const elevPoints = track?.points ? computeElevationPoints(track.points, track.distance_m) : [];
+  return {
+    name: route.data.name,
+    slug: route.id,
+    distance_km: route.data.distance_km,
+    elevation_gain_m: track?.elevation_gain_m ?? 0,
+    color: TOUR_PALETTE[idx % TOUR_PALETTE.length],
+    url: paths.route(route.id, locale),
+    elevPoints,
+  };
+});
+
+// Resolve waypoints to lat/lng from places collection
+const resolvedWaypoints = waypoints.map(wp => {
+  const place = places.find(p => p.id === wp.place);
+  if (!place) return null;
+  return {
+    lat: place.data.lat,
+    lng: place.data.lng,
+    type: wp.type,
+    label: wp.label,
+    distance_km: wp.distance_km,
+    opening: wp.opening,
+    closing: wp.closing,
+    note: wp.note,
+    description: place.data.description,
+    address: place.data.address,
+    photo_key: place.data.photo_key,
+    website: place.data.website,
+    google_maps_url: place.data.google_maps_url,
+  };
+}).filter(Boolean);
+---
+
+{polylines.length > 0 && (
+  <div class="event-route-map">
+    <div class="event-route-map-container">
+      <RouteMap polylines={polylines} waypointMarkers={resolvedWaypoints} />
+    </div>
+
+    <EventRouteSelector
+      client:visible
+      routes={routeInfo.map(r => ({
+        slug: r.slug,
+        name: r.name,
+        distance_km: r.distance_km,
+        elevation_m: r.elevation_gain_m,
+        color: r.color,
+        url: r.url,
+      }))}
+    />
+
+    {routeInfo.map((r) => r.elevPoints.length > 0 && (
+      <div class="event-elevation-profile">
+        <InteractiveElevation
+          client:visible
+          points={r.elevPoints}
+          label={routeInfo.length > 1 ? r.name : undefined}
+          color={r.color}
+        />
+      </div>
+    ))}
+  </div>
+)}

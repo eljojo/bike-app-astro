@@ -1,0 +1,86 @@
+---
+import { t } from '@/i18n';
+
+interface Result {
+  brevet_no?: number;
+  last_name: string;
+  first_name?: string;
+  time?: string;
+  homologation?: string;
+  status?: 'DNS' | 'DNF' | 'DQ';
+}
+
+type Privacy = 'full_name' | 'last_name_only' | 'initials';
+
+interface Props {
+  results: Result[];
+  locale?: string;
+  privacy?: Privacy;
+}
+
+const { results, locale, privacy = 'full_name' } = Astro.props;
+
+const finishers = results.filter(r => !r.status);
+const nonFinishers = results.filter(r => !!r.status);
+
+const statusLabels: Record<string, string> = {
+  DNS: t('events.status.dns', locale),
+  DNF: t('events.status.dnf', locale),
+  DQ: t('events.status.dq', locale),
+};
+
+function formatName(r: Result): string {
+  switch (privacy) {
+    case 'initials':
+      return `${r.last_name.charAt(0)}.${r.first_name ? ` ${r.first_name.charAt(0)}.` : ''}`;
+    case 'last_name_only':
+      return r.last_name;
+    default:
+      return `${r.last_name}${r.first_name ? `, ${r.first_name}` : ''}`;
+  }
+}
+---
+
+<div class="results-section">
+  <p class="results-summary">{t('events.results_count', locale, { count: String(finishers.length) })}</p>
+
+  {finishers.length > 0 && (
+    <table class="event-results-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Time</th>
+          {finishers.some(r => r.homologation) && <th>Homol.</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {finishers.map((r) => (
+          <tr>
+            <td>{r.brevet_no ?? ''}</td>
+            <td>{formatName(r)}</td>
+            <td>{r.time || ''}</td>
+            {finishers.some(r => r.homologation) && <td>{r.homologation || ''}</td>}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+
+  {nonFinishers.length > 0 && (
+    <details class="non-finishers">
+      <summary>{nonFinishers.length} non-finisher{nonFinishers.length !== 1 ? 's' : ''}</summary>
+      <table class="event-results-table">
+        <tbody>
+          {nonFinishers.map((r) => (
+            <tr>
+              <td>{r.brevet_no ?? ''}</td>
+              <td>{formatName(r)}</td>
+              <td>{statusLabels[r.status!] || r.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  )}
+</div>

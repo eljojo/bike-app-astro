@@ -91,6 +91,43 @@
   }
 }
 
+.auth-success {
+  color: $color-success;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  background: $color-success-bg;
+  border: 1px solid $color-success-border;
+  border-radius: $border-radius;
+
+  @include dark-mode {
+    background: $color-success-bg-dark;
+    color: $color-success-dark;
+    border-color: $color-success-border-dark;
+  }
+}
+
+.auth-mode-toggle {
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  padding: 0;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+
+  &:hover {
+    color: $color-text;
+
+    @include dark-mode {
+      color: $color-text-dark;
+    }
+  }
+}
+
 .admin-notice {
   font-size: 0.875rem;
   padding: 0.5rem 0.75rem;
@@ -222,6 +259,146 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.route-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+
+  select {
+    flex: 1;
+  }
+}
+
+.waypoint-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.waypoint-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: 4px;
+  background: $color-bg;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+    background: $color-bg-dark;
+  }
+
+  &.dragging {
+    opacity: 0.5;
+  }
+}
+
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+  padding: 0.25rem;
+  @include muted-text;
+}
+
+.waypoint-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.waypoint-main-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+
+  select {
+    flex: 1;
+  }
+}
+
+.waypoint-detail-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.waypoint-distance {
+  width: 5rem;
+}
+
+.waypoint-time-labels {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+.waypoint-note {
+  flex: 1;
+}
+
+.csv-drop-zone {
+  border: 2px dashed $color-border;
+  border-radius: 4px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  &.drag-over {
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
+  }
+
+  p {
+    margin: 0;
+    @include muted-text;
+  }
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+
+  th, td {
+    padding: 0.25rem 0.375rem;
+    border-bottom: 1px solid $color-border;
+    text-align: left;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+
+  th {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    @include muted-text;
+  }
+
+  input, select {
+    width: 100%;
+    font-size: 0.875rem;
+    padding: 0.125rem 0.25rem;
+  }
+}
+
+.result-brevet {
+  width: 4rem !important;
+}
+
+.results-count {
+  font-size: 0.75rem;
+  @include muted-text;
+  margin-top: 0.25rem;
 }
 
 .organizer-inline-form {
@@ -694,6 +871,7 @@
   background: $color-card-bg;
   color: $color-text;
   cursor: pointer;
+  text-decoration: none;
 
   @include dark-mode {
     background: $color-card-bg-dark;
@@ -1173,6 +1351,63 @@
   }
 }
 
+// Passkey management
+.passkey-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.passkey-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.passkey-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.passkey-id {
+  font-family: $font-mono;
+  font-size: 0.8125rem;
+}
+
+.passkey-date {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.btn-small--danger {
+  color: $color-error;
+  border-color: $color-error;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+
+  &:hover:not(:disabled) {
+    background: $color-error-bg;
+
+    @include dark-mode {
+      background: $color-error-bg-dark;
+    }
+  }
+}
+
 // Cross-route photo suggestions
 .nearby-photos {
   margin-top: 1.5rem;
@@ -1553,5 +1788,759 @@
 
   @include dark-mode {
     color: #e85d4a;
+  }
+}
+
+// ─── Ride Editor — split pane layout ───
+
+.ride-editor {
+  position: relative;
+}
+
+.ride-editor-tabs {
+  display: none;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+}
+
+.ride-editor-tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  &--active {
+    border-bottom: 2px solid $color-accent;
+  }
+}
+
+.ride-editor-panes {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: block;
+  }
+}
+
+.ride-editor-edit {
+  flex: 1;
+  min-width: 0;
+}
+
+.ride-editor-preview {
+  flex: 1;
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    position: static;
+    max-height: none;
+  }
+}
+
+.ride-editor-pane--hidden {
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
+  }
+}
+
+// Ride details (collapsible)
+.ride-details {
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  margin-bottom: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.ride-details-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: $color-text;
+  text-align: left;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+}
+
+.ride-details-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ride-details-summary {
+  font-weight: 400;
+  @include muted-text;
+}
+
+.ride-details-toggle-arrow {
+  opacity: 0.5;
+}
+
+.ride-details-body {
+  padding: 0 0.75rem 0.75rem;
+}
+
+.ride-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+
+  > label {
+    font-weight: 500;
+    white-space: nowrap;
+  }
+}
+
+.ride-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// GPX fieldset
+.ride-gpx {
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+  margin-bottom: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  legend {
+    font-weight: 600;
+    padding: 0 0.5rem;
+  }
+}
+
+// GPX info
+.ride-gpx-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ride-gpx-filename {
+  font-family: $font-mono;
+}
+
+.ride-gpx-stat {
+  @include muted-text;
+}
+
+.ride-gpx-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.ride-gpx-empty {
+  text-align: center;
+  padding: 1rem;
+}
+
+.ride-gpx-hint {
+  @include muted-text;
+  margin-left: 0.5rem;
+}
+
+// Auto-detect field
+.auto-detect-field {
+  margin-bottom: 0.75rem;
+
+  label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.auto-detect-value {
+  background: none;
+  border: 1px dashed $color-border;
+  padding: 0.25rem 0.5rem;
+  border-radius: $border-radius;
+  cursor: pointer;
+  color: $color-text;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    color: $color-text-dark;
+  }
+
+  &:hover {
+    border-color: $color-accent;
+  }
+}
+
+.auto-detect-edit-hint {
+  opacity: 0.4;
+  font-size: 0.85em;
+}
+
+// Markdown toolbar
+.markdown-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid $color-border;
+  border-bottom: none;
+  border-radius: $border-radius $border-radius 0 0;
+  background: $color-card-bg;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+
+  button {
+    padding: 4px 8px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: $border-radius;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: $color-text;
+
+    @include dark-mode {
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-bg;
+      border-color: $color-border;
+
+      @include dark-mode {
+        background: $color-bg-dark;
+        border-color: $color-border-dark;
+      }
+    }
+  }
+
+  .toolbar-disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+// Story textarea (connects to toolbar)
+.ride-body-field textarea {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+// Preview styles (mini public page)
+.ride-preview-hero img {
+  width: 100%;
+  border-radius: $border-radius;
+}
+
+.ride-preview-title {
+  font-size: 1.25rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.ride-preview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid $color-border;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.ride-preview-stat-label {
+  display: block;
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.ride-preview-stat-value {
+  font-weight: 600;
+}
+
+.ride-preview-body {
+  line-height: 1.6;
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 1rem 0 0.5rem;
+  }
+
+  p {
+    margin: 0.5rem 0;
+  }
+
+  a {
+    color: $color-accent;
+  }
+}
+
+.ride-preview-map {
+  width: 100%;
+  height: 250px;
+  border-radius: $border-radius;
+  overflow: hidden;
+  margin-bottom: 1rem;
+
+  img {
+    width: 100%;
+    border-radius: $border-radius;
+  }
+}
+
+.ride-preview-elevation {
+  margin-bottom: 1rem;
+}
+
+.ride-preview-elevation-svg {
+  width: 100%;
+  height: auto;
+}
+
+.ride-preview-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  img {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: $border-radius;
+  }
+}
+
+// Inline form field
+.form-field--inline {
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+  }
+}
+
+// Tour picker
+.tour-picker {
+  position: relative;
+}
+
+.tour-picker--trigger {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-bg;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.tour-picker--arrow {
+  margin-left: 0.5rem;
+  opacity: 0.5;
+}
+
+.tour-picker--dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 0.25rem;
+  max-height: 300px;
+  overflow-y: auto;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.tour-picker--search {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-bottom: 1px solid $color-border;
+  background: transparent;
+  color: $color-text;
+  font-size: 0.875rem;
+  outline: none;
+
+  @include dark-mode {
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.tour-picker--options {
+  display: flex;
+  flex-direction: column;
+}
+
+.tour-picker--option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+  width: 100%;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  &:hover {
+    background: rgba($color-accent, 0.1);
+  }
+
+  &--selected {
+    background: rgba($color-accent, 0.15);
+  }
+}
+
+.tour-picker--option-meta {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.tour-picker--create {
+  border-top: 1px solid $color-border;
+  opacity: 0.7;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.tour-picker--create-form {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  input {
+    flex: 1;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    font-size: 0.875rem;
+    background: $color-bg;
+    color: $color-text;
+
+    @include dark-mode {
+      background: $color-bg-dark;
+      color: $color-text-dark;
+      border-color: $color-border-dark;
+    }
+  }
+
+  button {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid $color-accent;
+    border-radius: $border-radius;
+    background: $color-accent;
+    color: $color-text;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+}
+
+// Strava import button
+.strava-import-btn {
+  margin-left: 0.5rem;
+}
+
+// Strava activity browser overlay
+.strava-browser-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.strava-browser {
+  background: $color-bg;
+  border-radius: $border-radius;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  @include dark-mode {
+    background: $color-bg-dark;
+  }
+}
+
+.strava-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+}
+
+.strava-browser-loading,
+.strava-browser-empty {
+  padding: 2rem;
+  text-align: center;
+  @include muted-text;
+}
+
+.strava-activity-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.strava-activity-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+
+    @include dark-mode {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+}
+
+.strava-activity-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+}
+
+.strava-activity-name {
+  font-weight: 600;
+}
+
+.strava-activity-date {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.strava-activity-card-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.strava-activity-type {
+  padding: 0.1rem 0.4rem;
+  border-radius: $border-radius;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 0.75rem;
+
+  @include dark-mode {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.strava-browser-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+// Strava activity browser
+.strava-browser {
+  margin-top: 0.75rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  overflow: hidden;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.strava-browser--header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: $color-card-bg;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.strava-browser--list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.strava-activity {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  &:last-child { border-bottom: none; }
+}
+
+.strava-activity--info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.strava-activity--name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strava-activity--meta {
+  font-size: 0.75rem;
+  @include muted-text;
+}
+
+.strava-browser--more {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 0.5rem;
+  border-top: 1px solid $color-border;
+  border-radius: 0;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
   }
 }

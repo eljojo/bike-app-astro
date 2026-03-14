@@ -46,6 +46,62 @@ describe('eventDetailFromGit', () => {
   });
 });
 
+describe('enriched event fields', () => {
+  it('parses waypoints from frontmatter', () => {
+    const frontmatter = {
+      name: 'BRM 300', start_date: '2024-01-20',
+      event_date: '2024-01-20', time_limit_hours: 20, status: 'past',
+      routes: ['vuelta-rocas-300'],
+      waypoints: [
+        { place: 'plaza-pomaire', type: 'checkpoint', label: 'PC1', distance_km: 87,
+          opening: '2024-01-20 08:34', closing: '2024-01-20 11:48',
+          note: 'Fill bottles here' },
+        { place: 'cruce-ruta-5', type: 'danger', label: 'Danger zone', distance_km: 120 },
+      ],
+      registration: { url: 'https://example.com', slots: 300, price: 'CLP $22k' },
+      results: [
+        { brevet_no: 3, last_name: 'Freire', time: '18:34', homologation: '320258' },
+        { last_name: 'Test', status: 'DNF' },
+      ],
+    };
+    const detail = eventDetailFromGit('2024/brm-300', frontmatter, 'body');
+    expect(detail.routes).toEqual(['vuelta-rocas-300']);
+    expect(detail.waypoints).toHaveLength(2);
+    expect(detail.waypoints![0].type).toBe('checkpoint');
+    expect(detail.waypoints![0].note).toBe('Fill bottles here');
+    expect(detail.waypoints![1].note).toBeUndefined();
+    expect(detail.registration?.slots).toBe(300);
+    expect(detail.results).toHaveLength(2);
+  });
+
+  it('computes content hash including media.yml', () => {
+    const hash1 = computeEventContentHash('content');
+    const hash2 = computeEventContentHash('content', 'media yaml');
+    expect(hash1).not.toBe(hash2);
+  });
+
+  it('handles legacy flat events (no enriched fields)', () => {
+    const detail = eventDetailFromGit('2024/bike-fest', { name: 'Fest', start_date: '2024-06-01' }, '');
+    expect(detail.media).toEqual([]);
+    expect(detail.routes).toEqual([]);
+    expect(detail.waypoints).toEqual([]);
+  });
+
+  it('round-trips enriched event through cache', () => {
+    const detail = eventDetailFromGit('2024/brm-300', {
+      name: 'BRM 300', start_date: '2024-01-20',
+      routes: ['route-a'], status: 'past',
+      waypoints: [{ place: 'p1', type: 'checkpoint', label: 'PC1' }],
+      results: [{ last_name: 'Smith', time: '12:00' }],
+    }, 'body');
+    const cached = eventDetailToCache(detail);
+    const parsed = eventDetailFromCache(cached);
+    expect(parsed.routes).toEqual(['route-a']);
+    expect(parsed.waypoints).toHaveLength(1);
+    expect(parsed.results).toHaveLength(1);
+  });
+});
+
 describe('eventDetailToCache / eventDetailFromCache', () => {
   it('round-trips correctly', () => {
     const detail = eventDetailFromGit(

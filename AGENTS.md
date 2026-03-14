@@ -1,25 +1,116 @@
-# Ottawa by Bike — Astro Rebuild
+# whereto.bike
 
-Static site rebuild of [ottawabybike.ca](https://ottawabybike.ca). Part of the **whereto.bike** platform — a global, open-source cycling wiki with city-specific instances. `CLAUDE.md` is a symlink to this file (`AGENTS.md`).
+Open-source cycling platform — the WordPress for cycling. One codebase, three modes: personal ride blogs, community route wikis, and randonneuring club archives. City-specific instances, community-maintained, multilingual by default. AGPL-licensed.
 
-## Site Goals
+`CLAUDE.md` is a symlink to this file (`AGENTS.md`).
+
+## Why This Exists
 
 1. **Increase the number of first-time bicycle riders.**
 2. **Tap into experienced riders to help achieve goal 1.**
 
-These are the lens for all product and messaging decisions.
+Every product decision, every line of copy, every feature choice passes through these two goals.
+
+## Who This Is For
+
+Think about someone who loves cycling and wants to share it with someone they care about. They're looking for the right ride — somewhere worth going, not too far, good surface. Maybe there's a bakery at the turnaround point, or a lookout over the river, or a swimming spot for after. They need the information to be truthful, because this is how cycling clicks for a new person. Not through arguments or marketing, but through one good ride.
+
+If the distance is off, if the surface info is missing, if nobody mentioned the hill or the great cafe at kilometre twelve — that ride goes differently. And someone who could have discovered that a bicycle is freedom might not try again.
+
+That's what this software carries. A route wiki helps a city's riders find and share the good roads. A personal blog lets someone show, not tell, what cycling has given them. A club archive preserves the history of people who ride long distances together. Each mode models a real cycling initiative — and each one, done well, puts more people on bicycles.
+
+A bicycle for the mind already exists. This is the other half.
+
+### Take the path that leads to more cycling
+
+When two approaches both work, choose the one that results in more people riding. This applies to everything — feature prioritisation, copy tone, default settings, what gets prominent placement. A route page that highlights the waterfall at kilometre eight does more for cycling than one that leads with elevation gain. A place index full of picnic spots and viewpoints does more than a list of bike shops.
+
+Understand human psychology and work with it. Some people need reassurance — accurate distances, surface types, traffic info. Others need a reason to go — the destination, the scenery, the excuse to be outside. The platform must serve both: remove the fears *and* offer the carrot. Safety information is the floor. Joy is the ceiling.
+
+---
+
+## Ownership Mindset
+
+You own the outcome, not just the task. This isn't a typical web app where bugs get patched next sprint. A route description might be the only thing standing between someone and their first ride. A club's event archive is the history of a community. A blog post is someone's memory of a ride they loved. The code you write carries real things for real people.
+
+This changes how you work:
+
+- **Search before creating.** Before adding a constant, helper, or type, grep for where it might already exist. Data should have one source of truth. If you need a list of values, find where the authoritative list lives and derive from it — don't create a second copy that will drift.
+
+- **Trace all connections.** When removing or changing something, find every reference: code, styles, translations, types, tests, build config. Use grep. Removing a feature means removing the HTML elements, the CSS classes, the translation keys, the JS functions, the tests — all of it. If you're surprised by leftover references, you didn't trace thoroughly enough.
+
+- **Delete, don't hide.** If something shouldn't exist, remove it completely. Don't comment it out, don't hide it with CSS, don't wrap it in a dead conditional. Dead code is confusing code.
+
+- **Verify before claiming done.** After any change, grep for related terms, rebuild, run tests. Show proof, not promises. A claim without evidence is just a guess — and AI is particularly prone to confident guesses. If you say it works, show the output. If you say it's fixed, show the test passing.
+
+- **Understand the system before changing it.** Read the existing implementation. Understand why it works the way it does. Match its patterns. This codebase has conventions — vendor isolation, data locality, the save pipeline pattern — that exist for good reasons. Learn them before proposing alternatives.
+
+- **Model reality faithfully.** This platform succeeds by representing the cycling domain truthfully. A route is a real path someone rides. A place is a real location someone visits. An event is a real gathering with real participants. When the domain model is right, features follow naturally. When it's wrong, every feature is a workaround. Take domain-driven design seriously — the types, the names, the relationships should make a cyclist nod in recognition.
+
+---
+
+## Development Principles
+
+- **Care and attention to detail.** This software helps people find rides, remember trips, and organise communities. Getting a distance wrong, dropping a waypoint, or breaking a map isn't a cosmetic issue — it's a broken promise to someone who trusted the information. Being thorough means checking your own work, matching the standards already in the codebase, and not leaving loose ends.
+
+- **Empathy.** The people using this range from experienced randonneurs to someone Googling "bike rides near me" for the first time. Every page, every label, every default should make sense to the least experienced person who might see it. Never use absolute fitness language ("easy", "hard") — use relative framing ("shorter than most rides on this site"). Lend a hand, don't assume expertise.
+
+- **Universality.** Three instance types, multiple languages, cities on every continent. The platform must not assume a single locale, a single measurement system, or a single way of organising cycling. What works for a randonneuring club in Santiago must work for a route wiki in Ottawa and a ride blog in Tokyo. Build for the general case. Hardcode nothing.
+
+- **Show, don't tell.** Real photos taken by real people on real rides. Real routes ridden by someone who was there. No stock imagery, no AI-generated content, no pitching. The product speaks through what it contains, not what it claims. This applies to code too — show the test output, show the build passing, show the screenshot. Proof over promises.
+
+- **Domain-driven design.** The codebase models cycling reality: routes, rides, tours, events, places, waypoints, organisers. These aren't arbitrary labels — they're how cyclists already think. When a new feature fits naturally into the domain model, it's probably right. When it needs workarounds and special cases, the model might need to grow. Take the domain seriously. Name things what cyclists call them. Let the structure of cycling inform the structure of the code.
+
+- **Stand the test of time.** A club's event archive spans decades. A blog's ride history is a personal record. Content must not depend on a specific host, a specific API, or this project's continued existence. Data lives in Git as plain files — Markdown, YAML, GPX. Anyone can read it, fork it, move it. No lock-in. No proprietary formats. The content outlives the platform.
+
+- **Tests verify claims.** If you can't demonstrate the test failing without your change, you can't be sure it's testing anything. Run the tests yourself before calling something done. Any change that touches user-facing behaviour needs a corresponding test. Don't leave verification to others.
+
+- **Keep docs current.** When changing behaviour, update the relevant docs and AGENTS.md files in the same commit. Stale docs are worse than no docs — they teach the wrong thing with authority.
+
+---
+
+## Voice & Feel
+
+The voice is a friend who loves cycling showing you around. Not a brand, not a guide, not an instructor — a person who rides this road and wants you to enjoy it too. The warmth is real but not performed. You shouldn't be able to point at any one sentence and say "that's the friendly sentence." The friendliness is structural: it's in the clarity, the pacing, the fact that someone thought about what you'd need to know.
+
+**What to avoid isn't enthusiasm — it's *performed* enthusiasm.** "You're gonna love this trail!" is performing. A description that mentions the river view at the halfway point and the cafe where you can refill your water is genuinely helpful — and that helpfulness is warm.
+
+**The core principle:** write like someone who took time to choose these words. Not someone filling in a template, not someone trying to sound upbeat. A person who rides, writing for someone who might.
+
+**Cadence:**
+- Sentences that don't rush. Short is fine. But not clipped.
+- Words that feel placed, not emitted.
+- Room for a human touch — a detail only someone who rode there would mention. Not every line needs to be minimal.
+
+**Concrete rules:**
+- Prefer human words over technical ones. "Ride" not "route segment." "Turn around at the lighthouse" not "reverse direction at waypoint 7."
+- Address people directly. "You'll pass a bakery at kilometre four" not "There is a bakery located at kilometre four."
+- No exclamation marks in UI copy. Period.
+- Use em dashes ( — ) not double hyphens (--) or unspaced dashes.
+- Drop filler: "simply", "just", "easily", "basically."
+- Contractions are fine where they sound natural. Don't force them and don't avoid them.
+- Never use absolute fitness language. "Shorter than most rides on this site" not "An easy ride." "Steady climb for 2 km" not "A hard hill."
+- Places matter. Mention the cafe, the viewpoint, the swimming spot, the bench with the good shade. These are why people ride.
+
+**The vibe:**
+- Not: "You're gonna crush this ride!" (performed enthusiasm)
+- Not: "Proceed along the designated cycling path." (mechanical)
+- Not: "This route is 12 km." (correct but lifeless)
+- But: "Twelve kilometres along the river. There's a good spot to stop at the bridge."
+
+Warm, clear, human. Like someone who's been there.
+
+---
 
 ## Brand & Product Framing
 
-- **whereto.bike** — Global cycling wiki platform (umbrella brand, AGPL)
+- **whereto.bike** — Global cycling platform (umbrella brand, AGPL)
 - **ottawabybike.ca** — Ottawa instance, established local brand (est. 2022), "powered by whereto.bike"
 - **{city}.whereto.bike** — Future city subdomains
-- **Show, don't tell.** Real photos, real humans, real routes. No pitching.
+- **Three instance types:** wiki (community route database), blog (personal ride journal), club (randonneuring/event archive). One codebase, conditionally enabled features. See `instance_type` in city config.
 - **Rider first, contributor second.** Lead with utility (find a ride), not contribution (add a GPX).
-- **Quiet confidence.** No ads, no algorithms, no paywalls — communicated through absence, not promises. Never sound like a startup.
-- **Don't name competitors.** Let the product speak for itself.
 - **Human over algorithmic.** Every photo was taken by someone who was there. Every route was ridden by a real person.
-- **Inclusive and empathetic.** Never use absolute fitness language ("easy", "hard") — use relative framing ("easier than most routes on this site").
+- **Don't name competitors.** Let the product speak for itself.
 
 ## Quick Start
 
@@ -75,7 +166,7 @@ Additional gotchas not covered by directory files:
 - **Prerender flags**: every page/API endpoint MUST export `prerender` (true or false).
 - **Virtual module types**: `src/virtual-modules.d.ts` is ambient — NO top-level imports or it breaks all declarations.
 - **Path resolution**: never use `path.resolve('relative/path')` — use `import.meta.dirname`.
-- **View Transitions**: use `astro:page-load` event, not `DOMContentLoaded`.
+- **No ClientRouter**: the site does NOT use Astro's `<ClientRouter />` (View Transitions). Use `DOMContentLoaded`, not `astro:page-load`.
 - **Middleware exclusions**: `/api/auth/*` and `/api/reactions/*` skip auth — don't put protected endpoints there.
 - **Wrangler config**: never add `main` field — it breaks builds.
 - **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
@@ -84,6 +175,16 @@ Additional gotchas not covered by directory files:
 ---
 
 ## Architecture
+
+### Instance Types
+
+The codebase serves three instance types from one codebase: **wiki** (community route database, default), **blog** (personal ride journal), and **club** (randonneuring/event archive). The type is set via `instance_type` in the city's `config.yml`.
+
+**Feature flags, not identity checks.** Use `getInstanceFeatures()` from `src/lib/instance-features.ts` for capability checks (e.g., `features.hasRides`, `features.hasEvents`, `features.allowsRegistration`). Reserve `isBlogInstance()`/`isClubInstance()` for structural decisions like which loaders, virtual modules, or admin routes to register. See `src/lib/AGENTS.md` for details.
+
+**Rides reuse the routes infrastructure.** Blog instances store rides as GPX files with optional sidecar Markdown, but they flow through the same `routes` content collection, the same `admin-routes`/`admin-route-detail` virtual modules, and the same admin editor pipeline. The admin-rides loader (`src/loaders/admin-rides.ts`) populates these modules on blog instances instead of the route loader. Ride-specific types (`RideDetail`, `AdminRideDetail`) extend the shared content model in `src/lib/models/ride-model.ts`.
+
+**Shared content model base.** All content types share `GitFileSnapshot`, `GitFiles`, `computeHashFromParts`, and `baseMediaItemSchema` from `src/lib/models/content-model.ts`. Type-specific models (`route-model.ts`, `ride-model.ts`, `event-model.ts`, `place-model.ts`) extend from these.
 
 ### Content Pipeline
 
@@ -97,6 +198,8 @@ Routes are special — they use a custom loader (`src/loaders/routes.ts`) that:
 - Parses GPX XML and renders markdown at load time
 - Loads locale translations from sidecar files
 
+Rides (blog instances) live under `{CITY}/rides/` as GPX files with optional sidecar `.md` and `-media.yml` files. Tour grouping is detected from directory structure. The rides loader (`src/loaders/rides.ts`) handles GPX parsing and tour detection; the admin rides loader (`src/loaders/admin-rides.ts`) builds tour aggregates and ride stats.
+
 Pages use a custom loader (`src/loaders/pages.ts`). Other collections use Astro's `glob` loader.
 
 ### Data Locality Principle
@@ -109,8 +212,8 @@ When building query layers over distributed data, the index is a **computed view
 
 Two distinct config layers — don't confuse them:
 
-- **Build-time** (`src/lib/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `GIT_OWNER`, `GIT_DATA_REPO`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
-- **Runtime** (`src/lib/env.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, etc. via the `AppEnv` interface (`src/lib/app-env.ts`).
+- **Build-time** (`src/lib/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
+- **Runtime** (`src/lib/env.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/app-env.ts`).
 
 City-specific config is loaded from `{cityDir}/config.yml` by `src/lib/city-config.ts` and defines: display name, CDN URLs, tile server, timezone, locales, map bounds, place categories, analytics domain, and author info. Locales are derived from the city config (e.g., `[en-CA, fr-CA]` → `[en, fr]`), not hardcoded.
 
@@ -167,7 +270,7 @@ Editor → `POST /api/{content-type}/{slug}` → `content-save.ts` orchestrator 
 
 The `SaveHandlers<T, R>` interface (`src/lib/content-save.ts`) has 10 methods: `parseRequest`, `resolveContentId`, `validateSlug?`, `getFilePaths`, `computeContentHash`, `buildFreshData`, `checkExistence?`, `buildFileChanges`, `buildCommitMessage`, `buildGitHubUrl`, `afterCommit?`.
 
-Implementations: `src/views/api/route-save.ts`, `src/views/api/event-save.ts`, `src/views/api/place-save.ts`.
+Implementations: `src/views/api/route-save.ts`, `src/views/api/ride-save.ts`, `src/views/api/event-save.ts`, `src/views/api/place-save.ts`.
 
 Key behaviors:
 - **Conflict detection**: compare-and-swap using blob SHAs in D1 cache
@@ -203,13 +306,12 @@ src/
   integrations/   # Astro integrations (route injection, i18n, build plugins)
   layouts/        # Base.astro (shell with header, nav, footer)
   lib/            # Service modules, adapters, save pipeline, auth
-  lib/models/     # Canonical type defs: route-model.ts, event-model.ts, place-model.ts
+  lib/models/     # Canonical type defs: content-model.ts (shared base), route-model.ts, ride-model.ts, event-model.ts, place-model.ts
   loaders/        # Custom Astro content loaders (routes, pages, admin data)
-  pages/          # File-based routing (public pages + auth API + feeds)
   schemas/        # Zod schemas for content collections (barrel export via index.ts)
   styles/         # SCSS — _variables.scss is the design token source of truth
   types/          # TypeScript types (admin.ts, mapbox-polyline.d.ts)
-  views/          # Admin pages + API endpoints (injected via injectRoute)
+  views/          # All pages + API endpoints (injected via injectRoute, no src/pages/)
 docs/             # Documentation site (separate npm workspace)
 drizzle/          # Migration SQL files
 e2e/              # Playwright screenshot + admin E2E tests
@@ -239,14 +341,14 @@ This is the most complex operation. Files that must change together:
 8. `src/views/api/{type}-save.ts` — implement `SaveHandlers<T>` with `POST` export
 9. `src/integrations/admin-routes.ts` — register admin pages + API endpoint
 10. `src/views/admin/{type}-detail.astro` + `{type}-new.astro` — admin pages
-11. `src/pages/admin/{types}.astro` — admin list page
+11. `src/views/admin/{types}.astro` — admin list page
 12. `src/components/admin/{Type}Editor.tsx` — Preact island
 13. `src/styles/admin.scss` — all editor styles (NOT scoped `<style>`)
 14. `src/lib/load-admin-content.ts` — add list overlay function if needed
 
 ### Adding a New API Endpoint
 
-1. Create file in `src/views/api/` (NOT `src/pages/api/` — exception: auth endpoints)
+1. Create file in `src/views/api/` (auth endpoints go in `src/views/api/auth/`)
 2. Add `export const prerender = false`
 3. Register in `src/integrations/admin-routes.ts` (static routes before parameterized)
 4. If public (no auth needed), add exclusion in `src/middleware.ts` `isProtected` check
@@ -288,11 +390,15 @@ See `src/styles/AGENTS.md` for styling rules. Key: use SCSS variables from `_var
 ## Testing
 
 ```sh
+make lint          # ESLint checks (src/)
+make typecheck     # TypeScript type checking (tsc --noEmit)
 make test          # vitest unit tests (tests/)
 make test-e2e      # build (CITY=demo) + playwright screenshot tests
 make test-admin    # admin E2E tests (save flow, community editing, etc.)
 make full          # build + validate + unit + all E2E
 ```
+
+**Run `make lint` and `make typecheck` before committing.** CI enforces both — catch errors locally first.
 
 Screenshot tests build against `CITY=demo` (a fixture city), not Ottawa. See `e2e/AGENTS.md` for fixture system details.
 

@@ -1,10 +1,10 @@
 // AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
-import yaml from 'js-yaml';
 import { z } from 'astro/zod';
+import { serializeMdFile } from '../../lib/file-serializers';
 import { CITY } from '../../lib/config';
-import { GIT_OWNER, GIT_DATA_REPO } from '../../lib/config';
+import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
@@ -145,12 +145,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
       fm.photo_key = update.frontmatter.photo_key;
     }
 
-    const frontmatterStr = yaml.dump(fm, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
-
-    const content = `---\n${frontmatterStr}\n---\n`;
-    files.push({ path: placePath, content });
+    files.push({ path: placePath, content: serializeMdFile(fm) });
 
     return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, placeSlug: placeId, mergedParked };
   },
@@ -169,7 +164,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
   },
 
   buildGitHubUrl(placeId: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${resolvePlacePath(placeId)}`;
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${resolvePlacePath(placeId)}`;
   },
 };
 

@@ -1,0 +1,170 @@
+---
+import { imageUrl } from '@/lib/image-service';
+import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
+import { t } from '@/i18n';
+import { formatDuration } from '@/lib/date-utils';
+import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
+import { paths, assets } from '@/lib/paths';
+import { countryToFlag } from '@/lib/country-flags';
+import PhotoGallery from '@/components/PhotoGallery.astro';
+import ContentDetail from '@/components/patterns/ContentDetail.astro';
+import StatBar from '@/components/StatBar.astro';
+import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import type { NearbyPlace } from '@/lib/proximity';
+
+interface Props {
+  route: any;
+  tour?: { slug: string; name: string } | null;
+  tourRides?: any[];
+  backLink: string;
+  backLabel: string;
+  nearbyPlaces?: NearbyPlace[];
+}
+
+const { route, tour, tourRides = [], backLink, backLabel, nearbyPlaces = [] } = Astro.props;
+const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
+const locale = Astro.currentLocale;
+
+const cover = media.find((m: any) => m.cover);
+const photos = media.filter((m: any) => m.type === 'photo').sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+const hasMap = hasCachedMap(route.id);
+const mapLang = cachedMapLocale(route.id, undefined, locale);
+
+const primaryGpx = route.data.variants[0]?.gpx;
+const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
+const elevation = route.data.total_elevation_gain ?? primaryTrack?.elevation_gain_m;
+
+const heroImage = cover ? imageUrl(cover.key, { width: 1170 }) : undefined;
+const heroImageSrcset = cover ? `${imageUrl(cover.key, { width: 2340 })} 2x` : undefined;
+
+const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
+  ? `${formatDuration(route.data.elapsed_time_s)} (${formatDuration(route.data.moving_time_s)} moving)`
+  : route.data.moving_time_s
+    ? formatDuration(route.data.moving_time_s)
+    : '';
+---
+
+<ContentDetail title={name} heroImage={heroImage} heroImageSrcset={heroImageSrcset} heroAlt={name}>
+  <Fragment slot="breadcrumb">
+    {tour && (
+      <nav class="ride-breadcrumb">
+        <a href="/tours">{t('nav.tours', locale)}</a>
+        {' / '}
+        <a href={paths.tour(tour.slug)}>{tour.name}</a>
+      </nav>
+    )}
+  </Fragment>
+
+  <Fragment slot="title">
+    {route.data.country && countryToFlag(route.data.country) ? `${countryToFlag(route.data.country)} ` : ''}{name}
+  </Fragment>
+
+  <StatBar slot="stats" items={[
+    { label: '', value: route.data.ride_date || '' },
+    { label: 'Distance', value: formatDistance(distance_km, 2) },
+    { label: 'Time', value: timeDisplay },
+    { label: 'Avg. Speed', value: route.data.average_speed_kmh ? formatSpeed(route.data.average_speed_kmh, 2) : '' },
+    { label: 'Elevation', value: elevation != null ? formatElevation(elevation) : '' },
+  ]} />
+
+  <Fragment slot="body">
+    {renderedBody && <div class="route-description" set:html={renderedBody} />}
+  </Fragment>
+
+  <Fragment slot="actions">
+    <div class="route-actions">
+      <p>
+        <a href={paths.rideMap(route.id, route.data.tour_slug)} class="action-button --primary --wider">
+          &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
+        </a>
+        {route.data.variants[0]?.strava_url && (
+          <Fragment>
+            {' '}
+            <a href={route.data.variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
+              <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+            </a>
+          </Fragment>
+        )}
+      </p>
+    </div>
+  </Fragment>
+
+  <Fragment slot="sidebar">
+    {hasMap && (
+      <div class="route-detail--static-map">
+        <a href={paths.rideMap(route.id, route.data.tour_slug)} title={t('ride.view_map', locale)}>
+          <img
+            src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
+            alt={`Map of ${name}`}
+          />
+        </a>
+        {nearbyPlaces.length > 0 && (
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+        )}
+      </div>
+    )}
+    {tour && tourRides.length > 0 && (
+      <section class="tour-rides-sidebar">
+        <h2>
+          <a href={paths.tour(tour.slug)}>{tour.name}</a>
+        </h2>
+        <ul class="tour-detail--rides">
+          {tourRides.map(tourRide => {
+            const rideCover = tourRide.data.media.find((m: any) => m.cover);
+            const rideHasMap = hasCachedMap(tourRide.id);
+            const isCurrent = tourRide.id === route.id;
+            return (
+              <li class={`tour-ride${isCurrent ? ' current' : ''}`}>
+                <a href={isCurrent ? '#' : paths.ride(tourRide.id, tour.slug)} class="tour-ride--link" aria-current={isCurrent ? 'page' : undefined}>
+                  <div class="tour-ride--images">
+                    {rideCover && (
+                      <img
+                        class="tour-ride--cover"
+                        src={imageUrl(rideCover.key, { width: 160, height: 160, fit: 'cover' })}
+                        alt={tourRide.data.name}
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      />
+                    )}
+                    {rideHasMap && (
+                      <img
+                        class="tour-ride--map"
+                        src={assets.mapThumbnail(tourRide.id, 375)}
+                        alt={`Map of ${tourRide.data.name}`}
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      />
+                    )}
+                  </div>
+                  <div class="tour-ride--info">
+                    <strong class="tour-ride--name">{tourRide.data.name}</strong>
+                    <span class="tour-ride--meta">
+                      {tourRide.data.ride_date}
+                      {' · '}
+                      {formatDistance(tourRide.data.distance_km)}
+                      {tourRide.data.country ? ` · ${countryToFlag(tourRide.data.country) || tourRide.data.country}` : ''}
+                    </span>
+                  </div>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    )}
+  </Fragment>
+
+  <Fragment slot="gallery">
+    {photos.length > 0 && (
+      <PhotoGallery photos={photos} routeName={name} />
+    )}
+  </Fragment>
+
+  <Fragment slot="after">
+    <p class="route-similar">
+      <a href={backLink} class="go-back-button">&larr; {backLabel}</a>
+    </p>
+  </Fragment>
+</ContentDetail>

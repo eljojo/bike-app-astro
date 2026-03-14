@@ -1,44 +1,105 @@
 import type { AstroIntegration } from 'astro';
+import { isBlogInstance } from '../lib/city-config';
 
-/** Admin and API routes that need dynamic parameters, injected to avoid bracket filenames. */
-const adminRoutes = [
-  { pattern: '/admin/routes/new', entrypoint: './src/views/admin/route-new.astro' },
-  { pattern: '/admin/routes/[slug]', entrypoint: './src/views/admin/route-detail.astro' },
-  { pattern: '/admin/events/new', entrypoint: './src/views/admin/event-new.astro' },
-  { pattern: '/admin/events/[...id]', entrypoint: './src/views/admin/event-detail.astro' },
-  { pattern: '/api/routes/[slug]', entrypoint: './src/views/api/route-save.ts' },
-  { pattern: '/api/events/[...id]', entrypoint: './src/views/api/event-save.ts' },
-  { pattern: '/admin/places/new', entrypoint: './src/views/admin/place-new.astro' },
-  { pattern: '/admin/places/[id]', entrypoint: './src/views/admin/place-detail.astro' },
-  { pattern: '/api/places/prefill', entrypoint: './src/views/api/places-prefill.ts' },
-  { pattern: '/api/places/[id]', entrypoint: './src/views/api/place-save.ts' },
-  { pattern: '/api/media/[key]', entrypoint: './src/views/api/media-delete.ts' },
-  { pattern: '/api/admin/sync', entrypoint: './src/views/api/admin-sync.ts' },
-  { pattern: '/api/admin/users', entrypoint: './src/views/api/admin-users.ts' },
-  { pattern: '/api/admin/history', entrypoint: './src/views/api/admin-history.ts' },
-  { pattern: '/api/admin/revert', entrypoint: './src/views/api/admin-revert.ts' },
-  { pattern: '/api/admin/diff', entrypoint: './src/views/api/admin-diff.ts' },
-  { pattern: '/admin/history', entrypoint: './src/views/admin/history.astro' },
-  { pattern: '/admin/users', entrypoint: './src/views/admin/users.astro' },
-  { pattern: '/admin/settings', entrypoint: './src/views/admin/settings.astro' },
-  { pattern: '/api/settings', entrypoint: './src/views/api/settings.ts' },
-  { pattern: '/api/gpx/import', entrypoint: './src/views/api/gpx/import.ts' },
-  { pattern: '/api/reactions', entrypoint: './src/views/api/reactions.ts' },
-  // Static _starred must precede parameterized [contentType]/[contentSlug] to avoid matching as params
-  { pattern: '/api/reactions/route/_starred', entrypoint: './src/views/api/reactions-starred.ts' },
-  { pattern: '/api/reactions/[contentType]/[contentSlug]', entrypoint: './src/views/api/reactions-get.ts' },
-  { pattern: '/api/tiles/[...path]', entrypoint: './src/views/api/tile-proxy.ts' },
-  { pattern: '/api/admin/event-draft', entrypoint: './src/views/api/event-draft.ts' },
-  { pattern: '/api/admin/fetch-image', entrypoint: './src/views/api/fetch-image.ts' },
-  { pattern: '/dev-uploads/[...path]', entrypoint: './src/views/dev/dev-uploads.ts' },
+/** Resolve a view path relative to this file's location (works from node_modules too). */
+const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
+
+/**
+ * All application routes — auth, admin, API, and public feeds.
+ * Injected unconditionally so the app works both directly and as a package.
+ */
+const routes = [
+  // Auth pages
+  { pattern: '/setup', entrypoint: view('auth/setup.astro') },
+  { pattern: '/login', entrypoint: view('auth/login.astro') },
+  { pattern: '/gate', entrypoint: view('auth/gate.astro') },
+  { pattern: '/register', entrypoint: view('auth/register.astro') },
+  { pattern: '/auth/verify', entrypoint: view('auth/verify.astro') },
+  // Auth API
+  { pattern: '/api/auth/login-options', entrypoint: view('api/auth/login-options.ts') },
+  { pattern: '/api/auth/login', entrypoint: view('api/auth/login.ts') },
+  { pattern: '/api/auth/logout', entrypoint: view('api/auth/logout.ts') },
+  { pattern: '/api/auth/guest', entrypoint: view('api/auth/guest.ts') },
+  { pattern: '/api/auth/register', entrypoint: view('api/auth/register.ts') },
+  { pattern: '/api/auth/register-options', entrypoint: view('api/auth/register-options.ts') },
+  { pattern: '/api/auth/upgrade', entrypoint: view('api/auth/upgrade.ts') },
+  { pattern: '/api/auth/upgrade-options', entrypoint: view('api/auth/upgrade-options.ts') },
+  { pattern: '/api/auth/email-login', entrypoint: view('api/auth/email-login.ts') },
+  { pattern: '/api/auth/add-passkey', entrypoint: view('api/auth/add-passkey.ts') },
+  { pattern: '/api/auth/remove-passkey', entrypoint: view('api/auth/remove-passkey.ts') },
+  { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
+  // Admin list pages
+  { pattern: '/admin', entrypoint: view('admin/index.astro') },
+  { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
+  { pattern: '/admin/places', entrypoint: view('admin/places.astro') },
+  // Blog ride admin pages (static routes before parameterized)
+  ...(isBlogInstance() ? [
+    { pattern: '/admin/rides', entrypoint: view('admin/rides.astro') },
+    { pattern: '/admin/rides/new', entrypoint: view('admin/ride-detail.astro') },
+    { pattern: '/admin/rides/[slug]', entrypoint: view('admin/ride-detail.astro') },
+  ] : []),
+  // Admin detail pages
+  { pattern: '/admin/routes/new', entrypoint: view('admin/route-new.astro') },
+  { pattern: '/admin/routes/[slug]', entrypoint: view('admin/route-detail.astro') },
+  { pattern: '/admin/events/new', entrypoint: view('admin/event-new.astro') },
+  { pattern: '/admin/events/[...id]', entrypoint: view('admin/event-detail.astro') },
+  { pattern: '/admin/places/new', entrypoint: view('admin/place-new.astro') },
+  { pattern: '/admin/places/[id]', entrypoint: view('admin/place-detail.astro') },
+  { pattern: '/admin/history', entrypoint: view('admin/history.astro') },
+  { pattern: '/admin/users', entrypoint: view('admin/users.astro') },
+  { pattern: '/admin/settings', entrypoint: view('admin/settings.astro') },
+  // Content API (static routes before parameterized)
+  { pattern: '/api/routes/[slug]', entrypoint: view('api/route-save.ts') },
+  { pattern: '/api/events/[...id]', entrypoint: view('api/event-save.ts') },
+  { pattern: '/api/places/prefill', entrypoint: view('api/places-prefill.ts') },
+  { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
+  ...(isBlogInstance() ? [
+    { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
+    { pattern: '/api/strava/connect', entrypoint: view('api/strava/connect.ts') },
+    { pattern: '/api/strava/disconnect', entrypoint: view('api/strava/disconnect.ts') },
+    { pattern: '/api/strava/activities', entrypoint: view('api/strava/activities.ts') },
+    { pattern: '/api/strava/import', entrypoint: view('api/strava/import.ts') },
+  ] : []),
+  // Media API
+  { pattern: '/api/media/presign', entrypoint: view('api/media/presign.ts') },
+  { pattern: '/api/media/confirm', entrypoint: view('api/media/confirm.ts') },
+  { pattern: '/api/media/[key]', entrypoint: view('api/media-delete.ts') },
+  // Admin API
+  { pattern: '/api/admin/sync', entrypoint: view('api/admin-sync.ts') },
+  { pattern: '/api/admin/users', entrypoint: view('api/admin-users.ts') },
+  { pattern: '/api/admin/history', entrypoint: view('api/admin-history.ts') },
+  { pattern: '/api/admin/revert', entrypoint: view('api/admin-revert.ts') },
+  { pattern: '/api/admin/diff', entrypoint: view('api/admin-diff.ts') },
+  { pattern: '/api/admin/event-draft', entrypoint: view('api/event-draft.ts') },
+  { pattern: '/api/admin/fetch-image', entrypoint: view('api/fetch-image.ts') },
+  { pattern: '/api/settings', entrypoint: view('api/settings.ts') },
+  { pattern: '/api/suggest-waypoints', entrypoint: view('api/suggest-waypoints.ts') },
+  { pattern: '/api/gpx/import', entrypoint: view('api/gpx/import.ts') },
+  // Reactions (static _starred must precede parameterized to avoid matching as params)
+  { pattern: '/api/reactions', entrypoint: view('api/reactions.ts') },
+  { pattern: '/api/reactions/route/_starred', entrypoint: view('api/reactions-starred.ts') },
+  { pattern: '/api/reactions/[contentType]/[contentSlug]', entrypoint: view('api/reactions-get.ts') },
+  // Other API
+  { pattern: '/api/event', entrypoint: view('api/event.ts') },
+  { pattern: '/api/dev/upload', entrypoint: view('dev/upload.ts') },
+  { pattern: '/api/tiles/[...path]', entrypoint: view('api/tile-proxy.ts') },
+  { pattern: '/dev-uploads/[...path]', entrypoint: view('dev/dev-uploads.ts') },
+  // Public feeds and meta
+  { pattern: '/404', entrypoint: view('404.astro') },
+  { pattern: '/sitemap', entrypoint: view('sitemap.astro') },
+  { pattern: '/sitemap.xml', entrypoint: view('sitemap.xml.ts') },
+  { pattern: '/robots.txt', entrypoint: view('robots.txt.ts') },
+  { pattern: '/rss.xml', entrypoint: view('rss.xml.ts') },
+  { pattern: '/llms.txt', entrypoint: view('llms.txt.ts') },
+  { pattern: '/calendar.ics', entrypoint: view('calendar.ics.ts') },
 ];
 
-export function adminRoutesIntegration(): AstroIntegration {
+export function appRoutesIntegration(): AstroIntegration {
   return {
-    name: 'admin-routes',
+    name: 'app-routes',
     hooks: {
       'astro:config:setup': ({ injectRoute }) => {
-        for (const route of adminRoutes) {
+        for (const route of routes) {
           injectRoute(route);
         }
       },

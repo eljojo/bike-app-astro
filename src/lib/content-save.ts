@@ -4,7 +4,7 @@ import { createGitService } from './git-factory';
 import { db } from './get-db';
 import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from './config';
+import { CITY } from './config';
 import { jsonResponse, jsonError } from './api-response';
 import { computeBlobSha } from './git-service';
 import type { IGitService, FileChange } from './git-service';
@@ -43,8 +43,14 @@ export interface SaveHandlers<T, R extends BuildResult = BuildResult> {
   /** Build fresh data for D1 cache on conflict. */
   buildFreshData(contentId: string, currentFiles: CurrentFiles): string;
 
-  /** Check for existence conflicts (new content). Return error Response or null. */
-  checkExistence?(git: IGitService, contentId: string): Promise<Response | null>;
+  /**
+   * Check for existence conflicts (new content).
+   * Return error Response to abort, a new contentId string to deduplicate, or null to proceed.
+   * Returning a string signals that the original contentId collided and the handler resolved
+   * it to a new unique id (e.g. appending "-2"). The orchestrator will use the new id for
+   * all subsequent steps (file paths, cache keys, response).
+   */
+  checkExistence?(git: IGitService, contentId: string): Promise<Response | string | null>;
 
   /** Build the file changes and delete paths for the git commit. */
   buildFileChanges(
@@ -73,21 +79,23 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
 ): Promise<Response> {
   const auth = await authenticateAndParse(request, locals, params, handlers);
   if (auth instanceof Response) return auth;
-  const { user, update, contentId } = auth;
+  const { user, update } = auth;
+  let { contentId } = auth;
 
   try {
     const baseBranch = env.GIT_BRANCH || 'main';
     const database = db();
     const git = createGitService({
       token: env.GITHUB_TOKEN,
-      owner: GIT_OWNER,
-      repo: GIT_DATA_REPO,
+      owner: env.GIT_OWNER,
+      repo: env.GIT_DATA_REPO,
       branch: baseBranch,
     });
 
     if (handlers.checkExistence) {
-      const err = await handlers.checkExistence(git, contentId);
-      if (err) return err;
+      const result = await handlers.checkExistence(git, contentId);
+      if (result instanceof Response) return result;
+      if (typeof result === 'string') contentId = result;
     }
 
     const filePaths = handlers.getFilePaths(contentId);
@@ -271,7 +279,14 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
   handlers: SaveHandlers<T, R>,
   sha: string,
 ): Promise<Response> {
-  const committedPrimary = files.find(f => f.path === filePaths.primary);
+  let committedPrimary = files.find(f => f.path === filePaths.primary);
+  // Events can be flat (.md) or directory-based (index.md). The primary path
+  // targets the directory format, but the actual committed file may be at an
+  // auxiliary path (the flat format). Fall back to auxiliary paths so the D1
+  // cache is still updated after saving flat-format content.
+  if (!committedPrimary && filePaths.auxiliary) {
+    committedPrimary = files.find(f => filePaths.auxiliary!.includes(f.path) && f.path.endsWith('.md'));
+  }
   if (!committedPrimary) {
     return jsonResponse({ success: true, sha, id: contentId });
   }

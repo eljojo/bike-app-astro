@@ -1,0 +1,84 @@
+---
+import { t } from '@/i18n';
+import { formatDateRange } from '@/lib/date-utils';
+
+interface Registration {
+  url?: string;
+  slots?: number;
+  price?: string;
+  deadline?: string;
+  departure_groups?: string[];
+}
+
+interface Props {
+  startDate: string;
+  endDate?: string;
+  startTime?: string;
+  timeLimitHours?: number;
+  distances?: string;
+  location?: string;
+  registration?: Registration;
+  registrationUrl?: string;
+  locale?: string;
+}
+
+const {
+  startDate, endDate, startTime, timeLimitHours, distances,
+  location, registration, registrationUrl, locale,
+} = Astro.props;
+
+const dateDisplay = formatDateRange(startDate, endDate, locale);
+const regUrl = registration?.url || registrationUrl;
+---
+
+<div class="event-info-card">
+  <dl class="event-info-list">
+    <dt>{t('events.date', locale)}</dt>
+    <dd>{dateDisplay}{startTime && <span class="event-start-time"> — {startTime}</span>}</dd>
+
+    {distances && (
+      <dt>{t('events.distance', locale)}</dt>
+      <dd>{distances}</dd>
+    )}
+
+    {timeLimitHours && (
+      <dt>{t('events.time_limit', locale)}</dt>
+      <dd>{timeLimitHours} {t('events.hours', locale)}</dd>
+    )}
+
+    {location && (
+      <dt>{t('events.location', locale)}</dt>
+      <dd>{location}</dd>
+    )}
+
+    {registration?.price && (
+      <dt>{t('events.price', locale)}</dt>
+      <dd>{registration.price}</dd>
+    )}
+
+    {registration?.slots && (
+      <dt>{t('events.slots', locale)}</dt>
+      <dd>{registration.slots}</dd>
+    )}
+
+    {registration?.deadline && (
+      <dt>{t('events.deadline', locale)}</dt>
+      <dd>{registration.deadline}</dd>
+    )}
+
+    {registration?.departure_groups && registration.departure_groups.length > 0 && (
+      <dt>{t('events.departure_groups', locale)}</dt>
+      <dd>
+        <ul class="departure-groups">
+          {registration.departure_groups.map(g => <li>{g}</li>)}
+        </ul>
+      </dd>
+    )}
+  </dl>
+
+  {regUrl && (
+    <a href={regUrl} class="event-register-btn" target="_blank" rel="noopener noreferrer">
+      {t('events.register', locale)}
+    </a>
+  )}
+</div>

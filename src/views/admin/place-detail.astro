@@ -6,7 +6,7 @@ import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminPlaceDetails from 'virtual:bike-app/admin-place-detail';
 import { env } from '../../lib/env';
-import { CDN_FALLBACK_URL, CITY, GIT_REPO } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { placeDetailFromCache } from '../../lib/models/place-model';
@@ -22,7 +22,7 @@ const result = await loadDetailPageData({
 if (result.notFound) return new Response(null, { status: 404 });
 const placeData = result.data;
 
-const cdnUrl = env.R2_PUBLIC_URL || CDN_FALLBACK_URL;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const user = Astro.locals.user;
 const cityConfig = getCityConfig();
@@ -31,5 +31,5 @@ const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.ln
 
 <AdminEditorLayout title={`Edit: ${placeData.name}`} backLink="/admin/places" backLabel="Back to places" hideTitle user={user} currentTab="places">
   <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
-  <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={GIT_REPO} userRole={user?.role} />
+  <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

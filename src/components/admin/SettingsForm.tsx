@@ -1,4 +1,17 @@
 import { useState } from 'preact/hooks';
+import { startRegistration } from '@simplewebauthn/browser';
+
+interface Passkey {
+  id: string;
+  credentialId: string;
+  createdAt: string;
+}
+
+interface StravaStatusData {
+  configured: boolean;
+  connected: boolean;
+  athleteId: string | null;
+}
 
 interface Props {
   username: string;
@@ -7,10 +20,14 @@ interface Props {
   emailInCommits: boolean;
   analyticsOptOut: boolean;
   role: 'admin' | 'editor' | 'guest';
+  isBlog?: boolean;
+  stravaStatus?: StravaStatusData | null;
+  passkeys?: Passkey[];
 }
 
-export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
   const isGuest = role === 'guest';
+  const isAdmin = role === 'admin';
   const [username, setUsername] = useState(initialUsername);
   const [email, setEmail] = useState(initialEmail ?? '');
   const [emailInCommits, setEmailInCommits] = useState(initialEmailInCommits);
@@ -19,11 +36,102 @@ export default function SettingsForm({ username: initialUsername, email: initial
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
+  // Passkey management
+  const [passkeys, setPasskeys] = useState<Passkey[]>(initialPasskeys ?? []);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState('');
+
+  // Strava integration
+  const [stravaStatus, setStravaStatus] = useState<StravaStatusData | null>(initialStravaStatus ?? null);
+  const [stravaLoading, setStravaLoading] = useState(false);
+
   const emailModified = email.trim().toLowerCase() !== (initialEmail ?? '').toLowerCase();
 
   const avatarUrl = emailHash
     ? `https://www.gravatar.com/avatar/${emailHash}?d=mp&s=80`
     : 'https://www.gravatar.com/avatar/?d=mp&s=80';
+
+  async function handleStravaDisconnect() {
+    setStravaLoading(true);
+    try {
+      const res = await fetch('/api/strava/disconnect', { method: 'POST' });
+      if (res.ok) setStravaStatus({ configured: true, connected: false, athleteId: null });
+    } catch {
+      // ignore
+    } finally {
+      setStravaLoading(false);
+    }
+  }
+
+  async function handleAddPasskey() {
+    setPasskeyError('');
+    setPasskeyLoading(true);
+
+    try {
+      // Step 1: Get registration options
+      const optionsRes = await fetch('/api/auth/add-passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!optionsRes.ok) {
+        const data = await optionsRes.json();
+        throw new Error(data.error || 'Failed to get registration options');
+      }
+
+      const options = await optionsRes.json();
+
+      // Step 2: Start WebAuthn ceremony
+      const credential = await startRegistration({ optionsJSON: options });
+
+      // Step 3: Verify with server
+      const verifyRes = await fetch('/api/auth/add-passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      });
+
+      if (!verifyRes.ok) {
+        const data = await verifyRes.json();
+        throw new Error(data.error || 'Passkey registration failed');
+      }
+
+      const result = await verifyRes.json();
+      if (result.passkey) {
+        setPasskeys(prev => [...prev, result.passkey]);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'NotAllowedError') {
+        setPasskeyError('Passkey registration was cancelled');
+      } else {
+        setPasskeyError(err instanceof Error ? err.message : 'Failed to add passkey');
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
+  async function handleRemovePasskey(id: string) {
+    setPasskeyError('');
+
+    try {
+      const res = await fetch('/api/auth/remove-passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove passkey');
+      }
+
+      setPasskeys(prev => prev.filter(pk => pk.id !== id));
+    } catch (err: unknown) {
+      setPasskeyError(err instanceof Error ? err.message : 'Failed to remove passkey');
+    }
+  }
 
   async function handleSave() {
     setError('');
@@ -148,6 +256,78 @@ export default function SettingsForm({ username: initialUsername, email: initial
           Your page views won't be included in the site's Plausible analytics.
         </p>
       </div>
+
+      {!isGuest && (
+        <>
+          <h2>Passkeys</h2>
+          <div class="auth-form">
+            {passkeyError && <div class="auth-error">{passkeyError}</div>}
+            {passkeys.length > 0 ? (
+              <ul class="passkey-list">
+                {passkeys.map(pk => (
+                  <li key={pk.id} class="passkey-item">
+                    <span class="passkey-info">
+                      <span class="passkey-id">{pk.credentialId.slice(0, 8)}...</span>
+                      <span class="passkey-date">Added {new Date(pk.createdAt).toLocaleDateString()}</span>
+                    </span>
+                    <button
+                      type="button"
+                      class="btn-small btn-small--danger"
+                      onClick={() => handleRemovePasskey(pk.id)}
+                      disabled={passkeys.length <= 1 && !email.trim()}
+                      title={passkeys.length <= 1 && !email.trim() ? 'Add an email before removing your only passkey' : 'Remove passkey'}
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p class="settings-help">No passkeys registered.</p>
+            )}
+            <button
+              type="button"
+              class="btn-primary"
+              onClick={handleAddPasskey}
+              disabled={passkeyLoading}
+            >
+              {passkeyLoading ? 'Adding...' : 'Add new passkey'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {stravaStatus?.configured && isAdmin && (
+        <>
+          <h2>Strava</h2>
+          <div class="auth-form">
+            {stravaStatus.connected ? (
+              <>
+                <p class="settings-help">
+                  Connected to Strava{stravaStatus.athleteId ? ` (athlete ${stravaStatus.athleteId})` : ''}. You can import rides from the <a href="/admin/rides">rides page</a>.
+                </p>
+                <button
+                  type="button"
+                  class="btn-small btn-small--danger"
+                  onClick={handleStravaDisconnect}
+                  disabled={stravaLoading}
+                >
+                  {stravaLoading ? 'Disconnecting...' : 'Disconnect Strava'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p class="settings-help">
+                  Connect your Strava account to import rides with GPS data and photos.
+                </p>
+                <a href="/api/strava/connect" class="btn-primary">
+                  Connect Strava
+                </a>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <div class="editor-actions">
         {error && <div class="auth-error">{error}</div>}

@@ -1,0 +1,167 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import RouteMap from '@/components/RouteMap.astro';
+import tours from 'virtual:bike-app/tours';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '@/lib/city-config';
+import { imageUrl } from '@/lib/image-service';
+import { t } from '@/i18n';
+import { countryToFlag } from '@/lib/country-flags';
+import { formatDuration } from '@/lib/date-utils';
+import { formatDistance, formatElevation } from '@/lib/format';
+import { paths, assets } from '@/lib/paths';
+import { hasCachedMap } from '@/lib/map-thumbnails';
+import { TOUR_PALETTE } from '@/lib/map-init';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+export async function getStaticPaths() {
+  const toursData = (await import('virtual:bike-app/tours')).default;
+  const routes = await getCollection('routes');
+
+  return toursData.map(tour => {
+    const tourRides = tour.rides
+      .map(slug => routes.find(r => r.id === slug))
+      .filter((r): r is NonNullable<typeof r> => r != null)
+      .sort((a, b) => (a.data.ride_date || '').localeCompare(b.data.ride_date || ''));
+    return {
+      params: { slug: tour.slug },
+      props: { tour, tourRides },
+    };
+  });
+}
+
+const { tour, tourRides } = Astro.props;
+
+const polylines = tourRides
+  .map((ride, i) => {
+    const variant = ride.data.variants[0];
+    if (!variant) return null;
+    const track = ride.data.gpxTracks[variant.gpx];
+    if (!track?.polyline) return null;
+    return {
+      name: ride.data.name,
+      encoded: track.polyline,
+      color: TOUR_PALETTE[i % TOUR_PALETTE.length],
+      url: paths.ride(ride.id, ride.data.tour_slug),
+      distance_km: ride.data.distance_km,
+      ride_date: ride.data.ride_date,
+      moving_time_s: ride.data.moving_time_s,
+    };
+  })
+  .filter((p): p is NonNullable<typeof p> => p != null);
+
+const photos = tourRides.flatMap(ride =>
+  ride.data.media
+    .filter(m => m.type === 'photo' && m.lat != null && m.lng != null)
+    .map((m, i) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }))
+).filter((photo, i, arr) => arr.findIndex(p => p.key === photo.key) === i);
+
+const seoTitle = `${tour.name} | ${config.display_name}`;
+const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km over ${tour.days} days`;
+---
+
+<Base title={seoTitle} description={seoDescription}>
+  <div class="tour-detail">
+    <nav class="ride-breadcrumb">
+      <a href="/tours">{t('nav.tours', locale)}</a>
+    </nav>
+
+    <h1>{tour.name}</h1>
+
+    <div class="tour-detail--columns">
+      {/* Left column: stats + description */}
+      <div class="tour-detail--left">
+        <div class="route-stats">
+          <div class="route-stats--item">
+            <span class="route-stats--label">{t('tours.dates_label', locale)}</span>
+            <span class="route-stats--value">
+              {tour.start_date}
+              {tour.end_date !== tour.start_date ? ` — ${tour.end_date}` : ''}
+            </span>
+          </div>
+          <div class="route-stats--item">
+            <span class="route-stats--label">{t('ride.distance', locale)}</span>
+            <span class="route-stats--value">{formatDistance(tour.total_distance_km)}</span>
+          </div>
+          <div class="route-stats--item">
+            <span class="route-stats--label">{t('ride.elevation', locale)}</span>
+            <span class="route-stats--value">{formatElevation(tour.total_elevation_m)}</span>
+          </div>
+          <div class="route-stats--item">
+            <span class="route-stats--label">{t('tours.days_label', locale)}</span>
+            <span class="route-stats--value">{tour.days}</span>
+          </div>
+          {tour.countries.length > 0 && (
+            <div class="route-stats--item">
+              <span class="route-stats--label">{t('tours.countries_label', locale)}</span>
+              <span class="route-stats--value">{tour.countries.map(c => `${countryToFlag(c)} ${c}`).join(', ')}</span>
+            </div>
+          )}
+        </div>
+
+        {tour.renderedDescription && (
+          <div class="route-description" set:html={tour.renderedDescription} />
+        )}
+      </div>
+
+      {/* Right column: ride list */}
+      <div class="tour-detail--right">
+        <h2>{t('tours.ride_list', locale)}</h2>
+        <ul class="tour-detail--rides">
+          {tourRides.map(ride => {
+            const cover = ride.data.media.find(m => m.cover);
+            const hasMap = hasCachedMap(ride.id);
+            return (
+              <li class="tour-ride">
+                <a href={paths.ride(ride.id, ride.data.tour_slug)} class="tour-ride--link">
+                  <div class="tour-ride--images">
+                    {cover && (
+                      <img
+                        class="tour-ride--cover"
+                        src={imageUrl(cover.key, { width: 160, height: 160, fit: 'cover' })}
+                        alt={ride.data.name}
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      />
+                    )}
+                    {hasMap && (
+                      <img
+                        class="tour-ride--map"
+                        src={assets.mapThumbnail(ride.id, 375)}
+                        alt={`Map of ${ride.data.name}`}
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                      />
+                    )}
+                  </div>
+                  <div class="tour-ride--info">
+                    <strong class="tour-ride--name">{ride.data.name}</strong>
+                    <span class="tour-ride--meta">
+                      {ride.data.ride_date}
+                      {' · '}
+                      {formatDistance(ride.data.distance_km)}
+                      {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
+                    </span>
+                  </div>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+
+    {polylines.length > 0 && (
+      <RouteMap polylines={polylines} photos={photos} />
+    )}
+
+    <p class="route-similar">
+      <a href="/tours" class="go-back-button">&#x21A9; {t('tours.go_back', locale)}</a>
+    </p>
+  </div>
+</Base>

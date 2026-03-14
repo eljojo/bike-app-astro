@@ -1,27 +1,21 @@
-import { createHash } from 'node:crypto';
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
+import { computeHashFromParts, baseMediaItemSchema, type GitFiles } from './content-model';
 
-const adminMediaItemSchema = z.object({
-  key: z.string(),
-  caption: z.string().optional(),
-  cover: z.boolean().optional(),
-  width: z.number().optional(),
-  height: z.number().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+export const adminMediaItemSchema = baseMediaItemSchema.extend({
   uploaded_by: z.string().optional(),
   captured_at: z.string().optional(),
 });
 
-const adminVariantSchema = z.object({
+export const adminVariantSchema = z.object({
   name: z.string(),
   gpx: z.string(),
   distance_km: z.number().optional(),
   strava_url: z.string().optional(),
   rwgps_url: z.string().optional(),
   google_maps_url: z.string().optional(),
+  komoot_url: z.string().optional(),
 });
 
 const localeContentSchema = z.object({
@@ -47,26 +41,14 @@ export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type AdminMediaItem = z.infer<typeof adminMediaItemSchema>;
 export type AdminVariant = z.infer<typeof adminVariantSchema>;
 
-interface GitFileSnapshot {
-  content: string;
-  sha: string;
-}
-
-export interface RouteGitFiles {
-  primaryFile: GitFileSnapshot | null;
-  auxiliaryFiles?: Record<string, GitFileSnapshot | null>;
-}
+export type RouteGitFiles = GitFiles;
 
 /** Compute content hash for route conflict detection. Hashes primary + media + translation content. */
 export function computeRouteContentHash(primaryContent: string, mediaContent: string | undefined, translationContents?: Record<string, string>): string {
-  const hash = createHash('md5').update(primaryContent);
-  if (mediaContent) hash.update(mediaContent);
-  if (translationContents) {
-    for (const locale of Object.keys(translationContents).sort()) {
-      hash.update(translationContents[locale]);
-    }
-  }
-  return hash.digest('hex');
+  const sortedTranslations = translationContents
+    ? Object.keys(translationContents).sort().map((k) => translationContents[k])
+    : [];
+  return computeHashFromParts(primaryContent, mediaContent, ...sortedTranslations);
 }
 
 /** Compute route hash directly from git file snapshots used by the save pipeline. */

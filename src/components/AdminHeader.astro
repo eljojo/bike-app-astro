@@ -1,15 +1,18 @@
 ---
 import { createHash } from 'node:crypto';
 import { env } from '../lib/env';
-import { CONTACT_EMAIL } from '../lib/config';
+import { getCityConfig } from '../lib/city-config';
+import { getInstanceFeatures } from '../lib/instance-features';
 
 interface Props {
   user: { username: string; role: string; email?: string | null };
-  currentTab: 'routes' | 'events' | 'places' | 'history' | 'users' | 'settings';
+  currentTab: 'routes' | 'rides' | 'events' | 'places' | 'history' | 'users' | 'settings';
 }
 
 const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
+const features = getInstanceFeatures();
+const contactEmail = getCityConfig().author.email;
 const cspNonce = Astro.locals.cspNonce;
 const avatarHash = user.email
   ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
@@ -22,12 +25,14 @@ const avatarUrl = avatarHash
 {isStaging && (
   <div class="staging-banner">Staging Environment</div>
 )}
-<div class="community-banner" id="community-banner">
-  This is a community wiki — feel free to browse and edit routes and events.
-  Your changes go live within a few minutes.
-  Questions? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-  <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
-</div>
+{features.showsContributeLink && (
+  <div class="community-banner" id="community-banner">
+    This is a community wiki — feel free to browse and edit routes and events.
+    Your changes go live within a few minutes.
+    Questions? Email <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+    <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
+  </div>
+)}
 <script is:inline nonce={cspNonce}>
   const banner = document.getElementById('community-banner');
   const dismiss = document.getElementById('community-banner-dismiss');
@@ -40,7 +45,7 @@ const avatarUrl = avatarHash
   });
 </script>
 <div class="admin-header">
-  <h1>{currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'places' ? 'Places' : currentTab === 'history' ? 'History' : currentTab === 'settings' ? 'Settings' : 'Users'}</h1>
+  <h1>{currentTab === 'rides' ? 'Rides' : currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'places' ? 'Places' : currentTab === 'history' ? 'History' : currentTab === 'settings' ? 'Settings' : 'Users'}</h1>
   <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle">
       <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
@@ -49,7 +54,7 @@ const avatarUrl = avatarHash
     </button>
     <div class="admin-user-dropdown" id="user-menu-dropdown">
       <a href="/admin/settings" class="admin-user-dropdown-item">Settings</a>
-      {user.role === 'guest' && (
+      {user.role === 'guest' && features.allowsRegistration && (
         <a href="/register?join=1" class="admin-user-dropdown-item">Create account</a>
       )}
       <form method="POST" action="/api/auth/logout" class="logout-form">
@@ -75,11 +80,15 @@ const avatarUrl = avatarHash
 </script>
 
 <nav class="admin-nav">
-  <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
-  <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>
+  {features.hasRides ? (
+    <a href="/admin/rides" class:list={['admin-nav-link', { active: currentTab === 'rides' }]}>Rides</a>
+  ) : (
+    <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
+  )}
+  {features.hasEvents && <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>}
   <a href="/admin/places" class:list={['admin-nav-link', { active: currentTab === 'places' }]}>Places</a>
   <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
-  {user.role === 'admin' && (
+  {user.role === 'admin' && features.allowsRegistration && (
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
   )}
 </nav>

@@ -22,7 +22,7 @@ export interface WebAuthnConfig {
 
 /** Get user from locals if authenticated, undefined otherwise. For public endpoints with optional personalization. */
 export function getOptionalUser(locals: APIContext['locals']): SessionUser | undefined {
-  return (locals as Record<string, unknown>).user as SessionUser | undefined;
+  return (locals as unknown as Record<string, unknown>).user as SessionUser | undefined;
 }
 
 /** Normalize email for storage and lookup: lowercase, trim whitespace. */

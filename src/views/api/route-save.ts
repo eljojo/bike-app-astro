@@ -4,34 +4,30 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
+import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { GIT_OWNER, GIT_DATA_REPO, CITY } from '../../lib/config';
+import { CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
-import { uploadToLfs } from '../../lib/git-lfs';
+import { commitGpxFile } from '../../lib/git-gpx';
 import { env } from '../../lib/env';
-import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../../lib/models/route-model';
+import { buildFreshRouteData, computeRouteContentHashFromFiles, adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
-import { updateRedirectsYaml } from '../../lib/redirects';
+import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;
 
-interface VariantPayload {
-  name: string;
-  gpx: string;
-  distance_km?: number;
-  strava_url?: string;
-  rwgps_url?: string;
-  google_maps_url?: string;
-  isNew?: boolean;
-  gpxContent?: string;
-}
+/** Variant with client-only upload fields. */
+const variantPayloadSchema = adminVariantSchema.extend({
+  isNew: z.boolean().optional(),
+  gpxContent: z.string().optional(),
+});
 
 const routeUpdateSchema = z.object({
   frontmatter: z.object({
@@ -44,37 +40,9 @@ const routeUpdateSchema = z.object({
     title: z.string().optional(),
   }).strict(),
   body: z.string(),
-  media: z.array(z.object({
-    key: z.string(),
-    caption: z.string().optional(),
-    cover: z.boolean().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-    uploaded_by: z.string().optional(),
-    captured_at: z.string().optional(),
-  })).optional(),
-  variants: z.array(z.object({
-    name: z.string(),
-    gpx: z.string(),
-    distance_km: z.number().optional(),
-    strava_url: z.string().optional(),
-    rwgps_url: z.string().optional(),
-    google_maps_url: z.string().optional(),
-    isNew: z.boolean().optional(),
-    gpxContent: z.string().optional(),
-  })).min(1, 'At least one route option is required').optional(),
-  parkedPhotos: z.array(z.object({
-    key: z.string(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-    caption: z.string().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    uploaded_by: z.string().optional(),
-    captured_at: z.string().optional(),
-  })).optional(),
+  media: z.array(adminMediaItemSchema).optional(),
+  variants: z.array(variantPayloadSchema).min(1, 'At least one route option is required').optional(),
+  parkedPhotos: z.array(adminMediaItemSchema).optional(),
   deletedParkedKeys: z.array(z.string()).optional(),
   newSlug: z.string().optional(),
   contentHash: z.string().optional(),
@@ -85,27 +53,7 @@ const routeUpdateSchema = z.object({
   })).optional(),
 });
 
-export interface RouteUpdate {
-  frontmatter: Record<string, unknown>;
-  body: string;
-  newSlug?: string;
-  media?: Array<{
-    key: string;
-    caption?: string;
-    cover?: boolean;
-    width?: number;
-    height?: number;
-    lat?: number;
-    lng?: number;
-    uploaded_by?: string;
-    captured_at?: string;
-  }>;
-  parkedPhotos?: ParkedPhotoEntry[];
-  deletedParkedKeys?: string[];
-  variants?: VariantPayload[];
-  contentHash?: string;
-  translations?: Record<string, { name: string; tagline: string; body: string }>;
-}
+export type RouteUpdate = z.infer<typeof routeUpdateSchema>;
 
 interface RouteBuildResult extends BuildResult {
   mergedParked: ParkedPhotoEntry[] | undefined;
@@ -169,16 +117,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
         }
       }
 
-      // Add redirect entry
-      const redirectsPath = `${CITY}/redirects.yml`;
-      const redirectsFile = await git.readFile(redirectsPath);
-      const updatedRedirects = updateRedirectsYaml(
-        redirectsFile?.content || '',
-        'routes',
-        slug,
-        targetSlug,
-      );
-      files.push({ path: redirectsPath, content: updatedRedirects });
+      files.push(await buildRedirectFileChange(git, 'routes', slug, targetSlug));
     }
 
     // Build frontmatter
@@ -213,6 +152,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
         if (v.strava_url) entry.strava_url = v.strava_url;
         if (v.rwgps_url) entry.rwgps_url = v.rwgps_url;
         if (v.google_maps_url) entry.google_maps_url = v.google_maps_url;
+        if (v.komoot_url) entry.komoot_url = v.komoot_url;
         return entry;
       });
       mergedFrontmatter.variants = variantMeta;
@@ -224,15 +164,13 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
 
       for (const v of update.variants) {
         if (v.isNew && v.gpxContent) {
-          // Upload GPX to LFS and commit pointer file instead of raw content
-          const token = env.GITHUB_TOKEN;
-          if (token && typeof token === 'string') {
-            const pointer = await uploadToLfs(token, GIT_OWNER, GIT_DATA_REPO, v.gpxContent);
-            files.push({ path: `${basePath}/${v.gpx}`, content: pointer });
-          } else {
-            // Local dev: commit raw GPX (local git handles LFS via .gitattributes)
-            files.push({ path: `${basePath}/${v.gpx}`, content: v.gpxContent });
-          }
+          files.push(await commitGpxFile({
+            path: `${basePath}/${v.gpx}`,
+            content: v.gpxContent,
+            token: env.GITHUB_TOKEN,
+            owner: env.GIT_OWNER,
+            repo: env.GIT_DATA_REPO,
+          }));
         }
       }
 
@@ -250,11 +188,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     }
 
     // Build index.md
-    const frontmatterStr = yaml.dump(mergedFrontmatter, {
-      lineWidth: -1, quotingType: '"', forceQuotes: false,
-    }).trimEnd();
-
-    files.push({ path: `${basePath}/index.md`, content: `---\n${frontmatterStr}\n---\n\n${update.body}\n` });
+    files.push({ path: `${basePath}/index.md`, content: serializeMdFile(mergedFrontmatter, update.body) });
 
     // Build translation files (index.fr.md, etc.)
     if (update.translations) {
@@ -272,14 +206,8 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
           const transFm: Record<string, string> = { ...existingTransFm };
           if (trans.name) transFm.name = trans.name;
           if (trans.tagline) transFm.tagline = trans.tagline;
-          const fmStr = Object.keys(transFm).length > 0
-            ? yaml.dump(transFm, { lineWidth: -1, quotingType: '"', forceQuotes: false }).trimEnd()
-            : '';
-          const transContent = trans.body.trim()
-            ? `---\n${fmStr}\n---\n\n${trans.body}\n`
-            : fmStr ? `---\n${fmStr}\n---\n` : '';
-          if (transContent) {
-            files.push({ path: transPath, content: transContent });
+          if (Object.keys(transFm).length > 0 || trans.body.trim()) {
+            files.push({ path: transPath, content: serializeMdFile(transFm, trans.body) });
           }
         } else {
           // All fields empty — delete the translation file if it exists
@@ -308,8 +236,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
 
       const merged = mergeMedia(update.media, existingMedia);
       if (merged.length > 0) {
-        const mediaYaml = yaml.dump(merged, { flowLevel: -1, lineWidth: -1 });
-        files.push({ path: `${basePath}/media.yml`, content: mediaYaml });
+        files.push({ path: `${basePath}/media.yml`, content: serializeYamlFile(merged) });
       }
     }
 
@@ -337,7 +264,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     const mergedParked = mergeParkedPhotos(existingParked, toAdd, unparkedKeys);
 
     if (mergedParked.length > 0) {
-      files.push({ path: parkedPath, content: yaml.dump(mergedParked, { flowLevel: -1, lineWidth: -1 }) });
+      files.push({ path: parkedPath, content: serializeYamlFile(mergedParked) });
     } else if (existingParked.length > 0) {
       deletePaths.push(parkedPath);
     }
@@ -388,7 +315,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
   },
 
   buildGitHubUrl(slug: string, baseBranch: string): string {
-    return `https://github.com/${GIT_OWNER}/${GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${CITY}/routes/${slug}/index.md`;
   },
 
   async afterCommit(result, database) {

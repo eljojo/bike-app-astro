@@ -7,10 +7,14 @@ import { eq, and } from 'drizzle-orm';
 import { CITY } from '@/lib/config';
 import { reactionSchema } from '@/lib/reaction-types';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';
+import { getInstanceFeatures } from '@/lib/instance-features';
 
 export const prerender = false;
 
 export async function POST({ request, locals }: APIContext) {
+  if (!getInstanceFeatures().allowsReactions) {
+    return new Response(null, { status: 404 });
+  }
   const user = authorize(locals, 'add-reaction');
   if (user instanceof Response) return user;
 

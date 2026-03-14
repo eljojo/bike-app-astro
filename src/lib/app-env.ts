@@ -9,15 +9,17 @@ export interface AppEnv {
   BUCKET: BucketLike;
   ASSETS: unknown;
   GITHUB_TOKEN: string;
-  WEBAUTHN_RP_ID: string;
-  WEBAUTHN_RP_NAME: string;
-  WEBAUTHN_ORIGIN: string;
+  WEBAUTHN_RP_ID?: string;
+  WEBAUTHN_RP_NAME?: string;
+  WEBAUTHN_ORIGIN?: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_ACCOUNT_ID: string;
   R2_BUCKET_NAME: string;
   R2_PUBLIC_URL: string;
   STORAGE_KEY_PREFIX: string;
+  GIT_OWNER: string;
+  GIT_DATA_REPO: string;
   GIT_BRANCH: string;
   ENVIRONMENT: string;
   RWGPS_API_KEY?: string;
@@ -26,4 +28,10 @@ export interface AppEnv {
   THUNDERFOREST_API_KEY?: string;
   TILE_CACHE?: unknown; // KV namespace in prod, undefined locally (handled by env-local)
   AI?: unknown; // Workers AI binding, used for poster vision extraction
+  SES_ACCESS_KEY_ID?: string;
+  SES_SECRET_ACCESS_KEY?: string;
+  SES_REGION?: string;
+  SES_FROM?: string;
+  STRAVA_CLIENT_ID?: string;
+  STRAVA_CLIENT_SECRET?: string;
 }

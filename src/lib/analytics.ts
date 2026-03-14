@@ -1,16 +1,14 @@
-import Plausible from 'plausible-tracker';
+import { init, track } from '@plausible-analytics/tracker';
 
-const { trackPageview, trackEvent } = Plausible({ apiHost: '' });
-
-trackPageview();
+init({ domain: location.hostname, autoCapturePageviews: true, bindToWindow: false });
 
 declare global {
   interface Window {
-    BikeApp: { tE: typeof trackEvent };
+    BikeApp: { tE: (name: string, options?: Parameters<typeof track>[1]) => void };
   }
 }
 
-window.BikeApp = { tE: trackEvent };
+window.BikeApp = { tE: track as Window['BikeApp']['tE'] };
 
 function trackVideoPlays() {
   document.querySelectorAll('video').forEach((video) => {
@@ -18,7 +16,7 @@ function trackVideoPlays() {
       const el = event.target as HTMLVideoElement;
       if (el.autoplay || el.currentTime !== 0) return;
       const page = window.location.pathname;
-      trackEvent('Video: Play', { props: { page, video: el.currentSrc } });
+      track('Video: Play', { props: { page, video: el.currentSrc } });
     });
   });
 }
@@ -53,7 +51,7 @@ function trackLinkClicks() {
 
       const page = window.location.pathname;
       const label = (this.textContent || '').substring(0, 80);
-      trackEvent('Link: Click', { props: { url: this.href, site: host, destination, label, page } });
+      track('Link: Click', { props: { url: this.href, site: host, destination, label, page } });
     });
   });
 }
@@ -63,7 +61,7 @@ function trackSocialReferral() {
   const networks: Record<string, string> = { fbclid: 'facebook', rdt_cid: 'reddit' };
   for (const [key, value] of Object.entries(networks)) {
     if (params.get(key)) {
-      trackEvent('Social Visit', { props: { network: value } });
+      track('Social Visit', { props: { network: value } });
       break;
     }
   }
@@ -78,7 +76,7 @@ function recordVisit() {
   if (!lastVisitDay || lastVisitDay !== todayStr) {
     visitCount = visitCount ? visitCount + 1 : 1;
     if (visitCount > 1) {
-      trackEvent('Repeat Visit', { props: { totalVisits: String(visitCount) } });
+      track('Repeat Visit', { props: { totalVisits: String(visitCount) } });
     }
   }
   localStorage.setItem('lastVisitDay', todayStr);
@@ -88,7 +86,6 @@ function recordVisit() {
 trackSocialReferral();
 recordVisit();
 
-document.addEventListener('DOMContentLoaded', () => {
-  trackVideoPlays();
-  trackLinkClicks();
-});
+// Module scripts are deferred — DOM is ready when this runs.
+trackVideoPlays();
+trackLinkClicks();

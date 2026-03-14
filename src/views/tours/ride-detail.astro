@@ -1,0 +1,61 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { imageUrl } from '@/lib/image-service';
+import { getCityConfig } from '@/lib/city-config';
+import { isPublished } from '@/lib/content-filters';
+import { paths } from '@/lib/paths';
+import RideDetailContent from '@/components/RideDetailContent.astro';
+import tours from 'virtual:bike-app/tours';
+import { toPlaceData } from '@/lib/places';
+import { findNearbyPlaces } from '@/lib/proximity';
+
+const config = getCityConfig();
+
+export async function getStaticPaths() {
+  const routes = await getCollection('routes');
+  const allPlaces = await getCollection('places');
+  const placeData = toPlaceData(allPlaces);
+  return routes.filter(r => !!r.data.tour_slug).map(route => ({
+    params: { tourSlug: route.data.tour_slug, rideSlug: route.id },
+    props: { route, placeData },
+  }));
+}
+
+const { route, placeData } = Astro.props;
+const { name, distance_km, media } = route.data;
+const cover = media.find(m => m.cover);
+const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+
+const tour = route.data.tour_slug
+  ? tours.find(t => t.slug === route.data.tour_slug)
+  : null;
+
+const allRoutes = await getCollection('routes');
+const tourRides = tour
+  ? allRoutes
+      .filter(r => r.data.tour_slug === tour.slug && isPublished(r))
+      .sort((a, b) => (a.data.ride_date || '').localeCompare(b.data.ride_date || ''))
+  : [];
+
+const primaryGpx = route.data.variants[0]?.gpx;
+const primaryTrack = primaryGpx ? route.data.gpxTracks[primaryGpx] : null;
+const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
+
+const seoTitle = `${name} | ${tour?.name || config.display_name}`;
+const seoDescription = route.data.ride_date
+  ? `${name} — ${distance_km.toFixed(0)} km ride on ${route.data.ride_date}`
+  : `${name} — ${distance_km.toFixed(0)} km ride`;
+---
+
+<Base title={seoTitle} description={seoDescription} ogImage={coverUrl} ogImageAlt={name}>
+  <RideDetailContent
+    route={route}
+    tour={tour}
+    tourRides={tourRides}
+    backLink={tour ? paths.tour(tour.slug) : '/rides'}
+    backLabel={tour?.name || 'Back'}
+    nearbyPlaces={nearbyPlaces}
+  />
+</Base>

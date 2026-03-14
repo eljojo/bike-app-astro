@@ -606,6 +606,13 @@ export function buildLayers(p: Palette, variant: StyleVariant): Layer[] {
 
     // ===== WATER =====
     {
+      id: 'ocean',
+      type: 'fill',
+      source: 'outdoors',
+      'source-layer': 'ocean',
+      paint: { 'fill-color': p.base.water },
+    },
+    {
       id: 'water',
       type: 'fill',
       source: 'outdoors',

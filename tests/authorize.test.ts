@@ -31,7 +31,7 @@ describe('authorize', () => {
   });
 
   it('returns 403 for admin-only actions by non-admins', () => {
-    const actions: Action[] = ['revert-commit', 'manage-users', 'delete-media', 'sync-staging'];
+    const actions: Action[] = ['revert-commit', 'manage-users', 'delete-media', 'sync-staging', 'strava-connect'];
     for (const action of actions) {
       expect(authorize(mockLocals(editor), action)).toBeInstanceOf(Response);
       expect(authorize(mockLocals(guest), action)).toBeInstanceOf(Response);

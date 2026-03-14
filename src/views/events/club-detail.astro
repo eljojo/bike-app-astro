@@ -1,0 +1,208 @@
+---
+import Base from '@/layouts/Base.astro';
+import EventInfoCard from '@/components/EventInfoCard.astro';
+import EventRouteMap from '@/components/EventRouteMap.astro';
+import WaypointTimeline from '@/components/WaypointTimeline.astro';
+import ResultsTable from '@/components/ResultsTable.astro';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { getCollection, render } from 'astro:content';
+import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
+import { getCityConfig } from '@/lib/city-config';
+import { imageUrl } from '@/lib/image-service';
+import { formatDateRange } from '@/lib/date-utils';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+export const prerender = true;
+export async function getStaticPaths() {
+  const events = await getCollection('events');
+  const organizers = await getCollection('organizers');
+  const allRoutes = await getCollection('routes');
+  const allPlaces = await getCollection('places');
+  return events.map(event => ({
+    params: { slug: event.id },
+    props: { event, organizers, allRoutes, allPlaces },
+  }));
+}
+
+const { event, organizers, allRoutes, allPlaces } = Astro.props;
+const { Content } = await render(event);
+const data = event.data;
+
+// Resolve organizer name and URL
+let organizerName = '';
+let organizerUrl: string | undefined;
+if (typeof data.organizer === 'string') {
+  const org = organizers.find((o: { id: string }) => o.id === data.organizer);
+  organizerName = org?.data.name || data.organizer;
+  organizerUrl = org?.data.website;
+} else if (data.organizer?.name) {
+  organizerName = data.organizer.name;
+  organizerUrl = data.organizer.website;
+}
+
+const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
+const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('nav.events', locale), url: `${config.url}${localePath('/events', locale)}` },
+  { name: data.name, url: `${config.url}${paths.event(event.id, locale)}` },
+]);
+
+const jsonLd = eventJsonLd({
+  name: data.name,
+  start_date: data.start_date,
+  start_time: data.start_time,
+  end_date: data.end_date,
+  end_time: data.end_time,
+  location: data.location,
+  registration_url: data.registration?.url || data.registration_url,
+  organizer_name: organizerName,
+  organizer_url: organizerUrl,
+  poster_key: data.poster_key,
+});
+
+// Resolve event routes to route collection items
+const routeSlugs = data.routes ?? [];
+const eventRoutes = routeSlugs
+  .map((slug: string) => allRoutes.find((r: { id: string }) => r.id === slug))
+  .filter(Boolean);
+
+const hasWaypoints = data.waypoints && data.waypoints.length > 0;
+const hasResults = data.results && data.results.length > 0;
+---
+
+<Base title={`${data.name} | ${config.display_name}`} description={`${data.name} — ${dateDisplay}`} ogImage={coverUrl} jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
+  <article class="event-detail">
+    {data.poster_key && (
+      <div class="event-detail-hero">
+        <ResponsiveImage
+          blobKey={data.poster_key}
+          alt={data.name}
+          widths={[600, 1200, 1800]}
+          width={1200}
+          height={628}
+          fit="cover"
+          loading="eager"
+          class="event-detail-poster"
+        />
+      </div>
+    )}
+
+    <header class="event-detail-header">
+      <h1>{data.name}</h1>
+      <p class="event-detail-date">{dateDisplay}</p>
+      {organizerName && (
+        <p class="event-detail-organizer">
+          {t('events.organizer', locale)}{' '}
+          {organizerUrl
+            ? <a href={organizerUrl} target="_blank" rel="noopener noreferrer">{organizerName}</a>
+            : organizerName
+          }
+        </p>
+      )}
+      {data.distances && <p class="event-detail-distances">{data.distances}</p>}
+    </header>
+
+    <div class="event-detail-layout">
+      <div class="event-detail-main">
+        <div class="event-detail-body">
+          <Content />
+        </div>
+
+        {eventRoutes.length > 0 && (
+          <section class="event-detail-section">
+            <h2>{t('events.routes', locale)}</h2>
+            <EventRouteMap routes={eventRoutes} locale={locale} waypoints={data.waypoints} places={allPlaces} />
+          </section>
+        )}
+
+        {hasWaypoints && (
+          <section class="event-detail-section">
+            <h2>{t('events.waypoints', locale)}</h2>
+            <WaypointTimeline waypoints={data.waypoints!} locale={locale} />
+          </section>
+        )}
+
+        {hasResults && (
+          <section class="event-detail-section">
+            <h2>{t('events.results', locale)}</h2>
+            <ResultsTable results={data.results!} locale={locale} privacy={config.results_privacy} />
+          </section>
+        )}
+      </div>
+
+      <aside class="event-detail-sidebar">
+        <EventInfoCard
+          startDate={data.start_date}
+          endDate={data.end_date}
+          startTime={data.start_time}
+          timeLimitHours={data.time_limit_hours}
+          distances={data.distances}
+          location={data.location}
+          registration={data.registration}
+          registrationUrl={data.registration_url}
+          locale={locale}
+        />
+      </aside>
+    </div>
+  </article>
+
+  <p style="margin-top: 2em;">
+    <a href={localePath('/events', locale)} class="go-back-button">&#x21A9; {t('events.go_back', locale)}</a>
+  </p>
+
+  <script>
+    /** Convert FAQ section: h3 headings after an h2 "FAQ" become collapsible details/summary. */
+    document.addEventListener('DOMContentLoaded', () => {
+      const body = document.querySelector('.event-detail-body');
+      if (!body) return;
+
+      const headings = Array.from(body.querySelectorAll('h2'));
+      const faqH2 = headings.find(h => /^faq$/i.test(h.textContent?.trim() || ''));
+      if (!faqH2) return;
+
+      // Collect all siblings after the FAQ h2 until the next h2
+      const faqItems: Array<{ heading: HTMLElement; content: Node[] }> = [];
+      let current: { heading: HTMLElement; content: Node[] } | null = null;
+      let sibling = faqH2.nextElementSibling as HTMLElement | null;
+
+      while (sibling && sibling.tagName !== 'H2') {
+        if (sibling.tagName === 'H3') {
+          if (current) faqItems.push(current);
+          current = { heading: sibling, content: [] };
+        } else if (current) {
+          current.content.push(sibling);
+        }
+        sibling = sibling.nextElementSibling as HTMLElement | null;
+      }
+      if (current) faqItems.push(current);
+      if (faqItems.length === 0) return;
+
+      // Replace FAQ heading + items with details/summary
+      const faqSection = document.createElement('div');
+      faqSection.className = 'faq-section';
+
+      for (const item of faqItems) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = item.heading.textContent;
+        details.appendChild(summary);
+        for (const node of item.content) {
+          details.appendChild(node);
+        }
+        faqSection.appendChild(details);
+      }
+
+      // Remove original elements and insert faq section after the h2
+      for (const item of faqItems) {
+        item.heading.remove();
+      }
+      faqH2.after(faqSection);
+    });
+  </script>
+</Base>

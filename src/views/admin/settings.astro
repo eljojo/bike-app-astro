@@ -5,9 +5,41 @@ import { createHash } from 'node:crypto';
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import SettingsForm from '../../components/admin/SettingsForm.tsx';
+import { getInstanceFeatures } from '../../lib/instance-features';
+import { db } from '../../lib/get-db';
+import { env } from '../../lib/env';
+import { credentials, stravaTokens } from '../../db/schema';
+import { eq } from 'drizzle-orm';
 import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
+const features = getInstanceFeatures();
+const isBlog = features.hasRides;
+const database = db();
+
+// Load passkeys for non-guest users
+let passkeys: Array<{ id: string; credentialId: string; createdAt: string }> = [];
+if (user.role !== 'guest') {
+  passkeys = await database
+    .select({ id: credentials.id, credentialId: credentials.credentialId, createdAt: credentials.createdAt })
+    .from(credentials)
+    .where(eq(credentials.userId, user.id));
+}
+
+let stravaStatus: { configured: boolean; connected: boolean; athleteId: string | null } | null = null;
+if (isBlog && user.role === 'admin') {
+  const configured = !!(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET);
+  if (configured) {
+    try {
+      const rows = await database.select().from(stravaTokens).where(eq(stravaTokens.userId, user.id));
+      const token = rows[0];
+      stravaStatus = { configured: true, connected: !!token, athleteId: token?.athleteId ?? null };
+    } catch {
+      stravaStatus = { configured: true, connected: false, athleteId: null };
+    }
+  }
+}
+
 const emailHash = user.email
   ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
   : null;
@@ -24,6 +56,9 @@ const emailHash = user.email
       emailInCommits={user.emailInCommits}
       analyticsOptOut={user.analyticsOptOut}
       role={user.role}
+      isBlog={isBlog}
+      stravaStatus={stravaStatus}
+      passkeys={passkeys}
     />
   </div>
 </Base>

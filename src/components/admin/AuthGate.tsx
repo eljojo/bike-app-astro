@@ -2,9 +2,10 @@ import { useState } from 'preact/hooks';
 
 interface Props {
   returnTo: string;
+  blogMode?: boolean;
 }
 
-export default function AuthGate({ returnTo }: Props) {
+export default function AuthGate({ returnTo, blogMode }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,6 +29,17 @@ export default function AuthGate({ returnTo }: Props) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (blogMode) {
+    return (
+      <div class="gate-options">
+        {error && <div class="auth-error">{error}</div>}
+        <a href={`/login?returnTo=${encodeURIComponent(returnTo)}`} class="btn-primary gate-btn">
+          Sign in
+        </a>
+      </div>
+    );
   }
 
   return (

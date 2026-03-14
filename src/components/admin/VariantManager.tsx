@@ -10,6 +10,7 @@ export interface VariantItem {
   strava_url?: string;
   rwgps_url?: string;
   google_maps_url?: string;
+  komoot_url?: string;
   isNew?: boolean;      // client-only: marks newly uploaded variants
   gpxContent?: string;  // client-only: raw GPX XML for new uploads
 }
@@ -180,6 +181,14 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
                   type="url"
                   value={v.rwgps_url || ''}
                   onInput={(e) => updateVariant(idx, { rwgps_url: (e.target as HTMLInputElement).value || undefined })}
+                />
+              </div>
+              <div class="form-field">
+                <label>Komoot URL</label>
+                <input
+                  type="url"
+                  value={v.komoot_url || ''}
+                  onInput={(e) => updateVariant(idx, { komoot_url: (e.target as HTMLInputElement).value || undefined })}
                 />
               </div>
               {v.google_maps_url && (

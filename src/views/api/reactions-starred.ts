@@ -1,3 +1,4 @@
+/* eslint-disable bike-app/require-authorize-call -- public endpoint, excluded from auth middleware */
 import type { APIContext } from 'astro';
 import { jsonResponse } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
@@ -5,11 +6,15 @@ import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getOptionalUser } from '@/lib/auth';
 import { CITY } from '@/lib/config';
+import { getInstanceFeatures } from '@/lib/instance-features';
 
 export const prerender = false;
 
 /** Returns the current user's starred route slugs. Public — returns empty if not logged in. */
 export async function GET({ locals }: APIContext) {
+  if (!getInstanceFeatures().allowsReactions) {
+    return new Response(null, { status: 404 });
+  }
   const user = getOptionalUser(locals);
   if (!user) {
     return jsonResponse({ starredSlugs: [] });

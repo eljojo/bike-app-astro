@@ -29,6 +29,27 @@
       "when": 1772750935313,
       "tag": "0003_good_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1773278723799,
+      "tag": "0004_last_runaways",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1773293635659,
+      "tag": "0005_lying_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773625200000,
+      "tag": "0007_strava_tokens_per_user",
+      "breakpoints": true
     }
   ]
 }

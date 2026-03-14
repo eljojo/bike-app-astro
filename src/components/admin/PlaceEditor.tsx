@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
 import PhotoField from './PhotoField';
-import SaveSuccessModal from './SaveSuccessModal';
+import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/place-categories';
 import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
+import { localeLabel } from '../../lib/locale-utils';
 
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
@@ -70,15 +71,6 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
     setTranslations(prev => ({ ...prev, [locale]: value }));
   }
 
-  function localeLabel(locale: string): string {
-    try {
-      const display = new Intl.DisplayNames([locale], { type: 'language' });
-      const name = display.of(locale);
-      return name ? name.charAt(0).toUpperCase() + name.slice(1) : locale;
-    } catch {
-      return locale;
-    }
-  }
   const [category, setCategory] = useState(initialData.category || 'other');
   const [lat, setLat] = useState(initialData.lat || 0);
   const [lng, setLng] = useState(initialData.lng || 0);
@@ -403,34 +395,11 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
         )}
       </div>
 
-      <div class="editor-actions">
-        {error && !githubUrl && <div class="auth-error">{error}</div>}
-        {githubUrl && (
-          <div class="conflict-notice">
-            <strong>Save blocked — this place was changed on GitHub</strong>
-            <p>Someone modified this place since you started editing.</p>
-            <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary"
-              style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
-              View file on GitHub
-            </a>
-          </div>
-        )}
-        {saved && userRole === 'guest' && (
-          <SaveSuccessModal viewLink="/admin/places" />
-        )}
-        {saved && userRole !== 'guest' && (
-          <div class="save-success">
-            Saved! Your edit will be live in a few minutes.
-          </div>
-        )}
-        <p class="editor-license-notice">
-          By saving, you agree to release your contribution under{' '}
-          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-        </p>
-        <button type="button" class="btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      <EditorActions
+        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
+        onSave={handleSave} contentType="place" userRole={userRole}
+        viewLink="/admin/places"
+      />
     </div>
   );
 }

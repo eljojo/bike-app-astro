@@ -1,3 +1,4 @@
+/* eslint-disable bike-app/require-authorize-call -- public endpoint, excluded from auth middleware */
 import type { APIContext } from 'astro';
 import { jsonResponse, jsonError } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
@@ -6,10 +7,14 @@ import { eq, and, count } from 'drizzle-orm';
 import { getOptionalUser } from '@/lib/auth';
 import { CITY } from '@/lib/config';
 import { VALID_CONTENT_TYPES } from '@/lib/reaction-types';
+import { getInstanceFeatures } from '@/lib/instance-features';
 
 export const prerender = false;
 
 export async function GET({ params, locals }: APIContext) {
+  if (!getInstanceFeatures().allowsReactions) {
+    return new Response(null, { status: 404 });
+  }
   const contentType = params.contentType;
   const contentSlug = params.contentSlug;
 

@@ -23,16 +23,33 @@ interface MapPhoto {
   index: number;
 }
 
+interface WaypointMarker {
+  lat: number;
+  lng: number;
+  type: string;
+  label: string;
+  distance_km?: number;
+  opening?: string;
+  closing?: string;
+  note?: string;
+  description?: string;
+  address?: string;
+  photo_key?: string;
+  website?: string;
+  google_maps_url?: string;
+}
+
 interface Props {
-  polylines: { name: string; encoded: string }[];
+  polylines: { name: string; encoded: string; color?: string; url?: string; distance_km?: number; ride_date?: string; moving_time_s?: number }[];
   places?: Place[];
   photos?: MapPhoto[];
+  waypointMarkers?: WaypointMarker[];
   center?: [number, number];
   zoom?: number;
 }
 
-import { CDN_FALLBACK_URL } from '../lib/config';
-const { polylines, places = [], photos = [], center, zoom } = Astro.props;
+import { getCityConfig } from '../lib/city-config';
+const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom } = Astro.props;
 ---
 
 <div class="map-container">
@@ -44,14 +61,15 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     data-center={JSON.stringify(center)}
     data-zoom={zoom?.toString() || '12'}
     data-photos={JSON.stringify(photos)}
-    data-cdn-url={import.meta.env.R2_PUBLIC_URL || CDN_FALLBACK_URL}
+    data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
+    data-waypoint-markers={JSON.stringify(waypointMarkers)}
   ></div>
   <div id="route-map-controls"></div>
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
-  import { buildPlacePopup, html } from '../lib/map-helpers';
+  import { initMap, addPolylines, buildPolylineFeature, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
+  import { buildPlacePopup, buildWaypointPopup, html } from '../lib/map-helpers';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
@@ -63,6 +81,7 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     const polylines = JSON.parse(el.dataset.polylines || '[]');
     const places = JSON.parse(el.dataset.places || '[]');
     const photos = JSON.parse(el.dataset.photos || '[]');
+    const waypointMkrs = JSON.parse(el.dataset.waypointMarkers || '[]');
     const zoom = parseInt(el.dataset.zoom || '12');
 
     // Compute center from first polyline instead of defaulting to [0, 0]
@@ -77,9 +96,32 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
     const styleKey = loadStylePreference();
     const map = initMap({ el, center, zoom, styleUrl: getStyleUrl(styleKey) });
 
+    function buildPolylinePopup(pl: any): string {
+      const title = pl.url
+        ? `<a href="${pl.url}" style="font-weight:bold;text-decoration:underline">${html`${pl.name}`}</a>`
+        : html`${pl.name}`;
+
+      if (!pl.distance_km && !pl.ride_date) return title;
+
+      const meta: string[] = [];
+      if (pl.ride_date) {
+        const [y, m, d] = pl.ride_date.split('-').map(Number);
+        meta.push(new Date(y, m - 1, d).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }));
+      }
+      if (pl.distance_km) meta.push(`${Math.round(pl.distance_km)} km`);
+      if (pl.moving_time_s) {
+        const h = Math.floor(pl.moving_time_s / 3600);
+        const m = Math.floor((pl.moving_time_s % 3600) / 60);
+        meta.push(h > 0 ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m`);
+      }
+
+      return `<div class="ride-popup">${title}<div class="ride-popup-meta">${meta.join(' · ')}</div></div>`;
+    }
+
     const polylineData = polylines.map((pl: any) => ({
       encoded: pl.encoded,
-      popup: html`${pl.name}`,
+      popup: buildPolylinePopup(pl),
+      ...(pl.color && { color: pl.color }),
     }));
 
     const placeData = places.map((p: any) => ({
@@ -95,6 +137,15 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       }
 
       addMarkers(map, placeData);
+
+      if (waypointMkrs.length > 0) {
+        const waypointData = waypointMkrs.map((wp: any) => ({
+          ...wp,
+          popup: buildWaypointPopup(wp, cdnUrl),
+        }));
+        addWaypointMarkers(map, waypointData);
+      }
+
       return bounds;
     }
 
@@ -103,6 +154,36 @@ const { polylines, places = [], photos = [], center, zoom } = Astro.props;
       if (bounds) {
         map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 30 });
       }
+
+      // Enable elevation cursor sync (dot follows hover on elevation chart)
+      enableElevationCursorSync(map);
+
+      // Listen for route:toggle events from EventRouteSelector
+      const hiddenSlugs = new Set<string>();
+      window.addEventListener('route:toggle', ((e: CustomEvent) => {
+        const { slug, visible: isVisible } = e.detail;
+        if (isVisible) hiddenSlugs.delete(slug);
+        else hiddenSlugs.add(slug);
+
+        const source = map.getSource('route-polylines') as maplibregl.GeoJSONSource | undefined;
+        if (!source) return;
+        const features = polylineData.map((p: any, i: number) => {
+          const feature = buildPolylineFeature(p.encoded, p.popup, p.color);
+          // Check if this polyline's URL ends with the slug
+          const plUrl = polylines[i]?.url || '';
+          const plSlug = plUrl.split('/').pop() || '';
+          if (hiddenSlugs.has(plSlug)) {
+            feature.properties!.hidden = true;
+          }
+          return feature;
+        });
+        source.setData({ type: 'FeatureCollection', features });
+
+        // Use a filter to hide features marked as hidden
+        if (map.getLayer('route-lines')) {
+          map.setFilter('route-lines', ['!', ['has', 'hidden']]);
+        }
+      }) as EventListener);
 
       // Render MapControls island
       if (controlsEl) {

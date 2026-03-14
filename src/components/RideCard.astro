@@ -1,0 +1,70 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { imageUrl } from '@/lib/image-service';
+import { formatDuration } from '@/lib/date-utils';
+import { formatDistance } from '@/lib/format';
+import { paths, assets } from '@/lib/paths';
+import { hasCachedMap } from '@/lib/map-thumbnails';
+import { countryToFlag } from '@/lib/country-flags';
+
+interface Props {
+  ride: CollectionEntry<'routes'>;
+  featured?: boolean;
+  badges?: string[];
+  lazy?: boolean;
+}
+
+const { ride, featured = false, badges = [], lazy = true } = Astro.props;
+const cover = ride.data.media.find(m => m.cover);
+const hasMap = hasCachedMap(ride.id);
+const loadAttr = lazy ? 'lazy' : 'eager';
+---
+
+<li class={`ride-card${featured ? ' ride-card--featured' : ''}`}
+  data-distance={ride.data.distance_km}
+  data-time={ride.data.moving_time_s || 0}
+  data-speed={ride.data.average_speed_kmh || 0}
+  data-tour={ride.data.tour_slug || ''}
+  data-country={ride.data.country || ''}
+  data-date={ride.data.ride_date || ''}
+>
+  <a href={paths.ride(ride.id, ride.data.tour_slug)} class="ride-card--link">
+    <div class="ride-card--images">
+      {cover && (
+        <img
+          class="ride-card--cover"
+          src={imageUrl(cover.key, { width: 600, height: 600, fit: 'cover' })}
+          srcset={`${imageUrl(cover.key, { width: 1200, height: 1200, fit: 'cover' })} 2x`}
+          alt={ride.data.name}
+          loading={loadAttr}
+          width="600"
+          height="600"
+        />
+      )}
+      {hasMap && (
+        <img
+          class="ride-card--map"
+          src={assets.mapThumbnail(ride.id, 750)}
+          srcset={assets.mapThumbnailSrcsetLarge(ride.id)}
+          alt={`Map of ${ride.data.name}`}
+          loading={loadAttr}
+          width="600"
+          height="600"
+        />
+      )}
+    </div>
+    <div class="ride-card--info">
+      <strong class="ride-card--name">{ride.data.name}</strong>
+      {badges.length > 0 && (
+        <span class="ride-badge">{badges.join(' · ')}</span>
+      )}
+      <span class="ride-card--meta">
+        {ride.data.ride_date}
+        {' · '}
+        {formatDistance(ride.data.distance_km)}
+        {ride.data.moving_time_s ? ` · ${formatDuration(ride.data.moving_time_s)}` : ''}
+        {ride.data.country ? ` · ${countryToFlag(ride.data.country) || ride.data.country}` : ''}
+      </span>
+    </div>
+  </a>
+</li>

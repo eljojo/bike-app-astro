@@ -1,33 +1,38 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState } from 'preact/hooks';
-import { useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
+import MarkdownEditor from './MarkdownEditor';
+import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
-import SaveSuccessModal from './SaveSuccessModal';
+import type { MediaItem } from './MediaManager';
+import EventRouteSection from './EventRouteSection';
+import EventMediaSection from './EventMediaSection';
+import WaypointEditor from './WaypointEditor';
+import type { Waypoint } from './WaypointEditor';
+import ResultsEditor from './ResultsEditor';
+import type { Result } from './ResultsEditor';
 import type { EventDetail } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
-
-interface OrganizerData {
-  slug: string;
-  name: string;
-  website?: string;
-  instagram?: string;
-}
+import type { AdminOrganizer, RouteOption } from '../../types/admin';
 
 interface Props {
   initialData: EventDetail & { contentHash?: string; isNew?: boolean };
-  organizers: OrganizerData[];
+  organizers: AdminOrganizer[];
   cdnUrl: string;
   readOnly?: boolean;
   userRole?: string;
+  showLicenseNotice?: boolean;
+  isClub?: boolean;
+  routeOptions?: RouteOption[];
+  placeOptions?: Array<{ id: string; name: string }>;
 }
 
 /** Resolve the initial organizer state from the union field */
 function resolveOrganizer(
   organizer: EventDetail['organizer'],
-  allOrganizers: OrganizerData[],
+  allOrganizers: AdminOrganizer[],
 ) {
   if (!organizer) return { slug: '', name: '', website: '', instagram: '', isRef: false };
 
@@ -52,7 +57,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [] }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -65,7 +70,42 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
   const [body, setBody] = useState(initialData.body);
-  const bodyRef = useTextareaValue(body);
+
+  // Club-specific state
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>(initialData.routes || []);
+  const [media, setMedia] = useState<MediaItem[]>(
+    (initialData.media || []).map(m => ({
+      key: m.key,
+      ...(m.caption != null && { caption: m.caption }),
+      ...(m.cover != null && { cover: m.cover }),
+      ...(m.width != null && { width: m.width }),
+      ...(m.height != null && { height: m.height }),
+      ...(m.lat != null && { lat: m.lat }),
+      ...(m.lng != null && { lng: m.lng }),
+    }))
+  );
+  const [waypoints, setWaypoints] = useState<Waypoint[]>(
+    (initialData.waypoints || []).map(w => ({
+      place: w.place,
+      type: w.type,
+      label: w.label,
+      ...(w.distance_km != null && { distance_km: w.distance_km }),
+      ...(w.opening && { opening: w.opening }),
+      ...(w.closing && { closing: w.closing }),
+      ...(w.route && { route: w.route }),
+      ...(w.note && { note: w.note }),
+    }))
+  );
+  const [eventResults, setEventResults] = useState<Result[]>(
+    (initialData.results || []).map(r => ({
+      last_name: r.last_name,
+      ...(r.brevet_no != null && { brevet_no: r.brevet_no }),
+      ...(r.first_name && { first_name: r.first_name }),
+      ...(r.time && { time: r.time }),
+      ...(r.homologation && { homologation: r.homologation }),
+      ...(r.status && { status: r.status }),
+    }))
+  );
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const [showTime, setShowTime] = useState(!!(initialData.start_time || initialData.end_time));
@@ -114,8 +154,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(location && { location }),
           ...(reviewUrl && { review_url: reviewUrl }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
+          ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
+          ...(isClub && waypoints.length > 0 && { waypoints }),
+          ...(isClub && eventResults.length > 0 && { results: eventResults }),
         },
         body,
+        ...(media.length > 0 && { media }),
       };
       if (showOrgForm && orgName) {
         payload.organizer = {
@@ -277,15 +321,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           </div>
 
           <div class="form-field">
-            <label for="event-body">
-              Description (markdown)
-              {' · '}
-              <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener noreferrer" class="btn-link">
-                formatting help
-              </a>
-            </label>
-            <textarea id="event-body" ref={bodyRef} value={body}
-              onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)} rows={6} />
+            <label for="event-body">Description (markdown)</label>
+            <MarkdownEditor
+              id="event-body"
+              value={body}
+              onChange={setBody}
+              rows={6}
+            />
           </div>
 
           <PhotoField
@@ -298,6 +340,43 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             }}
           />
         </div>
+
+      {isClub && routeOptions.length > 0 && (
+        <EventRouteSection
+          routeOptions={routeOptions}
+          selectedRoutes={selectedRoutes}
+          onRoutesChange={setSelectedRoutes}
+        />
+      )}
+
+      <EventMediaSection
+        media={media}
+        onMediaChange={setMedia}
+        cdnUrl={cdnUrl}
+        userRole={userRole}
+      />
+
+      {isClub && placeOptions.length > 0 && (
+        <section class="editor-section">
+          <h2>Waypoints</h2>
+          <WaypointEditor
+            waypoints={waypoints}
+            onChange={setWaypoints}
+            places={placeOptions}
+            routes={selectedRoutes.length > 1 ? selectedRoutes : undefined}
+          />
+        </section>
+      )}
+
+      {isClub && (
+        <section class="editor-section">
+          <h2>Results</h2>
+          <ResultsEditor
+            results={eventResults}
+            onChange={setEventResults}
+          />
+        </section>
+      )}
 
       <section class="editor-section">
         <h2>Organizer</h2>
@@ -348,35 +427,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         </div>
       </section>
 
-      <div class="editor-actions">
-        {error && !githubUrl && <div class="auth-error">{error}</div>}
-        {githubUrl && (
-          <div class="conflict-notice">
-            <strong>Save blocked -- this event was changed on GitHub</strong>
-            <p>Someone modified this event since you started editing.</p>
-            <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary"
-              style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
-              View file on GitHub
-            </a>
-          </div>
-        )}
-        {saved && userRole === 'guest' && (
-          <SaveSuccessModal viewLink={`/events/${initialData.id}`} />
-        )}
-        {saved && userRole !== 'guest' && (
-          <div class="save-success">
-            Saved! Your edit will be live in a few minutes.
-            {' '}<a href={`/events/${initialData.id}`}>View live</a>
-          </div>
-        )}
-        <p class="editor-license-notice">
-          By saving, you agree to release your contribution under{' '}
-          <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-        </p>
-        <button type="button" class="btn-primary" onClick={handleSave} disabled={saving || readOnly}>
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      <EditorActions
+        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
+        onSave={handleSave} contentType="event" userRole={userRole}
+        viewLink={`/events/${initialData.id}`}
+        showLicenseNotice={showLicenseNotice !== false}
+        disabled={readOnly}
+      />
     </fieldset>
   );
 }
