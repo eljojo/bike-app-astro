@@ -3,6 +3,7 @@
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/video-service';
+import { imageUrl } from '@/lib/image-service';
 import { getCityConfig } from '@/lib/city-config';
 import { t } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
@@ -41,7 +42,7 @@ const title = video.title || 'Video';
     <video
       controls
       preload="metadata"
-      poster={videoPosterUrl(video.key)}
+      poster={video.poster_key ? imageUrl(video.poster_key, { width: 600 }) : videoPosterUrl(video.key)}
       disablepictureinpicture
     >
       {sources.map(s => <source src={s.src} type={s.type} />)}
@@ -56,7 +57,7 @@ const title = video.title || 'Video';
         {otherVideos.map(v => (
           <li>
             <a href={paths.video(v.handle)} title={v.title}>
-              <img src={videoPosterUrl(v.key)} alt={v.title || 'Video'} />
+              <img src={v.poster_key ? imageUrl(v.poster_key, { width: 300 }) : videoPosterUrl(v.key)} alt={v.title || 'Video'} />
             </a>
           </li>
         ))}
