@@ -77,6 +77,9 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> {
         const tourSlug = (parsed.frontmatter as Record<string, unknown>).tour_slug as string | undefined;
         const gpxFilename = parsed.variants[0].gpx;
         gpxRelPath = deriveGpxRelativePath(rideDate, gpxFilename, tourSlug);
+        // Sync variant's gpx field with the normalized filename from the derived path
+        // so buildFileChanges uses the correct DD-name.gpx filename
+        parsed.variants[0].gpx = gpxRelPath.split('/').pop()!;
       }
 
       return parsed;
