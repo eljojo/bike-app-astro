@@ -20,6 +20,9 @@ declare global {
   /** App repo git branch, baked in at build time via vite.define */
   const __APP_BRANCH__: string;
 
+  /** City slug, baked in at build time via vite.define */
+  const __CITY__: string;
+
   // -- D1 (SQL database) types used by drizzle-orm/d1 --
 
   interface D1Result<T = unknown> {

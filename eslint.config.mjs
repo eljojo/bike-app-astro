@@ -41,8 +41,8 @@ export default [
     },
   },
   {
-    // Config files define the defaults — they must use literal city/locale values
-    files: ['src/lib/config.ts', 'src/content.config.ts'],
+    // content.config.ts runs at build time only — locale-adjacent strings are OK
+    files: ['src/content.config.ts'],
     rules: {
       'bike-app/no-hardcoded-city-locale': 'off',
     },

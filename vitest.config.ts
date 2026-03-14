@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
 import { existsSync, writeFileSync } from 'node:fs';

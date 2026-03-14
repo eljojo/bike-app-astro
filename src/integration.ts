@@ -129,6 +129,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
             },
             define: {
               __APP_BRANCH__: JSON.stringify(detectBranch()),
+              __CITY__: JSON.stringify(CITY),
             },
             plugins: [buildDataPlugin({ consumerRoot })],
             build: {

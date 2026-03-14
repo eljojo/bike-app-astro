@@ -11,7 +11,9 @@ import {
   eventSchema, organizerSchema, pageSchema,
 } from './schemas/index';
 
-const CITY_DIR = `${process.env.CONTENT_DIR || '.'}/${process.env.CITY || 'blog'}`;
+const city = process.env.CITY;
+if (!city) throw new Error('CITY environment variable is required (e.g. CITY=blog).');
+const CITY_DIR = `${process.env.CONTENT_DIR || '.'}/${city}`;
 const mdPattern = ['**/*.md', '!**/*.??.md'];
 
 export const collections = {
