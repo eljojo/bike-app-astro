@@ -8,6 +8,7 @@ import { createTranscodeService, type TranscodeService } from '../../lib/transco
 import { randomKey } from '../../lib/storage';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/authorize';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/rate-limit';
 
 /**
  * Generate a unique 8-char key, checking S3 for collisions.
@@ -59,6 +60,26 @@ export async function POST({ request, locals }: APIContext) {
     return jsonError('Missing contentSlug');
   }
 
+  const ALLOWED_CONTENT_KINDS = ['route', 'ride'];
+  const validKind = ALLOWED_CONTENT_KINDS.includes(contentKind || '') ? contentKind! : 'route';
+
+  // Rate limit video presigns (same mechanism as photo uploads)
+  const role: string = auth.role;
+  const limit = LIMITS[role];
+  if (limit != null) {
+    const database = db();
+    const ip = request.headers.get('cf-connecting-ip')
+      || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || 'unknown';
+    const identifiers = [`user:${auth.id}`, `ip:${ip}`];
+    const overLimit = await checkRateLimit(database, 'video-presign', identifiers, limit);
+    if (overLimit) {
+      return jsonError('Video upload rate limit exceeded', 429);
+    }
+    await recordAttempt(database, 'video-presign', identifiers);
+    cleanupOldAttempts(database, 'video-presign').catch(() => {});
+  }
+
   try {
     const service = await createTranscodeService(env);
     const key = await generateVideoKey(service);
@@ -67,7 +88,7 @@ export async function POST({ request, locals }: APIContext) {
     const database = db();
     await database.insert(videoJobs).values({
       key,
-      contentKind: contentKind || 'route',
+      contentKind: validKind,
       contentSlug,
       status: 'uploading',
       title: filename?.replace(/\.[^.]+$/, '') || undefined,
