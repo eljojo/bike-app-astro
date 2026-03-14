@@ -21,6 +21,7 @@ import { localeLabel } from '../../lib/locale-utils';
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  videosCdnUrl?: string;
   parkedPhotos?: ParkedPhotoEntry[];
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
@@ -30,7 +31,7 @@ interface Props {
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -290,6 +291,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           media={media}
           onChange={setMedia}
           cdnUrl={cdnUrl}
+          videosCdnUrl={videosCdnUrl}
           pendingFiles={pendingFiles}
           onPendingProcessed={() => setPendingFiles([])}
           userRole={userRole}

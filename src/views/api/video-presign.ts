@@ -4,9 +4,24 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
-import { createTranscodeService } from '../../lib/transcode-service';
+import { createTranscodeService, type TranscodeService } from '../../lib/transcode-service';
+import { randomKey } from '../../lib/storage';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/authorize';
+
+/**
+ * Generate a unique 8-char key, checking S3 for collisions.
+ * Mirrors generateMediaKey() from storage.ts (which checks R2).
+ */
+async function generateVideoKey(service: TranscodeService): Promise<string> {
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const key = randomKey();
+    const exists = await service.headObject(key);
+    if (!exists) return key;
+  }
+  throw new Error('Failed to generate unique video key after maximum attempts');
+}
 
 const ALLOWED_VIDEO_TYPES = [
   'video/mp4',
@@ -45,8 +60,8 @@ export async function POST({ request, locals }: APIContext) {
   }
 
   try {
-    const key = crypto.randomUUID().replaceAll('-', '').slice(0, 24);
     const service = await createTranscodeService(env);
+    const key = await generateVideoKey(service);
     const uploadUrl = await service.presignUpload(key, contentType);
 
     const database = db();

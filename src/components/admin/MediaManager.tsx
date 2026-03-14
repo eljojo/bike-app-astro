@@ -18,6 +18,7 @@ interface Props {
   media: MediaItem[];
   onChange: (media: MediaItem[]) => void;
   cdnUrl: string;
+  videosCdnUrl?: string;
   pendingFiles?: File[];
   onPendingProcessed?: () => void;
   onSuggestionDrop?: (photo: MediaItem, wasParked: boolean) => void;
@@ -27,7 +28,7 @@ interface Props {
   contentKind?: string;
 }
 
-export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind }: Props) {
+export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind }: Props) {
   const fileUpload = useFileUpload();
   const videoUpload = useVideoUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,8 +47,9 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
     return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
   }
 
-  function posterUrl(posterKey: string): string {
-    return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${posterKey}`;
+  function videoPosterThumbUrl(videoKey: string): string {
+    const base = videosCdnUrl || cdnUrl;
+    return `${base}/${videoKey}/${videoKey}-poster.0000000.jpg`;
   }
 
   function updateTitle(idx: number, title: string) {
@@ -211,11 +213,7 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
           >
             {item.type === 'video' ? (
               <div class="video-thumb">
-                {item.poster_key ? (
-                  <img src={posterUrl(item.poster_key)} alt={item.title || ''} loading="lazy" />
-                ) : (
-                  <div class="video-thumb-placeholder" />
-                )}
+                <img src={videoPosterThumbUrl(item.key)} alt={item.title || ''} loading="lazy" />
                 {(() => {
                   const state = videoUpload.videos.get(item.key);
                   if (!state) return <span class="video-play-icon" />;

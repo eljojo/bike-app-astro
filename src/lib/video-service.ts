@@ -8,7 +8,6 @@
  * To swap providers: replace these functions with equivalents that
  * return video source arrays for your transcoding/storage service.
  */
-import { imageUrl } from './image-service';
 import { getCityConfig } from './city-config';
 
 const VIDEOS_CDN = getCityConfig().videos_cdn_url;
@@ -30,8 +29,13 @@ export function videoFallbackUrl(blobKey: string): string {
   return `${VIDEOS_CDN}/${blobKey}/${blobKey}-h264.mp4`;
 }
 
-export function videoPosterUrl(posterKey: string): string {
-  return imageUrl(posterKey, { width: 600 });
+/**
+ * Poster URL derived from the video key — MediaConvert outputs
+ * the frame capture at {key}/{key}-poster.0000000.jpg in the
+ * same outputs bucket as the transcoded videos.
+ */
+export function videoPosterUrl(videoKey: string): string {
+  return `${VIDEOS_CDN}/${videoKey}/${videoKey}-poster.0000000.jpg`;
 }
 
 export function videoDisplaySize(width: number, height: number): { width: number; height: number } {
