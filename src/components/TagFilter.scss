@@ -1,0 +1,36 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+// Tag filter
+.tag-filter {
+  list-style: none;
+  padding: 0;
+  margin-top: 0;
+
+  li { list-style: none; display: inline-block; }
+}
+.tag-filter--label {
+  @media (max-width: $breakpoint-tablet - 1px) {
+    display: block;
+    margin-bottom: 0.5em;
+  }
+  @media (min-width: $breakpoint-tablet) {
+    display: inline-block;
+    margin-right: 1em;
+  }
+}
+.tag-filter--btn {
+  @include tag-base;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, color 0.15s;
+  &.active {
+    background: orange;
+    color: white;
+  }
+  @media (hover: hover) {
+    &:hover:not(.active) {
+      background: orange;
+    }
+  }
+}

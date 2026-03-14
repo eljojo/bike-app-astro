@@ -1,0 +1,150 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.ride-card {
+  margin-bottom: 0.75rem;
+}
+
+.ride-card--link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  color: $color-text;
+  padding: 0.75rem;
+  border-radius: $border-radius;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: $color-card-hover;
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+
+    &:hover {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.ride-card--images {
+  flex-shrink: 0;
+  position: relative;
+  width: 150px;
+  height: 100px;
+
+  img {
+    border-radius: $border-radius;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ride-card--cover { z-index: 1; }
+  .ride-card--map { z-index: 0; }
+
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
+  }
+}
+
+.ride-card:hover .ride-card--images {
+  .ride-card--cover { z-index: 0; }
+  .ride-card--map { z-index: 1; }
+}
+
+.ride-card--info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ride-card--name {
+  font-size: 1.05rem;
+}
+
+.ride-card--meta {
+  font-size: 0.85rem;
+  @include muted-text;
+}
+
+.ride-badge {
+  font-size: 0.8rem;
+  font-style: italic;
+  @include muted-text;
+}
+
+// Image grid variant (blog homepage)
+.rides-list--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5em;
+  grid-auto-flow: dense;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ride-card {
+    margin-bottom: 0;
+  }
+
+  // Featured cards span 2 columns, image stays same height as regular cards
+  .ride-card--featured {
+    @media screen and (min-width: $breakpoint-mobile) {
+      grid-column: span 2;
+    }
+
+    .ride-card--images {
+      aspect-ratio: 2 / 1;
+    }
+
+    .ride-card--name {
+      font-size: 1.5em;
+    }
+  }
+
+  .ride-card--link {
+    display: block;
+    padding: 0;
+
+    &:hover {
+      background: none;
+    }
+  }
+
+  .ride-card--images {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+
+    .ride-card--cover { z-index: 1; }
+    .ride-card--map { z-index: 0; }
+
+    @media (max-width: $breakpoint-mobile) {
+      display: block;
+    }
+  }
+
+  .ride-card:hover .ride-card--images {
+    .ride-card--cover { z-index: 0; }
+    .ride-card--map { z-index: 1; }
+  }
+
+  .ride-card--info {
+    padding: 0.5em;
+  }
+
+  .ride-card--name {
+    font-family: 'Merriweather', serif;
+    font-size: 1.3em;
+    display: block;
+  }
+
+  .ride-card--meta {
+    font-size: 0.8rem;
+  }
+}
