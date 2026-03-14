@@ -179,7 +179,7 @@ async function authenticateAndParse<T, R extends BuildResult>(
   return { user, update, contentId };
 }
 
-async function readCurrentState(
+export async function readCurrentState(
   git: IGitService,
   filePaths: { primary: string; auxiliary?: string[] },
 ): Promise<CurrentFiles> {
