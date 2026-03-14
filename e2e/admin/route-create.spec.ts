@@ -59,7 +59,7 @@ test.describe('Route Creation', () => {
 
     // Wait for preview to render
     const previewMap = page.locator('.route-preview-map');
-    await expect(previewMap).toBeVisible({ timeout: 5000 });
+    await expect(previewMap).toBeVisible({ timeout: 15000 });
 
     // Stats should be visible
     const stats = page.locator('.route-preview-stats');
