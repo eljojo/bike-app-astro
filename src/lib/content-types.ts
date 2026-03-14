@@ -1,4 +1,5 @@
 import { getInstanceFeatures } from './instance-features';
+import type { CurrentFiles } from './content-save';
 
 /** Resolve a view path relative to this file's location. */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
@@ -23,6 +24,14 @@ export interface ContentTypeConfig {
   apiRoutes?: ContentTypeRoute[];
   /** Instance feature gate — if set, content type is only active when this feature is true */
   featureGate?: keyof ReturnType<typeof getInstanceFeatures>;
+  /** Shared operations for file path resolution, content hashing, and cache building */
+  ops?: ContentOps;
+}
+
+export interface ContentOps {
+  getFilePaths(contentId: string): { primary: string; auxiliary?: string[] };
+  computeContentHash(currentFiles: CurrentFiles): string;
+  buildFreshData(contentId: string, currentFiles: CurrentFiles): string;
 }
 
 /*
