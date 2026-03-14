@@ -21,11 +21,27 @@ import {
   findGpxFiles,
   rideDateToIso,
   nameFromFilename,
+  extractDateFromPath,
+  buildSlug,
 } from './rides';
 import { readRideFile } from './ride-file-reader';
+import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache';
+import { computeFileDigest } from '../lib/directory-digest';
 import type { AdminRide } from '../types/admin';
 
 export type { AdminRide };
+
+interface CachedRideData {
+  ride: AdminRide;
+  detail: AdminRideDetail;
+  tourAggData: { slug: string; date: string; distance_km: number; elevation_m: number; country?: string } | null;
+}
+
+const RIDE_CACHE_VERSION = 1;
+
+function rideCachePath(): string {
+  return path.join(process.cwd(), '.astro', 'cache', 'admin-rides-cache.json');
+}
 
 export interface AdminRideDetail extends RideDetail {
   gpxRelativePath?: string;
@@ -133,13 +149,45 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
   // Track per-ride data for tour aggregation
   const ridesByTour = new Map<string, Array<{ slug: string; date: string; distance_km: number; elevation_m: number; country?: string }>>();
 
+  // Load persistent disk cache
+  const diskCache = readContentCache<CachedRideData>(rideCachePath(), RIDE_CACHE_VERSION);
+  const updatedEntries: Record<string, ContentCacheEntry<CachedRideData>> = {};
+  let cacheHits = 0;
+
   for (const gpxRelPath of gpxPaths) {
     const tourInfo = tourByGpxPath.get(gpxRelPath);
+
+    // Compute file digest for cache lookup
+    const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+    const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+    const mediaYmlPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
+    const digest = computeFileDigest([gpxAbsPath, sidecarPath, mediaYmlPath]);
+
+    // Compute slug early for cache key
+    const date = extractDateFromPath(gpxRelPath);
+    if (!date) continue;
+    const gpxFilename = path.basename(gpxRelPath);
+    const slug = buildSlug(date, gpxFilename, !!tourInfo);
+
+    // Check disk cache
+    const cached = diskCache.entries[slug];
+    if (cached && cached.digest === digest) {
+      rides.push(cached.data.ride);
+      details[slug] = cached.data.detail;
+      if (cached.data.tourAggData && tourInfo) {
+        if (!ridesByTour.has(tourInfo.slug)) ridesByTour.set(tourInfo.slug, []);
+        ridesByTour.get(tourInfo.slug)!.push(cached.data.tourAggData);
+      }
+      updatedEntries[slug] = cached;
+      cacheHits++;
+      continue;
+    }
+
+    // Cache miss — parse the ride
     const parsed = readRideFile(ridesDir, gpxRelPath, tourInfo?.slug);
     if (!parsed) continue;
 
     const isoDate = rideDateToIso(parsed.date);
-    const gpxFilename = path.basename(gpxRelPath);
 
     // Compute content hash from raw file contents
     const contentHash = computeRideContentHash(
@@ -179,7 +227,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
         return item;
       });
 
-    rides.push({
+    const ride: AdminRide = {
       slug: parsed.slug,
       name,
       date: isoDate,
@@ -189,9 +237,9 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       tour_slug: tourSlug,
       highlight,
       contentHash,
-    });
+    };
 
-    details[parsed.slug] = {
+    const detail: AdminRideDetail = {
       slug: parsed.slug,
       name,
       tagline: (parsed.frontmatter.tagline as string) || '',
@@ -215,13 +263,29 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       gpxRelativePath: gpxRelPath,
     };
 
+    rides.push(ride);
+    details[parsed.slug] = detail;
+
     // Collect data for tour aggregation
+    const tourAggData = tourSlug
+      ? { slug: parsed.slug, date: isoDate, distance_km, elevation_m, country }
+      : null;
     if (tourSlug) {
       if (!ridesByTour.has(tourSlug)) {
         ridesByTour.set(tourSlug, []);
       }
-      ridesByTour.get(tourSlug)!.push({ slug: parsed.slug, date: isoDate, distance_km, elevation_m, country });
+      ridesByTour.get(tourSlug)!.push(tourAggData!);
     }
+
+    // Store in updated cache
+    updatedEntries[slug] = { digest, data: { ride, detail, tourAggData } };
+  }
+
+  // Persist updated cache
+  writeContentCache(rideCachePath(), RIDE_CACHE_VERSION, updatedEntries);
+  const total = Object.keys(updatedEntries).length;
+  if (total > 0) {
+    console.log(`admin-rides: ${cacheHits}/${total} cache hits (${total - cacheHits} parsed)`);
   }
 
   // Sort rides by date descending (newest first)

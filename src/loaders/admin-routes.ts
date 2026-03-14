@@ -17,6 +17,19 @@ import type { AdminRoute } from '../types/admin';
 import { routeDetailFromGit, computeRouteContentHash, type RouteDetail } from '../lib/models/route-model';
 import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import { readRouteDir } from './route-file-reader';
+import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache';
+import { computeDirectoryDigest } from '../lib/directory-digest';
+
+interface CachedRouteData {
+  route: AdminRoute;
+  detail: RouteDetail & { contentHash: string };
+}
+
+const ROUTE_CACHE_VERSION = 1;
+
+function routeCachePath(): string {
+  return path.join(process.cwd(), '.astro', 'cache', 'admin-routes-cache.json');
+}
 
 interface AdminRouteData {
   routes: AdminRoute[];
@@ -41,8 +54,28 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
   const routes: AdminRoute[] = [];
   const details: Record<string, RouteDetail & { contentHash: string }> = {};
 
+  // Load persistent disk cache
+  const diskCache = readContentCache<CachedRouteData>(routeCachePath(), ROUTE_CACHE_VERSION);
+  const updatedEntries: Record<string, ContentCacheEntry<CachedRouteData>> = {};
+  let cacheHits = 0;
+
   for (const slug of slugs) {
     const routeDir = path.join(routesDir, slug);
+
+    // Compute directory digest for cache lookup
+    const digest = computeDirectoryDigest(routeDir, { includeSubdirs: ['variants'] });
+
+    // Check disk cache
+    const cached = diskCache.entries[slug];
+    if (cached && cached.digest === digest) {
+      routes.push(cached.data.route);
+      details[slug] = cached.data.detail;
+      updatedEntries[slug] = cached;
+      cacheHits++;
+      continue;
+    }
+
+    // Cache miss — parse the route
     const parsed = readRouteDir(routeDir, slug, nonDefaultLocales);
     if (!parsed) continue;
 
@@ -96,7 +129,7 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
     });
 
     const coverItem = detail.media.find(m => m.cover) || detail.media[0];
-    routes.push({
+    const route: AdminRoute = {
       slug,
       name: parsed.frontmatter.name as string,
       mediaCount: detail.media.length,
@@ -104,9 +137,22 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
       contentHash,
       difficultyScore: scores.length > 0 ? Math.min(...scores) : null,
       coverKey: coverItem?.key,
-    });
+    };
 
-    details[slug] = { ...detail, contentHash };
+    const detailWithHash = { ...detail, contentHash };
+
+    routes.push(route);
+    details[slug] = detailWithHash;
+
+    // Store in updated cache
+    updatedEntries[slug] = { digest, data: { route, detail: detailWithHash } };
+  }
+
+  // Persist updated cache
+  writeContentCache(routeCachePath(), ROUTE_CACHE_VERSION, updatedEntries);
+  const total = Object.keys(updatedEntries).length;
+  if (total > 0) {
+    console.log(`admin-routes: ${cacheHits}/${total} cache hits (${total - cacheHits} parsed)`);
   }
 
   routes.sort((a, b) => a.name.localeCompare(b.name));
