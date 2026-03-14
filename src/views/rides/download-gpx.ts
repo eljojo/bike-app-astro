@@ -3,14 +3,16 @@ import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import { cityDir } from '../../lib/config/config';
 import { variantSlug, variantFilename, rideGpxPath, serveGpxFile } from '../../lib/gpx-download';
+import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan';
 
 export const prerender = true;
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const routes = await getCollection('routes');
+  const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'ride');
   const paths: { params: { slug: string; variant: string }; props: { gpxFilePath: string; filename: string } }[] = [];
 
-  for (const route of routes) {
+  for (const route of filtered) {
     if (!route.data.gpxRelativePath) continue;
     const gpxFilePath = rideGpxPath(cityDir, route.data.gpxRelativePath);
     if (!fs.existsSync(gpxFilePath)) continue;

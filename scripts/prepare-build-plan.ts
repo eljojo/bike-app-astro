@@ -19,6 +19,7 @@ import {
   type BuildPlan,
   type BuildManifest,
 } from '../src/lib/content/build-plan';
+import { extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve(process.cwd(), '..', 'bike-routes');
 const CITY = process.env.CITY || 'ottawa';
@@ -58,10 +59,25 @@ function computeCodeHash(): string {
 function computeContentHashes(): Record<string, string> {
   const hashes: Record<string, string> = {};
 
-  // Rides (blog instances)
+  // Rides (blog instances) — use slug-based keys to match content collection IDs
   const ridesDir = path.join(cityDir, 'rides');
   if (fs.existsSync(ridesDir)) {
-    scanGpxFiles(ridesDir, '').forEach(gpxRel => {
+    const gpxFiles = scanGpxFiles(ridesDir, '');
+    const tours = detectTours(gpxFiles);
+    const tourByGpxPath = new Map<string, string>();
+    for (const tour of tours) {
+      for (const ridePath of tour.ridePaths) {
+        tourByGpxPath.set(ridePath, tour.slug);
+      }
+    }
+
+    for (const gpxRel of gpxFiles) {
+      const date = extractDateFromPath(gpxRel);
+      if (!date) continue;
+      const gpxFilename = path.basename(gpxRel);
+      const isTour = tourByGpxPath.has(gpxRel);
+      const slug = buildSlug(date, gpxFilename, isTour);
+
       const gpxAbs = path.join(ridesDir, gpxRel);
       const hash = createHash('md5');
       if (fs.existsSync(gpxAbs)) hash.update(`gpx:${fs.statSync(gpxAbs).mtimeMs}`);
@@ -69,8 +85,8 @@ function computeContentHashes(): Record<string, string> {
       if (fs.existsSync(sidecar)) hash.update(`md:${fs.statSync(sidecar).mtimeMs}`);
       const media = gpxAbs.replace(/\.gpx$/i, '-media.yml');
       if (fs.existsSync(media)) hash.update(`media:${fs.statSync(media).mtimeMs}`);
-      hashes[`ride:${gpxRel}`] = hash.digest('hex');
-    });
+      hashes[`ride:${slug}`] = hash.digest('hex');
+    }
   }
 
   // Routes (wiki instances)
