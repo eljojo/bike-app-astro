@@ -10,13 +10,14 @@ import { parseGpx } from '../../lib/gpx';
 import { CITY } from '../../lib/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithAfterCommit } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git-service';
 import { commitGpxFile } from '../../lib/git-gpx';
 import { env } from '../../lib/env';
-import { buildFreshRouteData, computeRouteContentHashFromFiles, adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
+import { adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { routeOps } from '../../lib/content-ops';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
@@ -74,25 +75,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
 
   validateSlug,
 
-  getFilePaths(slug: string) {
-    const basePath = `${CITY}/routes/${slug}`;
-    const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
-    return {
-      primary: `${basePath}/index.md`,
-      auxiliary: [
-        `${basePath}/media.yml`,
-        ...secondaryLocales.map(l => `${basePath}/index.${l}.md`),
-      ],
-    };
-  },
-
-  computeContentHash(currentFiles: CurrentFiles): string {
-    return computeRouteContentHashFromFiles(currentFiles);
-  },
-
-  buildFreshData(slug: string, currentFiles: CurrentFiles): string {
-    return buildFreshRouteData(slug, currentFiles);
-  },
+  getFilePaths: routeOps.getFilePaths,
+  computeContentHash: routeOps.computeContentHash,
+  buildFreshData: routeOps.buildFreshData,
 
   async buildFileChanges(update, slug, currentFiles, git) {
     const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
