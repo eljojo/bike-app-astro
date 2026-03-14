@@ -30,9 +30,12 @@ export function videoFallbackUrl(blobKey: string): string {
 }
 
 /**
- * Poster URL derived from the video key — MediaConvert outputs
- * the frame capture at {key}/{key}-poster.0000000.jpg in the
- * same outputs bucket as the transcoded videos.
+ * Poster URL derived from the video key — for NEW videos transcoded
+ * by MediaConvert, which outputs the frame capture at
+ * {key}/{key}-poster.0000000.jpg in the outputs bucket.
+ *
+ * Old videos may have a separate poster_key (regular R2 blob).
+ * Callers should check poster_key first and use imageUrl() for those.
  */
 export function videoPosterUrl(videoKey: string): string {
   return `${VIDEOS_CDN}/${videoKey}/${videoKey}-poster.0000000.jpg`;
