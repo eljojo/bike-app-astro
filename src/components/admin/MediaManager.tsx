@@ -216,13 +216,23 @@ export default function MediaManager({ media, onChange, cdnUrl, pendingFiles, on
                 ) : (
                   <div class="video-thumb-placeholder" />
                 )}
-                {videoUpload.videos.get(item.key)?.status === 'transcoding' ? (
-                  <span class="video-transcoding-indicator">Processing...</span>
-                ) : videoUpload.videos.get(item.key)?.status === 'uploading' ? (
-                  <span class="video-transcoding-indicator">Uploading...</span>
-                ) : (
-                  <span class="video-play-icon" />
-                )}
+                {(() => {
+                  const state = videoUpload.videos.get(item.key);
+                  if (!state) return <span class="video-play-icon" />;
+                  if (state.status === 'uploading') return (
+                    <div class="video-upload-progress">
+                      <div class="video-upload-progress-bar" style={{ width: `${state.uploadPercent}%` }} />
+                      <span class="video-upload-progress-label">{state.progress}</span>
+                    </div>
+                  );
+                  if (state.status === 'transcoding') return (
+                    <span class="video-transcoding-indicator">{state.progress}</span>
+                  );
+                  if (state.status === 'failed') return (
+                    <span class="video-transcoding-indicator video-transcoding-indicator--failed">Failed</span>
+                  );
+                  return <span class="video-play-icon" />;
+                })()}
               </div>
             ) : (
               <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />

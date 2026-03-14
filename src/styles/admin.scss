@@ -747,6 +747,40 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   z-index: 1;
+
+  &--failed {
+    background: rgba(180, 40, 40, 0.85);
+  }
+}
+
+.video-upload-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+.video-upload-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: $color-primary;
+  transition: width 0.2s ease;
+}
+
+.video-upload-progress-label {
+  font-size: 0.7rem;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
 }
 
 // Variant manager (VariantManager island)

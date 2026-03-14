@@ -114,9 +114,9 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // Drag-and-drop
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const { dragging } = useDragDrop((files) => {
-    const images = files.filter(f => f.type.startsWith('image/'));
+    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const gpx = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-    if (images.length > 0) setPendingFiles(images);
+    if (mediaFiles.length > 0) setPendingFiles(mediaFiles);
     if (gpx.length > 0) handleGpxUpload(gpx[0]);
   });
 
@@ -221,7 +221,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
     <div class="ride-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos or GPX files to add to ride</div>
+          <div class="drop-overlay-content">Drop media or GPX files to add to ride</div>
         </div>
       )}
 

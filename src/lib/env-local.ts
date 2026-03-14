@@ -42,7 +42,6 @@ export function createLocalEnv(): AppEnv {
     STRAVA_CLIENT_ID: process.env.STRAVA_CLIENT_ID,
     STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET,
     // Video transcoding — local dev uses no-op adapter, these are unused
-    MEDIACONVERT_ENDPOINT: '',
     MEDIACONVERT_QUEUE: '',
     MEDIACONVERT_ROLE: '',
     MEDIACONVERT_ACCESS_KEY_ID: '',
