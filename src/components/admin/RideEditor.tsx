@@ -74,7 +74,8 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, userRole
         setSlug(slugify(`${dateStr}-${result.name}`));
       }
       if (result.gpxContent) {
-        const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
+        const day = dateStr.split('-')[2] || '01';
+        const gpxFilename = `${day}-${slugify(result.name)}.gpx`;
         setVariants([{ name: result.name, gpx: gpxFilename, isNew: true, gpxContent: result.gpxContent }]);
       }
       if (result.photos?.length) {
@@ -145,7 +146,8 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, userRole
     setPrivacyZone(false); // Strava already trims
 
     const dateStr = result.start_date_local?.split('T')[0] || '';
-    const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
+    const day = dateStr.split('-')[2] || '01';
+    const gpxFilename = `${day}-${slugify(result.name)}.gpx`;
     if (dateStr && !rideDate) setRideDate(dateStr);
     setSlug(slugify(`${dateStr}-${result.name}`));
     setVariants([{
