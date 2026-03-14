@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean hooks
+.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -81,3 +81,73 @@ hooks: ## Install pre-commit hook (lint + typecheck)
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/
+
+# --- npm publishing ---
+
+release: ## Bump version, commit. Asks which bump type.
+	@current=$$(node -p "require('./package.json').version"); \
+	major=$$(echo $$current | cut -d. -f1); \
+	minor=$$(echo $$current | cut -d. -f2); \
+	patch=$$(echo $$current | cut -d. -f3); \
+	echo "Current version: $$current"; \
+	echo "  1) patch — $$major.$$minor.$$((patch + 1))"; \
+	echo "  2) minor — $$major.$$((minor + 1)).0"; \
+	echo "  3) major — $$((major + 1)).0.0"; \
+	printf "Which bump? [1] "; \
+	read choice; \
+	case "$${choice:-1}" in \
+		1) new="$$major.$$minor.$$((patch + 1))" ;; \
+		2) new="$$major.$$((minor + 1)).0" ;; \
+		3) new="$$((major + 1)).0.0" ;; \
+		*) echo "Invalid choice"; exit 1 ;; \
+	esac; \
+	npm version $$new --no-git-tag-version; \
+	git add package.json package-lock.json; \
+	git commit -m "Release whereto-bike@$$new"; \
+	echo "Done. Run 'make publish' to tag, publish, and push."
+
+publish: ## Tag, npm publish, and push. Run after 'make release'.
+	@version=$$(node -p "require('./package.json').version"); \
+	echo "Publishing whereto-bike@$$version"; \
+	npm publish --access public; \
+	git tag -a "v$$version" -m "whereto-bike@$$version"; \
+	printf "Push to origin? [Y/n] "; \
+	read push; \
+	case "$${push:-y}" in \
+		[Yy]*) git push && git push origin "v$$version" ;; \
+		*) echo "Tag created locally. Push with: git push && git push origin v$$version" ;; \
+	esac
+
+release-scaffolder: ## Bump create-bike-blog version and commit.
+	@current=$$(node -p "require('./packages/create-bike-blog/package.json').version"); \
+	major=$$(echo $$current | cut -d. -f1); \
+	minor=$$(echo $$current | cut -d. -f2); \
+	patch=$$(echo $$current | cut -d. -f3); \
+	echo "Current create-bike-blog version: $$current"; \
+	echo "  1) patch — $$major.$$minor.$$((patch + 1))"; \
+	echo "  2) minor — $$major.$$((minor + 1)).0"; \
+	echo "  3) major — $$((major + 1)).0.0"; \
+	printf "Which bump? [1] "; \
+	read choice; \
+	case "$${choice:-1}" in \
+		1) new="$$major.$$minor.$$((patch + 1))" ;; \
+		2) new="$$major.$$((minor + 1)).0" ;; \
+		3) new="$$((major + 1)).0.0" ;; \
+		*) echo "Invalid choice"; exit 1 ;; \
+	esac; \
+	cd packages/create-bike-blog && npm version $$new --no-git-tag-version; \
+	git add packages/create-bike-blog/package.json; \
+	git commit -m "Release create-bike-blog@$$new"; \
+	echo "Done. Run 'make publish-scaffolder' to tag, publish, and push."
+
+publish-scaffolder: ## Tag, npm publish create-bike-blog, and push.
+	@version=$$(node -p "require('./packages/create-bike-blog/package.json').version"); \
+	echo "Publishing create-bike-blog@$$version"; \
+	cd packages/create-bike-blog && npm publish --access public; \
+	git tag -a "create-bike-blog@$$version" -m "create-bike-blog@$$version"; \
+	printf "Push to origin? [Y/n] "; \
+	read push; \
+	case "$${push:-y}" in \
+		[Yy]*) git push && git push origin "create-bike-blog@$$version" ;; \
+		*) echo "Tag created locally. Push with: git push && git push origin create-bike-blog@$$version" ;; \
+	esac
