@@ -49,6 +49,7 @@ export function createLocalEnv(): AppEnv {
     MEDIACONVERT_REGION: '',
     S3_ORIGINALS_BUCKET: '',
     S3_OUTPUTS_BUCKET: '',
+    CRON_SECRET: process.env.CRON_SECRET || '',
   };
 }
 

@@ -25,26 +25,26 @@ interface AwsConfig {
 
 /** Cache the auto-discovered endpoint so we only call DescribeEndpoints once. */
 let cachedEndpoint: string | null = null;
+let cachedEndpointAt = 0;
+const ENDPOINT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Discover the account-specific MediaConvert endpoint via DescribeEndpoints.
- * Falls back to the env var if set; otherwise calls the AWS API and caches.
+ * Signed POST to a MediaConvert endpoint via SigV4.
+ * Shared between DescribeEndpoints and CreateJob.
  */
-async function resolveEndpoint(config: AwsConfig): Promise<string> {
-  if (config.endpoint) return config.endpoint;
-  if (cachedEndpoint) return cachedEndpoint;
-
-  const regionHost = `mediaconvert.${config.region}.amazonaws.com`;
-  const path = '/2017-08-29/endpoints';
-  const body = JSON.stringify({ MaxResults: 0 });
-
+async function signedMediaConvertFetch(
+  config: { accessKeyId: string; secretAccessKey: string; region: string },
+  url: string,
+  body: string,
+): Promise<Response> {
   const now = new Date();
   const dateStamp = now.toISOString().replace(/[-:]/g, '').slice(0, 8);
   const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
 
+  const parsedUrl = new URL(url);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Host': regionHost,
+    'Host': parsedUrl.host,
     'X-Amz-Date': amzDate,
   };
 
@@ -52,7 +52,7 @@ async function resolveEndpoint(config: AwsConfig): Promise<string> {
   const canonicalHeaders = Object.keys(headers).map(k => `${k.toLowerCase()}:${headers[k].trim()}`).sort().join('\n') + '\n';
   const payloadHash = await sha256Hex(body);
 
-  const canonicalRequest = ['POST', path, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
+  const canonicalRequest = ['POST', parsedUrl.pathname, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
   const credentialScope = `${dateStamp}/${config.region}/mediaconvert/aws4_request`;
   const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, await sha256Hex(canonicalRequest)].join('\n');
 
@@ -63,7 +63,22 @@ async function resolveEndpoint(config: AwsConfig): Promise<string> {
     `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, ` +
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const res = await fetch(`https://${regionHost}${path}`, { method: 'POST', headers, body });
+  return fetch(url, { method: 'POST', headers, body });
+}
+
+/**
+ * Discover the account-specific MediaConvert endpoint via DescribeEndpoints.
+ * Falls back to the env var if set; otherwise calls the AWS API and caches (24h TTL).
+ */
+async function resolveEndpoint(config: AwsConfig): Promise<string> {
+  if (config.endpoint) return config.endpoint;
+  if (cachedEndpoint && (Date.now() - cachedEndpointAt) < ENDPOINT_TTL_MS) return cachedEndpoint;
+
+  const regionHost = `mediaconvert.${config.region}.amazonaws.com`;
+  const url = `https://${regionHost}/2017-08-29/endpoints`;
+  const body = JSON.stringify({ MaxResults: 0 });
+
+  const res = await signedMediaConvertFetch(config, url, body);
   if (!res.ok) {
     const errBody = await res.text();
     throw new Error(`DescribeEndpoints failed (${res.status}): ${errBody}`);
@@ -73,6 +88,7 @@ async function resolveEndpoint(config: AwsConfig): Promise<string> {
   if (!result.Endpoints?.length) throw new Error('No MediaConvert endpoints returned');
 
   cachedEndpoint = result.Endpoints[0].Url;
+  cachedEndpointAt = Date.now();
   return cachedEndpoint;
 }
 
@@ -142,67 +158,16 @@ export function createAwsTranscodeService(env: AppEnv): TranscodeService {
       });
 
       const body = JSON.stringify(jobDef);
+      const url = `${endpoint}/2017-08-29/jobs`;
 
-      const now = new Date();
-      const dateStamp = now.toISOString().replace(/[-:]/g, '').slice(0, 8);
-      const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
-
-      const host = new URL(endpoint).host;
-      const path = '/2017-08-29/jobs';
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Host': host,
-        'X-Amz-Date': amzDate,
-      };
-
-      const signedHeaders = Object.keys(headers)
-        .map((k) => k.toLowerCase())
-        .sort()
-        .join(';');
-
-      const canonicalHeaders = Object.keys(headers)
-        .map((k) => `${k.toLowerCase()}:${headers[k].trim()}`)
-        .sort()
-        .join('\n') + '\n';
-
-      const payloadHash = await sha256Hex(body);
-
-      const canonicalRequest = [
-        'POST',
-        path,
-        '',
-        canonicalHeaders,
-        signedHeaders,
-        payloadHash,
-      ].join('\n');
-
-      const credentialScope = `${dateStamp}/${config.region}/mediaconvert/aws4_request`;
-      const stringToSign = [
-        'AWS4-HMAC-SHA256',
-        amzDate,
-        credentialScope,
-        await sha256Hex(canonicalRequest),
-      ].join('\n');
-
-      const signingKey = await getSignatureKey(
-        config.secretAccessKey, dateStamp, config.region, 'mediaconvert',
-      );
-      const signature = await hmacHex(signingKey, stringToSign);
-
-      headers['Authorization'] =
-        `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, ` +
-        `SignedHeaders=${signedHeaders}, ` +
-        `Signature=${signature}`;
-
-      const response = await fetch(`${endpoint}${path}`, {
-        method: 'POST',
-        headers,
-        body,
-      });
+      const response = await signedMediaConvertFetch(config, url, body);
 
       if (!response.ok) {
         const errorBody = await response.text();
+        // Clear cached endpoint on auth/routing errors — may need re-discovery
+        if (response.status === 403 || response.status === 421) {
+          cachedEndpoint = null;
+        }
         throw new Error(`MediaConvert CreateJob failed (${response.status}): ${errorBody}`);
       }
 

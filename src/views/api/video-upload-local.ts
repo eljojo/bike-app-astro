@@ -13,8 +13,8 @@ export async function PUT({ request, url, locals }: APIContext) {
   }
 
   const key = url.searchParams.get('key');
-  if (!key) {
-    return jsonError('Missing key');
+  if (!key || !/^[a-z0-9]{8}$/.test(key)) {
+    return jsonError('Invalid key format');
   }
 
   try {

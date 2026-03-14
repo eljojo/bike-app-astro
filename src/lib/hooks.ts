@@ -50,6 +50,8 @@ export function useDragReorder<T>(items: T[], onChange: (items: T[]) => void) {
 export function useDragDrop(onFilesDropped: (files: File[]) => void) {
   const [dragging, setDragging] = useState(false);
   const dragCounterRef = useRef(0);
+  const callbackRef = useRef(onFilesDropped);
+  callbackRef.current = onFilesDropped;
 
   useEffect(() => {
     function handleDragEnter(e: DragEvent) {
@@ -68,7 +70,7 @@ export function useDragDrop(onFilesDropped: (files: File[]) => void) {
       dragCounterRef.current = 0;
       setDragging(false);
       const files = e.dataTransfer?.files;
-      if (files?.length) onFilesDropped(Array.from(files));
+      if (files?.length) callbackRef.current(Array.from(files));
     }
 
     document.addEventListener('dragenter', handleDragEnter);
