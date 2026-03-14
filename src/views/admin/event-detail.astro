@@ -10,11 +10,11 @@ import adminRoutes from 'virtual:bike-app/admin-routes';
 import adminPlaces from 'virtual:bike-app/admin-places';
 import { env } from '../../lib/env/env.service';
 import { can } from '../../lib/auth/authorize';
-import { CITY } from '../../lib/config';
+import { CITY } from '../../lib/config/config';
 import { loadDetailPageData } from '../../lib/load-admin-content';
 import { eventDetailFromCache } from '../../lib/models/event-model';
-import { getCityConfig } from '../../lib/city-config';
-import { getInstanceFeatures } from '../../lib/instance-features';
+import { getCityConfig } from '../../lib/config/city-config';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 
 const result = await loadDetailPageData({
   contentType: 'events',

@@ -6,7 +6,7 @@ import { generatePseudonym } from '../../../lib/auth/pseudonym';
 import { isIpBanned } from '../../../lib/auth/ban-service';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { withBatch } from '../../../db/transaction';
-import { getInstanceFeatures } from '../../../lib/instance-features';
+import { getInstanceFeatures } from '../../../lib/config/instance-features';
 
 export const prerender = false;
 

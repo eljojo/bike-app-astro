@@ -1,4 +1,4 @@
-import { getCityConfig } from './city-config';
+import { getCityConfig } from './config/city-config';
 import { originalUrl } from './image-service';
 
 const config = getCityConfig();

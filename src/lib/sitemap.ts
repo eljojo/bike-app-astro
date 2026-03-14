@@ -1,4 +1,4 @@
-import { getCityConfig } from './city-config';
+import { getCityConfig } from './config/city-config';
 import { paths, routeSlug } from './paths';
 import { translatePath } from './path-translations';
 import { supportedLocales, defaultLocale } from './locale-utils';

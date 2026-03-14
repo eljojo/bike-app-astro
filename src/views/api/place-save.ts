@@ -3,7 +3,7 @@
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
 import { serializeMdFile } from '../../lib/file-serializers';
-import { CITY } from '../../lib/config';
+import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';

@@ -3,8 +3,8 @@
 import { t, localePath } from '../i18n';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
-import { getCityConfig } from '../lib/city-config';
-import { getInstanceFeatures } from '../lib/instance-features';
+import { getCityConfig } from '../lib/config/city-config';
+import { getInstanceFeatures } from '../lib/config/instance-features';
 
 interface Props {
   alternateUrls?: Record<string, string>;

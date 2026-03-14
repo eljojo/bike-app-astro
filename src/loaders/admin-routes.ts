@@ -11,7 +11,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { cityDir } from '../lib/config';
+import { cityDir } from '../lib/config/config';
 import { scoreRoute } from '../lib/difficulty';
 import type { AdminRoute } from '../types/admin';
 import { routeDetailFromGit, computeRouteContentHash, type RouteDetail } from '../lib/models/route-model';

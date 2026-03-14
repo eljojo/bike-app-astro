@@ -144,7 +144,7 @@ If something fails — a build, a tool, a command — investigate it. Don't dism
 
 ### Never Hardcode City/Locale Values
 
-NEVER write string literals like `'ottawa'` or `'fr'` in application code. Always import `CITY` from `src/lib/config.ts`. Check city config for available locales. The codebase supports multiple cities via the `CITY` env var.
+NEVER write string literals like `'ottawa'` or `'fr'` in application code. Always import `CITY` from `src/lib/config/config.ts`. Check city config for available locales. The codebase supports multiple cities via the `CITY` env var.
 
 ---
 
@@ -180,7 +180,7 @@ Additional gotchas not covered by directory files:
 
 The codebase serves three instance types from one codebase: **wiki** (community route database, default), **blog** (personal ride journal), and **club** (randonneuring/event archive). The type is set via `instance_type` in the city's `config.yml`.
 
-**Feature flags, not identity checks.** Use `getInstanceFeatures()` from `src/lib/instance-features.ts` for capability checks (e.g., `features.hasRides`, `features.hasEvents`, `features.allowsRegistration`). Reserve `isBlogInstance()`/`isClubInstance()` for structural decisions like which loaders, virtual modules, or admin routes to register. See `src/lib/AGENTS.md` for details.
+**Feature flags, not identity checks.** Use `getInstanceFeatures()` from `src/lib/config/instance-features.ts` for capability checks (e.g., `features.hasRides`, `features.hasEvents`, `features.allowsRegistration`). Reserve `isBlogInstance()`/`isClubInstance()` for structural decisions like which loaders, virtual modules, or admin routes to register. See `src/lib/AGENTS.md` for details.
 
 **Rides reuse the routes infrastructure.** Blog instances store rides as GPX files with optional sidecar Markdown, but they flow through the same `routes` content collection, the same `admin-routes`/`admin-route-detail` virtual modules, and the same admin editor pipeline. The admin-rides loader (`src/loaders/admin-rides.ts`) populates these modules on blog instances instead of the route loader. Ride-specific types (`RideDetail`, `AdminRideDetail`) extend the shared content model in `src/lib/models/ride-model.ts`.
 
@@ -212,10 +212,10 @@ When building query layers over distributed data, the index is a **computed view
 
 Two distinct config layers — don't confuse them:
 
-- **Build-time** (`src/lib/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
-- **Runtime** (`src/lib/env/env.service.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/app-env.ts`).
+- **Build-time** (`src/lib/config/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
+- **Runtime** (`src/lib/env/env.service.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/config/app-env.ts`).
 
-City-specific config is loaded from `{cityDir}/config.yml` by `src/lib/city-config.ts` and defines: display name, CDN URLs, tile server, timezone, locales, map bounds, place categories, analytics domain, and author info. Locales are derived from the city config (e.g., `[en-CA, fr-CA]` → `[en, fr]`), not hardcoded.
+City-specific config is loaded from `{cityDir}/config.yml` by `src/lib/config/city-config.ts` and defines: display name, CDN URLs, tile server, timezone, locales, map bounds, place categories, analytics domain, and author info. Locales are derived from the city config (e.g., `[en-CA, fr-CA]` → `[en, fr]`), not hardcoded.
 
 ### Five Adapter Boundary Points
 

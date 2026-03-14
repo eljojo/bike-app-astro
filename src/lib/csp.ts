@@ -1,4 +1,4 @@
-import { getCityConfig } from './city-config';
+import { getCityConfig } from './config/city-config';
 
 function originFrom(raw: string | undefined, fallback: string): string {
   try {

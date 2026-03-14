@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { stravaTokens } from '../../db/schema';
 import { refreshToken } from './strava-api';
-import type { AppEnv } from '../app-env';
+import type { AppEnv } from '../config/app-env';
 import type { Database } from '../../db';
 
 /**

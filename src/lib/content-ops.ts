@@ -7,7 +7,7 @@
 // Rides are excluded — their getFilePaths needs gpxRelativePath from the
 // request body, which isn't derivable from slug alone.
 
-import { CITY } from './config';
+import { CITY } from './config/config';
 import { supportedLocales, defaultLocale } from './locale-utils';
 import { buildFreshRouteData, computeRouteContentHashFromFiles } from './models/route-model';
 import { buildFreshEventData, computeEventContentHashFromFiles } from './models/event-model';

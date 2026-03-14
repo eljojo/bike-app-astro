@@ -2,8 +2,8 @@
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { getCityConfig } from '@/lib/city-config';
-import { getInstanceFeatures } from '@/lib/instance-features';
+import { getCityConfig } from '@/lib/config/city-config';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { defaultLocale } from '@/lib/locale-utils';
 import contributors from 'virtual:bike-app/contributors';
 

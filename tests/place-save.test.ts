@@ -6,7 +6,7 @@ vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 
-import { CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
 import { placeHandlers } from '../src/views/api/place-save';
 
 describe('placeHandlers.parseRequest', () => {

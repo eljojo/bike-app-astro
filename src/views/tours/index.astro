@@ -3,7 +3,7 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import tours from 'virtual:bike-app/tours';
-import { getCityConfig } from '@/lib/city-config';
+import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/image-service';
 import { hasCachedMap } from '@/lib/map-thumbnails';
 import { assets } from '@/lib/paths';

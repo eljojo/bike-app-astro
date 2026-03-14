@@ -1,6 +1,6 @@
 import yaml from 'js-yaml';
 import type { FileChange } from './git/git.adapter-github';
-import { CITY } from './config';
+import { CITY } from './config/config';
 
 interface RedirectEntry {
   from: string;

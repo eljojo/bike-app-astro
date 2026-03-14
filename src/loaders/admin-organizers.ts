@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { cityDir } from '../lib/config';
+import { cityDir } from '../lib/config/config';
 import type { AdminOrganizer } from '../types/admin';
 
 const CITY_DIR = cityDir;

@@ -10,7 +10,7 @@
  * local git.
  */
 
-import type { AppEnv } from '../app-env';
+import type { AppEnv } from '../config/app-env';
 import type { TileCache } from '../tile-cache/tile-cache.service';
 
 let _env: AppEnv;

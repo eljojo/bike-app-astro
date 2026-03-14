@@ -2,7 +2,7 @@ import path from 'node:path';
 import { createLocalDb, openLocalDb } from '../../db/local';
 import { createLocalBucket } from '../storage-local';
 import { createLocalTileCache } from '../tile-cache/tile-cache.adapter-local';
-import type { AppEnv } from '../app-env';
+import type { AppEnv } from '../config/app-env';
 
 const LOCAL_DB_PATH = path.resolve(import.meta.dirname, '..', '..', '..', '.data', 'local.db');
 const LOCAL_UPLOADS_DIR = path.resolve(import.meta.dirname, '..', '..', '..', '.data', 'uploads');

@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
-import { CITY } from '../../lib/config';
+import { CITY } from '../../lib/config/config';
 import { upsertContentCache } from '../../lib/cache';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';

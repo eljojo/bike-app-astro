@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
 
 // Mock env module that route-save.ts imports
 vi.mock('../src/lib/env/env.service', () => ({ env: { GITHUB_TOKEN: 'test', GIT_BRANCH: 'main' } }));

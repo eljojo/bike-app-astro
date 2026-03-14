@@ -21,7 +21,7 @@ The only acceptable silent fallback is during Astro prerendering, where runtime 
 ## Build-Time Transforms
 
 Three files here use `fs.readFileSync` in Node.js but get **completely replaced** during the Vite build by `src/build-data-plugin.ts`:
-- `city-config.ts` — replaced with static JSON from config.yml
+- `config/city-config.ts` — replaced with static JSON from config.yml
 - `tag-translations.ts` — replaced with static translation map
 - `fonts.ts` — replaced with static font preload URLs
 
@@ -29,7 +29,7 @@ If you change the exports of these files, you MUST also update the transform in 
 
 ## Config Layers — Don't Confuse Them
 
-- **Build-time** (`config.ts`): reads `process.env` at module evaluation. `CONTENT_DIR`, `CITY`, `cityDir`.
+- **Build-time** (`config/config.ts`): reads `process.env` at module evaluation. `CONTENT_DIR`, `CITY`, `cityDir`.
 - **Runtime** (`env/env.service.ts`): reads Cloudflare bindings or local env at request time. `GITHUB_TOKEN`, `GIT_OWNER`, `GIT_DATA_REPO`, `DB`, `BUCKET`, etc. via `AppEnv`.
 
 ## Key Function Signatures
@@ -39,7 +39,7 @@ If you change the exports of these files, you MUST also update the transform in 
 
 ## Instance Feature Flags
 
-Use `getInstanceFeatures()` from `instance-features.ts` for all feature/capability checks. It returns an `InstanceFeatures` object with semantic boolean flags like `hasRides`, `hasEvents`, `allowsRegistration`, `showsLicenseNotice`.
+Use `getInstanceFeatures()` from `config/instance-features.ts` for all feature/capability checks. It returns an `InstanceFeatures` object with semantic boolean flags like `hasRides`, `hasEvents`, `allowsRegistration`, `showsLicenseNotice`.
 
 **Prefer feature flags over identity checks.** Instead of `if (isBlogInstance())`, write `if (!features.allowsRegistration)` or `if (features.hasRides)`. The flags communicate *why* something is enabled/disabled.
 

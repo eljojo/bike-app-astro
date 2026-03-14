@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { getCityConfig } from '../lib/city-config';
+import { getCityConfig } from '../lib/config/city-config';
 
 export const prerender = true;
 

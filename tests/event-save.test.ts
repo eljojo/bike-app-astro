@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
 
 // Mock virtual module and env dependencies that event-save.ts imports transitively
 vi.mock('virtual:bike-app/admin-events', () => ({ default: [] }));
