@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import simpleGit from 'simple-git';
-import type { FileChange, CommitAuthor, IGitService, CommitInfo } from './git-service';
+import type { FileChange, CommitAuthor, IGitService, CommitInfo } from './git.adapter-github';
 import { computeBlobSha } from './git-utils';
 
 /**

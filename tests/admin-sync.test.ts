@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GitService } from '../src/lib/git-service';
+import { GitService } from '../src/lib/git/git.adapter-github';
 
 const TEST_CONFIG = {
   token: 'ghp_test_token_123',

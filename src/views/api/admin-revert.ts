@@ -1,15 +1,15 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
+import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config';
 import { upsertContentCache } from '../../lib/cache';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
+import { buildAuthorEmail, parseContentPath } from '../../lib/git/commit-author';
 import { contentTypes } from '../../lib/content-types';
 import { readCurrentState } from '../../lib/content-save';
-import type { IGitService } from '../../lib/git-service';
+import type { IGitService } from '../../lib/git/git.adapter-github';
 import type { Database } from '../../db';
 
 export const prerender = false;

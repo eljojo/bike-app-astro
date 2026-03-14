@@ -19,7 +19,7 @@ vi.mock('../src/lib/env', () => ({
   env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test' },
 }));
 
-vi.mock('../src/lib/git-factory', () => ({
+vi.mock('../src/lib/git/git-factory', () => ({
   createGitService: () => ({
     readFile: vi.fn(),
     writeFiles: vi.fn(),

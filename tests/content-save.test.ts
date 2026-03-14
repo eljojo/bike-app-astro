@@ -88,7 +88,7 @@ const mockReadFile = vi.fn();
 const mockWriteFiles = vi.fn();
 const mockGit = { readFile: mockReadFile, writeFiles: mockWriteFiles };
 
-vi.mock('../src/lib/git-factory', () => ({
+vi.mock('../src/lib/git/git-factory', () => ({
   createGitService: () => mockGit,
 }));
 

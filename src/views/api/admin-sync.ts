@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
+import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';

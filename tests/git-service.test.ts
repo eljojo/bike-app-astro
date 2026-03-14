@@ -4,8 +4,8 @@ import {
   decodeBase64Content,
   encodeBase64Content,
   COMMITTER,
-} from '../src/lib/git-service';
-import type { FileChange, CommitAuthor } from '../src/lib/git-service';
+} from '../src/lib/git/git.adapter-github';
+import type { FileChange, CommitAuthor } from '../src/lib/git/git.adapter-github';
 
 const TEST_CONFIG = {
   token: 'ghp_test_token_123',

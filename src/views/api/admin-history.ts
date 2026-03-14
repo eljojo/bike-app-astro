@@ -1,12 +1,12 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
+import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
 import { eq, like } from 'drizzle-orm';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse } from '../../lib/api-response';
-import { parseAuthorEmail } from '../../lib/commit-author';
+import { parseAuthorEmail } from '../../lib/git/commit-author';
 
 export const prerender = false;
 

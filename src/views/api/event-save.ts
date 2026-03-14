@@ -10,7 +10,7 @@ import { jsonError } from '../../lib/api-response';
 import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
-import type { IGitService, FileChange } from '../../lib/git-service';
+import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import type { AdminEvent } from '../../types/admin';
 import { resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
 import { eventOps } from '../../lib/content-ops';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBlobSha } from '../../src/lib/git-utils';
+import { computeBlobSha } from '../../src/lib/git/git-utils';
 
 describe('computeBlobSha', () => {
   it('computes SHA-1 matching git blob format', () => {
