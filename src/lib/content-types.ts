@@ -26,10 +26,12 @@ export interface ContentTypeConfig {
 }
 
 /*
- * TODO: Add `fromCache` parser and `adminListFields` normalizer to ContentTypeConfig.
- * This would allow `loadAdminContentList()` to become one generic function instead of
- * three copy-pasted ones (~150 lines total with ~70% overlap). Deferred because it needs
- * the registry and refactored save helpers to exist first. Revisit in Task 21.
+ * Future: genericizing `loadAdminContentList()` in load-admin-content.ts.
+ * The three list overlay functions share the D1 query + parse + merge + append structure,
+ * but differ in: (1) ID field (slug vs compound id), (2) which cached fields map to which
+ * list fields, (3) new-item default shapes. A generic version would need three callbacks
+ * (getKey, mergeFields, buildNewItem) that recreate most type-specific logic, so the
+ * abstraction wouldn't reduce complexity meaningfully. Revisit if a 4th content type is added.
  */
 
 export const contentTypes: ContentTypeConfig[] = [
