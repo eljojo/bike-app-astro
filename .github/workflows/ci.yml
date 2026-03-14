@@ -25,6 +25,48 @@ jobs:
             app:
               - '!docs/**'
 
+  sync-playwright-flake:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ github.token }}
+
+      - name: Check playwright version sync
+        id: check
+        run: |
+          npm_version=$(node -e "const l = require('./package-lock.json'); console.log(l.packages['node_modules/@playwright/test'].version)")
+          flake_version=$(grep -oP 'playwright-web-flake/\K[0-9]+\.[0-9]+\.[0-9]+' flake.nix)
+          echo "package-lock.json: @playwright/test@$npm_version"
+          echo "flake.nix:         playwright-web-flake/$flake_version"
+          if [ "$npm_version" != "$flake_version" ]; then
+            echo "npm_version=$npm_version" >> "$GITHUB_OUTPUT"
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Nix
+        if: steps.check.outputs.needs_update == 'true'
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+
+      - name: Update flake.nix and lock
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          sed -i 's|playwright-web-flake/[0-9]\+\.[0-9]\+\.[0-9]\+|playwright-web-flake/${{ steps.check.outputs.npm_version }}|' flake.nix
+          nix flake update playwright
+
+      - name: Commit changes
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flake.nix flake.lock
+          git commit -m "ci: sync playwright flake to ${{ steps.check.outputs.npm_version }}"
+          git push
+
   test:
     needs: changes
     if: needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]'
@@ -89,7 +131,7 @@ jobs:
 
   # Dependabot: build only, no deploy
   test-dependabot:
-    needs: changes
+    needs: [changes, sync-playwright-flake]
     if: needs.changes.outputs.app == 'true' && github.actor == 'dependabot[bot]'
     uses: ./.github/workflows/_test.yml
     with:
