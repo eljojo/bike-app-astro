@@ -7,7 +7,7 @@ import {
   buildGpxFromStravaStreams,
   type StravaPhoto,
 } from '@/lib/external/strava-api';
-import { interpolatePhotoLocation } from '@/lib/photo-geo-interpolation';
+import { interpolatePhotoLocation } from '@/lib/geo/photo-geo-interpolation';
 import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env/env.service';

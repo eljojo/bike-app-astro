@@ -1,4 +1,4 @@
-import type { PlaceData, NearbyPlace } from './proximity';
+import type { PlaceData, NearbyPlace } from './geo/proximity';
 import { categoryEmoji } from './place-categories';
 import { defaultLocale } from './i18n/locale-utils';
 

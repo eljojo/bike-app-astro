@@ -1,12 +1,12 @@
 import { getCollection } from 'astro:content';
 import { isPublished } from './content-filters';
-import { elevationTags, getAllElevations } from './elevation';
+import { elevationTags, getAllElevations } from './geo/elevation';
 import { toPlaceData } from './places';
 import { scoreRoute } from './difficulty';
 import { routeShape } from './route-insights';
 import { buildSimilarityMatrix } from './route-similarity';
 import type { CollectionEntry } from 'astro:content';
-import type { PlaceData } from './proximity';
+import type { PlaceData } from './geo/proximity';
 
 type Route = CollectionEntry<'routes'>;
 

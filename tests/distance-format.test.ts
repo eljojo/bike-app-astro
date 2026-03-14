@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDistance } from '../src/lib/distance';
+import { formatDistance } from '../src/lib/geo/distance';
 
 describe('formatDistance', () => {
   it('shows exact distance for single variant', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findNearbyPhotos } from '../../src/lib/photo-proximity';
+import { findNearbyPhotos } from '../../src/lib/geo/photo-proximity';
 
 describe('findNearbyPhotos', () => {
   const routePoints = [

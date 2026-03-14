@@ -5,9 +5,9 @@ import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
 import { parseGpx } from '../../lib/gpx';
-import { computeElevationProfile, CHART } from '../../lib/elevation-profile';
+import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
 import photoLocations from 'virtual:bike-app/photo-locations';
-import { findNearbyPhotos } from '../../lib/photo-proximity';
+import { findNearbyPhotos } from '../../lib/geo/photo-proximity';
 
 interface Props {
   cdnUrl: string;

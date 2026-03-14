@@ -4,8 +4,8 @@ import { formatDuration } from '../../lib/date-utils';
 import { formatDistance, formatSpeed } from '../../lib/format';
 import type { MediaItem } from './MediaManager';
 import StaticRouteMap from './StaticRouteMap';
-import { CHART } from '../../lib/elevation-profile';
-import type { ElevationProfileData } from '../../lib/elevation-profile';
+import { CHART } from '../../lib/geo/elevation-profile';
+import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 
 interface Props {
   name: string;

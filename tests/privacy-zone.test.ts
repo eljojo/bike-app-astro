@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterPrivacyZone, stripPrivacyPhotos } from '../src/lib/privacy-zone';
+import { filterPrivacyZone, stripPrivacyPhotos } from '../src/lib/geo/privacy-zone';
 
 const zone = { lat: 45.4, lng: -75.7, radius_m: 500 };
 
