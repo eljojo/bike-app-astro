@@ -1,8 +1,8 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
-import path from 'node:path';
 import { cityDir } from '../../lib/config/config';
+import { variantSlug, variantFilename, routeGpxPath, serveGpxFile } from '../../lib/gpx-download';
 
 export const prerender = true;
 
@@ -12,12 +12,11 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
   for (const route of routes) {
     for (const variant of route.data.variants) {
-      const variantName = variant.gpx.replace(/\.gpx$/, '').replace(/^variants\//, '');
-      const gpxFilePath = path.join(cityDir, 'routes', route.id, variant.gpx);
+      const gpxFilePath = routeGpxPath(cityDir, route.id, variant.gpx);
       if (fs.existsSync(gpxFilePath)) {
         paths.push({
-          params: { slug: route.id, variant: variantName },
-          props: { gpxFilePath, filename: `${route.id}-${variant.gpx.replace('variants/', '')}` },
+          params: { slug: route.id, variant: variantSlug(variant.gpx) },
+          props: { gpxFilePath, filename: `${route.id}-${variantFilename(variant.gpx)}` },
         });
       }
     }
@@ -27,11 +26,5 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 export const GET: APIRoute = async ({ props }) => {
   const { gpxFilePath, filename } = props;
-  const gpxContent = fs.readFileSync(gpxFilePath, 'utf-8');
-  return new Response(gpxContent, {
-    headers: {
-      'Content-Type': 'application/gpx+xml',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    },
-  });
+  return serveGpxFile(gpxFilePath, filename)!;
 };
