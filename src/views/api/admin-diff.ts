@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
+import { createGitService } from '../../lib/git/git-factory';
 import { authorize } from '../../lib/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 

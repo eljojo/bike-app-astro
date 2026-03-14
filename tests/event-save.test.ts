@@ -4,7 +4,7 @@ import { CITY } from '../src/lib/config';
 // Mock virtual module and env dependencies that event-save.ts imports transitively
 vi.mock('virtual:bike-app/admin-events', () => ({ default: [] }));
 vi.mock('../src/lib/env', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test' } }));
-vi.mock('../src/lib/git-factory', () => ({ createGitService: () => ({}) }));
+vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 
 import { isPastEvent, eventHandlers } from '../src/views/api/event-save';

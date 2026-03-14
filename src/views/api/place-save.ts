@@ -8,7 +8,7 @@ import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
-import type { FileChange } from '../../lib/git-service';
+import type { FileChange } from '../../lib/git/git.adapter-github';
 import { placeOps } from '../../lib/content-ops';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges, buildCommitTrailer } from '../../lib/save-helpers';

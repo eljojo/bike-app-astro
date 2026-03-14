@@ -4,7 +4,7 @@ import { getPhotoUsages, updateSharedKeys, serializeSharedKeys, type PhotoUsage 
 import { loadSharedKeysMap } from './load-admin-content';
 import { mergeParkedPhotos, type ParkedPhotoEntry } from './media-merge';
 import { upsertContentCache } from './cache';
-import type { IGitService, FileChange } from './git-service';
+import type { IGitService, FileChange } from './git/git.adapter-github';
 import type { db } from './get-db';
 import type { PhotoKeyChange } from './save-helpers';
 

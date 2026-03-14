@@ -1,7 +1,7 @@
-import type { GitServiceConfig, IGitService } from './git-service';
-import { GitService } from './git-service';
-import { LocalGitService } from './git-service-local';
-import { CONTENT_DIR } from './config';
+import type { GitServiceConfig, IGitService } from './git.adapter-github';
+import { GitService } from './git.adapter-github';
+import { LocalGitService } from './git.adapter-local';
+import { CONTENT_DIR } from '../config';
 
 /**
  * Create the appropriate git service based on runtime.

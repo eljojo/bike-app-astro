@@ -8,14 +8,14 @@ import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
-import type { IGitService, FileChange } from '../../lib/git-service';
+import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath, suffixGpxRelPath, suffixRideSlug } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { CITY } from '../../lib/config';
 import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema } from '../../lib/models/ride-model';
 import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
-import { commitGpxFile } from '../../lib/git-gpx';
+import { commitGpxFile } from '../../lib/git/git-gpx';
 
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';

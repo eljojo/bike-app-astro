@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildLfsPointer, uploadToLfs } from '../src/lib/git-lfs';
+import { buildLfsPointer, uploadToLfs } from '../src/lib/git/git-lfs';
 
 describe('buildLfsPointer', () => {
   it('generates correct LFS pointer format', () => {

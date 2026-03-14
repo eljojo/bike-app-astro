@@ -6,7 +6,7 @@
  * because local git handles LFS via .gitattributes.
  */
 
-import type { FileChange } from './git-service';
+import type { FileChange } from './git.adapter-github';
 import { uploadToLfs } from './git-lfs';
 
 export async function commitGpxFile(opts: {
