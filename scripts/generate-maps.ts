@@ -8,7 +8,7 @@ import {
   mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
   variantKeyFromGpx, gpxHash, hashPath,
   needsRegeneration,
-} from '../src/lib/map-generation';
+} from '../src/lib/maps/map-generation';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CONTENT_DIR, CITY } from '../src/lib/config/config';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
