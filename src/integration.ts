@@ -256,6 +256,40 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     },
   };
 
+  // Astro SSR places external stylesheets for server-rendered pages in
+  // dist/server/_astro/, but @astrojs/node's static file handler only serves
+  // from dist/client/_astro/. Any CSS that Astro emits as a <link> tag for
+  // an SSR page (admin pages, API endpoints) will 404 — the browser requests
+  // it, the static handler can't find it in the client directory, and the
+  // request falls through to a 404.
+  //
+  // This integration copies CSS files from server to client after the build,
+  // so @astrojs/node can serve them. Only files that don't already exist in
+  // client are copied (static page CSS is already there).
+  const copyServerCssToClient: AstroIntegration = {
+    name: 'copy-server-css-to-client',
+    hooks: {
+      'astro:build:done': async () => {
+        const serverAssets = path.join(process.cwd(), 'dist', 'server', '_astro');
+        const clientAssets = path.join(process.cwd(), 'dist', 'client', '_astro');
+        if (!fs.existsSync(serverAssets)) {
+          console.log('[copy-server-css] No server assets dir:', serverAssets);
+          return;
+        }
+        const cssFiles = fs.readdirSync(serverAssets).filter(f => f.endsWith('.css'));
+        console.log(`[copy-server-css] Found ${cssFiles.length} CSS files in server/_astro`);
+        if (!fs.existsSync(clientAssets)) fs.mkdirSync(clientAssets, { recursive: true });
+        for (const file of fs.readdirSync(serverAssets)) {
+          if (!file.endsWith('.css')) continue;
+          const dest = path.join(clientAssets, file);
+          if (!fs.existsSync(dest)) {
+            fs.copyFileSync(path.join(serverAssets, file), dest);
+          }
+        }
+      },
+    },
+  };
+
   const patchCspStyleSrc: AstroIntegration = {
     name: 'patch-static-csp-style-src',
     hooks: {
@@ -272,6 +306,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
     copyPublicAssets,
     copyMapCache,
     generateRedirects,
+    copyServerCssToClient,
     patchCspStyleSrc,
   ];
 }
