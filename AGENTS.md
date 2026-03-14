@@ -172,6 +172,22 @@ Additional gotchas not covered by directory files:
 - **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
 - **Zod v4**: import from `astro/zod`, not `zod`. Use `z.record(z.string(), z.unknown())`, `z.looseObject()`.
 
+### Incremental Builds
+
+The build system supports incremental static generation — only pages affected by content changes are rebuilt. Two layers:
+
+1. **Persistent content cache** (`.astro/cache/admin-{rides,routes}-cache.json`): Admin loaders cache per-item data keyed by file digest. Unchanged items skip GPX parsing entirely.
+
+2. **Build plan** (`.astro/cache/build-plan.json`): Pre-build script detects content changes and writes a plan. `getStaticPaths()` in high-count parameterized pages reads the plan to skip unchanged slugs.
+
+**Safe by default:** New pages always rebuild. No registration needed. Only pages that explicitly call `filterByBuildPlan()` in `getStaticPaths()` get incremental filtering. Currently: rides/detail, rides/map, routes/detail, routes/map, routes/map-variant, tours/ride-detail, tours/ride-map, GPX download endpoints.
+
+**Full build triggers:** Code changes, package updates, no previous manifest, >50% content changed, `FORCE_FULL_BUILD=1`.
+
+**Adding a new parameterized page:** If it generates hundreds of entries from content data, consider adding `filterByBuildPlan()` to its `getStaticPaths()`. If it generates a handful of entries, leave it alone — it'll rebuild every time, which is fine.
+
+**Cache version bumps:** If you change the shape of `AdminRide`, `AdminRideDetail`, `AdminRoute`, or `RouteDetail`, bump `RIDE_CACHE_VERSION` or `ROUTE_CACHE_VERSION` in the corresponding admin loader to invalidate the persistent cache.
+
 ---
 
 ## Architecture
