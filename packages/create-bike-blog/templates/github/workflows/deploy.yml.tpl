@@ -43,7 +43,7 @@ jobs:
         run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Generate map styles
-        run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
+        run: npx tsx node_modules/whereto-bike/scripts/build-map-style.ts
 
       - name: Restore map cache
         uses: actions/cache@v5
@@ -60,7 +60,7 @@ jobs:
           restore-keys: astro-
 
       - name: Generate map thumbnails
-        run: npx tsx node_modules/bike-app-astro/scripts/generate-maps.ts
+        run: npx tsx node_modules/whereto-bike/scripts/generate-maps.ts
         env:
           CONTENT_DIR: .
           CITY: blog

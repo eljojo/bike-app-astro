@@ -17,7 +17,7 @@
     {
       "binding": "DB",
       "database_name": "{{FOLDER}}-db",
-      "migrations_dir": "./node_modules/bike-app-astro/drizzle/migrations"
+      "migrations_dir": "./node_modules/whereto-bike/drizzle/migrations"
     }
   ],
   "r2_buckets": [

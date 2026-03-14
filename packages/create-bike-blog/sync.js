@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Syncs template files from the bike-app-astro package into your blog repo.
+ * Syncs template files from the whereto-bike package into your blog repo.
  * Run from the blog repo: npm run sync
  *
  * Updates:

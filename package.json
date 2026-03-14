@@ -1,7 +1,22 @@
 {
-  "name": "bike-app-astro",
+  "name": "whereto-bike",
   "type": "module",
   "version": "0.0.1",
+  "description": "Open-source cycling platform — the CMS for cycling",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eljojo/bike-app-astro.git"
+  },
+  "files": [
+    "src/",
+    "drizzle/",
+    "scripts/",
+    "eslint-rules/",
+    "public/",
+    "sync.js",
+    "packages/create-bike-blog/templates/"
+  ],
   "exports": {
     ".": "./src/integration.ts",
     "./loaders/routes": "./src/loaders/routes.ts",

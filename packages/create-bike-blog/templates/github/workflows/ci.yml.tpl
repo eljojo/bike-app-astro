@@ -38,7 +38,7 @@ jobs:
       - run: npm ci
 
       - name: Generate map styles
-        run: npx tsx node_modules/bike-app-astro/scripts/build-map-style.ts
+        run: npx tsx node_modules/whereto-bike/scripts/build-map-style.ts
 
       - name: Restore Astro content cache
         uses: actions/cache@v5

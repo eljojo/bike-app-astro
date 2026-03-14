@@ -15,7 +15,27 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { renderTemplate, syncFile } from './packages/create-bike-blog/sync.js';
+
+function renderTemplate(content, vars) {
+  return content.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    return key in vars ? vars[key] : match;
+  });
+}
+
+function syncFile(srcPath, destPath, vars) {
+  let content = fs.readFileSync(srcPath, 'utf-8');
+  if (srcPath.endsWith('.tpl')) {
+    content = renderTemplate(content, vars);
+  }
+
+  const existing = fs.existsSync(destPath) ? fs.readFileSync(destPath, 'utf-8') : null;
+  if (existing !== content) {
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    fs.writeFileSync(destPath, content);
+    return true;
+  }
+  return false;
+}
 
 /** Read a top-level scalar from a simple YAML file. */
 function readYamlField(filePath, field) {
