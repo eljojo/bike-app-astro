@@ -4,9 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     utils.url = "github:numtide/flake-utils";
+    playwright.url = "github:pietdevries94/playwright-web-flake/1.58.2";
   };
 
-  outputs = { self, nixpkgs, utils, ... }:
+  outputs = { self, nixpkgs, utils, playwright, ... }:
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -14,6 +15,7 @@
           config.allowUnfreePredicate = pkg:
             builtins.elem (pkgs.lib.getName pkg) [ "corefonts" ];
         };
+        pw = playwright.packages.${system};
       in
       {
         devShells.default = pkgs.mkShell {
@@ -28,7 +30,7 @@
 
           shellHook = ''
             echo "bike-a-zine dev shell (node $(node -v))"
-            export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
+            export PLAYWRIGHT_BROWSERS_PATH="${pw.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
             export FONTCONFIG_FILE=${pkgs.makeFontsConf { fontDirectories = [ pkgs.noto-fonts-color-emoji pkgs.corefonts ]; }}
 
