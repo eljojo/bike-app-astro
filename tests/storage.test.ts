@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { randomKey } from '../src/lib/storage';
+import { randomKey } from '../src/lib/media/storage.adapter-r2';
 
 describe('randomKey', () => {
   it('returns an 8-character string', () => {

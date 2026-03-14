@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { outputSize } from '../src/lib/transcode-service';
+import { outputSize } from '../src/lib/media/transcode.service';
 
 describe('outputSize', () => {
   it('scales 4K landscape to 1080p', () => {

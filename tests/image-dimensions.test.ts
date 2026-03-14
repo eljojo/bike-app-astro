@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseImageDimensions } from '../src/lib/image-dimensions';
+import { parseImageDimensions } from '../src/lib/media/image-dimensions';
 
 // Minimal valid 1x1 PNG (67 bytes)
 const VALID_PNG = new Uint8Array([

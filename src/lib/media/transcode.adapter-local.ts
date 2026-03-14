@@ -1,4 +1,4 @@
-import type { TranscodeService, TranscodeParams, TranscodeJob } from './transcode-service';
+import type { TranscodeService, TranscodeParams, TranscodeJob } from './transcode.service';
 
 /**
  * Local dev adapter: skips transcoding entirely.

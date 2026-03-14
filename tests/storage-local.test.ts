@@ -23,7 +23,7 @@ afterAll(() => {
 
 describe('local bucket adapter', () => {
   it('stores and retrieves files', async () => {
-    const { createLocalBucket } = await import('../src/lib/storage-local');
+    const { createLocalBucket } = await import('../src/lib/media/storage.adapter-local');
     const bucket = createLocalBucket(TEST_DIR);
 
     await bucket.put('photos/testkey1', Buffer.from('fake image data'));
@@ -41,7 +41,7 @@ describe('local bucket adapter', () => {
   });
 
   it('head returns null for non-existent files', async () => {
-    const { createLocalBucket } = await import('../src/lib/storage-local');
+    const { createLocalBucket } = await import('../src/lib/media/storage.adapter-local');
     const bucket = createLocalBucket(TEST_DIR);
     const result = await bucket.head('photos/doesnotexist');
     expect(result).toBeNull();
@@ -50,9 +50,9 @@ describe('local bucket adapter', () => {
 
 describe('staged upload flow', () => {
   it('stores to pending, validates, promotes to photos', async () => {
-    const { createLocalBucket } = await import('../src/lib/storage-local');
+    const { createLocalBucket } = await import('../src/lib/media/storage.adapter-local');
     const bucket = createLocalBucket(TEST_DIR);
-    const { confirmUpload } = await import('../src/lib/storage');
+    const { confirmUpload } = await import('../src/lib/media/storage.adapter-r2');
 
     // Simulate presign + upload to pending
     await bucket.put('uploads/pending/testimg1', VALID_PNG);
@@ -72,9 +72,9 @@ describe('staged upload flow', () => {
   });
 
   it('rejects non-image uploads', async () => {
-    const { createLocalBucket } = await import('../src/lib/storage-local');
+    const { createLocalBucket } = await import('../src/lib/media/storage.adapter-local');
     const bucket = createLocalBucket(TEST_DIR);
-    const { confirmUpload } = await import('../src/lib/storage');
+    const { confirmUpload } = await import('../src/lib/media/storage.adapter-r2');
 
     await bucket.put('uploads/pending/badfile', Buffer.from('not an image'));
 

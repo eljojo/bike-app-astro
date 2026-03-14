@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { createLocalDb, openLocalDb } from '../../db/local';
-import { createLocalBucket } from '../storage-local';
+import { createLocalBucket } from '../media/storage.adapter-local';
 import { createLocalTileCache } from '../tile-cache/tile-cache.adapter-local';
 import type { AppEnv } from '../config/app-env';
 

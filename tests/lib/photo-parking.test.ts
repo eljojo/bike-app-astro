@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/photo-parking';
+import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/media/photo-parking';
 import type { PhotoKeyChange } from '../../src/lib/save-helpers';
 
 // Mock dependencies

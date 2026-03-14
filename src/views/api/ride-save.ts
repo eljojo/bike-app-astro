@@ -3,7 +3,7 @@
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
 import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
-import { mergeMedia } from '../../lib/media-merge';
+import { mergeMedia } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { env } from '../../lib/env/env.service';
 import { saveContent } from '../../lib/content-save';
@@ -17,7 +17,7 @@ import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git/git-gpx';
 
-import { updatePhotoRegistryCache } from '../../lib/photo-parking';
+import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/save-helpers';
 

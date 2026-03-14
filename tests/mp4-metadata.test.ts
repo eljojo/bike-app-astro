@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractVideoMetadata } from '../src/lib/mp4-metadata';
+import { extractVideoMetadata } from '../src/lib/media/mp4-metadata';
 
 // Helper to build a minimal MP4 atom structure
 function buildAtom(type: string, content: Uint8Array): Uint8Array {

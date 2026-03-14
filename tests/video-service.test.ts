@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize } from '../src/lib/video-service';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize } from '../src/lib/media/video-service';
 
 describe('videoPlaybackSources', () => {
   it('returns AV1 and H264 sources', () => {

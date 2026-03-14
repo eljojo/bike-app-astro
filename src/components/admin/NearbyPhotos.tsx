@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'preact/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
+import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
 
 interface PhotoLocation {
   key: string;

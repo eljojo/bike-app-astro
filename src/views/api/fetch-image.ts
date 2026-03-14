@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { generateMediaKey, confirmUpload } from '../../lib/storage';
+import { generateMediaKey, confirmUpload } from '../../lib/media/storage.adapter-r2';
 
 export const prerender = false;
 

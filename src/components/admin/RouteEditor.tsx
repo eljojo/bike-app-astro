@@ -15,8 +15,8 @@ import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import SlugEditor from './SlugEditor';
 import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
-import { toParkedEntry } from '../../lib/media-merge';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
+import { toParkedEntry } from '../../lib/media/media-merge';
+import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
 import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {

@@ -2,7 +2,7 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env/env.service';
-import { confirmUpload } from '../../../lib/storage';
+import { confirmUpload } from '../../../lib/media/storage.adapter-r2';
 import { authorize } from '../../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
