@@ -9,10 +9,11 @@ import { env } from '../../lib/env';
 import { jsonError } from '../../lib/api-response';
 import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git-service';
 import type { AdminEvent } from '../../types/admin';
-import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
+import { resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
+import { eventOps } from '../../lib/content-ops';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia } from '../../lib/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
@@ -84,24 +85,9 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
     return null;
   },
 
-  getFilePaths(eventId: string) {
-    const [year, slug] = eventId.split('/');
-    const dirBase = `${CITY}/events/${year}/${slug}`;
-    // Primary tries directory index.md; flat .md and media.yml are auxiliaries.
-    // resolveEffectivePrimary in event-model handles promotion when needed.
-    return {
-      primary: `${dirBase}/index.md`,
-      auxiliary: [`${dirBase}.md`, `${dirBase}/media.yml`],
-    };
-  },
-
-  computeContentHash(currentFiles: CurrentFiles): string {
-    return computeEventContentHashFromFiles(currentFiles);
-  },
-
-  buildFreshData(eventId: string, currentFiles: CurrentFiles): string {
-    return buildFreshEventData(eventId, currentFiles);
-  },
+  getFilePaths: eventOps.getFilePaths,
+  computeContentHash: eventOps.computeContentHash,
+  buildFreshData: eventOps.buildFreshData,
 
   async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {
     const [year, slug] = eventId.split('/');
