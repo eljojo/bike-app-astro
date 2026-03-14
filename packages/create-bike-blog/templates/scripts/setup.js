@@ -448,14 +448,12 @@ async function stepApiKeys() {
        If you already have keys from a Rails app using the same AWS resources,
        you can reuse those — the same IAM user works for both.
 
-    4. MediaConvert queue and endpoint:
+    4. MediaConvert queue:
        https://console.aws.amazon.com/mediaconvert
        → The "Default" queue is created automatically
        → Queues → Default → copy the ARN (for MEDIACONVERT_QUEUE)
-       → Account → API endpoint → copy the https:// URL (for MEDIACONVERT_ENDPOINT)
 
-       The endpoint is account-specific and looks like:
-       https://abcd1234.mediaconvert.us-east-1.amazonaws.com`,
+       The API endpoint is auto-discovered at runtime — no need to configure it.`,
     },
     {
       name: 'MEDIACONVERT_SECRET_ACCESS_KEY', kind: 'secret',
@@ -486,13 +484,6 @@ async function stepApiKeys() {
       howTo: `The role you created in step 2 above.
     https://console.aws.amazon.com/iam/home#/roles → find your role → copy the ARN.
     Looks like: arn:aws:iam::123456789:role/MediaConvertRole`,
-    },
-    {
-      name: 'MEDIACONVERT_ENDPOINT', kind: 'secret',
-      description: 'Account-specific MediaConvert API endpoint URL',
-      howTo: `https://console.aws.amazon.com/mediaconvert → Account → API endpoint.
-    Copy the full https:// URL. It's account-specific and looks like:
-    https://abcd1234.mediaconvert.us-east-1.amazonaws.com`,
     },
     {
       name: 'MEDIACONVERT_REGION', kind: 'var',

@@ -98,9 +98,9 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   });
 
   const { dragging } = useDragDrop((files) => {
-    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const gpxFiles = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-    if (imageFiles.length > 0) setPendingFiles(imageFiles);
+    if (mediaFiles.length > 0) setPendingFiles(mediaFiles);
     if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
   });
 
@@ -169,7 +169,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     <div class="route-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos or GPX files to add to route</div>
+          <div class="drop-overlay-content">Drop media or GPX files to add to route</div>
         </div>
       )}
       <div class="locale-tabs">
