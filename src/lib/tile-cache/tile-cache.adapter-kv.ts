@@ -1,4 +1,4 @@
-import type { TileCache } from './tile-cache';
+import type { TileCache } from './tile-cache.service';
 
 interface KVNamespace {
   get(key: string, type: 'arrayBuffer'): Promise<ArrayBuffer | null>;

@@ -11,7 +11,7 @@
  */
 
 import type { AppEnv } from './app-env';
-import type { TileCache } from './tile-cache';
+import type { TileCache } from './tile-cache/tile-cache.service';
 
 let _env: AppEnv;
 let _openLocalDb: ((path: string) => unknown) | undefined;
@@ -27,7 +27,7 @@ if (process.env.RUNTIME === 'local') {
 } else {
   const cf = await import('cloudflare:workers');
   _env = cf.env as AppEnv;
-  const { createKvTileCache } = await import('./tile-cache-kv');
+  const { createKvTileCache } = await import('./tile-cache/tile-cache.adapter-kv');
   _tileCache = createKvTileCache(_env.TILE_CACHE as Parameters<typeof createKvTileCache>[0]);
 }
 
