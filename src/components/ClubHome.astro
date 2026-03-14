@@ -1,0 +1,70 @@
+---
+import EventCard from '@/components/EventCard.astro';
+import { getCityConfig } from '@/lib/config/city-config';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+import { getCollection } from 'astro:content';
+import { parseLocalDate } from '@/lib/date-utils';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+const events = await getCollection('events');
+const now = new Date();
+
+const upcoming = events
+  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
+  .sort((a, b) => parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime());
+
+const recent = events
+  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
+  .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime())
+  .slice(0, 5);
+---
+
+<div class="club-home">
+  <div class="welcome-message">
+    <h3>{config.tagline}</h3>
+  </div>
+
+  {upcoming.length > 0 && (
+    <section class="club-home--section">
+      <h2>{t('events.title', locale)}</h2>
+      <div class="events-grid">
+        {upcoming.map(e => (
+          <EventCard
+            name={e.data.name}
+            start_date={e.data.start_date}
+            end_date={e.data.end_date}
+            distances={e.data.distances}
+            organizer={e.data.organizer}
+            poster_key={e.data.poster_key}
+            href={paths.event(e.id, locale)}
+          />
+        ))}
+      </div>
+      <p class="club-home--more">
+        <a href={localePath('/events', locale)}>{t('events.title', locale)}</a>
+      </p>
+    </section>
+  )}
+
+  {recent.length > 0 && (
+    <section class="club-home--section">
+      <h2>{t('calendar.past', locale)}</h2>
+      <div class="events-grid">
+        {recent.map(e => (
+          <EventCard
+            name={e.data.name}
+            start_date={e.data.start_date}
+            end_date={e.data.end_date}
+            distances={e.data.distances}
+            organizer={e.data.organizer}
+            poster_key={e.data.poster_key}
+            href={paths.event(e.id, locale)}
+          />
+        ))}
+      </div>
+    </section>
+  )}
+</div>
