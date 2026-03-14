@@ -47,9 +47,12 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
     return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
   }
 
-  function videoPosterThumbUrl(videoKey: string): string {
+  function videoPosterThumbUrl(item: MediaItem): string {
+    if (item.poster_key) {
+      return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${item.poster_key}`;
+    }
     const base = videosCdnUrl || cdnUrl;
-    return `${base}/${videoKey}/${videoKey}-poster.0000000.jpg`;
+    return `${base}/${item.key}/${item.key}-poster.0000000.jpg`;
   }
 
   function updateTitle(idx: number, title: string) {
@@ -213,7 +216,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
           >
             {item.type === 'video' ? (
               <div class="video-thumb">
-                <img src={videoPosterThumbUrl(item.key)} alt={item.title || ''} loading="lazy" />
+                <img src={videoPosterThumbUrl(item)} alt={item.title || ''} loading="lazy" />
                 {(() => {
                   const state = videoUpload.videos.get(item.key);
                   if (!state) return <span class="video-play-icon" />;
