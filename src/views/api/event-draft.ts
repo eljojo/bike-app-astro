@@ -8,7 +8,7 @@ import { db } from '../../lib/get-db';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/auth/rate-limit';
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
 import { slugify } from '../../lib/slug';
-import { generateMediaKey, confirmUpload } from '../../lib/storage';
+import { generateMediaKey, confirmUpload } from '../../lib/media/storage.adapter-r2';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 
 export const prerender = false;

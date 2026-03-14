@@ -1,5 +1,5 @@
-import type { AppEnv } from './config/app-env';
-import { createLocalTranscodeService } from './transcode-local';
+import type { AppEnv } from '../config/app-env';
+import { createLocalTranscodeService } from './transcode.adapter-local';
 
 export interface TranscodeParams {
   key: string;
@@ -45,6 +45,6 @@ export async function createTranscodeService(env: AppEnv): Promise<TranscodeServ
   if (process.env.RUNTIME === 'local') {
     return createLocalTranscodeService();
   }
-  const { createAwsTranscodeService } = await import('./transcode-aws');
+  const { createAwsTranscodeService } = await import('./transcode.adapter-aws');
   return createAwsTranscodeService(env);
 }

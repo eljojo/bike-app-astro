@@ -3,7 +3,7 @@ export const prerender = false;
 import type { APIContext } from 'astro';
 import { env } from '../../../lib/env/env.service';
 import { db } from '../../../lib/get-db';
-import { generateMediaKey, createPresignedUploadUrl } from '../../../lib/storage';
+import { generateMediaKey, createPresignedUploadUrl } from '../../../lib/media/storage.adapter-r2';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { authorize } from '../../../lib/auth/authorize';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../../lib/auth/rate-limit';

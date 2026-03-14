@@ -12,7 +12,7 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
-import { processPendingVideos } from '../../lib/video-completion';
+import { processPendingVideos } from '../../lib/media/video-completion';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/auth/authorize';
 

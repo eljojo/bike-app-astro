@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildJobDefinition } from '../src/lib/transcode-aws';
+import { buildJobDefinition } from '../src/lib/media/transcode.adapter-aws';
 
 const config = {
   queue: 'arn:aws:queue',

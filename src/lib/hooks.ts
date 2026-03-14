@@ -114,7 +114,7 @@ export function useVideoUpload() {
 
     try {
       // 1. Extract metadata from MP4
-      const { extractVideoMetadata } = await import('./mp4-metadata');
+      const { extractVideoMetadata } = await import('./media/mp4-metadata');
       const meta = await extractVideoMetadata(file);
 
       // 2. Presign

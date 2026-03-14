@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractGpsCoordinates, extractPhotoMetadata } from '../../src/lib/exif';
+import { extractGpsCoordinates, extractPhotoMetadata } from '../../src/lib/media/exif';
 
 describe('extractPhotoMetadata', () => {
   it('returns null for a PNG buffer (no EXIF)', () => {

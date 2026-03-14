@@ -12,8 +12,8 @@ import type { FileChange } from '../../lib/git/git.adapter-github';
 import { placeOps } from '../../lib/content-ops';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges, buildCommitTrailer } from '../../lib/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
+import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/media/photo-parking';
+import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
 export const prerender = false;

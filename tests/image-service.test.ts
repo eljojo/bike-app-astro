@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { imageUrl, originalUrl } from '../src/lib/image-service';
+import { imageUrl, originalUrl } from '../src/lib/media/image-service';
 
 describe('imageUrl', () => {
   it('generates a transform URL with dimensions', () => {

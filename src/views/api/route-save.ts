@@ -5,7 +5,7 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
-import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
+import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx';
 import { CITY } from '../../lib/config/config';
 import { jsonError } from '../../lib/api-response';
@@ -19,7 +19,7 @@ import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { routeOps } from '../../lib/content-ops';
 import { buildRedirectFileChange } from '../../lib/redirects';
-import { updatePhotoRegistryCache } from '../../lib/photo-parking';
+import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/save-helpers';
 

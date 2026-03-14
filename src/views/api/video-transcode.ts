@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { env } from '../../lib/env/env.service';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
-import { createTranscodeService } from '../../lib/transcode-service';
+import { createTranscodeService } from '../../lib/media/transcode.service';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/auth/authorize';
 

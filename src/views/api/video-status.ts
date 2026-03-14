@@ -7,7 +7,7 @@ import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/auth/authorize';
-import { checkVideoReady, posterKeyForVideo } from '../../lib/video-completion';
+import { checkVideoReady, posterKeyForVideo } from '../../lib/media/video-completion';
 
 export async function GET({ params, locals }: APIContext) {
   const auth = authorize(locals, 'upload-media');

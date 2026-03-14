@@ -1,4 +1,4 @@
-import type { BucketLike } from '../storage';
+import type { BucketLike } from '../media/storage.adapter-r2';
 
 /**
  * Unified environment interface for both Cloudflare and local runtimes.

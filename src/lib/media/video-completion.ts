@@ -7,10 +7,10 @@
  */
 
 import { eq } from 'drizzle-orm';
-import type { AppEnv } from './config/app-env';
-import type { BucketLike } from './storage';
-import { db } from './get-db';
-import { videoJobs } from '../db/schema';
+import type { AppEnv } from '../config/app-env';
+import type { BucketLike } from './storage.adapter-r2';
+import { db } from '../get-db';
+import { videoJobs } from '../../db/schema';
 
 /** H.264 output key — used to check if transcoding is complete. */
 export function h264OutputKey(key: string): string {

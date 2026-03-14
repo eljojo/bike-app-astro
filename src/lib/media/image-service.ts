@@ -8,7 +8,7 @@
  * URLs for your image transformation service (e.g., imgproxy, Thumbor, Sharp).
  * The interface is: (blobKey, options?) => URL string.
  */
-import { getCityConfig } from './config/city-config';
+import { getCityConfig } from '../config/city-config';
 
 const R2_PUBLIC_URL = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 

@@ -6,7 +6,7 @@ import type { AdminRide } from '../loaders/admin-rides';
 import { routeDetailFromCache } from './models/route-model';
 import { eventDetailFromCache } from './models/event-model';
 import { rideDetailFromCache } from './models/ride-model';
-import { deserializeSharedKeys, type SharedKeysMap } from './photo-registry';
+import { deserializeSharedKeys, type SharedKeysMap } from './media/photo-registry';
 import { CITY } from './config/config';
 
 export interface AdminContentResult<T> {

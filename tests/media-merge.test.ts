@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeMedia } from '../src/lib/media-merge';
+import { mergeMedia } from '../src/lib/media/media-merge';
 
 describe('mergeMedia', () => {
   it('preserves existing photo metadata when admin changes caption', () => {

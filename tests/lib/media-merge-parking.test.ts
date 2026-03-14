@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeParkedPhotos } from '../../src/lib/media-merge';
+import { mergeParkedPhotos } from '../../src/lib/media/media-merge';
 
 describe('mergeParkedPhotos', () => {
   it('adds newly parked photos to existing parked list', () => {

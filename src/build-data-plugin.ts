@@ -26,7 +26,7 @@ import { loadAdminOrganizers } from './loaders/admin-organizers';
 import { loadAdminPlaceData } from './loaders/admin-places';
 import { loadAdminRideData } from './loaders/admin-rides';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
-import { buildSharedKeysMap, serializeSharedKeys } from './lib/photo-registry';
+import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/photo-registry';
 import { isBlogInstance } from './lib/config/city-config';
 import { getContentTypes } from './lib/content-types';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
