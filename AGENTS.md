@@ -225,9 +225,9 @@ The local-vs-production switch (`RUNTIME=local`) is checked at five isolation bo
 |----------|-------|------------|
 | `src/lib/env/env.service.ts` | `env.adapter-local.ts` (imports `db/local.ts`, triggers DB init) | `cloudflare:workers` |
 | `src/lib/env/adapter.ts` | `@astrojs/node` standalone | `@astrojs/cloudflare` |
-| `src/lib/git-factory.ts` | `LocalGitService` (simple-git, module-level write mutex) | `GitService` (GitHub REST API, LFS for GPX) |
+| `src/lib/git/git-factory.ts` | `LocalGitService` (simple-git, module-level write mutex) | `GitService` (GitHub REST API, LFS for GPX) |
 | `src/lib/get-db.ts` | **Fresh** `better-sqlite3` connection per call (not singleton — required for cross-process Playwright visibility) | `getD1Db(env.DB)` wrapping D1 |
-| `src/lib/storage-local.ts` | Filesystem-backed bucket (`.data/uploads/`) | R2 bucket |
+| `src/lib/media/storage.adapter-local.ts` | Filesystem-backed bucket (`.data/uploads/`) | R2 bucket |
 
 `astro.config.mjs` marks `cloudflare:workers` as external when `RUNTIME=local` to prevent Rollup resolution errors.
 
@@ -257,7 +257,7 @@ Type declarations: `src/virtual-modules.d.ts` (most modules, ambient file — no
 
 ### Cache-Overlay Pattern
 
-Admin pages use a two-tier data loading pattern (`src/lib/load-admin-content.ts`):
+Admin pages use a two-tier data loading pattern (`src/lib/content/load-admin-content.ts`):
 
 1. **D1 `content_edits` table** — updated after every save, contains latest content including items created since last deploy
 2. **Virtual module data** — build-time snapshots, the fallback when no cache entry exists
@@ -268,7 +268,7 @@ The list overlay merges build-time data with cache entries and appends cache-onl
 
 Editor → `POST /api/{content-type}/{slug}` → `content-save.ts` orchestrator → content-type `SaveHandlers<T>` → git commit → D1 cache update.
 
-The `SaveHandlers<T, R>` interface (`src/lib/content-save.ts`) has 10 methods: `parseRequest`, `resolveContentId`, `validateSlug?`, `getFilePaths`, `computeContentHash`, `buildFreshData`, `checkExistence?`, `buildFileChanges`, `buildCommitMessage`, `buildGitHubUrl`, `afterCommit?`.
+The `SaveHandlers<T, R>` interface (`src/lib/content/content-save.ts`) has 10 methods: `parseRequest`, `resolveContentId`, `validateSlug?`, `getFilePaths`, `computeContentHash`, `buildFreshData`, `checkExistence?`, `buildFileChanges`, `buildCommitMessage`, `buildGitHubUrl`, `afterCommit?`.
 
 Implementations: `src/views/api/route-save.ts`, `src/views/api/ride-save.ts`, `src/views/api/event-save.ts`, `src/views/api/place-save.ts`.
 
@@ -305,8 +305,20 @@ src/
   i18n/           # Locale JSON files (en.json, fr.json, es.json) + t() helper
   integrations/   # Astro integrations (route injection, i18n, build plugins)
   layouts/        # Base.astro (shell with header, nav, footer)
-  lib/            # Service modules, adapters, save pipeline, auth
-  lib/models/     # Canonical type defs: content-model.ts (shared base), route-model.ts, ride-model.ts, event-model.ts, place-model.ts
+  lib/            # Core library — 12 domain directories + shared utilities
+    auth/         # WebAuthn sessions, authorization, rate limiting, bans, pseudonyms
+    config/       # Build-time config, city config, instance features, AppEnv type
+    content/      # Save pipeline, D1 cache, admin content loading, file serializers
+    env/          # Runtime environment (Cloudflare/local adapter), Astro adapter
+    external/     # Third-party integrations (Strava, email, Google Maps, analytics)
+    geo/          # Distance, elevation, proximity, privacy zones, photo geolocation
+    git/          # Git operations (GitHub API, local git, LFS, GPX commit helper)
+    i18n/         # Locale utilities, URL path translations, tag translations
+    maps/         # Map initialization, style management, thumbnails, path geometry
+    markdown/     # Markdown rendering and preview text extraction
+    media/        # Storage, images, video, transcoding, EXIF, photo registry
+    models/       # Canonical type defs: content-model.ts (shared base), route/ride/event/place models
+    tile-cache/   # Map tile caching (KV store / local filesystem adapters)
   loaders/        # Custom Astro content loaders (routes, pages, admin data)
   schemas/        # Zod schemas for content collections (barrel export via index.ts)
   styles/         # SCSS — _variables.scss is the design token source of truth
@@ -317,7 +329,7 @@ drizzle/          # Migration SQL files
 e2e/              # Playwright screenshot + admin E2E tests
 public/           # Static assets (maps/, favicons)
 scripts/          # Build-time scripts (maps, fonts, validation, contributors)
-tests/            # Vitest unit tests (75+ test files)
+tests/            # Vitest unit tests (129 test files)
 .data/            # Local dev data (e2e-content/, local.db, uploads/)
 ```
 
@@ -344,7 +356,7 @@ This is the most complex operation. Files that must change together:
 11. `src/views/admin/{types}.astro` — admin list page
 12. `src/components/admin/{Type}Editor.tsx` — Preact island
 13. `src/styles/admin.scss` — all editor styles (NOT scoped `<style>`)
-14. `src/lib/load-admin-content.ts` — add list overlay function if needed
+14. `src/lib/content/load-admin-content.ts` — add list overlay function if needed
 
 ### Adding a New API Endpoint
 
@@ -352,7 +364,7 @@ This is the most complex operation. Files that must change together:
 2. Add `export const prerender = false`
 3. Register in `src/integrations/admin-routes.ts` (static routes before parameterized)
 4. If public (no auth needed), add exclusion in `src/middleware.ts` `isProtected` check
-5. If new permission needed, add action to `src/lib/authorize.ts`
+5. If new permission needed, add action to `src/lib/auth/authorize.ts`
 
 ### Adding a New i18n Route
 
