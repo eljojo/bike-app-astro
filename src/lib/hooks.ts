@@ -91,6 +91,8 @@ export interface VideoUploadState {
   status: 'uploading' | 'transcoding' | 'ready' | 'failed';
   title: string;
   progress: string;
+  /** Upload progress 0–100 (only meaningful during 'uploading' status) */
+  uploadPercent: number;
 }
 
 /**
@@ -133,14 +135,28 @@ export function useVideoUpload() {
 
       const title = file.name.replace(/\.[^.]+$/, '');
       setVideos(prev => new Map(prev).set(key, {
-        key, status: 'uploading', title, progress: 'Uploading...',
+        key, status: 'uploading', title, progress: 'Uploading...', uploadPercent: 0,
       }));
 
-      // 3. Upload to S3 (or local)
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
+      // 3. Upload to S3 (or local) — use XHR for progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            setVideos(prev => {
+              const next = new Map(prev);
+              const existing = next.get(key);
+              if (existing) next.set(key, { ...existing, progress: `Uploading ${pct}%`, uploadPercent: pct });
+              return next;
+            });
+          }
+        };
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`));
+        xhr.onerror = () => reject(new Error('Upload network error'));
+        xhr.send(file);
       });
 
       // 4. Start transcoding
@@ -167,7 +183,7 @@ export function useVideoUpload() {
       }
 
       setVideos(prev => new Map(prev).set(key, {
-        key, status: 'transcoding', title, progress: 'Processing...',
+        key, status: 'transcoding', title, progress: 'Transcoding in the background', uploadPercent: 100,
       }));
 
       // 5. Start polling for completion
@@ -203,7 +219,7 @@ export function useVideoUpload() {
           setVideos(prev => {
             const next = new Map(prev);
             const existing = next.get(key);
-            if (existing) next.set(key, { ...existing, status: 'ready', progress: 'Ready' });
+            if (existing) next.set(key, { ...existing, status: 'ready', progress: 'Ready', uploadPercent: 100 });
             return next;
           });
           clearInterval(timer);
@@ -212,7 +228,7 @@ export function useVideoUpload() {
           setVideos(prev => {
             const next = new Map(prev);
             const existing = next.get(key);
-            if (existing) next.set(key, { ...existing, status: 'failed', progress: 'Failed' });
+            if (existing) next.set(key, { ...existing, status: 'failed', progress: 'Failed', uploadPercent: 100 });
             return next;
           });
           clearInterval(timer);
