@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config';

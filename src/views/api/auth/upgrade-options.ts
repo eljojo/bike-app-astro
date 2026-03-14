@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
+import { env } from '../../../lib/env/env.service';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import {
   getWebAuthnConfig,

@@ -213,7 +213,7 @@ When building query layers over distributed data, the index is a **computed view
 Two distinct config layers — don't confuse them:
 
 - **Build-time** (`src/lib/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
-- **Runtime** (`src/lib/env.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/app-env.ts`).
+- **Runtime** (`src/lib/env/env.service.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/app-env.ts`).
 
 City-specific config is loaded from `{cityDir}/config.yml` by `src/lib/city-config.ts` and defines: display name, CDN URLs, tile server, timezone, locales, map bounds, place categories, analytics domain, and author info. Locales are derived from the city config (e.g., `[en-CA, fr-CA]` → `[en, fr]`), not hardcoded.
 
@@ -223,8 +223,8 @@ The local-vs-production switch (`RUNTIME=local`) is checked at five isolation bo
 
 | Boundary | Local | Production |
 |----------|-------|------------|
-| `src/lib/env.ts` | `env-local.ts` (imports `db/local.ts`, triggers DB init) | `cloudflare:workers` |
-| `src/lib/adapter.ts` | `@astrojs/node` standalone | `@astrojs/cloudflare` |
+| `src/lib/env/env.service.ts` | `env.adapter-local.ts` (imports `db/local.ts`, triggers DB init) | `cloudflare:workers` |
+| `src/lib/env/adapter.ts` | `@astrojs/node` standalone | `@astrojs/cloudflare` |
 | `src/lib/git-factory.ts` | `LocalGitService` (simple-git, module-level write mutex) | `GitService` (GitHub REST API, LFS for GPX) |
 | `src/lib/get-db.ts` | **Fresh** `better-sqlite3` connection per call (not singleton — required for cross-process Playwright visibility) | `getD1Db(env.DB)` wrapping D1 |
 | `src/lib/storage-local.ts` | Filesystem-backed bucket (`.data/uploads/`) | R2 bucket |

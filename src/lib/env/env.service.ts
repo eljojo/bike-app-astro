@@ -10,8 +10,8 @@
  * local git.
  */
 
-import type { AppEnv } from './app-env';
-import type { TileCache } from './tile-cache/tile-cache.service';
+import type { AppEnv } from '../app-env';
+import type { TileCache } from '../tile-cache/tile-cache.service';
 
 let _env: AppEnv;
 let _openLocalDb: ((path: string) => unknown) | undefined;
@@ -19,7 +19,7 @@ let _localDbPath: string | undefined;
 let _tileCache: TileCache;
 
 if (process.env.RUNTIME === 'local') {
-  const { createLocalEnv, openLocalDb, createLocalTileCacheFromEnv } = await import('./env-local');
+  const { createLocalEnv, openLocalDb, createLocalTileCacheFromEnv } = await import('./env.adapter-local');
   _env = createLocalEnv();
   _openLocalDb = openLocalDb;
   _localDbPath = ((_env.DB as Record<string, unknown>).$client as Record<string, unknown>).name as string;
@@ -27,7 +27,7 @@ if (process.env.RUNTIME === 'local') {
 } else {
   const cf = await import('cloudflare:workers');
   _env = cf.env as AppEnv;
-  const { createKvTileCache } = await import('./tile-cache/tile-cache.adapter-kv');
+  const { createKvTileCache } = await import('../tile-cache/tile-cache.adapter-kv');
   _tileCache = createKvTileCache(_env.TILE_CACHE as Parameters<typeof createKvTileCache>[0]);
 }
 

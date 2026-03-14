@@ -20,7 +20,7 @@ export function detectUrlSource(url: string): 'rwgps' | 'google-maps' | null {
 async function handleRwgps(url: string): Promise<Response> {
   const parsed = parseRwgpsUrl(url)!;
 
-  const { env } = await import('../../../lib/env');
+  const { env } = await import('../../../lib/env/env.service');
   const apiKey = env.RWGPS_API_KEY;
   const authToken = env.RWGPS_AUTH_TOKEN;
 

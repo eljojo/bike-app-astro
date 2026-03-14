@@ -7,7 +7,7 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import SettingsForm from '../../components/admin/SettingsForm.tsx';
 import { getInstanceFeatures } from '../../lib/instance-features';
 import { db } from '../../lib/get-db';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { credentials, stravaTokens } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import '../../styles/admin.scss';

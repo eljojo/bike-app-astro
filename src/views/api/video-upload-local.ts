@@ -18,7 +18,7 @@ export async function PUT({ request, url, locals }: APIContext) {
   }
 
   try {
-    const { env } = await import('../../lib/env');
+    const { env } = await import('../../lib/env/env.service');
     const body = await request.arrayBuffer();
     await env.BUCKET.put(key, body);
 

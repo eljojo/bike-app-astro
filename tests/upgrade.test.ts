@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 // Mock dependencies
 const mockValidateSession = vi.fn();
-vi.mock('../src/lib/env', () => ({ env: { GITHUB_TOKEN: 'test', GIT_BRANCH: 'main' } }));
+vi.mock('../src/lib/env/env.service', () => ({ env: { GITHUB_TOKEN: 'test', GIT_BRANCH: 'main' } }));
 vi.mock('../src/lib/auth', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../src/lib/auth')>();
   return {

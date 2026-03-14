@@ -1,6 +1,6 @@
 /* eslint-disable bike-app/require-authorize-call -- public tile proxy, excluded from auth middleware */
 import type { APIRoute } from 'astro';
-import { env, tileCache } from '../../lib/env';
+import { env, tileCache } from '../../lib/env/env.service';
 import { buildThunderforestUrl, contentTypeForPath } from '../../lib/tile-proxy-helpers';
 
 export const prerender = false;

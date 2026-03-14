@@ -5,7 +5,7 @@ import { z } from 'astro/zod';
 import adminEvents from 'virtual:bike-app/admin-events';
 import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { CITY } from '../../lib/config';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { jsonError } from '../../lib/api-response';
 import { can } from '../../lib/authorize';
 import { saveContent } from '../../lib/content-save';

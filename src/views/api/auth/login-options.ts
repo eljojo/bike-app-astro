@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
+import { env } from '../../../lib/env/env.service';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
 import { credentials } from '../../../db/schema';

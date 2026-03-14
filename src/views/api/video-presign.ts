@@ -1,7 +1,7 @@
 export const prerender = false;
 
 import type { APIContext } from 'astro';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { createTranscodeService, type TranscodeService } from '../../lib/transcode-service';
