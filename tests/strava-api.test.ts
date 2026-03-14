@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildGpxFromStravaStreams, parseStravaActivityUrl, buildAuthorizationUrl, RIDE_SPORT_TYPES } from '../src/lib/strava-api';
+import { buildGpxFromStravaStreams, parseStravaActivityUrl, buildAuthorizationUrl, RIDE_SPORT_TYPES } from '../src/lib/external/strava-api';
 
 describe('parseStravaActivityUrl', () => {
   it('extracts activity ID from standard URL', () => {

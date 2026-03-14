@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { exchangeToken } from '@/lib/strava-api';
+import { exchangeToken } from '@/lib/external/strava-api';
 import { validateSession } from '@/lib/auth';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env';

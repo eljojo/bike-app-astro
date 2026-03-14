@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { stravaTokens } from '../db/schema';
+import { stravaTokens } from '../../db/schema';
 import { refreshToken } from './strava-api';
-import type { AppEnv } from './app-env';
-import type { Database } from '../db';
+import type { AppEnv } from '../app-env';
+import type { Database } from '../../db';
 
 /**
  * Create a token provider that reads Strava tokens from D1 for a specific user

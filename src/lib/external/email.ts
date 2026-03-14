@@ -5,7 +5,7 @@
  * See AGENTS.md — this is a vendor isolation boundary.
  */
 
-import type { AppEnv } from './app-env';
+import type { AppEnv } from '../app-env';
 
 export interface EmailService {
   send(to: string, subject: string, textBody: string, htmlBody?: string): Promise<void>;

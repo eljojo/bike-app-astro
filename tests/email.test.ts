@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createLocalEmailService, createSesEmailService } from '../src/lib/email';
+import { createLocalEmailService, createSesEmailService } from '../src/lib/external/email';
 import type { AppEnv } from '../src/lib/app-env';
 
 describe('email service', () => {

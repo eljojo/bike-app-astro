@@ -6,9 +6,9 @@ import {
   fetchActivityPhotos,
   buildGpxFromStravaStreams,
   type StravaPhoto,
-} from '@/lib/strava-api';
+} from '@/lib/external/strava-api';
 import { interpolatePhotoLocation } from '@/lib/photo-geo-interpolation';
-import { createStravaTokenProvider } from '@/lib/strava-token-provider';
+import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';

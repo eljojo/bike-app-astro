@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createStravaTokenProvider } from '../src/lib/strava-token-provider';
+import { createStravaTokenProvider } from '../src/lib/external/strava-token-provider';
 import type { AppEnv } from '../src/lib/app-env';
 
 // Mock strava-api module
-vi.mock('../src/lib/strava-api', () => ({
+vi.mock('../src/lib/external/strava-api', () => ({
   refreshToken: vi.fn(),
 }));
 
-import { refreshToken } from '../src/lib/strava-api';
+import { refreshToken } from '../src/lib/external/strava-api';
 const mockRefresh = vi.mocked(refreshToken);
 
 function mockDatabase(rows: any[]) {
