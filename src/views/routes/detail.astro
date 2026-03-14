@@ -21,6 +21,7 @@ import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations';
 import ReactionsWidget from '@/components/ReactionsWidget';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -28,8 +29,9 @@ const locale = Astro.currentLocale;
 export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
+  const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
-  return routes.map(route => ({
+  return filtered.map(route => ({
     params: { slug: route.id },
     props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames },
   }));

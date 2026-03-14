@@ -9,6 +9,7 @@ import { loadRouteData } from '@/lib/route-data';
 import { getCityConfig } from '@/lib/config/city-config';
 import { paths, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -16,9 +17,10 @@ const locale = Astro.currentLocale;
 export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData } = await loadRouteData();
+  const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
   const results: { params: { slug: string; variant: string }; props: Record<string, unknown> }[] = [];
 
-  for (const route of routes) {
+  for (const route of filtered) {
     for (const v of route.data.variants) {
       const variantKey = variantKeyFromGpx(v.gpx);
       const track = route.data.gpxTracks[v.gpx];
