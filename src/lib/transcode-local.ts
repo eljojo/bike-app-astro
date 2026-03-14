@@ -7,6 +7,9 @@ import type { TranscodeService, TranscodeParams, TranscodeJob } from './transcod
  */
 export function createLocalTranscodeService(): TranscodeService {
   return {
+    async headObject(_key: string): Promise<boolean> {
+      return false;
+    },
     async presignUpload(key: string, _contentType: string): Promise<string> {
       return `/api/video/upload-local?key=${encodeURIComponent(key)}`;
     },

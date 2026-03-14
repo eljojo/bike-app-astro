@@ -31,11 +31,7 @@ const routesWithVideos = routes
           {videos.map(video => (
             <li>
               <a href={paths.video(video.handle, locale)} title={video.title}>
-                {video.poster_key ? (
-                  <img src={videoPosterUrl(video.poster_key)} alt={video.title || 'Video'} />
-                ) : (
-                  <span>{video.title || 'Video'}</span>
-                )}
+                <img src={videoPosterUrl(video.key)} alt={video.title || 'Video'} />
               </a>
             </li>
           ))}

@@ -13,16 +13,14 @@ describe('videoPlaybackSources', () => {
 });
 
 describe('videoPosterUrl', () => {
-  it('generates poster URL from poster_key', () => {
-    const url = videoPosterUrl('posterKey123');
-    expect(url).toContain('posterKey123');
-    expect(url).toContain('width=600');
+  it('derives poster URL from video key', () => {
+    const url = videoPosterUrl('abc123');
+    expect(url).toContain('abc123/abc123-poster.0000000.jpg');
   });
 
-  it('does not crop poster (width-only resize)', () => {
-    const url = videoPosterUrl('posterKey123');
-    expect(url).not.toContain('fit=');
-    expect(url).not.toContain('height=');
+  it('uses videos CDN, not image CDN transforms', () => {
+    const url = videoPosterUrl('abc123');
+    expect(url).not.toContain('cdn-cgi/image');
   });
 });
 

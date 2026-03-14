@@ -271,7 +271,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 preload="metadata"
                 width={size.width}
                 height={size.height}
-                poster={video.poster_key ? videoPosterUrl(video.poster_key) : undefined}
+                poster={videoPosterUrl(video.key)}
                 disablepictureinpicture
               >
                 {sources.map(s => <source src={s.src} type={s.type} />)}

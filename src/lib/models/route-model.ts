@@ -103,7 +103,7 @@ export function routeDetailFromGit(
       if (m.handle != null) item.handle = m.handle as string;
       if (m.duration != null) item.duration = m.duration as string;
       if (m.orientation != null) item.orientation = m.orientation as string;
-      if (m.poster_key != null) item.poster_key = m.poster_key as string;
+      if (m.poster_key != null) item.poster_key = m.poster_key as string; // deprecated for videos — poster derived from key
       return item;
     });
   }

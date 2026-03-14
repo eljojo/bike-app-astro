@@ -93,6 +93,20 @@ export function createAwsTranscodeService(env: AppEnv): TranscodeService {
   }
 
   return {
+    async headObject(key: string): Promise<boolean> {
+      const client = new AwsClient({
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+        service: 's3',
+        region: config.region,
+      });
+
+      const url = `https://${config.originsBucket}.s3.${config.region}.amazonaws.com/${key}`;
+      const signed = await client.sign(new Request(url, { method: 'HEAD' }), { aws: { signQuery: true } });
+      const res = await fetch(signed.url, { method: 'HEAD' });
+      return res.ok;
+    },
+
     async presignUpload(key: string, contentType: string): Promise<string> {
       const client = new AwsClient({
         accessKeyId: config.accessKeyId,
