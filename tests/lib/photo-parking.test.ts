@@ -3,7 +3,7 @@ import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } 
 import type { PhotoKeyChange } from '../../src/lib/content/save-helpers';
 
 // Mock dependencies
-vi.mock('../../src/lib/config', () => ({ CITY: 'ottawa' }));
+vi.mock('../../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
 const mockDbGet = vi.fn(() => null);
 const mockOnConflictDoUpdate = vi.fn();
