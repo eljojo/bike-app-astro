@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { interpolatePhotoLocation } from '../src/lib/photo-geo-interpolation';
+import { interpolatePhotoLocation } from '../src/lib/geo/photo-geo-interpolation';
 
 const track = [
   { lat: 45.0, lng: -75.0, time: 0 },

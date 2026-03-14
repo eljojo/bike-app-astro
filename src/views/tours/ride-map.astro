@@ -1,10 +1,10 @@
 ---
 import Base from '@/layouts/Base.astro';
 import MapPage from '@/components/MapPage.astro';
-import { elevationConclusion } from '@/lib/elevation';
+import { elevationConclusion } from '@/lib/geo/elevation';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getCollection } from 'astro:content';
-import { getAllElevations } from '@/lib/elevation';
+import { getAllElevations } from '@/lib/geo/elevation';
 import { paths } from '@/lib/paths';
 import { variantKeyFromGpx } from '@/lib/map-thumbnails';
 

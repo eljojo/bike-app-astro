@@ -2,8 +2,8 @@
 import Base from '@/layouts/Base.astro';
 import MapPage from '@/components/MapPage.astro';
 import { variantKeyFromGpx } from '@/lib/map-thumbnails';
-import { elevationConclusion } from '@/lib/elevation';
-import { findNearbyPlaces } from '@/lib/proximity';
+import { elevationConclusion } from '@/lib/geo/elevation';
+import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { toMapPlaces } from '@/lib/places';
 import { loadRouteData } from '@/lib/route-data';
 import { getCityConfig } from '@/lib/config/city-config';

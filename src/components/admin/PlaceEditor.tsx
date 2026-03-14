@@ -7,7 +7,7 @@ import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/place-categories';
 import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
-import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
+import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';

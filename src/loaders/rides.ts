@@ -18,7 +18,7 @@ import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx';
 import { cityDir } from '../lib/config/config';
 import { getCityConfig } from '../lib/config/city-config';
 import { computeFileDigest } from '../lib/directory-digest';
-import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/privacy-zone';
+import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { slugify } from '../lib/slug';
 import type { RouteMedia } from './route-file-reader';

@@ -1,4 +1,4 @@
-import { haversineM } from './proximity';
+import { haversineM } from './geo/proximity';
 
 export function routeShape(points: { lat: number; lon: number }[], distance_m: number): string | null {
   if (points.length < 2) return null;

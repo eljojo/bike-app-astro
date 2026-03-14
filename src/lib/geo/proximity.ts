@@ -1,4 +1,4 @@
-import type { GpxPoint } from './gpx';
+import type { GpxPoint } from '../gpx';
 
 /** Haversine distance in meters between two lat/lng points. */
 export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {

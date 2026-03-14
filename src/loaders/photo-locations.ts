@@ -1,4 +1,4 @@
-import { findNearbyPhotos } from '../lib/photo-proximity';
+import { findNearbyPhotos } from '../lib/geo/photo-proximity';
 
 export interface PhotoLocation {
   key: string;
