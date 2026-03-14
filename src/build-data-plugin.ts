@@ -28,9 +28,7 @@ import { loadAdminRideData } from './loaders/admin-rides';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/photo-registry';
 import { isBlogInstance } from './lib/city-config';
-import { generateTourRedirects } from './lib/tour-redirects';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
-import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from './loaders/rides';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -296,40 +294,14 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
         })};`;
       }
       if (id === '\0virtual:bike-app/ride-redirects') {
-        // Load ride redirects from redirects.yml
+        // Load ride redirects from redirects.yml (includes tour ride redirects)
         const redirectsPath = path.join(CITY_DIR, 'redirects.yml');
         const data = fs.existsSync(redirectsPath)
           ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
           : {};
         const rideEntries = (data.rides as Array<{ from: string; to: string }>) || [];
 
-        // For blog instances, also generate tour ride redirects from filesystem
-        let tourRedirects: string[] = [];
-        if (isBlog) {
-          const ridesDir = path.join(CITY_DIR, 'rides');
-          if (fs.existsSync(ridesDir)) {
-            const gpxPaths = findGpxFiles(ridesDir);
-            const tours = detectTours(gpxPaths);
-
-            const tourGpxPaths = new Set(tours.flatMap(t => t.ridePaths));
-
-            const slugEntries: Array<{ gpxRelPath: string; slug: string }> = [];
-            for (const gpxRelPath of gpxPaths) {
-              const date = extractDateFromPath(gpxRelPath);
-              if (!date) continue;
-              const gpxFilename = path.basename(gpxRelPath);
-
-              slugEntries.push({
-                gpxRelPath,
-                slug: buildSlug(date, gpxFilename, tourGpxPaths.has(gpxRelPath)),
-              });
-            }
-
-            tourRedirects = generateTourRedirects(tours, slugEntries);
-          }
-        }
-
-        const map = buildRideRedirectMap(rideEntries, tourRedirects);
+        const map = buildRideRedirectMap(rideEntries);
         return `export default ${JSON.stringify(map)};`;
       }
     },
