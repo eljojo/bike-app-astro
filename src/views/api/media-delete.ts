@@ -3,7 +3,7 @@ export const prerender = false;
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
 import { deleteMedia } from '../../lib/storage';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export async function DELETE({ params, locals }: APIContext) {

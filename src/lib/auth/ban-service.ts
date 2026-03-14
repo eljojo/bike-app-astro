@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { users, bannedIps } from '../db/schema';
-import type { Database } from '../db';
-import { withBatch } from '../db/transaction';
+import { users, bannedIps } from '../../db/schema';
+import type { Database } from '../../db';
+import { withBatch } from '../../db/transaction';
 
 export async function banUser(db: Database, userId: string): Promise<void> {
   const now = new Date().toISOString();

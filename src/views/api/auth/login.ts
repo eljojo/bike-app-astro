@@ -8,7 +8,7 @@ import {
   createSessionWithCookies,
   retrieveChallenge,
   getWebAuthnConfig,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { eq, and } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 

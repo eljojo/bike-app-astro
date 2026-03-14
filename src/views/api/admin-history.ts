@@ -4,7 +4,7 @@ import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
 import { eq, like } from 'drizzle-orm';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse } from '../../lib/api-response';
 import { parseAuthorEmail } from '../../lib/git/commit-author';
 

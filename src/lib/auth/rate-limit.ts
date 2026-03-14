@@ -1,6 +1,6 @@
 import { and, eq, gt, lt } from 'drizzle-orm';
-import { uploadAttempts } from '../db/schema';
-import type { Database, DbClient } from '../db';
+import { uploadAttempts } from '../../db/schema';
+import type { Database, DbClient } from '../../db';
 
 const HOUR_MS = 60 * 60 * 1000;
 

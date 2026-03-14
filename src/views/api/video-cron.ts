@@ -14,7 +14,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
 import { processPendingVideos } from '../../lib/video-completion';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 
 export async function POST({ request, locals }: APIContext) {
   // Accept either a cron secret token or an admin session

@@ -28,7 +28,7 @@ vi.mock('../src/lib/git/git-factory', () => ({
   }),
 }));
 
-vi.mock('../src/lib/ban-service', () => ({
+vi.mock('../src/lib/auth/ban-service', () => ({
   banUser: vi.fn(),
   unbanUser: vi.fn(),
 }));

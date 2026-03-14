@@ -4,7 +4,7 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import UserList from '../../components/admin/UserList.tsx';
-import { can } from '../../lib/authorize';
+import { can } from '../../lib/auth/authorize';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 

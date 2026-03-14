@@ -4,7 +4,7 @@ import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config';
 import { upsertContentCache } from '../../lib/cache';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { buildAuthorEmail, parseContentPath } from '../../lib/git/commit-author';
 import { contentTypes } from '../../lib/content-types';

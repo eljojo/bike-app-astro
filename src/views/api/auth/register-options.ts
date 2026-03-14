@@ -7,7 +7,7 @@ import {
   normalizeEmail,
   getWebAuthnConfig,
   storeChallenge,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { sanitizeUsername } from '../../../lib/username';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';

@@ -4,7 +4,7 @@ import type { APIContext } from 'astro';
 import { db } from '../../../lib/get-db';
 import { credentials } from '../../../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { validateSession } from '../../../lib/auth';
+import { validateSession } from '../../../lib/auth/auth';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export async function POST({ request, cookies }: APIContext): Promise<Response> {

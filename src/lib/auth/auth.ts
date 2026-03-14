@@ -1,8 +1,8 @@
 import type { APIContext } from 'astro';
 import { eq, and, gt, lt } from 'drizzle-orm';
-import { credentials, sessions, users, userSettings } from '../db/schema';
-import type { Database, DbClient } from '../db';
-import type { AppEnv } from './app-env';
+import { credentials, sessions, users, userSettings } from '../../db/schema';
+import type { Database, DbClient } from '../../db';
+import type { AppEnv } from '../app-env';
 
 export interface SessionUser {
   id: string;
@@ -42,7 +42,7 @@ export async function findUserByIdentifier(database: Database, identifier: strin
     return result[0] ?? null;
   }
 
-  const { sanitizeUsername } = await import('./username');
+  const { sanitizeUsername } = await import('../username');
   const username = sanitizeUsername(identifier);
   const result = await database
     .select()

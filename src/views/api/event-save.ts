@@ -7,7 +7,7 @@ import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { CITY } from '../../lib/config';
 import { env } from '../../lib/env/env.service';
 import { jsonError } from '../../lib/api-response';
-import { can } from '../../lib/authorize';
+import { can } from '../../lib/auth/authorize';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';

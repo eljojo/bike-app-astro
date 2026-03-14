@@ -11,7 +11,7 @@ import {
   retrieveChallenge,
   storeCredential,
   validateSession,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 

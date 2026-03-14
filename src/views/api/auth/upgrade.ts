@@ -12,7 +12,7 @@ import {
   retrieveChallenge,
   getWebAuthnConfig,
   validateSession,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { withBatch } from '../../../db/transaction';

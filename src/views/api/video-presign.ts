@@ -7,8 +7,8 @@ import { videoJobs } from '../../db/schema';
 import { createTranscodeService, type TranscodeService } from '../../lib/transcode-service';
 import { randomKey } from '../../lib/storage';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { authorize } from '../../lib/authorize';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/rate-limit';
+import { authorize } from '../../lib/auth/authorize';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/auth/rate-limit';
 
 /**
  * Generate a unique 8-char key, checking S3 for collisions.

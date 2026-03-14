@@ -6,7 +6,7 @@ import { env } from '../../lib/env/env.service';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { checkVideoReady, posterKeyForVideo } from '../../lib/video-completion';
 
 export async function GET({ params, locals }: APIContext) {

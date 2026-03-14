@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { authorize } from '@/lib/authorize';
+import { authorize } from '@/lib/auth/authorize';
 import { jsonError } from '@/lib/api-response';
 import { fetchActivities } from '@/lib/external/strava-api';
 import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';

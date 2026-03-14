@@ -1,6 +1,6 @@
 /// <reference types="astro/client" />
 
-import type { SessionUser } from './lib/auth';
+import type { SessionUser } from './lib/auth/auth';
 
 /**
  * Cloudflare Workers runtime type stubs.

@@ -1,11 +1,11 @@
 import type { APIContext } from 'astro';
-import { authorize } from '../../../lib/authorize';
+import { authorize } from '../../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { parseRwgpsUrl, buildGpxFromTrackPoints } from './import-rwgps';
 import { parseGoogleMapsUrl, extractKmlRoute } from '../../../lib/external/google-maps';
 import { enrichWithElevation, buildGpxFromPoints } from '../../../lib/elevation-enrichment';
 import { unzipSync } from 'fflate';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '../../../lib/rate-limit';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '../../../lib/auth/rate-limit';
 import { db } from '../../../lib/get-db';
 
 export const prerender = false;
