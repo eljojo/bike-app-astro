@@ -1,0 +1,22 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+// Elevation profile
+.elevation-profile { margin: 1.5em 0; }
+.elevation-stats {
+  display: flex;
+  gap: 1.5em;
+  font-size: 0.9em;
+  margin-bottom: 0.3em;
+}
+.elevation-svg {
+  width: 100%;
+  height: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+@include dark-mode {
+  .elevation-svg { border-color: #333; }
+  .elevation-svg path[fill] { fill: rgba(100,180,255,0.15); }
+  .elevation-svg path[stroke] { stroke: #6ab4ff; }
+}
