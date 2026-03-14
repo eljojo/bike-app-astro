@@ -59,12 +59,26 @@ jobs:
           key: astro-${{ hashFiles('blog/**') }}
           restore-keys: astro-
 
+      - name: Restore dist cache
+        uses: actions/cache@v5
+        with:
+          path: dist-cache
+          key: dist-blog-${{ github.run_id }}
+          restore-keys: |
+            dist-blog-
+
       - name: Generate map thumbnails
         run: npx tsx node_modules/whereto-bike/scripts/generate-maps.ts
         env:
           CONTENT_DIR: .
           CITY: blog
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+      - name: Prepare build plan
+        run: npx tsx node_modules/whereto-bike/scripts/prepare-build-plan.ts
+        env:
+          CONTENT_DIR: .
+          CITY: blog
 
       - name: Build site
         run: npx astro build
@@ -73,6 +87,9 @@ jobs:
           CITY: blog
           SITE_URL: https://{{DOMAIN}}
           NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Merge incremental build
+        run: npx tsx node_modules/whereto-bike/scripts/merge-incremental-build.ts
 
       - name: Prepare wrangler config
         run: |
