@@ -1,0 +1,167 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.btn-primary {
+  font-family: $font-body;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid $color-btn-primary-border;
+  border-radius: $border-radius;
+  background: $color-btn-primary-bg;
+  color: $color-text;
+  cursor: pointer;
+  text-align: center;
+
+  @include dark-mode {
+    background: #2a4a2a;
+    color: $color-text-dark;
+    border-color: #005a00;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  font-family: $font-body;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  color: $color-text;
+  cursor: pointer;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  padding: 0;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
+.btn-remove-poster {
+  font-size: 0.8125rem;
+  background: none;
+  border: 1px solid $color-error;
+  border-radius: $border-radius;
+  padding: 0.25rem 0.5rem;
+  color: $color-error;
+  cursor: pointer;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+}
+
+.btn-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.btn-link-muted {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+    color: $color-accent;
+  }
+}
+
+.btn-small {
+  font-family: $font-body;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  color: $color-text;
+  cursor: pointer;
+  text-decoration: none;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+    border-color: $color-border-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-danger {
+  border-color: $color-error;
+  color: $color-error;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+}
+
+.btn-small--danger {
+  color: $color-error;
+  border-color: $color-error;
+
+  @include dark-mode {
+    color: $color-error-dark;
+    border-color: $color-error-dark;
+  }
+
+  &:hover:not(:disabled) {
+    background: $color-error-bg;
+
+    @include dark-mode {
+      background: $color-error-bg-dark;
+    }
+  }
+}
+
+.btn-prefill {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
