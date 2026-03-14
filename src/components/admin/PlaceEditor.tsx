@@ -6,7 +6,7 @@ import { useFormValidation } from './useFormValidation';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/place-categories';
-import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
+import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
@@ -226,7 +226,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
     if (!mapContainerRef.current) return;
 
     import('maplibre-gl').then(async (maplibregl) => {
-      const { initMap } = await import('../../lib/map-init');
+      const { initMap } = await import('../../lib/maps/map-init');
 
       const defaultCenter: [number, number] = lat && lng ? [lat, lng] : (mapCenter || [45.4215, -75.6972]);
       const defaultZoom = lat && lng ? 15 : 11;

@@ -78,10 +78,10 @@ const grouped = groupByCategory(adminPlaces);
 </Base>
 
 <script>
-  import { initMap, addMarkers } from '../../lib/map-init';
-  import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
+  import { initMap, addMarkers } from '../../lib/maps/map-init';
+  import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
   import maplibregl from 'maplibre-gl';
-  import { html } from '../../lib/map-helpers';
+  import { html } from '../../lib/maps/map-helpers';
 
   const el = document.getElementById('places-map');
   if (el) {

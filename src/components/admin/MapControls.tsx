@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
-import { loadStylePreference, saveStylePreference, type MapStyleKey } from '../../lib/map-style-switch';
+import { loadStylePreference, saveStylePreference, type MapStyleKey } from '../../lib/maps/map-style-switch';
 
 interface Props {
   onTogglePhotos?: (visible: boolean) => void;

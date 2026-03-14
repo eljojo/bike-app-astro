@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildStaticMapUrl, variantKeyFromGpx, mapThumbPaths } from '../src/lib/map-thumbnails';
-import { gpxHash } from '../src/lib/map-generation';
+import { buildStaticMapUrl, variantKeyFromGpx, mapThumbPaths } from '../src/lib/maps/map-thumbnails';
+import { gpxHash } from '../src/lib/maps/map-generation';
 
 describe('variantKeyFromGpx', () => {
   it('extracts key from simple gpx filename', () => {
