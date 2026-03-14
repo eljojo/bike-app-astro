@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createLocalTileCache } from '../../src/lib/tile-cache-local';
-import type { TileCache } from '../../src/lib/tile-cache';
+import { createLocalTileCache } from '../../src/lib/tile-cache/tile-cache.adapter-local';
+import type { TileCache } from '../../src/lib/tile-cache/tile-cache.service';
 
 const TEST_DIR = path.join(import.meta.dirname, '../../.data/test-tile-cache');
 

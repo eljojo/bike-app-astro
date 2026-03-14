@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { TileCache } from './tile-cache';
+import type { TileCache } from './tile-cache.service';
 
 export function createLocalTileCache(cacheDir: string): TileCache {
   fs.mkdirSync(cacheDir, { recursive: true });
