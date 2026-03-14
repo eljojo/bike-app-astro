@@ -77,6 +77,19 @@ function patchStaticCspStyles(rootDir: string) {
   }
 }
 
+/**
+ * Auto-detect the city slug by scanning a content directory for subdirectories
+ * containing config.yml. If exactly one is found, return it. This lets consumer
+ * repos (blog, club) skip setting CITY= when the content layout is unambiguous.
+ */
+function detectCity(contentDir: string): string | null {
+  if (!fs.existsSync(contentDir)) return null;
+  const candidates = fs.readdirSync(contentDir, { withFileTypes: true })
+    .filter(e => e.isDirectory() && fs.existsSync(path.join(contentDir, e.name, 'config.yml')))
+    .map(e => e.name);
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 function detectBranch(): string {
   try {
     return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
@@ -96,6 +109,17 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
   }
   if (options?.city) {
     process.env.CITY = options.city;
+  }
+
+  // Auto-detect CITY for consumer repos: scan the content directory for a single
+  // city folder containing config.yml. Blog repos always have blog/config.yml,
+  // club repos have their club folder — no need to set CITY explicitly.
+  if (!process.env.CITY && options?.consumerRoot) {
+    const contentDir = process.env.CONTENT_DIR || options.consumerRoot;
+    const detected = detectCity(contentDir);
+    if (detected) {
+      process.env.CITY = detected;
+    }
   }
 
   const consumerRoot = options?.consumerRoot;

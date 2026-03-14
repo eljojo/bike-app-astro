@@ -11,8 +11,9 @@ import {
   eventSchema, organizerSchema, pageSchema,
 } from './schemas/index';
 
-const city = process.env.CITY;
-if (!city) throw new Error('CITY environment variable is required (e.g. CITY=blog).');
+// This file is exclusively for blog/club consumer repos. Default to 'blog'
+// since that's the primary consumer — clubs override via CITY env var.
+const city = process.env.CITY || 'blog';
 const CITY_DIR = `${process.env.CONTENT_DIR || '.'}/${city}`;
 const mdPattern = ['**/*.md', '!**/*.??.md'];
 
