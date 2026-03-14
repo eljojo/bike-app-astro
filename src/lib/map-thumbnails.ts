@@ -3,7 +3,7 @@
  * map-paths.ts and adds runtime helpers that depend on virtual modules.
  */
 import cachedMaps from 'virtual:bike-app/cached-maps';
-import { defaultLocale } from './locale-utils';
+import { defaultLocale } from './i18n/locale-utils';
 
 export { mapThumbPaths, variantKeyFromGpx, buildStaticMapUrl } from './map-paths';
 export type { MapThumbPaths } from './map-paths';

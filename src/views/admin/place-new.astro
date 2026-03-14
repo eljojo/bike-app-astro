@@ -4,7 +4,7 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
 import { env } from '../../lib/env/env.service';
-import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig } from '../../lib/config/city-config';
 
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;

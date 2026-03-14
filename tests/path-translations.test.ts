@@ -7,7 +7,7 @@ vi.mock('../src/lib/config/city-config', () => ({
   })),
 }));
 
-import { translatePath, reverseTranslatePath } from '../src/lib/path-translations';
+import { translatePath, reverseTranslatePath } from '../src/lib/i18n/path-translations';
 
 describe('translatePath()', () => {
   it('returns path unchanged for English', () => {

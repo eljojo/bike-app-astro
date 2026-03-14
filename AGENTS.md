@@ -284,7 +284,7 @@ Hybrid mode: public pages are static (`prerender = true`), admin/API pages are s
 
 ### i18n — Three Layers
 
-Locales driven by city config. Layer 1: UI strings via `t()`. Layer 2: URL path segment translations (`src/lib/path-translations.ts`). Layer 3: content sidecar files (`index.fr.md`). See `src/integrations/AGENTS.md` for sync requirements.
+Locales driven by city config. Layer 1: UI strings via `t()`. Layer 2: URL path segment translations (`src/lib/i18n/path-translations.ts`). Layer 3: content sidecar files (`index.fr.md`). See `src/integrations/AGENTS.md` for sync requirements.
 
 ### Database
 
@@ -357,7 +357,7 @@ This is the most complex operation. Files that must change together:
 ### Adding a New i18n Route
 
 1. Add entry to `localePages` in `src/integrations/i18n-routes.ts`
-2. Add URL segment translation to `src/lib/path-translations.ts` `segmentTranslations`
+2. Add URL segment translation to `src/lib/i18n/path-translations.ts` `segmentTranslations`
 3. Add UI strings to `src/i18n/{en,fr,es}.json`
 4. Create view file in `src/views/` (same file serves all locales)
 

@@ -7,7 +7,7 @@ vi.mock('../src/lib/config/city-config', () => ({
   })),
 }));
 
-import { switchLocalePath } from '../src/lib/locale-switcher';
+import { switchLocalePath } from '../src/lib/i18n/locale-switcher';
 
 describe('switchLocalePath()', () => {
   it('English to French: translates segments', () => {

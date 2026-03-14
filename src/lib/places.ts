@@ -1,6 +1,6 @@
 import type { PlaceData, NearbyPlace } from './proximity';
 import { categoryEmoji } from './place-categories';
-import { defaultLocale } from './locale-utils';
+import { defaultLocale } from './i18n/locale-utils';
 
 /**
  * Convert a collection of place entries (from `getCollection('places')`)

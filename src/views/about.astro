@@ -4,7 +4,7 @@ import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
-import { defaultLocale } from '@/lib/locale-utils';
+import { defaultLocale } from '@/lib/i18n/locale-utils';
 import contributors from 'virtual:bike-app/contributors';
 
 const config = getCityConfig();

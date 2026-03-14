@@ -15,7 +15,7 @@ import { cityDir } from '../lib/config/config';
 import { scoreRoute } from '../lib/difficulty';
 import type { AdminRoute } from '../types/admin';
 import { routeDetailFromGit, computeRouteContentHash, type RouteDetail } from '../lib/models/route-model';
-import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import { readRouteDir } from './route-file-reader';
 
 interface AdminRouteData {

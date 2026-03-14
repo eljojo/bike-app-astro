@@ -335,7 +335,7 @@ export function isClubInstance() { return _data.instance_type === 'club'; }
           map: null,
         };
       }
-      if (id.endsWith('src/lib/tag-translations.ts')) {
+      if (id.endsWith('src/lib/i18n/tag-translations.ts')) {
         return {
           code: `
 import { shortLocale, defaultLocale } from './locale-utils';

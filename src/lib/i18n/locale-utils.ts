@@ -1,4 +1,4 @@
-import { getCityConfig } from './config/city-config';
+import { getCityConfig } from '../config/city-config';
 
 export type LocaleShort = string; // 'en', 'fr'
 
