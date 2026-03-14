@@ -6,6 +6,7 @@ export default {
     messages: {
       hardcodedCity: "Don't hardcode city name '{{value}}'. Import CITY from src/lib/config.ts.",
       hardcodedLocale: "Don't hardcode locale '{{value}}'. Derive from city config locales.",
+      cityFallbackDefault: "Don't use '{{value}}' as a fallback default for CITY. A silent default can cause content to be committed to the wrong directory. Make the value required instead.",
     },
   },
   create(context) {
@@ -28,7 +29,16 @@ export default {
         // Skip type annotations and enums
         if (node.parent.type === 'TSLiteralType') return;
 
+        // Detect `X || 'ottawa'` or `X ?? 'ottawa'` — a city name used as fallback.
+        // This is dangerous because the fallback silently applies when the env var
+        // is unset (e.g. in Cloudflare Workers at runtime), causing content to be
+        // committed to the wrong directory.
         if (CITY_NAMES.includes(val)) {
+          const p = node.parent;
+          if (p.type === 'LogicalExpression' && (p.operator === '||' || p.operator === '??') && p.right === node) {
+            context.report({ node, messageId: 'cityFallbackDefault', data: { value: node.value } });
+            return;
+          }
           context.report({ node, messageId: 'hardcodedCity', data: { value: node.value } });
         }
         // Only flag exact matches for locale codes (not substrings)
