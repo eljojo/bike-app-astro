@@ -96,7 +96,7 @@ export const userSettings = sqliteTable('user_settings', {
 });
 
 export const stravaTokens = sqliteTable('strava_tokens', {
-  id: integer('id').primaryKey().default(1),
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   athleteId: text('athlete_id').notNull(),
   accessToken: text('access_token').notNull(),
   refreshToken: text('refresh_token').notNull(),

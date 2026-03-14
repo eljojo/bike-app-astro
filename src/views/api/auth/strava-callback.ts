@@ -1,5 +1,6 @@
 import type { APIContext } from 'astro';
 import { exchangeToken } from '@/lib/strava-api';
+import { validateSession } from '@/lib/auth';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env';
 import { stravaTokens } from '@/db/schema';
@@ -27,25 +28,35 @@ export async function GET({ url, cookies }: APIContext) {
     return new Response('Invalid state parameter', { status: 403 });
   }
 
+  // Identify the logged-in user
+  const database = db();
+  const sessionToken = cookies.get('session_token')?.value;
+  if (!sessionToken) {
+    return new Response('Not logged in', { status: 401 });
+  }
+  const user = await validateSession(database, sessionToken);
+  if (!user) {
+    return new Response('Invalid session', { status: 401 });
+  }
+
   if (!env.STRAVA_CLIENT_ID || !env.STRAVA_CLIENT_SECRET) {
     return new Response('Strava not configured', { status: 500 });
   }
 
   const result = await exchangeToken(env.STRAVA_CLIENT_ID, env.STRAVA_CLIENT_SECRET, code);
 
-  // Upsert token (single row, id=1)
-  const database = db();
+  // Upsert token for this user
   await database
     .insert(stravaTokens)
     .values({
-      id: 1,
+      userId: user.id,
       athleteId: String(result.athlete.id),
       accessToken: result.access_token,
       refreshToken: result.refresh_token,
       expiresAt: result.expires_at,
     })
     .onConflictDoUpdate({
-      target: stravaTokens.id,
+      target: stravaTokens.userId,
       set: {
         athleteId: String(result.athlete.id),
         accessToken: result.access_token,

@@ -5,14 +5,16 @@ import type { AppEnv } from './app-env';
 import type { Database } from '../db';
 
 /**
- * Create a token provider that reads Strava tokens from D1 and refreshes
- * automatically when expired. Returns null if no tokens are stored.
+ * Create a token provider that reads Strava tokens from D1 for a specific user
+ * and refreshes automatically when expired. Returns null if the user has no
+ * Strava connection.
  */
 export async function createStravaTokenProvider(
   database: Database,
   appEnv: AppEnv,
+  userId: string,
 ): Promise<{ getAccessToken: () => Promise<string> } | null> {
-  const rows = await database.select().from(stravaTokens).where(eq(stravaTokens.id, 1));
+  const rows = await database.select().from(stravaTokens).where(eq(stravaTokens.userId, userId));
   if (rows.length === 0) return null;
 
   let { accessToken, refreshToken: refreshTokenValue, expiresAt } = rows[0];
@@ -38,7 +40,7 @@ export async function createStravaTokenProvider(
             refreshToken: result.refresh_token,
             expiresAt: result.expires_at,
           })
-          .where(eq(stravaTokens.id, 1));
+          .where(eq(stravaTokens.userId, userId));
       }
       return accessToken;
     },

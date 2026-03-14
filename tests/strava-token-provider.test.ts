@@ -37,7 +37,7 @@ describe('createStravaTokenProvider', () => {
 
   it('returns null when no tokens in DB', async () => {
     const db = mockDatabase([]);
-    const provider = await createStravaTokenProvider(db, appEnv);
+    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
     expect(provider).toBeNull();
   });
 
@@ -49,7 +49,7 @@ describe('createStravaTokenProvider', () => {
       expiresAt: futureExpiry,
     }]);
 
-    const provider = await createStravaTokenProvider(db, appEnv);
+    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
     expect(provider).not.toBeNull();
 
     const token = await provider!.getAccessToken();
@@ -72,7 +72,7 @@ describe('createStravaTokenProvider', () => {
       expires_at: newExpiry,
     });
 
-    const provider = await createStravaTokenProvider(db, appEnv);
+    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
     const token = await provider!.getAccessToken();
 
     expect(token).toBe('new-token');
@@ -95,7 +95,7 @@ describe('createStravaTokenProvider', () => {
       expires_at: Math.floor(Date.now() / 1000) + 3600,
     });
 
-    const provider = await createStravaTokenProvider(db, appEnv);
+    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
     const token = await provider!.getAccessToken();
     expect(token).toBe('fresh-token');
   });
@@ -109,7 +109,7 @@ describe('createStravaTokenProvider', () => {
     }]);
 
     const noCredsEnv: AppEnv = {} as any;
-    const provider = await createStravaTokenProvider(db, noCredsEnv);
+    const provider = await createStravaTokenProvider(db, noCredsEnv, 'user-1');
     await expect(provider!.getAccessToken()).rejects.toThrow('Strava credentials not configured');
   });
 
@@ -128,7 +128,7 @@ describe('createStravaTokenProvider', () => {
       expires_at: futureExpiry,
     });
 
-    const provider = await createStravaTokenProvider(db, appEnv);
+    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
 
     // First call triggers refresh
     const token1 = await provider!.getAccessToken();

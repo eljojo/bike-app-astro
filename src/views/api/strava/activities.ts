@@ -14,7 +14,7 @@ export async function GET({ locals, url }: APIContext) {
 
   const database = db();
 
-  const tokenProvider = await createStravaTokenProvider(database, env);
+  const tokenProvider = await createStravaTokenProvider(database, env, user.id);
   if (!tokenProvider) {
     return jsonError('Strava not connected. Visit /api/strava/connect to authorize.', 401);
   }

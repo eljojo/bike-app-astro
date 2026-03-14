@@ -43,6 +43,13 @@
       "when": 1773293635659,
       "tag": "0005_lying_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773625200000,
+      "tag": "0007_strava_tokens_per_user",
+      "breakpoints": true
     }
   ]
 }

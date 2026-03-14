@@ -31,7 +31,7 @@ if (isBlog && user.role === 'admin') {
   const configured = !!(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET);
   if (configured) {
     try {
-      const rows = await database.select().from(stravaTokens).limit(1).all();
+      const rows = await database.select().from(stravaTokens).where(eq(stravaTokens.userId, user.id));
       const token = rows[0];
       stravaStatus = { configured: true, connected: !!token, athleteId: token?.athleteId ?? null };
     } catch {

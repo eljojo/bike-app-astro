@@ -37,7 +37,7 @@ export async function POST({ request, locals }: APIContext) {
   const { activityId, activityName, startDate } = await request.json();
   if (!activityId) return jsonError('Missing activityId', 400);
 
-  const tokenProvider = await createStravaTokenProvider(database, env);
+  const tokenProvider = await createStravaTokenProvider(database, env, user.id);
   if (!tokenProvider) return jsonError('Strava not connected', 401);
 
   try {
