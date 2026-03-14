@@ -23,12 +23,28 @@ function addNonceToScripts(html: string, nonce: string): string {
   );
 }
 
+/** Exact upload origins for CSP connect-src, derived from env vars. Lazy-imported to avoid top-level cloudflare:workers resolution. */
+async function uploadOrigins() {
+  try {
+    const { env } = await import('./lib/env');
+    const r2Origin = env.R2_ACCOUNT_ID
+      ? `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+      : undefined;
+    const s3Origin = env.S3_ORIGINALS_BUCKET && env.MEDIACONVERT_REGION
+      ? `https://${env.S3_ORIGINALS_BUCKET}.s3.${env.MEDIACONVERT_REGION}.amazonaws.com`
+      : undefined;
+    return { r2Origin, s3Origin };
+  } catch {
+    return {};
+  }
+}
+
 async function applyNonceCsp(response: Response, nonce: string): Promise<Response> {
   if (!isHtmlResponse(response)) return response;
 
   const body = await response.text();
   const headers = new Headers(response.headers);
-  headers.set('Content-Security-Policy', buildNonceCspHeader(nonce));
+  headers.set('Content-Security-Policy', buildNonceCspHeader(nonce, await uploadOrigins()));
   // Body size changed after script nonce injection.
   headers.delete('content-length');
 
