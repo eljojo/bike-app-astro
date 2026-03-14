@@ -1,4 +1,4 @@
-import { isPublished } from '../content-filters';
+import { isPublished } from '../content/content-filters';
 
 const ELEVATION_KEYS: [number, string][] = [
   [0.05, 'flat'],

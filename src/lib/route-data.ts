@@ -1,5 +1,5 @@
 import { getCollection } from 'astro:content';
-import { isPublished } from './content-filters';
+import { isPublished } from './content/content-filters';
 import { elevationTags, getAllElevations } from './geo/elevation';
 import { toPlaceData } from './places';
 import { scoreRoute } from './difficulty';

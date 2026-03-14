@@ -1,9 +1,9 @@
-import { getInstanceFeatures } from './config/instance-features';
+import { getInstanceFeatures } from '../config/instance-features';
 import type { CurrentFiles } from './content-save';
-import { routeOps, eventOps, placeOps } from './content-ops';
+import { routeOps, eventOps, placeOps } from '../content-ops';
 
 /** Resolve a view path relative to this file's location. */
-const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
+const view = (rel: string) => new URL(`../../views/${rel}`, import.meta.url).pathname;
 
 export interface ContentTypeRoute {
   pattern: string;

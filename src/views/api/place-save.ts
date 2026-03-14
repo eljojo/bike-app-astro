@@ -2,16 +2,16 @@
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
-import { serializeMdFile } from '../../lib/file-serializers';
+import { serializeMdFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
 import { jsonError } from '../../lib/api-response';
-import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
+import { saveContent } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { placeOps } from '../../lib/content-ops';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges, buildCommitTrailer } from '../../lib/save-helpers';
+import { buildPhotoKeyChanges, buildCommitTrailer } from '../../lib/content/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';

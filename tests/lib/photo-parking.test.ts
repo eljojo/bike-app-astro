@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/media/photo-parking';
-import type { PhotoKeyChange } from '../../src/lib/save-helpers';
+import type { PhotoKeyChange } from '../../src/lib/content/save-helpers';
 
 // Mock dependencies
 vi.mock('../../src/lib/config', () => ({ CITY: 'ottawa' }));

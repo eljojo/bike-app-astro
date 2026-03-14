@@ -12,7 +12,7 @@ import { supportedLocales, defaultLocale } from './i18n/locale-utils';
 import { buildFreshRouteData, computeRouteContentHashFromFiles } from './models/route-model';
 import { buildFreshEventData, computeEventContentHashFromFiles } from './models/event-model';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from './models/place-model';
-import type { ContentOps } from './content-types';
+import type { ContentOps } from './content/content-types';
 
 export const routeOps: ContentOps = {
   getFilePaths(slug: string) {

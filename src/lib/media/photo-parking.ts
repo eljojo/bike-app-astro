@@ -1,12 +1,12 @@
 import yaml from 'js-yaml';
 import { CITY } from '../config/config';
 import { getPhotoUsages, updateSharedKeys, serializeSharedKeys, type PhotoUsage } from './photo-registry';
-import { loadSharedKeysMap } from '../load-admin-content';
+import { loadSharedKeysMap } from '../content/load-admin-content';
 import { mergeParkedPhotos, type ParkedPhotoEntry } from './media-merge';
-import { upsertContentCache } from '../cache';
+import { upsertContentCache } from '../content/cache';
 import type { IGitService, FileChange } from '../git/git.adapter-github';
 import type { db } from '../get-db';
-import type { PhotoKeyChange } from '../save-helpers';
+import type { PhotoKeyChange } from '../content/save-helpers';
 
 /**
  * Extract a field value from a markdown file's YAML frontmatter.

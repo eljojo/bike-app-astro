@@ -28,7 +28,7 @@ import { loadAdminRideData } from './loaders/admin-rides';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/photo-registry';
 import { isBlogInstance } from './lib/config/city-config';
-import { getContentTypes } from './lib/content-types';
+import { getContentTypes } from './lib/content/content-types';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
