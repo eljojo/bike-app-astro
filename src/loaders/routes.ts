@@ -14,7 +14,7 @@ import { cityDir } from '../lib/config/config';
 import { computeDirectoryDigest } from '../lib/directory-digest';
 import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { loadLocaleTranslations } from './locale-content';
-import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import { readRouteDir } from './route-file-reader';
 
 /** Re-export RouteMedia — other modules import it from here. */

@@ -1,8 +1,8 @@
 import en from './en.json';
 import fr from './fr.json';
 import es from './es.json';
-import { shortLocale, fullLocale, defaultLocale } from '../lib/locale-utils';
-import { translatePath } from '../lib/path-translations';
+import { shortLocale, fullLocale, defaultLocale } from '../lib/i18n/locale-utils';
+import { translatePath } from '../lib/i18n/path-translations';
 
 type Translations = Record<string, string | string[]>;
 

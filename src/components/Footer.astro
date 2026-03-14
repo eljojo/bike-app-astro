@@ -1,8 +1,8 @@
 ---
 // src/components/Footer.astro
 import { t, localePath } from '../i18n';
-import { supportedLocales, defaultLocale } from '../lib/locale-utils';
-import { switchLocalePath as computeSwitchPath } from '../lib/locale-switcher';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
+import { switchLocalePath as computeSwitchPath } from '../lib/i18n/locale-switcher';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 

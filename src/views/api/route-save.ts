@@ -16,7 +16,7 @@ import { commitGpxFile } from '../../lib/git/git-gpx';
 import { env } from '../../lib/env/env.service';
 import { adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
-import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { routeOps } from '../../lib/content-ops';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/photo-parking';

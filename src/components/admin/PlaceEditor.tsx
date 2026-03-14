@@ -11,7 +11,7 @@ import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
-import { localeLabel } from '../../lib/locale-utils';
+import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };

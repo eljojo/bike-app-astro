@@ -1,6 +1,6 @@
 import type { AstroIntegration } from 'astro';
-import { translatePath, buildSegmentTranslations, setSegmentTranslations } from '../lib/path-translations';
-import type { LocalePageWithSegments } from '../lib/path-translations';
+import { translatePath, buildSegmentTranslations, setSegmentTranslations } from '../lib/i18n/path-translations';
+import type { LocalePageWithSegments } from '../lib/i18n/path-translations';
 import { isBlogInstance, isClubInstance } from '../lib/config/city-config';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */

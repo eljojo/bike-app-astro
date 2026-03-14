@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildSegmentTranslations } from '../../src/lib/path-translations';
-import type { LocalePageWithSegments } from '../../src/lib/path-translations';
+import { buildSegmentTranslations } from '../../src/lib/i18n/path-translations';
+import type { LocalePageWithSegments } from '../../src/lib/i18n/path-translations';
 
 describe('buildSegmentTranslations', () => {
   it('collects segments from route definitions', () => {

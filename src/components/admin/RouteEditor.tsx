@@ -17,7 +17,7 @@ import SlugEditor from './SlugEditor';
 import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
 import { toParkedEntry } from '../../lib/media-merge';
 import type { ParkedPhotoEntry } from '../../lib/media-merge';
-import { localeLabel } from '../../lib/locale-utils';
+import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
