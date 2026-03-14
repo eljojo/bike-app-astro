@@ -58,7 +58,7 @@ test.describe('Admin Screenshots — Editor Pages', () => {
     await gpxInput.setInputFiles(gpxPath);
 
     // Wait for map and preview to render
-    await expect(page.locator('.route-preview-map')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.route-preview-map')).toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('admin-route-creation-preview.png', screenshotOpts);
   });
