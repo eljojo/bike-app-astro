@@ -1,0 +1,24 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+// Event card
+.event-card {
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  flex: 0 0 24%;
+  @media (max-width: $breakpoint-tablet) { flex: 0 0 49%; }
+  @media (max-width: $breakpoint-mobile) { flex: auto; }
+  img { border-radius: 4px; margin-top: 0.5em; }
+}
+.event-organizer { font-size: 1.5em; }
+.event-name { font-size: 1.5em; font-weight: bold; color: inherit; }
+.event-dates { font-size: 1.2em; }
+.event-distances { font-size: 0.9em; }
+.event-review { color: $color-accent; font-weight: 600; }
+@include dark-mode {
+  .event-card { border-color: #333; }
+}
