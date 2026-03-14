@@ -1,5 +1,6 @@
 import { getInstanceFeatures } from './instance-features';
 import type { CurrentFiles } from './content-save';
+import { routeOps, eventOps, placeOps } from './content-ops';
 
 /** Resolve a view path relative to this file's location. */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
@@ -49,6 +50,7 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'route',
     label: 'Routes',
     featureGate: 'hasRoutes',
+    ops: routeOps,
     adminListRoute: { pattern: '/admin', entrypoint: view('admin/index.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/routes/new', entrypoint: view('admin/route-new.astro') },
@@ -63,6 +65,7 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'event',
     label: 'Events',
     featureGate: 'hasEvents',
+    ops: eventOps,
     adminListRoute: { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/events/new', entrypoint: view('admin/event-new.astro') },
@@ -76,6 +79,7 @@ export const contentTypes: ContentTypeConfig[] = [
     name: 'places',
     singular: 'place',
     label: 'Places',
+    ops: placeOps,
     adminListRoute: { pattern: '/admin/places', entrypoint: view('admin/places.astro') },
     adminDetailRoutes: [
       { pattern: '/admin/places/new', entrypoint: view('admin/place-new.astro') },
