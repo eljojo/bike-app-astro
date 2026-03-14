@@ -43,6 +43,8 @@ export { loadAdminRideData };
 
 const CITY_DIR = cityDir;
 
+// --- File-reading helpers ---
+
 function loadParkedPhotos(): ParkedPhoto[] {
   const filePath = path.join(CITY_DIR, 'parked-photos.yml');
   if (!fs.existsSync(filePath)) return [];
@@ -142,6 +144,8 @@ function loadCachedMaps(rootDir?: string) {
   return maps;
 }
 
+// --- Admin module registration ---
+
 interface AdminModuleConfig {
   /** Module name without prefix, e.g. 'routes' → virtual:bike-app/admin-routes + admin-route-detail */
   name: string;
@@ -177,6 +181,35 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
   };
 }
 
+// --- Virtual module builders (complex data composition) ---
+
+function buildPhotoSharedKeysModule(
+  routeDetails: Record<string, { media: Array<{ key: string }> }>,
+): string {
+  const routeData: Record<string, { media: Array<{ key: string }> }> = {};
+  for (const [slug, detail] of Object.entries(routeDetails)) {
+    routeData[slug] = { media: detail.media || [] };
+  }
+  const parked = loadParkedPhotos();
+  const places = loadPlacePhotoKeys();
+  const events = loadEventPosterKeys();
+  const map = buildSharedKeysMap(routeData, places, events, parked);
+  return `export default ${serializeSharedKeys(map)};`;
+}
+
+function buildRideRedirectsModule(): string {
+  const redirectsPath = path.join(CITY_DIR, 'redirects.yml');
+  const data = fs.existsSync(redirectsPath)
+    ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
+    : {};
+  const rideEntries = (data.rides as Array<{ from: string; to: string }>) || [];
+
+  const map = buildRideRedirectMap(rideEntries);
+  return `export default ${JSON.stringify(map)};`;
+}
+
+// --- Plugin ---
+
 export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   // CONSUMER_ROOT = the project that depends on this package (for public/, .astro/, _cache/).
   // PROJECT_ROOT = this package itself (for src/styles/, internal assets).
@@ -195,6 +228,13 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const adminEventDataPromise = loadAdminEventData();
   const adminPlaceDataPromise = loadAdminPlaceData();
   const adminOrganizersPromise = loadAdminOrganizers();
+
+  // Helper: resolve route/ride details (used by multiple virtual modules)
+  async function getRouteDetails() {
+    return isBlog
+      ? (await adminRideDataPromise!).details
+      : (await adminRouteDataPromise!).details;
+  }
 
   // Map content type names to loaders using statically-imported functions.
   // Dynamic import() can't be used here — Vite's module runner isn't available
@@ -220,104 +260,77 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
   const adminModules = registerAdminModules(adminModuleConfigs);
 
-  return {
-    name: 'bike-app-build-data',
+  // Non-admin virtual modules — each key maps to an async loader returning JS source
+  const PREFIX = 'virtual:bike-app/';
+  const virtualModules: Record<string, () => Promise<string>> = {
+    'cached-maps': async () =>
+      `export default new Set(${JSON.stringify(cachedMaps)});`,
 
-    // Virtual modules
-    resolveId(id: string) {
-      const adminResolved = adminModules.resolveId(id);
-      if (adminResolved) return adminResolved;
-      if (id === 'virtual:bike-app/cached-maps') return '\0virtual:bike-app/cached-maps';
-      if (id === 'virtual:bike-app/admin-organizers') return '\0virtual:bike-app/admin-organizers';
-      if (id === 'virtual:bike-app/contributors') return '\0virtual:bike-app/contributors';
-      if (id === 'virtual:bike-app/photo-locations') return '\0virtual:bike-app/photo-locations';
-      if (id === 'virtual:bike-app/nearby-photos') return '\0virtual:bike-app/nearby-photos';
-      if (id === 'virtual:bike-app/parked-photos') return '\0virtual:bike-app/parked-photos';
-      if (id === 'virtual:bike-app/photo-shared-keys') return '\0virtual:bike-app/photo-shared-keys';
-      if (id === 'virtual:bike-app/tours') return '\0virtual:bike-app/tours';
-      if (id === 'virtual:bike-app/ride-stats') return '\0virtual:bike-app/ride-stats';
-      if (id === 'virtual:bike-app/ride-redirects') return '\0virtual:bike-app/ride-redirects';
+    'admin-organizers': async () =>
+      `export default ${JSON.stringify(await adminOrganizersPromise)};`,
+
+    'contributors': async () =>
+      `export default ${JSON.stringify(contributors)};`,
+
+    'parked-photos': async () =>
+      `export default ${JSON.stringify(loadParkedPhotos())};`,
+
+    'photo-locations': async () => {
+      const details = await getRouteDetails();
+      const parked = loadParkedPhotos();
+      return `export default ${JSON.stringify(buildPhotoLocations(details, parked))};`;
     },
-    async load(id: string) {
-      const adminLoaded = await adminModules.load(id);
-      if (adminLoaded) return adminLoaded;
-      if (id === '\0virtual:bike-app/cached-maps') {
-        return `export default new Set(${JSON.stringify(cachedMaps)});`;
-      }
-      if (id === '\0virtual:bike-app/admin-organizers') {
-        const organizers = await adminOrganizersPromise;
-        return `export default ${JSON.stringify(organizers)};`;
-      }
-      if (id === '\0virtual:bike-app/contributors') {
-        return `export default ${JSON.stringify(contributors)};`;
-      }
-      if (id === '\0virtual:bike-app/photo-locations') {
-        const details = isBlog
-          ? (await adminRideDataPromise!).details
-          : (await adminRouteDataPromise!).details;
-        const parked = loadParkedPhotos();
-        const locations = buildPhotoLocations(details, parked);
-        return `export default ${JSON.stringify(locations)};`;
-      }
-      if (id === '\0virtual:bike-app/nearby-photos') {
-        if (isBlog) {
-          // Blog instances don't use nearby photos (no route track points)
-          return `export default ${JSON.stringify({})};`;
-        }
-        const { details } = await adminRouteDataPromise!;
-        const parked = loadParkedPhotos();
-        const locations = buildPhotoLocations(details, parked);
-        const tracks = loadRouteTrackPoints();
-        const nearbyMap = buildNearbyPhotosMap(locations, tracks);
-        return `export default ${JSON.stringify(nearbyMap)};`;
-      }
-      if (id === '\0virtual:bike-app/parked-photos') {
-        const parked = loadParkedPhotos();
-        return `export default ${JSON.stringify(parked)};`;
-      }
-      if (id === '\0virtual:bike-app/photo-shared-keys') {
-        const routeDetails = isBlog
-          ? (await adminRideDataPromise!).details
-          : (await adminRouteDataPromise!).details;
-        const routeData: Record<string, { media: Array<{ key: string }> }> = {};
-        for (const [slug, detail] of Object.entries(routeDetails)) {
-          routeData[slug] = { media: detail.media || [] };
-        }
-        const parked = loadParkedPhotos();
-        const places = loadPlacePhotoKeys();
-        const events = loadEventPosterKeys();
-        const map = buildSharedKeysMap(routeData, places, events, parked);
-        return `export default ${serializeSharedKeys(map)};`;
-      }
-      if (id === '\0virtual:bike-app/tours') {
-        if (adminRideDataPromise) {
-          const { tours } = await adminRideDataPromise;
-          return `export default ${JSON.stringify(tours)};`;
-        }
-        return `export default [];`;
-      }
-      if (id === '\0virtual:bike-app/ride-stats') {
-        if (adminRideDataPromise) {
-          const { stats } = await adminRideDataPromise;
-          return `export default ${JSON.stringify(stats)};`;
-        }
+
+    'nearby-photos': async () => {
+      if (isBlog) return `export default ${JSON.stringify({})};`;
+      const details = await getRouteDetails();
+      const parked = loadParkedPhotos();
+      const locations = buildPhotoLocations(details, parked);
+      const tracks = loadRouteTrackPoints();
+      return `export default ${JSON.stringify(buildNearbyPhotosMap(locations, tracks))};`;
+    },
+
+    'photo-shared-keys': async () => {
+      const details = await getRouteDetails();
+      return buildPhotoSharedKeysModule(details);
+    },
+
+    'tours': async () => {
+      if (!adminRideDataPromise) return `export default [];`;
+      const { tours } = await adminRideDataPromise;
+      return `export default ${JSON.stringify(tours)};`;
+    },
+
+    'ride-stats': async () => {
+      if (!adminRideDataPromise) {
         return `export default ${JSON.stringify({
           total_distance_km: 0, total_elevation_m: 0, total_rides: 0,
           total_tours: 0, total_days: 0, countries: [],
           by_year: {}, by_country: {}, records: {},
         })};`;
       }
-      if (id === '\0virtual:bike-app/ride-redirects') {
-        // Load ride redirects from redirects.yml (includes tour ride redirects)
-        const redirectsPath = path.join(CITY_DIR, 'redirects.yml');
-        const data = fs.existsSync(redirectsPath)
-          ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
-          : {};
-        const rideEntries = (data.rides as Array<{ from: string; to: string }>) || [];
+      const { stats } = await adminRideDataPromise;
+      return `export default ${JSON.stringify(stats)};`;
+    },
 
-        const map = buildRideRedirectMap(rideEntries);
-        return `export default ${JSON.stringify(map)};`;
-      }
+    'ride-redirects': async () => buildRideRedirectsModule(),
+  };
+
+  return {
+    name: 'bike-app-build-data',
+
+    resolveId(id: string) {
+      const adminResolved = adminModules.resolveId(id);
+      if (adminResolved) return adminResolved;
+      const key = id.startsWith(PREFIX) ? id.slice(PREFIX.length) : null;
+      if (key && key in virtualModules) return `\0${id}`;
+    },
+
+    async load(id: string) {
+      const adminLoaded = await adminModules.load(id);
+      if (adminLoaded) return adminLoaded;
+      const key = id.startsWith(`\0${PREFIX}`) ? id.slice(PREFIX.length + 1) : null;
+      if (key && key in virtualModules) return virtualModules[key]();
     },
 
     // Replace fs-dependent modules with pre-loaded data during the build.
