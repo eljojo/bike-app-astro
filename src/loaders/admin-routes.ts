@@ -1,49 +1,22 @@
+// admin-routes.ts — Admin virtual module loader for routes.
+//
+// Reads route directories via route-file-reader.ts (shared I/O layer),
+// then computes content hashes, difficulty scores, and admin list shapes
+// for the virtual module system.
+//
+// Data flow:
+//   route-file-reader.ts → admin-routes.ts → build-data-plugin.ts
+//     → virtual:bike-app/admin-routes (list)
+//     → virtual:bike-app/admin-route-detail (details)
+
 import fs from 'node:fs';
 import path from 'node:path';
-import matter from 'gray-matter';
 import { cityDir } from '../lib/config';
-import { parseGpx, type GpxTrack } from '../lib/gpx';
 import { scoreRoute } from '../lib/difficulty';
 import type { AdminRoute } from '../types/admin';
 import { routeDetailFromGit, computeRouteContentHash, type RouteDetail } from '../lib/models/route-model';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
-
-const CITY_DIR = cityDir;
-
-function readRouteDir(slug: string) {
-  const routeDir = path.join(CITY_DIR, 'routes', slug);
-  const mdPath = path.join(routeDir, 'index.md');
-  const mediaPath = path.join(routeDir, 'media.yml');
-
-  const indexRaw = fs.readFileSync(mdPath, 'utf-8');
-  const mediaRaw = fs.existsSync(mediaPath) ? fs.readFileSync(mediaPath, 'utf-8') : '';
-
-  const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
-  const translationContents: Record<string, string> = {};
-  for (const locale of secondaryLocales) {
-    const localePath = path.join(routeDir, `index.${locale}.md`);
-    if (fs.existsSync(localePath)) {
-      translationContents[locale] = fs.readFileSync(localePath, 'utf-8');
-    }
-  }
-  const contentHash = computeRouteContentHash(indexRaw, mediaRaw || undefined, Object.keys(translationContents).length > 0 ? translationContents : undefined);
-
-  const { data: frontmatter, content: body } = matter(indexRaw);
-
-  const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
-  for (const [locale, raw] of Object.entries(translationContents)) {
-    const { data: fm, content: localeBody } = matter(raw);
-    translations[locale] = {
-      name: fm.name as string | undefined,
-      tagline: fm.tagline as string | undefined,
-      body: localeBody.trim() || undefined,
-    };
-  }
-
-  const detail = routeDetailFromGit(slug, frontmatter, body, mediaRaw || undefined, translations);
-
-  return { frontmatter, detail, contentHash };
-}
+import { readRouteDir } from './route-file-reader';
 
 interface AdminRouteData {
   routes: AdminRoute[];
@@ -55,7 +28,7 @@ let cachedRouteData: AdminRouteData | null = null;
 export async function loadAdminRouteData(): Promise<AdminRouteData> {
   if (cachedRouteData) return cachedRouteData;
 
-  const routesDir = path.join(CITY_DIR, 'routes');
+  const routesDir = path.join(cityDir, 'routes');
   if (!fs.existsSync(routesDir)) {
     cachedRouteData = { routes: [], details: {} };
     return cachedRouteData;
@@ -64,41 +37,70 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
     return fs.statSync(path.join(routesDir, name)).isDirectory();
   });
 
+  const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
   const routes: AdminRoute[] = [];
   const details: Record<string, RouteDetail & { contentHash: string }> = {};
 
   for (const slug of slugs) {
-    const { frontmatter, detail, contentHash } = readRouteDir(slug);
     const routeDir = path.join(routesDir, slug);
+    const parsed = readRouteDir(routeDir, slug, nonDefaultLocales);
+    if (!parsed) continue;
 
-    // Parse GPX files to compute difficulty score
-    const variants = (frontmatter.variants as Array<{ gpx: string; distance_km?: number }>) || [];
-    const gpxTracks: Record<string, GpxTrack> = {};
-    for (const v of variants) {
-      const gpxPath = path.join(routeDir, v.gpx);
-      if (fs.existsSync(gpxPath)) {
-        try {
-          const parsed = parseGpx(fs.readFileSync(gpxPath, 'utf-8'));
-          gpxTracks[v.gpx] = parsed;
-        } catch { /* skip unparseable GPX */ }
-      }
+    // Compute content hash from raw file contents
+    // Read raw translation files for hashing (the reader parsed them,
+    // but the hash function needs the original raw strings)
+    const translationContents = Object.keys(parsed.translations).length > 0
+      ? Object.fromEntries(
+          nonDefaultLocales
+            .filter(locale => parsed.translations[locale])
+            .map(locale => {
+              const localePath = path.join(routeDir, `index.${locale}.md`);
+              return [locale, fs.readFileSync(localePath, 'utf-8')];
+            })
+        )
+      : undefined;
+
+    const contentHash = computeRouteContentHash(
+      parsed.rawContents.indexMd,
+      parsed.rawContents.mediaYml,
+      translationContents,
+    );
+
+    // Build admin translations shape from parsed data
+    const adminTranslations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
+    for (const [locale, t] of Object.entries(parsed.translations)) {
+      adminTranslations[locale] = {
+        name: t.frontmatter.name as string | undefined,
+        tagline: t.frontmatter.tagline as string | undefined,
+        body: t.body || undefined,
+      };
     }
 
+    const detail = routeDetailFromGit(
+      slug,
+      parsed.frontmatter,
+      parsed.body,
+      parsed.rawContents.mediaYml,
+      adminTranslations,
+    );
+
+    // Compute difficulty score from parsed GPX tracks
+    const variants = (parsed.frontmatter.variants as Array<{ gpx: string; distance_km?: number }>) || [];
     const scores = scoreRoute({
       data: {
-        distance_km: (frontmatter.distance_km as number) || 0,
-        tags: (frontmatter.tags as string[]) || [],
+        distance_km: (parsed.frontmatter.distance_km as number) || 0,
+        tags: (parsed.frontmatter.tags as string[]) || [],
         variants,
-        gpxTracks,
+        gpxTracks: parsed.gpxTracks,
       },
     });
 
     const coverItem = detail.media.find(m => m.cover) || detail.media[0];
     routes.push({
       slug,
-      name: frontmatter.name as string,
+      name: parsed.frontmatter.name as string,
       mediaCount: detail.media.length,
-      status: frontmatter.status as string,
+      status: parsed.frontmatter.status as string,
       contentHash,
       difficultyScore: scores.length > 0 ? Math.min(...scores) : null,
       coverKey: coverItem?.key,
@@ -113,7 +115,7 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
 }
 
 export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng: number }>> {
-  const routesDir = path.join(CITY_DIR, 'routes');
+  const routesDir = path.join(cityDir, 'routes');
   if (!fs.existsSync(routesDir)) return {};
   const slugs = fs.readdirSync(routesDir).filter((name) => {
     return fs.statSync(path.join(routesDir, name)).isDirectory();
@@ -123,19 +125,13 @@ export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng:
 
   for (const slug of slugs) {
     const routeDir = path.join(routesDir, slug);
-    const { frontmatter } = readRouteDir(slug);
-    const variants = (frontmatter.variants as Array<{ gpx: string }>) || [];
+    const parsed = readRouteDir(routeDir, slug);
+    if (!parsed) continue;
 
     const points: Array<{ lat: number; lng: number }> = [];
-    for (const v of variants) {
-      const gpxPath = path.join(routeDir, v.gpx);
-      if (fs.existsSync(gpxPath)) {
-        try {
-          const parsed = parseGpx(fs.readFileSync(gpxPath, 'utf-8'));
-          for (const p of parsed.points) {
-            points.push({ lat: p.lat, lng: p.lon });
-          }
-        } catch { /* skip unparseable GPX */ }
+    for (const track of Object.values(parsed.gpxTracks)) {
+      for (const p of track.points) {
+        points.push({ lat: p.lat, lng: p.lon });
       }
     }
 
@@ -146,5 +142,3 @@ export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng:
 
   return tracks;
 }
-
-
