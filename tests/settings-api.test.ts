@@ -112,7 +112,7 @@ describe('POST /api/settings', () => {
     it('updates email successfully', async () => {
       const { users } = await import('../src/db/schema');
       const { eq } = await import('drizzle-orm');
-      const { normalizeEmail } = await import('../src/lib/auth');
+      const { normalizeEmail } = await import('../src/lib/auth/auth');
 
       const newEmail = normalizeEmail('  Alice-NEW@Example.COM  ');
       expect(newEmail).toBe('alice-new@example.com');
@@ -141,7 +141,7 @@ describe('POST /api/settings', () => {
     it('rejects duplicate email', async () => {
       const { users } = await import('../src/db/schema');
       const { eq } = await import('drizzle-orm');
-      const { normalizeEmail } = await import('../src/lib/auth');
+      const { normalizeEmail } = await import('../src/lib/auth/auth');
 
       // Try to take bob's email
       const newEmail = normalizeEmail('bob@example.com');
@@ -164,7 +164,7 @@ describe('POST /api/settings', () => {
     it('skips update when email is unchanged', async () => {
       const { users } = await import('../src/db/schema');
       const { eq } = await import('drizzle-orm');
-      const { normalizeEmail } = await import('../src/lib/auth');
+      const { normalizeEmail } = await import('../src/lib/auth/auth');
 
       // Normalize alice's existing email
       const email = normalizeEmail('alice@example.com');
@@ -195,7 +195,7 @@ describe('POST /api/settings', () => {
     it('allows own email to pass uniqueness check', async () => {
       const { users } = await import('../src/db/schema');
       const { eq, and, ne } = await import('drizzle-orm');
-      const { normalizeEmail } = await import('../src/lib/auth');
+      const { normalizeEmail } = await import('../src/lib/auth/auth');
 
       // User re-submits their own email (maybe just whitespace changed)
       const email = normalizeEmail('  ALICE@example.com  ');

@@ -34,7 +34,7 @@ describe('ban-service', () => {
   });
 
   it('banUser sets bannedAt on user', async () => {
-    const { banUser } = await import('../src/lib/ban-service');
+    const { banUser } = await import('../src/lib/auth/ban-service');
     const { users } = await import('../src/db/schema');
     const { eq } = await import('drizzle-orm');
 
@@ -45,7 +45,7 @@ describe('ban-service', () => {
   });
 
   it('banUser adds IP to bannedIps for guests', async () => {
-    const { banUser } = await import('../src/lib/ban-service');
+    const { banUser } = await import('../src/lib/auth/ban-service');
     const { bannedIps } = await import('../src/db/schema');
 
     await banUser(database, 'guest-1');
@@ -56,7 +56,7 @@ describe('ban-service', () => {
   });
 
   it('banUser does not add IP for editors', async () => {
-    const { banUser } = await import('../src/lib/ban-service');
+    const { banUser } = await import('../src/lib/auth/ban-service');
     const { bannedIps } = await import('../src/db/schema');
 
     await banUser(database, 'editor-1');
@@ -66,7 +66,7 @@ describe('ban-service', () => {
   });
 
   it('unbanUser clears bannedAt and removes IP', async () => {
-    const { banUser, unbanUser } = await import('../src/lib/ban-service');
+    const { banUser, unbanUser } = await import('../src/lib/auth/ban-service');
     const { users, bannedIps } = await import('../src/db/schema');
     const { eq } = await import('drizzle-orm');
 
@@ -81,14 +81,14 @@ describe('ban-service', () => {
   });
 
   it('isIpBanned returns true for banned IP', async () => {
-    const { banUser, isIpBanned } = await import('../src/lib/ban-service');
+    const { banUser, isIpBanned } = await import('../src/lib/auth/ban-service');
 
     await banUser(database, 'guest-1');
     expect(await isIpBanned(database, '1.2.3.4')).toBe(true);
   });
 
   it('isIpBanned returns false for clean IP', async () => {
-    const { isIpBanned } = await import('../src/lib/ban-service');
+    const { isIpBanned } = await import('../src/lib/auth/ban-service');
     expect(await isIpBanned(database, '5.6.7.8')).toBe(false);
   });
 });

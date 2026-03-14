@@ -7,7 +7,7 @@ import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { createTranscodeService } from '../../lib/transcode-service';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 
 export async function POST({ request, locals }: APIContext) {
   const auth = authorize(locals, 'upload-media');

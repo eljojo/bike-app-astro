@@ -7,7 +7,7 @@ vi.mock('astro:middleware', () => ({
 
 // Mock dependencies before importing middleware
 const mockValidateSession = vi.fn();
-vi.mock('../src/lib/auth', () => ({
+vi.mock('../src/lib/auth/auth', () => ({
   validateSession: (...args: any[]) => mockValidateSession(...args),
 }));
 vi.mock('../src/lib/get-db', () => ({

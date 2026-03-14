@@ -4,7 +4,7 @@ export const prerender = false;
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import { db } from '../../lib/get-db';
 import { emailTokens } from '../../db/schema';
-import { createSessionWithCookies } from '../../lib/auth';
+import { createSessionWithCookies } from '../../lib/auth/auth';
 import { eq, and, gt, isNull } from 'drizzle-orm';
 
 const token = Astro.url.searchParams.get('token');

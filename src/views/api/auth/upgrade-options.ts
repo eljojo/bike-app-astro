@@ -5,7 +5,7 @@ import {
   getWebAuthnConfig,
   storeChallenge,
   validateSession,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { db } from '../../../lib/get-db';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { getInstanceFeatures } from '../../../lib/instance-features';

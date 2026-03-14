@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import type { SessionUser } from './auth';
-import { jsonError } from './api-response';
+import { jsonError } from '../api-response';
 
 export type Action =
   | 'edit-content' | 'edit-past-event' | 'set-status' | 'edit-slug'

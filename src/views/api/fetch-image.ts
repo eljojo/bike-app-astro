@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { generateMediaKey, confirmUpload } from '../../lib/storage';
 

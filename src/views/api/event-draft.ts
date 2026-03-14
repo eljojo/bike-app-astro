@@ -1,11 +1,11 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { CITY } from '../../lib/config';
 import { getCityConfig } from '../../lib/city-config';
 import { db } from '../../lib/get-db';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/rate-limit';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/auth/rate-limit';
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
 import { slugify } from '../../lib/slug';
 import { generateMediaKey, confirmUpload } from '../../lib/storage';

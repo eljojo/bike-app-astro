@@ -8,8 +8,8 @@ import { CITY } from './config';
 import { jsonResponse, jsonError } from './api-response';
 import { computeBlobSha } from './git/git.adapter-github';
 import type { IGitService, FileChange } from './git/git.adapter-github';
-import type { SessionUser } from './auth';
-import { authorize, can } from './authorize';
+import type { SessionUser } from './auth/auth';
+import { authorize, can } from './auth/authorize';
 import { buildAuthorEmail } from './git/commit-author';
 import { upsertContentCache } from './cache';
 

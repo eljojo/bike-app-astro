@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { authorize, can, type Action } from '../src/lib/authorize';
+import { authorize, can, type Action } from '../src/lib/auth/authorize';
 
 function mockLocals(user: any) {
   return { user } as any;

@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { authorize } from '@/lib/authorize';
+import { authorize } from '@/lib/auth/authorize';
 import { jsonResponse, jsonError } from '@/lib/api-response';
 import {
   fetchActivityStreams,
@@ -11,7 +11,7 @@ import { interpolatePhotoLocation } from '@/lib/photo-geo-interpolation';
 import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env/env.service';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/auth/rate-limit';
 
 export const prerender = false;
 

@@ -2,7 +2,7 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { jsonError } from '../../lib/api-response';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 
 export async function PUT({ request, url, locals }: APIContext) {
   const auth = authorize(locals, 'upload-media');

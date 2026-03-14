@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;

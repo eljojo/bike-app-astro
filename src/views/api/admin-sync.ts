@@ -5,7 +5,7 @@ import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { CITY } from '../../lib/config';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;

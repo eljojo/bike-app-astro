@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { db } from '../../../lib/get-db';
-import { destroySession, clearSessionCookies } from '../../../lib/auth';
+import { destroySession, clearSessionCookies } from '../../../lib/auth/auth';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 
 export const prerender = false;

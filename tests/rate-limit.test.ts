@@ -23,14 +23,14 @@ describe('rate-limit', () => {
   });
 
   it('checkRateLimit returns false when under limit', async () => {
-    const { checkRateLimit, recordAttempt } = await import('../src/lib/rate-limit');
+    const { checkRateLimit, recordAttempt } = await import('../src/lib/auth/rate-limit');
 
     await recordAttempt(database, 'presign', ['user:u1']);
     expect(await checkRateLimit(database, 'presign', ['user:u1'], 10)).toBe(false);
   });
 
   it('checkRateLimit returns true when at limit', async () => {
-    const { checkRateLimit, recordAttempt } = await import('../src/lib/rate-limit');
+    const { checkRateLimit, recordAttempt } = await import('../src/lib/auth/rate-limit');
 
     for (let i = 0; i < 10; i++) {
       await recordAttempt(database, 'presign', ['user:u1']);
@@ -40,7 +40,7 @@ describe('rate-limit', () => {
   });
 
   it('blocks if any identifier is over limit', async () => {
-    const { checkRateLimit, recordAttempt } = await import('../src/lib/rate-limit');
+    const { checkRateLimit, recordAttempt } = await import('../src/lib/auth/rate-limit');
 
     // user:u1 has 3 attempts, ip:1.2.3.4 has 5 (over limit of 5)
     for (let i = 0; i < 3; i++) {
@@ -54,7 +54,7 @@ describe('rate-limit', () => {
   });
 
   it('does not count attempts for different actions', async () => {
-    const { checkRateLimit, recordAttempt } = await import('../src/lib/rate-limit');
+    const { checkRateLimit, recordAttempt } = await import('../src/lib/auth/rate-limit');
 
     for (let i = 0; i < 10; i++) {
       await recordAttempt(database, 'other-action', ['user:u1']);
@@ -64,7 +64,7 @@ describe('rate-limit', () => {
   });
 
   it('does not count attempts for different identifiers', async () => {
-    const { checkRateLimit, recordAttempt } = await import('../src/lib/rate-limit');
+    const { checkRateLimit, recordAttempt } = await import('../src/lib/auth/rate-limit');
 
     for (let i = 0; i < 10; i++) {
       await recordAttempt(database, 'presign', ['user:other']);
@@ -74,7 +74,7 @@ describe('rate-limit', () => {
   });
 
   it('does not count expired attempts', async () => {
-    const { checkRateLimit } = await import('../src/lib/rate-limit');
+    const { checkRateLimit } = await import('../src/lib/auth/rate-limit');
     const { uploadAttempts } = await import('../src/db/schema');
 
     // Insert rows with a timestamp 2 hours ago
@@ -91,7 +91,7 @@ describe('rate-limit', () => {
   });
 
   it('cleanupOldAttempts removes expired rows', async () => {
-    const { cleanupOldAttempts } = await import('../src/lib/rate-limit');
+    const { cleanupOldAttempts } = await import('../src/lib/auth/rate-limit');
     const { uploadAttempts } = await import('../src/db/schema');
 
     // Insert old and new rows
@@ -111,7 +111,7 @@ describe('rate-limit', () => {
   });
 
   it('LIMITS has correct values', async () => {
-    const { LIMITS } = await import('../src/lib/rate-limit');
+    const { LIMITS } = await import('../src/lib/auth/rate-limit');
     expect(LIMITS.guest).toBe(10);
     expect(LIMITS.editor).toBe(50);
     expect(LIMITS.admin).toBeUndefined();
