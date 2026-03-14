@@ -19,7 +19,7 @@ import { cityDir } from '../lib/config';
 import { getCityConfig } from '../lib/city-config';
 import { computeFileDigest } from '../lib/directory-digest';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/privacy-zone';
-import { renderMarkdownHtml } from '../lib/markdown-render';
+import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { slugify } from '../lib/slug';
 import type { RouteMedia } from './route-file-reader';
 import { readRideFile } from './ride-file-reader';

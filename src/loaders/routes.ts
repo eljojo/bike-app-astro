@@ -12,7 +12,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { cityDir } from '../lib/config';
 import { computeDirectoryDigest } from '../lib/directory-digest';
-import { renderMarkdownHtml } from '../lib/markdown-render';
+import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { loadLocaleTranslations } from './locale-content';
 import { supportedLocales, defaultLocale } from '../lib/locale-utils';
 import { readRouteDir } from './route-file-reader';
