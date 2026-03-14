@@ -1,16 +1,28 @@
+// rides.ts — Public content collection loader for blog rides.
+//
+// Reads ride GPX files via ride-file-reader.ts (shared I/O layer),
+// then applies privacy zone filtering, downsamples track points to 200,
+// renders markdown, and stores entries in Astro's content collection.
+//
+// Data flow:
+//   ride-file-reader.ts → rides.ts → Astro content collection → static pages
+//
+// Memory: processes one ride at a time. With 600+ rides, full-resolution
+// GPX points exhaust the heap — downsampling to 200 points is essential.
+
 import type { Loader } from 'astro/loaders';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
-import { parseGpx, buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx';
+import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx';
 import { cityDir } from '../lib/config';
 import { getCityConfig } from '../lib/city-config';
 import { computeFileDigest } from '../lib/directory-digest';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown-render';
 import { slugify } from '../lib/slug';
-import type { RouteMedia } from './routes';
+import type { RouteMedia } from './route-file-reader';
+import { readRideFile } from './ride-file-reader';
 
 export interface RideDate {
   year: number;
@@ -248,6 +260,11 @@ export function rideLoader(): Loader {
       let skipped = 0;
 
       for (const gpxRelPath of gpxPaths) {
+        const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+        const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+        const mediaYmlDigestPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
+
+        // Incremental caching — need date+slug before checking digest
         const date = extractDateFromPath(gpxRelPath);
         if (!date) {
           logger.warn(`Could not extract date from path: ${gpxRelPath}`);
@@ -255,24 +272,9 @@ export function rideLoader(): Loader {
         }
 
         const gpxFilename = path.basename(gpxRelPath);
-        const gpxAbsPath = path.join(ridesDir, gpxRelPath);
-
-        // Load optional sidecar .md
-        const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-        let sidecarFrontmatter: Record<string, unknown> = {};
-        let body = '';
-        if (fs.existsSync(sidecarPath)) {
-          const raw = fs.readFileSync(sidecarPath, 'utf-8');
-          const parsed = matter(raw);
-          sidecarFrontmatter = parsed.data;
-          body = parsed.content.trim();
-        }
-
         const isTour = tourByGpxPath.has(gpxRelPath);
         const slug = buildSlug(date, gpxFilename, isTour);
 
-        // Incremental caching — hash GPX + optional sidecar + optional media YAML
-        const mediaYmlDigestPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
         const digest = computeFileDigest([gpxAbsPath, sidecarPath, mediaYmlDigestPath]);
         const lastDigest = meta.get(`ride:${slug}:digest`);
         if (lastDigest === digest) {
@@ -280,54 +282,37 @@ export function rideLoader(): Loader {
           continue;
         }
 
-        // Parse GPX, apply privacy zone filter, then downsample points.
-        // With 600+ rides, full-resolution points exhaust the heap during builds.
-        // The elevation profile needs at most 200 samples; the map uses the polyline.
-        let gpxTrack: GpxTrack;
-        try {
-          const gpxXml = fs.readFileSync(gpxAbsPath, 'utf-8');
-          const parsed = parseGpx(gpxXml);
+        const tour = tourByGpxPath.get(gpxRelPath);
+        const parsed = readRideFile(ridesDir, gpxRelPath, tour?.slug);
+        if (!parsed) continue;
 
-          // Apply privacy zone filter if enabled for this ride
-          const privacyZoneEnabled = typeof sidecarFrontmatter.privacy_zone === 'boolean'
-            ? sidecarFrontmatter.privacy_zone
-            : privacyZone?.default_enabled ?? false;
+        // Apply privacy zone filtering to track points
+        const privacyZoneEnabled = typeof parsed.frontmatter.privacy_zone === 'boolean'
+          ? parsed.frontmatter.privacy_zone
+          : privacyZone?.default_enabled ?? false;
 
-          let filteredPoints = parsed.points;
-          if (privacyZoneEnabled && privacyZone) {
-            const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
-            // GpxPoint uses `lon`, privacy zone uses `lng` — map between them
-            const mappedPoints = parsed.points.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
-            const filtered = filterPrivacyZone(mappedPoints, zone);
-            filteredPoints = filtered.map(p => ({ lat: p.lat, lon: p.lng, ele: p.ele } as GpxPoint));
-          }
-
-          const MAX_POINTS = 200;
-          if (filteredPoints.length > MAX_POINTS) {
-            const step = Math.floor(filteredPoints.length / MAX_POINTS);
-            filteredPoints = filteredPoints.filter((_, i) => i % step === 0 || i === filteredPoints.length - 1);
-          }
-
-          // Recompute metrics from filtered (and possibly downsampled) points
-          gpxTrack = buildTrackFromPoints(filteredPoints);
-        } catch (e: unknown) {
-          const message = e instanceof Error ? e.message : String(e);
-          logger.warn(`Failed to parse GPX ${gpxAbsPath}: ${message}`);
-          continue;
+        let filteredPoints = parsed.gpxTrack.points;
+        if (privacyZoneEnabled && privacyZone) {
+          const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
+          const mappedPoints = parsed.gpxTrack.points.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
+          const filtered = filterPrivacyZone(mappedPoints, zone);
+          filteredPoints = filtered.map(p => ({ lat: p.lat, lon: p.lng, ele: p.ele } as GpxPoint));
         }
 
-        // Load optional -media.yml
-        const mediaYmlPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
-        let media: RouteMedia[] = [];
-        if (fs.existsSync(mediaYmlPath)) {
-          const mediaRaw = fs.readFileSync(mediaYmlPath, 'utf-8');
-          media = (yaml.load(mediaRaw) as RouteMedia[]) || [];
+        // Downsample to max 200 points for heap efficiency
+        const MAX_POINTS = 200;
+        if (filteredPoints.length > MAX_POINTS) {
+          const step = Math.floor(filteredPoints.length / MAX_POINTS);
+          filteredPoints = filteredPoints.filter((_, i) => i % step === 0 || i === filteredPoints.length - 1);
         }
+
+        const gpxTrack: GpxTrack = buildTrackFromPoints(filteredPoints);
 
         // Strip photo GPS coordinates that fall inside the privacy zone
+        let media: RouteMedia[] = parsed.media;
         if (privacyZone && media.length > 0) {
-          const privacyEnabled = typeof sidecarFrontmatter.privacy_zone === 'boolean'
-            ? sidecarFrontmatter.privacy_zone
+          const privacyEnabled = typeof parsed.frontmatter.privacy_zone === 'boolean'
+            ? parsed.frontmatter.privacy_zone
             : privacyZone.default_enabled;
           if (privacyEnabled) {
             const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
@@ -336,7 +321,6 @@ export function rideLoader(): Loader {
         }
 
         // Load tour-level metadata if this ride belongs to a tour
-        const tour = tourByGpxPath.get(gpxRelPath);
         let tourFrontmatter: Record<string, unknown> = {};
         if (tour) {
           const tourIndexPath = path.join(ridesDir, tour.dirPath, 'index.md');
@@ -344,32 +328,31 @@ export function rideLoader(): Loader {
             const tourRaw = fs.readFileSync(tourIndexPath, 'utf-8');
             tourFrontmatter = matter(tourRaw).data;
           }
-
         }
 
-        const name = (sidecarFrontmatter.name as string)
+        const name = (parsed.frontmatter.name as string)
           || nameFromFilename(gpxFilename, date);
-        const status = (sidecarFrontmatter.status as string) || 'published';
-        const country = (sidecarFrontmatter.country as string)
+        const status = (parsed.frontmatter.status as string) || 'published';
+        const country = (parsed.frontmatter.country as string)
           || (tourFrontmatter.country as string)
           || undefined;
-        const highlight = typeof sidecarFrontmatter.highlight === 'boolean'
-          ? sidecarFrontmatter.highlight
+        const highlight = typeof parsed.frontmatter.highlight === 'boolean'
+          ? parsed.frontmatter.highlight
           : undefined;
-        const totalElevationGain = typeof sidecarFrontmatter.total_elevation_gain === 'number'
-          ? sidecarFrontmatter.total_elevation_gain
+        const totalElevationGain = typeof parsed.frontmatter.total_elevation_gain === 'number'
+          ? parsed.frontmatter.total_elevation_gain
           : undefined;
-        const stravaId = typeof sidecarFrontmatter.strava_id === 'string'
-          ? sidecarFrontmatter.strava_id
+        const stravaId = typeof parsed.frontmatter.strava_id === 'string'
+          ? parsed.frontmatter.strava_id
           : undefined;
-        const ridePrivacyZone = typeof sidecarFrontmatter.privacy_zone === 'boolean'
-          ? sidecarFrontmatter.privacy_zone
+        const ridePrivacyZone = typeof parsed.frontmatter.privacy_zone === 'boolean'
+          ? parsed.frontmatter.privacy_zone
           : undefined;
-        const tags = Array.isArray(sidecarFrontmatter.tags)
-          ? sidecarFrontmatter.tags
+        const tags = Array.isArray(parsed.frontmatter.tags)
+          ? parsed.frontmatter.tags
           : [];
 
-        const renderedBody = body ? await renderMarkdownHtml(body) : '';
+        const renderedBody = parsed.body ? await renderMarkdownHtml(parsed.body) : '';
         const isoDate = rideDateToIso(date);
 
         // Build route-schema-compatible data
@@ -413,7 +396,7 @@ export function rideLoader(): Loader {
         store.set({
           id: slug,
           data,
-          body,
+          body: parsed.body,
           digest,
         });
         meta.set(`ride:${slug}:digest`, digest);
