@@ -13,7 +13,7 @@ import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { commitGpxFile } from '../../lib/git/git-gpx';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/locale-utils';

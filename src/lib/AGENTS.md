@@ -3,9 +3,9 @@
 ## Vendor Isolation
 
 Platform-specific imports are ONLY allowed in these boundary files:
-- `env.ts` — `cloudflare:workers` (production) or `env-local.ts` (local)
+- `env/env.service.ts` — `cloudflare:workers` (production) or `env.adapter-local.ts` (local)
 - `csp-env.ts` — lightweight `cloudflare:workers` reader for CSP (no side effects)
-- `adapter.ts` — `@astrojs/node` or `@astrojs/cloudflare`
+- `env/adapter.ts` — `@astrojs/node` or `@astrojs/cloudflare`
 - `git-factory.ts` — creates `LocalGitService` or `GitService` based on RUNTIME
 - `get-db.ts` — `better-sqlite3` (local) or D1 (production)
 - `storage-local.ts` — filesystem bucket for local dev
@@ -30,7 +30,7 @@ If you change the exports of these files, you MUST also update the transform in 
 ## Config Layers — Don't Confuse Them
 
 - **Build-time** (`config.ts`): reads `process.env` at module evaluation. `CONTENT_DIR`, `CITY`, `cityDir`.
-- **Runtime** (`env.ts`): reads Cloudflare bindings or local env at request time. `GITHUB_TOKEN`, `GIT_OWNER`, `GIT_DATA_REPO`, `DB`, `BUCKET`, etc. via `AppEnv`.
+- **Runtime** (`env/env.service.ts`): reads Cloudflare bindings or local env at request time. `GITHUB_TOKEN`, `GIT_OWNER`, `GIT_DATA_REPO`, `DB`, `BUCKET`, etc. via `AppEnv`.
 
 ## Key Function Signatures
 

@@ -5,7 +5,7 @@ import { z } from 'astro/zod';
 import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { mergeMedia } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content-save';
 import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';

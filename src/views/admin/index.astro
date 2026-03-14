@@ -5,7 +5,7 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
 import adminRoutes from 'virtual:bike-app/admin-routes';
-import { env } from '../../lib/env';
+import { env } from '../../lib/env/env.service';
 import { loadAdminRouteList } from '../../lib/load-admin-content';
 import { getCityConfig } from '../../lib/city-config';
 import { getInstanceFeatures } from '../../lib/instance-features';

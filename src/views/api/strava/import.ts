@@ -10,7 +10,7 @@ import {
 import { interpolatePhotoLocation } from '@/lib/photo-geo-interpolation';
 import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
-import { env } from '@/lib/env';
+import { env } from '@/lib/env/env.service';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';
 
 export const prerender = false;

@@ -4,7 +4,7 @@ import { jsonError } from '@/lib/api-response';
 import { fetchActivities } from '@/lib/external/strava-api';
 import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
-import { env } from '@/lib/env';
+import { env } from '@/lib/env/env.service';
 
 export const prerender = false;
 
