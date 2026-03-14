@@ -1265,7 +1265,7 @@
 }
 
 .route-preview-map {
-  height: 280px;
+  min-height: 280px;
   border-radius: $border-radius;
   overflow: hidden;
   border: 1px solid $color-border;
