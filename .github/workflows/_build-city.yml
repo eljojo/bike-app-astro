@@ -126,6 +126,15 @@ jobs:
           restore-keys: |
             astro-${{ inputs.city }}-
 
+      - name: Restore dist cache
+        if: inputs.deploy
+        uses: actions/cache@v5
+        with:
+          path: dist-cache
+          key: dist-${{ inputs.city }}-${{ github.run_id }}
+          restore-keys: |
+            dist-${{ inputs.city }}-
+
       - name: Generate map thumbnails
         run: npx tsx scripts/generate-maps.ts
         env:
@@ -148,6 +157,12 @@ jobs:
       - name: Build map style
         run: npx tsx scripts/build-map-style.ts
 
+      - name: Prepare build plan
+        run: npx tsx scripts/prepare-build-plan.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ${{ inputs.city }}
+
       - name: Build site
         run: npx astro build
         env:
@@ -155,6 +170,10 @@ jobs:
           CITY: ${{ inputs.city }}
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Merge incremental build
+        if: inputs.deploy
+        run: npx tsx scripts/merge-incremental-build.ts
 
       - name: Prepare wrangler config for deploy
         if: inputs.deploy
