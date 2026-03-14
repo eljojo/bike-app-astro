@@ -4,12 +4,19 @@
 
 Platform-specific imports are ONLY allowed in these boundary files:
 - `env.ts` — `cloudflare:workers` (production) or `env-local.ts` (local)
+- `csp-env.ts` — lightweight `cloudflare:workers` reader for CSP (no side effects)
 - `adapter.ts` — `@astrojs/node` or `@astrojs/cloudflare`
 - `git-factory.ts` — creates `LocalGitService` or `GitService` based on RUNTIME
 - `get-db.ts` — `better-sqlite3` (local) or D1 (production)
 - `storage-local.ts` — filesystem bucket for local dev
 
 No other file in the codebase may import platform modules directly.
+
+## Fail Loud on Missing Configuration
+
+Never silently fall back when required env vars or config values are missing. A missing value that produces `undefined` instead of an error leads to silently broken behaviour — CSP directives that omit origins, API calls that go nowhere, features that quietly degrade. Use explicit checks that throw with a clear message naming the missing value and where to set it (like Ruby's `Hash#fetch`). See `requireEnv()` in `csp-env.ts` for the pattern.
+
+The only acceptable silent fallback is during Astro prerendering, where runtime env (Cloudflare bindings) is genuinely unavailable. Guard those paths with an explicit `null` return and a comment explaining why.
 
 ## Build-Time Transforms
 
@@ -46,3 +53,9 @@ Use `getInstanceFeatures()` from `instance-features.ts` for all feature/capabili
 ## CSP
 
 When adding external domains or inline scripts, update `csp.ts`. For SSR pages, use `is:inline nonce={cspNonce}`. For static pages (prerender=true), use bare `<script>` tags — Astro hashes them. Never use `is:inline` on static pages.
+
+### CSP Upload Origins
+
+Upload origins (R2, S3) for `connect-src` are read at request time by `csp-env.ts`, NOT by `env.ts`. This is because `env.ts` has top-level await that silently kills Astro's prerender step when imported from middleware. `csp-env.ts` is a separate lightweight wrapper — no top-level side effects, lazy `cloudflare:workers` import inside the function body only.
+
+`R2_ACCOUNT_ID` is required and will throw if missing at request time. `S3_ORIGINALS_BUCKET` and `MEDIACONVERT_REGION` are optional (only needed for video support).
