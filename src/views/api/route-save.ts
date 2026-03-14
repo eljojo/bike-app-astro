@@ -7,7 +7,7 @@ import { z } from 'astro/zod';
 import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
 import { parseGpx } from '../../lib/gpx';
-import { CITY } from '../../lib/config';
+import { CITY } from '../../lib/config/config';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content-save';

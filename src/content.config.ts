@@ -3,8 +3,8 @@ import { glob } from 'astro/loaders';
 import { routeLoader } from './loaders/routes';
 import { rideLoader } from './loaders/rides';
 import { pageLoader } from './loaders/pages';
-import { isBlogInstance } from './lib/city-config';
-import { cityDir } from './lib/config';
+import { isBlogInstance } from './lib/config/city-config';
+import { cityDir } from './lib/config/config';
 import {
   routeSchema, placeSchema, guideSchema,
   eventSchema, organizerSchema, pageSchema,

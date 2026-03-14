@@ -2,7 +2,7 @@
  * Vite plugin that provides build-time data for modules that use Node.js `fs`.
  *
  * Problem: The Cloudflare adapter prerenders pages inside workerd, which can't
- * access the host filesystem. Modules like city-config.ts use fs.readFileSync
+ * access the host filesystem. Modules like config/city-config.ts use fs.readFileSync
  * to load config files, which works in Node.js but fails in workerd.
  *
  * Solution: This plugin reads the data at config time (Node.js) and replaces
@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import type { Plugin } from 'vite';
-import { CONTENT_DIR, CITY, cityDir } from './lib/config';
+import { CONTENT_DIR, CITY, cityDir } from './lib/config/config';
 import { loadAdminRouteData, loadRouteTrackPoints } from './loaders/admin-routes';
 import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
@@ -27,7 +27,7 @@ import { loadAdminPlaceData } from './loaders/admin-places';
 import { loadAdminRideData } from './loaders/admin-rides';
 import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/photo-registry';
-import { isBlogInstance } from './lib/city-config';
+import { isBlogInstance } from './lib/config/city-config';
 import { getContentTypes } from './lib/content-types';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 
@@ -324,7 +324,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     // These files use fs.readFileSync which works in Node.js (config eval, tests)
     // but fails in workerd. The transform hook replaces them with static data.
     transform(code: string, id: string) {
-      if (id.endsWith('src/lib/city-config.ts')) {
+      if (id.endsWith('src/lib/config/city-config.ts')) {
         return {
           code: `
 const _data = ${JSON.stringify(cityConfig)};

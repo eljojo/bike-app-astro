@@ -1,7 +1,7 @@
 import type { AstroIntegration } from 'astro';
 import { translatePath, buildSegmentTranslations, setSegmentTranslations } from '../lib/path-translations';
 import type { LocalePageWithSegments } from '../lib/path-translations';
-import { isBlogInstance, isClubInstance } from '../lib/city-config';
+import { isBlogInstance, isClubInstance } from '../lib/config/city-config';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;

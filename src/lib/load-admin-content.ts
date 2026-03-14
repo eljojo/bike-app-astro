@@ -7,7 +7,7 @@ import { routeDetailFromCache } from './models/route-model';
 import { eventDetailFromCache } from './models/event-model';
 import { rideDetailFromCache } from './models/ride-model';
 import { deserializeSharedKeys, type SharedKeysMap } from './photo-registry';
-import { CITY } from './config';
+import { CITY } from './config/config';
 
 export interface AdminContentResult<T> {
   data: T | null;

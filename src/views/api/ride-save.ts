@@ -11,7 +11,7 @@ import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithE
 import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath, resolveNewRideSlug, renameGpxRelPath, suffixGpxRelPath, suffixRideSlug } from '../../lib/ride-paths';
 import { buildRedirectFileChange } from '../../lib/redirects';
-import { CITY } from '../../lib/config';
+import { CITY } from '../../lib/config/config';
 import { computeRideContentHashFromFiles, buildFreshRideData, rideVariantSchema } from '../../lib/models/ride-model';
 import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';

@@ -17,7 +17,7 @@ import { sanitizeUsername } from '../../../lib/username';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { withBatch } from '../../../db/transaction';
-import { getInstanceFeatures } from '../../../lib/instance-features';
+import { getInstanceFeatures } from '../../../lib/config/instance-features';
 
 
 export const prerender = false;

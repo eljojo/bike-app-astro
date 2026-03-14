@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/city-config', () => ({
+vi.mock('../src/lib/config/city-config', () => ({
   getCityConfig: vi.fn(),
 }));
 
-import { getInstanceFeatures } from '../src/lib/instance-features';
-import { getCityConfig } from '../src/lib/city-config';
+import { getInstanceFeatures } from '../src/lib/config/instance-features';
+import { getCityConfig } from '../src/lib/config/city-config';
 
 describe('getInstanceFeatures', () => {
   it('wiki instance has routes, events, places, reactions, registration', () => {

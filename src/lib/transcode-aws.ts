@@ -8,7 +8,7 @@
  */
 
 import { AwsClient } from 'aws4fetch';
-import type { AppEnv } from './app-env';
+import type { AppEnv } from './config/app-env';
 import type { TranscodeService, TranscodeParams, TranscodeJob } from './transcode-service';
 import { outputSize } from './transcode-service';
 

@@ -7,7 +7,7 @@
  */
 
 import { eq } from 'drizzle-orm';
-import type { AppEnv } from './app-env';
+import type { AppEnv } from './config/app-env';
 import type { BucketLike } from './storage';
 import { db } from './get-db';
 import { videoJobs } from '../db/schema';

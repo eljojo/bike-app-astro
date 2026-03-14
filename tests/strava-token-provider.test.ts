@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createStravaTokenProvider } from '../src/lib/external/strava-token-provider';
-import type { AppEnv } from '../src/lib/app-env';
+import type { AppEnv } from '../src/lib/config/app-env';
 
 // Mock strava-api module
 vi.mock('../src/lib/external/strava-api', () => ({

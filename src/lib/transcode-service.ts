@@ -1,4 +1,4 @@
-import type { AppEnv } from './app-env';
+import type { AppEnv } from './config/app-env';
 import { createLocalTranscodeService } from './transcode-local';
 
 export interface TranscodeParams {

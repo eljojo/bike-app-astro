@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { eq, and, gt, lt } from 'drizzle-orm';
 import { credentials, sessions, users, userSettings } from '../../db/schema';
 import type { Database, DbClient } from '../../db';
-import type { AppEnv } from '../app-env';
+import type { AppEnv } from '../config/app-env';
 
 export interface SessionUser {
   id: string;

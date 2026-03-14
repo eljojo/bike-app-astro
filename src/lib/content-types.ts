@@ -1,4 +1,4 @@
-import { getInstanceFeatures } from './instance-features';
+import { getInstanceFeatures } from './config/instance-features';
 import type { CurrentFiles } from './content-save';
 import { routeOps, eventOps, placeOps } from './content-ops';
 

@@ -4,7 +4,7 @@ import { createGitService } from './git/git-factory';
 import { db } from './get-db';
 import { contentEdits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CITY } from './config';
+import { CITY } from './config/config';
 import { jsonResponse, jsonError } from './api-response';
 import { computeBlobSha } from './git/git.adapter-github';
 import type { IGitService, FileChange } from './git/git.adapter-github';

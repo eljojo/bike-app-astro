@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
 import { upsertContentCache } from '../src/lib/cache';
 
 // Mock drizzle

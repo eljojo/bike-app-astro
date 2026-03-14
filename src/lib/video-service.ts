@@ -8,7 +8,7 @@
  * To swap providers: replace these functions with equivalents that
  * return video source arrays for your transcoding/storage service.
  */
-import { getCityConfig } from './city-config';
+import { getCityConfig } from './config/city-config';
 
 const VIDEOS_CDN = getCityConfig().videos_cdn_url;
 
