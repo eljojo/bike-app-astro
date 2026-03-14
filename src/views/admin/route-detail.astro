@@ -33,6 +33,7 @@ const routeData = result.data;
 
 const parkedPhotos = await loadParkedPhotosWithOverlay(parkedPhotosData);
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const videosCdnUrl = getCityConfig().videos_cdn_url;
 const tagTranslations = loadTagTranslations();
 const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.tags))].sort();
 ---
@@ -46,6 +47,6 @@ const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.ta
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

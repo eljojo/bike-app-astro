@@ -13,6 +13,8 @@ export interface TranscodeJob {
 }
 
 export interface TranscodeService {
+  /** Check whether a key already exists in the originals bucket. */
+  headObject(key: string): Promise<boolean>;
   presignUpload(key: string, contentType: string): Promise<string>;
   createJob(params: TranscodeParams): Promise<TranscodeJob>;
 }

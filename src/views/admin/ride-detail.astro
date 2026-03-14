@@ -59,6 +59,7 @@ if (isNew) {
 }
 
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const videosCdnUrl = getCityConfig().videos_cdn_url;
 const title = isNew ? 'New Ride' : `Edit: ${rideData.name}`;
 const locale = Astro.currentLocale;
 const rideLabels = {
@@ -94,7 +95,7 @@ try {
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} rideLabels={rideLabels} tours={tours} stravaConnected={stravaConnected} />
+  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} userRole={Astro.locals.user?.role} rideLabels={rideLabels} tours={tours} stravaConnected={stravaConnected} />
   {slug && (
     <EditHistory client:load contentPath={contentPath} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
   )}
