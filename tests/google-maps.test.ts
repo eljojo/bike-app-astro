@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGoogleMapsUrl, extractKmlRoute } from '../src/lib/google-maps';
+import { parseGoogleMapsUrl, extractKmlRoute } from '../src/lib/external/google-maps';
 
 describe('parseGoogleMapsUrl', () => {
   it('extracts mid from standard edit URL', () => {
