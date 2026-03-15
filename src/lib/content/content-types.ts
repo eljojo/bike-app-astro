@@ -2,9 +2,6 @@ import { getInstanceFeatures } from '../config/instance-features';
 import type { CurrentFiles } from './content-save';
 import { routeOps, eventOps, placeOps } from '../content-ops';
 
-/** Resolve a view path relative to this file's location. */
-const view = (rel: string) => new URL(`../../views/${rel}`, import.meta.url).pathname;
-
 export interface ContentTypeRoute {
   pattern: string;
   entrypoint: string;
@@ -52,11 +49,11 @@ export const contentTypes: ContentTypeConfig[] = [
     featureGate: 'hasRoutes',
     ops: routeOps,
     adminDetailRoutes: [
-      { pattern: '/admin/routes/new', entrypoint: view('admin/route-new.astro') },
-      { pattern: '/admin/routes/[slug]', entrypoint: view('admin/route-detail.astro') },
+      { pattern: '/admin/routes/new', entrypoint: 'admin/route-new.astro' },
+      { pattern: '/admin/routes/[slug]', entrypoint: 'admin/route-detail.astro' },
     ],
     apiRoutes: [
-      { pattern: '/api/routes/[slug]', entrypoint: view('api/route-save.ts') },
+      { pattern: '/api/routes/[slug]', entrypoint: 'api/route-save.ts' },
     ],
   },
   {
@@ -65,13 +62,13 @@ export const contentTypes: ContentTypeConfig[] = [
     label: 'Events',
     featureGate: 'hasEvents',
     ops: eventOps,
-    adminListRoute: { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
+    adminListRoute: { pattern: '/admin/events', entrypoint: 'admin/events.astro' },
     adminDetailRoutes: [
-      { pattern: '/admin/events/new', entrypoint: view('admin/event-new.astro') },
-      { pattern: '/admin/events/[...id]', entrypoint: view('admin/event-detail.astro') },
+      { pattern: '/admin/events/new', entrypoint: 'admin/event-new.astro' },
+      { pattern: '/admin/events/[...id]', entrypoint: 'admin/event-detail.astro' },
     ],
     apiRoutes: [
-      { pattern: '/api/events/[...id]', entrypoint: view('api/event-save.ts') },
+      { pattern: '/api/events/[...id]', entrypoint: 'api/event-save.ts' },
     ],
   },
   {
@@ -79,14 +76,14 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'place',
     label: 'Places',
     ops: placeOps,
-    adminListRoute: { pattern: '/admin/places', entrypoint: view('admin/places.astro') },
+    adminListRoute: { pattern: '/admin/places', entrypoint: 'admin/places.astro' },
     adminDetailRoutes: [
-      { pattern: '/admin/places/new', entrypoint: view('admin/place-new.astro') },
-      { pattern: '/admin/places/[id]', entrypoint: view('admin/place-detail.astro') },
+      { pattern: '/admin/places/new', entrypoint: 'admin/place-new.astro' },
+      { pattern: '/admin/places/[id]', entrypoint: 'admin/place-detail.astro' },
     ],
     apiRoutes: [
-      { pattern: '/api/places/prefill', entrypoint: view('api/places-prefill.ts') },
-      { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
+      { pattern: '/api/places/prefill', entrypoint: 'api/places-prefill.ts' },
+      { pattern: '/api/places/[id]', entrypoint: 'api/place-save.ts' },
     ],
   },
   {
@@ -94,13 +91,13 @@ export const contentTypes: ContentTypeConfig[] = [
     singular: 'ride',
     label: 'Rides',
     featureGate: 'hasRides',
-    adminListRoute: { pattern: '/admin/rides', entrypoint: view('admin/rides.astro') },
+    adminListRoute: { pattern: '/admin/rides', entrypoint: 'admin/rides.astro' },
     adminDetailRoutes: [
-      { pattern: '/admin/rides/new', entrypoint: view('admin/ride-detail.astro') },
-      { pattern: '/admin/rides/[slug]', entrypoint: view('admin/ride-detail.astro') },
+      { pattern: '/admin/rides/new', entrypoint: 'admin/ride-detail.astro' },
+      { pattern: '/admin/rides/[slug]', entrypoint: 'admin/ride-detail.astro' },
     ],
     apiRoutes: [
-      { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
+      { pattern: '/api/rides/[slug]', entrypoint: 'api/ride-save.ts' },
     ],
   },
 ];
