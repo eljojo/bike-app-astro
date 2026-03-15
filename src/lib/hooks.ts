@@ -98,7 +98,7 @@ export interface VideoUploadState {
 }
 
 /**
- * Video upload flow: extract metadata → presign → upload → transcode → poll.
+ * Video upload flow: presign → upload → poll (Lambda handles metadata + transcode).
  */
 export function useVideoUpload() {
   const [videos, setVideos] = useState<Map<string, VideoUploadState>>(new Map());
@@ -109,15 +109,11 @@ export function useVideoUpload() {
     file: File,
     contentSlug: string,
     contentKind: string,
-  ): Promise<{ key: string; type: 'video'; title: string; handle: string; width?: number; height?: number; duration?: string; lat?: number; lng?: number; captured_at?: string } | null> {
+  ): Promise<{ key: string; type: 'video'; title: string; handle: string } | null> {
     setError('');
 
     try {
-      // 1. Extract metadata from MP4
-      const { extractVideoMetadata } = await import('./media/mp4-metadata');
-      const meta = await extractVideoMetadata(file);
-
-      // 2. Presign
+      // 1. Presign
       const presignRes = await fetch('/api/video/presign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,7 +136,7 @@ export function useVideoUpload() {
         key, status: 'uploading', title, progress: 'Uploading...', uploadPercent: 0,
       }));
 
-      // 3. Upload to S3 (or local) — use XHR for progress tracking
+      // 2. Upload to S3 — use XHR for progress tracking
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
@@ -161,49 +157,18 @@ export function useVideoUpload() {
         xhr.send(file);
       });
 
-      // 4. Start transcoding
+      // 3. Upload complete — Lambda handles ffprobe + MediaConvert via S3 trigger
       const handle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const duration = meta?.duration ? `PT${Math.round(meta.duration)}S` : undefined;
-      const transcodeRes = await fetch('/api/video/transcode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key,
-          width: meta?.width,
-          height: meta?.height,
-          duration,
-          capturedAt: meta?.capturedAt,
-          lat: meta?.lat,
-          lng: meta?.lng,
-          title,
-          handle,
-        }),
-      });
-      if (!transcodeRes.ok) {
-        const data = await transcodeRes.json();
-        throw new Error(data.error || 'Failed to start transcoding');
-      }
-
       setVideos(prev => new Map(prev).set(key, {
-        key, status: 'transcoding', title, progress: 'Transcoding in the background', uploadPercent: 100,
+        key, status: 'transcoding', title, progress: 'Processing...', uploadPercent: 100,
       }));
 
-      // 5. Start polling for completion
+      // 4. Start polling for completion
       startPolling(key);
 
-      // 6. Return item for immediate addition to media list
-      return {
-        key,
-        type: 'video',
-        title,
-        handle,
-        width: meta?.width,
-        height: meta?.height,
-        duration,
-        lat: meta?.lat,
-        lng: meta?.lng,
-        captured_at: meta?.capturedAt,
-      };
+      // 5. Return item for immediate addition to media list
+      //    Metadata (width, height, duration, GPS) arrives later via webhook
+      return { key, type: 'video', title, handle };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Video upload failed');
       return null;
