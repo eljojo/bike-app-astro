@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import yaml from 'js-yaml';
 
-const OLD_BUCKET = 'eljojo-bike-prod';
+const OLD_BUCKET = 'bike-app-video-outputs';
 const NEW_BUCKET = 'bike-video-outputs';
 const CITY = 'ottawa';
 const PHOTOS_CDN = 'https://cdn.ottawabybike.ca';
