@@ -153,9 +153,15 @@ export function buildJobDefinition(key, { width, height }) {
   const scaled = outputSize(width, height);
   const sizeFields = { Width: scaled.width, Height: scaled.height };
 
+  // Split key "ottawa-staging/testkey5" → prefix + videoKey for EventBridge handler
+  const slashIdx = key.indexOf('/');
+  const prefix = slashIdx > 0 ? key.slice(0, slashIdx) : '';
+  const videoKey = slashIdx > 0 ? key.slice(slashIdx + 1) : key;
+
   return {
     Queue: MEDIACONVERT_QUEUE,
     Role: MEDIACONVERT_ROLE,
+    UserMetadata: { prefix, videoKey },
     Settings: {
       Inputs: [{
         FileInput: `s3://${S3_ORIGINALS_BUCKET}/${key}`,
@@ -372,18 +378,22 @@ async function handleEventBridgeEvent(event) {
   const detail = event.detail;
   const status = detail.status;
 
-  // Extract the S3 key from outputGroupDetails
-  const outputPath = detail.outputGroupDetails?.[0]?.outputDetails?.[0]?.outputFilePaths?.[0] || '';
-  // outputPath looks like: s3://outputs-bucket/ottawa/st9uuvau/st9uuvau-av1.mp4
-  const s3Path = outputPath.replace(/^s3:\/\/[^/]+\//, '');
-  // s3Path: "ottawa/st9uuvau/st9uuvau-av1.mp4" → prefix="ottawa", videoKey="st9uuvau"
-  const pathParts = s3Path.split('/');
-  const prefix = pathParts[0] || '';
-  const videoKey = pathParts[1] || '';
+  // Primary: read from UserMetadata (set by buildJobDefinition)
+  let prefix = detail.userMetadata?.prefix || '';
+  let videoKey = detail.userMetadata?.videoKey || '';
+
+  // Fallback: parse from output path for jobs created before UserMetadata was added
+  if (!prefix || !videoKey) {
+    const outputPath = detail.outputGroupDetails?.[0]?.outputDetails?.[0]?.outputFilePaths?.[0] || '';
+    const s3Path = outputPath.replace(/^s3:\/\/[^/]+\//, '');
+    const pathParts = s3Path.split('/');
+    prefix = pathParts[0] || '';
+    videoKey = pathParts[1] || '';
+  }
 
   if (!prefix || !videoKey) {
-    console.error('Could not extract prefix/key from output path:', outputPath);
-    return { statusCode: 400, body: 'Could not parse output path' };
+    console.error('Could not extract prefix/key from event:', JSON.stringify({ userMetadata: detail.userMetadata, outputGroupDetails: detail.outputGroupDetails }));
+    return { statusCode: 400, body: 'Could not parse event' };
   }
 
   console.log(`EventBridge: status=${status}, prefix=${prefix}, videoKey=${videoKey}`);
