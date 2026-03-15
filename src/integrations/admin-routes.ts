@@ -14,11 +14,13 @@ function adminIndexView(): string {
   return 'admin/index.astro';
 }
 
-// Content-type routes (admin pages + API) derived from registry
+// Content-type routes (admin pages + API) derived from registry.
+// Entrypoints in the registry are relative view paths (e.g. 'admin/events.astro')
+// — resolve them here at build time via view() so content-types.ts stays runtime-safe.
 const contentTypeRoutes = getContentTypes().flatMap(ct => [
-  ...(ct.adminListRoute ? [ct.adminListRoute] : []),
-  ...(ct.adminDetailRoutes || []),
-  ...(ct.apiRoutes || []),
+  ...(ct.adminListRoute ? [{ ...ct.adminListRoute, entrypoint: view(ct.adminListRoute.entrypoint) }] : []),
+  ...(ct.adminDetailRoutes || []).map(r => ({ ...r, entrypoint: view(r.entrypoint) })),
+  ...(ct.apiRoutes || []).map(r => ({ ...r, entrypoint: view(r.entrypoint) })),
 ]);
 
 /**
