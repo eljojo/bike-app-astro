@@ -627,17 +627,17 @@ function ensureWebhookSecret(lambdaName, wranglerEnv) {
   const fnConfig = awsJson(`lambda get-function-configuration --function-name ${lambdaName}`);
   const envVars = fnConfig.Environment?.Variables || {};
 
-  if (envVars.WEBHOOK_SECRET) {
-    logSkip('WEBHOOK_SECRET already set');
-    return;
+  let secret = envVars.WEBHOOK_SECRET;
+  if (secret) {
+    logSkip('WEBHOOK_SECRET already set on Lambda');
+  } else {
+    secret = randomBytes(32).toString('hex');
+    envVars.WEBHOOK_SECRET = secret;
+    aws(`lambda update-function-configuration --function-name ${lambdaName} --environment '${JSON.stringify({ Variables: envVars })}'`, { silent: true });
+    log('Generated WEBHOOK_SECRET on Lambda');
   }
 
-  const secret = randomBytes(32).toString('hex');
-  envVars.WEBHOOK_SECRET = secret;
-
-  aws(`lambda update-function-configuration --function-name ${lambdaName} --environment '${JSON.stringify({ Variables: envVars })}'`, { silent: true });
-  log('Generated WEBHOOK_SECRET on Lambda');
-
+  // Always propagate to the Worker env (each city/env needs the shared secret)
   try {
     const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
     safeExec(`${wranglerCmd()} secret put WEBHOOK_SECRET ${envArg}`, {
