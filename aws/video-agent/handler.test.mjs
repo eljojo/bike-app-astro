@@ -162,15 +162,36 @@ describe('buildJobDefinition', () => {
     assert.equal(h265Output.VideoDescription.Height, 1080);
   });
 
-  it('has H.265 and H.264 outputs plus poster', () => {
+  it('has MP4, HLS, and poster output groups', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const groups = job.Settings.OutputGroups;
+    assert.equal(groups.length, 3);
+    assert.equal(groups[0].CustomName, 'mp4');
+    assert.equal(groups[1].CustomName, 'hls');
+    assert.equal(groups[2].CustomName, 'poster');
+  });
+
+  it('has H.265 and H.264 MP4 outputs', () => {
     const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
     const mp4Outputs = job.Settings.OutputGroups[0].Outputs;
     assert.equal(mp4Outputs.length, 2);
     assert.equal(mp4Outputs[0].NameModifier, '-h265');
     assert.equal(mp4Outputs[1].NameModifier, '-h264');
+  });
 
-    const posterGroup = job.Settings.OutputGroups[1];
-    assert.equal(posterGroup.CustomName, 'poster');
+  it('has HLS thumb and big outputs', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const hlsOutputs = job.Settings.OutputGroups[1].Outputs;
+    assert.equal(hlsOutputs.length, 2);
+    assert.equal(hlsOutputs[0].NameModifier, '-thumb');
+    assert.equal(hlsOutputs[1].NameModifier, '-big');
+  });
+
+  it('HLS thumb uses smaller resolution', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160 });
+    const thumbOutput = job.Settings.OutputGroups[1].Outputs[0];
+    assert.equal(thumbOutput.VideoDescription.Width, 640);
+    assert.equal(thumbOutput.VideoDescription.Height, 360);
   });
 
   it('sets queue and role from env', () => {
@@ -184,9 +205,10 @@ describe('buildJobDefinition', () => {
     assert.deepStrictEqual(job.UserMetadata, { prefix: 'ottawa-staging', videoKey: 'testkey5' });
   });
 
-  it('uses FILE_GROUP_SETTINGS for output group types', () => {
+  it('uses correct output group types', () => {
     const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
     assert.equal(job.Settings.OutputGroups[0].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
-    assert.equal(job.Settings.OutputGroups[1].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
+    assert.equal(job.Settings.OutputGroups[1].OutputGroupSettings.Type, 'HLS_GROUP_SETTINGS');
+    assert.equal(job.Settings.OutputGroups[2].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
   });
 });
