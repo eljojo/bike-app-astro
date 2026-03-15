@@ -3,13 +3,15 @@ import { videoPlaybackSources, videoPosterUrl, videoDisplaySize } from '../src/l
 import { VIDEO_PREFIX } from '../src/lib/config/config';
 
 describe('videoPlaybackSources', () => {
-  it('returns AV1 and H264 sources with city prefix', () => {
+  it('returns HLS, H.265, and H.264 sources', () => {
     const sources = videoPlaybackSources('abc123');
-    expect(sources).toHaveLength(2);
-    expect(sources[0].type).toContain('av01');
-    expect(sources[0].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123-av1.mp4`);
-    expect(sources[1].type).toContain('avc1');
-    expect(sources[1].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123-h264.mp4`);
+    expect(sources).toHaveLength(3);
+    expect(sources[0].type).toBe('application/vnd.apple.mpegurl');
+    expect(sources[0].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123.m3u8`);
+    expect(sources[1].type).toContain('hvc1');
+    expect(sources[1].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123-h265.mp4`);
+    expect(sources[2].type).toContain('avc1');
+    expect(sources[2].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123-h264.mp4`);
   });
 });
 

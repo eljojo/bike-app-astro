@@ -1,9 +1,14 @@
 /**
  * Video service — Cloudflare R2 implementation.
  *
- * Generates video source URLs for AV1 and H.264 formats.
- * Videos are stored in R2 under CDN_URL/videos/{blobKey}/ with
+ * Generates video source URLs for HLS, H.265, and H.264 formats.
+ * Videos are stored in R2 under CDN_URL/{prefix}/{blobKey}/ with
  * transcoded outputs from AWS MediaConvert.
+ *
+ * Source order: HLS master manifest (Safari picks natively, adaptive
+ * between 480p thumb and 1080p H.265 big), then H.265 MP4 (modern
+ * browsers), then H.264 MP4 (universal fallback). Browsers use the
+ * first source they can play.
  *
  * To swap providers: replace these functions with equivalents that
  * return video source arrays for your transcoding/storage service.
@@ -21,7 +26,8 @@ interface VideoSource {
 export function videoPlaybackSources(blobKey: string): VideoSource[] {
   const base = `${VIDEOS_CDN}/${VIDEO_PREFIX}/${blobKey}/${blobKey}`;
   return [
-    { src: `${base}-av1.mp4`, type: 'video/mp4; codecs=av01.0.05M.08' },
+    { src: `${base}.m3u8`, type: 'application/vnd.apple.mpegurl' },
+    { src: `${base}-h265.mp4`, type: 'video/mp4; codecs=hvc1' },
     { src: `${base}-h264.mp4`, type: 'video/mp4; codecs=avc1' },
   ];
 }
