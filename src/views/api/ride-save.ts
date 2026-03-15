@@ -20,6 +20,8 @@ import { commitGpxFile } from '../../lib/git/git-gpx';
 import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
+import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../lib/media/video-enrichment';
+import { db } from '../../lib/get-db';
 
 export const prerender = false;
 
@@ -56,6 +58,7 @@ interface RideBuildResult extends BuildResult {
   rideSlug: string;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
+  consumedVideoKeys: string[];
 }
 
 /**
@@ -188,11 +191,18 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithS
       // Build media file and track key changes for shared-keys registry
       let addedMediaKeys: string[] = [];
       let removedMediaKeys: string[] = [];
+      let consumedVideoKeys: string[] = [];
       if (update.media) {
         const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
-        ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, update.media));
 
-        const merged = mergeMedia(update.media, existingMedia);
+        // Enrich video items with metadata from videoJobs (if transcoding completed)
+        const database = db();
+        const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(update.media, database);
+        consumedVideoKeys = consumedKeys;
+
+        ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, enrichedMedia));
+
+        const merged = mergeMedia(enrichedMedia, existingMedia);
         if (merged.length > 0) {
           files.push({ path: paths.media, content: serializeYamlFile(merged) });
         } else if (existingMedia.length > 0) {
@@ -201,13 +211,14 @@ function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithS
         }
       }
 
-      return { files, deletePaths, isNew, rideSlug: _slug, addedMediaKeys, removedMediaKeys };
+      return { files, deletePaths, isNew, rideSlug: _slug, addedMediaKeys, removedMediaKeys, consumedVideoKeys };
     },
 
     async afterCommit(result, database) {
-      const { rideSlug, addedMediaKeys, removedMediaKeys } = result;
+      const { rideSlug, addedMediaKeys, removedMediaKeys, consumedVideoKeys } = result;
       const changes = buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'route', rideSlug);
       await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes });
+      await deleteConsumedVideoJobs(consumedVideoKeys, database);
     },
 
     buildCommitMessage(update, _slug, isNew): string {
