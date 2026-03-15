@@ -87,15 +87,25 @@ function getAwsAccountId() {
   return identity?.Account;
 }
 
+function wranglerCmd() {
+  try {
+    run('which wrangler', { stdio: 'pipe' });
+    return 'wrangler';
+  } catch {
+    return 'npx wrangler';
+  }
+}
+
 function getCloudflareAccountId() {
   if (process.env.CLOUDFLARE_ACCOUNT_ID) return process.env.CLOUDFLARE_ACCOUNT_ID;
 
   try {
-    const output = run('npx wrangler whoami 2>&1', { encoding: 'utf-8', stdio: 'pipe' });
-    // Account ID is a 32-char hex string in the table output
-    const match = output.match(/\b([0-9a-f]{32})\b/);
+    const output = run(`${wranglerCmd()} whoami 2>/dev/null`, { encoding: 'utf-8', stdio: 'pipe' });
+    const match = output.match(/([a-f0-9]{32})/);
     if (match) return match[1];
-  } catch { /* wrangler not authenticated */ }
+  } catch (err) {
+    console.warn(`  ⚠ wrangler whoami failed: ${err.message}`);
+  }
 
   return null;
 }
@@ -103,13 +113,13 @@ function getCloudflareAccountId() {
 function getCloudflareApiToken() {
   if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
 
-  // Same approach as the blog setup script — wrangler auth token prints the token directly
   try {
-    const output = run('npx wrangler auth token 2>/dev/null', { encoding: 'utf-8', stdio: 'pipe' });
-    // Output may include a banner line — grab the last non-empty line
+    const output = run(`${wranglerCmd()} auth token 2>/dev/null`, { encoding: 'utf-8', stdio: 'pipe' });
     const token = output.split('\n').pop().trim();
     if (token) return token;
-  } catch { /* wrangler not authenticated */ }
+  } catch (err) {
+    console.warn(`  ⚠ wrangler auth token failed: ${err.message}`);
+  }
 
   return null;
 }
