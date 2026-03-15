@@ -51,8 +51,6 @@ const routes = [
   ] : []),
   // Video API (static routes before parameterized)
   { pattern: '/api/video/presign', entrypoint: view('api/video-presign.ts') },
-  { pattern: '/api/video/transcode', entrypoint: view('api/video-transcode.ts') },
-  { pattern: '/api/video/cron', entrypoint: view('api/video-cron.ts') },
   { pattern: '/api/video/webhook', entrypoint: view('api/video-webhook.ts') },
   { pattern: '/api/video/upload-local', entrypoint: view('api/video-upload-local.ts') },
   { pattern: '/api/video/status/[key]', entrypoint: view('api/video-status.ts') },

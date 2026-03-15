@@ -1,4 +1,4 @@
-import type { TranscodeService, TranscodeParams, TranscodeJob } from './transcode.service';
+import type { TranscodeService } from './transcode.service';
 
 /**
  * Local dev adapter: skips transcoding entirely.
@@ -12,9 +12,6 @@ export function createLocalTranscodeService(): TranscodeService {
     },
     async presignUpload(key: string, _contentType: string): Promise<string> {
       return `/api/video/upload-local?key=${encodeURIComponent(key)}`;
-    },
-    async createJob(params: TranscodeParams): Promise<TranscodeJob> {
-      return { jobId: `local-${params.key}`, key: params.key };
     },
   };
 }
