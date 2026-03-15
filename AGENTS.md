@@ -168,7 +168,7 @@ Additional gotchas not covered by directory files:
 - **Path resolution**: never use `path.resolve('relative/path')` — use `import.meta.dirname`.
 - **No ClientRouter**: the site does NOT use Astro's `<ClientRouter />` (View Transitions). Use `DOMContentLoaded`, not `astro:page-load`.
 - **Middleware exclusions**: `/api/auth/*` and `/api/reactions/*` skip auth — don't put protected endpoints there.
-- **Wrangler config**: no `main` field — the Astro Cloudflare adapter handles the Worker entry point. The CI post-build step patches `assets.directory` to `./dist/client` and removes the adapter-generated `dist/server/wrangler.json` so our `wrangler.jsonc` with env definitions is used instead.
+- **Wrangler config**: no `main` field in the source `wrangler.jsonc` — the Astro Cloudflare adapter compiles the Worker entry to `dist/server/entry.mjs` at build time. The CI post-build step patches `main` to the compiled output, sets `assets.directory` to `./dist/client`, and removes the adapter-generated `dist/server/wrangler.json` so our `wrangler.jsonc` with env definitions is used instead.
 - **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
 - **Zod v4**: import from `astro/zod`, not `zod`. Use `z.record(z.string(), z.unknown())`, `z.looseObject()`.
 
