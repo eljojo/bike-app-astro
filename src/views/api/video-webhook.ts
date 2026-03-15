@@ -7,6 +7,7 @@ import { env } from '../../lib/env/env.service';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
+import { persistVideoMetadataToGit } from '../../lib/media/video-completion.webhook';
 
 export async function POST({ request }: APIContext) {
   // Auth: bearer token, NOT session-based (Lambda calls this)
@@ -39,6 +40,18 @@ export async function POST({ request }: APIContext) {
   if (jobId != null) updates.jobId = jobId;
 
   await database.update(videoJobs).set(updates).where(eq(videoJobs.key, key));
+
+  // If status is 'ready', try to persist metadata to git
+  if (status === 'ready') {
+    try {
+      const result = await persistVideoMetadataToGit(key);
+      return jsonResponse({ ok: true, persisted: result.persisted, reason: result.reason });
+    } catch (err) {
+      // Git persistence failed — row stays in D1 for the save pipeline to pick up
+      console.error('Video metadata git persistence failed:', err);
+      return jsonResponse({ ok: true, persisted: false, reason: 'Git commit failed — will retry on next save' });
+    }
+  }
 
   return jsonResponse({ ok: true });
 }
