@@ -22,6 +22,8 @@ import { buildRedirectFileChange } from '../../lib/redirects';
 import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
+import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../lib/media/video-enrichment';
+import { db } from '../../lib/get-db';
 
 export const prerender = false;
 
@@ -62,6 +64,7 @@ interface RouteBuildResult extends BuildResult {
   addedMediaKeys: string[];
   removedMediaKeys: string[];
   slug: string;
+  consumedVideoKeys: string[];
 }
 
 export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSlugValidation & WithAfterCommit<RouteBuildResult> = {
@@ -194,11 +197,18 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
     // Build media.yml and track added/removed keys for shared-keys map
     let addedMediaKeys: string[] = [];
     let removedMediaKeys: string[] = [];
+    let consumedVideoKeys: string[] = [];
     if (update.media) {
       const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
-      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, update.media));
 
-      const merged = mergeMedia(update.media, existingMedia);
+      // Enrich video items with metadata from videoJobs (if transcoding completed)
+      const database = db();
+      const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(update.media, database);
+      consumedVideoKeys = consumedKeys;
+
+      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, enrichedMedia));
+
+      const merged = mergeMedia(enrichedMedia, existingMedia);
       if (merged.length > 0) {
         files.push({ path: `${basePath}/media.yml`, content: serializeYamlFile(merged) });
       }
@@ -233,7 +243,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
       deletePaths.push(parkedPath);
     }
 
-    return { files, deletePaths, isNew, mergedParked, addedMediaKeys, removedMediaKeys, slug: targetSlug };
+    return { files, deletePaths, isNew, mergedParked, addedMediaKeys, removedMediaKeys, slug: targetSlug, consumedVideoKeys };
   },
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
@@ -283,9 +293,10 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
   },
 
   async afterCommit(result, database) {
-    const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug } = result;
+    const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug, consumedVideoKeys } = result;
     const changes = buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'route', routeSlug);
     await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
+    await deleteConsumedVideoJobs(consumedVideoKeys, database);
   },
 };
 
