@@ -80,6 +80,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
      !pathname.startsWith('/api/reactions/') &&
      pathname !== '/api/event' &&
      pathname !== '/api/video/cron' &&
+     pathname !== '/api/video/webhook' &&
      !pathname.startsWith('/api/tiles/'));
 
   if (!isProtected) {
