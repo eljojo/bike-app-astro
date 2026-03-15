@@ -1,14 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * Idempotent setup script for the video pipeline AWS infrastructure.
+ * Idempotent setup script for the video pipeline infrastructure.
+ *
+ * Like Ansible or Terraform — runs from a machine with root AWS + Cloudflare
+ * credentials and configures everything automatically. No interactive prompts.
  *
  * Two phases:
- *   1. ensureSharedResources() — S3 buckets, IAM roles, Lambda, EventBridge
- *   2. configureInstance()     — per-instance CORS, webhook map, secrets, Sippy
+ *   1. (default)            — S3 buckets, IAM roles, Lambda, EventBridge, CI user
+ *   2. configure-instance   — per-instance CORS, webhook, IAM users, Sippy, secrets
  *
- * Every operation checks first, creates/updates only if needed.
- * Uses AWS CLI via child_process (same pattern as blog setup.js uses for wrangler).
+ * IAM users are created with least-privilege policies:
+ *   - whereto-presign-{prefix}  — S3 PutObject on originals bucket (per-prefix)
+ *   - whereto-sippy             — S3 GetObject on outputs bucket (shared)
+ *   - whereto-ci-deploy         — Lambda deploy only (shared)
+ *
+ * Keys are rotated on every run for security.
  *
  * Usage:
  *   node scripts/setup-aws-video.js --region us-east-1 \
@@ -24,53 +31,14 @@
 
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import readline from 'node:readline';
+import { homedir } from 'node:os';
 
 function exitOnSigint() {
   console.log('');
   process.exit(130);
-}
-
-function ask(q) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  return new Promise((resolve) => {
-    let settled = false;
-
-    const cleanup = () => {
-      rl.removeListener('SIGINT', onSigint);
-      rl.removeListener('close', onClose);
-    };
-
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      rl.close();
-      resolve(value);
-    };
-
-    const onSigint = () => {
-      cleanup();
-      rl.close();
-      exitOnSigint();
-    };
-
-    const onClose = () => {
-      if (!settled) {
-        settled = true;
-        cleanup();
-        process.exit(0);
-      }
-    };
-
-    rl.once('SIGINT', onSigint);
-    rl.once('close', onClose);
-    rl.question(q, (answer) => finish(answer));
-  });
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -114,6 +82,160 @@ function log(msg) { console.log(`  ✓ ${msg}`); }
 function logSkip(msg) { console.log(`  · ${msg} (already exists)`); }
 function logAction(msg) { console.log(`  → ${msg}`); }
 
+// --- Auto-Detection ---
+
+function getAwsAccountId() {
+  const identity = awsJson('sts get-caller-identity');
+  return identity?.Account;
+}
+
+function getCloudflareAccountId() {
+  if (process.env.CLOUDFLARE_ACCOUNT_ID) return process.env.CLOUDFLARE_ACCOUNT_ID;
+
+  try {
+    const output = run('npx wrangler whoami 2>&1', { encoding: 'utf-8', stdio: 'pipe' });
+    // Account ID is a 32-char hex string in the table output
+    const match = output.match(/\b([0-9a-f]{32})\b/);
+    if (match) return match[1];
+  } catch { /* wrangler not authenticated */ }
+
+  return null;
+}
+
+function getCloudflareApiToken() {
+  if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
+
+  // Read from wrangler's stored OAuth config
+  const home = homedir();
+  const candidates = [
+    join(home, '.wrangler', 'config', 'default.toml'),
+    join(process.env.XDG_CONFIG_HOME || join(home, '.config'), '.wrangler', 'config', 'default.toml'),
+  ];
+
+  for (const configPath of candidates) {
+    try {
+      const content = readFileSync(configPath, 'utf-8');
+      const match = content.match(/^oauth_token\s*=\s*"(.+)"/m);
+      if (match) return match[1];
+    } catch { /* file not found */ }
+  }
+
+  return null;
+}
+
+// --- IAM User Management ---
+
+/** Create IAM user and attach inline policy. Does NOT touch keys. */
+function ensureIamUserAndPolicy(userName, policyName, policyDocument) {
+  if (!awsExists(`iam get-user --user-name ${userName}`)) {
+    aws(`iam create-user --user-name ${userName}`);
+    log(`Created IAM user: ${userName}`);
+  } else {
+    logSkip(`IAM user: ${userName}`);
+  }
+
+  // Always update policy to ensure latest permissions
+  aws(`iam put-user-policy --user-name ${userName} --policy-name ${policyName} --policy-document '${JSON.stringify(policyDocument)}'`);
+}
+
+/**
+ * Zero-downtime key rotation using AWS's 2-key support.
+ *
+ * 1. Create new key (old key still active — no downtime window)
+ * 2. Return { creds, cleanup }
+ * 3. Caller updates all consumers with new creds
+ * 4. Caller calls cleanup() to delete old key(s)
+ *
+ * If already at the 2-key limit, deletes the oldest first.
+ */
+function rotateKeys(userName) {
+  const existing = awsJson(`iam list-access-keys --user-name ${userName}`);
+  const oldKeys = existing?.AccessKeyMetadata || [];
+
+  // AWS max is 2 keys — if at limit, delete oldest to make room
+  if (oldKeys.length >= 2) {
+    oldKeys.sort((a, b) => new Date(a.CreateDate) - new Date(b.CreateDate));
+    aws(`iam delete-access-key --user-name ${userName} --access-key-id ${oldKeys[0].AccessKeyId}`);
+    logAction(`Deleted oldest key for ${userName} (was at 2-key limit)`);
+    oldKeys.shift();
+  }
+
+  // Create new key while old key remains active
+  const newKey = awsJson(`iam create-access-key --user-name ${userName}`);
+  log(`Created new access key for ${userName}`);
+
+  const creds = {
+    accessKeyId: newKey.AccessKey.AccessKeyId,
+    secretAccessKey: newKey.AccessKey.SecretAccessKey,
+  };
+
+  // Caller invokes after updating all consumers
+  const oldKeyIds = oldKeys.map(k => k.AccessKeyId);
+  function cleanup() {
+    for (const keyId of oldKeyIds) {
+      aws(`iam delete-access-key --user-name ${userName} --access-key-id ${keyId}`);
+    }
+    if (oldKeyIds.length > 0) {
+      log(`Deleted old key(s) for ${userName}`);
+    }
+  }
+
+  return { creds, cleanup };
+}
+
+/** Per-prefix user for S3 presigned uploads. Scoped to prefix path in originals bucket. */
+function ensurePresignUser(prefix, originsBucket) {
+  const userName = `whereto-presign-${prefix}`;
+  ensureIamUserAndPolicy(userName, 'presign-s3-upload', {
+    Version: '2012-10-17',
+    Statement: [{
+      Effect: 'Allow',
+      Action: ['s3:PutObject'],
+      Resource: `arn:aws:s3:::${originsBucket}/${prefix}/*`,
+    }],
+  });
+  return userName;
+}
+
+/** Shared user for R2 Sippy to read transcoded outputs from S3. */
+function ensureSippyUser(outputsBucket) {
+  const userName = 'whereto-sippy';
+  ensureIamUserAndPolicy(userName, 'sippy-s3-read', {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: ['s3:GetObject'],
+        Resource: `arn:aws:s3:::${outputsBucket}/*`,
+      },
+      {
+        Effect: 'Allow',
+        Action: ['s3:ListBucket'],
+        Resource: `arn:aws:s3:::${outputsBucket}`,
+      },
+    ],
+  });
+  return userName;
+}
+
+/** Shared user for GitHub Actions to deploy Lambda code. */
+function ensureCiUser(lambdaName, region, accountId) {
+  const userName = 'whereto-ci-deploy';
+  ensureIamUserAndPolicy(userName, 'ci-lambda-deploy', {
+    Version: '2012-10-17',
+    Statement: [{
+      Effect: 'Allow',
+      Action: [
+        'lambda:UpdateFunctionCode',
+        'lambda:GetFunction',
+        'lambda:PublishVersion',
+      ],
+      Resource: `arn:aws:lambda:${region}:${accountId}:function:${lambdaName}`,
+    }],
+  });
+  return userName;
+}
+
 // --- Shared Resources ---
 
 function ensureBucket(name, region) {
@@ -154,7 +276,6 @@ function ensureLambdaRole() {
   const roleName = 'video-agent-lambda-role';
   if (awsExists(`iam get-role --role-name ${roleName}`)) {
     logSkip(`IAM role: ${roleName}`);
-    // Get the ARN
     const role = awsJson(`iam get-role --role-name ${roleName}`);
     return role.Role.Arn;
   }
@@ -171,7 +292,6 @@ function ensureLambdaRole() {
   aws(`iam create-role --role-name ${roleName} --assume-role-policy-document '${trustPolicy}'`);
   aws(`iam attach-role-policy --role-name ${roleName} --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole`);
 
-  // Inline policy for S3, MediaConvert
   const inlinePolicy = JSON.stringify({
     Version: '2012-10-17',
     Statement: [
@@ -190,7 +310,6 @@ function ensureLambdaRole() {
   aws(`iam put-role-policy --role-name ${roleName} --policy-name video-agent-policy --policy-document '${inlinePolicy}'`);
 
   log(`Created IAM role: ${roleName}`);
-  // Wait for role propagation
   console.log('    Waiting 10s for IAM role propagation...');
   run('sleep 10');
 
@@ -201,7 +320,6 @@ function ensureLambdaRole() {
 function ensureFfprobeLayer(region) {
   const layerName = 'ffprobe';
 
-  // Check if layer already exists in our account
   const existing = aws(`lambda list-layer-versions --layer-name ${layerName} --max-items 1`, { silent: true, allowFailure: true });
   if (existing) {
     const parsed = JSON.parse(existing);
@@ -217,7 +335,6 @@ function ensureFfprobeLayer(region) {
   const tmpDir = run('mktemp -d', { encoding: 'utf-8' }).trim();
   run(`mkdir -p ${tmpDir}/bin`);
 
-  // Download static ffprobe from johnvansickle.com (widely used, x86_64)
   run(
     `curl -sL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar xJ -C ${tmpDir}/bin --strip-components=1 --wildcards '*/ffprobe'`,
     { stdio: 'pipe' },
@@ -238,10 +355,8 @@ function ensureFfprobeLayer(region) {
 function ensureLambda(name, roleArn, config) {
   const { region, originsBucket, outputsBucket, mediaConvertQueue, mediaConvertRole } = config;
 
-  // Check if function exists
   if (awsExists(`lambda get-function --function-name ${name}`)) {
     logSkip(`Lambda function: ${name}`);
-    // Update code
     const lambdaDir = resolve(__dirname, '..', 'aws', 'video-agent');
     run('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
     run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
@@ -250,12 +365,10 @@ function ensureLambda(name, roleArn, config) {
     return;
   }
 
-  // Build the zip
   const lambdaDir = resolve(__dirname, '..', 'aws', 'video-agent');
   run('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
   run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
 
-  // ffprobe Lambda layer — published to our own account
   const layerArn = ensureFfprobeLayer(region);
   const layerArg = `--layers ${layerArn}`;
 
@@ -299,28 +412,24 @@ function ensureEventBridgeRule(lambdaName, region) {
 
   aws(`events put-rule --name ${ruleName} --event-pattern '${pattern}' --state ENABLED`);
 
-  // Get Lambda ARN
   const fnInfo = awsJson(`lambda get-function --function-name ${lambdaName}`);
   const lambdaArn = fnInfo.Configuration.FunctionArn;
 
-  // Add Lambda as target
   const targets = JSON.stringify([{ Id: 'video-agent', Arn: lambdaArn }]);
   aws(`events put-targets --rule ${ruleName} --targets '${targets}'`);
 
-  // Grant EventBridge permission to invoke Lambda
   aws([
     `lambda add-permission --function-name ${lambdaName}`,
     `--statement-id eventbridge-mediaconvert`,
     `--action lambda:InvokeFunction`,
     `--principal events.amazonaws.com`,
     `--source-arn $(aws events describe-rule --name ${ruleName} --query 'Arn' --output text)`,
-  ].join(' '), { allowFailure: true }); // May already exist
+  ].join(' '), { allowFailure: true });
 
   log(`Created EventBridge rule: ${ruleName}`);
 }
 
 function ensureS3Trigger(lambdaName, originsBucket) {
-  // Check if notification configuration already exists
   const existing = awsJson(`s3api get-bucket-notification-configuration --bucket ${originsBucket}`);
   const configs = existing?.LambdaFunctionConfigurations || [];
   if (configs.some(c => c.Id === 'video-agent-upload')) {
@@ -331,7 +440,6 @@ function ensureS3Trigger(lambdaName, originsBucket) {
   const fnInfo = awsJson(`lambda get-function --function-name ${lambdaName}`);
   const lambdaArn = fnInfo.Configuration.FunctionArn;
 
-  // Grant S3 permission to invoke Lambda
   aws([
     `lambda add-permission --function-name ${lambdaName}`,
     `--statement-id s3-upload-trigger`,
@@ -340,7 +448,6 @@ function ensureS3Trigger(lambdaName, originsBucket) {
     `--source-arn arn:aws:s3:::${originsBucket}`,
   ].join(' '), { allowFailure: true });
 
-  // Add notification configuration (merge with existing)
   const newConfig = {
     ...existing,
     LambdaFunctionConfigurations: [
@@ -376,7 +483,6 @@ function ensureBucketCors(bucket, domain) {
     return;
   }
 
-  // Add or merge CORS rule
   if (rules.length === 0) {
     rules.push({
       AllowedHeaders: ['*'],
@@ -385,7 +491,6 @@ function ensureBucketCors(bucket, domain) {
       MaxAgeSeconds: 3600,
     });
   } else {
-    // Append origin to first rule
     rules[0].AllowedOrigins = [...(rules[0].AllowedOrigins || []), origin];
   }
 
@@ -428,7 +533,6 @@ function ensureWebhookSecret(lambdaName, wranglerEnv) {
   aws(`lambda update-function-configuration --function-name ${lambdaName} --environment '${JSON.stringify({ Variables: envVars })}'`, { silent: true });
   log('Generated WEBHOOK_SECRET on Lambda');
 
-  // Set on Worker too
   try {
     const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
     run(`echo "${secret}" | npx wrangler secret put WEBHOOK_SECRET ${envArg}`, {
@@ -460,34 +564,17 @@ function ensureR2Bucket(bucketName) {
   }
 }
 
-async function configureSippy(r2BucketName, outputsBucket, region) {
-  let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  let apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  let awsKeyId = process.env.AWS_ACCESS_KEY_ID;
-  let awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
-
+function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken, awsCreds) {
   if (!accountId) {
-    accountId = (await ask('  Cloudflare Account ID (for Sippy): ')).trim();
-    if (!accountId) {
-      console.warn('  ⚠ Skipping Sippy — no account ID provided');
-      console.warn('    Configure manually in Cloudflare dashboard: R2 → bucket → Settings → Sippy');
-      return;
-    }
+    console.error('  ✗ Cannot configure Sippy — Cloudflare account ID not detected');
+    console.error('    Set CLOUDFLARE_ACCOUNT_ID or authenticate wrangler (npx wrangler login)');
+    process.exit(1);
   }
 
   if (!apiToken) {
-    apiToken = (await ask('  Cloudflare API Token (with R2 admin): ')).trim();
-    if (!apiToken) {
-      console.warn('  ⚠ Skipping Sippy — no API token provided');
-      return;
-    }
-  }
-
-  if (!awsKeyId) {
-    awsKeyId = (await ask('  AWS Access Key ID (for Sippy to read S3): ')).trim();
-  }
-  if (!awsSecret) {
-    awsSecret = (await ask('  AWS Secret Access Key (for Sippy to read S3): ')).trim();
+    console.error('  ✗ Cannot configure Sippy — Cloudflare API token not detected');
+    console.error('    Set CLOUDFLARE_API_TOKEN or authenticate wrangler (npx wrangler login)');
+    process.exit(1);
   }
 
   logAction(`Configuring Sippy: R2 ${r2BucketName} ← S3 ${outputsBucket}`);
@@ -498,8 +585,8 @@ async function configureSippy(r2BucketName, outputsBucket, region) {
         provider: 's3',
         region,
         bucket: outputsBucket,
-        accessKeyId: awsKeyId || '',
-        secretAccessKey: awsSecret || '',
+        accessKeyId: awsCreds.accessKeyId,
+        secretAccessKey: awsCreds.secretAccessKey,
       },
     });
 
@@ -515,68 +602,28 @@ async function configureSippy(r2BucketName, outputsBucket, region) {
   }
 }
 
-async function ensureWranglerSecrets(wranglerEnv) {
+function setWranglerSecret(name, value, wranglerEnv, { force = false } = {}) {
   const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
 
-  const secrets = [
-    { name: 'MEDIACONVERT_ACCESS_KEY_ID', envVar: 'MEDIACONVERT_ACCESS_KEY_ID', prompt: 'AWS Access Key ID for video presigning' },
-    { name: 'MEDIACONVERT_SECRET_ACCESS_KEY', envVar: 'MEDIACONVERT_SECRET_ACCESS_KEY', prompt: 'AWS Secret Access Key for video presigning' },
-    { name: 'S3_ORIGINALS_BUCKET', envVar: 'S3_ORIGINALS_BUCKET', prompt: 'S3 originals bucket name', default: 'bike-video-originals' },
-  ];
-
-  for (const { name, envVar, prompt: promptText, default: defaultVal } of secrets) {
-    // Check if already set
+  if (!force) {
     try {
       const list = run(`npx wrangler secret list ${envArg}`, { encoding: 'utf-8', stdio: 'pipe' });
       if (list.includes(name)) {
         logSkip(`Wrangler secret: ${name}`);
-        continue;
+        return;
       }
-    } catch { /* can't list, try setting anyway */ }
-
-    let value = process.env[envVar];
-    if (!value) {
-      const defaultHint = defaultVal ? ` (default: ${defaultVal})` : '';
-      value = (await ask(`  ${promptText}${defaultHint}: `)).trim();
-      if (!value && defaultVal) value = defaultVal;
-      if (!value) {
-        console.warn(`  ⚠ Skipping ${name} — no value provided`);
-        continue;
-      }
-    }
-
-    try {
-      run(`echo "${value}" | npx wrangler secret put ${name} ${envArg}`, {
-        stdio: 'pipe',
-        encoding: 'utf-8',
-      });
-      log(`Set ${name} on Worker`);
-    } catch (err) {
-      console.warn(`  ⚠ Could not set ${name}: ${err.message}`);
-      console.warn(`    Run manually: echo "VALUE" | npx wrangler secret put ${name} ${envArg}`);
-    }
+    } catch { /* can't list */ }
   }
-}
-
-function setWranglerSecret(name, value, wranglerEnv) {
-  const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
-  try {
-    const list = run(`npx wrangler secret list ${envArg}`, { encoding: 'utf-8', stdio: 'pipe' });
-    if (list.includes(name)) {
-      logSkip(`Wrangler secret: ${name}`);
-      return;
-    }
-  } catch { /* can't list */ }
 
   try {
     run(`echo "${value}" | npx wrangler secret put ${name} ${envArg}`, {
       stdio: 'pipe',
       encoding: 'utf-8',
     });
-    log(`Set ${name}=${value} on Worker`);
+    log(`Set ${name} on Worker (${wranglerEnv || 'default'})`);
   } catch (err) {
     console.warn(`  ⚠ Could not set ${name}: ${err.message}`);
-    console.warn(`    Run manually: echo "${value}" | npx wrangler secret put ${name} ${envArg}`);
+    console.warn(`    Run manually: echo "VALUE" | npx wrangler secret put ${name} ${envArg}`);
   }
 }
 
@@ -589,79 +636,28 @@ function secretInput(repo, name, value) {
   });
 }
 
-async function configureGitHubSecrets(repo) {
-  // Check gh CLI is available
+function storeGitHubSecrets(repo, creds) {
   try {
     run('gh --version', { stdio: 'pipe' });
   } catch {
-    console.warn('  ⚠ gh CLI not found — skipping GitHub Actions secrets');
-    console.warn('    Install: https://cli.github.com/');
-    console.warn('    Then set these secrets manually on your repo:');
-    console.warn('      AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY');
+    console.warn('  ⚠ gh CLI not found — set GitHub secrets manually:');
+    console.warn(`    gh secret set AWS_ACCESS_KEY_ID --repo ${repo}`);
+    console.warn(`    gh secret set AWS_SECRET_ACCESS_KEY --repo ${repo}`);
     return;
   }
 
-  // Check what's already set
-  let secretList = '';
   try {
-    secretList = run(`gh secret list --repo ${repo}`, { encoding: 'utf-8', stdio: 'pipe' });
-  } catch { /* repo may not exist yet */ }
-
-  const hasAccessKey = secretList.includes('AWS_ACCESS_KEY_ID');
-  const hasSecretKey = secretList.includes('AWS_SECRET_ACCESS_KEY');
-
-  if (hasAccessKey && hasSecretKey) {
-    logSkip('GitHub Actions AWS secrets');
-    return;
+    secretInput(repo, 'AWS_ACCESS_KEY_ID', creds.accessKeyId);
+    log(`Set AWS_ACCESS_KEY_ID on ${repo}`);
+  } catch (err) {
+    console.warn(`  ⚠ Failed to set AWS_ACCESS_KEY_ID: ${err.message}`);
   }
 
-  console.log('\n  GitHub Actions needs AWS credentials to deploy the Lambda on each push.');
-  console.log('  Use an IAM user with the AWSLambda_FullAccess policy attached.');
-  console.log('  (You can reuse an existing IAM user — just attach the policy in the IAM console.)\n');
-
-  // Try env first, prompt if missing
-  let accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  let secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!hasAccessKey) {
-    if (accessKeyId) {
-      console.log(`  Using AWS_ACCESS_KEY_ID from environment.\n`);
-    } else {
-      accessKeyId = (await ask('  AWS Access Key ID for CI (Enter to skip): ')).trim();
-      if (!accessKeyId) {
-        console.log('    → skipped. Set later: gh secret set AWS_ACCESS_KEY_ID\n');
-        return;
-      }
-    }
-    try {
-      secretInput(repo, 'AWS_ACCESS_KEY_ID', accessKeyId);
-      log(`Set AWS_ACCESS_KEY_ID on ${repo}`);
-    } catch (err) {
-      console.warn(`  ⚠ Failed to set AWS_ACCESS_KEY_ID: ${err.message}`);
-      return;
-    }
-  } else {
-    logSkip('AWS_ACCESS_KEY_ID');
-  }
-
-  if (!hasSecretKey) {
-    if (secretAccessKey) {
-      console.log(`  Using AWS_SECRET_ACCESS_KEY from environment.\n`);
-    } else {
-      secretAccessKey = (await ask('  AWS Secret Access Key for CI (Enter to skip): ')).trim();
-      if (!secretAccessKey) {
-        console.log('    → skipped. Set later: gh secret set AWS_SECRET_ACCESS_KEY\n');
-        return;
-      }
-    }
-    try {
-      secretInput(repo, 'AWS_SECRET_ACCESS_KEY', secretAccessKey);
-      log(`Set AWS_SECRET_ACCESS_KEY on ${repo}`);
-    } catch (err) {
-      console.warn(`  ⚠ Failed to set AWS_SECRET_ACCESS_KEY: ${err.message}`);
-    }
-  } else {
-    logSkip('AWS_SECRET_ACCESS_KEY');
+  try {
+    secretInput(repo, 'AWS_SECRET_ACCESS_KEY', creds.secretAccessKey);
+    log(`Set AWS_SECRET_ACCESS_KEY on ${repo}`);
+  } catch (err) {
+    console.warn(`  ⚠ Failed to set AWS_SECRET_ACCESS_KEY: ${err.message}`);
   }
 }
 
@@ -683,41 +679,69 @@ function parseArgs(args) {
 
 const args = parseArgs(process.argv.slice(2));
 
-async function main() {
+function main() {
   if (args._command === 'configure-instance') {
-    // Per-instance configuration
     const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1', r2Bucket = 'whereto-bike-videos' } = args;
     if (!prefix || !domain) {
       console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>] [--r2-bucket <name>]');
       process.exit(1);
     }
 
-    console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
-
     const bucket = originsBucket || 'bike-video-originals';
     const outputs = outputsBucket || 'bike-video-outputs';
 
-    // AWS-side
+    console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
+
+    // --- Preflight: verify Cloudflare access before touching keys ---
+    const cfAccountId = getCloudflareAccountId();
+    const cfApiToken = getCloudflareApiToken();
+    if (!cfAccountId || !cfApiToken) {
+      console.error('  ✗ Cloudflare credentials not detected — aborting before any key rotation');
+      console.error('    Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN, or run: npx wrangler login');
+      process.exit(1);
+    }
+    log(`Cloudflare account: ${cfAccountId}`);
+
+    // --- AWS-side ---
+    console.log('\n  AWS:\n');
     ensureBucketCors(bucket, domain);
     updateLambdaWebhookMap(lambdaName, prefix, domain);
     ensureWebhookSecret(lambdaName, wranglerEnv);
 
-    // Cloudflare-side
-    ensureR2Bucket(r2Bucket);
-    await configureSippy(r2Bucket, outputs, region);
-    await ensureWranglerSecrets(wranglerEnv);
-    setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
+    // --- IAM users (create/update policy, then rotate keys) ---
+    console.log('\n  IAM users:\n');
+    const presignUserName = ensurePresignUser(prefix, bucket);
+    const sippyUserName = ensureSippyUser(outputs);
 
-    // Summary
-    console.log('\nInstance configuration complete.\n');
-    console.log('Remaining manual steps:');
-    console.log(`  1. Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`);
-    console.log(`     Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`);
-    console.log(`  2. Verify VIDEO_PREFIX in wrangler.jsonc vars matches: "${prefix}"`);
-    console.log(`  3. Set VIDEO_PREFIX=${prefix} in CI env vars for the build step`);
-    console.log(`  4. Deploy: make deploy`);
+    // Rotate keys — old keys stay active until consumers are updated
+    const presign = rotateKeys(presignUserName);
+    const sippy = rotateKeys(sippyUserName);
+
+    // --- Cloudflare-side (update Sippy with new sippy key) ---
+    console.log('\n  Cloudflare:\n');
+    ensureR2Bucket(r2Bucket);
+    configureSippy(r2Bucket, outputs, region, cfAccountId, cfApiToken, sippy.creds);
+    sippy.cleanup(); // old sippy key no longer needed
+
+    // --- Wrangler secrets (update presign creds on Worker) ---
+    console.log('\n  Wrangler secrets:\n');
+    setWranglerSecret('MEDIACONVERT_ACCESS_KEY_ID', presign.creds.accessKeyId, wranglerEnv, { force: true });
+    setWranglerSecret('MEDIACONVERT_SECRET_ACCESS_KEY', presign.creds.secretAccessKey, wranglerEnv, { force: true });
+    setWranglerSecret('S3_ORIGINALS_BUCKET', bucket, wranglerEnv);
+    setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
+    presign.cleanup(); // old presign key no longer needed
+
+    // --- Summary ---
+    console.log('\n  Done.\n');
+    console.log('  Remaining manual steps:');
+    console.log(`    1. Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`);
+    console.log(`       Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`);
+    console.log(`    2. Verify VIDEO_PREFIX in wrangler.jsonc vars matches: "${prefix}"`);
+    console.log(`    3. Set VIDEO_PREFIX=${prefix} in CI env vars for the build step`);
+    console.log(`    4. Deploy: make deploy`);
+    console.log('');
   } else {
-    // Shared resources setup
+    // --- Shared resources setup ---
     const region = args.region || 'us-east-1';
     const originsBucket = args.originalsBucket || 'bike-video-originals';
     const outputsBucket = args.outputsBucket || 'bike-video-outputs';
@@ -725,18 +749,22 @@ async function main() {
 
     console.log(`\nSetting up shared video pipeline resources (${region})\n`);
 
+    const awsAccountId = getAwsAccountId();
+    if (!awsAccountId) {
+      console.error('  ✗ Could not detect AWS account ID. Is AWS CLI configured?');
+      process.exit(1);
+    }
+
     ensureBucket(originsBucket, region);
     ensureBucket(outputsBucket, region);
 
     const mcRole = ensureMediaConvertRole(region);
     const lambdaRoleArn = ensureLambdaRole();
 
-    // Get MediaConvert queue (default queue)
     let mcQueue = '';
     try {
-      const queues = awsJson(`mediaconvert describe-endpoints --region ${region}`);
-      // The default queue ARN follows a pattern; we'll use the endpoint for now
-      mcQueue = `arn:aws:mediaconvert:${region}:${awsJson('sts get-caller-identity')?.Account}:queues/Default`;
+      awsJson(`mediaconvert describe-endpoints --region ${region}`);
+      mcQueue = `arn:aws:mediaconvert:${region}:${awsAccountId}:queues/Default`;
     } catch {
       console.warn('  ⚠ Could not determine MediaConvert queue ARN');
     }
@@ -746,13 +774,15 @@ async function main() {
       originsBucket,
       outputsBucket,
       mediaConvertQueue: mcQueue,
-      mediaConvertRole: `arn:aws:iam::${awsJson('sts get-caller-identity')?.Account}:role/${mcRole}`,
+      mediaConvertRole: `arn:aws:iam::${awsAccountId}:role/${mcRole}`,
     });
 
     ensureEventBridgeRule(lambdaName, region);
     ensureS3Trigger(lambdaName, originsBucket);
 
-    // Configure GitHub Actions secrets for CI Lambda deploy
+    // --- CI deployment user ---
+    // Verify GitHub access BEFORE rotating keys (P2 fix: don't invalidate old keys
+    // if we can't store the new ones)
     let ghRepo = args.ghRepo;
     if (!ghRepo) {
       try {
@@ -761,11 +791,26 @@ async function main() {
         if (match) ghRepo = match[1];
       } catch { /* not a git repo or no remote */ }
     }
-    if (ghRepo) {
-      await configureGitHubSecrets(ghRepo);
+
+    let hasGhCli = false;
+    try {
+      run('gh --version', { stdio: 'pipe' });
+      hasGhCli = true;
+    } catch { /* gh not available */ }
+
+    console.log('\n  CI deployment IAM user:\n');
+    const ciUserName = ensureCiUser(lambdaName, region, awsAccountId);
+
+    if (ghRepo && hasGhCli) {
+      const ci = rotateKeys(ciUserName);
+      storeGitHubSecrets(ghRepo, ci.creds);
+      ci.cleanup(); // old CI key no longer needed
+    } else if (!ghRepo) {
+      console.log('  ⚠ Could not detect GitHub repo — skipping CI key rotation');
+      console.log('    Run with --gh-repo owner/repo to set up CI credentials');
     } else {
-      console.log('\n  ⚠ Could not detect GitHub repo — skipping CI secrets');
-      console.log('    Run with --gh-repo owner/repo or set AWS secrets in GitHub manually');
+      console.log('  ⚠ gh CLI not found — skipping CI key rotation');
+      console.log('    Install: https://cli.github.com/');
     }
 
     console.log('\nShared resources setup complete.\n');
