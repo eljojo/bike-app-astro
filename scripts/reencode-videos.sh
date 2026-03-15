@@ -43,10 +43,10 @@ if $CLEANUP; then
     echo -n "  $key-av1.mp4 ... "
     if aws s3 rm "$av1" --quiet 2>/dev/null; then
       echo "deleted"
-      ((deleted++))
+      deleted=$((deleted + 1))
     else
       echo "not found"
-      ((missing++))
+      missing=$((missing + 1))
     fi
   done
   echo ""
@@ -106,16 +106,16 @@ for old in "${!KEYS[@]}"; do
 
   if $DRY_RUN; then
     echo "would copy"
-    ((copied++))
+    copied=$((copied + 1))
     continue
   fi
 
   if aws s3 cp "s3://$SRC_BUCKET/$old" "s3://$DST_BUCKET/$PREFIX/$new" --quiet 2>/dev/null; then
     echo "ok"
-    ((copied++))
+    copied=$((copied + 1))
   else
     echo "FAILED"
-    ((failed++))
+    failed=$((failed + 1))
   fi
 done
 
