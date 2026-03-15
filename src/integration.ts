@@ -154,6 +154,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
             define: {
               __APP_BRANCH__: JSON.stringify(detectBranch()),
               __CITY__: JSON.stringify(CITY),
+              __VIDEO_PREFIX__: JSON.stringify(process.env.VIDEO_PREFIX || CITY),
             },
             plugins: [buildDataPlugin({ consumerRoot })],
             build: {

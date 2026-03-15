@@ -552,6 +552,28 @@ async function ensureWranglerSecrets(wranglerEnv) {
   }
 }
 
+function setWranglerSecret(name, value, wranglerEnv) {
+  const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
+  try {
+    const list = run(`npx wrangler secret list ${envArg}`, { encoding: 'utf-8', stdio: 'pipe' });
+    if (list.includes(name)) {
+      logSkip(`Wrangler secret: ${name}`);
+      return;
+    }
+  } catch { /* can't list */ }
+
+  try {
+    run(`echo "${value}" | npx wrangler secret put ${name} ${envArg}`, {
+      stdio: 'pipe',
+      encoding: 'utf-8',
+    });
+    log(`Set ${name}=${value} on Worker`);
+  } catch (err) {
+    console.warn(`  ⚠ Could not set ${name}: ${err.message}`);
+    console.warn(`    Run manually: echo "${value}" | npx wrangler secret put ${name} ${envArg}`);
+  }
+}
+
 // --- GitHub Actions CI ---
 
 function secretInput(repo, name, value) {
@@ -678,14 +700,16 @@ async function main() {
     ensureR2Bucket(r2Bucket);
     await configureSippy(r2Bucket, outputs, region);
     await ensureWranglerSecrets(wranglerEnv);
+    setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
 
     // Summary
     console.log('\nInstance configuration complete.\n');
     console.log('Remaining manual steps:');
     console.log(`  1. Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`);
     console.log(`     Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`);
-    console.log(`  2. Verify videos_cdn_url in city config points to https://videos.whereto.bike`);
-    console.log(`  3. Deploy: make deploy`);
+    console.log(`  2. Verify VIDEO_PREFIX in wrangler.jsonc vars matches: "${prefix}"`);
+    console.log(`  3. Set VIDEO_PREFIX=${prefix} in CI env vars for the build step`);
+    console.log(`  4. Deploy: make deploy`);
   } else {
     // Shared resources setup
     const region = args.region || 'us-east-1';

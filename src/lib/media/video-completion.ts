@@ -6,14 +6,14 @@
  * These helpers centralize that naming so it's defined once.
  */
 
-import { CITY } from '../config/config';
+import { VIDEO_PREFIX } from '../config/config';
 
 /** H.264 output key — used to check if transcoding is complete. */
 export function h264OutputKey(key: string): string {
-  return `${CITY}/${key}/${key}-h264.mp4`;
+  return `${VIDEO_PREFIX}/${key}/${key}-h264.mp4`;
 }
 
 /** Poster frame key — MediaConvert frame capture output. */
 export function posterKeyForVideo(key: string): string {
-  return `${CITY}/${key}/${key}-poster.0000000.jpg`;
+  return `${VIDEO_PREFIX}/${key}/${key}-poster.0000000.jpg`;
 }

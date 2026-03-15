@@ -7,19 +7,19 @@ import { videoJobs } from '../../db/schema';
 import { createTranscodeService, type TranscodeService } from '../../lib/media/transcode.service';
 import { randomKey } from '../../lib/media/storage.adapter-r2';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { CITY } from '../../lib/config/config';
+import { VIDEO_PREFIX } from '../../lib/config/config';
 import { authorize } from '../../lib/auth/authorize';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/auth/rate-limit';
 
 /**
  * Generate a unique 8-char key, checking S3 for collisions.
- * Checks the prefixed S3 path ({CITY}/{key}) to match the Lambda's expectations.
+ * Checks the prefixed S3 path ({VIDEO_PREFIX}/{key}) to match the Lambda's expectations.
  */
 async function generateVideoKey(service: TranscodeService): Promise<string> {
   const maxAttempts = 10;
   for (let i = 0; i < maxAttempts; i++) {
     const key = randomKey();
-    const s3Key = `${CITY}/${key}`;
+    const s3Key = `${VIDEO_PREFIX}/${key}`;
     const exists = await service.headObject(s3Key);
     if (!exists) return key;
   }
@@ -85,7 +85,7 @@ export async function POST({ request, locals }: APIContext) {
   try {
     const service = await createTranscodeService(env);
     const key = await generateVideoKey(service);
-    const s3Key = `${CITY}/${key}`;
+    const s3Key = `${VIDEO_PREFIX}/${key}`;
     const uploadUrl = await service.presignUpload(s3Key, contentType);
 
     const database = db();

@@ -24,3 +24,20 @@ function resolveCity(): string {
 
 export const CITY: string = resolveCity();
 export const cityDir = path.join(CONTENT_DIR, CITY);
+
+/**
+ * Video storage prefix — the S3/R2 path prefix for this instance's videos.
+ *
+ * Defaults to CITY (e.g. "ottawa"). Override with VIDEO_PREFIX env var to
+ * isolate environments: "ottawa-staging" keeps staging videos separate from
+ * production while sharing the same bucket and CDN.
+ *
+ * The Lambda webhook map is keyed by this prefix, so each value must have
+ * a corresponding entry in the Lambda's WEBHOOK_MAP.
+ */
+function resolveVideoPrefix(): string {
+  if (typeof __VIDEO_PREFIX__ !== 'undefined') return __VIDEO_PREFIX__;
+  return process.env.VIDEO_PREFIX || CITY;
+}
+
+export const VIDEO_PREFIX: string = resolveVideoPrefix();
