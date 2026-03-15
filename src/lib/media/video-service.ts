@@ -27,8 +27,8 @@ export function videoPlaybackSources(blobKey: string): VideoSource[] {
   const base = `${VIDEOS_CDN}/${VIDEO_PREFIX}/${blobKey}/${blobKey}`;
   return [
     { src: `${base}.m3u8`, type: 'application/vnd.apple.mpegurl' },
-    { src: `${base}-h265.mp4`, type: 'video/mp4; codecs=hvc1' },
-    { src: `${base}-h264.mp4`, type: 'video/mp4; codecs=avc1' },
+    { src: `${base}-h265.mp4`, type: 'video/mp4; codecs="hvc1"' },
+    { src: `${base}-h264.mp4`, type: 'video/mp4' },
   ];
 }
 

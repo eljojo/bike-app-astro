@@ -10,7 +10,7 @@ describe('videoPlaybackSources', () => {
     expect(sources[0].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123.m3u8`);
     expect(sources[1].type).toContain('hvc1');
     expect(sources[1].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123-h265.mp4`);
-    expect(sources[2].type).toContain('avc1');
+    expect(sources[2].type).toBe('video/mp4');
     expect(sources[2].src).toContain(`/${VIDEO_PREFIX}/abc123/abc123-h264.mp4`);
   });
 });
