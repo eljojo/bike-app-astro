@@ -59,8 +59,8 @@ function run(cmd, opts = {}) {
 
 function aws(cmd, { silent = false, allowFailure = false } = {}) {
   try {
-    return run(`aws ${cmd}`, {
-      stdio: silent ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'inherit'],
+    return run(`aws --no-cli-pager ${cmd}`, {
+      stdio: silent ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'pipe', 'inherit'],
     });
   } catch (err) {
     if (allowFailure) return null;
@@ -141,8 +141,12 @@ function ensureIamUserAndPolicy(userName, policyName, policyDocument) {
     logSkip(`IAM user: ${userName}`);
   }
 
-  // Always update policy to ensure latest permissions
-  aws(`iam put-user-policy --user-name ${userName} --policy-name ${policyName} --policy-document '${JSON.stringify(policyDocument)}'`);
+  // Always update policy to ensure latest permissions — pass JSON via stdin to avoid shell quoting issues
+  safeExec(`aws iam put-user-policy --user-name ${userName} --policy-name ${policyName} --policy-document file:///dev/stdin`, {
+    input: JSON.stringify(policyDocument),
+    stdio: ['pipe', 'pipe', 'inherit'],
+    encoding: 'utf-8',
+  });
 }
 
 /**
