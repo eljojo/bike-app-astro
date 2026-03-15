@@ -9,6 +9,7 @@
  * return video source arrays for your transcoding/storage service.
  */
 import { getCityConfig } from '../config/city-config';
+import { CITY } from '../config/config';
 
 const VIDEOS_CDN = getCityConfig().videos_cdn_url;
 
@@ -18,7 +19,7 @@ interface VideoSource {
 }
 
 export function videoPlaybackSources(blobKey: string): VideoSource[] {
-  const base = `${VIDEOS_CDN}/${blobKey}/${blobKey}`;
+  const base = `${VIDEOS_CDN}/${CITY}/${blobKey}/${blobKey}`;
   return [
     { src: `${base}-av1.mp4`, type: 'video/mp4; codecs=av01.0.05M.08' },
     { src: `${base}-h264.mp4`, type: 'video/mp4; codecs=avc1' },
@@ -26,19 +27,11 @@ export function videoPlaybackSources(blobKey: string): VideoSource[] {
 }
 
 export function videoFallbackUrl(blobKey: string): string {
-  return `${VIDEOS_CDN}/${blobKey}/${blobKey}-h264.mp4`;
+  return `${VIDEOS_CDN}/${CITY}/${blobKey}/${blobKey}-h264.mp4`;
 }
 
-/**
- * Poster URL derived from the video key — for NEW videos transcoded
- * by MediaConvert, which outputs the frame capture at
- * {key}/{key}-poster.0000000.jpg in the outputs bucket.
- *
- * Old videos may have a separate poster_key (regular R2 blob).
- * Callers should check poster_key first and use imageUrl() for those.
- */
 export function videoPosterUrl(videoKey: string): string {
-  return `${VIDEOS_CDN}/${videoKey}/${videoKey}-poster.0000000.jpg`;
+  return `${VIDEOS_CDN}/${CITY}/${videoKey}/${videoKey}-poster.0000000.jpg`;
 }
 
 export function videoDisplaySize(width: number, height: number): { width: number; height: number } {
