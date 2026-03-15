@@ -4,7 +4,7 @@ description: Run a personal ride journal powered by the whereto.bike engine.
 ---
 
 :::caution[Experimental]
-The blog feature is experimental. The setup process, data formats, and APIs may change between releases. It works well in production — [eljojo.bike](https://eljojo.bike) runs on it — but expect rough edges and limited documentation.
+Deploying your own blog instance is experimental. The setup process, data formats, and APIs may change between releases. The features — rides, tours, video, photos — work well in production. [eljojo.bike](https://eljojo.bike) runs on this engine.
 :::
 
 The bike blog is a personal ride journal built on the same engine as the cycling wiki. Your GPX files become pages. Your rides are organized into tours. There's no algorithmic feed, no ads, no follower count — just your rides, your photos, and your words.
@@ -17,6 +17,7 @@ The bike blog is a personal ride journal built on the same engine as the cycling
 - A [Cloudflare](https://cloudflare.com) account (free tier works)
 - A GitHub account and repository for your ride data
 - A domain name
+- An AWS account (optional — needed for video uploads)
 
 :::note[Private repo]
 Your ride data repo doesn't need to be public. eljojo.bike uses a private GitHub repo. The blog engine reads from it via a personal access token you configure.
@@ -35,132 +36,39 @@ The scaffolder will prompt you to install dependencies. If you skipped that, run
 
 This copies all the templates, sets your domain and timezone, and wires up the Astro config.
 
-## Run the interactive setup
+## Run the setup
 
 ```bash
 npm run setup
 ```
 
-The setup script walks you through provisioning all required cloud resources:
+The setup script walks you through provisioning all required cloud resources. It's idempotent — run it again any time to pick up where you left off or add something you skipped.
 
-1. **Cloudflare resources** — creates a D1 database, an R2 bucket, and a KV namespace using `wrangler`. If you don't have `wrangler` installed, it will prompt you to install it or skip and configure manually.
-2. **GitHub secrets** — sets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `GOOGLE_MAPS_STATIC_API_KEY` on your repo using the `gh` CLI.
-3. **Worker secrets** — prompts for optional API keys (Thunderforest, RideWithGPS, Google Places) and sets them on your Cloudflare Worker via `wrangler secret put`. Skip any you don't have yet.
-4. **CDN domain** — sets the public URL for your R2 bucket (`R2_PUBLIC_URL`) automatically. This makes your photos accessible at `https://cdn.yourdomain.com`.
+### Step 1: Cloudflare
 
-You can run `npm run setup` multiple times — it skips anything already configured.
+Creates a D1 database, an R2 bucket, and a KV namespace using `wrangler deploy --x-provision`. If you don't have `wrangler` installed, it'll prompt you to install it or skip and configure manually.
 
-## Required credentials
+### Step 2: GitHub
 
-These are needed for the blog to function.
+Creates a private repo (if needed) and sets deploy secrets (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GOOGLE_MAPS_STATIC_API_KEY`) using the `gh` CLI.
 
-### GITHUB_TOKEN
+### Step 3: API keys
 
-A GitHub personal access token used by the Worker to save ride edits back to your data repo.
+Prompts for optional API keys one at a time — Thunderforest (map tiles), RideWithGPS, Google Places, Strava, SES (login emails). Press Enter to skip any you don't have yet. Auto-detects values it can derive from your setup (R2 bucket name, account ID, git remote).
 
-- Go to [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens)
-- Create a **fine-grained token** scoped to your blog data repo
-- Permissions: **Contents → Read and write**
+After the prompts, the script sets up your CDN domain automatically — a custom domain on your R2 bucket so photos are served at `https://cdn.yourdomain.com`.
 
-Set it: `wrangler secret put GITHUB_TOKEN`
+### Step 4: Video uploads (optional)
 
-### R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY
+If you have an AWS account with CLI access configured, the setup script can provision the entire video transcoding pipeline. This creates S3 buckets, a Lambda function, IAM roles, and connects everything together. You don't need to touch the AWS console.
 
-API credentials for your R2 bucket, used to generate presigned upload URLs for photos.
+The video step:
+- Derives a prefix from your git remote (e.g., `eljojo_bike-blog`)
+- Creates shared AWS resources (S3 buckets, Lambda, MediaConvert roles) — skips anything that already exists
+- Configures per-instance settings (CORS, webhook routing, IAM credentials, R2 Sippy)
+- Sets wrangler secrets and GitHub Actions variables
 
-- Cloudflare Dashboard → R2 → **Manage R2 API Tokens** → Create API token
-- Permissions: **Object Read & Write**
-- Scope to your blog's bucket
-- Copy the **Access Key ID** and **Secret Access Key**
-
-Set them:
-```bash
-wrangler secret put R2_ACCESS_KEY_ID
-wrangler secret put R2_SECRET_ACCESS_KEY
-```
-
-### R2_PUBLIC_URL
-
-The public URL of your R2 bucket, used to serve photos. Typically `https://cdn.yourdomain.com`.
-
-The `npm run setup` script configures this automatically. If you need to set it manually: `wrangler secret put R2_PUBLIC_URL`
-
-### CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
-
-Used by GitHub Actions to deploy your Worker on every push.
-
-- Create an API token with **Workers:Edit**, **D1:Edit**, and **Workers R2 Storage:Edit** permissions
-- Find your account ID in the Cloudflare Dashboard sidebar
-
-Set as GitHub repo secrets (Settings → Secrets → Actions):
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-The setup script can set these for you if you have the `gh` CLI installed.
-
-## Optional integrations
-
-These enhance the blog but aren't required to get started.
-
-### THUNDERFOREST_API_KEY
-
-Renders interactive map tiles (cycling and outdoors layers) on ride pages. Without this key, maps won't display.
-
-- Sign up at [thunderforest.com](https://www.thunderforest.com)
-- Dashboard → **API key**
-
-Set it: `wrangler secret put THUNDERFOREST_API_KEY`
-
-### GOOGLE_MAPS_STATIC_API_KEY
-
-Generates static map thumbnail images for ride cards on the homepage and tour pages. Without this, ride cards show without a map preview.
-
-- [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create API Key
-- Restrict to: **Maps Static API**
-
-Set as a GitHub Actions secret: `GOOGLE_MAPS_STATIC_API_KEY`
-
-The CI pipeline uses this key when building map thumbnails.
-
-### STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET
-
-Import rides from [Strava](https://www.strava.com) — browse your recent activities in the ride editor, pick one, and it pulls the GPX track and photos automatically.
-
-- Go to [strava.com/settings/api](https://www.strava.com/settings/api) and create an application
-- Set the **Authorization Callback Domain** to your blog's domain
-- Copy the **Client ID** and **Client Secret**
-
-Set them:
-```bash
-wrangler secret put STRAVA_CLIENT_ID
-wrangler secret put STRAVA_CLIENT_SECRET
-```
-
-Once configured, go to your admin panel and click **Connect Strava** to authorize. Then use **Import from Strava** when creating a new ride.
-
-Photos from Strava activities are downloaded to your R2 bucket and their GPS coordinates are estimated by interpolating timestamps against the GPX track.
-
-### RWGPS_API_KEY and RWGPS_AUTH_TOKEN
-
-Allows importing rides directly from [RideWithGPS](https://ridewithgps.com) into the admin editor.
-
-- Apply for API access at [ridewithgps.com/api](https://ridewithgps.com/api)
-- Both keys are provided together
-
-Set them:
-```bash
-wrangler secret put RWGPS_API_KEY
-wrangler secret put RWGPS_AUTH_TOKEN
-```
-
-### GOOGLE_PLACES_API_KEY
-
-Auto-populates place details when adding places to your blog. Not needed for basic ride journaling.
-
-- [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create API Key
-- Restrict to: **Places API (New)**
-
-Set it: `wrangler secret put GOOGLE_PLACES_API_KEY`
+See [Video uploads](#video-uploads) below for how video works once it's set up, or the [video pipeline reference](/experimental/video-pipeline/) for technical details.
 
 ## Add your first ride
 
@@ -231,6 +139,65 @@ When enabled, the build process removes all track points within the radius and s
 
 Each ride can override the default with `privacy_zone: true` or `privacy_zone: false` in its sidecar frontmatter. Rides imported from Strava default to `false` since Strava applies its own privacy zone.
 
+## Video uploads
+
+When video is set up, you can upload ride videos directly from the ride editor in the admin panel. Here's what happens behind the scenes:
+
+1. The browser uploads the video to S3 via a presigned URL
+2. An S3 trigger invokes a Lambda function that extracts metadata (dimensions, duration, GPS, capture date) using ffprobe
+3. Lambda submits a MediaConvert job that produces HLS adaptive streaming (two H.265 tiers) and an H.264 MP4 fallback
+4. When transcoding completes, an EventBridge rule triggers the Lambda again, which sends a webhook to your Worker
+5. The Worker updates the ride's video status in D1
+
+Videos are served via Cloudflare R2 with Sippy — R2 pulls transcoded files from S3 on first request and caches them at the edge. No manual file copying needed.
+
+Each blog instance gets its own prefix in S3 (e.g., `eljojo_bike-blog/abc12345`), so multiple instances can share the same AWS resources safely.
+
+For the full technical reference, see the [video pipeline](/experimental/video-pipeline/) page.
+
+## Credentials reference
+
+The setup script configures most of these automatically. This table is a reference for manual setup or troubleshooting.
+
+### Required
+
+| Secret | Purpose | How to get it |
+|--------|---------|---------------|
+| `GITHUB_TOKEN` | Save ride edits back to your data repo | [Personal access tokens](https://github.com/settings/personal-access-tokens) — fine-grained, Contents: Read and write |
+| `R2_ACCESS_KEY_ID` | Presigned upload URLs for photos | Cloudflare Dashboard → R2 → Manage R2 API Tokens → Object Read & Write |
+| `R2_SECRET_ACCESS_KEY` | Paired with R2 access key | Same token as above |
+| `R2_PUBLIC_URL` | CDN URL for serving photos (e.g., `https://cdn.yourdomain.com`) | Set automatically by setup script |
+| `CLOUDFLARE_API_TOKEN` | GitHub Actions deploys your Worker | [API Tokens](https://dash.cloudflare.com/profile/api-tokens) — Workers:Edit, D1:Edit, R2 Storage:Edit |
+| `CLOUDFLARE_ACCOUNT_ID` | Paired with API token | Cloudflare Dashboard sidebar |
+
+### Optional integrations
+
+| Secret | Purpose | How to get it |
+|--------|---------|---------------|
+| `THUNDERFOREST_API_KEY` | Interactive map tiles | [thunderforest.com](https://www.thunderforest.com) → Dashboard → API key |
+| `GOOGLE_MAPS_STATIC_API_KEY` | Static map thumbnails on ride cards | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Maps Static API |
+| `STRAVA_CLIENT_ID` | Import rides from Strava | [strava.com/settings/api](https://www.strava.com/settings/api) → Create app |
+| `STRAVA_CLIENT_SECRET` | Paired with Strava client ID | Same app page |
+| `RWGPS_API_KEY` | Import rides from RideWithGPS | [ridewithgps.com/api](https://ridewithgps.com/api) |
+| `RWGPS_AUTH_TOKEN` | Paired with RWGPS API key | Provided alongside API key |
+| `GOOGLE_PLACES_API_KEY` | Auto-populate place details | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Places API (New) |
+| `SES_ACCESS_KEY_ID` | Send login emails via Amazon SES | IAM user with AmazonSESFullAccess policy |
+| `SES_SECRET_ACCESS_KEY` | Paired with SES access key | Same IAM user |
+| `SES_REGION` | AWS region for SES (e.g., `us-east-1`) | SES console top-right corner |
+| `SES_FROM` | From address for login emails | Must be verified in SES |
+
+### Video (set automatically by Step 4)
+
+| Secret | Purpose |
+|--------|---------|
+| `MEDIACONVERT_ACCESS_KEY_ID` | S3 presigned uploads for video |
+| `MEDIACONVERT_SECRET_ACCESS_KEY` | Paired with access key |
+| `S3_ORIGINALS_BUCKET` | S3 bucket name for raw uploads |
+| `WEBHOOK_SECRET` | Lambda → Worker webhook auth |
+| `VIDEO_PREFIX` | GitHub Actions variable — identifies your videos in S3 |
+
+All secrets are set via `wrangler secret put <NAME>`. GitHub secrets are set via the repo's Settings → Secrets → Actions.
+
 ## Local development
 
 Set `RUNTIME=local` in your `.env` file to run without any cloud dependencies:
@@ -249,3 +216,16 @@ npm run dev
 ```
 
 The local adapter swaps Cloudflare D1 for SQLite, R2 for local filesystem storage, and GitHub API for direct file writes. Everything works offline.
+
+## Updating your blog
+
+When a new version of the blog engine is released:
+
+```bash
+npm update whereto-bike
+npm run sync
+```
+
+The `sync` command regenerates your CI workflows and copies updated templates from the engine. Review the changes in `git diff` before committing.
+
+Re-run `npm run setup` if the update introduces new secrets or configuration. The script skips anything already configured — it's safe to run repeatedly.
