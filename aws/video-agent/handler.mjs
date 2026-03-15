@@ -165,7 +165,9 @@ async function getMediaConvertEndpoint() {
   return cachedEndpoint;
 }
 
-export function buildJobDefinition(key, { width, height }) {
+const MAX_DURATION_SECONDS = 180;
+
+export function buildJobDefinition(key, { width, height, duration }) {
   const { S3_ORIGINALS_BUCKET, S3_OUTPUTS_BUCKET, MEDIACONVERT_QUEUE, MEDIACONVERT_ROLE } = cfg();
   const big = outputSize(width, height);
   const thumb = thumbSize(width, height);
@@ -194,6 +196,9 @@ export function buildJobDefinition(key, { width, height }) {
         VideoSelector: { Rotate: 'AUTO' },
         AudioSelectors: { 'Audio Selector 1': { DefaultSelection: 'DEFAULT' } },
         TimecodeSource: 'ZEROBASED',
+        ...(duration > MAX_DURATION_SECONDS && {
+          InputClippings: [{ EndTimecode: '00:03:00:00' }],
+        }),
       }],
       TimecodeConfig: { Source: 'ZEROBASED' },
       OutputGroups: [
@@ -410,16 +415,7 @@ async function handleS3Event(event) {
 
   console.log(`Probe result: ${probe.width}x${probe.height}, ${probe.duration}s, ${probe.orientation}`);
 
-  // 2. Reject videos longer than 3 minutes
-  const MAX_DURATION_SECONDS = 180;
-  if (probe.duration > MAX_DURATION_SECONDS) {
-    const msg = `Video too long: ${Math.round(probe.duration)}s (max ${MAX_DURATION_SECONDS}s)`;
-    console.warn(msg);
-    await postWebhook(prefix, { key: videoKey, status: 'failed', error: msg });
-    return { statusCode: 400, body: msg };
-  }
-
-  // 3. Create MediaConvert job
+  // 2. Create MediaConvert job
   let jobId;
   try {
     const { MediaConvertClient, CreateJobCommand } = await getMcClient();
