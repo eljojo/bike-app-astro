@@ -1,5 +1,5 @@
-import { setSegmentTranslations, buildSegmentTranslations } from '../src/lib/i18n/path-translations';
-import type { LocalePageWithSegments } from '../src/lib/i18n/path-translations';
+import { setSegmentTranslations, buildSegmentTranslations } from '../src/lib/i18n/segment-registry';
+import type { LocalePageWithSegments } from '../src/lib/i18n/segment-registry';
 
 // Initialize segment translations for all tests, mirroring the data
 // that i18n-routes.ts colocates on route definitions at build time.
