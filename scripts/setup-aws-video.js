@@ -360,8 +360,14 @@ function ensureS3Trigger(lambdaName, originsBucket) {
 // --- Per-Instance Configuration ---
 
 function ensureBucketCors(bucket, domain) {
-  const existing = awsJson(`s3api get-bucket-cors --bucket ${bucket}`) || { CORSRules: [] };
-  const rules = existing.CORSRules || [];
+  let existing;
+  try {
+    existing = awsJson(`s3api get-bucket-cors --bucket ${bucket}`);
+  } catch {
+    // No CORS config yet — start fresh
+    existing = null;
+  }
+  const rules = existing?.CORSRules || [];
 
   const origin = `https://${domain}`;
   const hasOrigin = rules.some(r => r.AllowedOrigins?.includes(origin));
