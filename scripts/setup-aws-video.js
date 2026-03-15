@@ -17,13 +17,12 @@
  *
  * Keys are rotated on every run for security.
  *
- * Usage:
- *   node scripts/setup-aws-video.js --region us-east-1 \
- *     --originals-bucket bike-video-originals \
- *     --outputs-bucket bike-video-outputs \
- *     --lambda-name video-agent \
- *     --gh-repo owner/repo
+ * Usage (run inside nix develop):
+ *   make setup-video
+ *   make setup-video ARGS="configure-instance --prefix ottawa --domain ottawabybike.ca --wrangler-env production"
  *
+ * Or directly:
+ *   node scripts/setup-aws-video.js
  *   node scripts/setup-aws-video.js configure-instance \
  *     --prefix ottawa --domain ottawabybike.ca \
  *     --wrangler-env production
@@ -43,7 +42,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // --- Helpers ---
 
-function run(cmd, opts = {}) {
+function safeExec(cmd, opts = {}) {
   try {
     return execSync(cmd, opts);
   } catch (err) {
@@ -54,13 +53,15 @@ function run(cmd, opts = {}) {
   }
 }
 
+function run(cmd, opts = {}) {
+  return safeExec(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', ...opts }).trim();
+}
+
 function aws(cmd, { silent = false, allowFailure = false } = {}) {
   try {
-    const result = run(`aws ${cmd}`, {
-      encoding: 'utf-8',
+    return run(`aws ${cmd}`, {
       stdio: silent ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'inherit'],
     });
-    return result.trim();
   } catch (err) {
     if (allowFailure) return null;
     throw err;
@@ -87,20 +88,24 @@ function getAwsAccountId() {
   return identity?.Account;
 }
 
-function wranglerCmd() {
+function commandExists(cmd) {
   try {
-    run('which wrangler', { stdio: 'pipe' });
-    return 'wrangler';
+    safeExec(`which ${cmd}`, { stdio: 'pipe' });
+    return true;
   } catch {
-    return 'npx wrangler';
+    return false;
   }
+}
+
+function wranglerCmd() {
+  return commandExists('wrangler') ? 'wrangler' : 'npx wrangler';
 }
 
 function getCloudflareAccountId() {
   if (process.env.CLOUDFLARE_ACCOUNT_ID) return process.env.CLOUDFLARE_ACCOUNT_ID;
 
   try {
-    const output = run(`${wranglerCmd()} whoami 2>/dev/null`, { encoding: 'utf-8', stdio: 'pipe' });
+    const output = run(`${wranglerCmd()} whoami 2>/dev/null`);
     const match = output.match(/([a-f0-9]{32})/);
     if (match) return match[1];
   } catch (err) {
@@ -114,7 +119,8 @@ function getCloudflareApiToken() {
   if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
 
   try {
-    const output = run(`${wranglerCmd()} auth token 2>/dev/null`, { encoding: 'utf-8', stdio: 'pipe' });
+    const output = run(`${wranglerCmd()} auth token 2>/dev/null`);
+    // wrangler auth token may include a banner line — grab the last line
     const token = output.split('\n').pop().trim();
     if (token) return token;
   } catch (err) {
@@ -536,20 +542,20 @@ function ensureWebhookSecret(lambdaName, wranglerEnv) {
 
   try {
     const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
-    run(`echo "${secret}" | npx wrangler secret put WEBHOOK_SECRET ${envArg}`, {
-      stdio: 'pipe',
-      encoding: 'utf-8',
+    safeExec(`${wranglerCmd()} secret put WEBHOOK_SECRET ${envArg}`, {
+      input: secret,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     log(`Set WEBHOOK_SECRET on Worker (${wranglerEnv || 'default'})`);
   } catch (err) {
     console.warn(`  ⚠ Could not set WEBHOOK_SECRET on Worker: ${err.message}`);
-    console.warn(`    Run manually: echo "${secret}" | npx wrangler secret put WEBHOOK_SECRET${wranglerEnv ? ` --env ${wranglerEnv}` : ''}`);
+    console.warn(`    Run manually: echo "VALUE" | ${wranglerCmd()} secret put WEBHOOK_SECRET${wranglerEnv ? ` --env ${wranglerEnv}` : ''}`);
   }
 }
 
 function ensureR2Bucket(bucketName) {
   try {
-    const list = run('npx wrangler r2 bucket list', { encoding: 'utf-8', stdio: 'pipe' });
+    const list = run(`${wranglerCmd()} r2 bucket list`);
     if (list.includes(bucketName)) {
       logSkip(`R2 bucket: ${bucketName}`);
       return;
@@ -557,7 +563,7 @@ function ensureR2Bucket(bucketName) {
   } catch { /* can't list */ }
 
   try {
-    run(`npx wrangler r2 bucket create ${bucketName}`, { stdio: 'pipe' });
+    run(`${wranglerCmd()} r2 bucket create ${bucketName}`);
     log(`Created R2 bucket: ${bucketName}`);
   } catch (err) {
     console.warn(`  ⚠ Could not create R2 bucket: ${err.message}`);
@@ -568,13 +574,13 @@ function ensureR2Bucket(bucketName) {
 function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken, awsCreds) {
   if (!accountId) {
     console.error('  ✗ Cannot configure Sippy — Cloudflare account ID not detected');
-    console.error('    Set CLOUDFLARE_ACCOUNT_ID or authenticate wrangler (npx wrangler login)');
+    console.error('    Set CLOUDFLARE_ACCOUNT_ID or run: wrangler login (inside nix develop)');
     process.exit(1);
   }
 
   if (!apiToken) {
     console.error('  ✗ Cannot configure Sippy — Cloudflare API token not detected');
-    console.error('    Set CLOUDFLARE_API_TOKEN or authenticate wrangler (npx wrangler login)');
+    console.error('    Set CLOUDFLARE_API_TOKEN or run: wrangler login (inside nix develop)');
     process.exit(1);
   }
 
@@ -608,7 +614,7 @@ function setWranglerSecret(name, value, wranglerEnv, { force = false } = {}) {
 
   if (!force) {
     try {
-      const list = run(`npx wrangler secret list ${envArg}`, { encoding: 'utf-8', stdio: 'pipe' });
+      const list = run(`${wranglerCmd()} secret list ${envArg}`);
       if (list.includes(name)) {
         logSkip(`Wrangler secret: ${name}`);
         return;
@@ -617,21 +623,21 @@ function setWranglerSecret(name, value, wranglerEnv, { force = false } = {}) {
   }
 
   try {
-    run(`echo "${value}" | npx wrangler secret put ${name} ${envArg}`, {
-      stdio: 'pipe',
-      encoding: 'utf-8',
+    safeExec(`${wranglerCmd()} secret put ${name} ${envArg}`, {
+      input: value,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     log(`Set ${name} on Worker (${wranglerEnv || 'default'})`);
   } catch (err) {
     console.warn(`  ⚠ Could not set ${name}: ${err.message}`);
-    console.warn(`    Run manually: echo "VALUE" | npx wrangler secret put ${name} ${envArg}`);
+    console.warn(`    Run manually: echo "VALUE" | ${wranglerCmd()} secret put ${name} ${envArg}`);
   }
 }
 
 // --- GitHub Actions CI ---
 
 function secretInput(repo, name, value) {
-  run(`gh secret set ${name} --repo ${repo}`, {
+  safeExec(`gh secret set ${name} --repo ${repo}`, {
     input: value,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -698,7 +704,8 @@ function main() {
     const cfApiToken = getCloudflareApiToken();
     if (!cfAccountId || !cfApiToken) {
       console.error('  ✗ Cloudflare credentials not detected — aborting before any key rotation');
-      console.error('    Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN, or run: npx wrangler login');
+      console.error('    Make sure wrangler is in PATH (run inside nix develop or use: make setup-video)');
+      console.error('    Or set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN env vars');
       process.exit(1);
     }
     log(`Cloudflare account: ${cfAccountId}`);
