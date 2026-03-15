@@ -41,6 +41,7 @@ public/map-style-*
 test-results/
 e2e/test-results/
 e2e/test-results-club/
+e2e/test-results-blog/
 
 # worktrees
 .worktrees/
