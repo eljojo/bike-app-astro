@@ -187,9 +187,9 @@ export function buildJobDefinition(key, { width, height }) {
                 CodecSettings: {
                   Codec: 'AV1',
                   Av1Settings: {
-                    MaxBitrate: 12_000_000,
+                    MaxBitrate: 8_000_000,
                     RateControlMode: 'QVBR',
-                    QvbrSettings: { QvbrQualityLevel: 7 },
+                    QvbrSettings: { QvbrQualityLevel: 9 },
                     GopSize: 2,
                     GopSizeUnits: 'SECONDS',
                   },
