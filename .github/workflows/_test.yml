@@ -75,6 +75,9 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Run Lambda tests
+        run: node --test aws/video-agent/handler.test.mjs
+
       - name: Type check
         run: npx tsc --noEmit
         env:
