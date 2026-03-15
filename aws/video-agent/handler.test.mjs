@@ -157,16 +157,16 @@ describe('buildJobDefinition', () => {
 
   it('scales 4K to 1080p in output', () => {
     const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160 });
-    const av1Output = job.Settings.OutputGroups[0].Outputs[0];
-    assert.equal(av1Output.VideoDescription.Width, 1920);
-    assert.equal(av1Output.VideoDescription.Height, 1080);
+    const h265Output = job.Settings.OutputGroups[0].Outputs[0];
+    assert.equal(h265Output.VideoDescription.Width, 1920);
+    assert.equal(h265Output.VideoDescription.Height, 1080);
   });
 
-  it('has AV1 and H264 outputs plus poster', () => {
+  it('has H.265 and H.264 outputs plus poster', () => {
     const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
     const mp4Outputs = job.Settings.OutputGroups[0].Outputs;
     assert.equal(mp4Outputs.length, 2);
-    assert.equal(mp4Outputs[0].NameModifier, '-av1');
+    assert.equal(mp4Outputs[0].NameModifier, '-h265');
     assert.equal(mp4Outputs[1].NameModifier, '-h264');
 
     const posterGroup = job.Settings.OutputGroups[1];
