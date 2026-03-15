@@ -32,7 +32,7 @@ Two event sources trigger this handler:
 
 1. **S3 ObjectCreated** — a video was uploaded to the originals bucket
    - Downloads the file, runs ffprobe to extract metadata (dimensions, duration, rotation, GPS, capture date)
-   - Creates a MediaConvert job (AV1 + H.264 + poster frame)
+   - Creates a MediaConvert job (HLS H.265 adaptive + H.264 MP4 + poster frame)
    - Posts a `transcoding` webhook with metadata to the Worker
 
 2. **EventBridge** — MediaConvert job completed or failed

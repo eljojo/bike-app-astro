@@ -11,7 +11,7 @@ Media pipeline: storage adapters, image processing, video transcoding, EXIF extr
 | `image-service.ts` | `imageUrl()` — generates Cloudflare Image Transformation URLs (`cdn-cgi/image/`). Vendor-isolated: swap this to change image transformation provider |
 | `image-dimensions.ts` | `parseImageDimensions()` — extracts width/height from JPEG/PNG/WebP/GIF file headers without decoding the full image |
 | `exif.ts` | `extractPhotoMetadata()` — extracts GPS coordinates and capture timestamp from JPEG EXIF data. Returns null for non-JPEG files |
-| `video-service.ts` | `videoPlaybackSources()`, `videoFallbackUrl()` — generates AV1 + H.264 source URLs for video playback from R2 storage |
+| `video-service.ts` | `videoPlaybackSources()`, `videoFallbackUrl()` — generates HLS + H.264 MP4 source URLs for video playback from R2 storage |
 | `transcode.service.ts` | `TranscodeService` interface, `createTranscodeService()` factory, `outputSize()` for resolution scaling (cap at 1080p). Selects AWS MediaConvert adapter or local no-op |
 | `transcode.adapter-aws.ts` | AWS MediaConvert adapter — creates transcoding jobs via SigV4-signed HTTP requests |
 | `transcode.adapter-local.ts` | Local no-op transcode adapter for development |
