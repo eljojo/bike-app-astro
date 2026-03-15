@@ -54,10 +54,11 @@ function computeCodeHash(): string {
 
 /**
  * Compute content hashes for all content items in the city directory.
- * Returns a map of content ID → content hash.
+ * Returns content hashes and tour membership (ride key → tour slug).
  */
-function computeContentHashes(): Record<string, string> {
+function computeContentHashes(): { hashes: Record<string, string>; tourMembership: Record<string, string> } {
   const hashes: Record<string, string> = {};
+  const tourMembership: Record<string, string> = {};
 
   // Rides (blog instances) — use slug-based keys to match content collection IDs
   const ridesDir = path.join(cityDir, 'rides');
@@ -80,12 +81,16 @@ function computeContentHashes(): Record<string, string> {
 
       const gpxAbs = path.join(ridesDir, gpxRel);
       const hash = createHash('md5');
-      if (fs.existsSync(gpxAbs)) hash.update(`gpx:${fs.statSync(gpxAbs).mtimeMs}`);
+      if (fs.existsSync(gpxAbs)) hash.update(fs.readFileSync(gpxAbs));
       const sidecar = gpxAbs.replace(/\.gpx$/i, '.md');
-      if (fs.existsSync(sidecar)) hash.update(`md:${fs.statSync(sidecar).mtimeMs}`);
+      if (fs.existsSync(sidecar)) hash.update(fs.readFileSync(sidecar));
       const media = gpxAbs.replace(/\.gpx$/i, '-media.yml');
-      if (fs.existsSync(media)) hash.update(`media:${fs.statSync(media).mtimeMs}`);
+      if (fs.existsSync(media)) hash.update(fs.readFileSync(media));
       hashes[`ride:${slug}`] = hash.digest('hex');
+
+      // Track tour membership for deletion cleanup
+      const tourSlug = tourByGpxPath.get(gpxRel);
+      if (tourSlug) tourMembership[`ride:${slug}`] = tourSlug;
     }
   }
 
@@ -109,11 +114,11 @@ function computeContentHashes(): Record<string, string> {
     if (!fs.existsSync(dir)) continue;
     scanMarkdownFiles(dir, '').forEach(mdRel => {
       const mdAbs = path.join(dir, mdRel);
-      hashes[`${type}:${mdRel}`] = createHash('md5').update(`${fs.statSync(mdAbs).mtimeMs}`).digest('hex');
+      hashes[`${type}:${mdRel}`] = createHash('md5').update(fs.readFileSync(mdAbs)).digest('hex');
     });
   }
 
-  return hashes;
+  return { hashes, tourMembership };
 }
 
 function scanGpxFiles(baseDir: string, rel: string): string[] {
@@ -145,7 +150,8 @@ function hashDirFiles(dir: string, hash: ReturnType<typeof createHash>, prefix =
   for (const file of fs.readdirSync(dir)) {
     const filePath = path.join(dir, file);
     if (fs.statSync(filePath).isFile()) {
-      hash.update(`${prefix}${file}:${fs.statSync(filePath).mtimeMs}`);
+      hash.update(`${prefix}${file}:`);
+      hash.update(fs.readFileSync(filePath));
     }
   }
 }
@@ -154,7 +160,7 @@ function hashDirFiles(dir: string, hash: ReturnType<typeof createHash>, prefix =
 
 const previousManifest = loadBuildManifest();
 const currentCodeHash = computeCodeHash();
-const currentContentHashes = computeContentHashes();
+const { hashes: currentContentHashes, tourMembership: currentTourMembership } = computeContentHashes();
 const forceFullBuild = process.env.FORCE_FULL_BUILD === '1';
 
 let plan: BuildPlan;
@@ -177,8 +183,17 @@ if (forceFullBuild) {
   for (const [key, hash] of Object.entries(currentContentHashes)) {
     if (prevHashes[key] !== hash) changedSlugs.push(key);
   }
+  const prevTourMembership = previousManifest.tourMembership || {};
   for (const key of Object.keys(prevHashes)) {
-    if (!(key in currentContentHashes)) deletedSlugs.push(key);
+    if (!(key in currentContentHashes)) {
+      deletedSlugs.push(key);
+      // If the deleted ride was in a tour, also mark the tour-ride path for cleanup
+      const tourSlug = prevTourMembership[key];
+      if (tourSlug) {
+        const rideSlug = key.slice('ride:'.length);
+        deletedSlugs.push(`tour-ride:${tourSlug}/${rideSlug}`);
+      }
+    }
   }
 
   const totalItems = Object.keys(currentContentHashes).length;
@@ -204,6 +219,7 @@ const manifest: BuildManifest = {
   version: BUILD_MANIFEST_VERSION,
   codeHash: currentCodeHash,
   contentHashes: currentContentHashes,
+  tourMembership: Object.keys(currentTourMembership).length > 0 ? currentTourMembership : undefined,
 };
 writeBuildManifest(manifest);
 

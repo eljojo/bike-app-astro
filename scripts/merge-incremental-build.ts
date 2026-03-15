@@ -75,6 +75,9 @@ function getDeletePatterns(type: string, slug: string): string[] {
   switch (type) {
     case 'ride':
       return [`rides/${slug}/`, `rides/${slug}.html`];
+    case 'tour-ride':
+      // slug is "tourSlug/rideSlug" — clean up tour-specific pages
+      return [`tours/${slug}/`, `tours/${slug}.html`];
     case 'route':
       return [`routes/${slug}/`, `routes/${slug}.html`];
     case 'event':
