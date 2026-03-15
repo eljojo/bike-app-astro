@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { outputSize, parseProbeOutput, buildJobDefinition } from './handler.mjs';
+import { outputSize, parseProbeOutput, buildJobDefinition, thumbSize } from './handler.mjs';
 
 // --- outputSize tests ---
 
@@ -144,7 +144,7 @@ describe('buildJobDefinition', () => {
   });
 
   it('creates job with correct input/output paths', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     const input = job.Settings.Inputs[0];
     assert.equal(input.FileInput, 's3://test-originals/ottawa/abc12345');
 
@@ -156,14 +156,14 @@ describe('buildJobDefinition', () => {
   });
 
   it('scales 4K to 1080p in output', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160, duration: 60 });
     const h265Output = job.Settings.OutputGroups[0].Outputs[0];
     assert.equal(h265Output.VideoDescription.Width, 1920);
     assert.equal(h265Output.VideoDescription.Height, 1080);
   });
 
   it('has MP4, HLS, and poster output groups', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     const groups = job.Settings.OutputGroups;
     assert.equal(groups.length, 3);
     assert.equal(groups[0].CustomName, 'mp4');
@@ -172,7 +172,7 @@ describe('buildJobDefinition', () => {
   });
 
   it('has H.265 and H.264 MP4 outputs', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     const mp4Outputs = job.Settings.OutputGroups[0].Outputs;
     assert.equal(mp4Outputs.length, 2);
     assert.equal(mp4Outputs[0].NameModifier, '-h265');
@@ -180,7 +180,7 @@ describe('buildJobDefinition', () => {
   });
 
   it('has HLS thumb and big outputs', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     const hlsOutputs = job.Settings.OutputGroups[1].Outputs;
     assert.equal(hlsOutputs.length, 2);
     assert.equal(hlsOutputs[0].NameModifier, '-thumb');
@@ -188,27 +188,38 @@ describe('buildJobDefinition', () => {
   });
 
   it('HLS thumb uses smaller resolution', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160, duration: 60 });
     const thumbOutput = job.Settings.OutputGroups[1].Outputs[0];
     assert.equal(thumbOutput.VideoDescription.Width, 640);
     assert.equal(thumbOutput.VideoDescription.Height, 360);
   });
 
   it('sets queue and role from env', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     assert.equal(job.Queue, 'test-queue');
     assert.equal(job.Role, 'test-role');
   });
 
   it('sets UserMetadata with prefix and videoKey', () => {
-    const job = buildJobDefinition('ottawa-staging/testkey5', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa-staging/testkey5', { width: 1920, height: 1080, duration: 60 });
     assert.deepStrictEqual(job.UserMetadata, { prefix: 'ottawa-staging', videoKey: 'testkey5' });
   });
 
   it('uses correct output group types', () => {
-    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     assert.equal(job.Settings.OutputGroups[0].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
     assert.equal(job.Settings.OutputGroups[1].OutputGroupSettings.Type, 'HLS_GROUP_SETTINGS');
     assert.equal(job.Settings.OutputGroups[2].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
+  });
+
+  it('clips input to 3 minutes when video exceeds limit', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 300 });
+    const clippings = job.Settings.Inputs[0].InputClippings;
+    assert.deepStrictEqual(clippings, [{ EndTimecode: '00:03:00:00' }]);
+  });
+
+  it('does not clip input when video is under 3 minutes', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
+    assert.equal(job.Settings.Inputs[0].InputClippings, undefined);
   });
 });
