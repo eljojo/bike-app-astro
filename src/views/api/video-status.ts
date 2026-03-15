@@ -7,7 +7,7 @@ import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/auth/authorize';
-import { checkVideoReady, posterKeyForVideo } from '../../lib/media/video-completion';
+import { h264OutputKey, posterKeyForVideo } from '../../lib/media/video-completion';
 
 export async function GET({ params, locals }: APIContext) {
   const auth = authorize(locals, 'upload-media');
@@ -24,10 +24,9 @@ export async function GET({ params, locals }: APIContext) {
     return jsonResponse(job as unknown as Record<string, unknown>);
   }
 
-  // Check R2/bucket for transcoded output files
-  const ready = await checkVideoReady(env.BUCKET, key);
-
-  if (ready) {
+  // Self-healing: if webhook was missed, check storage for transcoded output
+  const h264 = await env.BUCKET.head(h264OutputKey(key));
+  if (h264) {
     const posterKey = posterKeyForVideo(key);
     await database.update(videoJobs)
       .set({

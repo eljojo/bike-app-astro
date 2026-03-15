@@ -14,7 +14,8 @@
  *   node scripts/setup-aws-video.js --region us-east-1 \
  *     --originals-bucket bike-video-originals \
  *     --outputs-bucket bike-video-outputs \
- *     --lambda-name video-agent
+ *     --lambda-name video-agent \
+ *     --gh-repo owner/repo
  *
  *   node scripts/setup-aws-video.js configure-instance \
  *     --prefix ottawa --domain ottawabybike.ca \
@@ -26,6 +27,10 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
+import readline from 'node:readline';
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -380,6 +385,90 @@ function configureSippy(accountId, bucketName, outputsBucket, region) {
   }
 }
 
+// --- GitHub Actions CI ---
+
+function secretInput(repo, name, value) {
+  execSync(`gh secret set ${name} --repo ${repo}`, {
+    input: value,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+}
+
+async function configureGitHubSecrets(repo) {
+  // Check gh CLI is available
+  try {
+    execSync('gh --version', { stdio: 'pipe' });
+  } catch {
+    console.warn('  ⚠ gh CLI not found — skipping GitHub Actions secrets');
+    console.warn('    Install: https://cli.github.com/');
+    console.warn('    Then set these secrets manually on your repo:');
+    console.warn('      AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY');
+    return;
+  }
+
+  // Check what's already set
+  let secretList = '';
+  try {
+    secretList = execSync(`gh secret list --repo ${repo}`, { encoding: 'utf-8', stdio: 'pipe' });
+  } catch { /* repo may not exist yet */ }
+
+  const hasAccessKey = secretList.includes('AWS_ACCESS_KEY_ID');
+  const hasSecretKey = secretList.includes('AWS_SECRET_ACCESS_KEY');
+
+  if (hasAccessKey && hasSecretKey) {
+    logSkip('GitHub Actions AWS secrets');
+    return;
+  }
+
+  console.log('\n  GitHub Actions needs AWS credentials to deploy the Lambda on each push.');
+  console.log('  The IAM user needs lambda:UpdateFunctionCode permission.\n');
+
+  // Try env first, prompt if missing
+  let accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  let secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (!hasAccessKey) {
+    if (accessKeyId) {
+      console.log(`  Using AWS_ACCESS_KEY_ID from environment.\n`);
+    } else {
+      accessKeyId = (await ask('  AWS Access Key ID for CI (Enter to skip): ')).trim();
+      if (!accessKeyId) {
+        console.log('    → skipped. Set later: gh secret set AWS_ACCESS_KEY_ID\n');
+        return;
+      }
+    }
+    try {
+      secretInput(repo, 'AWS_ACCESS_KEY_ID', accessKeyId);
+      log(`Set AWS_ACCESS_KEY_ID on ${repo}`);
+    } catch (err) {
+      console.warn(`  ⚠ Failed to set AWS_ACCESS_KEY_ID: ${err.message}`);
+      return;
+    }
+  } else {
+    logSkip('AWS_ACCESS_KEY_ID');
+  }
+
+  if (!hasSecretKey) {
+    if (secretAccessKey) {
+      console.log(`  Using AWS_SECRET_ACCESS_KEY from environment.\n`);
+    } else {
+      secretAccessKey = (await ask('  AWS Secret Access Key for CI (Enter to skip): ')).trim();
+      if (!secretAccessKey) {
+        console.log('    → skipped. Set later: gh secret set AWS_SECRET_ACCESS_KEY\n');
+        return;
+      }
+    }
+    try {
+      secretInput(repo, 'AWS_SECRET_ACCESS_KEY', secretAccessKey);
+      log(`Set AWS_SECRET_ACCESS_KEY on ${repo}`);
+    } catch (err) {
+      console.warn(`  ⚠ Failed to set AWS_SECRET_ACCESS_KEY: ${err.message}`);
+    }
+  } else {
+    logSkip('AWS_SECRET_ACCESS_KEY');
+  }
+}
+
 // --- CLI ---
 
 function parseArgs(args) {
@@ -398,64 +487,84 @@ function parseArgs(args) {
 
 const args = parseArgs(process.argv.slice(2));
 
-if (args._command === 'configure-instance') {
-  // Per-instance configuration
-  const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1' } = args;
-  if (!prefix || !domain) {
-    console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>]');
-    process.exit(1);
+async function main() {
+  if (args._command === 'configure-instance') {
+    // Per-instance configuration
+    const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1' } = args;
+    if (!prefix || !domain) {
+      console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>]');
+      process.exit(1);
+    }
+
+    console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
+
+    const bucket = originsBucket || 'bike-video-originals';
+    ensureBucketCors(bucket, domain);
+    updateLambdaWebhookMap(lambdaName, prefix, domain);
+    ensureWebhookSecret(lambdaName, wranglerEnv);
+
+    // Sippy (optional)
+    const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const r2BucketName = args.r2Bucket;
+    if (cfAccountId && r2BucketName) {
+      configureSippy(cfAccountId, r2BucketName, outputsBucket || 'bike-video-outputs', region);
+    }
+
+    console.log('\nInstance configuration complete.\n');
+  } else {
+    // Shared resources setup
+    const region = args.region || 'us-east-1';
+    const originsBucket = args.originalsBucket || 'bike-video-originals';
+    const outputsBucket = args.outputsBucket || 'bike-video-outputs';
+    const lambdaName = args.lambdaName || 'video-agent';
+
+    console.log(`\nSetting up shared video pipeline resources (${region})\n`);
+
+    ensureBucket(originsBucket, region);
+    ensureBucket(outputsBucket, region);
+
+    const mcRole = ensureMediaConvertRole(region);
+    const lambdaRoleArn = ensureLambdaRole();
+
+    // Get MediaConvert queue (default queue)
+    let mcQueue = '';
+    try {
+      const queues = awsJson(`mediaconvert describe-endpoints --region ${region}`);
+      // The default queue ARN follows a pattern; we'll use the endpoint for now
+      mcQueue = `arn:aws:mediaconvert:${region}:${awsJson('sts get-caller-identity')?.Account}:queues/Default`;
+    } catch {
+      console.warn('  ⚠ Could not determine MediaConvert queue ARN');
+    }
+
+    ensureLambda(lambdaName, lambdaRoleArn, {
+      region,
+      originsBucket,
+      outputsBucket,
+      mediaConvertQueue: mcQueue,
+      mediaConvertRole: `arn:aws:iam::${awsJson('sts get-caller-identity')?.Account}:role/${mcRole}`,
+    });
+
+    ensureEventBridgeRule(lambdaName, region);
+    ensureS3Trigger(lambdaName, originsBucket);
+
+    // Configure GitHub Actions secrets for CI Lambda deploy
+    let ghRepo = args.ghRepo;
+    if (!ghRepo) {
+      try {
+        const remote = execSync('git remote get-url origin', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        const match = remote.match(/github\.com[:/](.+?)(?:\.git)?$/);
+        if (match) ghRepo = match[1];
+      } catch { /* not a git repo or no remote */ }
+    }
+    if (ghRepo) {
+      await configureGitHubSecrets(ghRepo);
+    } else {
+      console.log('\n  ⚠ Could not detect GitHub repo — skipping CI secrets');
+      console.log('    Run with --gh-repo owner/repo or set AWS secrets in GitHub manually');
+    }
+
+    console.log('\nShared resources setup complete.\n');
   }
-
-  console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
-
-  const bucket = originsBucket || 'bike-video-originals';
-  ensureBucketCors(bucket, domain);
-  updateLambdaWebhookMap(lambdaName, prefix, domain);
-  ensureWebhookSecret(lambdaName, wranglerEnv);
-
-  // Sippy (optional)
-  const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const r2BucketName = args.r2Bucket;
-  if (cfAccountId && r2BucketName) {
-    configureSippy(cfAccountId, r2BucketName, outputsBucket || 'bike-video-outputs', region);
-  }
-
-  console.log('\nInstance configuration complete.\n');
-} else {
-  // Shared resources setup
-  const region = args.region || 'us-east-1';
-  const originsBucket = args.originalsBucket || 'bike-video-originals';
-  const outputsBucket = args.outputsBucket || 'bike-video-outputs';
-  const lambdaName = args.lambdaName || 'video-agent';
-
-  console.log(`\nSetting up shared video pipeline resources (${region})\n`);
-
-  ensureBucket(originsBucket, region);
-  ensureBucket(outputsBucket, region);
-
-  const mcRole = ensureMediaConvertRole(region);
-  const lambdaRoleArn = ensureLambdaRole();
-
-  // Get MediaConvert queue (default queue)
-  let mcQueue = '';
-  try {
-    const queues = awsJson(`mediaconvert describe-endpoints --region ${region}`);
-    // The default queue ARN follows a pattern; we'll use the endpoint for now
-    mcQueue = `arn:aws:mediaconvert:${region}:${awsJson('sts get-caller-identity')?.Account}:queues/Default`;
-  } catch {
-    console.warn('  ⚠ Could not determine MediaConvert queue ARN');
-  }
-
-  ensureLambda(lambdaName, lambdaRoleArn, {
-    region,
-    originsBucket,
-    outputsBucket,
-    mediaConvertQueue: mcQueue,
-    mediaConvertRole: `arn:aws:iam::${awsJson('sts get-caller-identity')?.Account}:role/${mcRole}`,
-  });
-
-  ensureEventBridgeRule(lambdaName, region);
-  ensureS3Trigger(lambdaName, originsBucket);
-
-  console.log('\nShared resources setup complete.\n');
 }
+
+main().finally(() => rl.close());

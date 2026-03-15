@@ -42,7 +42,6 @@
           "id": "295e43f49e3a4497aae86c3898b7c507"
         }
       ],
-      "triggers": { "crons": ["*/2 * * * *"] }
     },
     "production": {
       "name": "bike-ottawa-production",
@@ -77,7 +76,6 @@
           "id": "295e43f49e3a4497aae86c3898b7c507"
         }
       ],
-      "triggers": { "crons": ["*/2 * * * *"] }
     },
     "demo-production": {
       "name": "bike-demo-production",

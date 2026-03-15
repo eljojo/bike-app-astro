@@ -26,6 +26,7 @@
             imagemagick  # needed for HEIC dhash in match-photo-coords
             noto-fonts-color-emoji
             corefonts  # Arial Black (site title)
+            awscli2  # needed by scripts/setup-aws-video.js
           ];
 
           shellHook = ''

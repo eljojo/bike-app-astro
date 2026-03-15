@@ -1,22 +1,10 @@
 import type { AppEnv } from '../config/app-env';
 import { createLocalTranscodeService } from './transcode.adapter-local';
 
-export interface TranscodeParams {
-  key: string;
-  width: number;
-  height: number;
-}
-
-export interface TranscodeJob {
-  jobId: string;
-  key: string;
-}
-
 export interface TranscodeService {
   /** Check whether a key already exists in the originals bucket. */
   headObject(key: string): Promise<boolean>;
   presignUpload(key: string, contentType: string): Promise<string>;
-  createJob(params: TranscodeParams): Promise<TranscodeJob>;
 }
 
 /**
