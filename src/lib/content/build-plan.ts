@@ -17,6 +17,8 @@ export interface BuildManifest {
   codeHash: string;
   /** Per-content-item content hashes for change detection */
   contentHashes: Record<string, string>;
+  /** Maps ride content key (ride:{slug}) → tourSlug for tour cleanup on deletion */
+  tourMembership?: Record<string, string>;
 }
 
 export interface BuildPlan {
@@ -31,7 +33,7 @@ const PLAN_PATH = path.join(process.cwd(), '.astro', 'cache', 'build-plan.json')
 const MANIFEST_PATH = path.join(process.cwd(), '.astro', 'cache', 'build-manifest.json');
 
 export const BUILD_PLAN_VERSION = 1;
-export const BUILD_MANIFEST_VERSION = 1;
+export const BUILD_MANIFEST_VERSION = 2;
 
 /**
  * Load the build plan written by scripts/prepare-build-plan.ts.
