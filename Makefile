@@ -86,7 +86,7 @@ setup-video: ## Run video pipeline setup (pass ARGS for subcommands)
 	node scripts/setup-aws-video.js $(ARGS)
 
 deploy-lambda: ## Deploy video Lambda code to AWS
-	cd aws/video-agent && zip -j /tmp/video-agent.zip handler.mjs && aws lambda update-function-code --function-name video-agent --zip-file fileb:///tmp/video-agent.zip --region us-east-1
+	cd aws/video-agent && zip -j /tmp/video-agent.zip handler.mjs && aws lambda update-function-code --function-name video-agent --zip-file fileb:///tmp/video-agent.zip --region us-east-1 && aws lambda wait function-updated --function-name video-agent --region us-east-1
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/
