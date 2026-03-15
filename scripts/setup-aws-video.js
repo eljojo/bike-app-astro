@@ -325,25 +325,27 @@ function ensureMediaConvertRole(region) {
 
 function ensureLambdaRole() {
   const roleName = 'video-agent-lambda-role';
-  if (awsExists(`iam get-role --role-name ${roleName}`)) {
+  const exists = awsExists(`iam get-role --role-name ${roleName}`);
+
+  if (!exists) {
+    const trustPolicy = JSON.stringify({
+      Version: '2012-10-17',
+      Statement: [{
+        Effect: 'Allow',
+        Principal: { Service: 'lambda.amazonaws.com' },
+        Action: 'sts:AssumeRole',
+      }],
+    });
+
+    aws(`iam create-role --role-name ${roleName} --assume-role-policy-document '${trustPolicy}'`);
+    aws(`iam attach-role-policy --role-name ${roleName} --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole`);
+    log(`Created IAM role: ${roleName}`);
+  } else {
     logSkip(`IAM role: ${roleName}`);
-    const role = awsJson(`iam get-role --role-name ${roleName}`);
-    return role.Role.Arn;
   }
 
-  const trustPolicy = JSON.stringify({
-    Version: '2012-10-17',
-    Statement: [{
-      Effect: 'Allow',
-      Principal: { Service: 'lambda.amazonaws.com' },
-      Action: 'sts:AssumeRole',
-    }],
-  });
-
-  aws(`iam create-role --role-name ${roleName} --assume-role-policy-document '${trustPolicy}'`);
-  aws(`iam attach-role-policy --role-name ${roleName} --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole`);
-
-  const inlinePolicy = JSON.stringify({
+  // Always update inline policy to ensure latest permissions
+  const inlinePolicy = {
     Version: '2012-10-17',
     Statement: [
       {
@@ -356,13 +358,23 @@ function ensureLambdaRole() {
         Action: ['mediaconvert:CreateJob', 'mediaconvert:DescribeEndpoints'],
         Resource: '*',
       },
+      {
+        Effect: 'Allow',
+        Action: 'iam:PassRole',
+        Resource: 'arn:aws:iam::*:role/MediaConvert_Default_Role',
+      },
     ],
+  };
+  safeExec(`aws iam put-role-policy --role-name ${roleName} --policy-name video-agent-policy --policy-document file:///dev/stdin`, {
+    input: JSON.stringify(inlinePolicy),
+    stdio: ['pipe', 'pipe', 'inherit'],
+    encoding: 'utf-8',
   });
-  aws(`iam put-role-policy --role-name ${roleName} --policy-name video-agent-policy --policy-document '${inlinePolicy}'`);
 
-  log(`Created IAM role: ${roleName}`);
-  console.log('    Waiting 10s for IAM role propagation...');
-  run('sleep 10');
+  if (!exists) {
+    console.log('    Waiting 10s for IAM role propagation...');
+    run('sleep 10');
+  }
 
   const role = awsJson(`iam get-role --role-name ${roleName}`);
   return role.Role.Arn;
