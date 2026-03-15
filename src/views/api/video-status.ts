@@ -2,12 +2,12 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { eq } from 'drizzle-orm';
-import { env } from '../../lib/env/env.service';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/auth/authorize';
-import { h264OutputKey, posterKeyForVideo } from '../../lib/media/video-completion';
+import { videoFallbackUrl } from '../../lib/media/video-service';
+import { posterKeyForVideo } from '../../lib/media/video-completion';
 
 export async function GET({ params, locals }: APIContext) {
   const auth = authorize(locals, 'upload-media');
@@ -24,23 +24,28 @@ export async function GET({ params, locals }: APIContext) {
     return jsonResponse(job as unknown as Record<string, unknown>);
   }
 
-  // Self-healing: if webhook was missed, check storage for transcoded output
-  const h264 = await env.BUCKET.head(h264OutputKey(key));
-  if (h264) {
-    const posterKey = posterKeyForVideo(key);
-    await database.update(videoJobs)
-      .set({
+  // Self-healing: if webhook was missed, check videos CDN for transcoded output
+  try {
+    const h264Url = videoFallbackUrl(key);
+    const res = await fetch(h264Url, { method: 'HEAD' });
+    if (res.ok) {
+      const posterKey = posterKeyForVideo(key);
+      await database.update(videoJobs)
+        .set({
+          status: 'ready',
+          posterKey,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(videoJobs.key, key));
+
+      return jsonResponse({
+        ...(job as unknown as Record<string, unknown>),
         status: 'ready',
         posterKey,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(videoJobs.key, key));
-
-    return jsonResponse({
-      ...(job as unknown as Record<string, unknown>),
-      status: 'ready',
-      posterKey,
-    });
+      });
+    }
+  } catch {
+    // CDN check failed — continue with current status
   }
 
   return jsonResponse(job as unknown as Record<string, unknown>);
