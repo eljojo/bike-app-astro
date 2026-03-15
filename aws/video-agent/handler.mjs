@@ -165,7 +165,7 @@ export function buildJobDefinition(key, { width, height }) {
         {
           CustomName: 'mp4',
           OutputGroupSettings: {
-            Type: 'FILE_GROUP_OUTPUT',
+            Type: 'FILE_GROUP_SETTINGS',
             FileGroupSettings: {
               Destination: `s3://${S3_OUTPUTS_BUCKET}/${key}/`,
             },
@@ -222,7 +222,7 @@ export function buildJobDefinition(key, { width, height }) {
         {
           CustomName: 'poster',
           OutputGroupSettings: {
-            Type: 'FILE_GROUP_OUTPUT',
+            Type: 'FILE_GROUP_SETTINGS',
             FileGroupSettings: {
               Destination: `s3://${S3_OUTPUTS_BUCKET}/${key}/`,
             },
