@@ -100,7 +100,7 @@ export interface VideoUploadState {
 /**
  * Video upload flow: presign → upload → poll (Lambda handles metadata + transcode).
  */
-export function useVideoUpload() {
+export function useVideoUpload(onReady?: (key: string, metadata: Record<string, unknown>) => void) {
   const [videos, setVideos] = useState<Map<string, VideoUploadState>>(new Map());
   const [error, setError] = useState('');
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
@@ -189,6 +189,17 @@ export function useVideoUpload() {
             if (existing) next.set(key, { ...existing, status: 'ready', progress: 'Ready', uploadPercent: 100 });
             return next;
           });
+          if (onReady) {
+            const metadata: Record<string, unknown> = {};
+            if (data.width != null) metadata.width = data.width;
+            if (data.height != null) metadata.height = data.height;
+            if (data.duration != null) metadata.duration = data.duration;
+            if (data.orientation != null) metadata.orientation = data.orientation;
+            if (data.lat != null) metadata.lat = data.lat;
+            if (data.lng != null) metadata.lng = data.lng;
+            if (data.capturedAt != null) metadata.captured_at = data.capturedAt;
+            onReady(key, metadata);
+          }
           clearInterval(timer);
           pollTimers.current.delete(key);
         } else if (data.status === 'failed') {
