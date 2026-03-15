@@ -452,7 +452,8 @@ async function configureGitHubSecrets(repo) {
   }
 
   console.log('\n  GitHub Actions needs AWS credentials to deploy the Lambda on each push.');
-  console.log('  The IAM user needs lambda:UpdateFunctionCode permission.\n');
+  console.log('  Use an IAM user with the AWSLambda_FullAccess policy attached.');
+  console.log('  (You can reuse an existing IAM user — just attach the policy in the IAM console.)\n');
 
   // Try env first, prompt if missing
   let accessKeyId = process.env.AWS_ACCESS_KEY_ID;
