@@ -301,7 +301,7 @@ function ensureBucket(name, region) {
   log(`Created S3 bucket: ${name}`);
 }
 
-function ensureMediaConvertRole(region) {
+function ensureMediaConvertRole(region, originsBucket, outputsBucket) {
   const roleName = 'MediaConvert_Default_Role';
   const trustPolicy = {
     Version: '2012-10-17',
@@ -320,7 +320,6 @@ function ensureMediaConvertRole(region) {
       stdio: ['pipe', 'pipe', 'inherit'],
       encoding: 'utf-8',
     });
-    aws(`iam attach-role-policy --role-name ${roleName} --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess`);
     log(`Created IAM role: ${roleName}`);
   }
 
@@ -331,10 +330,34 @@ function ensureMediaConvertRole(region) {
     encoding: 'utf-8',
   });
 
-  return roleName;
+  // Always ensure scoped S3 policy (full access but only to our buckets)
+  const s3Policy = {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Action: 's3:*',
+        Resource: [
+          `arn:aws:s3:::${originsBucket}`,
+          `arn:aws:s3:::${originsBucket}/*`,
+          `arn:aws:s3:::${outputsBucket}`,
+          `arn:aws:s3:::${outputsBucket}/*`,
+        ],
+      },
+    ],
+  };
+  safeExec(`aws iam put-role-policy --role-name ${roleName} --policy-name mediaconvert-s3 --policy-document file:///dev/stdin`, {
+    input: JSON.stringify(s3Policy),
+    stdio: ['pipe', 'pipe', 'inherit'],
+    encoding: 'utf-8',
+  });
+
+  // Return the actual ARN (may include /service-role/ path prefix)
+  const role = awsJson(`iam get-role --role-name ${roleName}`);
+  return role.Role.Arn;
 }
 
-function ensureLambdaRole() {
+function ensureLambdaRole(mcRoleArn) {
   const roleName = 'video-agent-lambda-role';
   const exists = awsExists(`iam get-role --role-name ${roleName}`);
 
@@ -362,7 +385,7 @@ function ensureLambdaRole() {
       {
         Effect: 'Allow',
         Action: ['s3:GetObject', 's3:PutObject'],
-        Resource: 'arn:aws:s3:::*',
+        Resource: ['arn:aws:s3:::bike-video-originals/*', 'arn:aws:s3:::bike-video-outputs/*'],
       },
       {
         Effect: 'Allow',
@@ -372,7 +395,7 @@ function ensureLambdaRole() {
       {
         Effect: 'Allow',
         Action: 'iam:PassRole',
-        Resource: 'arn:aws:iam::*:role/MediaConvert_Default_Role',
+        Resource: mcRoleArn,
       },
     ],
   };
@@ -936,8 +959,8 @@ async function main() {
     ensureBucket(originsBucket, region);
     ensureBucket(outputsBucket, region);
 
-    const mcRole = ensureMediaConvertRole(region);
-    const lambdaRoleArn = ensureLambdaRole();
+    const mcRoleArn = ensureMediaConvertRole(region, originsBucket, outputsBucket);
+    const lambdaRoleArn = ensureLambdaRole(mcRoleArn);
 
     let mcQueue = '';
     try {
@@ -952,7 +975,7 @@ async function main() {
       originsBucket,
       outputsBucket,
       mediaConvertQueue: mcQueue,
-      mediaConvertRole: `arn:aws:iam::${awsAccountId}:role/${mcRole}`,
+      mediaConvertRole: mcRoleArn,
     });
 
     ensureEventBridgeRule(lambdaName, region);
