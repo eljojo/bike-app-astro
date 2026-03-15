@@ -95,10 +95,10 @@ export function shouldRebuild(plan: BuildPlan | null, contentType: string, slug:
  * Returns all entries in full mode, only changed entries in incremental mode.
  */
 export function filterByBuildPlan<T extends { id: string }>(
-  entries: T[],
+  entries: readonly T[],
   plan: BuildPlan | null,
   contentType: string,
 ): T[] {
-  if (!plan || plan.mode === 'full') return entries;
+  if (!plan || plan.mode === 'full') return [...entries];
   return entries.filter(entry => shouldRebuild(plan, contentType, entry.id));
 }
