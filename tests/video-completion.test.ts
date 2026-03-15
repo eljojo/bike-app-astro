@@ -46,21 +46,21 @@ describe('video-completion helpers', () => {
 
   describe('h264OutputKey', () => {
     it('returns key/key-h264.mp4 path', async () => {
-      const { h264OutputKey } = await import('../src/lib/video-completion');
+      const { h264OutputKey } = await import('../src/lib/media/video-completion');
       expect(h264OutputKey('abc12345')).toBe('abc12345/abc12345-h264.mp4');
     });
   });
 
   describe('posterKeyForVideo', () => {
     it('returns poster frame path', async () => {
-      const { posterKeyForVideo } = await import('../src/lib/video-completion');
+      const { posterKeyForVideo } = await import('../src/lib/media/video-completion');
       expect(posterKeyForVideo('abc12345')).toBe('abc12345/abc12345-poster.0000000.jpg');
     });
   });
 
   describe('checkVideoReady', () => {
     it('returns true when H.264 output exists', async () => {
-      const { checkVideoReady } = await import('../src/lib/video-completion');
+      const { checkVideoReady } = await import('../src/lib/media/video-completion');
       const bucket = { head: vi.fn().mockResolvedValue({ size: 123 }) };
       const result = await checkVideoReady(bucket as never, 'abc12345');
       expect(result).toBe(true);
@@ -68,7 +68,7 @@ describe('video-completion helpers', () => {
     });
 
     it('returns false when H.264 output does not exist', async () => {
-      const { checkVideoReady } = await import('../src/lib/video-completion');
+      const { checkVideoReady } = await import('../src/lib/media/video-completion');
       const bucket = { head: vi.fn().mockResolvedValue(null) };
       const result = await checkVideoReady(bucket as never, 'abc12345');
       expect(result).toBe(false);
@@ -85,7 +85,7 @@ describe('video-completion helpers', () => {
       });
       mockBucketHead.mockResolvedValue({ size: 100 });
 
-      const { processPendingVideos } = await import('../src/lib/video-completion');
+      const { processPendingVideos } = await import('../src/lib/media/video-completion');
       const result = await processPendingVideos({
         BUCKET: { head: mockBucketHead },
       } as never);
@@ -106,7 +106,7 @@ describe('video-completion helpers', () => {
       });
       mockBucketHead.mockResolvedValue(null);
 
-      const { processPendingVideos } = await import('../src/lib/video-completion');
+      const { processPendingVideos } = await import('../src/lib/media/video-completion');
       const result = await processPendingVideos({
         BUCKET: { head: mockBucketHead },
       } as never);
@@ -125,7 +125,7 @@ describe('video-completion helpers', () => {
       });
       mockBucketHead.mockResolvedValue(null);
 
-      const { processPendingVideos } = await import('../src/lib/video-completion');
+      const { processPendingVideos } = await import('../src/lib/media/video-completion');
       const result = await processPendingVideos({
         BUCKET: { head: mockBucketHead },
       } as never);
@@ -138,7 +138,7 @@ describe('video-completion helpers', () => {
     it('returns zero counts when no pending jobs', async () => {
       // mockJobs is empty
 
-      const { processPendingVideos } = await import('../src/lib/video-completion');
+      const { processPendingVideos } = await import('../src/lib/media/video-completion');
       const result = await processPendingVideos({
         BUCKET: { head: mockBucketHead },
       } as never);

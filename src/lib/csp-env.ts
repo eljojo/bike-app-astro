@@ -11,7 +11,7 @@
  * (the other being env.ts). Each serves a different concern — env.ts for
  * the full app environment, this for CSP-only values in middleware.
  */
-import type { AppEnv } from './app-env';
+import type { AppEnv } from './config/app-env';
 
 export interface CspUploadEnv {
   r2AccountId: string;
