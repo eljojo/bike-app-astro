@@ -78,6 +78,12 @@ jobs:
       - name: Run Lambda tests
         run: node --test aws/video-agent/handler.test.mjs
 
+      - name: Sync Astro types
+        run: npx astro sync
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+
       - name: Type check
         run: npx tsc --noEmit
         env:
