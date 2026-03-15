@@ -1,6 +1,5 @@
 {
   "name": "whereto-bike",
-  "main": "./src/worker-entry.ts",
   "compatibility_date": "2025-03-25",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
