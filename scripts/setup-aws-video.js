@@ -303,23 +303,34 @@ function ensureBucket(name, region) {
 
 function ensureMediaConvertRole(region) {
   const roleName = 'MediaConvert_Default_Role';
-  if (awsExists(`iam get-role --role-name ${roleName}`)) {
-    logSkip(`IAM role: ${roleName}`);
-    return roleName;
-  }
-
-  const trustPolicy = JSON.stringify({
+  const trustPolicy = {
     Version: '2012-10-17',
     Statement: [{
       Effect: 'Allow',
       Principal: { Service: 'mediaconvert.amazonaws.com' },
       Action: 'sts:AssumeRole',
     }],
+  };
+
+  if (awsExists(`iam get-role --role-name ${roleName}`)) {
+    logSkip(`IAM role: ${roleName}`);
+  } else {
+    safeExec(`aws iam create-role --role-name ${roleName} --assume-role-policy-document file:///dev/stdin`, {
+      input: JSON.stringify(trustPolicy),
+      stdio: ['pipe', 'pipe', 'inherit'],
+      encoding: 'utf-8',
+    });
+    aws(`iam attach-role-policy --role-name ${roleName} --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess`);
+    log(`Created IAM role: ${roleName}`);
+  }
+
+  // Always ensure trust policy is correct
+  safeExec(`aws iam update-assume-role-policy --role-name ${roleName} --policy-document file:///dev/stdin`, {
+    input: JSON.stringify(trustPolicy),
+    stdio: ['pipe', 'pipe', 'inherit'],
+    encoding: 'utf-8',
   });
 
-  aws(`iam create-role --role-name ${roleName} --assume-role-policy-document '${trustPolicy}'`);
-  aws(`iam attach-role-policy --role-name ${roleName} --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess`);
-  log(`Created IAM role: ${roleName}`);
   return roleName;
 }
 
