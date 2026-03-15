@@ -50,6 +50,7 @@ export function createLocalEnv(): AppEnv {
     S3_ORIGINALS_BUCKET: '',
     S3_OUTPUTS_BUCKET: '',
     CRON_SECRET: process.env.CRON_SECRET || '',
+    WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || '',
   };
 }
 

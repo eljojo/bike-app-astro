@@ -43,4 +43,5 @@ export interface AppEnv {
   S3_ORIGINALS_BUCKET?: string;
   S3_OUTPUTS_BUCKET?: string;
   CRON_SECRET?: string;
+  WEBHOOK_SECRET?: string;
 }
