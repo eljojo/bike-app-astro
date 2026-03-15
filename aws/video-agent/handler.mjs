@@ -48,6 +48,21 @@ export function outputSize(width, height) {
   };
 }
 
+/** Thumbnail size for HLS low-bandwidth tier (~480p). */
+export function thumbSize(width, height) {
+  const maxLong = 640;
+  const maxShort = 480;
+  const landscape = width >= height;
+  const longEdge = landscape ? width : height;
+  const shortEdge = landscape ? height : width;
+  const scale = Math.min(maxLong / longEdge, maxShort / shortEdge, 1);
+  if (scale >= 1) return { width, height };
+  return {
+    width: Math.round((width * scale) / 2) * 2,
+    height: Math.round((height * scale) / 2) * 2,
+  };
+}
+
 // --- ffprobe ---
 
 /**
@@ -152,8 +167,17 @@ async function getMediaConvertEndpoint() {
 
 export function buildJobDefinition(key, { width, height }) {
   const { S3_ORIGINALS_BUCKET, S3_OUTPUTS_BUCKET, MEDIACONVERT_QUEUE, MEDIACONVERT_ROLE } = cfg();
-  const scaled = outputSize(width, height);
-  const sizeFields = { Width: scaled.width, Height: scaled.height };
+  const big = outputSize(width, height);
+  const thumb = thumbSize(width, height);
+  const bigFields = { Width: big.width, Height: big.height };
+  const thumbFields = { Width: thumb.width, Height: thumb.height };
+
+  const aacAudio = [{
+    CodecSettings: {
+      Codec: 'AAC',
+      AacSettings: { Bitrate: 256_000, CodingMode: 'CODING_MODE_2_0', SampleRate: 48_000 },
+    },
+  }];
 
   // Split key "ottawa-staging/testkey5" → prefix + videoKey for EventBridge handler
   const slashIdx = key.indexOf('/');
@@ -169,8 +193,11 @@ export function buildJobDefinition(key, { width, height }) {
         FileInput: `s3://${S3_ORIGINALS_BUCKET}/${key}`,
         VideoSelector: { Rotate: 'AUTO' },
         AudioSelectors: { 'Audio Selector 1': { DefaultSelection: 'DEFAULT' } },
+        TimecodeSource: 'ZEROBASED',
       }],
+      TimecodeConfig: { Source: 'ZEROBASED' },
       OutputGroups: [
+        // MP4 outputs: H.265 (modern, HDR) + H.264 (universal fallback)
         {
           CustomName: 'mp4',
           OutputGroupSettings: {
@@ -184,52 +211,93 @@ export function buildJobDefinition(key, { width, height }) {
               NameModifier: '-h265',
               ContainerSettings: { Container: 'MP4' },
               VideoDescription: {
-                ...sizeFields,
+                ...bigFields,
                 CodecSettings: {
                   Codec: 'H_265',
                   H265Settings: {
-                    MaxBitrate: 8_000_000,
+                    MaxBitrate: 10_000_000,
                     RateControlMode: 'QVBR',
                     QvbrSettings: { QvbrQualityLevel: 7 },
-                    GopSize: 2,
-                    GopSizeUnits: 'SECONDS',
                     CodecProfile: 'MAIN_MAIN',
                     WriteMp4PackagingType: 'HVC1',
                   },
                 },
               },
-              AudioDescriptions: [{
-                CodecSettings: {
-                  Codec: 'AAC',
-                  AacSettings: { Bitrate: 256_000, CodingMode: 'CODING_MODE_2_0', SampleRate: 48_000 },
-                },
-              }],
+              AudioDescriptions: aacAudio,
             },
             {
               NameModifier: '-h264',
               ContainerSettings: { Container: 'MP4' },
               VideoDescription: {
-                ...sizeFields,
+                ...bigFields,
                 CodecSettings: {
                   Codec: 'H_264',
                   H264Settings: {
                     MaxBitrate: 10_000_000,
                     RateControlMode: 'QVBR',
                     QvbrSettings: { QvbrQualityLevel: 7 },
-                    GopSize: 2,
-                    GopSizeUnits: 'SECONDS',
+                    SceneChangeDetect: 'TRANSITION_DETECTION',
+                    QualityTuningLevel: 'MULTI_PASS_HQ',
                   },
                 },
               },
-              AudioDescriptions: [{
-                CodecSettings: {
-                  Codec: 'AAC',
-                  AacSettings: { Bitrate: 256_000, CodingMode: 'CODING_MODE_2_0', SampleRate: 48_000 },
-                },
-              }],
+              AudioDescriptions: aacAudio,
             },
           ],
         },
+        // HLS adaptive: thumb (480p, mobile) + big (1080p H.265, desktop/HDR)
+        {
+          CustomName: 'hls',
+          OutputGroupSettings: {
+            Type: 'HLS_GROUP_SETTINGS',
+            HlsGroupSettings: {
+              SegmentLength: 3,
+              MinSegmentLength: 0,
+              Destination: `s3://${S3_OUTPUTS_BUCKET}/${key}/`,
+            },
+          },
+          Outputs: [
+            {
+              NameModifier: '-thumb',
+              ContainerSettings: { Container: 'M3U8' },
+              OutputSettings: { HlsSettings: {} },
+              VideoDescription: {
+                ...thumbFields,
+                CodecSettings: {
+                  Codec: 'H_264',
+                  H264Settings: {
+                    MaxBitrate: 4_000_000,
+                    RateControlMode: 'QVBR',
+                    QvbrSettings: { QvbrQualityLevel: 7 },
+                    SceneChangeDetect: 'TRANSITION_DETECTION',
+                    QualityTuningLevel: 'MULTI_PASS_HQ',
+                  },
+                },
+              },
+              AudioDescriptions: aacAudio,
+            },
+            {
+              NameModifier: '-big',
+              ContainerSettings: { Container: 'M3U8' },
+              OutputSettings: { HlsSettings: {} },
+              VideoDescription: {
+                ...bigFields,
+                CodecSettings: {
+                  Codec: 'H_265',
+                  H265Settings: {
+                    MaxBitrate: 15_000_000,
+                    RateControlMode: 'QVBR',
+                    QvbrSettings: { QvbrQualityLevel: 7 },
+                    CodecProfile: 'MAIN_MAIN',
+                    WriteMp4PackagingType: 'HVC1',
+                  },
+                },
+              },
+              AudioDescriptions: aacAudio,
+            },
+          ],
+        },
+        // Poster frame
         {
           CustomName: 'poster',
           OutputGroupSettings: {
@@ -242,7 +310,7 @@ export function buildJobDefinition(key, { width, height }) {
             NameModifier: '-poster',
             ContainerSettings: { Container: 'RAW' },
             VideoDescription: {
-              ...sizeFields,
+              ...bigFields,
               CodecSettings: {
                 Codec: 'FRAME_CAPTURE',
                 FrameCaptureSettings: {
@@ -342,7 +410,16 @@ async function handleS3Event(event) {
 
   console.log(`Probe result: ${probe.width}x${probe.height}, ${probe.duration}s, ${probe.orientation}`);
 
-  // 2. Create MediaConvert job
+  // 2. Reject videos longer than 3 minutes
+  const MAX_DURATION_SECONDS = 180;
+  if (probe.duration > MAX_DURATION_SECONDS) {
+    const msg = `Video too long: ${Math.round(probe.duration)}s (max ${MAX_DURATION_SECONDS}s)`;
+    console.warn(msg);
+    await postWebhook(prefix, { key: videoKey, status: 'failed', error: msg });
+    return { statusCode: 400, body: msg };
+  }
+
+  // 3. Create MediaConvert job
   let jobId;
   try {
     const { MediaConvertClient, CreateJobCommand } = await getMcClient();
