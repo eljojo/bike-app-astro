@@ -117,7 +117,7 @@ function hasGitRemote() {
 // --- Steps ---
 
 async function stepCloudflare(folderName) {
-  console.log('\n  Step 1/3: Cloudflare');
+  console.log('\n  Step 1/4: Cloudflare');
   console.log('  ────────────────────');
 
   if (hasResourceIds()) {
@@ -189,7 +189,7 @@ async function stepCloudflare(folderName) {
 }
 
 async function stepGitHub(folderName) {
-  console.log('\n  Step 2/3: GitHub');
+  console.log('\n  Step 2/4: GitHub');
   console.log('  ────────────────');
 
   if (!commandExists('gh')) {
@@ -330,7 +330,7 @@ async function stepGitHub(folderName) {
 }
 
 async function stepApiKeys() {
-  console.log('\n  Step 3/3: API Keys');
+  console.log('\n  Step 3/4: API Keys');
   console.log('  ──────────────────');
 
   if (!hasWrangler()) {
@@ -462,43 +462,6 @@ async function stepApiKeys() {
     For a new AWS account in sandbox mode, you must also verify recipient addresses.
     To send to anyone, request production access in the SES console.
     Example: noreply@yourdomain.com`,
-    },
-    // --- Video Uploads (optional — Lambda handles transcoding via S3 trigger) ---
-    {
-      name: 'MEDIACONVERT_ACCESS_KEY_ID', kind: 'secret',
-      description: 'AWS IAM access key for S3 video uploads',
-      howTo: `Video uploads are stored in S3. A Lambda function (deployed separately)
-    handles metadata extraction and transcoding via S3 triggers.
-
-    Run "node scripts/setup-aws-video.js" to set up all AWS resources automatically.
-    That script creates the S3 bucket, Lambda, IAM roles, and EventBridge rule.
-
-    The IAM user for the Worker only needs S3 PutObject and HeadObject on the originals bucket.
-    → Copy Access Key ID here and Secret Access Key in the next prompt.`,
-    },
-    {
-      name: 'MEDIACONVERT_SECRET_ACCESS_KEY', kind: 'secret',
-      description: 'AWS IAM secret key (paired with access key above)',
-      howTo: 'Same IAM user as above — copy "Secret access key" (shown only once when creating the key)',
-    },
-    {
-      name: 'S3_ORIGINALS_BUCKET', kind: 'secret',
-      description: 'S3 bucket name for raw video uploads',
-      howTo: `The bucket name created by setup-aws-video.js (e.g., "whereto-bike-video-originals").
-    Just the name, not the full ARN or URL.`,
-    },
-    {
-      name: 'WEBHOOK_SECRET', kind: 'secret',
-      description: 'Shared secret for Lambda → Worker webhook authentication',
-      howTo: `The Lambda sends video processing status updates to the Worker via webhook.
-    This secret authenticates those requests (Bearer token).
-    Generated automatically by setup-aws-video.js — use the same value here.`,
-    },
-    {
-      name: 'MEDIACONVERT_REGION', kind: 'var',
-      description: 'AWS region for your S3 bucket (e.g., us-east-1)',
-      howTo: `The AWS region where your S3 bucket lives.
-    Common choices: us-east-1, eu-west-1, ap-southeast-2`,
     },
   ];
 
@@ -782,6 +745,117 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   }
 }
 
+async function stepVideo() {
+  console.log('\n  Step 4/4: Video Uploads (optional)');
+  console.log('  ───────────────────────────────────');
+  console.log('  Video lets you upload ride videos that get transcoded automatically.');
+  console.log('  This requires an AWS account with CLI access configured.\n');
+
+  const answer = await ask('  Set up video uploads? [y/N] ');
+  if (answer.toLowerCase() !== 'y') {
+    console.log('  → skipped\n');
+    return;
+  }
+
+  // Check AWS CLI
+  if (!commandExists('aws')) {
+    console.log('\n  ✗ AWS CLI not found');
+    console.log('  Install it from: https://aws.amazon.com/cli/');
+    console.log('  Then configure with: aws configure\n');
+    return;
+  }
+
+  let awsAccountId;
+  try {
+    const identity = JSON.parse(run('aws --no-cli-pager sts get-caller-identity'));
+    awsAccountId = identity.Account;
+    console.log(`  ✓ AWS CLI configured (account: ${awsAccountId})\n`);
+  } catch {
+    console.log('\n  ✗ AWS CLI not authenticated');
+    console.log('  Run: aws configure');
+    console.log('  Then run npm run setup again.\n');
+    return;
+  }
+
+  // Derive prefix from git remote
+  let prefix;
+  try {
+    const remoteUrl = run('git remote get-url origin');
+    const match = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
+    if (match) prefix = match[1].replace('/', '_');
+  } catch { /* no remote */ }
+
+  if (prefix) {
+    console.log(`  Video prefix (identifies your videos in S3):\n`);
+    console.log(`    Detected from git remote: ${prefix}\n`);
+    const override = await ask('  Use this prefix? [Y/n] (or type a custom one): ');
+    const trimmed = override.trim();
+    if (trimmed && trimmed.toLowerCase() !== 'y') {
+      if (trimmed.toLowerCase() === 'n') {
+        prefix = (await ask('  Enter custom prefix: ')).trim();
+      } else {
+        prefix = trimmed;
+      }
+    }
+  } else {
+    prefix = (await ask('  Enter a video prefix (e.g., myname_myblog): ')).trim();
+  }
+
+  if (!prefix) {
+    console.log('  ✗ No prefix provided — skipping video setup.\n');
+    return;
+  }
+
+  const domain = readDomain();
+  if (!domain) {
+    console.log('  ✗ Could not read domain from blog/config.yml — skipping video setup.\n');
+    return;
+  }
+
+  // Prompt for AWS region
+  const regionInput = await ask('  AWS region [us-east-1]: ');
+  const region = regionInput.trim() || 'us-east-1';
+
+  console.log(`\n  Setting up video pipeline: prefix=${prefix}, domain=${domain}, region=${region}\n`);
+
+  // Import setup functions from whereto-bike
+  let setupSharedResources, configureInstance;
+  try {
+    const mod = await import('../node_modules/whereto-bike/scripts/setup-aws-video.js');
+    setupSharedResources = mod.setupSharedResources;
+    configureInstance = mod.configureInstance;
+  } catch (err) {
+    console.error('  ✗ Could not load video setup module:', err.message);
+    console.error('  Make sure whereto-bike is installed: npm install\n');
+    return;
+  }
+
+  // Phase 1: Shared resources (idempotent)
+  const { lambdaCreated } = await setupSharedResources({
+    region,
+    originsBucket: 'bike-video-originals',
+    outputsBucket: 'bike-video-outputs',
+    lambdaName: 'video-agent',
+  });
+
+  // Phase 2: Per-instance config
+  await configureInstance({
+    prefix,
+    domain,
+    wranglerEnv: undefined,
+    lambdaName: 'video-agent',
+    originsBucket: 'bike-video-originals',
+    outputsBucket: 'bike-video-outputs',
+    region,
+    r2Bucket: 'whereto-bike-videos',
+  });
+
+  // Store CI user secrets on this repo (only if Lambda was newly created)
+  if (lambdaCreated) {
+    console.log('  CI user was created — GitHub secrets for Lambda deploy are set.\n');
+  }
+}
+
 // --- Main ---
 
 async function main() {
@@ -794,6 +868,7 @@ async function main() {
   await stepGitHub(folderName);
   const detected = await stepApiKeys();
   await stepCdnDomain(detected);
+  await stepVideo();
 
   // Offer to commit and push
   let remoteUrl;
