@@ -436,19 +436,55 @@ function ensureWebhookSecret(lambdaName, wranglerEnv) {
   }
 }
 
-function configureSippy(accountId, bucketName, outputsBucket, region) {
+function ensureR2Bucket(bucketName) {
+  try {
+    const list = run('npx wrangler r2 bucket list', { encoding: 'utf-8', stdio: 'pipe' });
+    if (list.includes(bucketName)) {
+      logSkip(`R2 bucket: ${bucketName}`);
+      return;
+    }
+  } catch { /* can't list */ }
+
+  try {
+    run(`npx wrangler r2 bucket create ${bucketName}`, { stdio: 'pipe' });
+    log(`Created R2 bucket: ${bucketName}`);
+  } catch (err) {
+    console.warn(`  ⚠ Could not create R2 bucket: ${err.message}`);
+    console.warn(`    Create manually in Cloudflare dashboard: ${bucketName}`);
+  }
+}
+
+async function configureSippy(r2BucketName, outputsBucket, region) {
+  let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  let apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  let awsKeyId = process.env.AWS_ACCESS_KEY_ID;
+  let awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
+
   if (!accountId) {
-    console.warn('  ⚠ Skipping Sippy — CLOUDFLARE_ACCOUNT_ID not set');
-    return;
+    accountId = (await ask('  Cloudflare Account ID (for Sippy): ')).trim();
+    if (!accountId) {
+      console.warn('  ⚠ Skipping Sippy — no account ID provided');
+      console.warn('    Configure manually in Cloudflare dashboard: R2 → bucket → Settings → Sippy');
+      return;
+    }
   }
 
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
   if (!apiToken) {
-    console.warn('  ⚠ Skipping Sippy — CLOUDFLARE_API_TOKEN not set');
-    return;
+    apiToken = (await ask('  Cloudflare API Token (with R2 admin): ')).trim();
+    if (!apiToken) {
+      console.warn('  ⚠ Skipping Sippy — no API token provided');
+      return;
+    }
   }
 
-  logAction(`Configuring Sippy: R2 ${bucketName} ← S3 ${outputsBucket}`);
+  if (!awsKeyId) {
+    awsKeyId = (await ask('  AWS Access Key ID (for Sippy to read S3): ')).trim();
+  }
+  if (!awsSecret) {
+    awsSecret = (await ask('  AWS Secret Access Key (for Sippy to read S3): ')).trim();
+  }
+
+  logAction(`Configuring Sippy: R2 ${r2BucketName} ← S3 ${outputsBucket}`);
 
   try {
     const body = JSON.stringify({
@@ -456,15 +492,63 @@ function configureSippy(accountId, bucketName, outputsBucket, region) {
         provider: 's3',
         region,
         bucket: outputsBucket,
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        accessKeyId: awsKeyId || '',
+        secretAccessKey: awsSecret || '',
       },
     });
 
-    run(`curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" -d '${body}'`, { stdio: 'pipe' });
-    log(`Configured Sippy on R2 bucket: ${bucketName}`);
+    run(
+      `curl -sf -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" -d '${body}'`,
+      { stdio: 'pipe' },
+    );
+    log(`Configured Sippy on R2 bucket: ${r2BucketName}`);
   } catch (err) {
     console.warn(`  ⚠ Sippy configuration failed: ${err.message}`);
+    console.warn('    Configure manually: Cloudflare dashboard → R2 → bucket → Settings → Sippy');
+    console.warn(`    Source: S3 bucket "${outputsBucket}" in ${region}`);
+  }
+}
+
+async function ensureWranglerSecrets(wranglerEnv) {
+  const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
+
+  const secrets = [
+    { name: 'MEDIACONVERT_ACCESS_KEY_ID', envVar: 'MEDIACONVERT_ACCESS_KEY_ID', prompt: 'AWS Access Key ID for video presigning' },
+    { name: 'MEDIACONVERT_SECRET_ACCESS_KEY', envVar: 'MEDIACONVERT_SECRET_ACCESS_KEY', prompt: 'AWS Secret Access Key for video presigning' },
+    { name: 'S3_ORIGINALS_BUCKET', envVar: 'S3_ORIGINALS_BUCKET', prompt: 'S3 originals bucket name', default: 'bike-video-originals' },
+  ];
+
+  for (const { name, envVar, prompt: promptText, default: defaultVal } of secrets) {
+    // Check if already set
+    try {
+      const list = run(`npx wrangler secret list ${envArg}`, { encoding: 'utf-8', stdio: 'pipe' });
+      if (list.includes(name)) {
+        logSkip(`Wrangler secret: ${name}`);
+        continue;
+      }
+    } catch { /* can't list, try setting anyway */ }
+
+    let value = process.env[envVar];
+    if (!value) {
+      const defaultHint = defaultVal ? ` (default: ${defaultVal})` : '';
+      value = (await ask(`  ${promptText}${defaultHint}: `)).trim();
+      if (!value && defaultVal) value = defaultVal;
+      if (!value) {
+        console.warn(`  ⚠ Skipping ${name} — no value provided`);
+        continue;
+      }
+    }
+
+    try {
+      run(`echo "${value}" | npx wrangler secret put ${name} ${envArg}`, {
+        stdio: 'pipe',
+        encoding: 'utf-8',
+      });
+      log(`Set ${name} on Worker`);
+    } catch (err) {
+      console.warn(`  ⚠ Could not set ${name}: ${err.message}`);
+      console.warn(`    Run manually: echo "VALUE" | npx wrangler secret put ${name} ${envArg}`);
+    }
   }
 }
 
@@ -574,27 +658,34 @@ const args = parseArgs(process.argv.slice(2));
 async function main() {
   if (args._command === 'configure-instance') {
     // Per-instance configuration
-    const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1' } = args;
+    const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1', r2Bucket = 'whereto-bike-videos' } = args;
     if (!prefix || !domain) {
-      console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>]');
+      console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>] [--r2-bucket <name>]');
       process.exit(1);
     }
 
     console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
 
     const bucket = originsBucket || 'bike-video-originals';
+    const outputs = outputsBucket || 'bike-video-outputs';
+
+    // AWS-side
     ensureBucketCors(bucket, domain);
     updateLambdaWebhookMap(lambdaName, prefix, domain);
     ensureWebhookSecret(lambdaName, wranglerEnv);
 
-    // Sippy (optional)
-    const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-    const r2BucketName = args.r2Bucket;
-    if (cfAccountId && r2BucketName) {
-      configureSippy(cfAccountId, r2BucketName, outputsBucket || 'bike-video-outputs', region);
-    }
+    // Cloudflare-side
+    ensureR2Bucket(r2Bucket);
+    await configureSippy(r2Bucket, outputs, region);
+    await ensureWranglerSecrets(wranglerEnv);
 
+    // Summary
     console.log('\nInstance configuration complete.\n');
+    console.log('Remaining manual steps:');
+    console.log(`  1. Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`);
+    console.log(`     Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`);
+    console.log(`  2. Verify videos_cdn_url in city config points to https://videos.whereto.bike`);
+    console.log(`  3. Deploy: make deploy`);
   } else {
     // Shared resources setup
     const region = args.region || 'us-east-1';
