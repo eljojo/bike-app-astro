@@ -31,6 +31,7 @@ export const routeSchema = z.object({
     height: z.number().optional(),
     duration: z.string().optional(),
     orientation: z.string().optional(),
+    poster_key: z.string().optional(),
     lat: z.number().optional(),
     lng: z.number().optional(),
     uploaded_by: z.string().optional(),
