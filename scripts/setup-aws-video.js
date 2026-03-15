@@ -146,6 +146,43 @@ function ensureLambdaRole() {
   return role.Role.Arn;
 }
 
+function ensureFfprobeLayer(region) {
+  const layerName = 'ffprobe';
+
+  // Check if layer already exists in our account
+  const existing = aws(`lambda list-layer-versions --layer-name ${layerName} --max-items 1`, { silent: true, allowFailure: true });
+  if (existing) {
+    const parsed = JSON.parse(existing);
+    if (parsed.LayerVersions && parsed.LayerVersions.length > 0) {
+      const arn = parsed.LayerVersions[0].LayerVersionArn;
+      logSkip(`ffprobe layer: ${arn}`);
+      return arn;
+    }
+  }
+
+  logAction('Publishing ffprobe Lambda layer (downloading static binary)...');
+
+  const tmpDir = execSync('mktemp -d', { encoding: 'utf-8' }).trim();
+  execSync(`mkdir -p ${tmpDir}/bin`);
+
+  // Download static ffprobe from johnvansickle.com (widely used, x86_64)
+  execSync(
+    `curl -sL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar xJ -C ${tmpDir}/bin --strip-components=1 --wildcards '*/ffprobe'`,
+    { stdio: 'pipe' },
+  );
+  execSync(`cd ${tmpDir} && zip -r layer.zip bin/`, { stdio: 'pipe' });
+
+  const result = aws(
+    `lambda publish-layer-version --layer-name ${layerName} --zip-file fileb://${tmpDir}/layer.zip --compatible-runtimes nodejs22.x --region ${region}`,
+    { silent: true },
+  );
+  const parsed = JSON.parse(result);
+  execSync(`rm -rf ${tmpDir}`);
+
+  log(`Published ffprobe layer: ${parsed.LayerVersionArn}`);
+  return parsed.LayerVersionArn;
+}
+
 function ensureLambda(name, roleArn, config) {
   const { region, originsBucket, outputsBucket, mediaConvertQueue, mediaConvertRole } = config;
 
@@ -166,15 +203,9 @@ function ensureLambda(name, roleArn, config) {
   execSync('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
   execSync('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
 
-  // ffprobe Lambda layer — public community layer
-  // https://github.com/serverlesspub/ffmpeg-aws-lambda-layer
-  const ffprobeLayers = {
-    'us-east-1': 'arn:aws:lambda:us-east-1:175033217214:layer:ffmpeg:2',
-    'us-west-2': 'arn:aws:lambda:us-west-2:175033217214:layer:ffmpeg:2',
-    'eu-west-1': 'arn:aws:lambda:eu-west-1:175033217214:layer:ffmpeg:2',
-  };
-  const layer = ffprobeLayers[region];
-  const layerArg = layer ? `--layers ${layer}` : '';
+  // ffprobe Lambda layer — published to our own account
+  const layerArn = ensureFfprobeLayer(region);
+  const layerArg = `--layers ${layerArn}`;
 
   const envVars = JSON.stringify({
     Variables: {
