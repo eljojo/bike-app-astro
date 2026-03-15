@@ -9,11 +9,12 @@
 import { execFile } from 'node:child_process';
 import { writeFile, unlink } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import {
-  MediaConvertClient,
-  CreateJobCommand,
-  DescribeEndpointsCommand,
-} from '@aws-sdk/client-mediaconvert';
+// Lazy-loaded to avoid import failure when running pure-function tests without node_modules
+let _mcModule;
+async function getMcClient() {
+  _mcModule ??= await import('@aws-sdk/client-mediaconvert');
+  return _mcModule;
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -141,6 +142,7 @@ async function getMediaConvertEndpoint() {
   if (MEDIACONVERT_ENDPOINT) return MEDIACONVERT_ENDPOINT;
   if (cachedEndpoint) return cachedEndpoint;
 
+  const { MediaConvertClient, DescribeEndpointsCommand } = await getMcClient();
   const client = new MediaConvertClient({ region });
   const { Endpoints } = await client.send(new DescribeEndpointsCommand({ MaxResults: 0 }));
   if (!Endpoints?.length) throw new Error('No MediaConvert endpoints returned');
@@ -340,6 +342,7 @@ async function handleS3Event(event) {
   // 2. Create MediaConvert job
   let jobId;
   try {
+    const { MediaConvertClient, CreateJobCommand } = await getMcClient();
     const endpoint = await getMediaConvertEndpoint();
     const client = new MediaConvertClient({ region: cfg().region, endpoint });
     const jobDef = buildJobDefinition(key, probe);
