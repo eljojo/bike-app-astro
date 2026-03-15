@@ -180,18 +180,20 @@ export function buildJobDefinition(key, { width, height }) {
           },
           Outputs: [
             {
-              NameModifier: '-av1',
+              NameModifier: '-h265',
               ContainerSettings: { Container: 'MP4' },
               VideoDescription: {
                 ...sizeFields,
                 CodecSettings: {
-                  Codec: 'AV1',
-                  Av1Settings: {
+                  Codec: 'H_265',
+                  H265Settings: {
                     MaxBitrate: 8_000_000,
                     RateControlMode: 'QVBR',
-                    QvbrSettings: { QvbrQualityLevel: 9 },
+                    QvbrSettings: { QvbrQualityLevel: 7 },
                     GopSize: 2,
                     GopSizeUnits: 'SECONDS',
+                    CodecProfile: 'MAIN_MAIN',
+                    WriteMp4PackagingType: 'HVC1',
                   },
                 },
               },
