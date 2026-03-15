@@ -23,6 +23,9 @@ declare global {
   /** City slug, baked in at build time via vite.define */
   const __CITY__: string;
 
+  /** Video storage prefix, baked in at build time via vite.define */
+  const __VIDEO_PREFIX__: string;
+
   // -- D1 (SQL database) types used by drizzle-orm/d1 --
 
   interface D1Result<T = unknown> {
