@@ -610,14 +610,25 @@ async function configureSippy(r2BucketName, outputsBucket, region, accountId, ap
     },
   );
 
+  const data = await res.json().catch(() => null);
+
   if (res.ok) {
     log(`Configured Sippy on R2 bucket: ${r2BucketName}`);
     return true;
   }
 
-  const data = await res.json().catch(() => null);
   const errors = data?.errors?.map(e => e.message).join(', ') || `HTTP ${res.status}`;
   console.warn(`  ⚠ Sippy configuration failed: ${errors}`);
+  console.warn(`    Request body: ${JSON.stringify({
+    source: {
+      provider: 's3',
+      region,
+      bucket: outputsBucket,
+      accessKeyId: awsCreds.accessKeyId,
+      secretAccessKey: '***',
+    },
+  })}`);
+  console.warn(`    Response: ${JSON.stringify(data)}`);
   console.warn('    Configure manually: Cloudflare dashboard → R2 → bucket → Settings → Sippy');
   console.warn(`    Source: S3 bucket "${outputsBucket}" in ${region}`);
   return false;
