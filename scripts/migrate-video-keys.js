@@ -57,8 +57,9 @@ const outputsBucket = args.outputsBucket || 'bike-video-outputs';
 const wranglerEnv = args.wranglerEnv;
 const dryRun = !args.execute;
 
-if (!prefix) {
-  console.error('Usage: migrate-video-keys.js --prefix <city> [--originals-bucket <name>] [--outputs-bucket <name>] [--wrangler-env <env>] [--execute]');
+if (!prefix || !wranglerEnv) {
+  console.error('Usage: migrate-video-keys.js --prefix <city> --wrangler-env <env> [--originals-bucket <name>] [--outputs-bucket <name>] [--execute]');
+  console.error('\nExample: node scripts/migrate-video-keys.js --prefix ottawa --wrangler-env staging');
   process.exit(1);
 }
 
