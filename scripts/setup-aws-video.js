@@ -32,10 +32,50 @@ import { execSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
+import readline from 'node:readline';
 
 function exitOnSigint() {
   console.log('');
   process.exit(130);
+}
+
+function ask(q) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      rl.removeListener('SIGINT', onSigint);
+      rl.removeListener('close', onClose);
+    };
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      resolve(value);
+    };
+
+    const onSigint = () => {
+      cleanup();
+      rl.close();
+      exitOnSigint();
+    };
+
+    const onClose = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        process.exit(0);
+      }
+    };
+
+    rl.once('SIGINT', onSigint);
+    rl.once('close', onClose);
+    rl.question(q, (answer) => finish(answer));
+  });
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -588,7 +628,38 @@ async function configureSippy(r2BucketName, outputsBucket, region, accountId, ap
     process.exit(1);
   }
 
+  // Sippy needs R2 API credentials to write to the destination bucket.
+  // These are separate from the Cloudflare API token.
+  console.log('  Sippy needs R2 API credentials (S3-compatible) to pull objects into R2.');
+  console.log('  Create them at: Cloudflare dashboard → R2 → Manage R2 API Tokens');
+  console.log('  The token needs Object Read & Write on the target bucket.\n');
+  const r2KeyId = (await ask('  R2 Access Key ID (Enter to skip Sippy): ')).trim();
+  if (!r2KeyId) {
+    console.log('    → skipped. Configure Sippy manually in the dashboard.\n');
+    return false;
+  }
+  const r2AccessKey = (await ask('  R2 Secret Access Key: ')).trim();
+  if (!r2AccessKey) {
+    console.log('    → skipped. Configure Sippy manually in the dashboard.\n');
+    return false;
+  }
+
   logAction(`Configuring Sippy: R2 ${r2BucketName} ← S3 ${outputsBucket}`);
+
+  const body = {
+    source: {
+      provider: 'aws',
+      bucket: outputsBucket,
+      region,
+      accessKeyId: awsCreds.accessKeyId,
+      secretAccessKey: awsCreds.secretAccessKey,
+    },
+    destination: {
+      provider: 'r2',
+      accessKeyId: r2KeyId,
+      secretAccessKey: r2AccessKey,
+    },
+  };
 
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy`,
@@ -598,15 +669,7 @@ async function configureSippy(r2BucketName, outputsBucket, region, accountId, ap
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        source: {
-          provider: 's3',
-          region,
-          bucket: outputsBucket,
-          accessKeyId: awsCreds.accessKeyId,
-          secretAccessKey: awsCreds.secretAccessKey,
-        },
-      }),
+      body: JSON.stringify(body),
     },
   );
 
@@ -619,15 +682,11 @@ async function configureSippy(r2BucketName, outputsBucket, region, accountId, ap
 
   const errors = data?.errors?.map(e => e.message).join(', ') || `HTTP ${res.status}`;
   console.warn(`  ⚠ Sippy configuration failed: ${errors}`);
-  console.warn(`    Request body: ${JSON.stringify({
-    source: {
-      provider: 's3',
-      region,
-      bucket: outputsBucket,
-      accessKeyId: awsCreds.accessKeyId,
-      secretAccessKey: '***',
-    },
-  })}`);
+  const redacted = {
+    source: { ...body.source, secretAccessKey: '***' },
+    destination: { ...body.destination, secretAccessKey: '***' },
+  };
+  console.warn(`    Request body: ${JSON.stringify(redacted)}`);
   console.warn(`    Response: ${JSON.stringify(data)}`);
   console.warn('    Configure manually: Cloudflare dashboard → R2 → bucket → Settings → Sippy');
   console.warn(`    Source: S3 bucket "${outputsBucket}" in ${region}`);
@@ -750,6 +809,30 @@ async function main() {
     const presign = rotateKeys(presignUserName);
     const sippy = rotateKeys(sippyUserName);
 
+    // Wait for new AWS keys to propagate — poll with the sippy user's new creds
+    logAction('Waiting for new AWS keys to propagate...');
+    const keyEnv = {
+      ...process.env,
+      AWS_ACCESS_KEY_ID: sippy.creds.accessKeyId,
+      AWS_SECRET_ACCESS_KEY: sippy.creds.secretAccessKey,
+    };
+    for (let i = 0; i < 12; i++) {
+      try {
+        safeExec(`aws --no-cli-pager s3api head-bucket --bucket ${outputs}`, {
+          stdio: 'pipe',
+          env: keyEnv,
+        });
+        log('AWS keys are active');
+        break;
+      } catch {
+        if (i === 11) {
+          console.warn('    ⚠ Keys may not be active yet — Sippy setup might fail, re-run to retry');
+        } else {
+          await new Promise(r => setTimeout(r, 5_000));
+        }
+      }
+    }
+
     // --- Cloudflare-side (update Sippy with new sippy key) ---
     console.log('\n  Cloudflare:\n');
     ensureR2Bucket(r2Bucket);
@@ -764,14 +847,53 @@ async function main() {
     setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
     presign.cleanup(); // old presign key no longer needed
 
+    // --- VIDEO_PREFIX in CI ---
+    // The build step needs VIDEO_PREFIX as an env var (baked into __VIDEO_PREFIX__ via Vite define).
+    // Set it as a GitHub Actions variable so CI picks it up.
+    let ghRepo = args.ghRepo;
+    if (!ghRepo) {
+      try {
+        const remote = run('git remote get-url origin', { stdio: ['pipe', 'pipe', 'pipe'] });
+        const match = remote.match(/github\.com[:/](.+?)(?:\.git)?$/);
+        if (match) ghRepo = match[1];
+      } catch { /* not a git repo or no remote */ }
+    }
+
+    let videoPrefixSet = false;
+    if (ghRepo) {
+      try {
+        run('gh --version', { stdio: 'pipe' });
+        // Use gh variable (not secret) so it's visible in workflow logs
+        safeExec(`gh variable set VIDEO_PREFIX --repo ${ghRepo} --body "${prefix}"`, { stdio: 'pipe' });
+        log(`Set VIDEO_PREFIX=${prefix} on ${ghRepo}`);
+        videoPrefixSet = true;
+      } catch {
+        console.warn(`  ⚠ Could not set VIDEO_PREFIX GitHub variable — set it manually`);
+      }
+    }
+
     // --- Summary ---
     console.log('\n  Done.\n');
-    console.log('  Remaining manual steps:');
-    console.log(`    1. Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`);
-    console.log(`       Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`);
-    console.log(`    2. Verify VIDEO_PREFIX in wrangler.jsonc vars matches: "${prefix}"`);
-    console.log(`    3. Set VIDEO_PREFIX=${prefix} in CI env vars for the build step`);
-    console.log(`    4. Deploy: make deploy`);
+    const manualSteps = [];
+    manualSteps.push(
+      `Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`,
+      `  Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`,
+    );
+    if (!videoPrefixSet) {
+      manualSteps.push(`Set VIDEO_PREFIX=${prefix} as a GitHub Actions variable for the build step`);
+    }
+    if (manualSteps.length > 0) {
+      console.log('  Remaining manual steps:');
+      let step = 1;
+      for (const line of manualSteps) {
+        if (line.startsWith('  ')) {
+          console.log(`       ${line}`);
+        } else {
+          console.log(`    ${step}. ${line}`);
+          step++;
+        }
+      }
+    }
     console.log('');
   } else {
     // --- Shared resources setup ---
