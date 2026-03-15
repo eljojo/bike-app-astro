@@ -167,6 +167,7 @@ export function buildJobDefinition(key, { width, height }) {
     Settings: {
       Inputs: [{
         FileInput: `s3://${S3_ORIGINALS_BUCKET}/${key}`,
+        VideoSelector: { Rotate: 'AUTO' },
         AudioSelectors: { 'Audio Selector 1': { DefaultSelection: 'DEFAULT' } },
       }],
       OutputGroups: [
