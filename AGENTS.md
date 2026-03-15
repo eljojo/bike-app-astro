@@ -168,7 +168,7 @@ Additional gotchas not covered by directory files:
 - **Path resolution**: never use `path.resolve('relative/path')` — use `import.meta.dirname`.
 - **No ClientRouter**: the site does NOT use Astro's `<ClientRouter />` (View Transitions). Use `DOMContentLoaded`, not `astro:page-load`.
 - **Middleware exclusions**: `/api/auth/*` and `/api/reactions/*` skip auth — don't put protected endpoints there.
-- **Wrangler config**: never add `main` field — it breaks builds.
+- **Wrangler config**: `main` points to `./src/worker-entry.ts` (custom Worker entry with `fetch` + `scheduled` for cron triggers). The Cloudflare Vite plugin compiles this into `dist/server/entry.mjs` at build time. The CI post-build step patches `main` to the compiled output for deployment. Do not set `main` to a built output path directly — Vite validates the file exists at build time.
 - **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
 - **Zod v4**: import from `astro/zod`, not `zod`. Use `z.record(z.string(), z.unknown())`, `z.looseObject()`.
 
