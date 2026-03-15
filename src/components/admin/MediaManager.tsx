@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
@@ -30,7 +30,14 @@ interface Props {
 
 export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind }: Props) {
   const fileUpload = useFileUpload();
-  const videoUpload = useVideoUpload();
+
+  const handleVideoReady = useCallback((key: string, metadata: Record<string, unknown>) => {
+    onChange(media.map(item =>
+      item.key === key ? { ...item, ...metadata } : item
+    ));
+  }, [media, onChange]);
+
+  const videoUpload = useVideoUpload(handleVideoReady);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [suggestionDragOver, setSuggestionDragOver] = useState(false);
