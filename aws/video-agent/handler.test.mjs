@@ -157,9 +157,9 @@ describe('buildJobDefinition', () => {
 
   it('scales 4K to 1080p in output', () => {
     const job = buildJobDefinition('ottawa/abc12345', { width: 3840, height: 2160, duration: 60 });
-    const h265Output = job.Settings.OutputGroups[0].Outputs[0];
-    assert.equal(h265Output.VideoDescription.Width, 1920);
-    assert.equal(h265Output.VideoDescription.Height, 1080);
+    const h264Output = job.Settings.OutputGroups[0].Outputs[0];
+    assert.equal(h264Output.VideoDescription.Width, 1920);
+    assert.equal(h264Output.VideoDescription.Height, 1080);
   });
 
   it('has MP4, HLS, and poster output groups', () => {
@@ -171,12 +171,19 @@ describe('buildJobDefinition', () => {
     assert.equal(groups[2].CustomName, 'poster');
   });
 
-  it('has H.265 and H.264 MP4 outputs', () => {
+  it('has single H.264 MP4 output', () => {
     const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
     const mp4Outputs = job.Settings.OutputGroups[0].Outputs;
-    assert.equal(mp4Outputs.length, 2);
-    assert.equal(mp4Outputs[0].NameModifier, '-h265');
-    assert.equal(mp4Outputs[1].NameModifier, '-h264');
+    assert.equal(mp4Outputs.length, 1);
+    assert.equal(mp4Outputs[0].NameModifier, '-h264');
+    assert.equal(mp4Outputs[0].VideoDescription.CodecSettings.Codec, 'H_264');
+  });
+
+  it('HLS variants both use H.265', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080, duration: 60 });
+    const hlsOutputs = job.Settings.OutputGroups[1].Outputs;
+    assert.equal(hlsOutputs[0].VideoDescription.CodecSettings.Codec, 'H_265');
+    assert.equal(hlsOutputs[1].VideoDescription.CodecSettings.Codec, 'H_265');
   });
 
   it('has HLS thumb and big outputs', () => {

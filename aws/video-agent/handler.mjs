@@ -202,7 +202,7 @@ export function buildJobDefinition(key, { width, height, duration }) {
       }],
       TimecodeConfig: { Source: 'ZEROBASED' },
       OutputGroups: [
-        // MP4 outputs: H.265 (modern, HDR) + H.264 (universal fallback)
+        // MP4 output: H.264 universal (HLS handles H.265 adaptive delivery)
         {
           CustomName: 'mp4',
           OutputGroupSettings: {
@@ -212,24 +212,6 @@ export function buildJobDefinition(key, { width, height, duration }) {
             },
           },
           Outputs: [
-            {
-              NameModifier: '-h265',
-              ContainerSettings: { Container: 'MP4' },
-              VideoDescription: {
-                ...bigFields,
-                CodecSettings: {
-                  Codec: 'H_265',
-                  H265Settings: {
-                    MaxBitrate: 10_000_000,
-                    RateControlMode: 'QVBR',
-                    QvbrSettings: { QvbrQualityLevel: 7 },
-                    CodecProfile: 'MAIN_MAIN',
-                    WriteMp4PackagingType: 'HVC1',
-                  },
-                },
-              },
-              AudioDescriptions: aacAudio,
-            },
             {
               NameModifier: '-h264',
               ContainerSettings: { Container: 'MP4' },
@@ -250,7 +232,7 @@ export function buildJobDefinition(key, { width, height, duration }) {
             },
           ],
         },
-        // HLS adaptive: thumb (480p, mobile) + big (1080p H.265, desktop/HDR)
+        // HLS adaptive: both H.265 (no codec switch mid-stream)
         {
           CustomName: 'hls',
           OutputGroupSettings: {
@@ -269,13 +251,13 @@ export function buildJobDefinition(key, { width, height, duration }) {
               VideoDescription: {
                 ...thumbFields,
                 CodecSettings: {
-                  Codec: 'H_264',
-                  H264Settings: {
-                    MaxBitrate: 4_000_000,
+                  Codec: 'H_265',
+                  H265Settings: {
+                    MaxBitrate: 2_000_000,
                     RateControlMode: 'QVBR',
                     QvbrSettings: { QvbrQualityLevel: 7 },
-                    SceneChangeDetect: 'TRANSITION_DETECTION',
-                    QualityTuningLevel: 'MULTI_PASS_HQ',
+                    CodecProfile: 'MAIN_MAIN',
+                    WriteMp4PackagingType: 'HVC1',
                   },
                 },
               },
