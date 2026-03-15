@@ -15,13 +15,13 @@ describe('config CITY resolution', () => {
 
   it('reads CITY from process.env when __CITY__ is not defined', async () => {
     process.env.CITY = 'testcity';
-    const { CITY } = await import('../../src/lib/config');
+    const { CITY } = await import('../../src/lib/config/config');
     expect(CITY).toBe('testcity');
   });
 
   it('throws when CITY is not set and __CITY__ is not defined', async () => {
     delete process.env.CITY;
-    await expect(() => import('../../src/lib/config')).rejects.toThrow(
+    await expect(() => import('../../src/lib/config/config')).rejects.toThrow(
       'CITY environment variable is required',
     );
   });
@@ -32,6 +32,6 @@ describe('config CITY resolution', () => {
     // because Vite doesn't inline process.env values. A silent default caused
     // blog ride imports to commit under ottawa/ instead of blog/.
     delete process.env.CITY;
-    await expect(() => import('../../src/lib/config')).rejects.toThrow();
+    await expect(() => import('../../src/lib/config/config')).rejects.toThrow();
   });
 });
