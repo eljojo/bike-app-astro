@@ -600,9 +600,10 @@ function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken
     },
   });
 
-  const response = run(
-    `curl -s -w "\\n%{http_code}" -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" -d '${body}'`,
-  );
+  const response = safeExec(
+    `curl -s -w "\\n%{http_code}" -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" --data-binary @-`,
+    { input: body, stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
+  ).trim();
 
   const lines = response.split('\n');
   const httpCode = lines.pop();
