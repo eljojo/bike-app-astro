@@ -29,16 +29,68 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import readline from 'node:readline';
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+function exitOnSigint() {
+  console.log('');
+  process.exit(130);
+}
+
+function ask(q) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      rl.removeListener('SIGINT', onSigint);
+      rl.removeListener('close', onClose);
+    };
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      resolve(value);
+    };
+
+    const onSigint = () => {
+      cleanup();
+      rl.close();
+      exitOnSigint();
+    };
+
+    const onClose = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        process.exit(0);
+      }
+    };
+
+    rl.once('SIGINT', onSigint);
+    rl.once('close', onClose);
+    rl.question(q, (answer) => finish(answer));
+  });
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // --- Helpers ---
 
+function run(cmd, opts = {}) {
+  try {
+    return execSync(cmd, opts);
+  } catch (err) {
+    if (err.signal === 'SIGINT' || err.status === 130) {
+      exitOnSigint();
+    }
+    throw err;
+  }
+}
+
 function aws(cmd, { silent = false, allowFailure = false } = {}) {
   try {
-    const result = execSync(`aws ${cmd}`, {
+    const result = run(`aws ${cmd}`, {
       encoding: 'utf-8',
       stdio: silent ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'inherit'],
     });
@@ -140,7 +192,7 @@ function ensureLambdaRole() {
   log(`Created IAM role: ${roleName}`);
   // Wait for role propagation
   console.log('    Waiting 10s for IAM role propagation...');
-  execSync('sleep 10');
+  run('sleep 10');
 
   const role = awsJson(`iam get-role --role-name ${roleName}`);
   return role.Role.Arn;
@@ -162,22 +214,22 @@ function ensureFfprobeLayer(region) {
 
   logAction('Publishing ffprobe Lambda layer (downloading static binary)...');
 
-  const tmpDir = execSync('mktemp -d', { encoding: 'utf-8' }).trim();
-  execSync(`mkdir -p ${tmpDir}/bin`);
+  const tmpDir = run('mktemp -d', { encoding: 'utf-8' }).trim();
+  run(`mkdir -p ${tmpDir}/bin`);
 
   // Download static ffprobe from johnvansickle.com (widely used, x86_64)
-  execSync(
+  run(
     `curl -sL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar xJ -C ${tmpDir}/bin --strip-components=1 --wildcards '*/ffprobe'`,
     { stdio: 'pipe' },
   );
-  execSync(`cd ${tmpDir} && zip -r layer.zip bin/`, { stdio: 'pipe' });
+  run(`cd ${tmpDir} && zip -r layer.zip bin/`, { stdio: 'pipe' });
 
   const result = aws(
     `lambda publish-layer-version --layer-name ${layerName} --zip-file fileb://${tmpDir}/layer.zip --compatible-runtimes nodejs22.x --region ${region}`,
     { silent: true },
   );
   const parsed = JSON.parse(result);
-  execSync(`rm -rf ${tmpDir}`);
+  run(`rm -rf ${tmpDir}`);
 
   log(`Published ffprobe layer: ${parsed.LayerVersionArn}`);
   return parsed.LayerVersionArn;
@@ -191,8 +243,8 @@ function ensureLambda(name, roleArn, config) {
     logSkip(`Lambda function: ${name}`);
     // Update code
     const lambdaDir = resolve(__dirname, '..', 'aws', 'video-agent');
-    execSync('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
-    execSync('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
+    run('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
+    run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
     aws(`lambda update-function-code --function-name ${name} --zip-file fileb://${lambdaDir}/function.zip --publish`, { silent: true });
     log(`Updated Lambda code: ${name}`);
     return;
@@ -200,8 +252,8 @@ function ensureLambda(name, roleArn, config) {
 
   // Build the zip
   const lambdaDir = resolve(__dirname, '..', 'aws', 'video-agent');
-  execSync('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
-  execSync('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
+  run('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
+  run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
 
   // ffprobe Lambda layer — published to our own account
   const layerArn = ensureFfprobeLayer(region);
@@ -373,7 +425,7 @@ function ensureWebhookSecret(lambdaName, wranglerEnv) {
   // Set on Worker too
   try {
     const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
-    execSync(`echo "${secret}" | npx wrangler secret put WEBHOOK_SECRET ${envArg}`, {
+    run(`echo "${secret}" | npx wrangler secret put WEBHOOK_SECRET ${envArg}`, {
       stdio: 'pipe',
       encoding: 'utf-8',
     });
@@ -409,7 +461,7 @@ function configureSippy(accountId, bucketName, outputsBucket, region) {
       },
     });
 
-    execSync(`curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" -d '${body}'`, { stdio: 'pipe' });
+    run(`curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${bucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" -d '${body}'`, { stdio: 'pipe' });
     log(`Configured Sippy on R2 bucket: ${bucketName}`);
   } catch (err) {
     console.warn(`  ⚠ Sippy configuration failed: ${err.message}`);
@@ -419,7 +471,7 @@ function configureSippy(accountId, bucketName, outputsBucket, region) {
 // --- GitHub Actions CI ---
 
 function secretInput(repo, name, value) {
-  execSync(`gh secret set ${name} --repo ${repo}`, {
+  run(`gh secret set ${name} --repo ${repo}`, {
     input: value,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -428,7 +480,7 @@ function secretInput(repo, name, value) {
 async function configureGitHubSecrets(repo) {
   // Check gh CLI is available
   try {
-    execSync('gh --version', { stdio: 'pipe' });
+    run('gh --version', { stdio: 'pipe' });
   } catch {
     console.warn('  ⚠ gh CLI not found — skipping GitHub Actions secrets');
     console.warn('    Install: https://cli.github.com/');
@@ -440,7 +492,7 @@ async function configureGitHubSecrets(repo) {
   // Check what's already set
   let secretList = '';
   try {
-    secretList = execSync(`gh secret list --repo ${repo}`, { encoding: 'utf-8', stdio: 'pipe' });
+    secretList = run(`gh secret list --repo ${repo}`, { encoding: 'utf-8', stdio: 'pipe' });
   } catch { /* repo may not exist yet */ }
 
   const hasAccessKey = secretList.includes('AWS_ACCESS_KEY_ID');
@@ -583,7 +635,7 @@ async function main() {
     let ghRepo = args.ghRepo;
     if (!ghRepo) {
       try {
-        const remote = execSync('git remote get-url origin', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        const remote = run('git remote get-url origin', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
         const match = remote.match(/github\.com[:/](.+?)(?:\.git)?$/);
         if (match) ghRepo = match[1];
       } catch { /* not a git repo or no remote */ }
@@ -599,4 +651,4 @@ async function main() {
   }
 }
 
-main().finally(() => rl.close());
+main();

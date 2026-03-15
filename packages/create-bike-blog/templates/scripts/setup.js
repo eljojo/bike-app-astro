@@ -4,16 +4,68 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+function exitOnSigint() {
+  console.log('');
+  process.exit(130);
+}
+
+function ask(q) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      rl.removeListener('SIGINT', onSigint);
+      rl.removeListener('close', onClose);
+    };
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      resolve(value);
+    };
+
+    const onSigint = () => {
+      cleanup();
+      rl.close();
+      exitOnSigint();
+    };
+
+    const onClose = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        process.exit(0);
+      }
+    };
+
+    rl.once('SIGINT', onSigint);
+    rl.once('close', onClose);
+    rl.question(q, (answer) => finish(answer));
+  });
+}
+
+function safeExec(cmd, opts = {}) {
+  try {
+    return execSync(cmd, opts);
+  } catch (err) {
+    if (err.signal === 'SIGINT' || err.status === 130) {
+      exitOnSigint();
+    }
+    throw err;
+  }
+}
 
 function run(cmd, opts = {}) {
-  return execSync(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', ...opts }).trim();
+  return safeExec(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', ...opts }).trim();
 }
 
 function commandExists(cmd) {
   try {
-    execSync(`which ${cmd}`, { stdio: 'pipe' });
+    safeExec(`which ${cmd}`, { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -103,7 +155,7 @@ async function stepCloudflare(folderName) {
       console.log('\n  Log in with: wrangler login\n  Then run npm run setup again.\n');
       process.exit(0);
     }
-    execSync(`${wranglerCmd()} login`, { stdio: 'inherit' });
+    safeExec(`${wranglerCmd()} login`, { stdio: 'inherit' });
     console.log();
   }
 
@@ -125,7 +177,7 @@ async function stepCloudflare(folderName) {
   fs.writeFileSync(stubPath, 'export default { fetch() { return new Response("Setting up — check back soon!"); } };\n');
 
   try {
-    execSync(`${wranglerCmd()} deploy ${stubPath} --x-provision`, { stdio: 'inherit' });
+    safeExec(`${wranglerCmd()} deploy ${stubPath} --x-provision`, { stdio: 'inherit' });
     console.log('\n  ✓ Resources created, IDs written to wrangler.jsonc\n');
   } catch {
     console.error('\n  ✗ Deploy failed. Check the error above and try again.\n');
@@ -171,7 +223,7 @@ async function stepGitHub(folderName) {
       console.log('\n  Log in with: gh auth login\n  Then run npm run setup again.\n');
       process.exit(0);
     }
-    execSync('gh auth login', { stdio: 'inherit' });
+    safeExec('gh auth login', { stdio: 'inherit' });
     ghUser = run('gh api user -q .login');
   }
   console.log(`  ✓ gh found, logged in as ${ghUser}\n`);
@@ -186,7 +238,7 @@ async function stepGitHub(folderName) {
     const createAnswer = await ask('  Proceed? [Y/n] ');
     if (createAnswer.toLowerCase() !== 'n') {
       try {
-        execSync(`gh repo create ${repoName} --private --source .`, { stdio: 'inherit' });
+        safeExec(`gh repo create ${repoName} --private --source .`, { stdio: 'inherit' });
         console.log(`\n  ✓ Repo created: github.com/${repoName}\n`);
       } catch {
         console.error('\n  ✗ Repo creation failed. Create it manually and run setup again.\n');
@@ -211,7 +263,7 @@ async function stepGitHub(folderName) {
   }
 
   const secretInput = (name, value) => {
-    execSync(`gh secret set ${name}`, {
+    safeExec(`gh secret set ${name}`, {
       input: value,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -532,7 +584,7 @@ async function stepApiKeys() {
   // Set secrets via wrangler
   for (const { name, value } of collectedSecrets) {
     try {
-      execSync(`${wranglerCmd()} secret put ${name}`, {
+      safeExec(`${wranglerCmd()} secret put ${name}`, {
         input: value,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -719,7 +771,7 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   // Set R2_PUBLIC_URL secret
   const publicUrl = `https://${cdnDomain}`;
   try {
-    execSync(`${wranglerCmd()} secret put R2_PUBLIC_URL`, {
+    safeExec(`${wranglerCmd()} secret put R2_PUBLIC_URL`, {
       input: publicUrl,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -753,13 +805,13 @@ async function main() {
     console.log('  ──────────────────────');
     const deploy = await ask('  Commit and push to trigger first deploy? [Y/n] ');
     if (deploy.toLowerCase() !== 'n') {
-      execSync('git add wrangler.jsonc', { stdio: 'pipe' });
+      safeExec('git add wrangler.jsonc', { stdio: 'pipe' });
       try {
-        execSync('git commit -m "setup complete"', { stdio: 'pipe' });
+        safeExec('git commit -m "setup complete"', { stdio: 'pipe' });
       } catch {
         // nothing to commit — that's fine
       }
-      execSync('git push -u origin main', { stdio: 'inherit' });
+      safeExec('git push -u origin main', { stdio: 'inherit' });
 
       const actionsUrl = remoteUrl
         .replace(/\.git$/, '')
@@ -776,7 +828,6 @@ async function main() {
     console.log('    git add wrangler.jsonc && git commit -m "setup complete" && git push -u origin main\n');
   }
 
-  rl.close();
 }
 
 main().catch((err) => {
