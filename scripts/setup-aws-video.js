@@ -575,7 +575,7 @@ function ensureR2Bucket(bucketName) {
   }
 }
 
-function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken, awsCreds) {
+async function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken, awsCreds) {
   if (!accountId) {
     console.error('  ✗ Cannot configure Sippy — Cloudflare account ID not detected');
     console.error('    Set CLOUDFLARE_ACCOUNT_ID or run: wrangler login (inside nix develop)');
@@ -590,38 +590,34 @@ function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken
 
   logAction(`Configuring Sippy: R2 ${r2BucketName} ← S3 ${outputsBucket}`);
 
-  const body = JSON.stringify({
-    source: {
-      provider: 's3',
-      region,
-      bucket: outputsBucket,
-      accessKeyId: awsCreds.accessKeyId,
-      secretAccessKey: awsCreds.secretAccessKey,
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        source: {
+          provider: 's3',
+          region,
+          bucket: outputsBucket,
+          accessKeyId: awsCreds.accessKeyId,
+          secretAccessKey: awsCreds.secretAccessKey,
+        },
+      }),
     },
-  });
+  );
 
-  const response = safeExec(
-    `curl -s -w "\\n%{http_code}" -X PUT "https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy" -H "Authorization: Bearer ${apiToken}" -H "Content-Type: application/json" --data-binary @-`,
-    { input: body, stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
-  ).trim();
-
-  const lines = response.split('\n');
-  const httpCode = lines.pop();
-  const responseBody = lines.join('\n');
-
-  if (httpCode.startsWith('2')) {
+  if (res.ok) {
     log(`Configured Sippy on R2 bucket: ${r2BucketName}`);
     return true;
   }
 
-  console.warn(`  ⚠ Sippy configuration failed (HTTP ${httpCode}):`);
-  try {
-    const parsed = JSON.parse(responseBody);
-    const errors = parsed.errors?.map(e => e.message).join(', ') || responseBody;
-    console.warn(`    ${errors}`);
-  } catch {
-    console.warn(`    ${responseBody}`);
-  }
+  const data = await res.json().catch(() => null);
+  const errors = data?.errors?.map(e => e.message).join(', ') || `HTTP ${res.status}`;
+  console.warn(`  ⚠ Sippy configuration failed: ${errors}`);
   console.warn('    Configure manually: Cloudflare dashboard → R2 → bucket → Settings → Sippy');
   console.warn(`    Source: S3 bucket "${outputsBucket}" in ${region}`);
   return false;
@@ -704,7 +700,7 @@ function parseArgs(args) {
 
 const args = parseArgs(process.argv.slice(2));
 
-function main() {
+async function main() {
   if (args._command === 'configure-instance') {
     const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1', r2Bucket = 'whereto-bike-videos' } = args;
     if (!prefix || !domain) {
@@ -746,7 +742,7 @@ function main() {
     // --- Cloudflare-side (update Sippy with new sippy key) ---
     console.log('\n  Cloudflare:\n');
     ensureR2Bucket(r2Bucket);
-    const sippyOk = configureSippy(r2Bucket, outputs, region, cfAccountId, cfApiToken, sippy.creds);
+    const sippyOk = await configureSippy(r2Bucket, outputs, region, cfAccountId, cfApiToken, sippy.creds);
     if (sippyOk) sippy.cleanup(); // old sippy key no longer needed
 
     // --- Wrangler secrets (update presign creds on Worker) ---
@@ -843,4 +839,7 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});
