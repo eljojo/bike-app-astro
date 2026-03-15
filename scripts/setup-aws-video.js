@@ -30,11 +30,9 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { homedir } from 'node:os';
 
 function exitOnSigint() {
   console.log('');
@@ -105,20 +103,13 @@ function getCloudflareAccountId() {
 function getCloudflareApiToken() {
   if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
 
-  // Read from wrangler's stored OAuth config
-  const home = homedir();
-  const candidates = [
-    join(home, '.wrangler', 'config', 'default.toml'),
-    join(process.env.XDG_CONFIG_HOME || join(home, '.config'), '.wrangler', 'config', 'default.toml'),
-  ];
-
-  for (const configPath of candidates) {
-    try {
-      const content = readFileSync(configPath, 'utf-8');
-      const match = content.match(/^oauth_token\s*=\s*"(.+)"/m);
-      if (match) return match[1];
-    } catch { /* file not found */ }
-  }
+  // Same approach as the blog setup script — wrangler auth token prints the token directly
+  try {
+    const output = run('npx wrangler auth token 2>/dev/null', { encoding: 'utf-8', stdio: 'pipe' });
+    // Output may include a banner line — grab the last non-empty line
+    const token = output.split('\n').pop().trim();
+    if (token) return token;
+  } catch { /* wrangler not authenticated */ }
 
   return null;
 }
