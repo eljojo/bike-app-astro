@@ -1,6 +1,13 @@
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
+// Rides list (shared between rides index, tour detail, and homepage)
+.rides-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
 .ride-card {
   margin-bottom: 0.75rem;
 }
