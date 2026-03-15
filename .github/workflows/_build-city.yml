@@ -162,8 +162,8 @@ jobs:
           # The Astro Cloudflare adapter generates dist/server/wrangler.json
           # with its own config that lacks our env definitions (D1 bindings,
           # worker names). Remove it so wrangler uses our wrangler.jsonc.
-          # Then patch our config with the worker entry point and assets path
-          # (can't be present at build time because Vite validates the file exists).
+          # Then patch main to point at the compiled entry (wrangler.jsonc has
+          # the source path for Vite) and assets to the client output dir.
           rm -f dist/server/wrangler.json
           rm -rf .wrangler/deploy
           node -e "

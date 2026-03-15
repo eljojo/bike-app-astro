@@ -188,7 +188,14 @@ export function buildJobDefinition(
   params: TranscodeParams,
   config: JobDefConfig,
 ) {
-  const { width, height } = outputSize(params.width, params.height);
+  // Scale to 1080p when dimensions are known. When unknown (client
+  // couldn't parse moov atom), omit and let MediaConvert auto-detect.
+  const scaled = params.width && params.height
+    ? outputSize(params.width, params.height)
+    : undefined;
+  const sizeFields = scaled
+    ? { Width: scaled.width, Height: scaled.height }
+    : undefined;
 
   return {
     Queue: config.queue,
@@ -212,8 +219,7 @@ export function buildJobDefinition(
               NameModifier: '-av1',
               ContainerSettings: { Container: 'MP4' },
               VideoDescription: {
-                Width: width,
-                Height: height,
+                ...sizeFields,
                 CodecSettings: {
                   Codec: 'AV1',
                   av_1_settings: {
@@ -236,8 +242,7 @@ export function buildJobDefinition(
               NameModifier: '-h264',
               ContainerSettings: { Container: 'MP4' },
               VideoDescription: {
-                Width: width,
-                Height: height,
+                ...sizeFields,
                 CodecSettings: {
                   Codec: 'H_264',
                   H264Settings: {
@@ -270,8 +275,7 @@ export function buildJobDefinition(
             NameModifier: '-poster',
             ContainerSettings: { Container: 'RAW' },
             VideoDescription: {
-              Width: width,
-              Height: height,
+              ...sizeFields,
               CodecSettings: {
                 Codec: 'FRAME_CAPTURE',
                 FrameCaptureSettings: {

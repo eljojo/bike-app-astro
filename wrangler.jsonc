@@ -1,5 +1,6 @@
 {
   "name": "whereto-bike",
+  "main": "./src/worker-entry.ts",
   "compatibility_date": "2025-03-25",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -40,7 +41,8 @@
           "binding": "TILE_CACHE",
           "id": "295e43f49e3a4497aae86c3898b7c507"
         }
-      ]
+      ],
+      "triggers": { "crons": ["*/2 * * * *"] }
     },
     "production": {
       "name": "bike-ottawa-production",
@@ -74,7 +76,8 @@
           "binding": "TILE_CACHE",
           "id": "295e43f49e3a4497aae86c3898b7c507"
         }
-      ]
+      ],
+      "triggers": { "crons": ["*/2 * * * *"] }
     },
     "demo-production": {
       "name": "bike-demo-production",

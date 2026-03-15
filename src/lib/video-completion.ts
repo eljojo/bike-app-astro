@@ -32,7 +32,7 @@ export async function checkVideoReady(bucket: BucketLike, key: string): Promise<
  * Process pending video jobs — called by the cron endpoint.
  * Updates completed jobs to 'ready', marks stale ones (>2h) as 'failed'.
  */
-export async function processPendingVideos(_env: AppEnv): Promise<{ processed: number; ready: number; failed: number }> {
+export async function processPendingVideos(env: AppEnv): Promise<{ processed: number; ready: number; failed: number }> {
   const database = db();
   const pending = await database
     .select()
@@ -44,7 +44,7 @@ export async function processPendingVideos(_env: AppEnv): Promise<{ processed: n
   let failed = 0;
 
   for (const job of pending) {
-    const isReady = await checkVideoReady(_env.BUCKET, job.key);
+    const isReady = await checkVideoReady(env.BUCKET, job.key);
 
     if (isReady) {
       await database.update(videoJobs)
