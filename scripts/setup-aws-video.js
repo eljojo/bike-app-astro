@@ -30,7 +30,7 @@
 
 import { execSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import readline from 'node:readline';
 
@@ -39,7 +39,7 @@ function exitOnSigint() {
   process.exit(130);
 }
 
-function ask(q) {
+export function ask(q) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   return new Promise((resolve) => {
@@ -82,7 +82,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // --- Helpers ---
 
-function safeExec(cmd, opts = {}) {
+export function safeExec(cmd, opts = {}) {
   try {
     return execSync(cmd, opts);
   } catch (err) {
@@ -93,11 +93,11 @@ function safeExec(cmd, opts = {}) {
   }
 }
 
-function run(cmd, opts = {}) {
+export function run(cmd, opts = {}) {
   return safeExec(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', ...opts }).trim();
 }
 
-function aws(cmd, { silent = false, allowFailure = false } = {}) {
+export function aws(cmd, { silent = false, allowFailure = false } = {}) {
   try {
     return run(`aws --no-cli-pager ${cmd}`, {
       stdio: silent ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'pipe', 'inherit'],
@@ -108,27 +108,27 @@ function aws(cmd, { silent = false, allowFailure = false } = {}) {
   }
 }
 
-function awsJson(cmd) {
+export function awsJson(cmd) {
   const result = aws(cmd, { silent: true });
   return result ? JSON.parse(result) : null;
 }
 
-function awsExists(cmd) {
+export function awsExists(cmd) {
   return aws(cmd, { silent: true, allowFailure: true }) !== null;
 }
 
-function log(msg) { console.log(`  ✓ ${msg}`); }
-function logSkip(msg) { console.log(`  · ${msg} (already exists)`); }
-function logAction(msg) { console.log(`  → ${msg}`); }
+export function log(msg) { console.log(`  ✓ ${msg}`); }
+export function logSkip(msg) { console.log(`  · ${msg} (already exists)`); }
+export function logAction(msg) { console.log(`  → ${msg}`); }
 
 // --- Auto-Detection ---
 
-function getAwsAccountId() {
+export function getAwsAccountId() {
   const identity = awsJson('sts get-caller-identity');
   return identity?.Account;
 }
 
-function commandExists(cmd) {
+export function commandExists(cmd) {
   try {
     safeExec(`which ${cmd}`, { stdio: 'pipe' });
     return true;
@@ -137,11 +137,11 @@ function commandExists(cmd) {
   }
 }
 
-function wranglerCmd() {
+export function wranglerCmd() {
   return commandExists('wrangler') ? 'wrangler' : 'npx wrangler';
 }
 
-function getCloudflareAccountId() {
+export function getCloudflareAccountId() {
   if (process.env.CLOUDFLARE_ACCOUNT_ID) return process.env.CLOUDFLARE_ACCOUNT_ID;
 
   try {
@@ -155,7 +155,7 @@ function getCloudflareAccountId() {
   return null;
 }
 
-function getCloudflareApiToken() {
+export function getCloudflareApiToken() {
   if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
 
   try {
@@ -199,7 +199,7 @@ function ensureIamUserAndPolicy(userName, policyName, policyDocument) {
  *
  * If already at the 2-key limit, deletes the oldest first.
  */
-function rotateKeys(userName) {
+export function rotateKeys(userName) {
   const existing = awsJson(`iam list-access-keys --user-name ${userName}`);
   const oldKeys = existing?.AccessKeyMetadata || [];
 
@@ -235,7 +235,7 @@ function rotateKeys(userName) {
 }
 
 /** Per-prefix user for S3 presigned uploads. Scoped to prefix path in originals bucket. */
-function ensurePresignUser(prefix, originsBucket) {
+export function ensurePresignUser(prefix, originsBucket) {
   const userName = `whereto-presign-${prefix}`;
   ensureIamUserAndPolicy(userName, 'presign-s3-upload', {
     Version: '2012-10-17',
@@ -289,7 +289,7 @@ function ensureCiUser(lambdaName, region, accountId) {
 
 // --- Shared Resources ---
 
-function ensureBucket(name, region) {
+export function ensureBucket(name, region) {
   if (awsExists(`s3api head-bucket --bucket ${name}`)) {
     logSkip(`S3 bucket: ${name}`);
     return;
@@ -365,7 +365,7 @@ function ensureMediaConvertRole(region, originsBucket, outputsBucket) {
   return role.Role.Arn;
 }
 
-function ensureLambdaRole(mcRoleArn) {
+function ensureLambdaRole(mcRoleArn, originsBucket, outputsBucket) {
   const roleName = 'video-agent-lambda-role';
   const exists = awsExists(`iam get-role --role-name ${roleName}`);
 
@@ -393,7 +393,7 @@ function ensureLambdaRole(mcRoleArn) {
       {
         Effect: 'Allow',
         Action: ['s3:GetObject', 's3:PutObject'],
-        Resource: ['arn:aws:s3:::bike-video-originals/*', 'arn:aws:s3:::bike-video-outputs/*'],
+        Resource: [`arn:aws:s3:::${originsBucket}/*`, `arn:aws:s3:::${outputsBucket}/*`],
       },
       {
         Effect: 'Allow',
@@ -457,7 +457,7 @@ function ensureFfprobeLayer(region) {
   return parsed.LayerVersionArn;
 }
 
-function ensureLambda(name, roleArn, config) {
+export function ensureLambda(name, roleArn, config) {
   const { region, originsBucket, outputsBucket, mediaConvertQueue, mediaConvertRole } = config;
 
   if (awsExists(`lambda get-function --function-name ${name}`)) {
@@ -467,7 +467,7 @@ function ensureLambda(name, roleArn, config) {
     run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
     aws(`lambda update-function-code --function-name ${name} --zip-file fileb://${lambdaDir}/function.zip --publish`, { silent: true });
     log(`Updated Lambda code: ${name}`);
-    return;
+    return false;
   }
 
   const lambdaDir = resolve(__dirname, '..', 'aws', 'video-agent');
@@ -499,6 +499,7 @@ function ensureLambda(name, roleArn, config) {
   ].filter(Boolean).join(' '));
 
   log(`Created Lambda function: ${name}`);
+  return true;
 }
 
 function ensureEventBridgeRule(lambdaName, region) {
@@ -603,7 +604,7 @@ function ensureBucketCors(bucket, domain) {
   log(`Added CORS origin ${origin} to ${bucket}`);
 }
 
-function updateLambdaWebhookMap(lambdaName, prefix, domain) {
+export function updateLambdaWebhookMap(lambdaName, prefix, domain) {
   const fnConfig = awsJson(`lambda get-function-configuration --function-name ${lambdaName}`);
   const envVars = fnConfig.Environment?.Variables || {};
 
@@ -651,7 +652,7 @@ function ensureWebhookSecret(lambdaName, wranglerEnv) {
   }
 }
 
-function ensureR2Bucket(bucketName) {
+export function ensureR2Bucket(bucketName) {
   try {
     const list = run(`${wranglerCmd()} r2 bucket list`);
     if (list.includes(bucketName)) {
@@ -669,7 +670,22 @@ function ensureR2Bucket(bucketName) {
   }
 }
 
-async function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken, awsCreds) {
+export async function isSippyActive(r2BucketName, accountId, apiToken) {
+  if (!accountId || !apiToken) return false;
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/sippy`,
+      { headers: { 'Authorization': `Bearer ${apiToken}` } },
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.result?.source;
+  } catch {
+    return false;
+  }
+}
+
+export async function configureSippy(r2BucketName, outputsBucket, region, accountId, apiToken, awsCreds) {
   if (!accountId) {
     console.error('  ✗ Cannot configure Sippy — Cloudflare account ID not detected');
     console.error('    Set CLOUDFLARE_ACCOUNT_ID or run: wrangler login (inside nix develop)');
@@ -747,7 +763,7 @@ async function configureSippy(r2BucketName, outputsBucket, region, accountId, ap
   return false;
 }
 
-function setWranglerSecret(name, value, wranglerEnv, { force = false } = {}) {
+export function setWranglerSecret(name, value, wranglerEnv, { force = false } = {}) {
   const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
 
   if (!force) {
@@ -781,7 +797,7 @@ function secretInput(repo, name, value) {
   });
 }
 
-function storeGitHubSecrets(repo, creds) {
+export function storeGitHubSecrets(repo, creds) {
   try {
     run('gh --version', { stdio: 'pipe' });
   } catch {
@@ -822,177 +838,51 @@ function parseArgs(args) {
   return opts;
 }
 
-const args = parseArgs(process.argv.slice(2));
+export async function setupSharedResources(opts = {}) {
+  const {
+    region = 'us-east-1',
+    originsBucket = 'bike-video-originals',
+    outputsBucket = 'bike-video-outputs',
+    lambdaName = 'video-agent',
+    ghRepo: ghRepoArg,
+  } = opts;
 
-async function main() {
-  if (args._command === 'configure-instance') {
-    const { prefix, domain, wranglerEnv, lambdaName = 'video-agent', originsBucket, outputsBucket, region = 'us-east-1', r2Bucket = 'whereto-bike-videos' } = args;
-    if (!prefix || !domain) {
-      console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>] [--r2-bucket <name>]');
-      process.exit(1);
-    }
+  console.log(`\nSetting up shared video pipeline resources (${region})\n`);
 
-    const bucket = originsBucket || 'bike-video-originals';
-    const outputs = outputsBucket || 'bike-video-outputs';
+  const awsAccountId = getAwsAccountId();
+  if (!awsAccountId) {
+    console.error('  ✗ Could not detect AWS account ID. Is AWS CLI configured?');
+    process.exit(1);
+  }
 
-    console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
+  ensureBucket(originsBucket, region);
+  ensureBucket(outputsBucket, region);
 
-    // --- Preflight: verify Cloudflare access before touching keys ---
-    const cfAccountId = getCloudflareAccountId();
-    const cfApiToken = getCloudflareApiToken();
-    if (!cfAccountId || !cfApiToken) {
-      console.error('  ✗ Cloudflare credentials not detected — aborting before any key rotation');
-      console.error('    Make sure wrangler is in PATH (run inside nix develop or use: make setup-video)');
-      console.error('    Or set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN env vars');
-      process.exit(1);
-    }
-    log(`Cloudflare account: ${cfAccountId}`);
+  const mcRoleArn = ensureMediaConvertRole(region, originsBucket, outputsBucket);
+  const lambdaRoleArn = ensureLambdaRole(mcRoleArn, originsBucket, outputsBucket);
 
-    // --- AWS-side ---
-    console.log('\n  AWS:\n');
-    ensureBucketCors(bucket, domain);
-    updateLambdaWebhookMap(lambdaName, prefix, domain);
-    ensureWebhookSecret(lambdaName, wranglerEnv);
+  let mcQueue = '';
+  try {
+    awsJson(`mediaconvert describe-endpoints --region ${region}`);
+    mcQueue = `arn:aws:mediaconvert:${region}:${awsAccountId}:queues/Default`;
+  } catch {
+    console.warn('  ⚠ Could not determine MediaConvert queue ARN');
+  }
 
-    // --- IAM users (create/update policy, then rotate keys) ---
-    console.log('\n  IAM users:\n');
-    const presignUserName = ensurePresignUser(prefix, bucket);
-    const sippyUserName = ensureSippyUser(outputs);
+  const lambdaCreated = ensureLambda(lambdaName, lambdaRoleArn, {
+    region,
+    originsBucket,
+    outputsBucket,
+    mediaConvertQueue: mcQueue,
+    mediaConvertRole: mcRoleArn,
+  });
 
-    // Rotate keys — old keys stay active until consumers are updated
-    const presign = rotateKeys(presignUserName);
-    const sippy = rotateKeys(sippyUserName);
+  ensureEventBridgeRule(lambdaName, region);
+  ensureS3Trigger(lambdaName, originsBucket);
 
-    // Wait for new AWS keys to propagate — poll with the sippy user's new creds
-    logAction('Waiting for new AWS keys to propagate...');
-    const keyEnv = {
-      ...process.env,
-      AWS_ACCESS_KEY_ID: sippy.creds.accessKeyId,
-      AWS_SECRET_ACCESS_KEY: sippy.creds.secretAccessKey,
-    };
-    for (let i = 0; i < 12; i++) {
-      try {
-        safeExec(`aws --no-cli-pager s3api head-bucket --bucket ${outputs}`, {
-          stdio: 'pipe',
-          env: keyEnv,
-        });
-        log('AWS keys are active');
-        break;
-      } catch {
-        if (i === 11) {
-          console.warn('    ⚠ Keys may not be active yet — Sippy setup might fail, re-run to retry');
-        } else {
-          await new Promise(r => setTimeout(r, 5_000));
-        }
-      }
-    }
-
-    // --- Cloudflare-side (update Sippy with new sippy key) ---
-    console.log('\n  Cloudflare:\n');
-    ensureR2Bucket(r2Bucket);
-    const sippyOk = await configureSippy(r2Bucket, outputs, region, cfAccountId, cfApiToken, sippy.creds);
-    if (sippyOk) sippy.cleanup(); // old sippy key no longer needed
-
-    // --- Wrangler secrets (update presign creds on Worker) ---
-    console.log('\n  Wrangler secrets:\n');
-    setWranglerSecret('MEDIACONVERT_ACCESS_KEY_ID', presign.creds.accessKeyId, wranglerEnv, { force: true });
-    setWranglerSecret('MEDIACONVERT_SECRET_ACCESS_KEY', presign.creds.secretAccessKey, wranglerEnv, { force: true });
-    setWranglerSecret('S3_ORIGINALS_BUCKET', bucket, wranglerEnv);
-    setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
-    presign.cleanup(); // old presign key no longer needed
-
-    // --- VIDEO_PREFIX in CI ---
-    // The build step needs VIDEO_PREFIX as an env var (baked into __VIDEO_PREFIX__ via Vite define).
-    // Set it as a GitHub Actions variable so CI picks it up.
-    let ghRepo = args.ghRepo;
-    if (!ghRepo) {
-      try {
-        const remote = run('git remote get-url origin', { stdio: ['pipe', 'pipe', 'pipe'] });
-        const match = remote.match(/github\.com[:/](.+?)(?:\.git)?$/);
-        if (match) ghRepo = match[1];
-      } catch { /* not a git repo or no remote */ }
-    }
-
-    let videoPrefixSet = false;
-    if (ghRepo) {
-      try {
-        run('gh --version', { stdio: 'pipe' });
-        // Use gh variable (not secret) so it's visible in workflow logs
-        safeExec(`gh variable set VIDEO_PREFIX --repo ${ghRepo} --body "${prefix}"`, { stdio: 'pipe' });
-        log(`Set VIDEO_PREFIX=${prefix} on ${ghRepo}`);
-        videoPrefixSet = true;
-      } catch {
-        console.warn(`  ⚠ Could not set VIDEO_PREFIX GitHub variable — set it manually`);
-      }
-    }
-
-    // --- Summary ---
-    console.log('\n  Done.\n');
-    const manualSteps = [];
-    manualSteps.push(
-      `Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`,
-      `  Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`,
-    );
-    if (!videoPrefixSet) {
-      manualSteps.push(`Set VIDEO_PREFIX=${prefix} as a GitHub Actions variable for the build step`);
-    }
-    if (manualSteps.length > 0) {
-      console.log('  Remaining manual steps:');
-      let step = 1;
-      for (const line of manualSteps) {
-        if (line.startsWith('  ')) {
-          console.log(`       ${line}`);
-        } else {
-          console.log(`    ${step}. ${line}`);
-          step++;
-        }
-      }
-    }
-    console.log('');
-  } else {
-    // --- Shared resources setup ---
-    const region = args.region || 'us-east-1';
-    const originsBucket = args.originalsBucket || 'bike-video-originals';
-    const outputsBucket = args.outputsBucket || 'bike-video-outputs';
-    const lambdaName = args.lambdaName || 'video-agent';
-
-    console.log(`\nSetting up shared video pipeline resources (${region})\n`);
-
-    const awsAccountId = getAwsAccountId();
-    if (!awsAccountId) {
-      console.error('  ✗ Could not detect AWS account ID. Is AWS CLI configured?');
-      process.exit(1);
-    }
-
-    ensureBucket(originsBucket, region);
-    ensureBucket(outputsBucket, region);
-
-    const mcRoleArn = ensureMediaConvertRole(region, originsBucket, outputsBucket);
-    const lambdaRoleArn = ensureLambdaRole(mcRoleArn);
-
-    let mcQueue = '';
-    try {
-      awsJson(`mediaconvert describe-endpoints --region ${region}`);
-      mcQueue = `arn:aws:mediaconvert:${region}:${awsAccountId}:queues/Default`;
-    } catch {
-      console.warn('  ⚠ Could not determine MediaConvert queue ARN');
-    }
-
-    ensureLambda(lambdaName, lambdaRoleArn, {
-      region,
-      originsBucket,
-      outputsBucket,
-      mediaConvertQueue: mcQueue,
-      mediaConvertRole: mcRoleArn,
-    });
-
-    ensureEventBridgeRule(lambdaName, region);
-    ensureS3Trigger(lambdaName, originsBucket);
-
-    // --- CI deployment user ---
-    // Verify GitHub access BEFORE rotating keys (P2 fix: don't invalidate old keys
-    // if we can't store the new ones)
-    let ghRepo = args.ghRepo;
+  // CI deployment user — only if Lambda was newly created
+  if (lambdaCreated) {
+    let ghRepo = ghRepoArg;
     if (!ghRepo) {
       try {
         const remote = run('git remote get-url origin', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -1013,7 +903,7 @@ async function main() {
     if (ghRepo && hasGhCli) {
       const ci = rotateKeys(ciUserName);
       storeGitHubSecrets(ghRepo, ci.creds);
-      ci.cleanup(); // old CI key no longer needed
+      ci.cleanup();
     } else if (!ghRepo) {
       console.log('  ⚠ Could not detect GitHub repo — skipping CI key rotation');
       console.log('    Run with --gh-repo owner/repo to set up CI credentials');
@@ -1021,12 +911,186 @@ async function main() {
       console.log('  ⚠ gh CLI not found — skipping CI key rotation');
       console.log('    Install: https://cli.github.com/');
     }
+  } else {
+    console.log('\n  Lambda already exists — skipping CI user setup (managed by existing repo)\n');
+  }
 
-    console.log('\nShared resources setup complete.\n');
+  console.log('\nShared resources setup complete.\n');
+  return { lambdaCreated };
+}
+
+export async function configureInstance(opts = {}) {
+  const {
+    prefix,
+    domain,
+    wranglerEnv,
+    lambdaName = 'video-agent',
+    originsBucket = 'bike-video-originals',
+    outputsBucket = 'bike-video-outputs',
+    region = 'us-east-1',
+    r2Bucket = 'whereto-bike-videos',
+    ghRepo: ghRepoArg,
+  } = opts;
+
+  if (!prefix || !domain) {
+    console.error('configureInstance requires prefix and domain');
+    process.exit(1);
+  }
+
+  console.log(`\nConfiguring instance: ${prefix} (${domain})\n`);
+
+  // --- Preflight: verify Cloudflare access before touching keys ---
+  const cfAccountId = getCloudflareAccountId();
+  const cfApiToken = getCloudflareApiToken();
+  if (!cfAccountId || !cfApiToken) {
+    console.error('  ✗ Cloudflare credentials not detected — aborting before any key rotation');
+    console.error('    Make sure wrangler is in PATH (run inside nix develop or use: make setup-video)');
+    console.error('    Or set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN env vars');
+    process.exit(1);
+  }
+  log(`Cloudflare account: ${cfAccountId}`);
+
+  // --- AWS-side ---
+  console.log('\n  AWS:\n');
+  ensureBucketCors(originsBucket, domain);
+  updateLambdaWebhookMap(lambdaName, prefix, domain);
+  ensureWebhookSecret(lambdaName, wranglerEnv);
+
+  // --- IAM users (create/update policy, then rotate keys) ---
+  console.log('\n  IAM users:\n');
+  const presignUserName = ensurePresignUser(prefix, originsBucket);
+
+  // Check if Sippy is already active before touching the sippy user
+  const sippyActive = await isSippyActive(r2Bucket, cfAccountId, cfApiToken);
+
+  let sippyUserName;
+  let sippy;
+  if (sippyActive) {
+    logSkip('Sippy already configured — skipping sippy user key rotation');
+  } else {
+    sippyUserName = ensureSippyUser(outputsBucket);
+    sippy = rotateKeys(sippyUserName);
+  }
+
+  // Rotate presign keys (per-prefix, always safe)
+  const presign = rotateKeys(presignUserName);
+
+  if (sippy) {
+    // Wait for new AWS keys to propagate
+    logAction('Waiting for new AWS keys to propagate...');
+    const keyEnv = {
+      ...process.env,
+      AWS_ACCESS_KEY_ID: sippy.creds.accessKeyId,
+      AWS_SECRET_ACCESS_KEY: sippy.creds.secretAccessKey,
+    };
+    for (let i = 0; i < 12; i++) {
+      try {
+        safeExec(`aws --no-cli-pager s3api head-bucket --bucket ${outputsBucket}`, {
+          stdio: 'pipe',
+          env: keyEnv,
+        });
+        log('AWS keys are active');
+        break;
+      } catch {
+        if (i === 11) {
+          console.warn('    ⚠ Keys may not be active yet — Sippy setup might fail, re-run to retry');
+        } else {
+          await new Promise(r => setTimeout(r, 5_000));
+        }
+      }
+    }
+  }
+
+  // --- Cloudflare-side ---
+  console.log('\n  Cloudflare:\n');
+  ensureR2Bucket(r2Bucket);
+
+  if (sippy) {
+    const sippyOk = await configureSippy(r2Bucket, outputsBucket, region, cfAccountId, cfApiToken, sippy.creds);
+    if (sippyOk) sippy.cleanup();
+  }
+
+  // --- Wrangler secrets ---
+  console.log('\n  Wrangler secrets:\n');
+  setWranglerSecret('MEDIACONVERT_ACCESS_KEY_ID', presign.creds.accessKeyId, wranglerEnv, { force: true });
+  setWranglerSecret('MEDIACONVERT_SECRET_ACCESS_KEY', presign.creds.secretAccessKey, wranglerEnv, { force: true });
+  setWranglerSecret('S3_ORIGINALS_BUCKET', originsBucket, wranglerEnv);
+  setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
+  presign.cleanup();
+
+  // --- VIDEO_PREFIX in CI ---
+  let ghRepo = ghRepoArg;
+  if (!ghRepo) {
+    try {
+      const remote = run('git remote get-url origin', { stdio: ['pipe', 'pipe', 'pipe'] });
+      const match = remote.match(/github\.com[:/](.+?)(?:\.git)?$/);
+      if (match) ghRepo = match[1];
+    } catch { /* not a git repo or no remote */ }
+  }
+
+  let videoPrefixSet = false;
+  if (ghRepo) {
+    try {
+      run('gh --version', { stdio: 'pipe' });
+      safeExec(`gh variable set VIDEO_PREFIX --repo ${ghRepo} --body "${prefix}"`, { stdio: 'pipe' });
+      log(`Set VIDEO_PREFIX=${prefix} on ${ghRepo}`);
+      videoPrefixSet = true;
+    } catch {
+      console.warn(`  ⚠ Could not set VIDEO_PREFIX GitHub variable — set it manually`);
+    }
+  }
+
+  // --- Summary ---
+  console.log('\n  Done.\n');
+  const manualSteps = [];
+  manualSteps.push(
+    `Set custom domain on R2 bucket "${r2Bucket}": videos.whereto.bike`,
+    `  Cloudflare dashboard → R2 → ${r2Bucket} → Settings → Custom Domains`,
+  );
+  if (!videoPrefixSet) {
+    manualSteps.push(`Set VIDEO_PREFIX=${prefix} as a GitHub Actions variable for the build step`);
+  }
+  if (manualSteps.length > 0) {
+    console.log('  Remaining manual steps:');
+    let step = 1;
+    for (const line of manualSteps) {
+      if (line.startsWith('  ')) {
+        console.log(`       ${line}`);
+      } else {
+        console.log(`    ${step}. ${line}`);
+        step++;
+      }
+    }
+  }
+  console.log('');
+}
+
+// --- CLI entry point ---
+
+const args = parseArgs(process.argv.slice(2));
+
+async function main() {
+  if (args._command === 'configure-instance') {
+    const { prefix, domain, wranglerEnv, lambdaName, originsBucket, originalsBucket, outputsBucket, region, r2Bucket, ghRepo } = args;
+    if (!prefix || !domain) {
+      console.error('Usage: setup-aws-video.js configure-instance --prefix <city> --domain <domain> [--wrangler-env <env>] [--r2-bucket <name>]');
+      process.exit(1);
+    }
+    await configureInstance({ prefix, domain, wranglerEnv, lambdaName, originsBucket: originsBucket || originalsBucket, outputsBucket, region, r2Bucket, ghRepo });
+  } else {
+    await setupSharedResources({
+      region: args.region,
+      originsBucket: args.originsBucket || args.originalsBucket,
+      outputsBucket: args.outputsBucket,
+      lambdaName: args.lambdaName,
+      ghRepo: args.ghRepo,
+    });
   }
 }
 
-main().catch((err) => {
-  console.error(err.message);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
+}
