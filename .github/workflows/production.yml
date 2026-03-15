@@ -73,6 +73,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Run Lambda tests
+        run: node --test aws/video-agent/handler.test.mjs
+
       - name: Package and deploy Lambda
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
