@@ -330,6 +330,14 @@ function ensureMediaConvertRole(region, originsBucket, outputsBucket) {
     encoding: 'utf-8',
   });
 
+  // Remove any attached managed policies (e.g. console-created ones like
+  // MediaConvert_Default_Role_*) — we use a scoped inline policy instead
+  const attached = awsJson(`iam list-attached-role-policies --role-name ${roleName}`);
+  for (const policy of attached?.AttachedPolicies || []) {
+    aws(`iam detach-role-policy --role-name ${roleName} --policy-arn ${policy.PolicyArn}`);
+    logAction(`Detached broad policy: ${policy.PolicyName}`);
+  }
+
   // Always ensure scoped S3 policy (full access but only to our buckets)
   const s3Policy = {
     Version: '2012-10-17',

@@ -178,4 +178,15 @@ describe('buildJobDefinition', () => {
     assert.equal(job.Queue, 'test-queue');
     assert.equal(job.Role, 'test-role');
   });
+
+  it('sets UserMetadata with prefix and videoKey', () => {
+    const job = buildJobDefinition('ottawa-staging/testkey5', { width: 1920, height: 1080 });
+    assert.deepStrictEqual(job.UserMetadata, { prefix: 'ottawa-staging', videoKey: 'testkey5' });
+  });
+
+  it('uses FILE_GROUP_SETTINGS for output group types', () => {
+    const job = buildJobDefinition('ottawa/abc12345', { width: 1920, height: 1080 });
+    assert.equal(job.Settings.OutputGroups[0].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
+    assert.equal(job.Settings.OutputGroups[1].OutputGroupSettings.Type, 'FILE_GROUP_SETTINGS');
+  });
 });
