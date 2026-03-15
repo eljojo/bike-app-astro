@@ -15,7 +15,8 @@
     "eslint-rules/",
     "public/",
     "sync.js",
-    "packages/create-bike-blog/templates/"
+    "packages/create-bike-blog/templates/",
+    "aws/"
   ],
   "exports": {
     ".": "./src/integration.ts",
