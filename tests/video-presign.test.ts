@@ -12,8 +12,9 @@ vi.mock('../src/lib/media/transcode.service', () => ({
   }),
 }));
 
+const mockRandomKey = vi.fn().mockReturnValue('k3eovg6o');
 vi.mock('../src/lib/media/storage.adapter-r2', () => ({
-  randomKey: () => 'k3eovg6o',
+  randomKey: () => mockRandomKey(),
 }));
 
 const mockInsertValues = vi.fn().mockReturnValue({ onConflictDoUpdate: vi.fn() });
@@ -75,7 +76,7 @@ describe('video-presign POST', () => {
     expect(data.error).toContain('Invalid video type');
   });
 
-  it('accepts video/mp4', async () => {
+  it('accepts video/mp4 and passes prefixed S3 key to headObject and presignUpload', async () => {
     const { POST } = await import('../src/views/api/video-presign');
     const req = makeRequest({ contentType: 'video/mp4', contentSlug: 'test-route' });
     const res = await POST({ request: req, locals: { user: editorUser } } as any);
@@ -83,6 +84,10 @@ describe('video-presign POST', () => {
     const data = await res.json();
     expect(data.key).toBe('k3eovg6o');
     expect(data.uploadUrl).toBeDefined();
+    // generateVideoKey checks the prefixed S3 path: ${VIDEO_PREFIX}/${key}
+    expect(mockHeadObject).toHaveBeenCalledWith('ottawa/k3eovg6o');
+    // presignUpload also receives the prefixed key
+    expect(mockPresignUpload).toHaveBeenCalledWith('ottawa/k3eovg6o', 'video/mp4');
   });
 
   it('accepts video/quicktime', async () => {
@@ -171,5 +176,25 @@ describe('video-presign POST', () => {
     });
     const res = await POST({ request: req, locals: { user: editorUser } } as any);
     expect(res.status).toBe(400);
+  });
+
+  it('retries key generation on S3 collision', async () => {
+    // First key collides, second key is unique
+    mockRandomKey.mockReturnValueOnce('collided1').mockReturnValueOnce('unique99');
+    mockHeadObject
+      .mockResolvedValueOnce(true)   // collided1 exists
+      .mockResolvedValueOnce(false); // unique99 is free
+
+    const { POST } = await import('../src/views/api/video-presign');
+    const req = makeRequest({ contentType: 'video/mp4', contentSlug: 'test' });
+    const res = await POST({ request: req, locals: { user: editorUser } } as any);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.key).toBe('unique99');
+    // Both keys checked with VIDEO_PREFIX
+    expect(mockHeadObject).toHaveBeenCalledWith('ottawa/collided1');
+    expect(mockHeadObject).toHaveBeenCalledWith('ottawa/unique99');
+    // Only the non-colliding key gets presigned
+    expect(mockPresignUpload).toHaveBeenCalledWith('ottawa/unique99', 'video/mp4');
   });
 });

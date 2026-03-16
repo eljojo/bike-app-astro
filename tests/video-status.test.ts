@@ -4,20 +4,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let findJobResult: Record<string, unknown> | null = null;
 const mockUpdate = vi.fn();
+const mockSelectWhere = vi.fn();
+const mockUpdateWhere = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../src/lib/get-db', () => ({
   db: () => ({
     select: () => ({
       from: () => ({
-        where: () => ({
-          get: () => findJobResult,
-        }),
+        where: (...args: unknown[]) => {
+          mockSelectWhere(...args);
+          return { get: () => findJobResult };
+        },
       }),
     }),
     update: () => ({
       set: (values: Record<string, unknown>) => {
         mockUpdate(values);
-        return { where: () => Promise.resolve() };
+        return { where: (...args: unknown[]) => { mockUpdateWhere(...args); return Promise.resolve(); } };
       },
     }),
   }),
@@ -28,7 +31,7 @@ vi.mock('../src/db/schema', () => ({
 }));
 
 vi.mock('drizzle-orm', () => ({
-  eq: (a: unknown, b: unknown) => ({ a, b }),
+  eq: (a: unknown, b: unknown) => ({ _op: 'eq', a, b }),
 }));
 
 vi.mock('../src/lib/auth/authorize', () => ({
@@ -47,7 +50,6 @@ vi.mock('../src/lib/media/video-completion', () => ({
   // Matches real pattern: ${VIDEO_PREFIX}/${key}/${key}-h264.mp4
   // VIDEO_PREFIX defaults to CITY in non-blog instances
   h264OutputKey: (key: string) => `ottawa/${key}/${key}-h264.mp4`,
-  posterKeyForVideo: (key: string) => `ottawa/${key}/${key}-poster.0000000.jpg`,
 }));
 
 // Mock global fetch for CDN HEAD checks
@@ -61,6 +63,8 @@ describe('video-status GET', () => {
     vi.clearAllMocks();
     findJobResult = null;
     mockFetch.mockReset();
+    mockSelectWhere.mockClear();
+    mockUpdateWhere.mockClear();
   });
 
   it('returns 404 when job not found', async () => {
@@ -74,7 +78,7 @@ describe('video-status GET', () => {
   });
 
   it('returns ready job immediately without CDN check', async () => {
-    findJobResult = { key: 'abc12345', status: 'ready', posterKey: 'poster.jpg' };
+    findJobResult = { key: 'abc12345', status: 'ready' };
     const { GET } = await import('../src/views/api/video-status');
     const res = await GET({
       params: { key: 'abc12345' },
@@ -112,7 +116,7 @@ describe('video-status GET', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.status).toBe('ready');
-    expect(data.posterKey).toBeDefined();
+    // Self-heal no longer sets posterKey (webhook handles that)
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('abc12345-h264.mp4'),
       { method: 'HEAD' },
@@ -151,6 +155,29 @@ describe('video-status GET', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.status).toBe('uploading');
+  });
+
+  it('queries videoJobs with eq(videoJobs.key, key)', async () => {
+    findJobResult = { key: 'abc12345', status: 'ready' };
+    const { GET } = await import('../src/views/api/video-status');
+    await GET({
+      params: { key: 'abc12345' },
+      locals: { user: editorUser },
+    } as any);
+    // select().from(videoJobs).where(eq(videoJobs.key, key))
+    expect(mockSelectWhere).toHaveBeenCalledWith({ _op: 'eq', a: 'key', b: 'abc12345' });
+  });
+
+  it('self-heal update uses where(eq(videoJobs.key, key))', async () => {
+    findJobResult = { key: 'abc12345', status: 'transcoding' };
+    mockFetch.mockResolvedValue({ ok: true });
+    const { GET } = await import('../src/views/api/video-status');
+    await GET({
+      params: { key: 'abc12345' },
+      locals: { user: editorUser },
+    } as any);
+    // update(videoJobs).set({...}).where(eq(videoJobs.key, key))
+    expect(mockUpdateWhere).toHaveBeenCalledWith({ _op: 'eq', a: 'key', b: 'abc12345' });
   });
 
   it('rejects missing key param', async () => {

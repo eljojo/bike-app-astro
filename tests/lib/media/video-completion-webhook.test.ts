@@ -83,18 +83,12 @@ vi.mock('../../../src/lib/media/video-service', () => ({
   bareVideoKey: (k: string) => k.includes('/') ? k.split('/').pop()! : k,
 }));
 
-vi.mock('../../../src/lib/ride-paths', () => ({
-  rideFilePathsFromRelPath: (relPath: string, city: string) => ({
-    sidecar: `${city}/rides/${relPath.replace('.gpx', '.md')}`,
-    gpx: `${city}/rides/${relPath}`,
-    media: `${city}/rides/${relPath.replace('.gpx', '-media.yml')}`,
-  }),
-  deriveGpxRelativePath: (date: string, gpx: string) => `2026/03/${gpx}`,
-}));
+// Use real ride-paths module — these are pure functions that derive file paths
+// from ride_date, GPX filename, and optional tour slug
+// No mock needed: rideFilePathsFromRelPath and deriveGpxRelativePath are deterministic
 
-vi.mock('../../../src/lib/models/ride-model', () => ({
-  rideDetailFromCache: (data: string) => JSON.parse(data),
-}));
+// Use real rideDetailFromCache — it parses cached JSON with proper field mapping
+// so we catch regressions when the cache shape changes
 
 import { persistVideoMetadataToGit } from '../../../src/lib/media/video-completion.webhook';
 
@@ -198,13 +192,16 @@ describe('persistVideoMetadataToGit', () => {
     expect(upsertContentCache).not.toHaveBeenCalled();
   });
 
-  it('resolves ride media path from D1 cache for ride content kind', async () => {
+  it('resolves standalone ride media path from D1 cache', async () => {
     findJobResult = { ...mockJobRow, contentKind: 'ride', contentSlug: 'morning-ride' };
-    // D1 cache for rides must have ride_date and variants for path resolution
+    // Cached data must match rideDetailSchema (slug, name, contentHash required)
     findCacheResult = {
       data: JSON.stringify({
+        slug: 'morning-ride',
+        name: 'Morning Ride',
+        contentHash: 'hash-abc',
         ride_date: '2026-03-15',
-        variants: [{ gpx: '15-morning-ride.gpx' }],
+        variants: [{ name: 'Main', gpx: '15-morning-ride.gpx' }],
         media: [{ key: 'abc12345', type: 'video' }],
       }),
     };
@@ -214,10 +211,34 @@ describe('persistVideoMetadataToGit', () => {
     });
     const result = await persistVideoMetadataToGit('abc12345');
     expect(result.persisted).toBe(true);
-    // Should have resolved ride media path via deriveGpxRelativePath
     const [files] = mockWriteFiles.mock.calls[0];
-    expect(files[0].path).toContain('rides/');
-    expect(files[0].path).toContain('-media.yml');
+    // Real deriveGpxRelativePath: "2026-03-15" + "15-morning-ride.gpx" → "2026/03/15-morning-ride.gpx"
+    // rideFilePathsFromRelPath: "2026/03/15-morning-ride.gpx" → media: "ottawa/rides/2026/03/15-morning-ride-media.yml"
+    expect(files[0].path).toBe('ottawa/rides/2026/03/15-morning-ride-media.yml');
+  });
+
+  it('resolves tour ride media path with tour_slug in directory', async () => {
+    findJobResult = { ...mockJobRow, contentKind: 'ride', contentSlug: 'day-1' };
+    findCacheResult = {
+      data: JSON.stringify({
+        slug: 'day-1',
+        name: 'Day 1',
+        contentHash: 'hash-tour',
+        ride_date: '2026-06-10',
+        tour_slug: 'euro-trip',
+        variants: [{ name: 'Main', gpx: '10-paris.gpx' }],
+      }),
+    };
+    mockReadFile.mockResolvedValue({
+      content: '- key: abc12345\n  type: video\n',
+      sha: 'sha-old',
+    });
+    const result = await persistVideoMetadataToGit('abc12345');
+    expect(result.persisted).toBe(true);
+    const [files] = mockWriteFiles.mock.calls[0];
+    // With tour_slug, path includes the tour directory:
+    // deriveGpxRelativePath("2026-06-10", "10-paris.gpx", "euro-trip") → "2026/06/euro-trip/10-paris.gpx"
+    expect(files[0].path).toBe('ottawa/rides/2026/06/euro-trip/10-paris-media.yml');
   });
 
   it('returns not persisted when ride cache is missing', async () => {

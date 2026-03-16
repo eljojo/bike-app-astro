@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock virtual module and env dependencies
 vi.mock('virtual:bike-app/admin-places', () => ({ default: [] }));
@@ -6,14 +6,16 @@ vi.mock('virtual:bike-app/photo-shared-keys', () => ({ default: {} }));
 vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test', GIT_OWNER: 'o', GIT_DATA_REPO: 'r' } }));
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
+const mockParkOrphanedPhoto = vi.fn().mockReturnValue(null);
+const mockUpdatePhotoRegistryCache = vi.fn().mockResolvedValue(undefined);
 vi.mock('../src/lib/media/photo-parking', () => ({
   extractFrontmatterField: (_content: string, field: string) => {
-    // Simple frontmatter extraction for tests
+    // Real-ish frontmatter extraction for tests
     const match = _content.match(new RegExp(`${field}: (\\S+)`));
     return match?.[1];
   },
-  parkOrphanedPhoto: () => null,
-  updatePhotoRegistryCache: vi.fn(),
+  parkOrphanedPhoto: (...args: unknown[]) => mockParkOrphanedPhoto(...args),
+  updatePhotoRegistryCache: (...args: unknown[]) => mockUpdatePhotoRegistryCache(...args),
 }));
 
 import { CITY } from '../src/lib/config/config';
@@ -199,5 +201,67 @@ describe('placeHandlers.buildFileChanges', () => {
     );
     const content = result.files[0].content;
     expect(content).toContain('name_fr: Café Test');
+  });
+});
+
+describe('placeHandlers.afterCommit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates photo registry when photo_key changes', async () => {
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPhotoKey: 'old-key',
+      newPhotoKey: 'new-key',
+      placeSlug: 'test-cafe',
+      mergedParked: undefined,
+    };
+    const mockDb = {};
+    await placeHandlers.afterCommit!(result as any, mockDb as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({
+        database: mockDb,
+        keyChanges: expect.arrayContaining([
+          expect.objectContaining({ key: 'old-key', action: 'remove', usage: expect.objectContaining({ type: 'place', slug: 'test-cafe' }) }),
+          expect.objectContaining({ key: 'new-key', action: 'add', usage: expect.objectContaining({ type: 'place', slug: 'test-cafe' }) }),
+        ]),
+      }),
+    );
+  });
+
+  it('sends empty changes when photo_key is unchanged', async () => {
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPhotoKey: 'same-key',
+      newPhotoKey: 'same-key',
+      placeSlug: 'test-cafe',
+      mergedParked: undefined,
+    };
+    await placeHandlers.afterCommit!(result as any, {} as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({ keyChanges: [] }),
+    );
+  });
+
+  it('passes mergedParked from orphan parking to registry', async () => {
+    const mergedParked = [{ key: 'orphan-photo', from: { type: 'place', slug: 'old-cafe' } }];
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPhotoKey: undefined,
+      newPhotoKey: undefined,
+      placeSlug: 'test-cafe',
+      mergedParked,
+    };
+    await placeHandlers.afterCommit!(result as any, {} as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({ mergedParked }),
+    );
   });
 });

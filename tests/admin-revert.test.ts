@@ -61,13 +61,15 @@ vi.mock('../src/lib/api-response', () => ({
   }),
 }));
 
+const mockReadCurrentState = vi.fn().mockResolvedValue({
+  primaryFile: { content: '---\nname: Test\n---\n', sha: 'sha-456' },
+  auxiliaryFiles: {},
+});
 vi.mock('../src/lib/content/content-save', () => ({
-  readCurrentState: () => Promise.resolve({
-    primaryFile: { content: '---\nname: Test\n---\n', sha: 'sha-456' },
-    auxiliaryFiles: [],
-  }),
+  readCurrentState: (...args: unknown[]) => mockReadCurrentState(...args),
 }));
 
+const mockBuildFreshData = vi.fn().mockReturnValue('{"name":"Test"}');
 vi.mock('../src/lib/content/content-types', () => ({
   contentTypes: [
     {
@@ -75,10 +77,10 @@ vi.mock('../src/lib/content/content-types', () => ({
       ops: {
         getFilePaths: (slug: string) => ({
           primary: `ottawa/routes/${slug}/index.md`,
-          auxiliary: [],
+          auxiliary: [`ottawa/routes/${slug}/media.yml`],
         }),
         computeContentHash: () => 'hash-123',
-        buildFreshData: () => '{"name":"Test"}',
+        buildFreshData: (...args: unknown[]) => mockBuildFreshData(...args),
       },
     },
   ],
@@ -206,7 +208,27 @@ describe('admin-revert POST', () => {
       expect.stringContaining('Restore'),
       expect.objectContaining({ name: 'admin' }),
     );
-    expect(mockUpsertContentCache).toHaveBeenCalled();
+    // Verify cache rebuild pipeline: readCurrentState called with correct file paths
+    expect(mockReadCurrentState).toHaveBeenCalledWith(
+      expect.anything(), // git service
+      expect.objectContaining({
+        primary: 'ottawa/routes/test/index.md',
+        auxiliary: expect.arrayContaining(['ottawa/routes/test/media.yml']),
+      }),
+    );
+    // buildFreshData receives the slug and current files
+    expect(mockBuildFreshData).toHaveBeenCalledWith('test', expect.objectContaining({
+      primaryFile: expect.objectContaining({ sha: 'sha-456' }),
+    }));
+    expect(mockUpsertContentCache).toHaveBeenCalledWith(
+      expect.anything(), // database
+      expect.objectContaining({
+        contentType: 'routes',
+        contentSlug: 'test',
+        data: '{"name":"Test"}',
+        githubSha: 'sha-456',
+      }),
+    );
   });
 
   it('restores multiple files changed by the commit', async () => {

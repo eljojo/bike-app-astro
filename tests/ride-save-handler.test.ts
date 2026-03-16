@@ -61,7 +61,6 @@ vi.mock('../src/lib/models/content-model', async () => {
       handle: z.string().optional(),
       duration: z.string().optional(),
       orientation: z.string().optional(),
-      poster_key: z.string().optional(),
     }),
   };
 });

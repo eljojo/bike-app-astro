@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CITY } from '../src/lib/config/config';
 
 // Mock virtual module and env dependencies that event-save.ts imports transitively
@@ -13,10 +13,13 @@ vi.mock('virtual:bike-app/photo-shared-keys', () => ({ default: {} }));
 vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test', GIT_OWNER: 'o', GIT_DATA_REPO: 'r' } }));
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
+const mockExtractFrontmatterField = vi.fn().mockReturnValue(undefined);
+const mockParkOrphanedPhoto = vi.fn().mockReturnValue(null);
+const mockUpdatePhotoRegistryCache = vi.fn().mockResolvedValue(undefined);
 vi.mock('../src/lib/media/photo-parking', () => ({
-  extractFrontmatterField: () => undefined,
-  parkOrphanedPhoto: () => null,
-  updatePhotoRegistryCache: vi.fn(),
+  extractFrontmatterField: (...args: unknown[]) => mockExtractFrontmatterField(...args),
+  parkOrphanedPhoto: (...args: unknown[]) => mockParkOrphanedPhoto(...args),
+  updatePhotoRegistryCache: (...args: unknown[]) => mockUpdatePhotoRegistryCache(...args),
 }));
 
 import { isPastEvent, eventHandlers } from '../src/views/api/event-save';
@@ -222,5 +225,96 @@ describe('eventHandlers.buildFileChanges', () => {
     expect(paths).toContain(`${CITY}/events/2099/upgrading/media.yml`);
     // Should delete the old flat file
     expect(result.deletePaths).toContain(`${CITY}/events/2099/upgrading.md`);
+  });
+});
+
+describe('eventHandlers.afterCommit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates photo registry with poster key change', async () => {
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPosterKey: 'old-photo-key',
+      newPosterKey: 'new-photo-key',
+      eventSlug: '2099/bike-fest',
+      mergedParked: undefined,
+      addedMediaKeys: [],
+      removedMediaKeys: [],
+    };
+    const mockDb = {};
+    await eventHandlers.afterCommit!(result as any, mockDb as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({
+        database: mockDb,
+        keyChanges: expect.arrayContaining([
+          expect.objectContaining({ key: 'old-photo-key', action: 'remove' }),
+          expect.objectContaining({ key: 'new-photo-key', action: 'add' }),
+        ]),
+      }),
+    );
+  });
+
+  it('includes media key changes in registry update', async () => {
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPosterKey: undefined,
+      newPosterKey: undefined,
+      eventSlug: '2099/bike-fest',
+      mergedParked: undefined,
+      addedMediaKeys: ['added-photo'],
+      removedMediaKeys: ['removed-photo'],
+    };
+    await eventHandlers.afterCommit!(result as any, {} as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({
+        keyChanges: expect.arrayContaining([
+          expect.objectContaining({ key: 'added-photo', action: 'add' }),
+          expect.objectContaining({ key: 'removed-photo', action: 'remove' }),
+        ]),
+      }),
+    );
+  });
+
+  it('passes mergedParked to photo registry', async () => {
+    const mergedParked = [{ key: 'parked-photo', from: { type: 'event', slug: '2099/old' } }];
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPosterKey: undefined,
+      newPosterKey: undefined,
+      eventSlug: '2099/bike-fest',
+      mergedParked,
+      addedMediaKeys: [],
+      removedMediaKeys: [],
+    };
+    await eventHandlers.afterCommit!(result as any, {} as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({ mergedParked }),
+    );
+  });
+
+  it('does nothing when no key changes and no parked photos', async () => {
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: true,
+      oldPosterKey: undefined,
+      newPosterKey: undefined,
+      eventSlug: '2099/bike-fest',
+      mergedParked: undefined,
+      addedMediaKeys: [],
+      removedMediaKeys: [],
+    };
+    await eventHandlers.afterCommit!(result as any, {} as any);
+    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({ keyChanges: [] }),
+    );
   });
 });
