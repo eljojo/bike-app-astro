@@ -45,8 +45,8 @@ describe('videoKeyForGit', () => {
   it('returns plain key when VIDEO_PREFIX matches CITY', () => {
     expect(videoKeyForGit('abc12345')).toBe('abc12345');
   });
-  it('is idempotent — strips existing prefix before re-annotating', () => {
-    expect(videoKeyForGit('some-prefix/abc12345')).toBe('abc12345');
+  it('preserves existing prefix — never strips an already-annotated key', () => {
+    expect(videoKeyForGit('some-prefix/abc12345')).toBe('some-prefix/abc12345');
   });
   it('round-trips with resolveVideoPath', () => {
     const gitKey = videoKeyForGit('abc12345');
@@ -176,9 +176,10 @@ describe('save-time annotation guard', () => {
     expect(result[2].key).toBe('photo001');  // photo: always untouched
   });
 
-  it('matches consumed keys using bare key extraction', () => {
-    // Scenario: media item already has an annotated key but the bare key
-    // appears in consumedKeys (videoJobs stores bare keys)
+  it('preserves existing prefix even when bare key matches consumed set', () => {
+    // Scenario: media item already has a staging prefix, and the bare key
+    // appears in consumedKeys (videoJobs stores bare keys).
+    // videoKeyForGit must NOT strip the existing prefix.
     const media = [
       { key: 'ottawa-staging/abc12345', type: 'video' },
     ];
@@ -187,9 +188,9 @@ describe('save-time annotation guard', () => {
 
     const result = annotateMedia(media, consumedKeys);
 
-    // In test env VIDEO_PREFIX === CITY, so videoKeyForGit strips to bare key.
-    // The critical assertion: bareVideoKey is used for matching, so it DOES match.
-    expect(result[0].key).toBe('abc12345');
+    // The prefix must survive — stripping it would point playback at the
+    // wrong R2 path (production instead of staging).
+    expect(result[0].key).toBe('ottawa-staging/abc12345');
   });
 
   it('leaves photos and non-video items completely untouched', () => {

@@ -38,12 +38,17 @@ export function resolveVideoPath(key: string): { prefix: string; bareKey: string
   return { prefix, bareKey: key };
 }
 
-/** Format a key for storage in media.yml. Idempotent — safe to call on already-annotated keys. */
+/**
+ * Format a key for storage in media.yml. Only annotates bare keys.
+ * Already-prefixed keys (containing '/') pass through unchanged —
+ * stripping an existing prefix is destructive if the current config
+ * doesn't match the environment where the video was uploaded.
+ */
 export function videoKeyForGit(key: string): string {
-  const bare = bareVideoKey(key);
-  if (isBlogInstance()) return bare;
-  if (VIDEO_PREFIX !== CITY) return `${VIDEO_PREFIX}/${bare}`;
-  return bare;
+  if (key.includes('/')) return key;
+  if (isBlogInstance()) return key;
+  if (VIDEO_PREFIX !== CITY) return `${VIDEO_PREFIX}/${key}`;
+  return key;
 }
 
 export function videoPlaybackSources(key: string): VideoSource[] {
