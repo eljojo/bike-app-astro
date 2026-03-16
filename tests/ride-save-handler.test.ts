@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CITY } from '../src/lib/config/config';
+import yaml from 'js-yaml';
 
 // --- Mocks ---
 
@@ -15,16 +16,11 @@ vi.mock('../src/lib/env/env.service', () => ({
 vi.mock('../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
 // slug module is not mocked — uses real slugify/validateSlug (pure functions)
-
-vi.mock('../src/lib/content/file-serializers', () => ({
-  serializeMdFile: (fm: Record<string, unknown>, body: string) =>
-    `---\n${JSON.stringify(fm)}\n---\n${body}`,
-  serializeYamlFile: (data: unknown[]) => JSON.stringify(data),
-}));
-
-vi.mock('../src/lib/media/media-merge', () => ({
-  mergeMedia: (incoming: unknown[], _existing: unknown[]) => incoming,
-}));
+// file-serializers is not mocked — uses real serializeMdFile/serializeYamlFile (pure functions)
+// media-merge is not mocked — uses real mergeMedia (pure function)
+// save-helpers: only enrichAndAnnotateMedia and afterCommitMediaCleanup are mocked (I/O)
+//   mergeFrontmatter, loadExistingMedia, computeMediaKeyDiff, buildCommitTrailer,
+//   buildMediaKeyChanges are all pure and use real implementations
 
 vi.mock('../src/lib/gpx/parse', () => ({
   parseGpx: () => ({ points: [{ lat: 0, lon: 0 }, { lat: 1, lon: 1 }] }),
@@ -73,33 +69,24 @@ vi.mock('virtual:bike-app/photo-shared-keys', () => ({
   default: {},
 }));
 
-const mockMergeFrontmatter = vi.fn((_isNew: boolean, _existing: string | null, fm: Record<string, unknown>) => fm);
-const mockLoadExistingMedia = vi.fn().mockReturnValue([]);
-const mockComputeMediaKeyDiff = vi.fn().mockReturnValue({ addedKeys: [], removedKeys: [] });
+const mockEnrichAndAnnotateMedia = vi.fn(async (media: unknown[], _db?: unknown) =>
+  ({ annotatedMedia: media, consumedVideoKeys: [] }) as { annotatedMedia: unknown[]; consumedVideoKeys: string[] });
 vi.mock('../src/lib/content/save-helpers', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
   return {
     ...actual,
-    buildMediaKeyChanges: () => [],
-    computeMediaKeyDiff: (a: unknown[], b: unknown[]) => mockComputeMediaKeyDiff(a, b),
-    buildCommitTrailer: (path: string) => `\n\nFile: ${path}`,
-    mergeFrontmatter: (a: boolean, b: string | null, c: Record<string, unknown>) => mockMergeFrontmatter(a, b, c),
-    loadExistingMedia: (a: unknown) => mockLoadExistingMedia(a),
+    enrichAndAnnotateMedia: (media: unknown[], db: unknown) => mockEnrichAndAnnotateMedia(media, db),
     afterCommitMediaCleanup: vi.fn().mockResolvedValue(undefined),
   };
 });
 
-const mockEnrichMediaFromVideoJobs = vi.fn((_media: unknown[], _db?: unknown) =>
-  Promise.resolve({ enrichedMedia: _media, consumedKeys: [] }) as Promise<{ enrichedMedia: unknown[]; consumedKeys: string[] }>);
 vi.mock('../src/lib/media/video-enrichment', () => ({
-  enrichMediaFromVideoJobs: (a: unknown[], b: unknown) => mockEnrichMediaFromVideoJobs(a, b),
+  enrichMediaFromVideoJobs: vi.fn().mockResolvedValue({ enrichedMedia: [], consumedKeys: [] }),
   deleteConsumedVideoJobs: vi.fn().mockResolvedValue(undefined),
 }));
 
-const mockVideoKeyForGit = vi.fn((key: string) => key);
 vi.mock('../src/lib/media/video-service', () => ({
-  // Real videoKeyForGit returns bare key when VIDEO_PREFIX === CITY (default ottawa config)
-  videoKeyForGit: (key: string) => mockVideoKeyForGit(key),
+  videoKeyForGit: (key: string) => key,
   bareVideoKey: (key: string) => key.includes('/') ? key.split('/').pop()! : key,
 }));
 
@@ -117,6 +104,16 @@ vi.mock('../src/lib/content/content-save', () => ({
 }));
 
 const { createRideHandlers } = await import('../src/views/api/ride-save');
+
+/** Parse a serialized markdown file and return its frontmatter and body. */
+function parseMdFile(content: string): { frontmatter: Record<string, unknown>; body: string } {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) throw new Error('Could not parse markdown file');
+  return {
+    frontmatter: yaml.load(match[1]) as Record<string, unknown>,
+    body: match[2].trim(),
+  };
+}
 
 describe('ride-save handlers', () => {
   describe('parseRequest', () => {
@@ -352,6 +349,16 @@ describe('ride-save handlers', () => {
       const paths = result.files.map((f: { path: string }) => f.path);
       expect(paths).toContain(`${CITY}/rides/2026/03/15-morning-ride.md`);
       expect(result.isNew).toBe(true);
+
+      // Verify actual file content — real serializeMdFile produces valid markdown
+      const mdFile = result.files.find((f: { path: string }) => f.path.endsWith('.md'));
+      const parsed = parseMdFile(mdFile!.content);
+      expect(parsed.frontmatter.name).toBe('Morning Ride');
+      expect(parsed.body).toBe('Great day');
+      // New rides get default status and timestamps from real mergeFrontmatter
+      expect(parsed.frontmatter.status).toBe('published');
+      expect(parsed.frontmatter.created_at).toBeTruthy();
+      expect(parsed.frontmatter.updated_at).toBeTruthy();
     });
 
     it('creates media file when media is present', async () => {
@@ -368,6 +375,13 @@ describe('ride-save handlers', () => {
       );
       const paths = result.files.map((f: { path: string }) => f.path);
       expect(paths).toContain(`${CITY}/rides/2026/03/15-photo-ride-media.yml`);
+
+      // Verify media file content — real mergeMedia + serializeYamlFile produce valid YAML
+      const mediaFile = result.files.find((f: { path: string }) => f.path.endsWith('-media.yml'));
+      const mediaData = yaml.load(mediaFile!.content) as Array<Record<string, unknown>>;
+      expect(mediaData).toHaveLength(1);
+      expect(mediaData[0].key).toBe('abc123');
+      expect(mediaData[0].type).toBe('photo');
     });
 
     it('commits GPX file for new variant', async () => {
@@ -407,8 +421,7 @@ describe('ride-save handlers', () => {
       expect(paths.some((p: string) => p.includes('_redirects'))).toBe(true);
     });
 
-    it('calls mergeFrontmatter with isNew=false and existing content for updates', async () => {
-      mockMergeFrontmatter.mockClear();
+    it('merges existing frontmatter with updates for existing rides', async () => {
       const handlers = createRideHandlers();
       const existingContent = '---\nname: Old Name\nstrava_id: "123"\n---\nOld body';
       const update = handlers.parseRequest({
@@ -417,20 +430,20 @@ describe('ride-save handlers', () => {
         gpxRelativePath: '2026/03/15-ride.gpx',
       });
       const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
-      await handlers.buildFileChanges(
+      const result = await handlers.buildFileChanges(
         update, '2026-03-15-ride',
         { primaryFile: { content: existingContent, sha: 'sha-1' } },
         mockGit,
       );
-      expect(mockMergeFrontmatter).toHaveBeenCalledWith(
-        false, // isNew
-        existingContent, // existing content passed through for frontmatter extraction
-        expect.objectContaining({ name: 'Updated Name' }),
-      );
+      // Real mergeFrontmatter preserves existing fields and overlays updates
+      const mdFile = result.files.find((f: { path: string }) => f.path.endsWith('.md'));
+      const parsed = parseMdFile(mdFile!.content);
+      expect(parsed.frontmatter.name).toBe('Updated Name');
+      expect(parsed.frontmatter.strava_id).toBe('123'); // preserved from existing
+      expect(parsed.body).toBe('New body');
     });
 
-    it('calls mergeFrontmatter with isNew=true and null for new rides', async () => {
-      mockMergeFrontmatter.mockClear();
+    it('adds default status and timestamps for new rides', async () => {
       const handlers = createRideHandlers();
       const update = handlers.parseRequest({
         frontmatter: { name: 'New Ride' },
@@ -438,23 +451,20 @@ describe('ride-save handlers', () => {
         gpxRelativePath: '2026/03/15-new.gpx',
       });
       const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
-      await handlers.buildFileChanges(
+      const result = await handlers.buildFileChanges(
         update, '2026-03-15-new', { primaryFile: null }, mockGit,
       );
-      expect(mockMergeFrontmatter).toHaveBeenCalledWith(
-        true, // isNew
-        null, // no existing content
-        expect.objectContaining({ name: 'New Ride' }),
-      );
+      // Real mergeFrontmatter sets defaults for new content
+      const mdFile = result.files.find((f: { path: string }) => f.path.endsWith('.md'));
+      const parsed = parseMdFile(mdFile!.content);
+      expect(parsed.frontmatter.name).toBe('New Ride');
+      expect(parsed.frontmatter.status).toBe('published');
+      expect(parsed.frontmatter.created_at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(parsed.frontmatter.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
-    it('passes media through enrichMediaFromVideoJobs and computeMediaKeyDiff', async () => {
-      mockEnrichMediaFromVideoJobs.mockClear();
-      mockComputeMediaKeyDiff.mockClear();
-      mockLoadExistingMedia.mockClear();
-      const existingMedia = [{ key: 'old-photo', type: 'photo' }];
-      mockLoadExistingMedia.mockReturnValue(existingMedia);
-
+    it('computes media key diff from existing and new media', async () => {
+      const existingMediaYaml = yaml.dump([{ key: 'old-photo', type: 'photo', score: 1 }]);
       const handlers = createRideHandlers();
       const update = handlers.parseRequest({
         frontmatter: { name: 'Media Ride' },
@@ -463,30 +473,28 @@ describe('ride-save handlers', () => {
         media: [{ key: 'new-photo', type: 'photo' }],
       });
       const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
-      await handlers.buildFileChanges(
-        update, '2026-03-15-media', { primaryFile: null }, mockGit,
+      const mediaPath = `${CITY}/rides/2026/03/15-media-media.yml`;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-media',
+        {
+          primaryFile: { content: '---\nname: Media Ride\n---\n', sha: 'sha-1' },
+          auxiliaryFiles: { [mediaPath]: { content: existingMediaYaml, sha: 'sha-2' } },
+        },
+        mockGit,
       );
-      // enrichMediaFromVideoJobs receives the parsed media items and a database
-      expect(mockEnrichMediaFromVideoJobs).toHaveBeenCalledWith(
-        [expect.objectContaining({ key: 'new-photo' })],
-        expect.anything(), // database
-      );
-      // computeMediaKeyDiff receives existing vs annotated media
-      expect(mockComputeMediaKeyDiff).toHaveBeenCalledWith(
-        existingMedia,
-        expect.arrayContaining([expect.objectContaining({ key: 'new-photo' })]),
-      );
+      // Real computeMediaKeyDiff detects added and removed keys
+      expect(result.addedMediaKeys).toEqual(['new-photo']);
+      expect(result.removedMediaKeys).toEqual(['old-photo']);
     });
 
-    it('annotates only consumed video keys with videoKeyForGit', async () => {
-      mockVideoKeyForGit.mockClear();
-      // enrichMediaFromVideoJobs marks 'new-video' as consumed
-      mockEnrichMediaFromVideoJobs.mockResolvedValueOnce({
-        enrichedMedia: [
+    it('annotates consumed video keys via enrichAndAnnotateMedia', async () => {
+      // enrichAndAnnotateMedia marks 'new-video' as consumed and annotates its key
+      mockEnrichAndAnnotateMedia.mockResolvedValueOnce({
+        annotatedMedia: [
           { key: 'existing-video', type: 'video' },
-          { key: 'new-video', type: 'video' },
+          { key: 'annotated-new-video', type: 'video' },
         ],
-        consumedKeys: ['new-video'], // only this one was just transcoded
+        consumedVideoKeys: ['new-video'],
       });
 
       const handlers = createRideHandlers();
@@ -500,17 +508,19 @@ describe('ride-save handlers', () => {
         ],
       });
       const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
-      await handlers.buildFileChanges(
+      const result = await handlers.buildFileChanges(
         update, '2026-03-15-video', { primaryFile: null }, mockGit,
       );
-      // videoKeyForGit should only be called for the consumed key
-      expect(mockVideoKeyForGit).toHaveBeenCalledWith('new-video');
-      expect(mockVideoKeyForGit).not.toHaveBeenCalledWith('existing-video');
+      // consumedVideoKeys comes from enrichAndAnnotateMedia
+      expect(result.consumedVideoKeys).toEqual(['new-video']);
+      // The annotated media should appear in the serialized media file
+      const mediaFile = result.files.find((f: { path: string }) => f.path.endsWith('-media.yml'));
+      const mediaData = yaml.load(mediaFile!.content) as Array<Record<string, unknown>>;
+      expect(mediaData.some((m: Record<string, unknown>) => m.key === 'annotated-new-video')).toBe(true);
     });
 
     it('deletes media file when all media items are removed', async () => {
-      mockLoadExistingMedia.mockReturnValue([{ key: 'old-photo', type: 'photo' }]);
-
+      const existingMediaYaml = yaml.dump([{ key: 'old-photo', type: 'photo', score: 1 }]);
       const handlers = createRideHandlers();
       const update = handlers.parseRequest({
         frontmatter: { name: 'Cleared Ride' },
@@ -519,34 +529,46 @@ describe('ride-save handlers', () => {
         media: [], // empty — all media removed
       });
       const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const mediaPath = `${CITY}/rides/2026/03/15-cleared-media.yml`;
       const result = await handlers.buildFileChanges(
         update, '2026-03-15-cleared',
-        { primaryFile: { content: '---\nname: Cleared\n---\n', sha: 'sha1' } },
+        {
+          primaryFile: { content: '---\nname: Cleared\n---\n', sha: 'sha1' },
+          auxiliaryFiles: { [mediaPath]: { content: existingMediaYaml, sha: 'sha2' } },
+        },
         mockGit,
       );
       // Media file should be deleted when existing media was present but all removed
       expect(result.deletePaths).toContain(`${CITY}/rides/2026/03/15-cleared-media.yml`);
     });
 
-    it('tracks addedMediaKeys and removedMediaKeys from computeMediaKeyDiff', async () => {
-      mockComputeMediaKeyDiff.mockReturnValueOnce({
-        addedKeys: ['added-key'],
-        removedKeys: ['removed-key'],
-      });
-
+    it('tracks addedMediaKeys and removedMediaKeys from real computeMediaKeyDiff', async () => {
+      const existingMediaYaml = yaml.dump([
+        { key: 'kept-photo', type: 'photo', score: 1 },
+        { key: 'removed-photo', type: 'photo', score: 1 },
+      ]);
       const handlers = createRideHandlers();
       const update = handlers.parseRequest({
         frontmatter: { name: 'Diff Ride' },
         body: '',
         gpxRelativePath: '2026/03/15-diff.gpx',
-        media: [{ key: 'added-key', type: 'photo' }],
+        media: [
+          { key: 'kept-photo', type: 'photo' },
+          { key: 'added-photo', type: 'photo' },
+        ],
       });
       const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const mediaPath = `${CITY}/rides/2026/03/15-diff-media.yml`;
       const result = await handlers.buildFileChanges(
-        update, '2026-03-15-diff', { primaryFile: null }, mockGit,
+        update, '2026-03-15-diff',
+        {
+          primaryFile: { content: '---\nname: Diff\n---\n', sha: 'sha1' },
+          auxiliaryFiles: { [mediaPath]: { content: existingMediaYaml, sha: 'sha2' } },
+        },
+        mockGit,
       );
-      expect(result.addedMediaKeys).toEqual(['added-key']);
-      expect(result.removedMediaKeys).toEqual(['removed-key']);
+      expect(result.addedMediaKeys).toEqual(['added-photo']);
+      expect(result.removedMediaKeys).toEqual(['removed-photo']);
     });
   });
 });
