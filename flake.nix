@@ -30,6 +30,7 @@
           ];
 
           shellHook = ''
+            export NODE_ENV=development
             echo "bike-a-zine dev shell (node $(node -v))"
             export PLAYWRIGHT_BROWSERS_PATH="${pw.playwright-driver.browsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
