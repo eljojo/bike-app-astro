@@ -122,7 +122,6 @@ export default [
     // Temporary: these files will be renamed to .server.ts or split in subsequent tasks.
     // Remove entries as each file is migrated.
     files: [
-      'src/lib/models/content-model.ts',
       'src/lib/models/route-model.ts',
       'src/lib/models/event-model.ts',
       'src/lib/models/place-model.ts',
@@ -137,6 +136,7 @@ export default [
     ],
     rules: {
       'no-restricted-imports': 'off',
+      'bike-app/no-server-import-in-browser': 'off',
     },
   },
 ];

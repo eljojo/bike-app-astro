@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeHashFromParts } from '../src/lib/models/content-model';
+import { computeHashFromParts } from '../src/lib/models/content-hash.server';
 
 describe('computeHashFromParts', () => {
   it('hashes single part', () => {

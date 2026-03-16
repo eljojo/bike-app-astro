@@ -1,6 +1,7 @@
 import { z } from 'astro/zod';
 import matter from 'gray-matter';
-import { computeHashFromParts, type GitFiles } from './content-model';
+import { computeHashFromParts } from './content-hash.server';
+import { type GitFiles } from './content-model';
 
 export const placeDetailSchema = z.object({
   id: z.string(),

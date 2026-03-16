@@ -2,7 +2,8 @@ import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { parseGpx } from '../gpx/parse';
-import { computeHashFromParts, baseMediaItemSchema, type GitFiles } from './content-model';
+import { computeHashFromParts } from './content-hash.server';
+import { baseMediaItemSchema, type GitFiles } from './content-model';
 
 export const rideMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),

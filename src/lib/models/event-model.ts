@@ -1,7 +1,8 @@
 import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
-import { computeHashFromParts, baseMediaItemSchema, type GitFiles } from './content-model';
+import { computeHashFromParts } from './content-hash.server';
+import { baseMediaItemSchema, type GitFiles } from './content-model';
 
 const organizerRefSchema = z.object({
   name: z.string(),
