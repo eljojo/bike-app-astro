@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import { formatIsoDuration } from '../../lib/date-utils';
 import { buildImageUrl } from '../../lib/media/image-service';
+import { buildVideoPosterUrl } from '../../lib/media/video-service';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem & {
@@ -107,15 +108,6 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
     return buildImageUrl(cdnUrl, key, { width: 200, height: 150, fit: 'cover' });
   }
 
-  function videoPosterUrl(item: MediaItem): string {
-    const base = videosCdnUrl || cdnUrl;
-    const slashIdx = item.key.indexOf('/');
-    const prefix = slashIdx !== -1 ? item.key.slice(0, slashIdx) : (videoPrefix || '');
-    const bareKey = slashIdx !== -1 ? item.key.slice(slashIdx + 1) : item.key;
-    return prefix
-      ? `${base}/${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`
-      : `${base}/${bareKey}/${bareKey}-poster.0000000.jpg`;
-  }
 
   function updateTitle(idx: number, title: string) {
     const updated = [...media];
@@ -287,7 +279,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
             {item.type === 'video' ? (
               <div class="video-thumb">
                 {(item.videoStatus === 'ready' || item.posterChecked || (!item.videoStatus && item.width)) ? (
-                  <img src={videoPosterUrl(item)} alt={item.title || ''} loading="lazy" />
+                  <img src={buildVideoPosterUrl(videosCdnUrl || cdnUrl, item.key, videoPrefix)} alt={item.title || ''} loading="lazy" />
                 ) : (
                   <div class="video-placeholder" />
                 )}

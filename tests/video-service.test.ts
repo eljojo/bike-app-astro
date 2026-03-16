@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   videoPlaybackSources,
   videoPosterUrl,
+  buildVideoPosterUrl,
   videoDisplaySize,
   videoFallbackUrl,
   resolveVideoPath,
@@ -223,6 +224,25 @@ describe('save-time annotation guard', () => {
     expect(result[2].key).toBe('photo_1');    // photo: untouched
     expect(result[3].key).toBe('new_vid_2');  // consumed: annotated (bare in test env)
     expect(result[4].key).toBe('old_vid_2');  // existing: untouched
+  });
+});
+
+describe('buildVideoPosterUrl', () => {
+  const cdn = 'https://videos.example.com';
+
+  it('handles prefixed key', () => {
+    expect(buildVideoPosterUrl(cdn, 'ottawa/abc12345'))
+      .toBe('https://videos.example.com/ottawa/abc12345/abc12345-poster.0000000.jpg');
+  });
+
+  it('handles bare key with default prefix', () => {
+    expect(buildVideoPosterUrl(cdn, 'abc12345', 'ottawa'))
+      .toBe('https://videos.example.com/ottawa/abc12345/abc12345-poster.0000000.jpg');
+  });
+
+  it('handles bare key without prefix', () => {
+    expect(buildVideoPosterUrl(cdn, 'abc12345'))
+      .toBe('https://videos.example.com/abc12345/abc12345-poster.0000000.jpg');
   });
 });
 
