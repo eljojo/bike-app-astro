@@ -60,4 +60,44 @@ describe('build-plan', () => {
     const filtered = filterByBuildPlan(entries, plan, 'ride');
     expect(filtered.map(e => e.id)).toEqual(['morning', 'evening']);
   });
+
+  it('filterByBuildPlan returns all entries for full build', async () => {
+    const { filterByBuildPlan } = await import('../../src/lib/content/build-plan');
+    const entries = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    const filtered = filterByBuildPlan(entries, null, 'ride');
+    expect(filtered).toHaveLength(3);
+  });
+
+  it('manifest round-trip preserves all fields', async () => {
+    const { writeBuildManifest, loadBuildManifest, BUILD_MANIFEST_VERSION } = await import('../../src/lib/content/build-plan');
+    const manifest = {
+      version: BUILD_MANIFEST_VERSION,
+      codeHash: 'abc123',
+      contentHashes: { 'ride:morning': 'hash1', 'route:canal': 'hash2' },
+      tourMembership: { 'ride:morning': 'europe-trip' },
+    };
+    writeBuildManifest(manifest);
+    const loaded = loadBuildManifest();
+    expect(loaded).toEqual(manifest);
+  });
+
+  it('loadBuildManifest accepts current version', async () => {
+    const { writeBuildManifest, loadBuildManifest, BUILD_MANIFEST_VERSION } = await import('../../src/lib/content/build-plan');
+    writeBuildManifest({ version: BUILD_MANIFEST_VERSION, codeHash: 'x', contentHashes: {} });
+    expect(loadBuildManifest()).not.toBeNull();
+  });
+
+  it('shouldRebuild does not match slug substring', async () => {
+    const { shouldRebuild } = await import('../../src/lib/content/build-plan');
+    const plan = { mode: 'incremental' as const, changedSlugs: ['ride:morning-ride'], deletedSlugs: [] };
+    // 'morning' is a substring of 'morning-ride' but should NOT match
+    expect(shouldRebuild(plan, 'ride', 'morning')).toBe(false);
+    expect(shouldRebuild(plan, 'ride', 'morning-ride')).toBe(true);
+  });
+
+  it('shouldRebuild does not match wrong content type with same slug', async () => {
+    const { shouldRebuild } = await import('../../src/lib/content/build-plan');
+    const plan = { mode: 'incremental' as const, changedSlugs: ['route:canal'], deletedSlugs: [] };
+    expect(shouldRebuild(plan, 'ride', 'canal')).toBe(false);
+  });
 });
