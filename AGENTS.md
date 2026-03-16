@@ -43,6 +43,8 @@ This changes how you work:
 
 - **Verify before claiming done.** After any change, grep for related terms, rebuild, run tests. Show proof, not promises. A claim without evidence is just a guess — and AI is particularly prone to confident guesses. If you say it works, show the output. If you say it's fixed, show the test passing.
 
+- **You are an AI and you will be wrong.** Your confidence in tracing a mechanism is not evidence that the mechanism works. When debugging has gone through multiple rounds without finding the cause, stop tracing the mechanism and question whether the mechanism should exist. AI has a strong default toward "one more trace will find it" — that confidence is the failure mode, not a tool. The more certain you feel that reading one more file will crack it, the more likely you're in a loop. When the user says previous attempts failed or your instinct is wrong, that's the most important information in the conversation — not background noise to push through.
+
 - **Understand the system before changing it.** Read the existing implementation. Understand why it works the way it does. Match its patterns. This codebase has conventions — vendor isolation, data locality, the save pipeline pattern — that exist for good reasons. Learn them before proposing alternatives.
 
 - **Model reality faithfully.** This platform succeeds by representing the cycling domain truthfully. A route is a real path someone rides. A place is a real location someone visits. An event is a real gathering with real participants. When the domain model is right, features follow naturally. When it's wrong, every feature is a workaround. Take domain-driven design seriously — the types, the names, the relationships should make a cyclist nod in recognition.
