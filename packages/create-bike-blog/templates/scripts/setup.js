@@ -850,6 +850,22 @@ async function stepVideo() {
     r2Bucket: 'whereto-bike-videos',
   });
 
+  // Write VIDEO_PREFIX to wrangler.jsonc so CI can read it at build time
+  try {
+    const raw = fs.readFileSync('wrangler.jsonc', 'utf-8');
+    if (!raw.includes('"VIDEO_PREFIX"')) {
+      const varsMatch = raw.match(/"vars"\s*:\s*\{/);
+      if (varsMatch) {
+        const insertPos = varsMatch.index + varsMatch[0].length;
+        const updated = raw.slice(0, insertPos) + `\n    "VIDEO_PREFIX": "${prefix}",` + raw.slice(insertPos);
+        fs.writeFileSync('wrangler.jsonc', updated);
+        console.log(`  ✓ VIDEO_PREFIX="${prefix}" added to wrangler.jsonc`);
+      }
+    }
+  } catch {
+    console.warn(`  ⚠ Could not update wrangler.jsonc — add VIDEO_PREFIX manually`);
+  }
+
   // Store CI user secrets on this repo (only if Lambda was newly created)
   if (lambdaCreated) {
     console.log('  CI user was created — GitHub secrets for Lambda deploy are set.\n');

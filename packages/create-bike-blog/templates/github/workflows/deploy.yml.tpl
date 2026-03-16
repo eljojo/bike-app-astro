@@ -80,13 +80,19 @@ jobs:
           CONTENT_DIR: .
           CITY: blog
 
+      - name: Resolve VIDEO_PREFIX from wrangler config
+        id: video-prefix
+        run: |
+          PREFIX=$(sed 's|//.*$||' wrangler.jsonc | jq -r '.vars.VIDEO_PREFIX // empty')
+          echo "value=${PREFIX}" >> "$GITHUB_OUTPUT"
+
       - name: Build site
         run: npx astro build
         env:
           CONTENT_DIR: .
           CITY: blog
           SITE_URL: https://{{DOMAIN}}
-          VIDEO_PREFIX: ${{ vars.VIDEO_PREFIX }}
+          VIDEO_PREFIX: ${{ steps.video-prefix.outputs.value }}
           NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Merge incremental build
