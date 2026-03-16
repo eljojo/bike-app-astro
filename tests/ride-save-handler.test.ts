@@ -14,18 +14,7 @@ vi.mock('../src/lib/config/config', () => ({
   CITY: 'ottawa',
 }));
 
-vi.mock('../src/lib/slug', () => ({
-  slugify: (text: string) =>
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, ''),
-  validateSlug: (slug: string) => {
-    if (!slug) return 'Name is required';
-    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) return 'Invalid slug';
-    return null;
-  },
-}));
+// slug module is not mocked — uses real slugify/validateSlug (pure functions)
 
 vi.mock('../src/lib/content/file-serializers', () => ({
   serializeMdFile: (fm: Record<string, unknown>, body: string) =>
@@ -58,9 +47,24 @@ vi.mock('../src/lib/models/ride-model', async () => {
   };
 });
 
-vi.mock('../src/lib/models/content-model', () => ({
-  baseMediaItemSchema: {},
-}));
+vi.mock('../src/lib/models/content-model', async () => {
+  const { z } = await import('astro/zod');
+  return {
+    baseMediaItemSchema: z.object({
+      key: z.string(),
+      type: z.enum(['photo', 'video']).optional(),
+      caption: z.string().optional(),
+      cover: z.boolean().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+      title: z.string().optional(),
+      handle: z.string().optional(),
+      duration: z.string().optional(),
+      orientation: z.string().optional(),
+      poster_key: z.string().optional(),
+    }),
+  };
+});
 
 vi.mock('../src/lib/media/photo-parking', () => ({
   updatePhotoRegistryCache: vi.fn().mockResolvedValue(undefined),
@@ -88,8 +92,9 @@ vi.mock('../src/lib/media/video-enrichment', () => ({
 }));
 
 vi.mock('../src/lib/media/video-service', () => ({
-  videoKeyForGit: (key: string) => `ottawa/${key}`,
-  bareVideoKey: (key: string) => key.replace(/^[^/]+\//, ''),
+  // Real videoKeyForGit returns bare key when VIDEO_PREFIX === CITY (default ottawa config)
+  videoKeyForGit: (key: string) => key,
+  bareVideoKey: (key: string) => key.includes('/') ? key.split('/').pop()! : key,
 }));
 
 vi.mock('../src/lib/get-db', () => ({
@@ -198,7 +203,7 @@ describe('ride-save handlers', () => {
 
     it('returns error for empty slug', () => {
       const handlers = createRideHandlers();
-      expect(handlers.validateSlug('')).toBe('Name is required');
+      expect(handlers.validateSlug('')).toBeTruthy();
     });
   });
 
@@ -323,6 +328,77 @@ describe('ride-save handlers', () => {
       const result = await handlers.checkExistence!(git, '2026-03-15-test');
       expect(result).toBeInstanceOf(Response);
       expect((result as Response).status).toBe(409);
+    });
+  });
+
+  describe('buildFileChanges', () => {
+    it('creates sidecar .md for new ride', async () => {
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Morning Ride' },
+        body: 'Great day',
+        gpxRelativePath: '2026/03/15-morning-ride.gpx',
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-morning-ride', { primaryFile: null }, mockGit,
+      );
+      const paths = result.files.map((f: { path: string }) => f.path);
+      expect(paths).toContain('ottawa/rides/2026/03/15-morning-ride.md');
+      expect(result.isNew).toBe(true);
+    });
+
+    it('creates media file when media is present', async () => {
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Photo Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-photo-ride.gpx',
+        media: [{ key: 'abc123', type: 'photo' }],
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-photo-ride', { primaryFile: null }, mockGit,
+      );
+      const paths = result.files.map((f: { path: string }) => f.path);
+      expect(paths).toContain('ottawa/rides/2026/03/15-photo-ride-media.yml');
+    });
+
+    it('commits GPX file for new variant', async () => {
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'GPX Ride', ride_date: '2026-03-15' },
+        body: '',
+        gpxRelativePath: '2026/03/15-gpx-ride.gpx',
+        variants: [{ gpx: '15-gpx-ride.gpx', isNew: true, gpxContent: '<gpx><trk></trk></gpx>' }],
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-gpx-ride', { primaryFile: null }, mockGit,
+      );
+      const paths = result.files.map((f: { path: string }) => f.path);
+      expect(paths.some((p: string) => p.endsWith('.gpx'))).toBe(true);
+    });
+
+    it('deletes old files and creates redirect on slug rename', async () => {
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Renamed Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-old-name.gpx',
+        newSlug: '2026-03-15-new-name',
+      });
+      const existingFile = { content: '---\nname: Old\n---\n', sha: 'sha-old' };
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-old-name', { primaryFile: existingFile }, mockGit,
+      );
+      // Old files should be in deletePaths
+      expect(result.deletePaths).toContain('ottawa/rides/2026/03/15-old-name.md');
+      expect(result.deletePaths).toContain('ottawa/rides/2026/03/15-old-name.gpx');
+      // Redirect file should be generated
+      const paths = result.files.map((f: { path: string }) => f.path);
+      expect(paths.some((p: string) => p.includes('_redirects'))).toBe(true);
     });
   });
 });

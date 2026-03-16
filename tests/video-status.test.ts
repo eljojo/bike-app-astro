@@ -44,8 +44,10 @@ vi.mock('../src/lib/config/city-config', () => ({
 }));
 
 vi.mock('../src/lib/media/video-completion', () => ({
-  h264OutputKey: (key: string) => `test/${key}/${key}-h264.mp4`,
-  posterKeyForVideo: (key: string) => `test/${key}/${key}-poster.0000000.jpg`,
+  // Matches real pattern: ${VIDEO_PREFIX}/${key}/${key}-h264.mp4
+  // VIDEO_PREFIX defaults to CITY in non-blog instances
+  h264OutputKey: (key: string) => `ottawa/${key}/${key}-h264.mp4`,
+  posterKeyForVideo: (key: string) => `ottawa/${key}/${key}-poster.0000000.jpg`,
 }));
 
 // Mock global fetch for CDN HEAD checks
