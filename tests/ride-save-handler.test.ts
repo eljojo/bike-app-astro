@@ -73,26 +73,28 @@ vi.mock('virtual:bike-app/photo-shared-keys', () => ({
   default: {},
 }));
 
+const mockMergeFrontmatter = vi.fn((_isNew: boolean, _existing: string | null, fm: Record<string, unknown>) => fm);
+const mockLoadExistingMedia = vi.fn().mockReturnValue([]);
+const mockComputeMediaKeyDiff = vi.fn().mockReturnValue({ addedKeys: [], removedKeys: [] });
 vi.mock('../src/lib/content/save-helpers', () => ({
   buildMediaKeyChanges: () => [],
-  computeMediaKeyDiff: (_old: unknown[], _new: unknown[]) => ({
-    addedKeys: [],
-    removedKeys: [],
-  }),
+  computeMediaKeyDiff: (a: unknown[], b: unknown[]) => mockComputeMediaKeyDiff(a, b),
   buildCommitTrailer: (path: string) => `\n\nFile: ${path}`,
-  mergeFrontmatter: (_isNew: boolean, _existing: string | null, fm: Record<string, unknown>) => fm,
-  loadExistingMedia: () => [],
+  mergeFrontmatter: (a: boolean, b: string | null, c: Record<string, unknown>) => mockMergeFrontmatter(a, b, c),
+  loadExistingMedia: (a: unknown) => mockLoadExistingMedia(a),
 }));
 
+const mockEnrichMediaFromVideoJobs = vi.fn((_media: unknown[], _db?: unknown) =>
+  Promise.resolve({ enrichedMedia: _media, consumedKeys: [] }) as Promise<{ enrichedMedia: unknown[]; consumedKeys: string[] }>);
 vi.mock('../src/lib/media/video-enrichment', () => ({
-  enrichMediaFromVideoJobs: (media: unknown[]) =>
-    Promise.resolve({ enrichedMedia: media, consumedKeys: [] }),
+  enrichMediaFromVideoJobs: (a: unknown[], b: unknown) => mockEnrichMediaFromVideoJobs(a, b),
   deleteConsumedVideoJobs: vi.fn().mockResolvedValue(undefined),
 }));
 
+const mockVideoKeyForGit = vi.fn((key: string) => key);
 vi.mock('../src/lib/media/video-service', () => ({
   // Real videoKeyForGit returns bare key when VIDEO_PREFIX === CITY (default ottawa config)
-  videoKeyForGit: (key: string) => key,
+  videoKeyForGit: (key: string) => mockVideoKeyForGit(key),
   bareVideoKey: (key: string) => key.includes('/') ? key.split('/').pop()! : key,
 }));
 
@@ -398,6 +400,148 @@ describe('ride-save handlers', () => {
       // Redirect file should be generated
       const paths = result.files.map((f: { path: string }) => f.path);
       expect(paths.some((p: string) => p.includes('_redirects'))).toBe(true);
+    });
+
+    it('calls mergeFrontmatter with isNew=false and existing content for updates', async () => {
+      mockMergeFrontmatter.mockClear();
+      const handlers = createRideHandlers();
+      const existingContent = '---\nname: Old Name\nstrava_id: "123"\n---\nOld body';
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Updated Name' },
+        body: 'New body',
+        gpxRelativePath: '2026/03/15-ride.gpx',
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      await handlers.buildFileChanges(
+        update, '2026-03-15-ride',
+        { primaryFile: { content: existingContent, sha: 'sha-1' } },
+        mockGit,
+      );
+      expect(mockMergeFrontmatter).toHaveBeenCalledWith(
+        false, // isNew
+        existingContent, // existing content passed through for frontmatter extraction
+        expect.objectContaining({ name: 'Updated Name' }),
+      );
+    });
+
+    it('calls mergeFrontmatter with isNew=true and null for new rides', async () => {
+      mockMergeFrontmatter.mockClear();
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'New Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-new.gpx',
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      await handlers.buildFileChanges(
+        update, '2026-03-15-new', { primaryFile: null }, mockGit,
+      );
+      expect(mockMergeFrontmatter).toHaveBeenCalledWith(
+        true, // isNew
+        null, // no existing content
+        expect.objectContaining({ name: 'New Ride' }),
+      );
+    });
+
+    it('passes media through enrichMediaFromVideoJobs and computeMediaKeyDiff', async () => {
+      mockEnrichMediaFromVideoJobs.mockClear();
+      mockComputeMediaKeyDiff.mockClear();
+      mockLoadExistingMedia.mockClear();
+      const existingMedia = [{ key: 'old-photo', type: 'photo' }];
+      mockLoadExistingMedia.mockReturnValue(existingMedia);
+
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Media Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-media.gpx',
+        media: [{ key: 'new-photo', type: 'photo' }],
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      await handlers.buildFileChanges(
+        update, '2026-03-15-media', { primaryFile: null }, mockGit,
+      );
+      // enrichMediaFromVideoJobs receives the parsed media items and a database
+      expect(mockEnrichMediaFromVideoJobs).toHaveBeenCalledWith(
+        [expect.objectContaining({ key: 'new-photo' })],
+        expect.anything(), // database
+      );
+      // computeMediaKeyDiff receives existing vs annotated media
+      expect(mockComputeMediaKeyDiff).toHaveBeenCalledWith(
+        existingMedia,
+        expect.arrayContaining([expect.objectContaining({ key: 'new-photo' })]),
+      );
+    });
+
+    it('annotates only consumed video keys with videoKeyForGit', async () => {
+      mockVideoKeyForGit.mockClear();
+      // enrichMediaFromVideoJobs marks 'new-video' as consumed
+      mockEnrichMediaFromVideoJobs.mockResolvedValueOnce({
+        enrichedMedia: [
+          { key: 'existing-video', type: 'video' },
+          { key: 'new-video', type: 'video' },
+        ],
+        consumedKeys: ['new-video'], // only this one was just transcoded
+      });
+
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Video Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-video.gpx',
+        media: [
+          { key: 'existing-video', type: 'video' },
+          { key: 'new-video', type: 'video' },
+        ],
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      await handlers.buildFileChanges(
+        update, '2026-03-15-video', { primaryFile: null }, mockGit,
+      );
+      // videoKeyForGit should only be called for the consumed key
+      expect(mockVideoKeyForGit).toHaveBeenCalledWith('new-video');
+      expect(mockVideoKeyForGit).not.toHaveBeenCalledWith('existing-video');
+    });
+
+    it('deletes media file when all media items are removed', async () => {
+      mockLoadExistingMedia.mockReturnValue([{ key: 'old-photo', type: 'photo' }]);
+
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Cleared Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-cleared.gpx',
+        media: [], // empty — all media removed
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-cleared',
+        { primaryFile: { content: '---\nname: Cleared\n---\n', sha: 'sha1' } },
+        mockGit,
+      );
+      // Media file should be deleted when existing media was present but all removed
+      expect(result.deletePaths).toContain('ottawa/rides/2026/03/15-cleared-media.yml');
+    });
+
+    it('tracks addedMediaKeys and removedMediaKeys from computeMediaKeyDiff', async () => {
+      mockComputeMediaKeyDiff.mockReturnValueOnce({
+        addedKeys: ['added-key'],
+        removedKeys: ['removed-key'],
+      });
+
+      const handlers = createRideHandlers();
+      const update = handlers.parseRequest({
+        frontmatter: { name: 'Diff Ride' },
+        body: '',
+        gpxRelativePath: '2026/03/15-diff.gpx',
+        media: [{ key: 'added-key', type: 'photo' }],
+      });
+      const mockGit = { readFile: vi.fn().mockResolvedValue(null) } as any;
+      const result = await handlers.buildFileChanges(
+        update, '2026-03-15-diff', { primaryFile: null }, mockGit,
+      );
+      expect(result.addedMediaKeys).toEqual(['added-key']);
+      expect(result.removedMediaKeys).toEqual(['removed-key']);
     });
   });
 });

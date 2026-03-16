@@ -115,7 +115,6 @@ export const videoJobs = sqliteTable('video_jobs', {
   height: integer('height'),
   duration: text('duration'),
   orientation: text('orientation'),
-  posterKey: text('poster_key'), // internal tracking only — not written to content data
   lat: real('lat'),
   lng: real('lng'),
   capturedAt: text('captured_at'),

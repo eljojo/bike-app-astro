@@ -79,7 +79,7 @@ describe('loadAdminRouteData details', () => {
 
   it('media items only include known fields', async () => {
     const { details } = await loadAdminRouteData();
-    const allowedKeys = ['key', 'type', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at', 'width', 'height', 'title', 'handle', 'duration', 'orientation', 'poster_key'];
+    const allowedKeys = ['key', 'type', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at', 'width', 'height', 'title', 'handle', 'duration', 'orientation'];
     for (const detail of Object.values(details)) {
       for (const item of detail.media) {
         const keys = Object.keys(item);

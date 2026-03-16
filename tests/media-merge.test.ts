@@ -105,7 +105,7 @@ describe('mergeMedia', () => {
     ];
     const existing = [
       { type: 'photo', key: 'photo1', score: 10, width: 1600, height: 1200, handle: 'cover' },
-      { type: 'video', key: 'video1', title: 'Old Title', duration: 'PT31S', handle: 'my-ride', poster_key: 'abc', width: 1920, height: 1080 },
+      { type: 'video', key: 'video1', title: 'Old Title', duration: 'PT31S', handle: 'my-ride', width: 1920, height: 1080 },
     ];
     const merged = mergeMedia(adminMedia, existing);
     // Video moved to first position
@@ -114,7 +114,7 @@ describe('mergeMedia', () => {
     expect(merged[0].title).toBe('Updated Title');
     // Existing video fields preserved
     expect(merged[0].duration).toBe('PT31S');
-    expect(merged[0].poster_key).toBe('abc');
+    expect(merged[0].handle).toBe('my-ride');
     // Photo second
     expect(merged[1].key).toBe('photo1');
     expect(merged[1].cover).toBe(true);

@@ -67,7 +67,6 @@ interface AdminMediaInput {
   handle?: string;
   duration?: string;
   orientation?: string;
-  poster_key?: string;
 }
 
 type MediaEntry = Record<string, unknown>;
@@ -114,7 +113,6 @@ export function mergeMedia(adminMedia: AdminMediaInput[], existing: MediaEntry[]
       if (item.width) entry.width = item.width;
       if (item.height) entry.height = item.height;
       if (item.orientation) entry.orientation = item.orientation;
-      if (item.poster_key) entry.poster_key = item.poster_key;
       if (item.lat != null) entry.lat = item.lat;
       if (item.lng != null) entry.lng = item.lng;
       if (item.captured_at) entry.captured_at = item.captured_at;

@@ -28,10 +28,6 @@ export const baseMediaItemSchema = z.object({
   handle: z.string().optional(),
   duration: z.string().optional(),
   orientation: z.string().optional(),
-  // DEPRECATED for videos: poster URL is now derived from the video key via
-  // videoPosterUrl(). Kept for backwards compat with existing media.yml files.
-  // Safe to remove once all content repos have been re-saved without it.
-  poster_key: z.string().optional(),
 });
 
 export type BaseMediaItem = z.infer<typeof baseMediaItemSchema>;

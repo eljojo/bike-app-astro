@@ -88,32 +88,142 @@ export function useDragDrop(onFilesDropped: (files: File[]) => void) {
   return { dragging };
 }
 
-export interface VideoUploadState {
+export interface VideoUploadItem {
   key: string;
-  status: 'uploading' | 'transcoding' | 'ready' | 'failed';
+  type: 'video';
   title: string;
-  progress: string;
-  /** Upload progress 0–100 (only meaningful during 'uploading' status) */
-  uploadPercent: number;
+  handle: string;
+  videoStatus: 'uploading';
+  uploadPercent: 0;
+}
+
+export interface VideoUploadHook {
+  startUpload: (file: File, contentSlug: string, contentKind: string, videosCdnUrl?: string, videoPrefix?: string) => Promise<VideoUploadItem | null>;
+  cancelPolling: (key: string) => void;
+  resumePolling: (key: string, videosCdnUrl?: string, videoPrefix?: string) => void;
+  error: string;
+  setError: (e: string) => void;
 }
 
 /**
- * Video upload flow: presign → upload → poll (Lambda handles metadata + transcode).
+ * Video upload flow: presign → upload with progress → poll for transcode completion.
+ * Updates media items in place via updateMedia callback (ref-stable).
  */
-export function useVideoUpload(onReady?: (key: string, metadata: Record<string, unknown>) => void) {
-  const [videos, setVideos] = useState<Map<string, VideoUploadState>>(new Map());
+export function useVideoUpload(
+  updateMedia: (key: string, patch: Record<string, unknown>) => void,
+): VideoUploadHook {
   const [error, setError] = useState('');
-  const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+  const updateRef = useRef(updateMedia);
+  updateRef.current = updateMedia;
+  const pollTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pollStarts = useRef<Map<string, number>>(new Map());
 
-  async function uploadVideo(
+  function derivePosterUrl(key: string, videosCdnUrl?: string, videoPrefix?: string): string {
+    const slashIdx = key.indexOf('/');
+    const prefix = slashIdx !== -1 ? key.slice(0, slashIdx) : (videoPrefix || '');
+    const bareKey = slashIdx !== -1 ? key.slice(slashIdx + 1) : key;
+    const base = videosCdnUrl || '';
+    return prefix
+      ? `${base}/${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`
+      : `${base}/${bareKey}/${bareKey}-poster.0000000.jpg`;
+  }
+
+  function startPolling(key: string, videosCdnUrl?: string, videoPrefix?: string) {
+    if (pollTimers.current.has(key)) return;
+    const started = Date.now();
+    pollStarts.current.set(key, started);
+    let pollCount = 0;
+
+    function poll() {
+      const interval = pollCount < 12 ? 5_000 : 15_000;
+      const timer = setTimeout(async () => {
+        pollTimers.current.delete(key);
+        pollCount++;
+
+        if (Date.now() - started > 15 * 60 * 1000) {
+          updateRef.current(key, { videoStatus: 'failed' });
+          pollStarts.current.delete(key);
+          return;
+        }
+
+        try {
+          const res = await fetch(`/api/video/status/${key}`);
+          if (!res.ok) { poll(); return; }
+          const data = await res.json();
+
+          if (data.status === 'ready') {
+            const patch: Record<string, unknown> = { videoStatus: 'ready' };
+            if (data.width != null) patch.width = data.width;
+            if (data.height != null) patch.height = data.height;
+            if (data.duration != null) patch.duration = data.duration;
+            if (data.orientation != null) patch.orientation = data.orientation;
+            if (data.lat != null) patch.lat = data.lat;
+            if (data.lng != null) patch.lng = data.lng;
+            if (data.capturedAt != null) patch.captured_at = data.capturedAt;
+            updateRef.current(key, patch);
+            pollStarts.current.delete(key);
+            return;
+          }
+
+          if (data.status === 'failed') {
+            updateRef.current(key, { videoStatus: 'failed' });
+            pollStarts.current.delete(key);
+            return;
+          }
+
+          // Still transcoding — merge any metadata that arrived
+          const patch: Record<string, unknown> = {};
+          if (data.width != null) patch.width = data.width;
+          if (data.height != null) patch.height = data.height;
+          if (data.duration != null) patch.duration = data.duration;
+          if (data.orientation != null) patch.orientation = data.orientation;
+          if (Object.keys(patch).length > 0) updateRef.current(key, patch);
+
+          // Early poster check
+          if (videosCdnUrl || videoPrefix) {
+            try {
+              const posterUrl = derivePosterUrl(key, videosCdnUrl, videoPrefix);
+              if (posterUrl) {
+                const posterRes = await fetch(posterUrl, { method: 'HEAD' });
+                if (posterRes.ok) {
+                  updateRef.current(key, { posterChecked: true });
+                }
+              }
+            } catch { /* poster not ready yet */ }
+          }
+        } catch { /* network error, retry */ }
+
+        poll();
+      }, interval);
+      pollTimers.current.set(key, timer);
+    }
+
+    poll();
+  }
+
+  function cancelPolling(key: string) {
+    const timer = pollTimers.current.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      pollTimers.current.delete(key);
+    }
+    pollStarts.current.delete(key);
+  }
+
+  function resumePolling(key: string, videosCdnUrl?: string, videoPrefix?: string) {
+    startPolling(key, videosCdnUrl, videoPrefix);
+  }
+
+  async function startUpload(
     file: File,
     contentSlug: string,
     contentKind: string,
-  ): Promise<{ key: string; type: 'video'; title: string; handle: string } | null> {
+    videosCdnUrl?: string,
+    videoPrefix?: string,
+  ): Promise<VideoUploadItem | null> {
     setError('');
 
     try {
-      // 1. Presign
       const presignRes = await fetch('/api/video/presign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,101 +242,61 @@ export function useVideoUpload(onReady?: (key: string, metadata: Record<string, 
       const { key, uploadUrl } = await presignRes.json();
 
       const title = file.name.replace(/\.[^.]+$/, '');
-      setVideos(prev => new Map(prev).set(key, {
-        key, status: 'uploading', title, progress: 'Uploading...', uploadPercent: 0,
-      }));
+      const handle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-      // 2. Upload to S3 — use XHR for progress tracking
-      await new Promise<void>((resolve, reject) => {
+      const item: VideoUploadItem = {
+        key,
+        type: 'video',
+        title,
+        handle,
+        videoStatus: 'uploading',
+        uploadPercent: 0,
+      };
+
+      // Deferred XHR so caller can add item to grid before progress events fire
+      setTimeout(() => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
         xhr.setRequestHeader('Content-Type', file.type);
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const pct = Math.round((e.loaded / e.total) * 100);
-            setVideos(prev => {
-              const next = new Map(prev);
-              const existing = next.get(key);
-              if (existing) next.set(key, { ...existing, progress: `Uploading ${pct}%`, uploadPercent: pct });
-              return next;
-            });
+            updateRef.current(key, { uploadPercent: pct });
           }
         };
-        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status})`));
-        xhr.onerror = () => reject(new Error('Upload network error'));
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            updateRef.current(key, {
+              videoStatus: 'transcoding',
+              uploadPercent: 100,
+              transcodingStartedAt: Date.now(),
+            });
+            startPolling(key, videosCdnUrl, videoPrefix);
+          } else {
+            updateRef.current(key, { videoStatus: 'failed' });
+          }
+        };
+        xhr.onerror = () => {
+          updateRef.current(key, { videoStatus: 'failed' });
+        };
         xhr.send(file);
-      });
+      }, 0);
 
-      // 3. Upload complete — Lambda handles ffprobe + MediaConvert via S3 trigger
-      const handle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      setVideos(prev => new Map(prev).set(key, {
-        key, status: 'transcoding', title, progress: 'Processing...', uploadPercent: 100,
-      }));
-
-      // 4. Start polling for completion
-      startPolling(key);
-
-      // 5. Return item for immediate addition to media list
-      //    Metadata (width, height, duration, GPS) arrives later via webhook
-      return { key, type: 'video', title, handle };
+      return item;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Video upload failed');
       return null;
     }
   }
 
-  function startPolling(key: string) {
-    const timer = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/video/status/${key}`);
-        if (!res.ok) return;
-        const data = await res.json();
-
-        if (data.status === 'ready') {
-          setVideos(prev => {
-            const next = new Map(prev);
-            const existing = next.get(key);
-            if (existing) next.set(key, { ...existing, status: 'ready', progress: 'Ready', uploadPercent: 100 });
-            return next;
-          });
-          if (onReady) {
-            const metadata: Record<string, unknown> = {};
-            if (data.width != null) metadata.width = data.width;
-            if (data.height != null) metadata.height = data.height;
-            if (data.duration != null) metadata.duration = data.duration;
-            if (data.orientation != null) metadata.orientation = data.orientation;
-            if (data.lat != null) metadata.lat = data.lat;
-            if (data.lng != null) metadata.lng = data.lng;
-            if (data.capturedAt != null) metadata.captured_at = data.capturedAt;
-            onReady(key, metadata);
-          }
-          clearInterval(timer);
-          pollTimers.current.delete(key);
-        } else if (data.status === 'failed') {
-          setVideos(prev => {
-            const next = new Map(prev);
-            const existing = next.get(key);
-            if (existing) next.set(key, { ...existing, status: 'failed', progress: 'Failed', uploadPercent: 100 });
-            return next;
-          });
-          clearInterval(timer);
-          pollTimers.current.delete(key);
-        }
-      } catch {
-        // Ignore polling errors — will retry on next interval
-      }
-    }, 30_000); // every 30 seconds
-    pollTimers.current.set(key, timer);
-  }
-
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      for (const timer of pollTimers.current.values()) clearInterval(timer);
+      for (const timer of pollTimers.current.values()) clearTimeout(timer);
     };
   }, []);
 
-  return { uploadVideo, videos, error, setError };
+  return { startUpload, cancelPolling, resumePolling, error, setError };
 }
 
 export interface UploadedFile {

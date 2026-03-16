@@ -4,7 +4,6 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { videoPosterUrl } from '@/lib/media/video-service';
-import { imageUrl } from '@/lib/media/image-service';
 import { getCityConfig } from '@/lib/config/city-config';
 import { paths, routeSlug } from '@/lib/paths';
 import { t } from '@/i18n';
@@ -31,7 +30,7 @@ const routesWithVideos = routes
           {videos.map(video => (
             <li>
               <a href={paths.video(video.handle, locale)} title={video.title}>
-                <img src={video.poster_key ? imageUrl(video.poster_key, { width: 300 }) : videoPosterUrl(video.key)} alt={video.title || 'Video'} />
+                <img src={videoPosterUrl(video.key)} alt={video.title || 'Video'} />
               </a>
             </li>
           ))}

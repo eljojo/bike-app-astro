@@ -63,7 +63,7 @@ describe('routeDetailFromGit', () => {
       '  title: My Ride',
       '  handle: my-ride',
       '  duration: PT31S',
-      '  poster_key: ghi',
+
       '  width: 1920',
       '  height: 1080',
     ].join('\n');
@@ -71,7 +71,7 @@ describe('routeDetailFromGit', () => {
     expect(detail.media).toHaveLength(2);
     expect(detail.media[1].type).toBe('video');
     expect(detail.media[1].title).toBe('My Ride');
-    expect(detail.media[1].poster_key).toBe('ghi');
+    expect(detail.media[1].duration).toBe('PT31S');
   });
 
   it('handles null/undefined mediaYml', () => {
