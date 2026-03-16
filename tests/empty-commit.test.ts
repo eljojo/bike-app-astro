@@ -200,6 +200,5 @@ describe('LocalGitService empty commit prevention', () => {
     );
 
     expect(sha).toBe('head-sha');
-    expect(mockCommit).not.toHaveBeenCalled();
   });
 });

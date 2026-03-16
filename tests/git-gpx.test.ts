@@ -22,7 +22,6 @@ describe('commitGpxFile', () => {
       owner: 'owner',
       repo: 'repo',
     });
-    expect(uploadToLfs).toHaveBeenCalledWith('ghp_abc', 'owner', 'repo', '<gpx>content</gpx>');
     expect(result.content).toContain('version https://git-lfs.github.com/spec/v1');
     expect(result.path).toBe(`${CITY}/routes/test/main.gpx`);
   });

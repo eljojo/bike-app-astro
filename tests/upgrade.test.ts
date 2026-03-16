@@ -64,6 +64,8 @@ describe('upgrade-options endpoint', () => {
       cookies: makeCookies('valid-token'),
     } as any);
     expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('challenge');
   });
 });
 
