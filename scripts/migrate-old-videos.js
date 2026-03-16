@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * One-time migration: copy old videos from S3 bike-app-video-outputs to
- * S3 bike-video-outputs with new 8-char keys under a city/instance prefix.
+ * One-time migration: rename video keys to 8-char format and copy originals
+ * to the new S3 bucket so the Lambda re-transcodes them.
  *
  * For each video entry in media files:
  *   1. Generate new 8-char key
- *   2. Copy {old}/{old}-av1.mp4 → {prefix}/{new}/{new}-av1.mp4
- *   3. Copy {old}/{old}-h264.mp4 → {prefix}/{new}/{new}-h264.mp4
- *   4. Download poster from photos CDN → upload to {prefix}/{new}/{new}-poster.0000000.jpg
- *   5. Update media file: replace key, remove poster_key
+ *   2. Copy original from bike-app-video-originals/{old} → bike-video-originals/{prefix}/{new}
+ *      (S3 upload trigger fires the Lambda to re-transcode automatically)
+ *   3. Update media file: replace key, remove poster_key
  *
  * Supports two modes:
  *   - Wiki (default): routes in {CITY}/routes/{slug}/media.yml
@@ -27,12 +26,13 @@
 
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import yaml from 'js-yaml';
 
-const OLD_BUCKET = 'bike-app-video-outputs';
-const NEW_BUCKET = 'bike-video-outputs';
+const SRC_BUCKET = 'bike-app-video-originals';
+const DST_BUCKET = 'bike-video-originals';
 const IS_BLOG = process.argv.includes('--blog');
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -55,20 +55,8 @@ function prefixFromGitRemote(contentDir) {
   return null;
 }
 
-function resolveCdnUrl(contentDir) {
-  try {
-    const configPath = IS_BLOG
-      ? join(contentDir, 'blog', 'config.yml')
-      : join(contentDir, 'ottawa', 'config.yml');
-    const config = yaml.load(readFileSync(configPath, 'utf-8'));
-    if (config.cdn_url) return config.cdn_url;
-  } catch { /* ignore */ }
-  return IS_BLOG ? 'https://cdn.eljojo.bike' : 'https://cdn.ottawabybike.ca';
-}
-
 const CONTENT_DIR = resolveContentDir();
 const PREFIX = IS_BLOG ? prefixFromGitRemote(CONTENT_DIR) : 'ottawa';
-const PHOTOS_CDN = resolveCdnUrl(CONTENT_DIR);
 
 // Match the YAML serialization options used by the app (file-serializers.ts)
 const YAML_OPTIONS = { flowLevel: -1, lineWidth: -1 };
@@ -95,16 +83,6 @@ function aws(cmd) {
     console.error(`  AWS CLI failed: ${err.message}`);
     return null;
   }
-}
-
-async function downloadPoster(posterKey) {
-  const url = `${PHOTOS_CDN}/${posterKey}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error(`  Failed to download poster ${posterKey}: ${res.status}`);
-    return null;
-  }
-  return Buffer.from(await res.arrayBuffer());
 }
 
 /** Wiki: routes/{slug}/media.yml — one level deep */
@@ -153,7 +131,7 @@ async function main() {
     console.error('Could not determine video prefix. Set a git remote on the content repo or pass CONTENT_DIR.');
     process.exit(1);
   }
-  console.log(`\n${DRY_RUN ? '[DRY RUN] ' : ''}Migrating old videos to ${NEW_BUCKET}/${PREFIX}/\n`);
+  console.log(`\n${DRY_RUN ? '[DRY RUN] ' : ''}Migrating old videos to ${DST_BUCKET}/${PREFIX}/\n`);
 
   const mediaFiles = findMediaYmlFiles();
   let totalVideos = 0;
@@ -173,31 +151,16 @@ async function main() {
 
       const oldKey = item.key;
       const newKey = randomKey();
-      const posterKey = item.poster_key;
 
       console.log(`  ${slug}: ${oldKey} → ${newKey}`);
 
       if (!DRY_RUN) {
-        // Copy AV1
-        const av1Result = aws(`s3 cp s3://${OLD_BUCKET}/${oldKey}/${oldKey}-av1.mp4 s3://${NEW_BUCKET}/${PREFIX}/${newKey}/${newKey}-av1.mp4`);
-        if (av1Result !== null) console.log(`    copied av1`);
-
-        // Copy H.264
-        const h264Result = aws(`s3 cp s3://${OLD_BUCKET}/${oldKey}/${oldKey}-h264.mp4 s3://${NEW_BUCKET}/${PREFIX}/${newKey}/${newKey}-h264.mp4`);
-        if (h264Result !== null) console.log(`    copied h264`);
-
-        // Download poster from photos CDN, upload to videos bucket
-        if (posterKey) {
-          const posterData = await downloadPoster(posterKey);
-          if (posterData) {
-            const tmpPath = `/tmp/poster-${newKey}.jpg`;
-            writeFileSync(tmpPath, posterData);
-            aws(`s3 cp ${tmpPath} s3://${NEW_BUCKET}/${PREFIX}/${newKey}/${newKey}-poster.0000000.jpg --content-type image/jpeg`);
-            console.log(`    copied poster (from ${posterKey})`);
-          }
+        // Copy original — S3 trigger fires Lambda to re-transcode
+        const result = aws(`s3 cp s3://${SRC_BUCKET}/${oldKey} s3://${DST_BUCKET}/${PREFIX}/${newKey}`);
+        if (result !== null) {
+          console.log(`    copied original`);
+          totalCopied++;
         }
-
-        totalCopied++;
       }
 
       // Update media.yml entry
@@ -205,7 +168,7 @@ async function main() {
       delete item.poster_key;
       modified = true;
 
-      keyMap.push({ slug, oldKey, newKey, posterKey });
+      keyMap.push({ slug, oldKey, newKey });
     }
 
     if (modified && !DRY_RUN) {
