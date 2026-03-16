@@ -1,8 +1,8 @@
 ---
 // src/components/SEO.astro
-import { getCityConfig } from '../lib/city-config';
-import { supportedLocales, defaultLocale } from '../lib/locale-utils';
-import { translatePath, reverseTranslatePath } from '../lib/path-translations';
+import { getCityConfig } from '../lib/config/city-config';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
+import { translatePath, reverseTranslatePath } from '../lib/i18n/path-translations';
 
 const config = getCityConfig();
 

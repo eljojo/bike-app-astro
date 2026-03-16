@@ -4,9 +4,9 @@ import { jsonResponse } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { getOptionalUser } from '@/lib/auth';
-import { CITY } from '@/lib/config';
-import { getInstanceFeatures } from '@/lib/instance-features';
+import { getOptionalUser } from '@/lib/auth/auth';
+import { CITY } from '@/lib/config/config';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 
 export const prerender = false;
 

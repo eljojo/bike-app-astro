@@ -1,6 +1,6 @@
 /** Centralized URL path construction. One place to change if URL patterns evolve. */
-import { defaultLocale } from './locale-utils';
-import { translatePath } from './path-translations';
+import { defaultLocale } from './i18n/locale-utils';
+import { translatePath } from './i18n/path-translations';
 
 /** When a locale is provided and differs from the default, translate path segments and add locale prefix. */
 function localize(path: string, locale?: string): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderMarkdownHtml } from '../src/lib/markdown-render';
+import { renderMarkdownHtml } from '../src/lib/markdown/markdown-render';
 
 describe('renderMarkdownHtml', () => {
   it('strips script tags from markdown HTML output', async () => {

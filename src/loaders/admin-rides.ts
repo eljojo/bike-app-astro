@@ -1,25 +1,47 @@
+// admin-rides.ts — Admin virtual module loader for blog rides.
+//
+// Reads ride files via ride-file-reader.ts (shared I/O layer),
+// then computes content hashes, builds admin list/detail shapes,
+// aggregates tour statistics, and produces data for virtual modules.
+//
+// Data flow:
+//   ride-file-reader.ts → admin-rides.ts → build-data-plugin.ts
+//     → virtual:bike-app/admin-routes (list, reused for rides on blog)
+//     → virtual:bike-app/admin-route-detail (details)
+//     → virtual:bike-app/tours (tour summaries)
+
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
-import { cityDir } from '../lib/config';
-import { parseGpx } from '../lib/gpx';
-import { renderMarkdownHtml } from '../lib/markdown-render';
-import type { RouteMedia } from './routes';
+import { cityDir } from '../lib/config/config';
+import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { computeRideContentHash, type RideDetail } from '../lib/models/ride-model';
 import {
-  extractDateFromPath,
   detectTours,
   findGpxFiles,
-  buildSlug,
   rideDateToIso,
   nameFromFilename,
+  extractDateFromPath,
+  buildSlug,
 } from './rides';
+import { readRideFile } from './ride-file-reader';
+import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache';
+import { computeFileDigest } from '../lib/directory-digest';
 import type { AdminRide } from '../types/admin';
 
 export type { AdminRide };
 
-const CITY_DIR = cityDir;
+interface CachedRideData {
+  ride: AdminRide;
+  detail: AdminRideDetail;
+  tourAggData: { slug: string; date: string; distance_km: number; elevation_m: number; country?: string } | null;
+}
+
+const RIDE_CACHE_VERSION = 1;
+
+function rideCachePath(): string {
+  return path.join(process.cwd(), '.astro', 'cache', 'admin-rides-cache.json');
+}
 
 export interface AdminRideDetail extends RideDetail {
   gpxRelativePath?: string;
@@ -68,7 +90,7 @@ let cachedRideData: AdminRideData | null = null;
 export async function loadAdminRideData(): Promise<AdminRideData> {
   if (cachedRideData) return cachedRideData;
 
-  const ridesDir = path.join(CITY_DIR, 'rides');
+  const ridesDir = path.join(cityDir, 'rides');
   if (!fs.existsSync(ridesDir)) {
     cachedRideData = {
       rides: [],
@@ -127,76 +149,72 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
   // Track per-ride data for tour aggregation
   const ridesByTour = new Map<string, Array<{ slug: string; date: string; distance_km: number; elevation_m: number; country?: string }>>();
 
+  // Load persistent disk cache
+  const diskCache = readContentCache<CachedRideData>(rideCachePath(), RIDE_CACHE_VERSION);
+  const updatedEntries: Record<string, ContentCacheEntry<CachedRideData>> = {};
+  let cacheHits = 0;
+
   for (const gpxRelPath of gpxPaths) {
+    const tourInfo = tourByGpxPath.get(gpxRelPath);
+
+    // Compute file digest for cache lookup
+    const gpxAbsPath = path.join(ridesDir, gpxRelPath);
+    const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
+    const mediaYmlPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
+    const digest = computeFileDigest([gpxAbsPath, sidecarPath, mediaYmlPath]);
+
+    // Compute slug early for cache key
     const date = extractDateFromPath(gpxRelPath);
     if (!date) continue;
-
     const gpxFilename = path.basename(gpxRelPath);
-    const gpxAbsPath = path.join(ridesDir, gpxRelPath);
-    const isoDate = rideDateToIso(date);
+    const slug = buildSlug(date, gpxFilename, !!tourInfo);
 
-    // Load optional sidecar .md
-    const sidecarPath = gpxAbsPath.replace(/\.gpx$/i, '.md');
-    let sidecarFrontmatter: Record<string, unknown> = {};
-    let body = '';
-    let sidecarContent: string | undefined;
-    if (fs.existsSync(sidecarPath)) {
-      sidecarContent = fs.readFileSync(sidecarPath, 'utf-8');
-      const parsed = matter(sidecarContent);
-      sidecarFrontmatter = parsed.data;
-      body = parsed.content.trim();
-    }
-
-    const isTour = tourByGpxPath.has(gpxRelPath);
-    const slug = buildSlug(date, gpxFilename, isTour);
-
-    // Parse GPX
-    let gpxContent: string;
-    try {
-      gpxContent = fs.readFileSync(gpxAbsPath, 'utf-8');
-    } catch {
+    // Check disk cache
+    const cached = diskCache.entries[slug];
+    if (cached && cached.digest === digest) {
+      rides.push(cached.data.ride);
+      details[slug] = cached.data.detail;
+      if (cached.data.tourAggData && tourInfo) {
+        if (!ridesByTour.has(tourInfo.slug)) ridesByTour.set(tourInfo.slug, []);
+        ridesByTour.get(tourInfo.slug)!.push(cached.data.tourAggData);
+      }
+      updatedEntries[slug] = cached;
+      cacheHits++;
       continue;
     }
 
-    let gpxTrack;
-    try {
-      gpxTrack = parseGpx(gpxContent);
-    } catch {
-      continue;
-    }
+    // Cache miss — parse the ride
+    const parsed = readRideFile(ridesDir, gpxRelPath, tourInfo?.slug);
+    if (!parsed) continue;
 
-    // Load optional -media.yml
-    const mediaYmlPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
-    let media: RouteMedia[] = [];
-    let mediaContent: string | undefined;
-    if (fs.existsSync(mediaYmlPath)) {
-      mediaContent = fs.readFileSync(mediaYmlPath, 'utf-8');
-      media = (yaml.load(mediaContent) as RouteMedia[]) || [];
-    }
+    const isoDate = rideDateToIso(parsed.date);
+
+    // Compute content hash from raw file contents
+    const contentHash = computeRideContentHash(
+      parsed.rawContents.sidecarMd || '',
+      parsed.rawContents.gpxXml,
+      parsed.rawContents.mediaYml,
+    );
 
     // Tour info
-    const tourInfo = tourByGpxPath.get(gpxRelPath);
     const tourSlug = tourInfo?.slug;
     const tourData = tourSlug ? tourMeta.get(tourSlug) : undefined;
 
-
-    const name = (sidecarFrontmatter.name as string) || nameFromFilename(gpxFilename);
-    const status = (sidecarFrontmatter.status as string) || 'published';
-    const country = (sidecarFrontmatter.country as string)
+    const name = (parsed.frontmatter.name as string) || nameFromFilename(gpxFilename);
+    const status = (parsed.frontmatter.status as string) || 'published';
+    const country = (parsed.frontmatter.country as string)
       || (tourData?.country)
       || undefined;
-    const highlight = typeof sidecarFrontmatter.highlight === 'boolean'
-      ? sidecarFrontmatter.highlight
+    const highlight = typeof parsed.frontmatter.highlight === 'boolean'
+      ? parsed.frontmatter.highlight
       : undefined;
-    const tags = Array.isArray(sidecarFrontmatter.tags) ? sidecarFrontmatter.tags : [];
+    const tags = Array.isArray(parsed.frontmatter.tags) ? parsed.frontmatter.tags : [];
 
-    const distance_km = Math.round(gpxTrack.distance_m / 100) / 10;
-    const elevation_m = Math.round(gpxTrack.elevation_gain_m);
-
-    const contentHash = computeRideContentHash(sidecarContent || '', gpxContent, mediaContent);
+    const distance_km = Math.round(parsed.gpxTrack.distance_m / 100) / 10;
+    const elevation_m = Math.round(parsed.gpxTrack.elevation_gain_m);
 
     // Filter media to photos only (matching route pattern)
-    const photoMedia = media
+    const photoMedia = parsed.media
       .filter(m => m.type === 'photo')
       .map(m => {
         const item: AdminRideDetail['media'][0] = { key: m.key };
@@ -209,8 +227,8 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
         return item;
       });
 
-    rides.push({
-      slug,
+    const ride: AdminRide = {
+      slug: parsed.slug,
       name,
       date: isoDate,
       distance_km,
@@ -219,15 +237,15 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       tour_slug: tourSlug,
       highlight,
       contentHash,
-    });
+    };
 
-    details[slug] = {
-      slug,
+    const detail: AdminRideDetail = {
+      slug: parsed.slug,
       name,
-      tagline: (sidecarFrontmatter.tagline as string) || '',
+      tagline: (parsed.frontmatter.tagline as string) || '',
       tags,
       status,
-      body,
+      body: parsed.body,
       media: photoMedia,
       variants: [{
         name,
@@ -239,19 +257,35 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       country,
       tour_slug: tourSlug,
       highlight,
-      elapsed_time_s: gpxTrack.elapsed_time_s || undefined,
-      moving_time_s: gpxTrack.moving_time_s || undefined,
-      average_speed_kmh: gpxTrack.average_speed_kmh || undefined,
+      elapsed_time_s: parsed.gpxTrack.elapsed_time_s || undefined,
+      moving_time_s: parsed.gpxTrack.moving_time_s || undefined,
+      average_speed_kmh: parsed.gpxTrack.average_speed_kmh || undefined,
       gpxRelativePath: gpxRelPath,
     };
 
+    rides.push(ride);
+    details[parsed.slug] = detail;
+
     // Collect data for tour aggregation
+    const tourAggData = tourSlug
+      ? { slug: parsed.slug, date: isoDate, distance_km, elevation_m, country }
+      : null;
     if (tourSlug) {
       if (!ridesByTour.has(tourSlug)) {
         ridesByTour.set(tourSlug, []);
       }
-      ridesByTour.get(tourSlug)!.push({ slug, date: isoDate, distance_km, elevation_m, country });
+      ridesByTour.get(tourSlug)!.push(tourAggData!);
     }
+
+    // Store in updated cache
+    updatedEntries[slug] = { digest, data: { ride, detail, tourAggData } };
+  }
+
+  // Persist updated cache
+  writeContentCache(rideCachePath(), RIDE_CACHE_VERSION, updatedEntries);
+  const total = Object.keys(updatedEntries).length;
+  if (total > 0) {
+    console.log(`admin-rides: ${cacheHits}/${total} cache hits (${total - cacheHits} parsed)`);
   }
 
   // Sort rides by date descending (newest first)

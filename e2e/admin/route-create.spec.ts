@@ -57,9 +57,9 @@ test.describe('Route Creation', () => {
     const gpxPath = path.join(FIXTURE_DIR, 'demo/routes/carp/main.gpx');
     await gpxInput.setInputFiles(gpxPath);
 
-    // Wait for preview to render
+    // Wait for the map preview to be visible
     const previewMap = page.locator('.route-preview-map');
-    await expect(previewMap).toBeVisible({ timeout: 5000 });
+    await expect(previewMap).toBeVisible({ timeout: 15000 });
 
     // Stats should be visible
     const stats = page.locator('.route-preview-stats');

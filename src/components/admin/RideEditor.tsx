@@ -11,12 +11,13 @@ import RidePreview from './RidePreview';
 import StravaActivityBrowser from './StravaActivityBrowser';
 import type { StravaImportResult } from './StravaActivityBrowser';
 import { useEditorState } from './useEditorState';
+import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx';
-import { computeElevationProfile } from '../../lib/elevation-profile';
-import type { ElevationProfileData } from '../../lib/elevation-profile';
+import { computeElevationProfile } from '../../lib/geo/elevation-profile';
+import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
 import type { TourSummary } from '../../types/admin';
@@ -24,6 +25,7 @@ import type { TourSummary } from '../../types/admin';
 interface Props {
   initialData: RideDetail & { contentHash?: string; isNew?: boolean; gpxRelativePath?: string };
   cdnUrl: string;
+  videosCdnUrl?: string;
   userRole?: string;
   mapThumbnail?: string;
   rideLabels?: Record<string, string>;
@@ -31,7 +33,7 @@ interface Props {
   stravaConnected?: boolean;
 }
 
-export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
+export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -73,7 +75,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
         setSlug(slugify(`${dateStr}-${result.name}`));
       }
       if (result.gpxContent) {
-        const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
+        const day = dateStr.split('-')[2] || '01';
+        const gpxFilename = `${day}-${slugify(result.name)}.gpx`;
         setVariants([{ name: result.name, gpx: gpxFilename, isNew: true, gpxContent: result.gpxContent }]);
       }
       if (result.photos?.length) {
@@ -114,9 +117,9 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // Drag-and-drop
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const { dragging } = useDragDrop((files) => {
-    const images = files.filter(f => f.type.startsWith('image/'));
+    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const gpx = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-    if (images.length > 0) setPendingFiles(images);
+    if (mediaFiles.length > 0) setPendingFiles(mediaFiles);
     if (gpx.length > 0) handleGpxUpload(gpx[0]);
   });
 
@@ -144,7 +147,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
     setPrivacyZone(false); // Strava already trims
 
     const dateStr = result.start_date_local?.split('T')[0] || '';
-    const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
+    const day = dateStr.split('-')[2] || '01';
+    const gpxFilename = `${day}-${slugify(result.name)}.gpx`;
     if (dateStr && !rideDate) setRideDate(dateStr);
     setSlug(slugify(`${dateStr}-${result.name}`));
     setVariants([{
@@ -180,16 +184,17 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   );
 
   // Save
+  const { validate } = useFormValidation([
+    { field: 'ride-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: '', check: () => !variants.length, message: 'A GPX file is required' },
+  ]);
+
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/rides',
     contentId: initialData.isNew ? null : initialData.slug,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) return 'Name is required';
-      if (!variants.length) return 'A GPX file is required';
-      return null;
-    },
+    validate,
     buildPayload: () => ({
       frontmatter: {
         name,
@@ -221,7 +226,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
     <div class="ride-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos or GPX files to add to ride</div>
+          <div class="drop-overlay-content">Drop media or GPX files to add to ride</div>
         </div>
       )}
 
@@ -387,9 +392,12 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
               media={media}
               onChange={setMedia}
               cdnUrl={cdnUrl}
+              videosCdnUrl={videosCdnUrl}
               pendingFiles={pendingFiles}
               onPendingProcessed={() => setPendingFiles([])}
               userRole={userRole}
+              contentSlug={slug}
+              contentKind="ride"
             />
           </section>
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { routeDetailFromGit, routeDetailToCache } from '../src/lib/models/route-model';
 
 describe('revert cache serialization (via route model)', () => {
-  it('filters videos from media when building cache for routes', () => {
+  it('includes all media types when building cache for routes', () => {
     const frontmatter = { name: 'Test', status: 'published', distance_km: 10 };
     const body = 'description';
     const mediaYml = [
@@ -19,9 +19,10 @@ describe('revert cache serialization (via route model)', () => {
     const cached = routeDetailToCache(detail);
     const parsed = JSON.parse(cached);
 
-    expect(parsed.media).toHaveLength(1);
+    expect(parsed.media).toHaveLength(2);
     expect(parsed.media[0].key).toBe('photo1');
-    // Video should NOT be in cached media
-    expect(parsed.media.find((m: any) => m.key === 'vid1')).toBeUndefined();
+    expect(parsed.media[1].key).toBe('vid1');
+    expect(parsed.media[1].type).toBe('video');
+    expect(parsed.media[1].title).toBe('Ride');
   });
 });

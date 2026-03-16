@@ -14,7 +14,7 @@ export async function PUT({ request, url }: APIContext) {
   }
 
   try {
-    const { env } = await import('../../lib/env');
+    const { env } = await import('../../lib/env/env.service');
     const prefix = env.STORAGE_KEY_PREFIX || '';
     const body = await request.arrayBuffer();
     await env.BUCKET.put(`${prefix}uploads/pending/${key}`, body);

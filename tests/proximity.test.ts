@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findNearbyPlaces, type PlaceData } from '../src/lib/proximity';
+import { findNearbyPlaces, type PlaceData } from '../src/lib/geo/proximity';
 import type { GpxPoint } from '../src/lib/gpx';
 
 // A dense east-west track along ~45.42°N in Ottawa (points ~100m apart, like real GPX)

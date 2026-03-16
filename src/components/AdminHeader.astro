@@ -1,17 +1,25 @@
 ---
 import { createHash } from 'node:crypto';
-import { env } from '../lib/env';
-import { getCityConfig } from '../lib/city-config';
-import { getInstanceFeatures } from '../lib/instance-features';
+import { env } from '../lib/env/env.service';
+import { getCityConfig } from '../lib/config/city-config';
+import { getInstanceFeatures } from '../lib/config/instance-features';
+import { getContentTypes } from '../lib/content/content-types';
 
 interface Props {
   user: { username: string; role: string; email?: string | null };
-  currentTab: 'routes' | 'rides' | 'events' | 'places' | 'history' | 'users' | 'settings';
+  currentTab: string;
 }
 
 const { user, currentTab } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
 const features = getInstanceFeatures();
+const contentNav = getContentTypes()
+  .filter(ct => ct.adminListRoute)
+  .map(ct => ({
+    href: ct.adminListRoute!.pattern,
+    label: ct.label,
+    tab: ct.name,
+  }));
 const contactEmail = getCityConfig().author.email;
 const cspNonce = Astro.locals.cspNonce;
 const avatarHash = user.email
@@ -45,7 +53,7 @@ const avatarUrl = avatarHash
   });
 </script>
 <div class="admin-header">
-  <h1>{currentTab === 'rides' ? 'Rides' : currentTab === 'routes' ? 'Routes' : currentTab === 'events' ? 'Events' : currentTab === 'places' ? 'Places' : currentTab === 'history' ? 'History' : currentTab === 'settings' ? 'Settings' : 'Users'}</h1>
+  <h1>{contentNav.find(n => n.tab === currentTab)?.label ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}</h1>
   <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle">
       <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
@@ -80,13 +88,9 @@ const avatarUrl = avatarHash
 </script>
 
 <nav class="admin-nav">
-  {features.hasRides ? (
-    <a href="/admin/rides" class:list={['admin-nav-link', { active: currentTab === 'rides' }]}>Rides</a>
-  ) : (
-    <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'routes' }]}>Routes</a>
-  )}
-  {features.hasEvents && <a href="/admin/events" class:list={['admin-nav-link', { active: currentTab === 'events' }]}>Events</a>}
-  <a href="/admin/places" class:list={['admin-nav-link', { active: currentTab === 'places' }]}>Places</a>
+  {contentNav.map(({ href, label, tab }) => (
+    <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
+  ))}
   <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
   {user.role === 'admin' && features.allowsRegistration && (
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>

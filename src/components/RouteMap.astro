@@ -48,7 +48,7 @@ interface Props {
   zoom?: number;
 }
 
-import { getCityConfig } from '../lib/city-config';
+import { getCityConfig } from '../lib/config/city-config';
 const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom } = Astro.props;
 ---
 
@@ -68,9 +68,9 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
 </div>
 
 <script>
-  import { initMap, addPolylines, buildPolylineFeature, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
-  import { buildPlacePopup, buildWaypointPopup, html } from '../lib/map-helpers';
-  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
+  import { initMap, addPolylines, buildPolylineFeature, addMarkers, addPhotoMarkers, addWaypointMarkers, enableElevationCursorSync, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
+  import { buildPlacePopup, buildWaypointPopup, html } from '../lib/maps/map-helpers';
+  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
   import polylineCodec from '@mapbox/polyline';

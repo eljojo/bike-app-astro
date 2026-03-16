@@ -1,6 +1,6 @@
 ---
-import { imageUrl } from '@/lib/image-service';
-import { hasCachedMap, cachedMapLocale } from '@/lib/map-thumbnails';
+import { imageUrl } from '@/lib/media/image-service';
+import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { t } from '@/i18n';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
@@ -10,7 +10,7 @@ import PhotoGallery from '@/components/PhotoGallery.astro';
 import ContentDetail from '@/components/patterns/ContentDetail.astro';
 import StatBar from '@/components/StatBar.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
-import type { NearbyPlace } from '@/lib/proximity';
+import type { NearbyPlace } from '@/lib/geo/proximity';
 
 interface Props {
   route: any;

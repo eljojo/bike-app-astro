@@ -1,8 +1,9 @@
 import { defineMiddleware } from 'astro:middleware';
-import { validateSession } from './lib/auth';
+import { validateSession } from './lib/auth/auth';
 import { jsonError } from './lib/api-response';
 import { db } from './lib/get-db';
 import { buildNonceCspHeader, createCspNonce } from './lib/csp';
+import { getCspEnv } from './lib/csp-env';
 import rideRedirects from 'virtual:bike-app/ride-redirects';
 
 const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate', '/auth/verify']);
@@ -23,12 +24,29 @@ function addNonceToScripts(html: string, nonce: string): string {
   );
 }
 
+/** Build exact R2/S3 origins for CSP connect-src from env values.
+ * Uses csp-env.ts (lightweight, no side effects) instead of env.ts
+ * — importing env.ts from middleware kills Astro's prerender step. */
+async function uploadOrigins() {
+  const cspEnv = await getCspEnv();
+  if (!cspEnv) return {}; // prerendering — no runtime env
+
+  const { r2AccountId, s3OriginalsBucket, mediaconvertRegion } = cspEnv;
+
+  const r2Origin = `https://${r2AccountId}.r2.cloudflarestorage.com`;
+  const s3Origin = s3OriginalsBucket && mediaconvertRegion
+    ? `https://${s3OriginalsBucket}.s3.${mediaconvertRegion}.amazonaws.com`
+    : undefined;
+
+  return { r2Origin, s3Origin };
+}
+
 async function applyNonceCsp(response: Response, nonce: string): Promise<Response> {
   if (!isHtmlResponse(response)) return response;
 
   const body = await response.text();
   const headers = new Headers(response.headers);
-  headers.set('Content-Security-Policy', buildNonceCspHeader(nonce));
+  headers.set('Content-Security-Policy', buildNonceCspHeader(nonce, await uploadOrigins()));
   // Body size changed after script nonce injection.
   headers.delete('content-length');
 
@@ -61,6 +79,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
      !pathname.startsWith('/api/auth/') &&
      !pathname.startsWith('/api/reactions/') &&
      pathname !== '/api/event' &&
+     pathname !== '/api/video/webhook' &&
      !pathname.startsWith('/api/tiles/'));
 
   if (!isProtected) {

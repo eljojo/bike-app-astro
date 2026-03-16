@@ -4,16 +4,68 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+function exitOnSigint() {
+  console.log('');
+  process.exit(130);
+}
+
+function ask(q) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      rl.removeListener('SIGINT', onSigint);
+      rl.removeListener('close', onClose);
+    };
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      resolve(value);
+    };
+
+    const onSigint = () => {
+      cleanup();
+      rl.close();
+      exitOnSigint();
+    };
+
+    const onClose = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        process.exit(0);
+      }
+    };
+
+    rl.once('SIGINT', onSigint);
+    rl.once('close', onClose);
+    rl.question(q, (answer) => finish(answer));
+  });
+}
+
+function safeExec(cmd, opts = {}) {
+  try {
+    return execSync(cmd, opts);
+  } catch (err) {
+    if (err.signal === 'SIGINT' || err.status === 130) {
+      exitOnSigint();
+    }
+    throw err;
+  }
+}
 
 function run(cmd, opts = {}) {
-  return execSync(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', ...opts }).trim();
+  return safeExec(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', ...opts }).trim();
 }
 
 function commandExists(cmd) {
   try {
-    execSync(`which ${cmd}`, { stdio: 'pipe' });
+    safeExec(`which ${cmd}`, { stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -65,7 +117,7 @@ function hasGitRemote() {
 // --- Steps ---
 
 async function stepCloudflare(folderName) {
-  console.log('\n  Step 1/3: Cloudflare');
+  console.log('\n  Step 1/4: Cloudflare');
   console.log('  ────────────────────');
 
   if (hasResourceIds()) {
@@ -103,7 +155,7 @@ async function stepCloudflare(folderName) {
       console.log('\n  Log in with: wrangler login\n  Then run npm run setup again.\n');
       process.exit(0);
     }
-    execSync(`${wranglerCmd()} login`, { stdio: 'inherit' });
+    safeExec(`${wranglerCmd()} login`, { stdio: 'inherit' });
     console.log();
   }
 
@@ -125,7 +177,7 @@ async function stepCloudflare(folderName) {
   fs.writeFileSync(stubPath, 'export default { fetch() { return new Response("Setting up — check back soon!"); } };\n');
 
   try {
-    execSync(`${wranglerCmd()} deploy ${stubPath} --x-provision`, { stdio: 'inherit' });
+    safeExec(`${wranglerCmd()} deploy ${stubPath} --x-provision`, { stdio: 'inherit' });
     console.log('\n  ✓ Resources created, IDs written to wrangler.jsonc\n');
   } catch {
     console.error('\n  ✗ Deploy failed. Check the error above and try again.\n');
@@ -137,7 +189,7 @@ async function stepCloudflare(folderName) {
 }
 
 async function stepGitHub(folderName) {
-  console.log('\n  Step 2/3: GitHub');
+  console.log('\n  Step 2/4: GitHub');
   console.log('  ────────────────');
 
   if (!commandExists('gh')) {
@@ -171,7 +223,7 @@ async function stepGitHub(folderName) {
       console.log('\n  Log in with: gh auth login\n  Then run npm run setup again.\n');
       process.exit(0);
     }
-    execSync('gh auth login', { stdio: 'inherit' });
+    safeExec('gh auth login', { stdio: 'inherit' });
     ghUser = run('gh api user -q .login');
   }
   console.log(`  ✓ gh found, logged in as ${ghUser}\n`);
@@ -186,7 +238,7 @@ async function stepGitHub(folderName) {
     const createAnswer = await ask('  Proceed? [Y/n] ');
     if (createAnswer.toLowerCase() !== 'n') {
       try {
-        execSync(`gh repo create ${repoName} --private --source .`, { stdio: 'inherit' });
+        safeExec(`gh repo create ${repoName} --private --source .`, { stdio: 'inherit' });
         console.log(`\n  ✓ Repo created: github.com/${repoName}\n`);
       } catch {
         console.error('\n  ✗ Repo creation failed. Create it manually and run setup again.\n');
@@ -211,7 +263,7 @@ async function stepGitHub(folderName) {
   }
 
   const secretInput = (name, value) => {
-    execSync(`gh secret set ${name}`, {
+    safeExec(`gh secret set ${name}`, {
       input: value,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -278,7 +330,7 @@ async function stepGitHub(folderName) {
 }
 
 async function stepApiKeys() {
-  console.log('\n  Step 3/3: API Keys');
+  console.log('\n  Step 3/4: API Keys');
   console.log('  ──────────────────');
 
   if (!hasWrangler()) {
@@ -495,7 +547,7 @@ async function stepApiKeys() {
   // Set secrets via wrangler
   for (const { name, value } of collectedSecrets) {
     try {
-      execSync(`${wranglerCmd()} secret put ${name}`, {
+      safeExec(`${wranglerCmd()} secret put ${name}`, {
         input: value,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -682,7 +734,7 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   // Set R2_PUBLIC_URL secret
   const publicUrl = `https://${cdnDomain}`;
   try {
-    execSync(`${wranglerCmd()} secret put R2_PUBLIC_URL`, {
+    safeExec(`${wranglerCmd()} secret put R2_PUBLIC_URL`, {
       input: publicUrl,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -690,6 +742,117 @@ async function stepCdnDomain({ accountId, bucketName } = {}) {
   } catch {
     console.log(`  ✗ Failed to set R2_PUBLIC_URL. Set it manually:`);
     console.log(`    echo "${publicUrl}" | ${wranglerCmd()} secret put R2_PUBLIC_URL\n`);
+  }
+}
+
+async function stepVideo() {
+  console.log('\n  Step 4/4: Video Uploads (optional)');
+  console.log('  ───────────────────────────────────');
+  console.log('  Video lets you upload ride videos that get transcoded automatically.');
+  console.log('  This requires an AWS account with CLI access configured.\n');
+
+  const answer = await ask('  Set up video uploads? [y/N] ');
+  if (answer.toLowerCase() !== 'y') {
+    console.log('  → skipped\n');
+    return;
+  }
+
+  // Check AWS CLI
+  if (!commandExists('aws')) {
+    console.log('\n  ✗ AWS CLI not found');
+    console.log('  Install it from: https://aws.amazon.com/cli/');
+    console.log('  Then configure with: aws configure\n');
+    return;
+  }
+
+  let awsAccountId;
+  try {
+    const identity = JSON.parse(run('aws --no-cli-pager sts get-caller-identity'));
+    awsAccountId = identity.Account;
+    console.log(`  ✓ AWS CLI configured (account: ${awsAccountId})\n`);
+  } catch {
+    console.log('\n  ✗ AWS CLI not authenticated');
+    console.log('  Run: aws configure');
+    console.log('  Then run npm run setup again.\n');
+    return;
+  }
+
+  // Derive prefix from git remote
+  let prefix;
+  try {
+    const remoteUrl = run('git remote get-url origin');
+    const match = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
+    if (match) prefix = match[1].replace('/', '_');
+  } catch { /* no remote */ }
+
+  if (prefix) {
+    console.log(`  Video prefix (identifies your videos in S3):\n`);
+    console.log(`    Detected from git remote: ${prefix}\n`);
+    const override = await ask('  Use this prefix? [Y/n] (or type a custom one): ');
+    const trimmed = override.trim();
+    if (trimmed && trimmed.toLowerCase() !== 'y') {
+      if (trimmed.toLowerCase() === 'n') {
+        prefix = (await ask('  Enter custom prefix: ')).trim();
+      } else {
+        prefix = trimmed;
+      }
+    }
+  } else {
+    prefix = (await ask('  Enter a video prefix (e.g., myname_myblog): ')).trim();
+  }
+
+  if (!prefix) {
+    console.log('  ✗ No prefix provided — skipping video setup.\n');
+    return;
+  }
+
+  const domain = readDomain();
+  if (!domain) {
+    console.log('  ✗ Could not read domain from blog/config.yml — skipping video setup.\n');
+    return;
+  }
+
+  // Prompt for AWS region
+  const regionInput = await ask('  AWS region [us-east-1]: ');
+  const region = regionInput.trim() || 'us-east-1';
+
+  console.log(`\n  Setting up video pipeline: prefix=${prefix}, domain=${domain}, region=${region}\n`);
+
+  // Import setup functions from whereto-bike
+  let setupSharedResources, configureInstance;
+  try {
+    const mod = await import('../node_modules/whereto-bike/scripts/setup-aws-video.js');
+    setupSharedResources = mod.setupSharedResources;
+    configureInstance = mod.configureInstance;
+  } catch (err) {
+    console.error('  ✗ Could not load video setup module:', err.message);
+    console.error('  Make sure whereto-bike is installed: npm install\n');
+    return;
+  }
+
+  // Phase 1: Shared resources (idempotent)
+  const { lambdaCreated } = await setupSharedResources({
+    region,
+    originsBucket: 'bike-video-originals',
+    outputsBucket: 'bike-video-outputs',
+    lambdaName: 'video-agent',
+  });
+
+  // Phase 2: Per-instance config
+  await configureInstance({
+    prefix,
+    domain,
+    wranglerEnv: undefined,
+    lambdaName: 'video-agent',
+    originsBucket: 'bike-video-originals',
+    outputsBucket: 'bike-video-outputs',
+    region,
+    r2Bucket: 'whereto-bike-videos',
+  });
+
+  // Store CI user secrets on this repo (only if Lambda was newly created)
+  if (lambdaCreated) {
+    console.log('  CI user was created — GitHub secrets for Lambda deploy are set.\n');
   }
 }
 
@@ -705,6 +868,7 @@ async function main() {
   await stepGitHub(folderName);
   const detected = await stepApiKeys();
   await stepCdnDomain(detected);
+  await stepVideo();
 
   // Offer to commit and push
   let remoteUrl;
@@ -716,13 +880,13 @@ async function main() {
     console.log('  ──────────────────────');
     const deploy = await ask('  Commit and push to trigger first deploy? [Y/n] ');
     if (deploy.toLowerCase() !== 'n') {
-      execSync('git add wrangler.jsonc', { stdio: 'pipe' });
+      safeExec('git add wrangler.jsonc', { stdio: 'pipe' });
       try {
-        execSync('git commit -m "setup complete"', { stdio: 'pipe' });
+        safeExec('git commit -m "setup complete"', { stdio: 'pipe' });
       } catch {
         // nothing to commit — that's fine
       }
-      execSync('git push -u origin main', { stdio: 'inherit' });
+      safeExec('git push -u origin main', { stdio: 'inherit' });
 
       const actionsUrl = remoteUrl
         .replace(/\.git$/, '')
@@ -739,7 +903,6 @@ async function main() {
     console.log('    git add wrangler.jsonc && git commit -m "setup complete" && git push -u origin main\n');
   }
 
-  rl.close();
 }
 
 main().catch((err) => {

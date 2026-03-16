@@ -8,9 +8,9 @@ import {
   mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
   variantKeyFromGpx, gpxHash, hashPath,
   needsRegeneration,
-} from '../src/lib/map-generation';
-import { getCityConfig } from '../src/lib/city-config';
-import { CONTENT_DIR, CITY } from '../src/lib/config';
+} from '../src/lib/maps/map-generation';
+import { getCityConfig } from '../src/lib/config/city-config';
+import { CONTENT_DIR, CITY } from '../src/lib/config/config';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;

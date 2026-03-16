@@ -3,12 +3,12 @@ export const prerender = false;
 import type { APIContext } from 'astro';
 import { db } from '../../../lib/get-db';
 import { emailTokens } from '../../../db/schema';
-import { findUserByIdentifier, generateId, normalizeEmail } from '../../../lib/auth';
-import { checkRateLimit, recordAttempt } from '../../../lib/rate-limit';
-import { createEmailService } from '../../../lib/email';
+import { findUserByIdentifier, generateId, normalizeEmail } from '../../../lib/auth/auth';
+import { checkRateLimit, recordAttempt } from '../../../lib/auth/rate-limit';
+import { createEmailService } from '../../../lib/external/email';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { getCityConfig } from '../../../lib/city-config';
-import { env } from '../../../lib/env';
+import { getCityConfig } from '../../../lib/config/city-config';
+import { env } from '../../../lib/env/env.service';
 
 const TOKEN_EXPIRY_MINUTES = 15;
 const MAX_TOKENS_PER_HOUR = 3;

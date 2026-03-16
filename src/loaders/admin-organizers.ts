@@ -1,7 +1,16 @@
+// admin-organizers.ts — Admin virtual module loader for organizers.
+//
+// Reads organizer .md files from the content directory, parses frontmatter,
+// and produces data for the virtual module system.
+//
+// Data flow:
+//   content files → admin-organizers.ts → build-data-plugin.ts
+//     → virtual:bike-app/admin-organizers (list)
+
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { cityDir } from '../lib/config';
+import { cityDir } from '../lib/config/config';
 import type { AdminOrganizer } from '../types/admin';
 
 const CITY_DIR = cityDir;

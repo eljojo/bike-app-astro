@@ -1,0 +1,63 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: $color-bg;
+  border-radius: $border-radius;
+  padding: 2rem;
+  max-width: 480px;
+  width: 90%;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+  }
+
+  p {
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  a {
+    color: $color-accent;
+  }
+
+  .btn-secondary {
+    margin-top: 0.5rem;
+  }
+}
+
+.modal-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+
+  .btn-primary {
+    text-decoration: none;
+    display: inline-block;
+  }
+}
+
+.modal-cta-hint {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}

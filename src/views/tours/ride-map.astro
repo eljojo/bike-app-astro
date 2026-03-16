@@ -1,12 +1,13 @@
 ---
 import Base from '@/layouts/Base.astro';
 import MapPage from '@/components/MapPage.astro';
-import { elevationConclusion } from '@/lib/elevation';
-import { getCityConfig } from '@/lib/city-config';
+import { elevationConclusion } from '@/lib/geo/elevation';
+import { getCityConfig } from '@/lib/config/city-config';
 import { getCollection } from 'astro:content';
-import { getAllElevations } from '@/lib/elevation';
+import { getAllElevations } from '@/lib/geo/elevation';
 import { paths } from '@/lib/paths';
-import { variantKeyFromGpx } from '@/lib/map-thumbnails';
+import { variantKeyFromGpx } from '@/lib/maps/map-thumbnails';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
 
 const config = getCityConfig();
 
@@ -14,9 +15,9 @@ export const prerender = true;
 export async function getStaticPaths() {
   const routes = await getCollection('routes');
   const allElevations = getAllElevations(routes);
-
-  // Only rides that belong to a tour
-  return routes.filter(r => !!r.data.tour_slug).map(route => ({
+  const tourRides = routes.filter(r => !!r.data.tour_slug);
+  const filtered = filterByBuildPlan(tourRides, loadBuildPlan(), 'ride');
+  return filtered.map(route => ({
     params: { tourSlug: route.data.tour_slug, rideSlug: route.id },
     props: { route, allElevations },
   }));

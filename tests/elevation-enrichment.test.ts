@@ -3,7 +3,7 @@ import {
   downsamplePoints,
   interpolateElevations,
   buildGpxFromPoints,
-} from '../src/lib/elevation-enrichment';
+} from '../src/lib/geo/elevation-enrichment';
 
 describe('downsamplePoints', () => {
   it('returns all points when count is under the limit', () => {

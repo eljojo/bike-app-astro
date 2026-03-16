@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
+import { env } from '../../../lib/env/env.service';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
 import { credentials } from '../../../db/schema';
@@ -8,7 +8,7 @@ import {
   createSessionWithCookies,
   retrieveChallenge,
   getWebAuthnConfig,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { eq, and } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 

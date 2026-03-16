@@ -2,8 +2,8 @@ import type { APIContext } from 'astro';
 import { db } from '../../lib/get-db';
 import { users, userSettings } from '../../db/schema';
 import { eq, and, ne } from 'drizzle-orm';
-import { normalizeEmail } from '../../lib/auth';
-import { authorize } from '../../lib/authorize';
+import { normalizeEmail } from '../../lib/auth/auth';
+import { authorize } from '../../lib/auth/authorize';
 import { isValidUsername, sanitizeUsername } from '../../lib/username';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 

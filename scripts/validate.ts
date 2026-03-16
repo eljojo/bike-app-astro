@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
-import { cityDir } from '../src/lib/config';
+import { cityDir } from '../src/lib/config/config';
 
 // Cloudflare adapter outputs to dist/client/, plain Astro to dist/
 const base = path.resolve('dist');

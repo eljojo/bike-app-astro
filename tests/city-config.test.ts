@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isClubInstance, isBlogInstance, getCityConfig } from '../src/lib/city-config';
+import { isClubInstance, isBlogInstance, getCityConfig } from '../src/lib/config/city-config';
 
 describe('city-config exports', () => {
   it('exports getCityConfig', () => {

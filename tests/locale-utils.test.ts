@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/city-config', () => ({
+vi.mock('../src/lib/config/city-config', () => ({
   getCityConfig: vi.fn(() => ({
     locale: 'en-CA',
     locales: ['en-CA', 'fr-CA'],
   })),
 }));
 
-import { shortLocale, fullLocale, defaultLocale, supportedLocales, localeLabel } from '../src/lib/locale-utils';
+import { shortLocale, fullLocale, defaultLocale, supportedLocales, localeLabel } from '../src/lib/i18n/locale-utils';
 
 describe('locale-utils', () => {
   it('shortLocale extracts language code', () => {

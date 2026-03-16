@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { renderMarkdownHtml } from '../lib/markdown-render';
+import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 
 export interface LocaleContent {
   name?: string;

@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -18,6 +18,9 @@ preview: map-style ## Preview built site locally
 test: map-style ## Run unit tests
 	npx vitest run
 
+test-lambda: ## Run Lambda unit tests (aws/video-agent)
+	node --test aws/video-agent/handler.test.mjs
+
 typecheck: ## Run TypeScript type checking
 	npx tsc --noEmit
 
@@ -33,7 +36,7 @@ test-update: map-style ## Update screenshot baselines
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: test typecheck lint test-e2e test-admin test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, club e2e)
+full: test test-lambda typecheck lint test-e2e test-admin test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, club e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts
@@ -78,6 +81,12 @@ docs-preview: ## Preview built docs site
 
 hooks: ## Install pre-commit hook (lint + typecheck)
 	bash scripts/setup-hooks.sh
+
+setup-video: ## Run video pipeline setup (pass ARGS for subcommands)
+	node scripts/setup-aws-video.js $(ARGS)
+
+deploy-lambda: ## Deploy video Lambda code to AWS
+	cd aws/video-agent && zip -j /tmp/video-agent.zip handler.mjs && aws lambda update-function-code --function-name video-agent --zip-file fileb:///tmp/video-agent.zip --region us-east-1 && aws lambda wait function-updated --function-name video-agent --region us-east-1
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/

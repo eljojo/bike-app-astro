@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { defineConfig } from 'astro/config';
-import { getAdapter } from './src/lib/adapter';
+import { getAdapter } from './src/lib/env/adapter';
 import preact from '@astrojs/preact';
 import { wheretoBike, cspConfig } from './src/integration.ts';
 

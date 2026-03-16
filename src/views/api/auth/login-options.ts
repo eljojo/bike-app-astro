@@ -1,9 +1,9 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
+import { env } from '../../../lib/env/env.service';
 import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
 import { credentials } from '../../../db/schema';
-import { findUserByIdentifier, getWebAuthnConfig, storeChallenge } from '../../../lib/auth';
+import { findUserByIdentifier, getWebAuthnConfig, storeChallenge } from '../../../lib/auth/auth';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 

@@ -6,9 +6,9 @@
  */
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { findNearbyPlaces } from '@/lib/proximity';
-import { haversineM } from '@/lib/proximity';
-import { authorize } from '@/lib/authorize';
+import { findNearbyPlaces } from '@/lib/geo/proximity';
+import { haversineM } from '@/lib/geo/proximity';
+import { authorize } from '@/lib/auth/authorize';
 
 export const prerender = false;
 

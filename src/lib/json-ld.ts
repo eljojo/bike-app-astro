@@ -1,5 +1,5 @@
-import { getCityConfig } from './city-config';
-import { originalUrl } from './image-service';
+import { getCityConfig } from './config/city-config';
+import { originalUrl } from './media/image-service';
 
 const config = getCityConfig();
 

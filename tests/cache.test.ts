@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CITY } from '../src/lib/config';
-import { upsertContentCache } from '../src/lib/cache';
+import { CITY } from '../src/lib/config/config';
+import { upsertContentCache } from '../src/lib/content/cache';
 
 // Mock drizzle
 const mockInsert = vi.fn().mockReturnValue({

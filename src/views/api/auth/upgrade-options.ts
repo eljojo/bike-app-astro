@@ -1,14 +1,14 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
+import { env } from '../../../lib/env/env.service';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import {
   getWebAuthnConfig,
   storeChallenge,
   validateSession,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { db } from '../../../lib/get-db';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { getInstanceFeatures } from '../../../lib/instance-features';
+import { getInstanceFeatures } from '../../../lib/config/instance-features';
 
 export const prerender = false;
 

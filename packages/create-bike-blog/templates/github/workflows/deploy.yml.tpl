@@ -59,6 +59,14 @@ jobs:
           key: astro-${{ hashFiles('blog/**') }}
           restore-keys: astro-
 
+      - name: Restore dist cache
+        uses: actions/cache@v5
+        with:
+          path: dist-cache
+          key: dist-blog-${{ github.run_id }}
+          restore-keys: |
+            dist-blog-
+
       - name: Generate map thumbnails
         run: npx tsx node_modules/whereto-bike/scripts/generate-maps.ts
         env:
@@ -66,13 +74,23 @@ jobs:
           CITY: blog
           GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
+      - name: Prepare build plan
+        run: npx tsx node_modules/whereto-bike/scripts/prepare-build-plan.ts
+        env:
+          CONTENT_DIR: .
+          CITY: blog
+
       - name: Build site
         run: npx astro build
         env:
           CONTENT_DIR: .
           CITY: blog
           SITE_URL: https://{{DOMAIN}}
+          VIDEO_PREFIX: ${{ vars.VIDEO_PREFIX }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Merge incremental build
+        run: npx tsx node_modules/whereto-bike/scripts/merge-incremental-build.ts
 
       - name: Prepare wrangler config
         run: |
@@ -104,3 +122,33 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-lambda:
+    if: vars.VIDEO_PREFIX != ''
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Run Lambda tests
+        run: node --test node_modules/whereto-bike/aws/video-agent/handler.test.mjs
+
+      - name: Package and deploy Lambda
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          cd node_modules/whereto-bike/aws/video-agent
+          npm ci --omit=dev
+          zip -r function.zip handler.mjs package.json node_modules/
+          aws lambda update-function-code \
+            --function-name video-agent \
+            --zip-file fileb://function.zip \
+            --publish

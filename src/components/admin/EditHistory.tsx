@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';
 import { formatAdminDateTime } from '../../lib/date-utils';
-import { extractChangesPath } from '../../lib/commit-author';
+import { extractChangesPath } from '../../lib/git/commit-author';
 
 interface CommitUser {
   id: string;

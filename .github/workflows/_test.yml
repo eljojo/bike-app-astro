@@ -75,6 +75,15 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Run Lambda tests
+        run: node --test aws/video-agent/handler.test.mjs
+
+      - name: Sync Astro types
+        run: npx astro sync
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+
       - name: Type check
         run: npx tsc --noEmit
         env:
@@ -96,7 +105,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/map-paths.ts') }}
+          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/maps/map-paths.ts') }}
           restore-keys: |
             maps-demo-
 

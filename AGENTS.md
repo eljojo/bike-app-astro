@@ -144,7 +144,7 @@ If something fails — a build, a tool, a command — investigate it. Don't dism
 
 ### Never Hardcode City/Locale Values
 
-NEVER write string literals like `'ottawa'` or `'fr'` in application code. Always import `CITY` from `src/lib/config.ts`. Check city config for available locales. The codebase supports multiple cities via the `CITY` env var.
+NEVER write string literals like `'ottawa'` or `'fr'` in application code. Always import `CITY` from `src/lib/config/config.ts`. Check city config for available locales. The codebase supports multiple cities via the `CITY` env var.
 
 ---
 
@@ -168,9 +168,25 @@ Additional gotchas not covered by directory files:
 - **Path resolution**: never use `path.resolve('relative/path')` — use `import.meta.dirname`.
 - **No ClientRouter**: the site does NOT use Astro's `<ClientRouter />` (View Transitions). Use `DOMContentLoaded`, not `astro:page-load`.
 - **Middleware exclusions**: `/api/auth/*` and `/api/reactions/*` skip auth — don't put protected endpoints there.
-- **Wrangler config**: never add `main` field — it breaks builds.
+- **Wrangler config**: no `main` field in the source `wrangler.jsonc` — the Astro Cloudflare adapter compiles the Worker entry to `dist/server/entry.mjs` at build time. The CI post-build step patches `main` to the compiled output, sets `assets.directory` to `./dist/client`, and removes the adapter-generated `dist/server/wrangler.json` so our `wrangler.jsonc` with env definitions is used instead.
 - **Map markers**: never use default MapLibre markers — use CSS-styled HTML markers.
 - **Zod v4**: import from `astro/zod`, not `zod`. Use `z.record(z.string(), z.unknown())`, `z.looseObject()`.
+
+### Incremental Builds
+
+The build system supports incremental static generation — only pages affected by content changes are rebuilt. Two layers:
+
+1. **Persistent content cache** (`.astro/cache/admin-{rides,routes}-cache.json`): Admin loaders cache per-item data keyed by file digest. Unchanged items skip GPX parsing entirely.
+
+2. **Build plan** (`.astro/cache/build-plan.json`): Pre-build script detects content changes and writes a plan. `getStaticPaths()` in high-count parameterized pages reads the plan to skip unchanged slugs.
+
+**Safe by default:** New pages always rebuild. No registration needed. Only pages that explicitly call `filterByBuildPlan()` in `getStaticPaths()` get incremental filtering. Currently: rides/detail, rides/map, routes/detail, routes/map, routes/map-variant, tours/ride-detail, tours/ride-map, GPX download endpoints.
+
+**Full build triggers:** Code changes, package updates, no previous manifest, >50% content changed, `FORCE_FULL_BUILD=1`.
+
+**Adding a new parameterized page:** If it generates hundreds of entries from content data, consider adding `filterByBuildPlan()` to its `getStaticPaths()`. If it generates a handful of entries, leave it alone — it'll rebuild every time, which is fine.
+
+**Cache version bumps:** If you change the shape of `AdminRide`, `AdminRideDetail`, `AdminRoute`, or `RouteDetail`, bump `RIDE_CACHE_VERSION` or `ROUTE_CACHE_VERSION` in the corresponding admin loader to invalidate the persistent cache.
 
 ---
 
@@ -180,7 +196,7 @@ Additional gotchas not covered by directory files:
 
 The codebase serves three instance types from one codebase: **wiki** (community route database, default), **blog** (personal ride journal), and **club** (randonneuring/event archive). The type is set via `instance_type` in the city's `config.yml`.
 
-**Feature flags, not identity checks.** Use `getInstanceFeatures()` from `src/lib/instance-features.ts` for capability checks (e.g., `features.hasRides`, `features.hasEvents`, `features.allowsRegistration`). Reserve `isBlogInstance()`/`isClubInstance()` for structural decisions like which loaders, virtual modules, or admin routes to register. See `src/lib/AGENTS.md` for details.
+**Feature flags, not identity checks.** Use `getInstanceFeatures()` from `src/lib/config/instance-features.ts` for capability checks (e.g., `features.hasRides`, `features.hasEvents`, `features.allowsRegistration`). Reserve `isBlogInstance()`/`isClubInstance()` for structural decisions like which loaders, virtual modules, or admin routes to register. See `src/lib/AGENTS.md` for details.
 
 **Rides reuse the routes infrastructure.** Blog instances store rides as GPX files with optional sidecar Markdown, but they flow through the same `routes` content collection, the same `admin-routes`/`admin-route-detail` virtual modules, and the same admin editor pipeline. The admin-rides loader (`src/loaders/admin-rides.ts`) populates these modules on blog instances instead of the route loader. Ride-specific types (`RideDetail`, `AdminRideDetail`) extend the shared content model in `src/lib/models/ride-model.ts`.
 
@@ -212,10 +228,10 @@ When building query layers over distributed data, the index is a **computed view
 
 Two distinct config layers — don't confuse them:
 
-- **Build-time** (`src/lib/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
-- **Runtime** (`src/lib/env.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/app-env.ts`).
+- **Build-time** (`src/lib/config/config.ts`): reads `process.env` at module evaluation. Exports `CONTENT_DIR`, `CITY`, `cityDir`, `SITE_URL`, `CONTACT_EMAIL`, `CDN_FALLBACK_URL`.
+- **Runtime** (`src/lib/env/env.service.ts`): reads Cloudflare bindings or local env at request time. Provides `GITHUB_TOKEN`, `DB`, `BUCKET`, `GIT_OWNER`, `GIT_DATA_REPO`, etc. via the `AppEnv` interface (`src/lib/config/app-env.ts`).
 
-City-specific config is loaded from `{cityDir}/config.yml` by `src/lib/city-config.ts` and defines: display name, CDN URLs, tile server, timezone, locales, map bounds, place categories, analytics domain, and author info. Locales are derived from the city config (e.g., `[en-CA, fr-CA]` → `[en, fr]`), not hardcoded.
+City-specific config is loaded from `{cityDir}/config.yml` by `src/lib/config/city-config.ts` and defines: display name, CDN URLs, tile server, timezone, locales, map bounds, place categories, analytics domain, and author info. Locales are derived from the city config (e.g., `[en-CA, fr-CA]` → `[en, fr]`), not hardcoded.
 
 ### Five Adapter Boundary Points
 
@@ -223,11 +239,11 @@ The local-vs-production switch (`RUNTIME=local`) is checked at five isolation bo
 
 | Boundary | Local | Production |
 |----------|-------|------------|
-| `src/lib/env.ts` | `env-local.ts` (imports `db/local.ts`, triggers DB init) | `cloudflare:workers` |
-| `src/lib/adapter.ts` | `@astrojs/node` standalone | `@astrojs/cloudflare` |
-| `src/lib/git-factory.ts` | `LocalGitService` (simple-git, module-level write mutex) | `GitService` (GitHub REST API, LFS for GPX) |
+| `src/lib/env/env.service.ts` | `env.adapter-local.ts` (imports `db/local.ts`, triggers DB init) | `cloudflare:workers` |
+| `src/lib/env/adapter.ts` | `@astrojs/node` standalone | `@astrojs/cloudflare` |
+| `src/lib/git/git-factory.ts` | `LocalGitService` (simple-git, module-level write mutex) | `GitService` (GitHub REST API, LFS for GPX) |
 | `src/lib/get-db.ts` | **Fresh** `better-sqlite3` connection per call (not singleton — required for cross-process Playwright visibility) | `getD1Db(env.DB)` wrapping D1 |
-| `src/lib/storage-local.ts` | Filesystem-backed bucket (`.data/uploads/`) | R2 bucket |
+| `src/lib/media/storage.adapter-local.ts` | Filesystem-backed bucket (`.data/uploads/`) | R2 bucket |
 
 `astro.config.mjs` marks `cloudflare:workers` as external when `RUNTIME=local` to prevent Rollup resolution errors.
 
@@ -257,7 +273,7 @@ Type declarations: `src/virtual-modules.d.ts` (most modules, ambient file — no
 
 ### Cache-Overlay Pattern
 
-Admin pages use a two-tier data loading pattern (`src/lib/load-admin-content.ts`):
+Admin pages use a two-tier data loading pattern (`src/lib/content/load-admin-content.ts`):
 
 1. **D1 `content_edits` table** — updated after every save, contains latest content including items created since last deploy
 2. **Virtual module data** — build-time snapshots, the fallback when no cache entry exists
@@ -268,7 +284,7 @@ The list overlay merges build-time data with cache entries and appends cache-onl
 
 Editor → `POST /api/{content-type}/{slug}` → `content-save.ts` orchestrator → content-type `SaveHandlers<T>` → git commit → D1 cache update.
 
-The `SaveHandlers<T, R>` interface (`src/lib/content-save.ts`) has 10 methods: `parseRequest`, `resolveContentId`, `validateSlug?`, `getFilePaths`, `computeContentHash`, `buildFreshData`, `checkExistence?`, `buildFileChanges`, `buildCommitMessage`, `buildGitHubUrl`, `afterCommit?`.
+The `SaveHandlers<T, R>` interface (`src/lib/content/content-save.ts`) has 10 methods: `parseRequest`, `resolveContentId`, `validateSlug?`, `getFilePaths`, `computeContentHash`, `buildFreshData`, `checkExistence?`, `buildFileChanges`, `buildCommitMessage`, `buildGitHubUrl`, `afterCommit?`.
 
 Implementations: `src/views/api/route-save.ts`, `src/views/api/ride-save.ts`, `src/views/api/event-save.ts`, `src/views/api/place-save.ts`.
 
@@ -284,7 +300,7 @@ Hybrid mode: public pages are static (`prerender = true`), admin/API pages are s
 
 ### i18n — Three Layers
 
-Locales driven by city config. Layer 1: UI strings via `t()`. Layer 2: URL path segment translations (`src/lib/path-translations.ts`). Layer 3: content sidecar files (`index.fr.md`). See `src/integrations/AGENTS.md` for sync requirements.
+Locales driven by city config. Layer 1: UI strings via `t()`. Layer 2: URL path segment translations (`src/lib/i18n/path-translations.ts`). Layer 3: content sidecar files (`index.fr.md`). See `src/integrations/AGENTS.md` for sync requirements.
 
 ### Database
 
@@ -305,8 +321,20 @@ src/
   i18n/           # Locale JSON files (en.json, fr.json, es.json) + t() helper
   integrations/   # Astro integrations (route injection, i18n, build plugins)
   layouts/        # Base.astro (shell with header, nav, footer)
-  lib/            # Service modules, adapters, save pipeline, auth
-  lib/models/     # Canonical type defs: content-model.ts (shared base), route-model.ts, ride-model.ts, event-model.ts, place-model.ts
+  lib/            # Core library — 12 domain directories + shared utilities
+    auth/         # WebAuthn sessions, authorization, rate limiting, bans, pseudonyms
+    config/       # Build-time config, city config, instance features, AppEnv type
+    content/      # Save pipeline, D1 cache, admin content loading, file serializers
+    env/          # Runtime environment (Cloudflare/local adapter), Astro adapter
+    external/     # Third-party integrations (Strava, email, Google Maps, analytics)
+    geo/          # Distance, elevation, proximity, privacy zones, photo geolocation
+    git/          # Git operations (GitHub API, local git, LFS, GPX commit helper)
+    i18n/         # Locale utilities, URL path translations, tag translations
+    maps/         # Map initialization, style management, thumbnails, path geometry
+    markdown/     # Markdown rendering and preview text extraction
+    media/        # Storage, images, video, transcoding, EXIF, photo registry
+    models/       # Canonical type defs: content-model.ts (shared base), route/ride/event/place models
+    tile-cache/   # Map tile caching (KV store / local filesystem adapters)
   loaders/        # Custom Astro content loaders (routes, pages, admin data)
   schemas/        # Zod schemas for content collections (barrel export via index.ts)
   styles/         # SCSS — _variables.scss is the design token source of truth
@@ -317,7 +345,7 @@ drizzle/          # Migration SQL files
 e2e/              # Playwright screenshot + admin E2E tests
 public/           # Static assets (maps/, favicons)
 scripts/          # Build-time scripts (maps, fonts, validation, contributors)
-tests/            # Vitest unit tests (75+ test files)
+tests/            # Vitest unit tests (129 test files)
 .data/            # Local dev data (e2e-content/, local.db, uploads/)
 ```
 
@@ -344,7 +372,7 @@ This is the most complex operation. Files that must change together:
 11. `src/views/admin/{types}.astro` — admin list page
 12. `src/components/admin/{Type}Editor.tsx` — Preact island
 13. `src/styles/admin.scss` — all editor styles (NOT scoped `<style>`)
-14. `src/lib/load-admin-content.ts` — add list overlay function if needed
+14. `src/lib/content/load-admin-content.ts` — add list overlay function if needed
 
 ### Adding a New API Endpoint
 
@@ -352,12 +380,12 @@ This is the most complex operation. Files that must change together:
 2. Add `export const prerender = false`
 3. Register in `src/integrations/admin-routes.ts` (static routes before parameterized)
 4. If public (no auth needed), add exclusion in `src/middleware.ts` `isProtected` check
-5. If new permission needed, add action to `src/lib/authorize.ts`
+5. If new permission needed, add action to `src/lib/auth/authorize.ts`
 
 ### Adding a New i18n Route
 
 1. Add entry to `localePages` in `src/integrations/i18n-routes.ts`
-2. Add URL segment translation to `src/lib/path-translations.ts` `segmentTranslations`
+2. Add URL segment translation to `src/lib/i18n/path-translations.ts` `segmentTranslations`
 3. Add UI strings to `src/i18n/{en,fr,es}.json`
 4. Create view file in `src/views/` (same file serves all locales)
 
@@ -421,6 +449,32 @@ Build integrations in `astro.config.mjs`: `copy-map-cache`, `generate-redirects`
 - Never add `Co-Authored-By` lines to commits
 - Do not auto-commit — wait for explicit instructions
 - PNGs are tracked with Git LFS
+
+### Commit Granularity — Tell a Story
+
+Each commit should be a **coherent, shippable unit of work** that a reviewer can understand on its own. Group meaningfully connected changes. The goal is to aid human review — someone reading `git log` should see a narrative of features and fixes, not a play-by-play of implementation steps.
+
+**The test:** Could this commit be cherry-picked to another branch and make sense? If not, it's probably too granular.
+
+**Group these into one commit:**
+
+- **Extract + wire.** Creating a helper/module and using it is one logical change. Don't commit the extraction separately from the code that uses it. `extract route-file-reader with tests` + `wire into public loader` + `wire into admin loader` = one commit: `refactor: use shared route-file-reader in both loaders`.
+
+- **Schema + pipeline + UI for one feature.** Adding a field to a schema, threading it through the data pipeline, rendering it in the UI, and styling it is one feature. Waypoint popups (schema → popup builder → map integration → styles → editor) should be 1–2 commits, not 7.
+
+- **Code change + its test updates.** If your change breaks tests, fix them in the same commit. A date-prefix feature and the test updates it requires are one commit.
+
+- **Code change + its docs.** Header comments, AGENTS.md updates, and doc changes that describe the code you just wrote belong in the same commit.
+
+- **Mechanical refactors across multiple files.** Moving 12 modules into subdirectories can be 2–3 commits grouped by theme (e.g., infrastructure modules, domain modules), not one per file.
+
+**Keep separate when:**
+
+- Changes are truly independent (a bugfix and an unrelated feature)
+- A commit would be too large to review (~400+ lines of non-mechanical changes)
+- Different changes have different risk profiles (safe refactor vs. behaviour change)
+
+**Plan steps ≠ commits.** Implementation plans break work into small steps for clarity and testability. That doesn't mean each step is a commit. Steps are how you work; commits are how you communicate what changed.
 
 ## Related Repos
 

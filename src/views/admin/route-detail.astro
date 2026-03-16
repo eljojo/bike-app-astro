@@ -6,14 +6,14 @@ import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
 import parkedPhotosData from 'virtual:bike-app/parked-photos';
-import { env } from '../../lib/env';
-import { CITY } from '../../lib/config';
-import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/load-admin-content';
+import { env } from '../../lib/env/env.service';
+import { CITY } from '../../lib/config/config';
+import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/content/load-admin-content';
 import { routeDetailFromCache } from '../../lib/models/route-model';
-import { loadTagTranslations } from '../../lib/tag-translations';
-import { defaultLocale } from '../../lib/locale-utils';
-import { getCityConfig } from '../../lib/city-config';
-import { getInstanceFeatures } from '../../lib/instance-features';
+import { loadTagTranslations } from '../../lib/i18n/tag-translations';
+import { defaultLocale } from '../../lib/i18n/locale-utils';
+import { getCityConfig } from '../../lib/config/city-config';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 
 const { slug } = Astro.params;
 
@@ -33,6 +33,7 @@ const routeData = result.data;
 
 const parkedPhotos = await loadParkedPhotosWithOverlay(parkedPhotosData);
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const videosCdnUrl = getCityConfig().videos_cdn_url;
 const tagTranslations = loadTagTranslations();
 const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.tags))].sort();
 ---
@@ -46,6 +47,6 @@ const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.ta
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

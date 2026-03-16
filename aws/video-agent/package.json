@@ -1,0 +1,12 @@
+{
+  "name": "video-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test handler.test.mjs",
+    "zip": "zip -r function.zip handler.mjs package.json node_modules/"
+  },
+  "dependencies": {
+    "@aws-sdk/client-mediaconvert": "^3"
+  }
+}

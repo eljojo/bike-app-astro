@@ -15,11 +15,11 @@ vi.mock('../src/lib/get-db', () => ({
   }),
 }));
 
-vi.mock('../src/lib/env', () => ({
+vi.mock('../src/lib/env/env.service', () => ({
   env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test' },
 }));
 
-vi.mock('../src/lib/git-factory', () => ({
+vi.mock('../src/lib/git/git-factory', () => ({
   createGitService: () => ({
     readFile: vi.fn(),
     writeFiles: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock('../src/lib/git-factory', () => ({
   }),
 }));
 
-vi.mock('../src/lib/ban-service', () => ({
+vi.mock('../src/lib/auth/ban-service', () => ({
   banUser: vi.fn(),
   unbanUser: vi.fn(),
 }));

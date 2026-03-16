@@ -9,7 +9,7 @@ export default {
   },
   create(context) {
     const VENDOR_RULES = {
-      'cloudflare:workers': ['src/lib/env.ts'],
+      'cloudflare:workers': ['src/lib/env/env.service.ts'],
     };
 
     return {

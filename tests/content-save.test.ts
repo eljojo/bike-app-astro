@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SaveHandlers, CurrentFiles } from '../src/lib/content-save';
+import type { SaveHandlers, WithSlugValidation, CurrentFiles } from '../src/lib/content/content-save';
 
 // Existing handler interface tests (preserved)
 describe('SaveHandlers interface', () => {
-  const testHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
+  const testHandlers: SaveHandlers<{ body: string; contentHash?: string }> & WithSlugValidation = {
     parseRequest: (body: unknown) => body as { body: string; contentHash?: string },
     resolveContentId: (params) => params.slug!,
-    validateSlug: (slug) => slug.length < 2 ? 'Too short' : null,
+    validateSlug: (slug: string) => slug.length < 2 ? 'Too short' : null,
     getFilePaths: (slug) => ({ primary: `test/${slug}.md` }),
     computeContentHash: (files) => `hash-${files.primaryFile?.sha || 'none'}`,
     buildFreshData: (id, files) => JSON.stringify({ id, content: files.primaryFile?.content }),
@@ -88,11 +88,11 @@ const mockReadFile = vi.fn();
 const mockWriteFiles = vi.fn();
 const mockGit = { readFile: mockReadFile, writeFiles: mockWriteFiles };
 
-vi.mock('../src/lib/git-factory', () => ({
+vi.mock('../src/lib/git/git-factory', () => ({
   createGitService: () => mockGit,
 }));
 
-vi.mock('../src/lib/env', () => ({
+vi.mock('../src/lib/env/env.service', () => ({
   env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test-token' },
 }));
 
@@ -117,7 +117,7 @@ vi.mock('../src/lib/get-db', () => ({
   }),
 }));
 
-const { saveContent } = await import('../src/lib/content-save');
+const { saveContent } = await import('../src/lib/content/content-save');
 
 function makeRequest(body: object): Request {
   return new Request('http://localhost/api/test', {

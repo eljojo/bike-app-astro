@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeMedia } from '../src/lib/media-merge';
+import { mergeMedia } from '../src/lib/media/media-merge';
 
 describe('mergeMedia', () => {
   it('preserves existing photo metadata when admin changes caption', () => {
@@ -15,15 +15,16 @@ describe('mergeMedia', () => {
     ]);
   });
 
-  it('preserves video entries at the end', () => {
+  it('includes video entries when present in admin array', () => {
     const existing = [
       { type: 'photo', key: 'p1', caption: 'photo' },
       { type: 'video', key: 'v1', title: 'My Video', duration: '5:30' },
     ];
-    const adminPhotos = [
+    const adminMedia = [
       { key: 'p1', caption: 'photo' },
+      { key: 'v1', type: 'video' as const, title: 'My Video' },
     ];
-    const result = mergeMedia(adminPhotos, existing);
+    const result = mergeMedia(adminMedia, existing);
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({ type: 'photo', key: 'p1' });
     expect(result[1]).toMatchObject({ type: 'video', key: 'v1', title: 'My Video', duration: '5:30' });
@@ -84,17 +85,77 @@ describe('mergeMedia', () => {
     expect(result[1].cover).toBe(true);
   });
 
-  it('empty photos array preserves video entries', () => {
+  it('empty admin array drops all media', () => {
     const existing = [
       { type: 'video', key: 'v1', title: 'My Video' },
     ];
     const result = mergeMedia([], existing);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ type: 'video', key: 'v1' });
+    expect(result).toHaveLength(0);
   });
 
   it('empty photos + empty existing returns empty array', () => {
     const result = mergeMedia([], []);
     expect(result).toEqual([]);
+  });
+
+  it('preserves video fields and respects ordering across media types', () => {
+    const adminMedia = [
+      { key: 'video1', type: 'video' as const, title: 'Updated Title' },
+      { key: 'photo1', cover: true },
+    ];
+    const existing = [
+      { type: 'photo', key: 'photo1', score: 10, width: 1600, height: 1200, handle: 'cover' },
+      { type: 'video', key: 'video1', title: 'Old Title', duration: 'PT31S', handle: 'my-ride', poster_key: 'abc', width: 1920, height: 1080 },
+    ];
+    const merged = mergeMedia(adminMedia, existing);
+    // Video moved to first position
+    expect(merged[0].key).toBe('video1');
+    expect(merged[0].type).toBe('video');
+    expect(merged[0].title).toBe('Updated Title');
+    // Existing video fields preserved
+    expect(merged[0].duration).toBe('PT31S');
+    expect(merged[0].poster_key).toBe('abc');
+    // Photo second
+    expect(merged[1].key).toBe('photo1');
+    expect(merged[1].cover).toBe(true);
+  });
+
+  it('removes videos not in admin array', () => {
+    const adminMedia = [
+      { key: 'photo1' },
+    ];
+    const existing = [
+      { type: 'photo', key: 'photo1' },
+      { type: 'video', key: 'video1', title: 'Old Video' },
+    ];
+    const merged = mergeMedia(adminMedia, existing);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].key).toBe('photo1');
+  });
+
+  it('creates new video entries from admin', () => {
+    const adminMedia = [
+      { key: 'vid1', type: 'video' as const, title: 'New Video', handle: 'new-video' },
+    ];
+    const merged = mergeMedia(adminMedia, []);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].type).toBe('video');
+    expect(merged[0].title).toBe('New Video');
+    expect(merged[0].handle).toBe('new-video');
+  });
+
+  it('preserves transcoding video metadata through save', () => {
+    const adminMedia = [
+      { key: 'photo1', cover: true },
+      { key: 'video1', type: 'video' as const, title: 'My Ride', handle: 'my-ride' },
+    ];
+    const existing = [
+      { type: 'photo', key: 'photo1', width: 1600, height: 1200, handle: 'cover' },
+    ];
+    const merged = mergeMedia(adminMedia, existing);
+    expect(merged).toHaveLength(2);
+    expect(merged[1].type).toBe('video');
+    expect(merged[1].title).toBe('My Ride');
+    expect(merged[1].handle).toBe('my-ride');
   });
 });

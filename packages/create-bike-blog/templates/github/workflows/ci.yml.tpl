@@ -53,4 +53,9 @@ jobs:
           CONTENT_DIR: .
           CITY: blog
           SITE_URL: https://{{DOMAIN}}
+          VIDEO_PREFIX: ${{ vars.VIDEO_PREFIX }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Run Lambda tests
+        if: vars.VIDEO_PREFIX != ''
+        run: node --test node_modules/whereto-bike/aws/video-agent/handler.test.mjs

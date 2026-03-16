@@ -5,7 +5,7 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import adminPlaces from 'virtual:bike-app/admin-places';
 import { categoryEmoji } from '../../lib/place-categories';
-import { getCityConfig } from '../../lib/city-config';
+import { getCityConfig } from '../../lib/config/city-config';
 import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
@@ -78,10 +78,10 @@ const grouped = groupByCategory(adminPlaces);
 </Base>
 
 <script>
-  import { initMap, addMarkers } from '../../lib/map-init';
-  import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
+  import { initMap, addMarkers } from '../../lib/maps/map-init';
+  import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
   import maplibregl from 'maplibre-gl';
-  import { html } from '../../lib/map-helpers';
+  import { html } from '../../lib/maps/map-helpers';
 
   const el = document.getElementById('places-map');
   if (el) {

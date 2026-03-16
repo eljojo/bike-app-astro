@@ -4,7 +4,7 @@ export default {
     type: 'problem',
     docs: { description: 'Disallow hardcoded city or locale string literals' },
     messages: {
-      hardcodedCity: "Don't hardcode city name '{{value}}'. Import CITY from src/lib/config.ts.",
+      hardcodedCity: "Don't hardcode city name '{{value}}'. Import CITY from src/lib/config/config.ts.",
       hardcodedLocale: "Don't hardcode locale '{{value}}'. Derive from city config locales.",
       cityFallbackDefault: "Don't use '{{value}}' as a fallback default for CITY. A silent default can cause content to be committed to the wrong directory. Make the value required instead.",
     },

@@ -1,18 +1,15 @@
 import type { APIContext } from 'astro';
-import matter from 'gray-matter';
-import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
+import { env } from '../../lib/env/env.service';
+import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
-import { CITY } from '../../lib/config';
-import { upsertContentCache } from '../../lib/cache';
-import { authorize } from '../../lib/authorize';
+import { CITY } from '../../lib/config/config';
+import { upsertContentCache } from '../../lib/content/cache';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { buildAuthorEmail, parseContentPath } from '../../lib/commit-author';
-import { routeDetailFromGit, routeDetailToCache } from '../../lib/models/route-model';
-import { eventDetailFromGit, eventDetailToCache } from '../../lib/models/event-model';
-import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
-import { getInstanceFeatures } from '../../lib/instance-features';
-import type { IGitService } from '../../lib/git-service';
+import { buildAuthorEmail, parseContentPath } from '../../lib/git/commit-author';
+import { contentTypes } from '../../lib/content/content-types';
+import { readCurrentState } from '../../lib/content/content-save';
+import type { IGitService } from '../../lib/git/git.adapter-github';
 import type { Database } from '../../db';
 
 export const prerender = false;
@@ -50,7 +47,7 @@ export async function POST({ request, locals }: APIContext) {
     const sha = await git.writeFiles(restoreFiles, `Restore ${resourceLabel} to ${commitSha.slice(0, 7)}`, authorInfo);
 
     if (parsed) {
-      await rebuildContentCache(git, db(), parsed, restoreFiles);
+      await rebuildContentCache(git, db(), parsed);
     }
 
     return jsonResponse({ success: true, sha });
@@ -97,71 +94,24 @@ async function hasContentChanges(
   return false;
 }
 
-/** Read translation files from git for all secondary locales. */
-async function readTranslations(
-  git: IGitService,
-  basePath: string,
-): Promise<Record<string, { name?: string; tagline?: string; body?: string }>> {
-  const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
-  const translations: Record<string, { name?: string; tagline?: string; body?: string }> = {};
-
-  for (const locale of secondaryLocales) {
-    const file = await git.readFile(`${basePath}/index.${locale}.md`);
-    if (file) {
-      const { data: fm, content: body } = matter(file.content);
-      translations[locale] = {
-        name: fm.name as string | undefined,
-        tagline: fm.tagline as string | undefined,
-        body: body.trim() || undefined,
-      };
-    }
-  }
-
-  return translations;
-}
-
-/** Rebuild the D1 content cache after a restore. */
+/** Rebuild the D1 content cache after a restore using registry ops. */
 async function rebuildContentCache(
   git: IGitService,
   database: Database,
   parsed: { contentType: string; contentSlug: string },
-  restoreFiles: { path: string; content: string }[],
 ): Promise<void> {
-  let primaryPath: string;
-  if (parsed.contentType === 'routes' && getInstanceFeatures().hasRides) {
-    // With name-only slugs, derive the sidecar path from restoreFiles
-    const sidecarFile = restoreFiles.find(f => f.path.endsWith('.md') && !f.path.includes('-media'));
-    primaryPath = sidecarFile?.path || `${CITY}/rides/${parsed.contentSlug}.md`;
-  } else if (parsed.contentType === 'routes') {
-    primaryPath = `${CITY}/routes/${parsed.contentSlug}/index.md`;
-  } else {
-    primaryPath = `${CITY}/events/${parsed.contentSlug}.md`;
-  }
+  const config = contentTypes.find(ct => ct.name === parsed.contentType);
+  if (!config?.ops) return;
 
-  const newFile = await git.readFile(primaryPath);
-  if (!newFile) return;
+  const filePaths = config.ops.getFilePaths(parsed.contentSlug);
+  const currentFiles = await readCurrentState(git, filePaths);
+  if (!currentFiles.primaryFile) return;
 
-  const primaryRestore = restoreFiles.find(f => f.path === primaryPath);
-  const { data: fm, content: body } = matter(primaryRestore?.content || newFile.content);
-
-  let cacheData: string | null = null;
-  if (parsed.contentType === 'routes') {
-    const basePath = `${CITY}/routes/${parsed.contentSlug}`;
-    const mediaFile = await git.readFile(`${basePath}/media.yml`);
-    const translations = await readTranslations(git, basePath);
-    const detail = routeDetailFromGit(parsed.contentSlug, fm, body, mediaFile?.content, translations);
-    cacheData = routeDetailToCache(detail);
-  } else if (parsed.contentType === 'events') {
-    const detail = eventDetailFromGit(parsed.contentSlug, fm, body);
-    cacheData = eventDetailToCache(detail);
-  }
-
-  if (cacheData !== null) {
-    await upsertContentCache(database, {
-      contentType: parsed.contentType,
-      contentSlug: parsed.contentSlug,
-      data: cacheData,
-      githubSha: newFile.sha,
-    });
-  }
+  const cacheData = config.ops.buildFreshData(parsed.contentSlug, currentFiles);
+  await upsertContentCache(database, {
+    contentType: parsed.contentType,
+    contentSlug: parsed.contentSlug,
+    data: cacheData,
+    githubSha: currentFiles.primaryFile.sha,
+  });
 }

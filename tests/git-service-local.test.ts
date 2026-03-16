@@ -6,7 +6,7 @@ const GIT_BRANCH = process.env.GIT_BRANCH || 'main';
 
 describe('LocalGitService', () => {
   it('reads a file from the data repo', async () => {
-    const { LocalGitService } = await import('../src/lib/git-service-local');
+    const { LocalGitService } = await import('../src/lib/git/git.adapter-local');
     const git = new LocalGitService(CONTENT_DIR, GIT_BRANCH);
 
     const result = await git.readFile('ottawa/routes/carp/index.md');
@@ -16,7 +16,7 @@ describe('LocalGitService', () => {
   });
 
   it('returns null for non-existent file', async () => {
-    const { LocalGitService } = await import('../src/lib/git-service-local');
+    const { LocalGitService } = await import('../src/lib/git/git.adapter-local');
     const git = new LocalGitService(CONTENT_DIR, GIT_BRANCH);
 
     const result = await git.readFile('ottawa/routes/nonexistent/index.md');
@@ -24,7 +24,7 @@ describe('LocalGitService', () => {
   });
 
   it('lists directory contents', async () => {
-    const { LocalGitService } = await import('../src/lib/git-service-local');
+    const { LocalGitService } = await import('../src/lib/git/git.adapter-local');
     const git = new LocalGitService(CONTENT_DIR, GIT_BRANCH);
 
     const items = await git.listDirectory('ottawa/routes');

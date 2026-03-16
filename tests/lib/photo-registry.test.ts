@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   updateSharedKeys, buildSharedKeysMap, getPhotoUsages,
   serializeSharedKeys, deserializeSharedKeys,
-} from '../../src/lib/photo-registry';
+} from '../../src/lib/media/photo-registry';
 
-import type { SharedKeysMap } from '../../src/lib/photo-registry';
+import type { SharedKeysMap } from '../../src/lib/media/photo-registry';
 
 describe('updateSharedKeys', () => {
   it('adds a usage to an empty map', () => {

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/photo-parking';
-import type { PhotoKeyChange } from '../../src/lib/photo-parking';
+import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/media/photo-parking';
+import type { PhotoKeyChange } from '../../src/lib/content/save-helpers';
 
 // Mock dependencies
-vi.mock('../../src/lib/config', () => ({ CITY: 'ottawa' }));
+vi.mock('../../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
 const mockDbGet = vi.fn(() => null);
 const mockOnConflictDoUpdate = vi.fn();

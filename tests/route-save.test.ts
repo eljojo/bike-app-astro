@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
 
 // Mock env module that route-save.ts imports
-vi.mock('../src/lib/env', () => ({ env: { GITHUB_TOKEN: 'test', GIT_BRANCH: 'main' } }));
+vi.mock('../src/lib/env/env.service', () => ({ env: { GITHUB_TOKEN: 'test', GIT_BRANCH: 'main' } }));
 
 import yaml from 'js-yaml';
-import type { CurrentFiles } from '../src/lib/content-save';
+import type { CurrentFiles } from '../src/lib/content/content-save';
 
 const { routeHandlers } = await import('../src/views/api/route-save');
 

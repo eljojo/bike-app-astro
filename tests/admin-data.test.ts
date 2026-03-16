@@ -31,8 +31,7 @@ describe('loadAdminRouteData routes', () => {
     }
   });
 
-  it('counts only admin-managed media (photos, not videos yet)', async () => {
-    // TODO(C7): update when video management is added
+  it('counts all media items including videos', async () => {
     const { routes } = await loadAdminRouteData();
     const withMedia = routes.find((r) => r.mediaCount > 0);
     expect(withMedia).toBeDefined();
@@ -78,14 +77,14 @@ describe('loadAdminRouteData details', () => {
     expect(detail.body).not.toMatch(/^<p>/); // should NOT be rendered HTML
   });
 
-  it('media items only include key, caption, and cover fields', async () => {
+  it('media items only include known fields', async () => {
     const { details } = await loadAdminRouteData();
+    const allowedKeys = ['key', 'type', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at', 'width', 'height', 'title', 'handle', 'duration', 'orientation', 'poster_key'];
     for (const detail of Object.values(details)) {
       for (const item of detail.media) {
         const keys = Object.keys(item);
-        // Only allowed keys: key, caption, cover, and optional coordinate/upload fields
         for (const k of keys) {
-          expect(['key', 'caption', 'cover', 'lat', 'lng', 'uploaded_by', 'captured_at', 'width', 'height']).toContain(k);
+          expect(allowedKeys).toContain(k);
         }
         // key is always required
         expect(item).toHaveProperty('key');
@@ -94,9 +93,8 @@ describe('loadAdminRouteData details', () => {
     }
   });
 
-  it('filters out non-photo media', async () => {
+  it('all media items have a key', async () => {
     const { details } = await loadAdminRouteData();
-    // Find a route with media to verify all items have keys
     const withMedia = Object.values(details).find((d) => d.media.length > 0);
     expect(withMedia).toBeDefined();
     for (const item of withMedia!.media) {

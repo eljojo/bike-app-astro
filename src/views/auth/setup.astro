@@ -3,7 +3,7 @@ export const prerender = false;
 
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import RegisterForm from '../../components/admin/RegisterForm.tsx';
-import { isFirstUser } from '../../lib/auth';
+import { isFirstUser } from '../../lib/auth/auth';
 import { db } from '../../lib/get-db';
 
 const first = await isFirstUser(db());

@@ -2,11 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 
 // Mock virtual module and env dependencies
 vi.mock('virtual:bike-app/admin-places', () => ({ default: [] }));
-vi.mock('../src/lib/env', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test' } }));
-vi.mock('../src/lib/git-factory', () => ({ createGitService: () => ({}) }));
+vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test' } }));
+vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 
-import { CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
 import { placeHandlers } from '../src/views/api/place-save';
 
 describe('placeHandlers.parseRequest', () => {

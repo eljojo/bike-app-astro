@@ -9,18 +9,20 @@ import MarkdownEditor from './MarkdownEditor';
 import NearbyPhotos from './NearbyPhotos';
 import EditorActions from './EditorActions';
 import { useEditorState } from './useEditorState';
+import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import SlugEditor from './SlugEditor';
 import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
-import { toParkedEntry } from '../../lib/media-merge';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
-import { localeLabel } from '../../lib/locale-utils';
+import { toParkedEntry } from '../../lib/media/media-merge';
+import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
+import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  videosCdnUrl?: string;
   parkedPhotos?: ParkedPhotoEntry[];
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
@@ -30,7 +32,7 @@ interface Props {
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -57,21 +59,17 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
 
+  const { validate } = useFormValidation([
+    { field: 'route-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: '', check: () => !variants.length, message: 'At least one route option is required' },
+  ]);
+
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/routes',
     contentId: initialData.slug,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) {
-        document.getElementById('route-name')?.focus();
-        return 'Name is required';
-      }
-      if (!variants.length) {
-        return 'At least one route option is required';
-      }
-      return null;
-    },
+    validate,
     buildPayload: () => {
       const payload: RouteUpdate = {
         frontmatter: {
@@ -98,9 +96,9 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   });
 
   const { dragging } = useDragDrop((files) => {
-    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const gpxFiles = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-    if (imageFiles.length > 0) setPendingFiles(imageFiles);
+    if (mediaFiles.length > 0) setPendingFiles(mediaFiles);
     if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
   });
 
@@ -169,7 +167,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     <div class="route-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos or GPX files to add to route</div>
+          <div class="drop-overlay-content">Drop media or GPX files to add to route</div>
         </div>
       )}
       <div class="locale-tabs">
@@ -290,9 +288,12 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           media={media}
           onChange={setMedia}
           cdnUrl={cdnUrl}
+          videosCdnUrl={videosCdnUrl}
           pendingFiles={pendingFiles}
           onPendingProcessed={() => setPendingFiles([])}
           userRole={userRole}
+          contentSlug={initialData.slug}
+          contentKind="route"
           onParkPhoto={(photo) => {
             const entry = toParkedEntry(photo);
             setParkedPhotos(prev => [...prev, entry]);

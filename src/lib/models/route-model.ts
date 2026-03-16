@@ -76,7 +76,7 @@ export function computeRouteContentHashFromFiles(currentFiles: RouteGitFiles): s
 
 /**
  * Parse raw git content (frontmatter + body + media.yml) into canonical RouteDetail.
- * Filters media to photos only (videos managed separately, not shown in admin UI).
+ * Includes all media types (photos and videos).
  */
 export function routeDetailFromGit(
   slug: string,
@@ -88,20 +88,24 @@ export function routeDetailFromGit(
   let media: AdminMediaItem[] = [];
   if (mediaYml) {
     const rawMedia = (yaml.load(mediaYml) as Array<Record<string, unknown>>) || [];
-    media = rawMedia
-      .filter((m) => m.type === 'photo')
-      .map((m) => {
-        const item: AdminMediaItem = { key: m.key as string };
-        if (m.caption != null) item.caption = m.caption as string;
-        if (m.cover != null) item.cover = m.cover as boolean;
-        if (m.lat != null) item.lat = m.lat as number;
-        if (m.lng != null) item.lng = m.lng as number;
-        if (m.uploaded_by != null) item.uploaded_by = m.uploaded_by as string;
-        if (m.captured_at != null) item.captured_at = m.captured_at as string;
-        if (m.width != null) item.width = m.width as number;
-        if (m.height != null) item.height = m.height as number;
-        return item;
-      });
+    media = rawMedia.map((m) => {
+      const item: AdminMediaItem = { key: m.key as string };
+      if (m.type === 'video') item.type = 'video';
+      if (m.caption != null) item.caption = m.caption as string;
+      if (m.cover != null) item.cover = m.cover as boolean;
+      if (m.lat != null) item.lat = m.lat as number;
+      if (m.lng != null) item.lng = m.lng as number;
+      if (m.uploaded_by != null) item.uploaded_by = m.uploaded_by as string;
+      if (m.captured_at != null) item.captured_at = m.captured_at as string;
+      if (m.width != null) item.width = m.width as number;
+      if (m.height != null) item.height = m.height as number;
+      if (m.title != null) item.title = m.title as string;
+      if (m.handle != null) item.handle = m.handle as string;
+      if (m.duration != null) item.duration = m.duration as string;
+      if (m.orientation != null) item.orientation = m.orientation as string;
+      if (m.poster_key != null) item.poster_key = m.poster_key as string; // deprecated for videos — poster derived from key
+      return item;
+    });
   }
 
   return {

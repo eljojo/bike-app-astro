@@ -1,26 +1,27 @@
 ---
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { imageUrl } from '@/lib/image-service';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/video-service';
-import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '@/lib/map-thumbnails';
+import { imageUrl } from '@/lib/media/image-service';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/media/video-service';
+import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '@/lib/maps/map-thumbnails';
 import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
-import { formatDistance } from '@/lib/distance';
+import { formatDistance } from '@/lib/geo/distance';
 import PhotoGallery from '@/components/PhotoGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
-import { elevationConclusion } from '@/lib/elevation';
+import { elevationConclusion } from '@/lib/geo/elevation';
 import { routeShape, placeCounts } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
 import { t, tCategory, localePath, formatLocale } from '@/i18n';
-import { findNearbyPlaces } from '@/lib/proximity';
+import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
-import { getCityConfig } from '@/lib/city-config';
-import { getInstanceFeatures } from '@/lib/instance-features';
+import { getCityConfig } from '@/lib/config/city-config';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { paths, assets, routeSlug } from '@/lib/paths';
-import { supportedLocales } from '@/lib/locale-utils';
-import { tTag } from '@/lib/tag-translations';
+import { supportedLocales } from '@/lib/i18n/locale-utils';
+import { tTag } from '@/lib/i18n/tag-translations';
 import ReactionsWidget from '@/components/ReactionsWidget';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -28,8 +29,9 @@ const locale = Astro.currentLocale;
 export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
+  const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
-  return routes.map(route => ({
+  return filtered.map(route => ({
     params: { slug: route.id },
     props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames },
   }));
@@ -271,7 +273,7 @@ const breadcrumbs = breadcrumbJsonLd([
                 preload="metadata"
                 width={size.width}
                 height={size.height}
-                poster={video.poster_key ? videoPosterUrl(video.poster_key) : undefined}
+                poster={video.poster_key ? imageUrl(video.poster_key, { width: 600 }) : videoPosterUrl(video.key)}
                 disablepictureinpicture
               >
                 {sources.map(s => <source src={s.src} type={s.type} />)}
@@ -302,4 +304,5 @@ const breadcrumbs = breadcrumbJsonLd([
       <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
+  {videos.length > 0 && <script>import '@/lib/media/hls-player';</script>}
 </Base>

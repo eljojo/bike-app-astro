@@ -1,9 +1,9 @@
 ---
 import RouteMap from './RouteMap.astro';
 import InteractiveElevation from './InteractiveElevation.tsx';
-import { computeElevationPoints } from '../lib/elevation-profile';
-import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '../lib/map-thumbnails';
-import { getCityConfig } from '../lib/city-config';
+import { computeElevationPoints } from '../lib/geo/elevation-profile';
+import { hasCachedMap, cachedMapLocale, variantKeyFromGpx } from '../lib/maps/map-thumbnails';
+import { getCityConfig } from '../lib/config/city-config';
 import { t } from '../i18n';
 import { paths, assets } from '../lib/paths';
 

@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { commitGpxFile } from '../src/lib/git-gpx';
+import { commitGpxFile } from '../src/lib/git/git-gpx';
 
 // Mock the LFS module
-vi.mock('../src/lib/git-lfs', () => ({
+vi.mock('../src/lib/git/git-lfs', () => ({
   uploadToLfs: vi.fn().mockResolvedValue('version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 100\n'),
 }));
 
-import { uploadToLfs } from '../src/lib/git-lfs';
+import { uploadToLfs } from '../src/lib/git/git-lfs';
 
 describe('commitGpxFile', () => {
   beforeEach(() => {
