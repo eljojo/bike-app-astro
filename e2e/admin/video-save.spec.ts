@@ -14,6 +14,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import Database from 'better-sqlite3';
 import yaml from 'js-yaml';
+import { initSchema } from '../../src/db/init-schema.ts';
 import { FIXTURE_DIR, DB_PATH } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles } from './helpers.ts';
 
@@ -23,27 +24,7 @@ function seedVideoJob(key: string, slug: string) {
   const db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
   db.pragma('busy_timeout = 5000');
-  // Ensure table exists (init-schema runs on server start, but be safe)
-  db.exec(`CREATE TABLE IF NOT EXISTS video_jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key TEXT NOT NULL UNIQUE,
-    content_kind TEXT NOT NULL,
-    content_slug TEXT NOT NULL,
-    job_id TEXT,
-    status TEXT NOT NULL DEFAULT 'uploading',
-    width INTEGER,
-    height INTEGER,
-    duration TEXT,
-    orientation TEXT,
-    lat REAL,
-    lng REAL,
-    captured_at TEXT,
-    title TEXT,
-    handle TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
-  // Upsert the row
+  initSchema(db);
   db.prepare(`INSERT OR REPLACE INTO video_jobs
     (key, content_kind, content_slug, status, width, height, duration, orientation, updated_at)
     VALUES (?, ?, ?, 'ready', 1080, 1920, 'PT30S', 'portrait', datetime('now'))
