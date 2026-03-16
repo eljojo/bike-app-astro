@@ -670,6 +670,72 @@ export function ensureR2Bucket(bucketName) {
   }
 }
 
+/**
+ * Ensure the R2 bucket allows GET requests from the given origin (for hls.js fetch).
+ * Reads existing CORS rules and appends the origin if not already present.
+ */
+export async function ensureR2Cors(r2BucketName, domain, accountId, apiToken) {
+  if (!accountId || !apiToken) {
+    console.warn('  ⚠ Cannot configure R2 CORS — missing Cloudflare credentials');
+    return;
+  }
+
+  const origin = `https://${domain}`;
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/r2/buckets/${r2BucketName}/cors`;
+  const headers = { 'Authorization': `Bearer ${apiToken}` };
+
+  // Read existing CORS rules
+  let rules = [];
+  try {
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      rules = data.result?.rules || [];
+    }
+  } catch { /* no existing rules */ }
+
+  // Check if origin already present in any GET rule
+  const hasOrigin = rules.some(r =>
+    r.allowed?.methods?.includes('GET') &&
+    r.allowed?.origins?.includes(origin),
+  );
+  if (hasOrigin) {
+    logSkip(`R2 CORS for ${domain}`);
+    return;
+  }
+
+  // Find existing GET rule to append to, or create new one
+  const getRule = rules.find(r => r.allowed?.methods?.includes('GET'));
+  if (getRule) {
+    getRule.allowed.origins = [...(getRule.allowed.origins || []), origin];
+  } else {
+    rules.push({
+      allowed: {
+        origins: [origin],
+        methods: ['GET'],
+        headers: ['*'],
+      },
+      maxAgeSeconds: 86400,
+    });
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rules }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(body);
+    }
+    log(`Added R2 CORS origin ${origin} on ${r2BucketName}`);
+  } catch (err) {
+    console.warn(`  ⚠ Could not set R2 CORS: ${err.message}`);
+    console.warn(`    Set manually: Cloudflare dashboard → R2 → ${r2BucketName} → Settings → CORS Policy`);
+  }
+}
+
 export async function isSippyActive(r2BucketName, accountId, apiToken) {
   if (!accountId || !apiToken) return false;
   try {
@@ -1004,6 +1070,7 @@ export async function configureInstance(opts = {}) {
   // --- Cloudflare-side ---
   console.log('\n  Cloudflare:\n');
   ensureR2Bucket(r2Bucket);
+  await ensureR2Cors(r2Bucket, domain, cfAccountId, cfApiToken);
 
   if (sippy) {
     const sippyOk = await configureSippy(r2Bucket, outputsBucket, region, cfAccountId, cfApiToken, sippy.creds);
