@@ -1,7 +1,7 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
-import { cityDir } from '../../lib/config/config';
+import { cityDir } from '../../lib/config/config.server';
 import { variantSlug, variantFilename, routeGpxPath, serveGpxFile } from '../../lib/gpx/download';
 import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan';
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import { cityDir } from './config';
+import { cityDir } from './config.server';
 
 export interface CityConfig {
   instance_type?: 'blog' | 'wiki' | 'club';

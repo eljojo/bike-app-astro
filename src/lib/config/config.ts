@@ -1,7 +1,3 @@
-import path from 'node:path';
-
-export const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
-
 /**
  * City slug for this instance.
  *
@@ -23,7 +19,6 @@ function resolveCity(): string {
 }
 
 export const CITY: string = resolveCity();
-export const cityDir = path.join(CONTENT_DIR, CITY);
 
 /**
  * Video storage prefix — the S3/R2 path prefix for this instance's videos.

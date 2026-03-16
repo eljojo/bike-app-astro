@@ -11,7 +11,8 @@ import {
 } from '../src/lib/maps/map-generation';
 import { variantKey } from '../src/lib/gpx/paths';
 import { getCityConfig } from '../src/lib/config/city-config';
-import { CONTENT_DIR, CITY } from '../src/lib/config/config';
+import { CITY } from '../src/lib/config/config';
+import { CONTENT_DIR } from '../src/lib/config/config.server';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;

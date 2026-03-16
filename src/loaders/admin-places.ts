@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { cityDir } from '../lib/config/config';
+import { cityDir } from '../lib/config/config.server';
 import type { AdminPlace } from '../types/admin';
 import { placeDetailFromGit, computePlaceContentHash, type PlaceDetail } from '../lib/models/place-model';
 

@@ -80,6 +80,8 @@ export default [
     },
   },
   {
+    // Server boundary enforcement for shared src/lib/ files.
+    // Exempt: .server.ts, adapter files, git/, build-time transforms.
     files: ['src/lib/**/*.ts'],
     ignores: [
       'src/lib/**/*.d.ts',
@@ -103,10 +105,23 @@ export default [
     },
   },
   {
+    // These src/lib/ files are server-only but don't use .server.ts suffix:
+    // git/ directory (all server-side), build-time transforms (replaced by build-data-plugin).
+    // They may import .server modules freely.
+    files: [
+      'src/lib/git/**',
+      'src/lib/config/city-config.ts',
+      'src/lib/fonts.ts',
+      'src/lib/i18n/tag-translations.ts',
+    ],
+    rules: {
+      'bike-app/no-server-import-in-browser': 'off',
+    },
+  },
+  {
     // Temporary: these files will be renamed to .server.ts or split in subsequent tasks.
     // Remove entries as each file is migrated.
     files: [
-      'src/lib/config/config.ts',
       'src/lib/models/content-model.ts',
       'src/lib/models/route-model.ts',
       'src/lib/models/event-model.ts',

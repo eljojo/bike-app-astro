@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import { cityDir } from '../config/config';
+import { cityDir } from '../config/config.server';
 import { shortLocale, defaultLocale } from './locale-utils';
 
 type TagTranslations = Record<string, Record<string, string>>;

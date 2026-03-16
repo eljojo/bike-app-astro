@@ -4,7 +4,7 @@ import { routeLoader } from './loaders/routes';
 import { rideLoader } from './loaders/rides';
 import { pageLoader } from './loaders/pages';
 import { isBlogInstance } from './lib/config/city-config';
-import { cityDir } from './lib/config/config';
+import { cityDir } from './lib/config/config.server';
 import {
   routeSchema, placeSchema, guideSchema,
   eventSchema, organizerSchema, pageSchema,

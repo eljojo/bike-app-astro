@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx/parse';
-import { cityDir } from '../lib/config/config';
+import { cityDir } from '../lib/config/config.server';
 import { getCityConfig } from '../lib/config/city-config';
 import { computeFileDigest } from '../lib/directory-digest';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
