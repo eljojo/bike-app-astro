@@ -190,6 +190,22 @@ The build system supports incremental static generation — only pages affected 
 
 ---
 
+## Architectural Principles
+
+### Static is Sacred
+
+The public site is HTML files in `dist/`. Zip them, serve from anywhere. Admin pages are server-rendered (`prerender = false`), but if admin goes down, the public site keeps serving. This separation is non-negotiable — never make a public page depend on a running server.
+
+### Develop on a Train
+
+`git clone data && git clone app && npm run dev` — no internet needed. The build reads only the data repo. No database required. No network calls. If a feature would break offline development, find another way.
+
+### Universal Media Pattern
+
+A single key identifies every media asset. The app resolves it to URLs at render time. Components never touch vendor URLs directly. Photos and videos are equal — all media entries live in one ordered list. Never filter by type, never treat photos and videos as separate collections. The `type` field exists for rendering (`img` vs `video` tag), not for partitioning logic.
+
+---
+
 ## Architecture
 
 ### Instance Types
