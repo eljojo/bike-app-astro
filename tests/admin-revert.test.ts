@@ -207,6 +207,7 @@ describe('admin-revert POST', () => {
       [{ path: `${CITY}/routes/test/index.md`, content: 'old content' }],
       expect.stringContaining('Restore'),
       expect.objectContaining({ name: 'admin' }),
+      undefined,
     );
     // Verify cache rebuild pipeline: readCurrentState called with correct file paths
     expect(mockReadCurrentState).toHaveBeenCalledWith(
@@ -255,6 +256,7 @@ describe('admin-revert POST', () => {
       ]),
       expect.any(String),
       expect.any(Object),
+      undefined,
     );
   });
 

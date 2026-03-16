@@ -4,6 +4,7 @@ import { videoJobs, contentEdits } from '../../db/schema';
 import { CITY } from '../config/config';
 import { env } from '../env/env.service';
 import { createGitService } from '../git/git-factory';
+import { commitToContentRepo } from '../git/commit';
 import { db } from '../get-db';
 import { serializeYamlFile } from '../content/file-serializers';
 import { upsertContentCache } from '../content/cache';
@@ -84,10 +85,11 @@ export async function persistVideoMetadataToGit(
   const message = `Add video metadata for ${job.title || videoKey}`;
   const authorInfo = { name: 'whereto.bike', email: 'bot@whereto.bike' };
 
-  await git.writeFiles(
-    [{ path: mediaPath, content: updatedContent }],
+  await commitToContentRepo(
     message,
+    [{ path: mediaPath, content: updatedContent }],
     authorInfo,
+    git,
   );
 
   // 7. Update D1 cache if it exists (refresh the cached media data)

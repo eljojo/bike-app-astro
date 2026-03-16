@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../env/env.service';
 import { createGitService } from '../git/git-factory';
+import { commitToContentRepo } from '../git/commit';
 import { db } from '../get-db';
 import { contentEdits } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -116,11 +117,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     if (useRealEmail) {
       message += `\nCo-Authored-By: ${user.username} <${appEmail}>`;
     }
-    const appBranch: string = typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'unknown';
-    if (env.ENVIRONMENT === 'staging' && appBranch !== 'main') {
-      message += `\nApp-Branch: ${appBranch}`;
-    }
-    const sha = await git.writeFiles(files, message, authorInfo,
+    const sha = await commitToContentRepo(message, files, authorInfo, git,
       deletePaths.length > 0 ? deletePaths : undefined);
 
     const response = await updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);

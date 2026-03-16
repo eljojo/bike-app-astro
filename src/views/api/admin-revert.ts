@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
+import { commitToContentRepo } from '../../lib/git/commit';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
 import { upsertContentCache } from '../../lib/content/cache';
@@ -44,7 +45,9 @@ export async function POST({ request, locals }: APIContext) {
     const parsed = parseContentPath(CITY, contentPath);
     const resourceLabel = parsed ? `${CITY}/${parsed.contentType}/${parsed.contentSlug}` : contentPath;
     const authorInfo = { name: user.username, email: buildAuthorEmail(user) };
-    const sha = await git.writeFiles(restoreFiles, `Restore ${resourceLabel} to ${commitSha.slice(0, 7)}`, authorInfo);
+    const sha = await commitToContentRepo(
+      `Restore ${resourceLabel} to ${commitSha.slice(0, 7)}`,
+      restoreFiles, authorInfo, git);
 
     if (parsed) {
       await rebuildContentCache(git, db(), parsed);
