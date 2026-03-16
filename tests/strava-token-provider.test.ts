@@ -1,143 +1,148 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createStravaTokenProvider } from '../src/lib/external/strava-token-provider';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { AppEnv } from '../src/lib/config/app-env';
 
-// Mock strava-api module
+// Mock the external Strava API (network boundary — keep mocked)
 vi.mock('../src/lib/external/strava-api', () => ({
-  refreshToken: vi.fn(),
+	refreshToken: vi.fn(),
 }));
 
 import { refreshToken } from '../src/lib/external/strava-api';
 const mockRefresh = vi.mocked(refreshToken);
 
-function mockDatabase(rows: any[]) {
-  const updateSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
-  const updateFn = vi.fn().mockReturnValue({ set: updateSet });
-
-  return {
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue(rows),
-      }),
-    }),
-    update: updateFn,
-    _updateSet: updateSet,
-  } as any;
-}
-
 const appEnv: AppEnv = {
-  STRAVA_CLIENT_ID: 'test-client-id',
-  STRAVA_CLIENT_SECRET: 'test-client-secret',
+	STRAVA_CLIENT_ID: 'test-client-id',
+	STRAVA_CLIENT_SECRET: 'test-client-secret',
 } as any;
 
 describe('createStravaTokenProvider', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+	const dbPath = path.join(import.meta.dirname, '.test-strava-token.db');
+	let database: any;
 
-  it('returns null when no tokens in DB', async () => {
-    const db = mockDatabase([]);
-    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
-    expect(provider).toBeNull();
-  });
+	function cleanupDb() {
+		for (const ext of ['', '-wal', '-shm']) {
+			const f = dbPath + ext;
+			if (fs.existsSync(f)) fs.unlinkSync(f);
+		}
+	}
 
-  it('returns existing access token when not expired', async () => {
-    const futureExpiry = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-    const db = mockDatabase([{
-      accessToken: 'valid-token',
-      refreshToken: 'refresh-token',
-      expiresAt: futureExpiry,
-    }]);
+	beforeEach(async () => {
+		vi.clearAllMocks();
+		cleanupDb();
+		const { createLocalDb } = await import('../src/db/local');
+		database = createLocalDb(dbPath);
 
-    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
-    expect(provider).not.toBeNull();
+		// Seed a user (foreign key requirement)
+		const { users } = await import('../src/db/schema');
+		await database.insert(users).values({
+			id: 'user-1', email: 'test@test.com', username: 'testuser', role: 'editor',
+			createdAt: new Date().toISOString(),
+		});
+	});
 
-    const token = await provider!.getAccessToken();
-    expect(token).toBe('valid-token');
-    expect(mockRefresh).not.toHaveBeenCalled();
-  });
+	afterAll(() => {
+		cleanupDb();
+	});
 
-  it('refreshes token when expiring within 60 seconds', async () => {
-    const almostExpired = Math.floor(Date.now() / 1000) + 30; // 30s from now
-    const db = mockDatabase([{
-      accessToken: 'old-token',
-      refreshToken: 'old-refresh',
-      expiresAt: almostExpired,
-    }]);
+	async function seedToken(userId: string, token: { accessToken: string; refreshToken: string; expiresAt: number }) {
+		const { stravaTokens } = await import('../src/db/schema');
+		await database.insert(stravaTokens).values({
+			userId,
+			athleteId: '12345',
+			accessToken: token.accessToken,
+			refreshToken: token.refreshToken,
+			expiresAt: token.expiresAt,
+		});
+	}
 
-    const newExpiry = Math.floor(Date.now() / 1000) + 3600;
-    mockRefresh.mockResolvedValue({
-      access_token: 'new-token',
-      refresh_token: 'new-refresh',
-      expires_at: newExpiry,
-    });
+	it('returns null when no tokens in DB', async () => {
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, appEnv, 'user-1');
+		expect(provider).toBeNull();
+	});
 
-    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
-    const token = await provider!.getAccessToken();
+	it('returns existing access token when not expired', async () => {
+		const futureExpiry = Math.floor(Date.now() / 1000) + 3600;
+		await seedToken('user-1', { accessToken: 'valid-token', refreshToken: 'r', expiresAt: futureExpiry });
 
-    expect(token).toBe('new-token');
-    expect(mockRefresh).toHaveBeenCalledWith('test-client-id', 'test-client-secret', 'old-refresh');
-    // Should persist to DB
-    expect(db.update).toHaveBeenCalled();
-  });
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, appEnv, 'user-1');
+		expect(await provider!.getAccessToken()).toBe('valid-token');
+		expect(mockRefresh).not.toHaveBeenCalled();
+	});
 
-  it('refreshes token when already expired', async () => {
-    const expired = Math.floor(Date.now() / 1000) - 100; // 100s ago
-    const db = mockDatabase([{
-      accessToken: 'expired-token',
-      refreshToken: 'refresh-me',
-      expiresAt: expired,
-    }]);
+	it('only returns tokens for the requested userId', async () => {
+		const futureExpiry = Math.floor(Date.now() / 1000) + 3600;
+		await seedToken('user-1', { accessToken: 'user1-token', refreshToken: 'r', expiresAt: futureExpiry });
 
-    mockRefresh.mockResolvedValue({
-      access_token: 'fresh-token',
-      refresh_token: 'fresh-refresh',
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
-    });
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, appEnv, 'user-2');
+		expect(provider).toBeNull();
+	});
 
-    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
-    const token = await provider!.getAccessToken();
-    expect(token).toBe('fresh-token');
-  });
+	it('refreshes token when expiring within 60 seconds', async () => {
+		const almostExpired = Math.floor(Date.now() / 1000) + 30;
+		await seedToken('user-1', { accessToken: 'old', refreshToken: 'old-refresh', expiresAt: almostExpired });
 
-  it('throws when credentials missing during refresh', async () => {
-    const expired = Math.floor(Date.now() / 1000) - 100;
-    const db = mockDatabase([{
-      accessToken: 'old',
-      refreshToken: 'old',
-      expiresAt: expired,
-    }]);
+		mockRefresh.mockResolvedValue({
+			access_token: 'new-token',
+			refresh_token: 'new-refresh',
+			expires_at: Math.floor(Date.now() / 1000) + 3600,
+		});
 
-    const noCredsEnv: AppEnv = {} as any;
-    const provider = await createStravaTokenProvider(db, noCredsEnv, 'user-1');
-    await expect(provider!.getAccessToken()).rejects.toThrow('Strava credentials not configured');
-  });
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, appEnv, 'user-1');
+		expect(await provider!.getAccessToken()).toBe('new-token');
+		expect(mockRefresh).toHaveBeenCalledWith('test-client-id', 'test-client-secret', 'old-refresh');
 
-  it('caches refreshed token for subsequent calls', async () => {
-    const almostExpired = Math.floor(Date.now() / 1000) + 10;
-    const db = mockDatabase([{
-      accessToken: 'old',
-      refreshToken: 'old-refresh',
-      expiresAt: almostExpired,
-    }]);
+		// Verify persisted to DB
+		const { stravaTokens } = await import('../src/db/schema');
+		const { eq } = await import('drizzle-orm');
+		const rows = await database.select().from(stravaTokens).where(eq(stravaTokens.userId, 'user-1'));
+		expect(rows[0].accessToken).toBe('new-token');
+	});
 
-    const futureExpiry = Math.floor(Date.now() / 1000) + 7200;
-    mockRefresh.mockResolvedValue({
-      access_token: 'refreshed',
-      refresh_token: 'new-refresh',
-      expires_at: futureExpiry,
-    });
+	it('refreshes token when already expired', async () => {
+		const expired = Math.floor(Date.now() / 1000) - 100;
+		await seedToken('user-1', { accessToken: 'expired-token', refreshToken: 'refresh-me', expiresAt: expired });
 
-    const provider = await createStravaTokenProvider(db, appEnv, 'user-1');
+		mockRefresh.mockResolvedValue({
+			access_token: 'fresh-token',
+			refresh_token: 'fresh-refresh',
+			expires_at: Math.floor(Date.now() / 1000) + 3600,
+		});
 
-    // First call triggers refresh
-    const token1 = await provider!.getAccessToken();
-    expect(token1).toBe('refreshed');
-    expect(mockRefresh).toHaveBeenCalledTimes(1);
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, appEnv, 'user-1');
+		expect(await provider!.getAccessToken()).toBe('fresh-token');
+	});
 
-    // Second call should use cached token (expiresAt is far in the future now)
-    const token2 = await provider!.getAccessToken();
-    expect(token2).toBe('refreshed');
-    expect(mockRefresh).toHaveBeenCalledTimes(1); // not called again
-  });
+	it('throws when credentials missing during refresh', async () => {
+		const expired = Math.floor(Date.now() / 1000) - 100;
+		await seedToken('user-1', { accessToken: 'old', refreshToken: 'old', expiresAt: expired });
+
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, {} as any, 'user-1');
+		await expect(provider!.getAccessToken()).rejects.toThrow('Strava credentials not configured');
+	});
+
+	it('caches refreshed token for subsequent calls', async () => {
+		const almostExpired = Math.floor(Date.now() / 1000) + 10;
+		await seedToken('user-1', { accessToken: 'old', refreshToken: 'old-refresh', expiresAt: almostExpired });
+
+		mockRefresh.mockResolvedValue({
+			access_token: 'refreshed',
+			refresh_token: 'new-refresh',
+			expires_at: Math.floor(Date.now() / 1000) + 7200,
+		});
+
+		const { createStravaTokenProvider } = await import('../src/lib/external/strava-token-provider');
+		const provider = await createStravaTokenProvider(database, appEnv, 'user-1');
+
+		expect(await provider!.getAccessToken()).toBe('refreshed');
+		expect(mockRefresh).toHaveBeenCalledTimes(1);
+		expect(await provider!.getAccessToken()).toBe('refreshed');
+		expect(mockRefresh).toHaveBeenCalledTimes(1);
+	});
 });
