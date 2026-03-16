@@ -1097,7 +1097,7 @@ export async function configureInstance(opts = {}) {
   console.log('\n  Wrangler secrets:\n');
   setWranglerSecret('MEDIACONVERT_ACCESS_KEY_ID', presign.creds.accessKeyId, wranglerEnv, { force: true });
   setWranglerSecret('MEDIACONVERT_SECRET_ACCESS_KEY', presign.creds.secretAccessKey, wranglerEnv, { force: true });
-  setWranglerSecret('S3_ORIGINALS_BUCKET', originsBucket, wranglerEnv);
+  setWranglerSecret('S3_ORIGINALS_BUCKET', originsBucket, wranglerEnv, { force: true });
   setWranglerSecret('VIDEO_PREFIX', prefix, wranglerEnv);
   presign.cleanup();
 

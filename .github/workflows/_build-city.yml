@@ -168,6 +168,7 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ${{ inputs.city }}
+          VIDEO_PREFIX: ${{ vars.VIDEO_PREFIX || inputs.city }}
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
 
