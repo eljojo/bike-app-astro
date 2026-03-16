@@ -13,7 +13,7 @@ import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck,
 import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import type { AdminEvent } from '../../types/admin';
 import { resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
-import { eventOps } from '../../lib/content-ops';
+import { eventOps } from '../../lib/content/content-ops';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia } from '../../lib/content/save-helpers';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/media/photo-parking';

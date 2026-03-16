@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildTrackFromPoints } from '../src/lib/gpx';
-import type { GpxPoint } from '../src/lib/gpx';
+import { buildTrackFromPoints } from '../src/lib/gpx/parse';
+import type { GpxPoint } from '../src/lib/gpx/parse';
 
 describe('buildTrackFromPoints', () => {
   const samplePoints: GpxPoint[] = [

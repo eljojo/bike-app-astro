@@ -2,8 +2,8 @@ import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import { cityDir } from '../../lib/config/config';
-import { variantSlug, routeGpxPath, gpxResponse } from '../../lib/gpx-download';
-import { injectWaypointsIntoGpx, type GpxWaypoint } from '../../lib/gpx-waypoint-inject';
+import { variantSlug, routeGpxPath, gpxResponse } from '../../lib/gpx/download';
+import { injectWaypointsIntoGpx, type GpxWaypoint } from '../../lib/gpx/waypoint-inject';
 
 export const prerender = true;
 

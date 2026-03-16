@@ -14,7 +14,7 @@ import type { Loader } from 'astro/loaders';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx';
+import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx/parse';
 import { cityDir } from '../lib/config/config';
 import { getCityConfig } from '../lib/config/city-config';
 import { computeFileDigest } from '../lib/directory-digest';

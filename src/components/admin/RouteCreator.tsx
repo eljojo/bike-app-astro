@@ -4,7 +4,7 @@ import StaticRouteMap from './StaticRouteMap';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
-import { parseGpx } from '../../lib/gpx';
+import { parseGpx } from '../../lib/gpx/parse';
 import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import { findNearbyPhotos } from '../../lib/geo/photo-proximity';

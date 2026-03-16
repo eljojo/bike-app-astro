@@ -1,6 +1,6 @@
 import { getInstanceFeatures } from '../config/instance-features';
 import type { CurrentFiles } from './content-save';
-import { routeOps, eventOps, placeOps } from '../content-ops';
+import { routeOps, eventOps, placeOps } from './content-ops';
 
 export interface ContentTypeRoute {
   pattern: string;

@@ -4,7 +4,7 @@ import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
 import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
 import { mergeMedia } from '../../lib/media/media-merge';
-import { parseGpx } from '../../lib/gpx';
+import { parseGpx } from '../../lib/gpx/parse';
 import { env } from '../../lib/env/env.service';
 import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, CurrentFiles, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';

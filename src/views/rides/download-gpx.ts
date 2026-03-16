@@ -2,7 +2,7 @@ import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import { cityDir } from '../../lib/config/config';
-import { variantSlug, variantFilename, rideGpxPath, serveGpxFile } from '../../lib/gpx-download';
+import { variantSlug, variantFilename, rideGpxPath, serveGpxFile } from '../../lib/gpx/download';
 import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan';
 
 export const prerender = true;

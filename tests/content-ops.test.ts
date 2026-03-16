@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { routeOps, eventOps, placeOps } from '../src/lib/content-ops';
+import { routeOps, eventOps, placeOps } from '../src/lib/content/content-ops';
 
 describe('routeOps.getFilePaths', () => {
   it('returns primary index.md and auxiliary media.yml + translations', () => {

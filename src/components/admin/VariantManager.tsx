@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder } from '../../lib/hooks';
-import { extractRwgpsUrl } from '../../lib/gpx';
+import { extractRwgpsUrl } from '../../lib/gpx/parse';
 import { slugify } from '../../lib/slug';
 
 export interface VariantItem {

@@ -1,7 +1,7 @@
 import { getCollection } from 'astro:content';
 import { isPublished } from './content/content-filters';
 import { elevationTags, getAllElevations } from './geo/elevation';
-import { toPlaceData } from './places';
+import { toPlaceData } from './geo/places';
 import { scoreRoute } from './difficulty';
 import { routeShape } from './route-insights';
 import { buildSimilarityMatrix } from './route-similarity';

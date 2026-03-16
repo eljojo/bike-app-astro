@@ -8,13 +8,14 @@ Service modules, adapters, and utilities organized into domain directories. This
 |-----------|---------|
 | `auth/` | Authentication (WebAuthn/passkeys), authorization policies, session management, rate limiting, ban service |
 | `config/` | Build-time configuration (`CITY`, `CONTENT_DIR`), city config from YAML, instance features, `AppEnv` type |
-| `content/` | Content save pipeline (`SaveHandlers<T>`), D1 cache overlay, admin content loading, file serializers |
+| `content/` | Content save pipeline (`SaveHandlers<T>`), D1 cache overlay, admin content loading, file serializers, shared `ContentOps` implementations |
 | `env/` | Runtime environment resolution — Cloudflare bindings (prod) or local adapters (dev), Astro adapter selection |
 | `external/` | Third-party service wrappers: Strava API, email (SES), Google Maps KML, Plausible analytics |
-| `geo/` | Geographic calculations: haversine distance, elevation profiles, place/photo proximity, privacy zones |
+| `geo/` | Geographic calculations: haversine distance, elevation profiles, place/photo proximity, privacy zones, place data helpers, place category definitions |
+| `gpx/` | GPX XML parsing, GPX download helpers, waypoint injection into GPX files |
 | `git/` | Git operations: GitHub REST API adapter, local git adapter, LFS uploads, GPX commit helper |
 | `i18n/` | Locale utilities, URL path segment translations, tag translations, locale switcher |
-| `maps/` | MapLibre initialization, style switching, polyline/marker rendering, map thumbnails, static map URLs |
+| `maps/` | MapLibre initialization, style switching, polyline/marker rendering, map thumbnails, static map URLs, tile proxy helpers |
 | `markdown/` | Markdown-to-HTML rendering with sanitization, preview text extraction |
 | `media/` | Media pipeline: R2/local storage, image dimensions, EXIF extraction, video transcoding, photo registry |
 | `tile-cache/` | Map tile caching with adapter pattern: KV store (prod) or local filesystem (dev) |
@@ -24,20 +25,15 @@ Service modules, adapters, and utilities organized into domain directories. This
 Files that remain at `src/lib/` root — shared utilities, helpers, and cross-cutting concerns:
 
 - `api-response.ts` — `jsonResponse()`, `jsonError()` helpers for API endpoints
-- `content-ops.ts` — shared `ContentOps` implementations (route, event, place) for file paths, hashing, cache building
 - `csp.ts` — Content Security Policy header construction
 - `date-utils.ts` — date formatting and comparison helpers
 - `difficulty.ts` — route difficulty scoring
 - `fonts.ts` — font preload URLs (build-time transformed)
 - `format.ts` — number/unit formatting
 - `get-db.ts` — database connection factory (vendor isolation boundary)
-- `gpx.ts` — GPX XML parsing
-- `gpx-waypoint-inject.ts` — inject waypoints into GPX files
 - `hooks.ts` — Preact hook utilities
 - `json-ld.ts` — structured data for SEO
 - `paths.ts` — URL path construction helpers
-- `place-categories.ts` — place category definitions and emoji mapping
-- `places.ts` — place data helpers
 - `reaction-types.ts` — reaction type definitions
 - `redirects.ts`, `slug-redirects.ts`, `tour-redirects.ts` — redirect map builders
 - `ride-filters.ts`, `ride-paths.ts` — ride list filtering and path helpers
@@ -46,7 +42,6 @@ Files that remain at `src/lib/` root — shared utilities, helpers, and cross-cu
 - `route-similarity.ts` — route similarity scoring
 - `sitemap.ts` — sitemap XML generation
 - `slug.ts`, `clean-slug-name.ts` — slug sanitization
-- `tile-proxy-helpers.ts` — tile proxy URL validation
 - `toast.ts` — client-side toast notifications
 - `username.ts` — username sanitization
 

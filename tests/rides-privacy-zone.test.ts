@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../src/lib/geo/privacy-zone';
-import { buildTrackFromPoints, type GpxPoint } from '../src/lib/gpx';
+import { buildTrackFromPoints, type GpxPoint } from '../src/lib/gpx/parse';
 
 /**
  * Tests for privacy zone integration with GpxPoint (lon) → privacy zone (lng) mapping.

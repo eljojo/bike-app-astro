@@ -26,7 +26,7 @@ vi.mock('../src/lib/media/media-merge', () => ({
   mergeMedia: (incoming: unknown[], _existing: unknown[]) => incoming,
 }));
 
-vi.mock('../src/lib/gpx', () => ({
+vi.mock('../src/lib/gpx/parse', () => ({
   parseGpx: () => ({ points: [{ lat: 0, lon: 0 }, { lat: 1, lon: 1 }] }),
 }));
 

@@ -16,7 +16,7 @@ import { useDragDrop } from '../../lib/hooks';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
-import { extractRideDate, parseGpx } from '../../lib/gpx';
+import { extractRideDate, parseGpx } from '../../lib/gpx/parse';
 import { computeElevationProfile } from '../../lib/geo/elevation-profile';
 import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 import TourPicker from './TourPicker';

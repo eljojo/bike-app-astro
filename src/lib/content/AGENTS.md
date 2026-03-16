@@ -29,4 +29,4 @@ Content save pipeline, D1 cache overlay, admin content loading, and file seriali
 - `src/views/api/route-save.ts`, `ride-save.ts`, `event-save.ts`, `place-save.ts` — implement `SaveHandlers` per content type
 - `src/lib/models/` — `fromCache()` functions that parse D1 cache entries
 - `git/` — `content-save.ts` creates git services via the factory
-- `content-ops.ts` (root) — shared `ContentOps` for file paths, hashing, and cache building
+- `content-ops.ts` — shared `ContentOps` for file paths, hashing, and cache building (in this directory)

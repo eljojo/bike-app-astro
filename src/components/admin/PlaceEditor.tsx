@@ -6,7 +6,7 @@ import { useFormValidation } from './useFormValidation';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
-import { categoryEmoji } from '../../lib/place-categories';
+import { categoryEmoji } from '../../lib/geo/place-categories';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
