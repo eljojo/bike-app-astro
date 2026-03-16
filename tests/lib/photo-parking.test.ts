@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/media/photo-parking';
 import type { PhotoKeyChange } from '../../src/lib/content/save-helpers';
 import { CITY } from '../../src/lib/config/config';
@@ -7,23 +9,15 @@ import { CITY } from '../../src/lib/config/config';
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- mock definition
 vi.mock('../../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
+// Shared mock DB variable — defaults to fake chain for parkOrphanedPhoto tests,
+// swapped to real SQLite for updatePhotoRegistryCache tests.
 const mockDbGet = vi.fn(() => null);
-const mockOnConflictDoUpdate = vi.fn();
+let mockDbInstance: any = {
+  select: () => ({ from: () => ({ where: () => ({ get: () => mockDbGet() }) }) }),
+  insert: () => ({ values: () => ({ onConflictDoUpdate: vi.fn() }) }),
+};
 vi.mock('../../src/lib/get-db', () => ({
-  db: () => ({
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          get: () => mockDbGet(),
-        }),
-      }),
-    }),
-    insert: () => ({
-      values: () => ({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      }),
-    }),
-  }),
+  db: () => mockDbInstance,
 }));
 
 describe('extractFrontmatterField', () => {
@@ -114,58 +108,87 @@ describe('parkOrphanedPhoto', () => {
 });
 
 describe('updatePhotoRegistryCache', () => {
-  beforeEach(() => {
+  const dbPath = path.join(import.meta.dirname, '.test-photo-parking.db');
+  let database: any;
+
+  beforeEach(async () => {
     vi.clearAllMocks();
-    mockDbGet.mockReturnValue(null);
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    const { createLocalDb } = await import('../../src/db/local');
+    database = createLocalDb(dbPath);
+    // Point the get-db mock at the real database so loadSharedKeysMap resolves
+    mockDbInstance = database;
   });
 
-  it('updates shared-keys cache for key changes', async () => {
+  afterAll(() => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    // Restore the fake chain for any subsequent test modules
+    mockDbInstance = {
+      select: () => ({ from: () => ({ where: () => ({ get: () => mockDbGet() }) }) }),
+      insert: () => ({ values: () => ({ onConflictDoUpdate: vi.fn() }) }),
+    };
+  });
+
+  it('writes shared-keys to cache when keys change', async () => {
     const changes: PhotoKeyChange[] = [
       { key: 'new-key', usage: { type: 'place', slug: 'test' }, action: 'add' },
     ];
 
-    const database = {
-      select: () => ({ from: () => ({ where: () => ({ get: () => mockDbGet() }) }) }),
-      insert: () => ({ values: () => ({ onConflictDoUpdate: mockOnConflictDoUpdate }) }),
-    };
-
     await updatePhotoRegistryCache({
-      database: database as any,
+      database,
       sharedKeysData: {},
       keyChanges: changes,
     });
 
-    expect(mockOnConflictDoUpdate).toHaveBeenCalled();
+    const { contentEdits } = await import('../../src/db/schema');
+    const { eq, and } = await import('drizzle-orm');
+    const row = await database.select().from(contentEdits)
+      .where(and(
+        eq(contentEdits.contentType, 'photo-shared-keys'),
+        eq(contentEdits.contentSlug, '__global'),
+      )).get();
+
+    expect(row).toBeTruthy();
+    const parsed = JSON.parse(row.data);
+    expect(parsed['new-key']).toBeDefined();
   });
 
-  it('updates parked-photos cache when mergedParked provided', async () => {
-    const database = {
-      select: () => ({ from: () => ({ where: () => ({ get: () => mockDbGet() }) }) }),
-      insert: () => ({ values: () => ({ onConflictDoUpdate: mockOnConflictDoUpdate }) }),
-    };
-
+  it('writes parked-photos when mergedParked provided', async () => {
     await updatePhotoRegistryCache({
-      database: database as any,
+      database,
       sharedKeysData: {},
       keyChanges: [],
       mergedParked: [{ key: 'parked-1' }],
     });
 
-    expect(mockOnConflictDoUpdate).toHaveBeenCalled();
+    const { contentEdits } = await import('../../src/db/schema');
+    const { eq, and } = await import('drizzle-orm');
+    const row = await database.select().from(contentEdits)
+      .where(and(
+        eq(contentEdits.contentType, 'parked-photos'),
+        eq(contentEdits.contentSlug, '__global'),
+      )).get();
+
+    expect(row).toBeTruthy();
+    const parsed = JSON.parse(row.data);
+    expect(parsed).toEqual([{ key: 'parked-1' }]);
   });
 
-  it('skips shared-keys update when no changes', async () => {
-    const database = {
-      select: () => ({ from: () => ({ where: () => ({ get: () => mockDbGet() }) }) }),
-      insert: () => ({ values: () => ({ onConflictDoUpdate: mockOnConflictDoUpdate }) }),
-    };
-
+  it('skips writes when no changes and no parked', async () => {
     await updatePhotoRegistryCache({
-      database: database as any,
+      database,
       sharedKeysData: {},
       keyChanges: [],
     });
 
-    expect(mockOnConflictDoUpdate).not.toHaveBeenCalled();
+    const { contentEdits } = await import('../../src/db/schema');
+    const rows = await database.select().from(contentEdits);
+    expect(rows).toHaveLength(0);
   });
 });
