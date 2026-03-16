@@ -1,6 +1,7 @@
 import { inArray } from 'drizzle-orm';
 import { videoJobs } from '../../db/schema';
 import { buildVideoMetadata } from './video-metadata';
+import { bareVideoKey } from './video-service';
 import type { Database } from '../../db/index';
 
 /**
@@ -12,7 +13,7 @@ export async function enrichMediaFromVideoJobs<T extends { key: string; type?: s
   media: T[],
   database: Database,
 ): Promise<{ enrichedMedia: T[]; consumedKeys: string[] }> {
-  const videoKeys = media.filter(m => m.type === 'video').map(m => m.key);
+  const videoKeys = media.filter(m => m.type === 'video').map(m => bareVideoKey(m.key));
   if (videoKeys.length === 0) return { enrichedMedia: media, consumedKeys: [] };
 
   const rows = await database.select().from(videoJobs)
@@ -27,7 +28,7 @@ export async function enrichMediaFromVideoJobs<T extends { key: string; type?: s
 
   const enrichedMedia = media.map(item => {
     if (item.type !== 'video') return item;
-    const metadata = metadataByKey.get(item.key);
+    const metadata = metadataByKey.get(bareVideoKey(item.key));
     if (!metadata) return item;
     return { ...item, ...metadata } as T;
   });

@@ -26,6 +26,7 @@ interface Props {
   initialData: RideDetail & { contentHash?: string; isNew?: boolean; gpxRelativePath?: string };
   cdnUrl: string;
   videosCdnUrl?: string;
+  videoPrefix?: string;
   userRole?: string;
   mapThumbnail?: string;
   rideLabels?: Record<string, string>;
@@ -33,7 +34,7 @@ interface Props {
   stravaConnected?: boolean;
 }
 
-export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
+export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -393,6 +394,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, userRole
               onChange={setMedia}
               cdnUrl={cdnUrl}
               videosCdnUrl={videosCdnUrl}
+              videoPrefix={videoPrefix}
               pendingFiles={pendingFiles}
               onPendingProcessed={() => setPendingFiles([])}
               userRole={userRole}

@@ -23,6 +23,7 @@ import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
 import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../lib/media/video-enrichment';
+import { videoKeyForGit } from '../../lib/media/video-service';
 import { db } from '../../lib/get-db';
 
 export const prerender = false;
@@ -206,9 +207,13 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
       const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(update.media, database);
       consumedVideoKeys = consumedKeys;
 
-      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, enrichedMedia));
+      const annotatedMedia = enrichedMedia.map(item =>
+        item.type === 'video' ? { ...item, key: videoKeyForGit(item.key) } : item
+      );
 
-      const merged = mergeMedia(enrichedMedia, existingMedia);
+      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, annotatedMedia));
+
+      const merged = mergeMedia(annotatedMedia, existingMedia);
       if (merged.length > 0) {
         files.push({ path: `${basePath}/media.yml`, content: serializeYamlFile(merged) });
       }

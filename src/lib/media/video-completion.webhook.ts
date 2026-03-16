@@ -8,6 +8,7 @@ import { db } from '../get-db';
 import { serializeYamlFile } from '../content/file-serializers';
 import { upsertContentCache } from '../content/cache';
 import { buildVideoMetadata } from './video-metadata';
+import { bareVideoKey } from './video-service';
 import { computeBlobSha } from '../git/git-utils';
 import { rideFilePathsFromRelPath, deriveGpxRelativePath } from '../ride-paths';
 import { rideDetailFromCache } from '../models/ride-model';
@@ -70,7 +71,7 @@ export async function persistVideoMetadataToGit(
     return { persisted: false, reason: 'Invalid media.yml' };
   }
 
-  const videoIndex = mediaEntries.findIndex(e => e.key === videoKey);
+  const videoIndex = mediaEntries.findIndex(e => bareVideoKey(e.key as string) === videoKey);
   if (videoIndex === -1) {
     return { persisted: false, reason: 'Video key not found in media.yml' };
   }
@@ -102,7 +103,7 @@ export async function persistVideoMetadataToGit(
     try {
       const cachedData = JSON.parse(cached.data);
       if (cachedData.media && Array.isArray(cachedData.media)) {
-        const cachedVideoIndex = cachedData.media.findIndex((e: Record<string, unknown>) => e.key === videoKey);
+        const cachedVideoIndex = cachedData.media.findIndex((e: Record<string, unknown>) => bareVideoKey(e.key as string) === videoKey);
         if (cachedVideoIndex !== -1) {
           cachedData.media[cachedVideoIndex] = { ...cachedData.media[cachedVideoIndex], ...metadata };
           await upsertContentCache(database, {

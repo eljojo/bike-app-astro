@@ -12,8 +12,8 @@
  * To swap providers: replace these functions with equivalents that
  * return video source arrays for your transcoding/storage service.
  */
-import { getCityConfig } from '../config/city-config';
-import { VIDEO_PREFIX } from '../config/config';
+import { getCityConfig, isBlogInstance } from '../config/city-config';
+import { CITY, VIDEO_PREFIX } from '../config/config';
 
 const VIDEOS_CDN = getCityConfig().videos_cdn_url;
 
@@ -22,20 +22,47 @@ interface VideoSource {
   type: string;
 }
 
-export function videoPlaybackSources(blobKey: string): VideoSource[] {
-  const base = `${VIDEOS_CDN}/${VIDEO_PREFIX}/${blobKey}/${blobKey}`;
+/** Extract the bare 8-char key, stripping any prefix. Idempotent. */
+export function bareVideoKey(key: string): string {
+  const idx = key.indexOf('/');
+  return idx !== -1 ? key.slice(idx + 1) : key;
+}
+
+/** Resolve a key to its R2 path prefix and bare key. */
+export function resolveVideoPath(key: string): { prefix: string; bareKey: string } {
+  const slashIdx = key.indexOf('/');
+  if (slashIdx !== -1) {
+    return { prefix: key.slice(0, slashIdx), bareKey: key.slice(slashIdx + 1) };
+  }
+  const prefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
+  return { prefix, bareKey: key };
+}
+
+/** Format a key for storage in media.yml. Idempotent — safe to call on already-annotated keys. */
+export function videoKeyForGit(key: string): string {
+  const bare = bareVideoKey(key);
+  if (isBlogInstance()) return bare;
+  if (VIDEO_PREFIX !== CITY) return `${VIDEO_PREFIX}/${bare}`;
+  return bare;
+}
+
+export function videoPlaybackSources(key: string): VideoSource[] {
+  const { prefix, bareKey } = resolveVideoPath(key);
+  const base = `${VIDEOS_CDN}/${prefix}/${bareKey}/${bareKey}`;
   return [
     { src: `${base}.m3u8`, type: 'application/vnd.apple.mpegurl' },
     { src: `${base}-h264.mp4`, type: 'video/mp4' },
   ];
 }
 
-export function videoFallbackUrl(blobKey: string): string {
-  return `${VIDEOS_CDN}/${VIDEO_PREFIX}/${blobKey}/${blobKey}-h264.mp4`;
+export function videoFallbackUrl(key: string): string {
+  const { prefix, bareKey } = resolveVideoPath(key);
+  return `${VIDEOS_CDN}/${prefix}/${bareKey}/${bareKey}-h264.mp4`;
 }
 
-export function videoPosterUrl(videoKey: string): string {
-  return `${VIDEOS_CDN}/${VIDEO_PREFIX}/${videoKey}/${videoKey}-poster.0000000.jpg`;
+export function videoPosterUrl(key: string): string {
+  const { prefix, bareKey } = resolveVideoPath(key);
+  return `${VIDEOS_CDN}/${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`;
 }
 
 export function videoDisplaySize(width: number, height: number): { width: number; height: number } {

@@ -6,8 +6,8 @@ import RideEditor from '../../components/admin/RideEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRideDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env/env.service';
-import { CITY } from '../../lib/config/config';
-import { getCityConfig } from '../../lib/config/city-config';
+import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
+import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 import { loadDetailPageData } from '../../lib/content/load-admin-content';
 import { rideDetailFromCache } from '../../lib/models/ride-model';
 import { t } from '@/i18n';
@@ -60,6 +60,7 @@ if (isNew) {
 
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const videosCdnUrl = getCityConfig().videos_cdn_url;
+const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const title = isNew ? 'New Ride' : `Edit: ${rideData.name}`;
 const locale = Astro.currentLocale;
 const rideLabels = {
@@ -95,7 +96,7 @@ try {
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} userRole={Astro.locals.user?.role} rideLabels={rideLabels} tours={tours} stravaConnected={stravaConnected} />
+  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} rideLabels={rideLabels} tours={tours} stravaConnected={stravaConnected} />
   {slug && (
     <EditHistory client:load contentPath={contentPath} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
   )}

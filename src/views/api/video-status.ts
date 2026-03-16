@@ -6,8 +6,8 @@ import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { authorize } from '../../lib/auth/authorize';
-import { videoFallbackUrl } from '../../lib/media/video-service';
-import { posterKeyForVideo } from '../../lib/media/video-completion';
+import { h264OutputKey, posterKeyForVideo } from '../../lib/media/video-completion';
+import { getCityConfig } from '../../lib/config/city-config';
 
 export async function GET({ params, locals }: APIContext) {
   const auth = authorize(locals, 'upload-media');
@@ -26,7 +26,8 @@ export async function GET({ params, locals }: APIContext) {
 
   // Self-healing: if webhook was missed, check videos CDN for transcoded output
   try {
-    const h264Url = videoFallbackUrl(key);
+    const videosCdn = getCityConfig().videos_cdn_url;
+    const h264Url = `${videosCdn}/${h264OutputKey(key)}`;
     const res = await fetch(h264Url, { method: 'HEAD' });
     if (res.ok) {
       const posterKey = posterKeyForVideo(key);

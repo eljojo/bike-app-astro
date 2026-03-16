@@ -26,9 +26,10 @@ interface Props {
   onParkPhoto?: (photo: MediaItem) => void;
   contentSlug?: string;
   contentKind?: string;
+  videoPrefix?: string;
 }
 
-export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind }: Props) {
+export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind, videoPrefix }: Props) {
   const fileUpload = useFileUpload();
 
   const handleVideoReady = useCallback((key: string, metadata: Record<string, unknown>) => {
@@ -59,7 +60,12 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
       return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${item.poster_key}`;
     }
     const base = videosCdnUrl || cdnUrl;
-    return `${base}/${item.key}/${item.key}-poster.0000000.jpg`;
+    const slashIdx = item.key.indexOf('/');
+    const prefix = slashIdx !== -1 ? item.key.slice(0, slashIdx) : (videoPrefix || '');
+    const bareKey = slashIdx !== -1 ? item.key.slice(slashIdx + 1) : item.key;
+    return prefix
+      ? `${base}/${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`
+      : `${base}/${bareKey}/${bareKey}-poster.0000000.jpg`;
   }
 
   function updateTitle(idx: number, title: string) {
