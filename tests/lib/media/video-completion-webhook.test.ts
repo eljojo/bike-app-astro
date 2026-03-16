@@ -169,4 +169,72 @@ describe('persistVideoMetadataToGit', () => {
     expect(result.persisted).toBe(true);
     expect(mockWriteFiles).toHaveBeenCalledOnce();
   });
+
+  it('updates D1 cache when cached entry exists with matching video', async () => {
+    const { upsertContentCache } = await import('../../../src/lib/content/cache');
+    mockReadFile.mockResolvedValue({
+      content: '- key: abc12345\n  type: video\n',
+      sha: 'sha-old',
+    });
+    findCacheResult = {
+      data: JSON.stringify({
+        media: [{ key: 'abc12345', type: 'video' }],
+      }),
+    };
+    const result = await persistVideoMetadataToGit('abc12345');
+    expect(result.persisted).toBe(true);
+    expect(upsertContentCache).toHaveBeenCalled();
+  });
+
+  it('skips D1 cache update when no cached entry exists', async () => {
+    const { upsertContentCache } = await import('../../../src/lib/content/cache');
+    mockReadFile.mockResolvedValue({
+      content: '- key: abc12345\n  type: video\n',
+      sha: 'sha-old',
+    });
+    findCacheResult = null;
+    const result = await persistVideoMetadataToGit('abc12345');
+    expect(result.persisted).toBe(true);
+    expect(upsertContentCache).not.toHaveBeenCalled();
+  });
+
+  it('resolves ride media path from D1 cache for ride content kind', async () => {
+    findJobResult = { ...mockJobRow, contentKind: 'ride', contentSlug: 'morning-ride' };
+    // D1 cache for rides must have ride_date and variants for path resolution
+    findCacheResult = {
+      data: JSON.stringify({
+        ride_date: '2026-03-15',
+        variants: [{ gpx: '15-morning-ride.gpx' }],
+        media: [{ key: 'abc12345', type: 'video' }],
+      }),
+    };
+    mockReadFile.mockResolvedValue({
+      content: '- key: abc12345\n  type: video\n',
+      sha: 'sha-old',
+    });
+    const result = await persistVideoMetadataToGit('abc12345');
+    expect(result.persisted).toBe(true);
+    // Should have resolved ride media path via deriveGpxRelativePath
+    const [files] = mockWriteFiles.mock.calls[0];
+    expect(files[0].path).toContain('rides/');
+    expect(files[0].path).toContain('-media.yml');
+  });
+
+  it('returns not persisted when ride cache is missing', async () => {
+    findJobResult = { ...mockJobRow, contentKind: 'ride', contentSlug: 'missing-ride' };
+    findCacheResult = null;
+    const result = await persistVideoMetadataToGit('abc12345');
+    expect(result.persisted).toBe(false);
+    expect(result.reason).toContain('Could not resolve media path');
+  });
+
+  it('returns not persisted when media.yml is empty array', async () => {
+    mockReadFile.mockResolvedValue({
+      content: '[]',
+      sha: 'sha-old',
+    });
+    const result = await persistVideoMetadataToGit('abc12345');
+    expect(result.persisted).toBe(false);
+    expect(result.reason).toContain('not found in media.yml');
+  });
 });
