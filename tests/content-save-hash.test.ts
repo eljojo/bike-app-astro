@@ -1,26 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { createHash } from 'node:crypto';
+import { computeBlobSha } from '../src/lib/git/git-utils';
 
-/** Compute a git blob SHA (same as GitHub's Contents API returns). */
-function computeBlobSha(content: string): string {
-  return createHash('sha1')
-    .update(`blob ${Buffer.byteLength(content)}\0${content}`)
-    .digest('hex');
-}
+describe('computeBlobSha', () => {
+  it('matches git hash-object output', () => {
+    // Verified via: echo -n "hello" | git hash-object --stdin
+    expect(computeBlobSha('hello')).toBe('b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0');
+  });
 
-describe('git blob SHA computation', () => {
-  it('computes the same SHA that git would for a file', () => {
+  it('handles content with newlines (typical frontmatter)', () => {
     const content = '---\nname: Test\n---\n\nHello world\n';
     const sha = computeBlobSha(content);
-    // SHA-1 is 40 hex chars
     expect(sha).toMatch(/^[0-9a-f]{40}$/);
-    // Same content always produces same SHA
+    // Deterministic
     expect(computeBlobSha(content)).toBe(sha);
   });
 
   it('different content produces different SHA', () => {
-    const sha1 = computeBlobSha('content A');
-    const sha2 = computeBlobSha('content B');
-    expect(sha1).not.toBe(sha2);
+    expect(computeBlobSha('A')).not.toBe(computeBlobSha('B'));
   });
 });

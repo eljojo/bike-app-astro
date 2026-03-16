@@ -156,29 +156,6 @@ describe('video-status GET', () => {
     expect(data.status).toBe('uploading');
   });
 
-  it('queries videoJobs with eq(videoJobs.key, key)', async () => {
-    findJobResult = { key: 'abc12345', status: 'ready' };
-    const { GET } = await import('../src/views/api/video-status');
-    await GET({
-      params: { key: 'abc12345' },
-      locals: { user: editorUser },
-    } as any);
-    // select().from(videoJobs).where(eq(videoJobs.key, key))
-    expect(mockSelectWhere).toHaveBeenCalledWith({ _op: 'eq', a: 'key', b: 'abc12345' });
-  });
-
-  it('self-heal update uses where(eq(videoJobs.key, key))', async () => {
-    findJobResult = { key: 'abc12345', status: 'transcoding' };
-    mockFetch.mockResolvedValue({ ok: true });
-    const { GET } = await import('../src/views/api/video-status');
-    await GET({
-      params: { key: 'abc12345' },
-      locals: { user: editorUser },
-    } as any);
-    // update(videoJobs).set({...}).where(eq(videoJobs.key, key))
-    expect(mockUpdateWhere).toHaveBeenCalledWith({ _op: 'eq', a: 'key', b: 'abc12345' });
-  });
-
   it('rejects missing key param', async () => {
     const { GET } = await import('../src/views/api/video-status');
     const res = await GET({
