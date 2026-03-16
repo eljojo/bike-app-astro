@@ -29,6 +29,7 @@
  */
 
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
@@ -831,6 +832,21 @@ export async function configureSippy(r2BucketName, outputsBucket, region, accoun
 
 export function setWranglerSecret(name, value, wranglerEnv, { force = false } = {}) {
   const envArg = wranglerEnv ? `--env ${wranglerEnv}` : '';
+
+  // Skip if the binding is already defined as a var in wrangler.jsonc
+  // (vars and secrets share the same namespace — Cloudflare rejects duplicates)
+  try {
+    const raw = readFileSync('wrangler.jsonc', 'utf-8');
+    const stripped = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const config = JSON.parse(stripped);
+    const vars = wranglerEnv
+      ? config.env?.[wranglerEnv]?.vars || {}
+      : config.vars || {};
+    if (name in vars) {
+      logSkip(`${name} (set as var in wrangler.jsonc)`);
+      return;
+    }
+  } catch { /* no wrangler.jsonc or parse error — continue */ }
 
   if (!force) {
     try {
