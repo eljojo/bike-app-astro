@@ -21,7 +21,9 @@ describe('parseGpx', () => {
 
   it('computes distance in meters', () => {
     const track = parseGpx(SAMPLE_GPX);
-    expect(track.distance_m).toBeGreaterThan(0);
+    // 3 points ~1 km apart each ≈ 2.7 km total
+    expect(track.distance_m).toBeGreaterThan(2500);
+    expect(track.distance_m).toBeLessThan(3000);
   });
 
   it('computes elevation gain', () => {
@@ -31,8 +33,8 @@ describe('parseGpx', () => {
 
   it('generates encoded polyline', () => {
     const track = parseGpx(SAMPLE_GPX);
-    expect(track.polyline).toBeTruthy();
-    expect(typeof track.polyline).toBe('string');
+    expect(track.polyline).toBeTypeOf('string');
+    expect(track.polyline.length).toBeGreaterThan(10);
   });
 
   it('handles empty GPX gracefully', () => {
@@ -227,9 +229,9 @@ describe('parseGpx time fields', () => {
   it('computes average_speed_kmh from distance and moving time', () => {
     const track = parseGpx(TIMED_GPX);
     // distance is ~2.8 km over 60s of moving time
-    expect(track.average_speed_kmh).toBeGreaterThan(50);
-    // Sanity: should be less than 300 km/h
-    expect(track.average_speed_kmh).toBeLessThan(300);
+    // ~2.7 km in 60s ≈ 163 km/h (unrealistic but correct for the test data)
+    expect(track.average_speed_kmh).toBeGreaterThan(150);
+    expect(track.average_speed_kmh).toBeLessThan(180);
   });
 
   it('returns 0 for all time fields when no timestamps', () => {
