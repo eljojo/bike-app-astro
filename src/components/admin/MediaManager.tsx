@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
+import { formatIsoDuration } from '../../lib/date-utils';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem & {
@@ -9,15 +10,7 @@ export type MediaItem = AdminMediaItem & {
   posterChecked?: boolean;
 };
 
-function formatDuration(iso: string): string {
-  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return '';
-  const h = parseInt(match[1] || '0');
-  const m = parseInt(match[2] || '0');
-  const s = parseInt(match[3] || '0');
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
+
 
 interface Props {
   media: MediaItem[];
@@ -347,7 +340,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
                   placeholder="Video title"
                   onInput={(e) => updateTitle(idx, (e.target as HTMLInputElement).value)}
                 />
-                {item.duration && <span class="video-duration">{formatDuration(item.duration)}</span>}
+                {item.duration && <span class="video-duration">{formatIsoDuration(item.duration)}</span>}
               </div>
             ) : (
               <input

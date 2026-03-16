@@ -64,6 +64,24 @@ export function formatDuration(seconds: number): string {
   return `${h}h${m.toString().padStart(2, '0')}m`;
 }
 
+/** Format seconds as duration with spaces — "2h 5m" or "5m". */
+export function formatDurationLoose(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** Format ISO 8601 duration (PT1H5M30S) as clock display — "1:05:30" or "5:30". */
+export function formatIsoDuration(iso: string): string {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return '';
+  const h = parseInt(match[1] || '0');
+  const m = parseInt(match[2] || '0');
+  const s = parseInt(match[3] || '0');
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 /** Format an ISO date string for admin UI (no time). */
 export function formatAdminDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-CA', {

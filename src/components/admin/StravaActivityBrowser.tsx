@@ -1,6 +1,7 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Shared Strava activity browser used by RideEditor (inline) and StravaImport (standalone).
 import { useState, useEffect } from 'preact/hooks';
+import { formatDurationLoose } from '../../lib/date-utils';
 
 export interface StravaActivity {
   id: number;
@@ -34,11 +35,6 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
 
 function formatDate(dateStr: string): string {
   try {
@@ -132,7 +128,7 @@ export default function StravaActivityBrowser({ onImport, onClose }: Props) {
                 </div>
                 <div class="strava-activity-card-meta">
                   <span>{formatDistance(activity.distance)}</span>
-                  <span>{formatDuration(activity.elapsed_time)}</span>
+                  <span>{formatDurationLoose(activity.elapsed_time)}</span>
                   <span class="strava-activity-type">{activity.sport_type}</span>
                   {activity.photo_count > 0 && <span>{activity.photo_count} photos</span>}
                 </div>
