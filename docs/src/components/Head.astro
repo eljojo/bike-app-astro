@@ -1,12 +1,12 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro';
-import { ViewTransitions } from 'astro:transitions';
+import { ClientRouter } from 'astro:transitions';
 
 const isProduction = import.meta.env.DOCS_ENV !== 'staging';
 ---
 
 <Default {...Astro.props}><slot /></Default>
-<ViewTransitions />
+<ClientRouter />
 {isProduction && <script>
   import { init } from '@plausible-analytics/tracker';
   init({ domain: 'whereto.bike', autoCapturePageviews: true });
