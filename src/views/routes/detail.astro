@@ -304,4 +304,5 @@ const breadcrumbs = breadcrumbJsonLd([
       <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
+  {videos.length > 0 && <script>import '@/lib/media/hls-player';</script>}
 </Base>
