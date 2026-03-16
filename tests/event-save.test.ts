@@ -195,21 +195,32 @@ describe('eventHandlers.buildFileChanges', () => {
     expect(paths).toContain(`${CITY}/events/2099/simple-event.md`);
   });
 
-  it('switches to directory when media added to flat event', async () => {
+  it('deletes flat file when migrating to directory on media addition', async () => {
     const update = {
       frontmatter: { name: 'Upgrading Event' },
       body: 'Description',
       media: [{ key: 'photo1' }],
     };
-    // primaryFile is null means the directory index.md doesn't exist.
-    // wasDirectory is based on primaryFile !== null.
+    // primaryFile is null (no index.md), but flat .md exists in auxiliaryFiles
+    // → resolveEffectivePrimary finds it, so isNew=false, wasDirectory=false
+    const currentFiles = {
+      primaryFile: null,
+      auxiliaryFiles: {
+        [`${CITY}/events/2099/upgrading.md`]: {
+          content: '---\nname: Upgrading Event\n---\nOld description',
+          sha: 'sha-flat',
+        },
+      },
+    };
     const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
     const result = await eventHandlers.buildFileChanges(
-      update, '2099/upgrading', { primaryFile: null }, mockGit as any,
+      update, '2099/upgrading', currentFiles, mockGit as any,
     );
     const paths = result.files.map(f => f.path);
-    // Media present → directory format
+    // Should create directory format files
     expect(paths).toContain(`${CITY}/events/2099/upgrading/index.md`);
     expect(paths).toContain(`${CITY}/events/2099/upgrading/media.yml`);
+    // Should delete the old flat file
+    expect(result.deletePaths).toContain(`${CITY}/events/2099/upgrading.md`);
   });
 });
