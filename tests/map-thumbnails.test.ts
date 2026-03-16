@@ -1,18 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { buildStaticMapUrl, variantKeyFromGpx, mapThumbPaths } from '../src/lib/maps/map-thumbnails';
+import { buildStaticMapUrl, mapThumbPaths } from '../src/lib/maps/map-thumbnails';
+import { variantKey } from '../src/lib/gpx/paths';
 import { gpxHash } from '../src/lib/maps/map-generation';
 
-describe('variantKeyFromGpx', () => {
+describe('variantKey', () => {
   it('extracts key from simple gpx filename', () => {
-    expect(variantKeyFromGpx('main.gpx')).toBe('main');
+    expect(variantKey('main.gpx')).toBe('main');
   });
 
   it('prefixes variants/ with variants-', () => {
-    expect(variantKeyFromGpx('variants/bike-days.gpx')).toBe('variants-bike-days');
+    expect(variantKey('variants/bike-days.gpx')).toBe('variants-bike-days');
   });
 
   it('handles nested variant paths', () => {
-    expect(variantKeyFromGpx('variants/normal-route.gpx')).toBe('variants-normal-route');
+    expect(variantKey('variants/normal-route.gpx')).toBe('variants-normal-route');
   });
 });
 

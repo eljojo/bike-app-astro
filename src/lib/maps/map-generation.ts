@@ -1,6 +1,6 @@
 /**
  * Node-only helpers for map thumbnail generation (used by scripts/generate-maps.ts).
- * Shared functions (mapThumbPaths, variantKeyFromGpx, buildStaticMapUrl) live in
+ * Shared functions (mapThumbPaths, buildStaticMapUrl) live in
  * map-paths.ts and are re-exported here for convenience.
  */
 import fs from 'node:fs';
@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { MAP_CACHE_DIR } from './map-paths';
 import path from 'node:path';
 
-export { mapThumbPaths, variantKeyFromGpx, buildStaticMapUrl, buildStaticMapUrlMulti } from './map-paths';
+export { mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti } from './map-paths';
 export type { MapThumbPaths } from './map-paths';
 
 export function gpxHash(gpxContent: string): string {

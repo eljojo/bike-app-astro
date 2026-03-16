@@ -11,7 +11,7 @@ MapLibre GL JS initialization, style management, polyline/marker rendering, and 
 | `map-style-url.ts` | Generated file (by `scripts/build-map-style.ts`) — exports content-hashed style JSON URLs. **Do not edit manually** |
 | `map-style-url.d.ts` | Type declaration for the generated style URL module |
 | `map-helpers.ts` | `html` tagged template literal with auto-escaping, `raw()` for pre-escaped HTML, `escapeHtml()`. `buildPlacePopup()`, `buildWaypointPopup()` — HTML popup builders for map markers |
-| `map-paths.ts` | Shared thumbnail helpers (no virtual module imports): `mapThumbPaths()`, `variantKeyFromGpx()`, `buildStaticMapUrl()`, `buildStaticMapUrlMulti()`. Used by both Astro app and generation scripts |
+| `map-paths.ts` | Shared thumbnail helpers (no virtual module imports): `mapThumbPaths()`, `buildStaticMapUrl()`, `buildStaticMapUrlMulti()`. Used by both Astro app and generation scripts. Variant key construction moved to `src/lib/gpx/paths.ts` |
 | `map-thumbnails.ts` | Runtime helpers that depend on virtual modules: `hasCachedMap()`, `cachedMapLocale()`. Re-exports from `map-paths.ts` |
 | `map-generation.ts` | Node-only helpers for `scripts/generate-maps.ts`: `gpxHash()`, `needsRegeneration()`. Re-exports shared functions from `map-paths.ts` |
 

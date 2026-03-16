@@ -6,9 +6,10 @@ import sharp from 'sharp';
 import { parseGpx } from '../src/lib/gpx/parse';
 import {
   mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
-  variantKeyFromGpx, gpxHash, hashPath,
+  gpxHash, hashPath,
   needsRegeneration,
 } from '../src/lib/maps/map-generation';
+import { variantKey } from '../src/lib/gpx/paths';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CONTENT_DIR, CITY } from '../src/lib/config/config';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
@@ -80,17 +81,17 @@ async function main() {
 
       for (let i = 0; i < variants.length; i++) {
         const variant = variants[i];
-        const variantKey = variantKeyFromGpx(variant.gpx);
+        const vKey = variantKey(variant.gpx);
         const gpxPath = path.join(routeDir, variant.gpx);
 
         if (!fs.existsSync(gpxPath)) {
-          console.log(`[maps] ${slug}/${variantKey}: no GPX, skipping`);
+          console.log(`[maps] ${slug}/${vKey}: no GPX, skipping`);
           continue;
         }
 
         const gpxContent = fs.readFileSync(gpxPath, 'utf-8');
         const hash = gpxHash(gpxContent);
-        const variantCacheKey = variantKey;
+        const variantCacheKey = vKey;
 
         for (const lang of languages) {
           const langPrefix = lang === defaultLang ? undefined : lang;
@@ -101,7 +102,7 @@ async function main() {
             continue;
           }
 
-          const label = langPrefix ? `${slug}/${variantKey} [${lang}]` : `${slug}/${variantKey}`;
+          const label = langPrefix ? `${slug}/${vKey} [${lang}]` : `${slug}/${vKey}`;
           console.log(`[maps] ${label}: generating...`);
 
           const track = parseGpx(gpxContent);

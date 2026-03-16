@@ -8,6 +8,7 @@ import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-seria
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx/parse';
 import { CITY } from '../../lib/config/config';
+import { routeGpxGitPath } from '../../lib/gpx/paths';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content/content-save';
@@ -140,7 +141,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
       for (const v of update.variants) {
         if (v.isNew && v.gpxContent) {
           files.push(await commitGpxFile({
-            path: `${basePath}/${v.gpx}`,
+            path: routeGpxGitPath(CITY, targetSlug, v.gpx),
             content: v.gpxContent,
             token: env.GITHUB_TOKEN,
             owner: env.GIT_OWNER,
@@ -156,7 +157,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
         const newGpxFiles = new Set(update.variants.map(v => v.gpx));
         for (const gpx of existingGpxFiles) {
           if (!newGpxFiles.has(gpx)) {
-            deletePaths.push(`${basePath}/${gpx}`);
+            deletePaths.push(routeGpxGitPath(CITY, targetSlug, gpx));
           }
         }
       }

@@ -29,10 +29,6 @@ export function mapThumbPaths(routeSlug: string, variantKey?: string, lang?: str
   };
 }
 
-export function variantKeyFromGpx(gpxFilename: string): string {
-  return gpxFilename.replace(/\.gpx$/, '').replace(/^variants\//, 'variants-');
-}
-
 /**
  * Split a list of points into continuous segments, breaking where consecutive
  * points are more than `maxGapKm` apart. Returns segments with 2+ points,

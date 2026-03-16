@@ -6,7 +6,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { getCollection } from 'astro:content';
 import { getAllElevations } from '@/lib/geo/elevation';
 import { paths } from '@/lib/paths';
-import { variantKeyFromGpx } from '@/lib/maps/map-thumbnails';
+import { variantKey as variantKeyFromGpx } from '@/lib/gpx/paths';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
 
 const config = getCityConfig();
