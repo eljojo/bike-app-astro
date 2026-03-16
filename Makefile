@@ -30,7 +30,7 @@ lint: ## Run ESLint checks
 test-e2e: map-style ## Build with CITY=demo, validate, then run Playwright screenshot tests
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
-	npx playwright test --config e2e/playwright.config.ts
+	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots)
 
 test-update: map-style ## Update screenshot baselines
 	CITY=demo npx astro build
@@ -39,13 +39,13 @@ test-update: map-style ## Update screenshot baselines
 full: test test-lambda typecheck lint test-e2e test-admin test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, club e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
-	npx playwright test --config e2e/admin/fixture.ts
+	npx playwright test --config e2e/admin/fixture.ts $(if $(CI),,--ignore-snapshots)
 
 test-blog: ## Run blog E2E tests (ride editor)
-	npx playwright test --config e2e/blog/fixture.ts
+	npx playwright test --config e2e/blog/fixture.ts $(if $(CI),,--ignore-snapshots)
 
 test-club: ## Run club E2E tests (events, results, waypoints)
-	npx playwright test --config e2e/club/fixture.ts
+	npx playwright test --config e2e/club/fixture.ts $(if $(CI),,--ignore-snapshots)
 
 screenshots: map-style ## Update all screenshot baselines (public + admin)
 	CITY=demo npx astro build
