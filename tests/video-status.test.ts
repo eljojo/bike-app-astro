@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { VIDEO_PREFIX } from '../src/lib/config/config';
 
 // --- Mocks ---
 
@@ -47,9 +48,7 @@ vi.mock('../src/lib/config/city-config', () => ({
 }));
 
 vi.mock('../src/lib/media/video-completion', () => ({
-  // Matches real pattern: ${VIDEO_PREFIX}/${key}/${key}-h264.mp4
-  // VIDEO_PREFIX defaults to CITY in non-blog instances
-  h264OutputKey: (key: string) => `ottawa/${key}/${key}-h264.mp4`,
+  h264OutputKey: (key: string) => `${VIDEO_PREFIX}/${key}/${key}-h264.mp4`,
 }));
 
 // Mock global fetch for CDN HEAD checks

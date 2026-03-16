@@ -25,10 +25,28 @@ export default {
     const options = context.options[0] || {};
     const checkLocales = options.checkLocales !== false; // default true
 
+    /** Check a string value for hardcoded city/locale and report on the given node. */
+    function checkStringValue(node, val, { skipFallbackCheck = false } = {}) {
+      const lower = val.toLowerCase();
+      const matchedCity = CITY_NAMES.find(c => lower === c || lower.startsWith(c + '/'));
+      if (matchedCity) {
+        if (!skipFallbackCheck) {
+          const p = node.parent;
+          if (p.type === 'LogicalExpression' && (p.operator === '||' || p.operator === '??') && p.right === node) {
+            context.report({ node, messageId: 'cityFallbackDefault', data: { value: matchedCity } });
+            return;
+          }
+        }
+        context.report({ node, messageId: 'hardcodedCity', data: { value: matchedCity } });
+      }
+      if (checkLocales && LOCALE_CODES.includes(lower) && val.length <= 2) {
+        context.report({ node, messageId: 'hardcodedLocale', data: { value: val } });
+      }
+    }
+
     return {
       Literal(node) {
         if (typeof node.value !== 'string') return;
-        const val = node.value.toLowerCase();
 
         // Skip import paths and template expressions
         if (node.parent.type === 'ImportDeclaration') return;
@@ -40,23 +58,23 @@ export default {
         // Skip type annotations and enums
         if (node.parent.type === 'TSLiteralType') return;
 
-        // Detect `X || 'ottawa'` or `X ?? 'ottawa'` — a city name used as fallback.
-        // This is dangerous because the fallback silently applies when the env var
-        // is unset (e.g. in Cloudflare Workers at runtime), causing content to be
-        // committed to the wrong directory.
-        // Check exact match OR city name used as path prefix (e.g. 'ottawa/rides/...')
-        const matchedCity = CITY_NAMES.find(c => val === c || val.startsWith(c + '/'));
-        if (matchedCity) {
-          const p = node.parent;
-          if (p.type === 'LogicalExpression' && (p.operator === '||' || p.operator === '??') && p.right === node) {
-            context.report({ node, messageId: 'cityFallbackDefault', data: { value: matchedCity } });
-            return;
+        checkStringValue(node, node.value);
+      },
+
+      TemplateLiteral(node) {
+        // Check each static segment of a template literal for city names.
+        // e.g. `ottawa/${key}` has quasis[0].value.raw === 'ottawa/'
+        for (const quasi of node.quasis) {
+          const raw = quasi.value.raw;
+          if (!raw) continue;
+          const lower = raw.toLowerCase();
+          const matchedCity = CITY_NAMES.find(c =>
+            lower === c || lower.startsWith(c + '/') || lower.endsWith('/' + c) ||
+            lower.includes('/' + c + '/'),
+          );
+          if (matchedCity) {
+            context.report({ node, messageId: 'hardcodedCity', data: { value: matchedCity } });
           }
-          context.report({ node, messageId: 'hardcodedCity', data: { value: matchedCity } });
-        }
-        // Only flag exact matches for locale codes (not substrings)
-        if (checkLocales && LOCALE_CODES.includes(val) && node.value.length <= 2) {
-          context.report({ node, messageId: 'hardcodedLocale', data: { value: node.value } });
         }
       },
     };
