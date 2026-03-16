@@ -66,7 +66,7 @@ interface RideBuildResult extends BuildResult {
  * Create ride save handlers. Returns a fresh instance per request
  * to safely capture gpxRelativePath from the parsed request body.
  */
-function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<RideBuildResult> {
+export function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<RideBuildResult> {
   let gpxRelPath: string | undefined;
 
   return {
