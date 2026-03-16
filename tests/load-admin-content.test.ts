@@ -68,6 +68,39 @@ describe('loadAdminContent', () => {
 
     expect(result.data).toEqual(cached);
   });
+
+  it('uses fromCache parser when provided', async () => {
+    const { z } = await import('astro/zod');
+    const schema = z.object({ slug: z.string(), name: z.string(), distance: z.number() });
+
+    const cached = { slug: 'test-slug', name: 'Parsed Route', distance: 42 };
+    mockDbGet.mockResolvedValue({ data: JSON.stringify(cached) });
+
+    const result = await loadAdminContent({
+      ...baseOpts,
+      fromCache: (blob: string) => schema.parse(JSON.parse(blob)),
+    });
+
+    expect(result.data).toEqual(cached);
+    expect(result.data).not.toEqual(virtualData['test-slug']);
+  });
+
+  it('falls back to virtual module when fromCache throws', async () => {
+    const { z } = await import('astro/zod');
+    // Schema requires 'distance' which the cached data lacks
+    const schema = z.object({ slug: z.string(), name: z.string(), distance: z.number() });
+
+    const cached = { slug: 'test-slug', name: 'Bad Cache' }; // missing required 'distance'
+    mockDbGet.mockResolvedValue({ data: JSON.stringify(cached) });
+
+    const result = await loadAdminContent({
+      ...baseOpts,
+      fromCache: (blob: string) => schema.parse(JSON.parse(blob)),
+    });
+
+    // Falls back to virtual module data since fromCache threw
+    expect(result.data).toEqual({ name: 'Virtual Route', slug: 'test-slug' });
+  });
 });
 
 describe('loadAdminContentList', () => {
