@@ -1,5 +1,8 @@
 import path from 'node:path';
 
+// Re-export browser-safe filename helpers (no node:path dependency).
+export { rideGpxFilename, routeVariantGpxPath } from './filenames';
+
 /** Git-relative path for a route's GPX file. */
 export function routeGpxGitPath(city: string, routeSlug: string, variantGpx: string): string {
   return `${city}/routes/${routeSlug}/${variantGpx}`;

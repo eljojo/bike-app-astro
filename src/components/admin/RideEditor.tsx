@@ -17,6 +17,7 @@ import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx/parse';
+import { rideGpxFilename } from '../../lib/gpx/filenames';
 import { computeElevationProfile } from '../../lib/geo/elevation-profile';
 import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 import TourPicker from './TourPicker';
@@ -88,8 +89,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
       }
       if (result.gpxContent) {
         const day = dateStr.split('-')[2] || '01';
-        const gpxFilename = `${day}-${slugify(result.name)}.gpx`;
-        setVariants([{ name: result.name, gpx: gpxFilename, isNew: true, gpxContent: result.gpxContent }]);
+        setVariants([{ name: result.name, gpx: rideGpxFilename(day, result.name), isNew: true, gpxContent: result.gpxContent }]);
       }
       if (result.photos?.length) {
         setMedia(result.photos.map((p: { key: string; caption: string; lat?: number; lng?: number }, i: number) => ({
@@ -160,12 +160,11 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
 
     const dateStr = result.start_date_local?.split('T')[0] || '';
     const day = dateStr.split('-')[2] || '01';
-    const gpxFilename = `${day}-${slugify(result.name)}.gpx`;
     if (dateStr && !rideDate) setRideDate(dateStr);
     setSlug(slugify(`${dateStr}-${result.name}`));
     setVariants([{
       name: result.name,
-      gpx: gpxFilename,
+      gpx: rideGpxFilename(day, result.name),
       isNew: true,
       gpxContent: result.gpxContent,
     }]);

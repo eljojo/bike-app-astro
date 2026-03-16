@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder } from '../../lib/hooks';
 import { extractRwgpsUrl } from '../../lib/gpx/parse';
-import { slugify } from '../../lib/slug';
+import { routeVariantGpxPath } from '../../lib/gpx/filenames';
 
 export interface VariantItem {
   name: string;
@@ -51,9 +51,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
 
-      const gpxFileName = variants.length === 0
-        ? 'main.gpx'
-        : `variants/${file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '-')}`;
+      const gpxFileName = routeVariantGpxPath(baseName, variants.length === 0);
 
       // Auto-detect RWGPS URL from GPX metadata
       const detectedRwgpsUrl = extractRwgpsUrl(content);
@@ -110,9 +108,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
       const isRwgps = sourceUrl.includes('ridewithgps.com');
       const isGoogleMaps = sourceUrl.includes('google.com/maps/d/');
 
-      const gpxFileName = variants.length === 0
-        ? 'main.gpx'
-        : `variants/${slugify(routeName)}.gpx`;
+      const gpxFileName = routeVariantGpxPath(routeName, variants.length === 0);
 
       onChange([...variants, {
         name: routeName,
