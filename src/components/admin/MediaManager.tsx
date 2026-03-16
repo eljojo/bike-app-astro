@@ -78,7 +78,8 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
   useEffect(() => {
     for (const item of media) {
       if (item.type === 'video' && !item.width && !item.videoStatus) {
-        fetch(`/api/video/status/${item.key}`)
+        const statusKey = item.key.includes('/') ? item.key.slice(item.key.indexOf('/') + 1) : item.key;
+        fetch(`/api/video/status/${statusKey}`)
           .then(res => res.ok ? res.json() : null)
           .then(data => {
             if (!data) return;

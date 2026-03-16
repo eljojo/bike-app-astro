@@ -138,6 +138,9 @@ export function useVideoUpload(
     const started = Date.now();
     pollStarts.current.set(key, started);
     let pollCount = 0;
+    // Status endpoint uses bare key (DB stores bare keys, route captures one segment)
+    const slashIdx = key.indexOf('/');
+    const statusKey = slashIdx !== -1 ? key.slice(slashIdx + 1) : key;
 
     function poll() {
       const interval = pollCount < 12 ? 5_000 : 15_000;
@@ -152,7 +155,7 @@ export function useVideoUpload(
         }
 
         try {
-          const res = await fetch(`/api/video/status/${key}`);
+          const res = await fetch(`/api/video/status/${statusKey}`);
           if (!res.ok) { poll(); return; }
           const data = await res.json();
 

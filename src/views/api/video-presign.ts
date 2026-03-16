@@ -97,7 +97,7 @@ export async function POST({ request, locals }: APIContext) {
       title: filename?.replace(/\.[^.]+$/, '') || undefined,
     });
 
-    return jsonResponse({ key, uploadUrl });
+    return jsonResponse({ key: s3Key, uploadUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return jsonError(message, 500);

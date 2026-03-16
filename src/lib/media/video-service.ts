@@ -39,15 +39,26 @@ export function resolveVideoPath(key: string): { prefix: string; bareKey: string
 }
 
 /**
- * Format a key for storage in media.yml. Only annotates bare keys.
- * Already-prefixed keys (containing '/') pass through unchanged —
- * stripping an existing prefix is destructive if the current config
- * doesn't match the environment where the video was uploaded.
+ * Format a key for storage in media.yml.
+ *
+ * Presign returns the full prefixed key (e.g. "montreal/abcdef" or
+ * "montreal-staging/abcdef"). This function decides whether to persist
+ * the prefix or strip it:
+ *
+ * - Production wiki (prefix === CITY): strip to bare "abcdef"
+ * - Staging wiki (prefix !== CITY): preserve "montreal-staging/abcdef"
+ * - Blog: strip to bare "abcdef"
+ * - Bare key (legacy data): pass through unchanged
  */
 export function videoKeyForGit(key: string): string {
-  if (key.includes('/')) return key;
-  if (isBlogInstance()) return key;
-  if (VIDEO_PREFIX !== CITY) return `${VIDEO_PREFIX}/${key}`;
+  const slashIdx = key.indexOf('/');
+  if (slashIdx === -1) return key;
+
+  const prefix = key.slice(0, slashIdx);
+  const bareKey = key.slice(slashIdx + 1);
+
+  if (isBlogInstance()) return bareKey;
+  if (prefix === CITY) return bareKey;
   return key;
 }
 

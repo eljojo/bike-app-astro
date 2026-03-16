@@ -83,7 +83,9 @@ describe('video-presign POST', () => {
     const res = await POST({ request: req, locals: { user: editorUser } } as any);
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.key).toBe('k3eovg6o');
+    // Presign must return the full prefixed key — the client needs it for
+    // status polling and the save handler needs it for correct git serialization.
+    expect(data.key).toBe(`${VIDEO_PREFIX}/k3eovg6o`);
     expect(data.uploadUrl).toBeDefined();
     // generateVideoKey checks the prefixed S3 path: ${VIDEO_PREFIX}/${key}
     expect(mockHeadObject).toHaveBeenCalledWith(`${VIDEO_PREFIX}/k3eovg6o`);
@@ -191,7 +193,7 @@ describe('video-presign POST', () => {
     const res = await POST({ request: req, locals: { user: editorUser } } as any);
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.key).toBe('unique99');
+    expect(data.key).toBe(`${VIDEO_PREFIX}/unique99`);
     // Both keys checked with VIDEO_PREFIX
     expect(mockHeadObject).toHaveBeenCalledWith(`${VIDEO_PREFIX}/collided1`);
     expect(mockHeadObject).toHaveBeenCalledWith(`${VIDEO_PREFIX}/unique99`);
