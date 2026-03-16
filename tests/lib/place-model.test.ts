@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePlaceContentHash, placeDetailFromGit, buildFreshPlaceData } from '../../src/lib/models/place-model';
+import { computePlaceContentHash, placeDetailFromGit, buildFreshPlaceData } from '../../src/lib/models/place-model.server';
 
 describe('place-model', () => {
   it('computes consistent content hash', () => {

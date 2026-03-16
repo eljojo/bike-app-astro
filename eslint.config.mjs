@@ -122,10 +122,7 @@ export default [
     // Temporary: these files will be renamed to .server.ts or split in subsequent tasks.
     // Remove entries as each file is migrated.
     files: [
-      'src/lib/models/route-model.ts',
-      'src/lib/models/event-model.ts',
-      'src/lib/models/place-model.ts',
-      'src/lib/models/ride-model.ts',
+      'src/lib/content/content-ops.ts',
       'src/lib/gpx/paths.ts',
       'src/lib/gpx/download.ts',
       'src/lib/content/build-plan.ts',

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { routeDetailFromGit, routeDetailToCache } from '../src/lib/models/route-model';
+import { routeDetailFromGit } from '../src/lib/models/route-model.server';
+import { routeDetailToCache } from '../src/lib/models/route-model';
 import { CITY } from '../src/lib/config/config';
 
 // --- Mocks for admin-revert endpoint ---

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import yaml from 'js-yaml';
-import { routeDetailFromGit } from '../../src/lib/models/route-model';
+import { routeDetailFromGit } from '../../src/lib/models/route-model.server';
 
 describe('routeDetailFromGit', () => {
   it('maps width and height from media.yml', () => {

@@ -9,9 +9,9 @@
 
 import { CITY } from '../config/config';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
-import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../models/route-model';
-import { buildFreshEventData, computeEventContentHashFromFiles } from '../models/event-model';
-import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../models/place-model';
+import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../models/route-model.server';
+import { buildFreshEventData, computeEventContentHashFromFiles } from '../models/event-model.server';
+import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../models/place-model.server';
 import type { ContentOps } from './content-types';
 
 export const routeOps: ContentOps = {

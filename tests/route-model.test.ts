@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  routeDetailFromGit,
   routeDetailToCache,
   routeDetailFromCache,
+} from '../src/lib/models/route-model';
+import {
+  routeDetailFromGit,
   computeRouteContentHash,
   computeRouteContentHashFromFiles,
   buildFreshRouteData,
-} from '../src/lib/models/route-model';
+} from '../src/lib/models/route-model.server';
 
 describe('routeDetailFromGit', () => {
   it('parses frontmatter, body, and photo-only media into canonical shape', () => {

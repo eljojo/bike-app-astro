@@ -18,7 +18,8 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { cityDir } from '../lib/config/config.server';
 import type { AdminEvent } from '../types/admin';
-import { eventDetailFromGit, computeEventContentHash, type EventDetail } from '../lib/models/event-model';
+import { eventDetailFromGit, computeEventContentHash } from '../lib/models/event-model.server';
+import type { EventDetail } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
 

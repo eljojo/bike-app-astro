@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { rideDetailFromCache, rideDetailToCache, computeRideContentHash } from '../src/lib/models/ride-model';
+import { rideDetailFromCache, rideDetailToCache } from '../src/lib/models/ride-model';
 import type { RideDetail } from '../src/lib/models/ride-model';
+import { computeRideContentHash } from '../src/lib/models/ride-model.server';
 
 const sampleDetail: RideDetail = {
   slug: '2026-01-23-winter-ride',
