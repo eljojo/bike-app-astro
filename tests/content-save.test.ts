@@ -265,3 +265,96 @@ describe('saveContent pipeline', () => {
     );
   });
 });
+
+// --- Permission stripping tests ---
+
+describe('saveContent permission stripping', () => {
+  const editorUser = { id: 'u3', username: 'editor', email: null, role: 'editor' as const, bannedAt: null };
+  const guestUser = { id: 'u4', username: 'guest-1234', email: null, role: 'guest' as const, bannedAt: null };
+
+  // Handlers that capture the update as seen by buildFileChanges
+  let capturedUpdate: Record<string, unknown> | null = null;
+
+  const capturingHandlers: SaveHandlers<Record<string, unknown>> = {
+    parseRequest: (b: unknown) => b as Record<string, unknown>,
+    resolveContentId: (params) => params.slug!,
+    getFilePaths: (slug) => ({ primary: `test/${slug}.md` }),
+    computeContentHash: () => 'hash',
+    buildFreshData: () => '{}',
+    async buildFileChanges(update, id, files) {
+      capturedUpdate = update;
+      return {
+        files: [{ path: `test/${id}.md`, content: 'test' }],
+        deletePaths: [],
+        isNew: !files.primaryFile,
+      };
+    },
+    buildCommitMessage: (_u, id) => `Update ${id}`,
+    buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/test/${id}.md`,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedUpdate = null;
+    mockReadFile.mockResolvedValue({ content: 'existing', sha: 'sha-old' });
+    mockGetResult.mockReturnValue({ githubSha: 'sha-old', data: '{}' });
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('admin user: status preserved in frontmatter', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test', status: 'draft' },
+      body: 'test',
+    });
+    await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.frontmatter).toMatchObject({ status: 'draft' });
+  });
+
+  it('editor user: status stripped from frontmatter', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test', status: 'draft' },
+      body: 'test',
+    });
+    await saveContent(req, { user: editorUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect((capturedUpdate?.frontmatter as Record<string, unknown>)?.status).toBeUndefined();
+  });
+
+  it('guest user: status stripped from frontmatter', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test', status: 'published' },
+      body: 'test',
+    });
+    await saveContent(req, { user: guestUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect((capturedUpdate?.frontmatter as Record<string, unknown>)?.status).toBeUndefined();
+  });
+
+  it('editor user: newSlug preserved', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test' },
+      body: 'test',
+      newSlug: 'new-slug',
+    });
+    await saveContent(req, { user: editorUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.newSlug).toBe('new-slug');
+  });
+
+  it('guest user: newSlug stripped', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test' },
+      body: 'test',
+      newSlug: 'new-slug',
+    });
+    await saveContent(req, { user: guestUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.newSlug).toBeUndefined();
+  });
+
+  it('admin user: newSlug preserved', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test' },
+      body: 'test',
+      newSlug: 'renamed',
+    });
+    await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.newSlug).toBe('renamed');
+  });
+});
