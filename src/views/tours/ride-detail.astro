@@ -10,7 +10,7 @@ import RideDetailContent from '@/components/RideDetailContent.astro';
 import tours from 'virtual:bike-app/tours';
 import { toPlaceData } from '@/lib/geo/places';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
-import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 const config = getCityConfig();
 

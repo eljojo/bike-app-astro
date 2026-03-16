@@ -1,6 +1,6 @@
 import type { AstroIntegration } from 'astro';
 import { isBlogInstance } from '../lib/config/city-config';
-import { getContentTypes } from '../lib/content/content-types';
+import { getContentTypes } from '../lib/content/content-types.server';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */

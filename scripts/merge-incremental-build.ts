@@ -14,7 +14,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadBuildPlan } from '../src/lib/content/build-plan';
+import { loadBuildPlan } from '../src/lib/content/build-plan.server';
 
 const DIST = path.join(process.cwd(), 'dist');
 const DIST_CACHE = path.join(process.cwd(), 'dist-cache');

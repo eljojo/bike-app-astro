@@ -122,11 +122,9 @@ export default [
     // Temporary: these files will be renamed to .server.ts or split in subsequent tasks.
     // Remove entries as each file is migrated.
     files: [
-      'src/lib/content/content-ops.ts',
+      'src/lib/content/save-helpers.ts',
       'src/lib/gpx/paths.ts',
       'src/lib/gpx/download.ts',
-      'src/lib/content/build-plan.ts',
-      'src/lib/content/content-cache.ts',
       'src/lib/maps/map-generation.ts',
       'src/lib/maps/map-paths.ts',
       'src/lib/directory-digest.ts',

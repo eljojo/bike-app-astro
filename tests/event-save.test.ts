@@ -16,7 +16,7 @@ vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 const mockExtractFrontmatterField = vi.fn().mockReturnValue(undefined);
 const mockParkOrphanedPhoto = vi.fn().mockReturnValue(null);
 const mockUpdatePhotoRegistryCache = vi.fn().mockResolvedValue(undefined);
-vi.mock('../src/lib/media/photo-parking', () => ({
+vi.mock('../src/lib/media/photo-parking.server', () => ({
   extractFrontmatterField: (...args: unknown[]) => mockExtractFrontmatterField(...args),
   parkOrphanedPhoto: (...args: unknown[]) => mockParkOrphanedPhoto(...args),
   updatePhotoRegistryCache: (...args: unknown[]) => mockUpdatePhotoRegistryCache(...args),

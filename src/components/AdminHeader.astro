@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { env } from '../lib/env/env.service';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
-import { getContentTypes } from '../lib/content/content-types';
+import { getContentTypes } from '../lib/content/content-types.server';
 
 interface Props {
   user: { username: string; role: string; email?: string | null };

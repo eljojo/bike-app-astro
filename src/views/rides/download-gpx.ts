@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import fs from 'node:fs';
 import { cityDir } from '../../lib/config/config.server';
 import { variantSlug, variantFilename, rideGpxPath, serveGpxFile } from '../../lib/gpx/download';
-import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan';
+import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan.server';
 
 export const prerender = true;
 

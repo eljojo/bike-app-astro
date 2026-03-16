@@ -61,7 +61,7 @@ vi.mock('../src/lib/models/content-model', async () => {
   };
 });
 
-vi.mock('../src/lib/media/photo-parking', () => ({
+vi.mock('../src/lib/media/photo-parking.server', () => ({
   updatePhotoRegistryCache: vi.fn().mockResolvedValue(undefined),
 }));
 

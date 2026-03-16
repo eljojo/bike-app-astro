@@ -1,7 +1,7 @@
 import yaml from 'js-yaml';
 import { CITY } from '../config/config';
 import { getPhotoUsages, updateSharedKeys, serializeSharedKeys, type PhotoUsage } from './photo-registry';
-import { loadSharedKeysMap } from '../content/load-admin-content';
+import { loadSharedKeysMap } from '../content/load-admin-content.server';
 import { mergeParkedPhotos, type ParkedPhotoEntry } from './media-merge';
 import { upsertContentCache } from '../content/cache';
 import type { IGitService, FileChange } from '../git/git.adapter-github';

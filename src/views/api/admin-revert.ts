@@ -8,7 +8,7 @@ import { upsertContentCache } from '../../lib/content/cache';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { buildAuthorEmail, parseContentPath } from '../../lib/git/commit-author';
-import { contentTypes } from '../../lib/content/content-types';
+import { contentTypes } from '../../lib/content/content-types.server';
 import { readCurrentState } from '../../lib/content/content-save';
 import type { IGitService } from '../../lib/git/git.adapter-github';
 import type { Database } from '../../db';

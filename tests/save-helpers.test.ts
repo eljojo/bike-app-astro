@@ -5,7 +5,7 @@ vi.mock('../src/lib/media/video-enrichment', () => ({
   deleteConsumedVideoJobs: vi.fn(),
 }));
 
-vi.mock('../src/lib/media/photo-parking', () => ({
+vi.mock('../src/lib/media/photo-parking.server', () => ({
   updatePhotoRegistryCache: vi.fn(),
 }));
 
@@ -22,7 +22,7 @@ vi.mock('../src/lib/media/video-service', () => ({
 
 import { enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../src/lib/content/save-helpers';
 import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../src/lib/media/video-enrichment';
-import { updatePhotoRegistryCache } from '../src/lib/media/photo-parking';
+import { updatePhotoRegistryCache } from '../src/lib/media/photo-parking.server';
 
 const mockEnrich = vi.mocked(enrichMediaFromVideoJobs);
 const mockUpdateRegistry = vi.mocked(updatePhotoRegistryCache);

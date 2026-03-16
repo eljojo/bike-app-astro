@@ -26,7 +26,7 @@ import {
   buildSlug,
 } from './rides';
 import { readRideFile } from './ride-file-reader';
-import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache';
+import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache.server';
 import { computeFileDigest } from '../lib/directory-digest';
 import type { AdminRide } from '../types/admin';
 

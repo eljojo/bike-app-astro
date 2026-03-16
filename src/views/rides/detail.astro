@@ -8,7 +8,7 @@ import RideDetailContent from '@/components/RideDetailContent.astro';
 import { t } from '@/i18n';
 import { toPlaceData } from '@/lib/geo/places';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
-import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;

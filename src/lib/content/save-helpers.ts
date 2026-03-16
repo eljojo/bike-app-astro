@@ -4,7 +4,7 @@ import type { PhotoUsage } from '../media/photo-registry';
 import type { Database } from '../../db/index';
 import { deleteConsumedVideoJobs, enrichMediaFromVideoJobs } from '../media/video-enrichment';
 import { bareVideoKey, videoKeyForGit } from '../media/video-service';
-import { updatePhotoRegistryCache } from '../media/photo-parking';
+import { updatePhotoRegistryCache } from '../media/photo-parking.server';
 import type { ParkedPhotoEntry } from '../media/media-merge';
 
 export interface PhotoKeyChange {

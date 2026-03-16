@@ -18,7 +18,7 @@ import {
   BUILD_MANIFEST_VERSION,
   type BuildPlan,
   type BuildManifest,
-} from '../src/lib/content/build-plan';
+} from '../src/lib/content/build-plan.server';
 import { extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve(process.cwd(), '..', 'bike-routes');

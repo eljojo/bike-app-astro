@@ -8,7 +8,7 @@ vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 const mockParkOrphanedPhoto = vi.fn().mockReturnValue(null);
 const mockUpdatePhotoRegistryCache = vi.fn().mockResolvedValue(undefined);
-vi.mock('../src/lib/media/photo-parking', () => ({
+vi.mock('../src/lib/media/photo-parking.server', () => ({
   extractFrontmatterField: (_content: string, field: string) => {
     // Real-ish frontmatter extraction for tests
     const match = _content.match(new RegExp(`${field}: (\\S+)`));

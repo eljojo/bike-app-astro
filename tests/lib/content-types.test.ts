@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getContentTypes, contentTypes } from '../../src/lib/content/content-types';
+import { getContentTypes, contentTypes } from '../../src/lib/content/content-types.server';
 
 describe('content-types', () => {
   it('exports contentTypes without side effects that require import.meta.url', () => {

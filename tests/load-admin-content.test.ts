@@ -25,7 +25,7 @@ vi.mock('drizzle-orm', () => ({
 }));
 
 describe('loadAdminContent', () => {
-  let loadAdminContent: typeof import('../src/lib/content/load-admin-content').loadAdminContent;
+  let loadAdminContent: typeof import('../src/lib/content/load-admin-content.server').loadAdminContent;
 
   const virtualData = {
     'test-slug': { name: 'Virtual Route', slug: 'test-slug' },
@@ -41,7 +41,7 @@ describe('loadAdminContent', () => {
     vi.clearAllMocks();
     mockDbGet.mockResolvedValue(null);
     mockDbAll.mockResolvedValue([]);
-    const mod = await import('../src/lib/content/load-admin-content');
+    const mod = await import('../src/lib/content/load-admin-content.server');
     loadAdminContent = mod.loadAdminContent;
   });
 
@@ -104,13 +104,13 @@ describe('loadAdminContent', () => {
 });
 
 describe('loadAdminContentList', () => {
-  let loadAdminContentList: typeof import('../src/lib/content/load-admin-content').loadAdminContentList;
+  let loadAdminContentList: typeof import('../src/lib/content/load-admin-content.server').loadAdminContentList;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     mockDbGet.mockResolvedValue(null);
     mockDbAll.mockResolvedValue([]);
-    const mod = await import('../src/lib/content/load-admin-content');
+    const mod = await import('../src/lib/content/load-admin-content.server');
     loadAdminContentList = mod.loadAdminContentList;
   });
 

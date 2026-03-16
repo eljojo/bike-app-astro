@@ -18,7 +18,7 @@ import { routeDetailFromGit, computeRouteContentHash } from '../lib/models/route
 import type { RouteDetail } from '../lib/models/route-model';
 import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import { readRouteDir } from './route-file-reader';
-import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache';
+import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache.server';
 import { computeDirectoryDigest } from '../lib/directory-digest';
 
 interface CachedRouteData {

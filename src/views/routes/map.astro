@@ -10,7 +10,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
-import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;

@@ -14,10 +14,10 @@ import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import type { AdminEvent } from '../../types/admin';
 import { resolveEffectivePrimary } from '../../lib/models/event-model.server';
 import { eventMediaItemSchema } from '../../lib/models/event-model';
-import { eventOps } from '../../lib/content/content-ops';
+import { eventOps } from '../../lib/content/content-ops.server';
 import { slugify } from '../../lib/slug';
 import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto } from '../../lib/media/photo-parking';
+import { extractFrontmatterField, parkOrphanedPhoto } from '../../lib/media/photo-parking.server';
 import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 

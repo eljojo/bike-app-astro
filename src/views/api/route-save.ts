@@ -18,7 +18,7 @@ import { env } from '../../lib/env/env.service';
 import { adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
-import { routeOps } from '../../lib/content/content-ops';
+import { routeOps } from '../../lib/content/content-ops.server';
 import { buildRedirectFileChange } from '../../lib/redirects';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';

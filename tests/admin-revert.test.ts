@@ -71,7 +71,7 @@ vi.mock('../src/lib/content/content-save', () => ({
 }));
 
 const mockBuildFreshData = vi.fn().mockReturnValue('{"name":"Test"}');
-vi.mock('../src/lib/content/content-types', () => ({
+vi.mock('../src/lib/content/content-types.server', () => ({
   contentTypes: [
     {
       name: 'routes',

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../src/lib/media/photo-parking', () => ({
+vi.mock('../../src/lib/media/photo-parking.server', () => ({
   updatePhotoRegistryCache: vi.fn(),
 }));
 
