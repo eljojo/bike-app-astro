@@ -1,16 +1,23 @@
 /**
  * HLS player — progressively enhances <video> elements with hls.js.
  *
- * On browsers without native HLS (Chrome, Firefox), hls.js takes over
- * and starts at the highest quality level so short videos look sharp
- * from the first frame. On Safari (native HLS), we leave playback to
- * the browser — it handles adaptive streaming natively.
+ * On desktop (iPad-sized screens and up), hls.js takes over HLS playback
+ * on all browsers — including Safari — and forces the highest quality
+ * level from the first segment. Ride videos are short, and spending half
+ * the video on 480p while ABR ramps up looks bad on a big screen.
+ *
+ * On mobile, hls.js is not loaded. Safari plays HLS natively with
+ * adaptive quality. Chrome/Firefox fall through to the H.264 MP4 source.
  *
  * Import this file from any page that renders <video> with HLS sources.
  * It self-initializes on DOMContentLoaded.
  */
 
+const DESKTOP_MIN_WIDTH = 768;
+
 async function initHlsPlayers() {
+  if (window.innerWidth < DESKTOP_MIN_WIDTH) return;
+
   const videos = document.querySelectorAll<HTMLVideoElement>('video');
   if (!videos.length) return;
 
@@ -24,15 +31,13 @@ async function initHlsPlayers() {
   }
   if (!hlsVideos.length) return;
 
-  // Safari handles HLS natively — no need for hls.js
   const Hls = (await import('hls.js')).default;
   if (!Hls.isSupported()) return;
 
   for (const { video, src } of hlsVideos) {
     const hls = new Hls({
       // Assume a fast connection so hls.js picks the highest quality
-      // from the first segment. Ride videos are short — spending half
-      // the video on 480p while the ABR ramps up looks bad.
+      // from the first segment. Desktop connections can handle it.
       abrEwmaDefaultEstimate: 10_000_000,
     });
     hls.loadSource(src);
