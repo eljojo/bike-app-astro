@@ -34,12 +34,6 @@ describe('privacy zone with GpxPoint mapping', () => {
     expect(result[0].lon).toBeCloseTo(-75.65);
   });
 
-  it('preserves all points when zone is not configured', () => {
-    // When privacyZone is undefined, filtering is skipped entirely
-    const allPoints = [...gpxPoints];
-    expect(allPoints).toHaveLength(5);
-  });
-
   it('preserves all points when none are in zone', () => {
     const farZone: PrivacyZoneConfig = { lat: 0, lng: 0, radius_m: 100 };
     const mappedPoints = gpxPoints.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
