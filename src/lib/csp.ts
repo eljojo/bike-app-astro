@@ -25,7 +25,7 @@ interface CspOptions {
 
 export function sharedCspDirectives(options?: CspOptions): string[] {
   const { cdn, videos } = cspOrigins();
-  const connectSources = ["'self'", 'https://nominatim.openstreetmap.org'];
+  const connectSources = ["'self'", 'https://nominatim.openstreetmap.org', videos];
   if (options?.r2Origin) connectSources.push(options.r2Origin);
   if (options?.s3Origin) connectSources.push(options.s3Origin);
   return [

@@ -68,4 +68,5 @@ const title = video.title || 'Video';
   <p style="margin-top: 2em;">
     <a href={paths.route(routeSlug(route, locale), locale)} class="go-back-button">&#x21A9; {t('route.go_back_to', locale, { name: route.data.name })}</a>
   </p>
+  <script>import '@/lib/media/hls-player';</script>
 </Base>
