@@ -1,4 +1,4 @@
-export interface ParkedPhotoEntry {
+export interface ParkedMediaEntry {
   key: string;
   lat?: number;
   lng?: number;
@@ -7,10 +7,12 @@ export interface ParkedPhotoEntry {
   height?: number;
   uploaded_by?: string;
   captured_at?: string;
+  type?: 'photo' | 'video';
+  title?: string;
 }
 
-/** Convert a media item (or similar shape) to a ParkedPhotoEntry. */
-export function toParkedEntry(photo: {
+/** Convert a media item (or similar shape) to a ParkedMediaEntry. */
+export function toParkedEntry(item: {
   key: string;
   lat?: number;
   lng?: number;
@@ -19,34 +21,38 @@ export function toParkedEntry(photo: {
   height?: number;
   uploaded_by?: string;
   captured_at?: string;
-}): ParkedPhotoEntry {
+  type?: 'photo' | 'video';
+  title?: string;
+}): ParkedMediaEntry {
   return {
-    key: photo.key,
-    ...(photo.lat != null && { lat: photo.lat }),
-    ...(photo.lng != null && { lng: photo.lng }),
-    ...(photo.caption != null && { caption: photo.caption }),
-    ...(photo.width != null && { width: photo.width }),
-    ...(photo.height != null && { height: photo.height }),
-    ...(photo.uploaded_by != null && { uploaded_by: photo.uploaded_by }),
-    ...(photo.captured_at != null && { captured_at: photo.captured_at }),
+    key: item.key,
+    ...(item.lat != null && { lat: item.lat }),
+    ...(item.lng != null && { lng: item.lng }),
+    ...(item.caption != null && { caption: item.caption }),
+    ...(item.width != null && { width: item.width }),
+    ...(item.height != null && { height: item.height }),
+    ...(item.uploaded_by != null && { uploaded_by: item.uploaded_by }),
+    ...(item.captured_at != null && { captured_at: item.captured_at }),
+    ...(item.type != null && { type: item.type }),
+    ...(item.title != null && { title: item.title }),
   };
 }
 
 /**
- * Merge parking changes into the existing parked-photos.yml entries.
- * - Appends newly parked photos
- * - Removes un-parked photos (added back to a route)
+ * Merge parking changes into the existing parked-media.yml entries.
+ * - Appends newly parked media
+ * - Removes un-parked media (added back to a route)
  * - Deduplicates by key
  */
-export function mergeParkedPhotos(
-  existing: ParkedPhotoEntry[],
-  toAdd: ParkedPhotoEntry[],
+export function mergeParkedMedia(
+  existing: ParkedMediaEntry[],
+  toAdd: ParkedMediaEntry[],
   toRemove: Set<string>,
-): ParkedPhotoEntry[] {
+): ParkedMediaEntry[] {
   const result = existing.filter(p => !toRemove.has(p.key));
-  for (const photo of toAdd) {
-    if (!result.some(p => p.key === photo.key)) {
-      result.push(photo);
+  for (const item of toAdd) {
+    if (!result.some(p => p.key === item.key)) {
+      result.push(item);
     }
   }
   return result;

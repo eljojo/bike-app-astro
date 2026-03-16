@@ -1,29 +1,29 @@
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import type { PhotoUsage } from '../media/photo-registry';
+import type { MediaUsage } from '../media/media-registry';
 import type { Database } from '../../db/index';
 import { deleteConsumedVideoJobs, enrichMediaFromVideoJobs } from '../media/video-enrichment';
 import { bareVideoKey, videoKeyForGit } from '../media/video-service';
-import { updatePhotoRegistryCache } from '../media/photo-parking.server';
-import type { ParkedPhotoEntry } from '../media/media-merge';
+import { updateMediaRegistryCache } from '../media/media-parking.server';
+import type { ParkedMediaEntry } from '../media/media-merge';
 
-export interface PhotoKeyChange {
+export interface MediaKeyChange {
   key: string;
-  usage: PhotoUsage;
+  usage: MediaUsage;
   action: 'add' | 'remove';
 }
 
 /**
- * Build the photo-key change list for afterCommit photo registry updates.
+ * Build the media-key change list for afterCommit media registry updates.
  * Used by event-save and place-save handlers (route-save handles media arrays differently).
  */
-export function buildPhotoKeyChanges(
+export function buildSingleMediaKeyChanges(
   oldKey: string | undefined,
   newKey: string | undefined,
-  contentType: PhotoUsage['type'],
+  contentType: MediaUsage['type'],
   slug: string,
-): PhotoKeyChange[] {
-  const changes: PhotoKeyChange[] = [];
+): MediaKeyChange[] {
+  const changes: MediaKeyChange[] = [];
   if (oldKey !== newKey) {
     if (oldKey) changes.push({ key: oldKey, usage: { type: contentType, slug }, action: 'remove' });
     if (newKey) changes.push({ key: newKey, usage: { type: contentType, slug }, action: 'add' });
@@ -49,15 +49,15 @@ export function computeMediaKeyDiff(
 }
 
 /**
- * Build photo-key change list for media array changes (added/removed keys).
+ * Build media-key change list for media array changes (added/removed keys).
  * Used in afterCommit by route-save, ride-save, and event-save handlers.
  */
 export function buildMediaKeyChanges(
   addedKeys: string[],
   removedKeys: string[],
-  contentType: PhotoUsage['type'],
+  contentType: MediaUsage['type'],
   slug: string,
-): PhotoKeyChange[] {
+): MediaKeyChange[] {
   return [
     ...removedKeys.map(key => ({ key, usage: { type: contentType, slug }, action: 'remove' as const })),
     ...addedKeys.map(key => ({ key, usage: { type: contentType, slug }, action: 'add' as const })),
@@ -137,17 +137,17 @@ export async function enrichAndAnnotateMedia<T extends { key: string; type?: str
 }
 
 /**
- * Common afterCommit cleanup: update photo registry and delete consumed video jobs.
+ * Common afterCommit cleanup: update media registry and delete consumed video jobs.
  * Used by all four save handlers (route, ride, event, place).
  */
 export async function afterCommitMediaCleanup(opts: {
   database: Database;
   sharedKeysData: Record<string, Array<{ type: string; slug: string }>>;
-  mediaKeyChanges: PhotoKeyChange[];
+  mediaKeyChanges: MediaKeyChange[];
   consumedVideoKeys?: string[];
-  mergedParked?: ParkedPhotoEntry[];
+  mergedParked?: ParkedMediaEntry[];
 }): Promise<void> {
-  await updatePhotoRegistryCache({
+  await updateMediaRegistryCache({
     database: opts.database,
     sharedKeysData: opts.sharedKeysData,
     keyChanges: opts.mediaKeyChanges,

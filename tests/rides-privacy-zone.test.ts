@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../src/lib/geo/privacy-zone';
+import { filterPrivacyZone, stripPrivacyMedia, type PrivacyZoneConfig } from '../src/lib/geo/privacy-zone';
 import { buildTrackFromPoints, type GpxPoint } from '../src/lib/gpx/parse';
 
 /**
@@ -71,7 +71,7 @@ describe('privacy zone photo stripping with RouteMedia', () => {
       { key: 'photo3.jpg' },                                 // no coordinates
     ];
 
-    const result = stripPrivacyPhotos(media, zone);
+    const result = stripPrivacyMedia(media, zone);
 
     // Photo 1: coordinates stripped (inside zone)
     expect(result[0].key).toBe('photo1.jpg');
@@ -91,7 +91,7 @@ describe('privacy zone photo stripping with RouteMedia', () => {
       { key: 'photo1.jpg', lat: 45.4215, lng: -75.6972 },
     ];
     const original = { ...media[0] };
-    stripPrivacyPhotos(media, zone);
+    stripPrivacyMedia(media, zone);
     expect(media[0].lat).toBe(original.lat);
     expect(media[0].lng).toBe(original.lng);
   });

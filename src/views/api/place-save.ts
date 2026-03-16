@@ -11,10 +11,10 @@ import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck,
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { placeOps } from '../../lib/content/content-ops.server';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges, buildCommitTrailer, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto } from '../../lib/media/photo-parking.server';
-import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
+import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
 
 export const prerender = false;
 
@@ -56,7 +56,7 @@ interface PlaceBuildResult extends BuildResult {
   oldPhotoKey: string | undefined;
   newPhotoKey: string | undefined;
   placeSlug: string;
-  mergedParked: ParkedPhotoEntry[] | undefined;
+  mergedParked: ParkedMediaEntry[] | undefined;
 }
 
 export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<PlaceBuildResult> = {
@@ -101,8 +101,8 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSl
       : undefined;
     const newPhotoKey = update.frontmatter.photo_key;
 
-    let mergedParked: ParkedPhotoEntry[] | undefined;
-    const parked = await parkOrphanedPhoto({
+    let mergedParked: ParkedMediaEntry[] | undefined;
+    const parked = await parkOrphanedMedia({
       oldKey: oldPhotoKey,
       newKey: newPhotoKey,
       contentType: 'place',
@@ -140,7 +140,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSl
 
   async afterCommit(result, database) {
     const { oldPhotoKey, newPhotoKey, placeSlug, mergedParked } = result;
-    const changes = buildPhotoKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
+    const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
     await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
   },
 

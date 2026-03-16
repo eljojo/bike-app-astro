@@ -2,20 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock virtual module and env dependencies
 vi.mock('virtual:bike-app/admin-places', () => ({ default: [] }));
-vi.mock('virtual:bike-app/photo-shared-keys', () => ({ default: {} }));
+vi.mock('virtual:bike-app/media-shared-keys', () => ({ default: {} }));
 vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test', GIT_OWNER: 'o', GIT_DATA_REPO: 'r' } }));
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
-const mockParkOrphanedPhoto = vi.fn().mockReturnValue(null);
-const mockUpdatePhotoRegistryCache = vi.fn().mockResolvedValue(undefined);
-vi.mock('../src/lib/media/photo-parking.server', () => ({
+const mockParkOrphanedMedia = vi.fn().mockReturnValue(null);
+const mockUpdateMediaRegistryCache = vi.fn().mockResolvedValue(undefined);
+vi.mock('../src/lib/media/media-parking.server', () => ({
   extractFrontmatterField: (_content: string, field: string) => {
     // Real-ish frontmatter extraction for tests
     const match = _content.match(new RegExp(`${field}: (\\S+)`));
     return match?.[1];
   },
-  parkOrphanedPhoto: (...args: unknown[]) => mockParkOrphanedPhoto(...args),
-  updatePhotoRegistryCache: (...args: unknown[]) => mockUpdatePhotoRegistryCache(...args),
+  parkOrphanedMedia: (...args: unknown[]) => mockParkOrphanedMedia(...args),
+  updateMediaRegistryCache: (...args: unknown[]) => mockUpdateMediaRegistryCache(...args),
 }));
 
 import { CITY } from '../src/lib/config/config';
@@ -221,7 +221,7 @@ describe('placeHandlers.afterCommit', () => {
     };
     const mockDb = {};
     await placeHandlers.afterCommit!(result as any, mockDb as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({
         database: mockDb,
         keyChanges: expect.arrayContaining([
@@ -243,7 +243,7 @@ describe('placeHandlers.afterCommit', () => {
       mergedParked: undefined,
     };
     await placeHandlers.afterCommit!(result as any, {} as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({ keyChanges: [] }),
     );
   });
@@ -260,7 +260,7 @@ describe('placeHandlers.afterCommit', () => {
       mergedParked,
     };
     await placeHandlers.afterCommit!(result as any, {} as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({ mergedParked }),
     );
   });

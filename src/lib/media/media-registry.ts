@@ -1,14 +1,14 @@
-export interface PhotoUsage {
+export interface MediaUsage {
   type: 'route' | 'place' | 'event' | 'parked';
   slug: string;
 }
 
-export type SharedKeysMap = Map<string, PhotoUsage[]>;
+export type SharedKeysMap = Map<string, MediaUsage[]>;
 
 export function updateSharedKeys(
   map: SharedKeysMap,
   key: string,
-  usage: PhotoUsage,
+  usage: MediaUsage,
   action: 'add' | 'remove',
 ): void {
   if (action === 'add') {
@@ -86,12 +86,12 @@ export function buildSharedKeysMap(
   return map;
 }
 
-export function getPhotoUsages(map: SharedKeysMap, key: string): PhotoUsage[] {
+export function getMediaUsages(map: SharedKeysMap, key: string): MediaUsage[] {
   return map.get(key) || [];
 }
 
 export function serializeSharedKeys(map: SharedKeysMap): string {
-  const obj: Record<string, PhotoUsage[]> = {};
+  const obj: Record<string, MediaUsage[]> = {};
   for (const [key, usages] of map) {
     obj[key] = usages;
   }
@@ -99,6 +99,6 @@ export function serializeSharedKeys(map: SharedKeysMap): string {
 }
 
 export function deserializeSharedKeys(json: string): SharedKeysMap {
-  const obj = JSON.parse(json) as Record<string, PhotoUsage[]>;
+  const obj = JSON.parse(json) as Record<string, MediaUsage[]>;
   return new Map(Object.entries(obj));
 }

@@ -7,8 +7,8 @@ import { slugify } from '../../lib/slug';
 import { parseGpx } from '../../lib/gpx/parse';
 import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
 import { buildImageUrl } from '../../lib/media/image-service';
-import photoLocations from 'virtual:bike-app/photo-locations';
-import { findNearbyPhotos } from '../../lib/geo/photo-proximity';
+import photoLocations from 'virtual:bike-app/media-locations';
+import { findNearbyMedia } from '../../lib/geo/media-proximity';
 
 interface Props {
   cdnUrl: string;
@@ -43,7 +43,7 @@ export default function RouteCreator({ cdnUrl }: Props) {
     const step = Math.max(1, Math.floor(track.points.length / 50));
     const sampled = track.points.filter((_, i) => i % step === 0);
     const trackPts = sampled.map(p => ({ lat: p.lat, lng: p.lon }));
-    return findNearbyPhotos(trackPts, photoLocations, '');
+    return findNearbyMedia(trackPts, photoLocations, '');
   }, [track]);
 
   function slugToName(slug: string): string {

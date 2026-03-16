@@ -61,17 +61,17 @@ vi.mock('../src/lib/models/content-model', async () => {
   };
 });
 
-vi.mock('../src/lib/media/photo-parking.server', () => ({
-  updatePhotoRegistryCache: vi.fn().mockResolvedValue(undefined),
+vi.mock('../src/lib/media/media-parking.server', () => ({
+  updateMediaRegistryCache: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('virtual:bike-app/photo-shared-keys', () => ({
+vi.mock('virtual:bike-app/media-shared-keys', () => ({
   default: {},
 }));
 
 const mockEnrichAndAnnotateMedia = vi.fn(async (media: unknown[], _db?: unknown) =>
   ({ annotatedMedia: media, consumedVideoKeys: [] }) as { annotatedMedia: unknown[]; consumedVideoKeys: string[] });
-vi.mock('../src/lib/content/save-helpers', async (importOriginal) => {
+vi.mock('../src/lib/content/save-helpers.server', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
   return {
     ...actual,

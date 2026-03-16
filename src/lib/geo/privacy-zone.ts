@@ -29,10 +29,10 @@ export function filterPrivacyZone<T extends TrackPoint>(
 }
 
 /**
- * Strip lat/lng from photos that fall inside the privacy zone.
+ * Strip lat/lng from media that fall inside the privacy zone.
  * Returns new array (does not mutate input).
  */
-export function stripPrivacyPhotos<T extends { lat?: number; lng?: number }>(
+export function stripPrivacyMedia<T extends { lat?: number; lng?: number }>(
   photos: T[],
   zone: PrivacyZoneConfig,
 ): T[] {

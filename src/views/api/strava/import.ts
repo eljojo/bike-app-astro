@@ -7,7 +7,7 @@ import {
   buildGpxFromStravaStreams,
   type StravaPhoto,
 } from '@/lib/external/strava-api';
-import { interpolatePhotoLocation } from '@/lib/geo/photo-geo-interpolation';
+import { interpolateMediaLocation } from '@/lib/geo/media-geo-interpolation';
 import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
 import { env } from '@/lib/env/env.service';
@@ -70,7 +70,7 @@ export async function POST({ request, locals }: APIContext) {
           const photoUrl = photo.urls[String(maxSize)] || Object.values(photo.urls)[0];
 
           const timeOffset = photoTimeOffset(photo, startTime);
-          const location = timeOffset != null ? interpolatePhotoLocation(timeOffset, track) : null;
+          const location = timeOffset != null ? interpolateMediaLocation(timeOffset, track) : null;
 
           // Download photo and upload to R2
           let key: string | undefined;

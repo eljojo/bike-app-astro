@@ -216,7 +216,7 @@ declare module 'virtual:bike-app/contributors' {
   export default contributors;
 }
 
-interface _PhotoLocation {
+interface _MediaLocation {
   key: string;
   lat: number;
   lng: number;
@@ -226,17 +226,17 @@ interface _PhotoLocation {
   height?: number;
 }
 
-declare module 'virtual:bike-app/photo-locations' {
-  const locations: _PhotoLocation[];
+declare module 'virtual:bike-app/media-locations' {
+  const locations: _MediaLocation[];
   export default locations;
 }
 
-declare module 'virtual:bike-app/nearby-photos' {
-  const nearbyPhotos: Record<string, _PhotoLocation[]>;
-  export default nearbyPhotos;
+declare module 'virtual:bike-app/nearby-media' {
+  const nearbyMedia: Record<string, _MediaLocation[]>;
+  export default nearbyMedia;
 }
 
-interface _ParkedPhoto {
+interface _ParkedMedia {
   key: string;
   lat: number;
   lng: number;
@@ -245,14 +245,16 @@ interface _ParkedPhoto {
   height?: number;
   uploaded_by?: string;
   captured_at?: string;
+  type?: 'photo' | 'video';
+  title?: string;
 }
 
-declare module 'virtual:bike-app/parked-photos' {
-  const parkedPhotos: _ParkedPhoto[];
-  export default parkedPhotos;
+declare module 'virtual:bike-app/parked-media' {
+  const parkedMedia: _ParkedMedia[];
+  export default parkedMedia;
 }
 
-declare module 'virtual:bike-app/photo-shared-keys' {
+declare module 'virtual:bike-app/media-shared-keys' {
   /** Only contains keys referenced by 2+ content items */
   const sharedKeys: Record<string, Array<{ type: 'route' | 'place' | 'event' | 'parked'; slug: string }>>;
   export default sharedKeys;

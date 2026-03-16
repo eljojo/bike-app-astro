@@ -18,7 +18,7 @@ import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx/p
 import { cityDir } from '../lib/config/config.server';
 import { getCityConfig } from '../lib/config/city-config';
 import { computeFileDigest } from '../lib/directory-digest.server';
-import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
+import { filterPrivacyZone, stripPrivacyMedia, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { slugify } from '../lib/slug';
 import type { RouteMedia } from './route-file-reader';
@@ -316,7 +316,7 @@ export function rideLoader(): Loader {
             : privacyZone.default_enabled;
           if (privacyEnabled) {
             const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
-            media = stripPrivacyPhotos(media, zone);
+            media = stripPrivacyMedia(media, zone);
           }
         }
 

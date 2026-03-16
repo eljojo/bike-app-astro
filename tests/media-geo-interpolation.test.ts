@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { interpolatePhotoLocation } from '../src/lib/geo/photo-geo-interpolation';
+import { interpolateMediaLocation } from '../src/lib/geo/media-geo-interpolation';
 
 const track = [
   { lat: 45.0, lng: -75.0, time: 0 },
@@ -8,40 +8,40 @@ const track = [
   { lat: 45.3, lng: -75.3, time: 300 },
 ];
 
-describe('interpolatePhotoLocation', () => {
+describe('interpolateMediaLocation', () => {
   it('interpolates between two bracketing points', () => {
     // Photo taken at t=50 (halfway between points 0 and 1)
-    const result = interpolatePhotoLocation(50, track);
+    const result = interpolateMediaLocation(50, track);
     expect(result).not.toBeNull();
     expect(result!.lat).toBeCloseTo(45.05, 4);
     expect(result!.lng).toBeCloseTo(-75.05, 4);
   });
 
   it('snaps to first point when photo is before track start', () => {
-    const result = interpolatePhotoLocation(-10, track);
+    const result = interpolateMediaLocation(-10, track);
     expect(result!.lat).toBe(45.0);
     expect(result!.lng).toBe(-75.0);
   });
 
   it('snaps to last point when photo is after track end', () => {
-    const result = interpolatePhotoLocation(500, track);
+    const result = interpolateMediaLocation(500, track);
     expect(result!.lat).toBe(45.3);
     expect(result!.lng).toBe(-75.3);
   });
 
   it('returns exact point when timestamp matches a track point', () => {
-    const result = interpolatePhotoLocation(100, track);
+    const result = interpolateMediaLocation(100, track);
     expect(result!.lat).toBe(45.1);
     expect(result!.lng).toBe(-75.1);
   });
 
   it('returns null for empty track', () => {
-    const result = interpolatePhotoLocation(50, []);
+    const result = interpolateMediaLocation(50, []);
     expect(result).toBeNull();
   });
 
   it('handles single-point track', () => {
-    const result = interpolatePhotoLocation(50, [{ lat: 45.0, lng: -75.0, time: 0 }]);
+    const result = interpolateMediaLocation(50, [{ lat: 45.0, lng: -75.0, time: 0 }]);
     expect(result!.lat).toBe(45.0);
   });
 });

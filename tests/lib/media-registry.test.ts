@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  updateSharedKeys, buildSharedKeysMap, getPhotoUsages,
+  updateSharedKeys, buildSharedKeysMap, getMediaUsages,
   serializeSharedKeys, deserializeSharedKeys,
-} from '../../src/lib/media/photo-registry';
+} from '../../src/lib/media/media-registry';
 
-import type { SharedKeysMap } from '../../src/lib/media/photo-registry';
+import type { SharedKeysMap } from '../../src/lib/media/media-registry';
 
 describe('updateSharedKeys', () => {
   it('adds a usage to an empty map', () => {
@@ -131,14 +131,14 @@ describe('buildSharedKeysMap', () => {
   });
 });
 
-describe('getPhotoUsages', () => {
+describe('getMediaUsages', () => {
   it('returns usages for a multi-referenced key', () => {
     const map: SharedKeysMap = new Map();
     map.set('photo-abc', [
       { type: 'route', slug: 'canal-path' },
       { type: 'place', slug: 'flora' },
     ]);
-    expect(getPhotoUsages(map, 'photo-abc')).toEqual([
+    expect(getMediaUsages(map, 'photo-abc')).toEqual([
       { type: 'route', slug: 'canal-path' },
       { type: 'place', slug: 'flora' },
     ]);
@@ -146,7 +146,7 @@ describe('getPhotoUsages', () => {
 
   it('returns empty array for single-use or unknown key', () => {
     const map: SharedKeysMap = new Map();
-    expect(getPhotoUsages(map, 'unknown-key')).toEqual([]);
+    expect(getMediaUsages(map, 'unknown-key')).toEqual([]);
   });
 });
 

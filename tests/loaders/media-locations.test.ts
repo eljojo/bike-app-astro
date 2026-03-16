@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from '../../src/loaders/photo-locations';
+import { buildMediaLocations, buildNearbyMediaMap, type ParkedMedia } from '../../src/loaders/media-locations';
 
-describe('buildPhotoLocations', () => {
+describe('buildMediaLocations', () => {
   it('extracts geolocated photos from route data', () => {
     // Admin detail media is already filtered to photos only (no type field)
     const routes = {
@@ -17,7 +17,7 @@ describe('buildPhotoLocations', () => {
         ],
       },
     };
-    const result = buildPhotoLocations(routes);
+    const result = buildMediaLocations(routes);
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({
       key: 'abc', lat: 45.42, lng: -75.69, routeSlug: 'canal',
@@ -31,12 +31,12 @@ describe('buildPhotoLocations', () => {
 
   it('returns empty array when no photos have coordinates', () => {
     const routes = { 'test': { media: [{ key: 'a' }] } };
-    const result = buildPhotoLocations(routes);
+    const result = buildMediaLocations(routes);
     expect(result).toEqual([]);
   });
 });
 
-describe('buildNearbyPhotosMap', () => {
+describe('buildNearbyMediaMap', () => {
   it('maps route slugs to nearby photos from other routes', () => {
     const allPhotos = [
       { key: 'p1', lat: 45.4216, lng: -75.6970, routeSlug: 'canal', width: 100, height: 100 },
@@ -51,7 +51,7 @@ describe('buildNearbyPhotosMap', () => {
         { lat: 45.4225, lng: -75.6930 },
       ],
     };
-    const result = buildNearbyPhotosMap(allPhotos, routeTracks);
+    const result = buildNearbyMediaMap(allPhotos, routeTracks);
     expect(result['canal']).toBeDefined();
     expect(result['canal'].map(p => p.key)).toContain('p2');
     expect(result['canal'].map(p => p.key)).not.toContain('p1'); // own route excluded
@@ -65,22 +65,22 @@ describe('buildNearbyPhotosMap', () => {
     const routeTracks = {
       'canal': [{ lat: 45.4215, lng: -75.6972 }],
     };
-    const result = buildNearbyPhotosMap(allPhotos, routeTracks);
+    const result = buildNearbyMediaMap(allPhotos, routeTracks);
     expect(result['canal']).toBeUndefined();
   });
 });
 
-describe('buildPhotoLocations with parked photos', () => {
+describe('buildMediaLocations with parked photos', () => {
   it('merges parked photos with routeSlug __parked', () => {
     const routes = {
       'canal': {
         media: [{ key: 'abc', lat: 45.42, lng: -75.69, width: 800, height: 600 }],
       },
     };
-    const parked: ParkedPhoto[] = [
+    const parked: ParkedMedia[] = [
       { key: 'parked1', lat: 45.43, lng: -75.70, width: 1200, height: 900, caption: 'Parked shot' },
     ];
-    const result = buildPhotoLocations(routes, parked);
+    const result = buildMediaLocations(routes, parked);
     expect(result).toHaveLength(2);
     const parkedResult = result.find(p => p.key === 'parked1');
     expect(parkedResult).toBeDefined();
@@ -94,12 +94,12 @@ describe('buildPhotoLocations with parked photos', () => {
         media: [{ key: 'abc', lat: 45.42, lng: -75.69 }],
       },
     };
-    const result = buildPhotoLocations(routes);
+    const result = buildMediaLocations(routes);
     expect(result).toHaveLength(1);
   });
 });
 
-describe('buildNearbyPhotosMap with parked photos', () => {
+describe('buildNearbyMediaMap with parked photos', () => {
   it('includes parked photos near route tracks', () => {
     const allPhotos = [
       { key: 'p1', lat: 45.4216, lng: -75.6970, routeSlug: '__parked', width: 100, height: 100 },
@@ -111,7 +111,7 @@ describe('buildNearbyPhotosMap with parked photos', () => {
         { lat: 45.4220, lng: -75.6950 },
       ],
     };
-    const result = buildNearbyPhotosMap(allPhotos, routeTracks);
+    const result = buildNearbyMediaMap(allPhotos, routeTracks);
     expect(result['canal']).toBeDefined();
     expect(result['canal'].map(p => p.key)).toContain('p1');
     expect(result['canal'].map(p => p.key)).not.toContain('p2'); // too far
@@ -124,7 +124,7 @@ describe('buildNearbyPhotosMap with parked photos', () => {
     const routeTracks = {
       'canal': [{ lat: 45.4215, lng: -75.6972 }],
     };
-    const result = buildNearbyPhotosMap(allPhotos, routeTracks);
+    const result = buildNearbyMediaMap(allPhotos, routeTracks);
     expect(result['__parked']).toBeUndefined();
   });
 });

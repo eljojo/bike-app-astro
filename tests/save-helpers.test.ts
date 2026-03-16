@@ -5,8 +5,8 @@ vi.mock('../src/lib/media/video-enrichment', () => ({
   deleteConsumedVideoJobs: vi.fn(),
 }));
 
-vi.mock('../src/lib/media/photo-parking.server', () => ({
-  updatePhotoRegistryCache: vi.fn(),
+vi.mock('../src/lib/media/media-parking.server', () => ({
+  updateMediaRegistryCache: vi.fn(),
 }));
 
 vi.mock('../src/lib/media/video-service', () => ({
@@ -20,12 +20,12 @@ vi.mock('../src/lib/media/video-service', () => ({
   }),
 }));
 
-import { enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../src/lib/content/save-helpers';
+import { enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../src/lib/content/save-helpers.server';
 import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../src/lib/media/video-enrichment';
-import { updatePhotoRegistryCache } from '../src/lib/media/photo-parking.server';
+import { updateMediaRegistryCache } from '../src/lib/media/media-parking.server';
 
 const mockEnrich = vi.mocked(enrichMediaFromVideoJobs);
-const mockUpdateRegistry = vi.mocked(updatePhotoRegistryCache);
+const mockUpdateRegistry = vi.mocked(updateMediaRegistryCache);
 const mockDeleteVideoJobs = vi.mocked(deleteConsumedVideoJobs);
 
 describe('enrichAndAnnotateMedia', () => {
@@ -114,7 +114,7 @@ describe('afterCommitMediaCleanup', () => {
     mockDeleteVideoJobs.mockResolvedValue(undefined);
   });
 
-  it('calls updatePhotoRegistryCache with key changes', async () => {
+  it('calls updateMediaRegistryCache with key changes', async () => {
     const changes = [{ key: 'photo_1', usage: { type: 'route' as const, slug: 'my-route' }, action: 'add' as const }];
     await afterCommitMediaCleanup({
       database: fakeDb,
@@ -166,7 +166,7 @@ describe('afterCommitMediaCleanup', () => {
     expect(mockDeleteVideoJobs).not.toHaveBeenCalled();
   });
 
-  it('passes mergedParked to updatePhotoRegistryCache when provided', async () => {
+  it('passes mergedParked to updateMediaRegistryCache when provided', async () => {
     const parked = [{ key: 'p1', lat: 45, lng: -75 }];
     await afterCommitMediaCleanup({
       database: fakeDb,

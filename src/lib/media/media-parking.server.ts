@@ -1,12 +1,12 @@
 import yaml from 'js-yaml';
 import { CITY } from '../config/config';
-import { getPhotoUsages, updateSharedKeys, serializeSharedKeys, type PhotoUsage } from './photo-registry';
+import { getMediaUsages, updateSharedKeys, serializeSharedKeys, type MediaUsage } from './media-registry';
 import { loadSharedKeysMap } from '../content/load-admin-content.server';
-import { mergeParkedPhotos, type ParkedPhotoEntry } from './media-merge';
+import { mergeParkedMedia, type ParkedMediaEntry } from './media-merge';
 import { upsertContentCache } from '../content/cache';
 import type { IGitService, FileChange } from '../git/git.adapter-github';
 import type { db } from '../get-db';
-import type { PhotoKeyChange } from '../content/save-helpers';
+import type { MediaKeyChange } from '../content/save-helpers.server';
 
 /**
  * Extract a field value from a markdown file's YAML frontmatter.
@@ -19,34 +19,34 @@ export function extractFrontmatterField(content: string, fieldName: string): str
 }
 
 /**
- * Detect an orphaned photo (key removed or changed) and park it if not
+ * Detect an orphaned media item (key removed or changed) and park it if not
  * used elsewhere. Returns the merged parked list and a file change to
  * include in the commit, or null if no parking was needed.
  */
-export async function parkOrphanedPhoto(opts: {
+export async function parkOrphanedMedia(opts: {
   oldKey: string | undefined;
   newKey: string | undefined;
-  contentType: PhotoUsage['type'];
+  contentType: MediaUsage['type'];
   contentId: string;
   sharedKeysData: Record<string, Array<{ type: string; slug: string }>>;
   git: IGitService;
-}): Promise<{ mergedParked: ParkedPhotoEntry[]; fileChange: FileChange } | null> {
+}): Promise<{ mergedParked: ParkedMediaEntry[]; fileChange: FileChange } | null> {
   if (!opts.oldKey || opts.oldKey === opts.newKey) return null;
 
   const sharedKeysMap = await loadSharedKeysMap(opts.sharedKeysData);
-  const usages = getPhotoUsages(sharedKeysMap, opts.oldKey);
+  const usages = getMediaUsages(sharedKeysMap, opts.oldKey);
   const usedElsewhere = usages.some(
     u => !(u.type === opts.contentType && u.slug === opts.contentId),
   );
 
   if (usedElsewhere) return null;
 
-  const parkedPath = `${CITY}/parked-photos.yml`;
+  const parkedPath = `${CITY}/parked-media.yml`;
   const existingParkedFile = await opts.git.readFile(parkedPath);
-  const existingParked: ParkedPhotoEntry[] = existingParkedFile
-    ? (yaml.load(existingParkedFile.content) as ParkedPhotoEntry[]) || []
+  const existingParked: ParkedMediaEntry[] = existingParkedFile
+    ? (yaml.load(existingParkedFile.content) as ParkedMediaEntry[]) || []
     : [];
-  const mergedParked = mergeParkedPhotos(existingParked, [{ key: opts.oldKey }], new Set());
+  const mergedParked = mergeParkedMedia(existingParked, [{ key: opts.oldKey }], new Set());
   const fileChange: FileChange = {
     path: parkedPath,
     content: yaml.dump(mergedParked, { lineWidth: -1 }),
@@ -56,15 +56,15 @@ export async function parkOrphanedPhoto(opts: {
 }
 
 /**
- * Update the shared-keys map and parked-photos caches in D1 after a
- * successful commit. Handles both single-key changes (place/event photo)
+ * Update the shared-keys map and parked-media caches in D1 after a
+ * successful commit. Handles both single-key changes (place/event media)
  * and multi-key changes (route media).
  */
-export async function updatePhotoRegistryCache(opts: {
+export async function updateMediaRegistryCache(opts: {
   database: ReturnType<typeof db>;
   sharedKeysData: Record<string, Array<{ type: string; slug: string }>>;
-  keyChanges: PhotoKeyChange[];
-  mergedParked?: ParkedPhotoEntry[];
+  keyChanges: MediaKeyChange[];
+  mergedParked?: ParkedMediaEntry[];
 }): Promise<void> {
   if (opts.keyChanges.length > 0) {
     const sharedKeysMap = await loadSharedKeysMap(opts.sharedKeysData);
@@ -72,7 +72,7 @@ export async function updatePhotoRegistryCache(opts: {
       updateSharedKeys(sharedKeysMap, change.key, change.usage, change.action);
     }
     await upsertContentCache(opts.database, {
-      contentType: 'photo-shared-keys',
+      contentType: 'media-shared-keys',
       contentSlug: '__global',
       data: serializeSharedKeys(sharedKeysMap),
       githubSha: 'n/a',
@@ -81,7 +81,7 @@ export async function updatePhotoRegistryCache(opts: {
 
   if (opts.mergedParked) {
     await upsertContentCache(opts.database, {
-      contentType: 'parked-photos',
+      contentType: 'parked-media',
       contentSlug: '__global',
       data: JSON.stringify(opts.mergedParked),
       githubSha: 'n/a',

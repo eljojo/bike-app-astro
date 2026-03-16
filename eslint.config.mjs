@@ -116,15 +116,4 @@ export default [
       'bike-app/no-server-import-in-browser': 'off',
     },
   },
-  {
-    // Temporary: these files will be renamed to .server.ts or split in subsequent tasks.
-    // Remove entries as each file is migrated.
-    files: [
-      'src/lib/content/save-helpers.ts',
-    ],
-    rules: {
-      'no-restricted-imports': 'off',
-      'bike-app/no-server-import-in-browser': 'off',
-    },
-  },
 ];

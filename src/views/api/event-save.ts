@@ -16,10 +16,10 @@ import { resolveEffectivePrimary } from '../../lib/models/event-model.server';
 import { eventMediaItemSchema } from '../../lib/models/event-model';
 import { eventOps } from '../../lib/content/content-ops.server';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto } from '../../lib/media/photo-parking.server';
-import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
+import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
 
 export const prerender = false;
 
@@ -43,7 +43,7 @@ interface EventBuildResult extends BuildResult {
   oldPosterKey: string | undefined;
   newPosterKey: string | undefined;
   eventSlug: string;
-  mergedParked: ParkedPhotoEntry[] | undefined;
+  mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
 }
@@ -125,8 +125,8 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
       : undefined;
     const newPosterKey = update.frontmatter.poster_key as string | undefined;
 
-    let mergedParked: ParkedPhotoEntry[] | undefined;
-    const parked = await parkOrphanedPhoto({
+    let mergedParked: ParkedMediaEntry[] | undefined;
+    const parked = await parkOrphanedMedia({
       oldKey: oldPosterKey,
       newKey: newPosterKey,
       contentType: 'event',
@@ -210,7 +210,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
   async afterCommit(result, database) {
     const { oldPosterKey, newPosterKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
     const changes = [
-      ...buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
+      ...buildSingleMediaKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
       ...buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'event', eventSlug),
     ];
     await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });

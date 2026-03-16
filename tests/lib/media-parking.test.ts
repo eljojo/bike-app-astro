@@ -1,16 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/media/photo-parking.server';
-import type { PhotoKeyChange } from '../../src/lib/content/save-helpers';
+import { extractFrontmatterField, parkOrphanedMedia, updateMediaRegistryCache } from '../../src/lib/media/media-parking.server';
+import type { MediaKeyChange } from '../../src/lib/content/save-helpers.server';
 import { CITY } from '../../src/lib/config/config';
 
 // Mock dependencies
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- mock definition
 vi.mock('../../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
-// Shared mock DB variable — defaults to fake chain for parkOrphanedPhoto tests,
-// swapped to real SQLite for updatePhotoRegistryCache tests.
+// Shared mock DB variable — defaults to fake chain for parkOrphanedMedia tests,
+// swapped to real SQLite for updateMediaRegistryCache tests.
 const mockDbGet = vi.fn(() => null);
 let mockDbInstance: any = {
   select: () => ({ from: () => ({ where: () => ({ get: () => mockDbGet() }) }) }),
@@ -36,7 +36,7 @@ describe('extractFrontmatterField', () => {
   });
 });
 
-describe('parkOrphanedPhoto', () => {
+describe('parkOrphanedMedia', () => {
   const mockGit = {
     readFile: vi.fn(),
     writeFiles: vi.fn(),
@@ -48,7 +48,7 @@ describe('parkOrphanedPhoto', () => {
   });
 
   it('returns null when oldKey is undefined', async () => {
-    const result = await parkOrphanedPhoto({
+    const result = await parkOrphanedMedia({
       oldKey: undefined,
       newKey: 'new-key',
       contentType: 'place',
@@ -60,7 +60,7 @@ describe('parkOrphanedPhoto', () => {
   });
 
   it('returns null when keys are the same', async () => {
-    const result = await parkOrphanedPhoto({
+    const result = await parkOrphanedMedia({
       oldKey: 'same-key',
       newKey: 'same-key',
       contentType: 'place',
@@ -72,9 +72,9 @@ describe('parkOrphanedPhoto', () => {
   });
 
   it('parks a photo when not used elsewhere', async () => {
-    mockGit.readFile.mockResolvedValue(null); // no existing parked-photos.yml
+    mockGit.readFile.mockResolvedValue(null); // no existing parked-media.yml
 
-    const result = await parkOrphanedPhoto({
+    const result = await parkOrphanedMedia({
       oldKey: 'orphan-key',
       newKey: undefined,
       contentType: 'place',
@@ -85,11 +85,11 @@ describe('parkOrphanedPhoto', () => {
 
     expect(result).not.toBeNull();
     expect(result!.mergedParked).toEqual([{ key: 'orphan-key' }]);
-    expect(result!.fileChange.path).toBe(`${CITY}/parked-photos.yml`);
+    expect(result!.fileChange.path).toBe(`${CITY}/parked-media.yml`);
   });
 
   it('returns null when photo is used by another content item', async () => {
-    const result = await parkOrphanedPhoto({
+    const result = await parkOrphanedMedia({
       oldKey: 'shared-key',
       newKey: undefined,
       contentType: 'place',
@@ -107,7 +107,7 @@ describe('parkOrphanedPhoto', () => {
   });
 });
 
-describe('updatePhotoRegistryCache', () => {
+describe('updateMediaRegistryCache', () => {
   const dbPath = path.join(import.meta.dirname, '.test-photo-parking.db');
   let database: any;
 
@@ -136,11 +136,11 @@ describe('updatePhotoRegistryCache', () => {
   });
 
   it('writes shared-keys to cache when keys change', async () => {
-    const changes: PhotoKeyChange[] = [
+    const changes: MediaKeyChange[] = [
       { key: 'new-key', usage: { type: 'place', slug: 'test' }, action: 'add' },
     ];
 
-    await updatePhotoRegistryCache({
+    await updateMediaRegistryCache({
       database,
       sharedKeysData: {},
       keyChanges: changes,
@@ -150,7 +150,7 @@ describe('updatePhotoRegistryCache', () => {
     const { eq, and } = await import('drizzle-orm');
     const row = await database.select().from(contentEdits)
       .where(and(
-        eq(contentEdits.contentType, 'photo-shared-keys'),
+        eq(contentEdits.contentType, 'media-shared-keys'),
         eq(contentEdits.contentSlug, '__global'),
       )).get();
 
@@ -160,7 +160,7 @@ describe('updatePhotoRegistryCache', () => {
   });
 
   it('writes parked-photos when mergedParked provided', async () => {
-    await updatePhotoRegistryCache({
+    await updateMediaRegistryCache({
       database,
       sharedKeysData: {},
       keyChanges: [],
@@ -171,7 +171,7 @@ describe('updatePhotoRegistryCache', () => {
     const { eq, and } = await import('drizzle-orm');
     const row = await database.select().from(contentEdits)
       .where(and(
-        eq(contentEdits.contentType, 'parked-photos'),
+        eq(contentEdits.contentType, 'parked-media'),
         eq(contentEdits.contentSlug, '__global'),
       )).get();
 
@@ -181,7 +181,7 @@ describe('updatePhotoRegistryCache', () => {
   });
 
   it('skips writes when no changes and no parked', async () => {
-    await updatePhotoRegistryCache({
+    await updateMediaRegistryCache({
       database,
       sharedKeysData: {},
       keyChanges: [],

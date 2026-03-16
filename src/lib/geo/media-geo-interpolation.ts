@@ -5,14 +5,14 @@ interface TrackPoint {
 }
 
 /**
- * Estimate a photo's GPS coordinates by interpolating its timestamp
+ * Estimate a media item's GPS coordinates by interpolating its timestamp
  * against the GPX track's time data.
  *
  * @param photoTimeOffset - seconds from track start (same unit as track[i].time)
  * @param track - sorted array of track points with time offsets
  * @returns estimated {lat, lng} or null if track is empty
  */
-export function interpolatePhotoLocation(
+export function interpolateMediaLocation(
   photoTimeOffset: number,
   track: TrackPoint[],
 ): { lat: number; lng: number } | null {

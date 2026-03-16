@@ -6,7 +6,7 @@ import type { AdminRide } from '../../loaders/admin-rides';
 import { routeDetailFromCache } from '../models/route-model';
 import { eventDetailFromCache } from '../models/event-model';
 import { rideDetailFromCache } from '../models/ride-model';
-import { deserializeSharedKeys, type SharedKeysMap } from '../media/photo-registry';
+import { deserializeSharedKeys, type SharedKeysMap } from '../media/media-registry';
 import { CITY } from '../config/config';
 
 export interface AdminContentResult<T> {
@@ -224,7 +224,7 @@ export async function loadSharedKeysMap(
   const cached = await database.select().from(contentEdits)
     .where(and(
       eq(contentEdits.city, CITY),
-      eq(contentEdits.contentType, 'photo-shared-keys'),
+      eq(contentEdits.contentType, 'media-shared-keys'),
       eq(contentEdits.contentSlug, '__global'),
     ))
     .get();
@@ -280,12 +280,12 @@ export async function loadAdminRideList(buildTimeRides: AdminRide[]): Promise<{
   return { rides: items, pendingSlugs: pendingIds };
 }
 
-export async function loadParkedPhotosWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
+export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
   const database = getDb();
   const cached = await database.select().from(contentEdits)
     .where(and(
       eq(contentEdits.city, CITY),
-      eq(contentEdits.contentType, 'parked-photos'),
+      eq(contentEdits.contentType, 'parked-media'),
       eq(contentEdits.contentSlug, '__global'),
     ))
     .get();

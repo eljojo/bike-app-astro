@@ -26,8 +26,8 @@ import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
 import { loadAdminPlaceData } from './loaders/admin-places';
 import { loadAdminRideData } from './loaders/admin-rides';
-import { buildPhotoLocations, buildNearbyPhotosMap, type ParkedPhoto } from './loaders/photo-locations';
-import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/photo-registry';
+import { buildMediaLocations, buildNearbyMediaMap, type ParkedMedia } from './loaders/media-locations';
+import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/media-registry';
 import { isBlogInstance } from './lib/config/city-config';
 import { getContentTypes } from './lib/content/content-types.server';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
@@ -46,11 +46,11 @@ const CITY_DIR = cityDir;
 
 // --- File-reading helpers ---
 
-function loadParkedPhotos(): ParkedPhoto[] {
-  const filePath = path.join(CITY_DIR, 'parked-photos.yml');
+function loadParkedMedia(): ParkedMedia[] {
+  const filePath = path.join(CITY_DIR, 'parked-media.yml');
   if (!fs.existsSync(filePath)) return [];
   const raw = fs.readFileSync(filePath, 'utf-8');
-  return (yaml.load(raw) as ParkedPhoto[]) || [];
+  return (yaml.load(raw) as ParkedMedia[]) || [];
 }
 
 function loadPlacePhotoKeys(): Array<{ slug: string; photo_key?: string }> {
@@ -184,14 +184,14 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
 
 // --- Virtual module builders (complex data composition) ---
 
-function buildPhotoSharedKeysModule(
+function buildMediaSharedKeysModule(
   routeDetails: Record<string, { media: Array<{ key: string }> }>,
 ): string {
   const routeData: Record<string, { media: Array<{ key: string }> }> = {};
   for (const [slug, detail] of Object.entries(routeDetails)) {
     routeData[slug] = { media: detail.media || [] };
   }
-  const parked = loadParkedPhotos();
+  const parked = loadParkedMedia();
   const places = loadPlacePhotoKeys();
   const events = loadEventPosterKeys();
   const map = buildSharedKeysMap(routeData, places, events, parked);
@@ -273,27 +273,27 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     'contributors': async () =>
       `export default ${JSON.stringify(contributors)};`,
 
-    'parked-photos': async () =>
-      `export default ${JSON.stringify(loadParkedPhotos())};`,
+    'parked-media': async () =>
+      `export default ${JSON.stringify(loadParkedMedia())};`,
 
-    'photo-locations': async () => {
+    'media-locations': async () => {
       const details = await getRouteDetails();
-      const parked = loadParkedPhotos();
-      return `export default ${JSON.stringify(buildPhotoLocations(details, parked))};`;
+      const parked = loadParkedMedia();
+      return `export default ${JSON.stringify(buildMediaLocations(details, parked))};`;
     },
 
-    'nearby-photos': async () => {
+    'nearby-media': async () => {
       if (isBlog) return `export default ${JSON.stringify({})};`;
       const details = await getRouteDetails();
-      const parked = loadParkedPhotos();
-      const locations = buildPhotoLocations(details, parked);
+      const parked = loadParkedMedia();
+      const locations = buildMediaLocations(details, parked);
       const tracks = loadRouteTrackPoints();
-      return `export default ${JSON.stringify(buildNearbyPhotosMap(locations, tracks))};`;
+      return `export default ${JSON.stringify(buildNearbyMediaMap(locations, tracks))};`;
     },
 
-    'photo-shared-keys': async () => {
+    'media-shared-keys': async () => {
       const details = await getRouteDetails();
-      return buildPhotoSharedKeysModule(details);
+      return buildMediaSharedKeysModule(details);
     },
 
     'tours': async () => {

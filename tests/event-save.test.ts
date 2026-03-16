@@ -9,17 +9,17 @@ vi.mock('virtual:bike-app/admin-events', () => ({
     { id: '2099/solo-event', organizer: 'solo-org', start_date: '2099-08-01' },
   ],
 }));
-vi.mock('virtual:bike-app/photo-shared-keys', () => ({ default: {} }));
+vi.mock('virtual:bike-app/media-shared-keys', () => ({ default: {} }));
 vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test', GIT_OWNER: 'o', GIT_DATA_REPO: 'r' } }));
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));
 const mockExtractFrontmatterField = vi.fn().mockReturnValue(undefined);
-const mockParkOrphanedPhoto = vi.fn().mockReturnValue(null);
-const mockUpdatePhotoRegistryCache = vi.fn().mockResolvedValue(undefined);
-vi.mock('../src/lib/media/photo-parking.server', () => ({
+const mockParkOrphanedMedia = vi.fn().mockReturnValue(null);
+const mockUpdateMediaRegistryCache = vi.fn().mockResolvedValue(undefined);
+vi.mock('../src/lib/media/media-parking.server', () => ({
   extractFrontmatterField: (...args: unknown[]) => mockExtractFrontmatterField(...args),
-  parkOrphanedPhoto: (...args: unknown[]) => mockParkOrphanedPhoto(...args),
-  updatePhotoRegistryCache: (...args: unknown[]) => mockUpdatePhotoRegistryCache(...args),
+  parkOrphanedMedia: (...args: unknown[]) => mockParkOrphanedMedia(...args),
+  updateMediaRegistryCache: (...args: unknown[]) => mockUpdateMediaRegistryCache(...args),
 }));
 
 import { isPastEvent, eventHandlers } from '../src/views/api/event-save';
@@ -247,7 +247,7 @@ describe('eventHandlers.afterCommit', () => {
     };
     const mockDb = {};
     await eventHandlers.afterCommit!(result as any, mockDb as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({
         database: mockDb,
         keyChanges: expect.arrayContaining([
@@ -271,7 +271,7 @@ describe('eventHandlers.afterCommit', () => {
       removedMediaKeys: ['removed-photo'],
     };
     await eventHandlers.afterCommit!(result as any, {} as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({
         keyChanges: expect.arrayContaining([
           expect.objectContaining({ key: 'added-photo', action: 'add' }),
@@ -295,7 +295,7 @@ describe('eventHandlers.afterCommit', () => {
       removedMediaKeys: [],
     };
     await eventHandlers.afterCommit!(result as any, {} as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({ mergedParked }),
     );
   });
@@ -313,7 +313,7 @@ describe('eventHandlers.afterCommit', () => {
       removedMediaKeys: [],
     };
     await eventHandlers.afterCommit!(result as any, {} as any);
-    expect(mockUpdatePhotoRegistryCache).toHaveBeenCalledWith(
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({ keyChanges: [] }),
     );
   });

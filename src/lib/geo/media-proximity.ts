@@ -20,10 +20,10 @@ const LAT_MARGIN = PHOTO_NEARBY_M / 111_000; // ~0.0018°
 const LNG_MARGIN = PHOTO_NEARBY_M / 78_000;  // ~0.0026°
 
 /**
- * Find photos from other routes that are within PHOTO_NEARBY_M meters of the given route track.
+ * Find media from other routes that are within PHOTO_NEARBY_M meters of the given route track.
  * Uses bounding box pre-filter then haversine for accuracy.
  */
-export function findNearbyPhotos(
+export function findNearbyMedia(
   trackPoints: Point[],
   allPhotos: PhotoCandidate[],
   currentRouteSlug: string,

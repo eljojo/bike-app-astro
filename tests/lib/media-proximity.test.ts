@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { findNearbyPhotos } from '../../src/lib/geo/photo-proximity';
+import { findNearbyMedia } from '../../src/lib/geo/media-proximity';
 
-describe('findNearbyPhotos', () => {
+describe('findNearbyMedia', () => {
   const routePoints = [
     { lat: 45.4215, lng: -75.6972 }, // start
     { lat: 45.4220, lng: -75.6950 }, // mid
@@ -13,7 +13,7 @@ describe('findNearbyPhotos', () => {
       { key: 'near', lat: 45.4216, lng: -75.6970, routeSlug: 'other', width: 100, height: 100 },
       { key: 'far', lat: 45.5000, lng: -75.5000, routeSlug: 'other', width: 100, height: 100 },
     ];
-    const result = findNearbyPhotos(routePoints, photos, 'current-route');
+    const result = findNearbyMedia(routePoints, photos, 'current-route');
     expect(result).toHaveLength(1);
     expect(result[0].key).toBe('near');
   });
@@ -22,7 +22,7 @@ describe('findNearbyPhotos', () => {
     const photos = [
       { key: 'mine', lat: 45.4216, lng: -75.6970, routeSlug: 'current-route', width: 100, height: 100 },
     ];
-    const result = findNearbyPhotos(routePoints, photos, 'current-route');
+    const result = findNearbyMedia(routePoints, photos, 'current-route');
     expect(result).toHaveLength(0);
   });
 
@@ -30,7 +30,7 @@ describe('findNearbyPhotos', () => {
     const photos = [
       { key: 'far', lat: 0, lng: 0, routeSlug: 'other', width: 100, height: 100 },
     ];
-    const result = findNearbyPhotos(routePoints, photos, 'current');
+    const result = findNearbyMedia(routePoints, photos, 'current');
     expect(result).toHaveLength(0);
   });
 });

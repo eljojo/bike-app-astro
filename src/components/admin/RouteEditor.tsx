@@ -15,9 +15,9 @@ import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import SlugEditor from './SlugEditor';
-import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
+import nearbyPhotosMap from 'virtual:bike-app/nearby-media';
 import { toParkedEntry } from '../../lib/media/media-merge';
-import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
   cdnUrl: string;
   videosCdnUrl?: string;
   videoPrefix?: string;
-  parkedPhotos?: ParkedPhotoEntry[];
+  parkedPhotos?: ParkedMediaEntry[];
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
   defaultLocale?: string;
@@ -43,7 +43,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [parkedPhotos, setParkedPhotos] = useState(initialParkedPhotos);
-  const [newlyParked, setNewlyParked] = useState<ParkedPhotoEntry[]>([]);
+  const [newlyParked, setNewlyParked] = useState<ParkedMediaEntry[]>([]);
   const [deletedParkedKeys, setDeletedParkedKeys] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const [slug, setSlug] = useState(initialData.slug);

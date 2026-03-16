@@ -10,7 +10,7 @@ import { categoryEmoji } from '../../lib/geo/place-categories';
 import { buildImageUrl } from '../../lib/media/image-service';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
-import photoLocations from 'virtual:bike-app/photo-locations';
+import photoLocations from 'virtual:bike-app/media-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
 import { localeLabel } from '../../lib/i18n/locale-utils';

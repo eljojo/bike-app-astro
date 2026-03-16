@@ -18,8 +18,8 @@ import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git/git-gpx';
 
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
-import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { db } from '../../lib/get-db';
 
 export const prerender = false;

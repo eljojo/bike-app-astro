@@ -5,10 +5,10 @@ import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
-import parkedPhotosData from 'virtual:bike-app/parked-photos';
+import parkedPhotosData from 'virtual:bike-app/parked-media';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
-import { loadDetailPageData, loadParkedPhotosWithOverlay } from '../../lib/content/load-admin-content.server';
+import { loadDetailPageData, loadParkedMediaWithOverlay } from '../../lib/content/load-admin-content.server';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
@@ -31,7 +31,7 @@ const result = await loadDetailPageData({
 if (result.notFound) return new Response(null, { status: 404 });
 const routeData = result.data;
 
-const parkedPhotos = await loadParkedPhotosWithOverlay(parkedPhotosData);
+const parkedPhotos = await loadParkedMediaWithOverlay(parkedPhotosData);
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const videosCdnUrl = getCityConfig().videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;

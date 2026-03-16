@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'preact/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
-import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { buildImageUrl } from '../../lib/media/image-service';
 
-interface PhotoLocation {
+interface MediaLocation {
   key: string;
   lat: number;
   lng: number;
@@ -14,8 +14,8 @@ interface PhotoLocation {
 }
 
 interface Props {
-  nearbyPhotos: PhotoLocation[];
-  parkedPhotos: ParkedPhotoEntry[];
+  nearbyPhotos: MediaLocation[];
+  parkedPhotos: ParkedMediaEntry[];
   currentMediaKeys: Set<string>;
   cdnUrl: string;
   userRole?: string;
@@ -43,7 +43,7 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
   if (totalCount === 0 && !dragOverPanel) return null;
 
   // Group nearby photos by source route
-  const byRoute = new Map<string, PhotoLocation[]>();
+  const byRoute = new Map<string, MediaLocation[]>();
   for (const p of available) {
     if (p.routeSlug === '__parked') continue; // parked shown separately
     const list = byRoute.get(p.routeSlug) || [];
@@ -51,7 +51,7 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
     byRoute.set(p.routeSlug, list);
   }
 
-  function handleSuggestionDragStart(e: DragEvent, photo: PhotoLocation | ParkedPhotoEntry, isParked: boolean) {
+  function handleSuggestionDragStart(e: DragEvent, photo: MediaLocation | ParkedMediaEntry, isParked: boolean) {
     e.dataTransfer!.setData('text/photo-key', photo.key);
     e.dataTransfer!.setData('text/suggestion-data', JSON.stringify({ ...photo, wasParked: isParked }));
     e.dataTransfer!.effectAllowed = 'move';

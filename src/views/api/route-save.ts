@@ -5,7 +5,7 @@ import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
-import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media/media-merge';
+import { mergeMedia, mergeParkedMedia, type ParkedMediaEntry } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx/parse';
 import { CITY } from '../../lib/config/config';
 import { routeGpxGitPath } from '../../lib/gpx/filenames';
@@ -20,8 +20,8 @@ import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { routeOps } from '../../lib/content/content-ops.server';
 import { buildRedirectFileChange } from '../../lib/redirects';
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
-import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { db } from '../../lib/get-db';
 
 export const prerender = false;
@@ -59,7 +59,7 @@ const routeUpdateSchema = z.object({
 export type RouteUpdate = z.infer<typeof routeUpdateSchema>;
 
 interface RouteBuildResult extends BuildResult {
-  mergedParked: ParkedPhotoEntry[] | undefined;
+  mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
   slug: string;
@@ -212,12 +212,12 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
       }
     }
 
-    // Update parked-photos.yml
-    const parkedPath = `${CITY}/parked-photos.yml`;
-    let existingParked: ParkedPhotoEntry[] = [];
+    // Update parked-media.yml
+    const parkedPath = `${CITY}/parked-media.yml`;
+    let existingParked: ParkedMediaEntry[] = [];
     const parkedFile = await git.readFile(parkedPath);
     if (parkedFile) {
-      existingParked = (yaml.load(parkedFile.content) as ParkedPhotoEntry[]) || [];
+      existingParked = (yaml.load(parkedFile.content) as ParkedMediaEntry[]) || [];
     }
 
     // Un-park any photos that were added to this route from parking
@@ -233,7 +233,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
     }
 
     const toAdd = update.parkedPhotos || [];
-    const mergedParked = mergeParkedPhotos(existingParked, toAdd, unparkedKeys);
+    const mergedParked = mergeParkedMedia(existingParked, toAdd, unparkedKeys);
 
     if (mergedParked.length > 0) {
       files.push({ path: parkedPath, content: serializeYamlFile(mergedParked) });
