@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SaveHandlers, WithSlugValidation, CurrentFiles } from '../src/lib/content/content-save';
+import type { SaveHandlers, WithSlugValidation, CurrentFiles, BuildResult } from '../src/lib/content/content-save';
 
 // Existing handler interface tests (preserved)
 describe('SaveHandlers interface', () => {
@@ -356,5 +356,34 @@ describe('saveContent permission stripping', () => {
     });
     await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
     expect(capturedUpdate?.newSlug).toBe('renamed');
+  });
+});
+
+// --- afterCommit failure isolation tests ---
+
+describe('saveContent afterCommit isolation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadFile.mockResolvedValue({ content: 'existing', sha: 'sha-old' });
+    mockGetResult.mockReturnValue({ githubSha: 'sha-old', data: '{}' });
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('returns 200 even when afterCommit throws', async () => {
+    const throwingHandlers: SaveHandlers<{ body: string; contentHash?: string }> & { afterCommit: (result: BuildResult, db: unknown) => Promise<void> } = {
+      ...stubHandlers,
+      afterCommit: async () => {
+        throw new Error('afterCommit exploded');
+      },
+    };
+
+    const req = makeRequest({ body: 'new content' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', throwingHandlers);
+
+    // Git commit happened, response should be 200 despite afterCommit failure
+    expect(res.status).toBe(200);
+    expect(mockWriteFiles).toHaveBeenCalledOnce();
+    const data = await res.json();
+    expect(data.success).toBe(true);
   });
 });
