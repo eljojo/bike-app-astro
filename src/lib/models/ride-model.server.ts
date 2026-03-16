@@ -23,23 +23,26 @@ export function computeRideContentHashFromFiles(currentFiles: RideGitFiles): str
   return computeRideContentHash(currentFiles.primaryFile.content, gpxContent, mediaContent);
 }
 
-/** Parse media YAML content into media items, filtering to photos only. */
+/** Parse media YAML content into media items (photos and videos). */
 function parseMediaYaml(yml: string): RideMediaItem[] {
   if (!yml.trim()) return [];
   const parsed = yaml.load(yml);
   if (!Array.isArray(parsed)) return [];
-  return parsed
-    .filter((m: Record<string, unknown>) => m.type === 'photo')
-    .map((m: Record<string, unknown>) => {
-      const item: Record<string, unknown> = { key: m.key as string };
-      if (m.caption != null) item.caption = m.caption;
-      if (m.cover != null) item.cover = m.cover;
-      if (m.width != null) item.width = m.width;
-      if (m.height != null) item.height = m.height;
-      if (m.lat != null) item.lat = m.lat;
-      if (m.lng != null) item.lng = m.lng;
-      return item as RideMediaItem;
-    });
+  return parsed.map((m: Record<string, unknown>) => {
+    const item: Record<string, unknown> = { key: m.key as string };
+    if (m.type != null) item.type = m.type;
+    if (m.caption != null) item.caption = m.caption;
+    if (m.cover != null) item.cover = m.cover;
+    if (m.width != null) item.width = m.width;
+    if (m.height != null) item.height = m.height;
+    if (m.lat != null) item.lat = m.lat;
+    if (m.lng != null) item.lng = m.lng;
+    if (m.title != null) item.title = m.title;
+    if (m.handle != null) item.handle = m.handle;
+    if (m.duration != null) item.duration = m.duration;
+    if (m.orientation != null) item.orientation = m.orientation;
+    return item as RideMediaItem;
+  });
 }
 
 /**

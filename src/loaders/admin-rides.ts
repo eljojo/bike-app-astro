@@ -214,19 +214,22 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const distance_km = Math.round(parsed.gpxTrack.distance_m / 100) / 10;
     const elevation_m = Math.round(parsed.gpxTrack.elevation_gain_m);
 
-    // Filter media to photos only (matching route pattern)
-    const photoMedia = parsed.media
-      .filter(m => m.type === 'photo')
-      .map(m => {
-        const item: AdminRideDetail['media'][0] = { key: m.key };
-        if (m.caption != null) item.caption = m.caption;
-        if (m.cover != null) item.cover = m.cover;
-        if (m.width != null) item.width = m.width;
-        if (m.height != null) item.height = m.height;
-        if (m.lat != null) item.lat = m.lat;
-        if (m.lng != null) item.lng = m.lng;
-        return item;
-      });
+    // Include all media (photos and videos)
+    const media = parsed.media.map(m => {
+      const item: AdminRideDetail['media'][0] = { key: m.key };
+      if (m.type != null) item.type = m.type;
+      if (m.caption != null) item.caption = m.caption;
+      if (m.cover != null) item.cover = m.cover;
+      if (m.width != null) item.width = m.width;
+      if (m.height != null) item.height = m.height;
+      if (m.lat != null) item.lat = m.lat;
+      if (m.lng != null) item.lng = m.lng;
+      if (m.title != null) item.title = m.title;
+      if (m.handle != null) item.handle = m.handle;
+      if (m.duration != null) item.duration = m.duration;
+      if (m.orientation != null) item.orientation = m.orientation;
+      return item;
+    });
 
     const ride: AdminRide = {
       slug: parsed.slug,
@@ -247,7 +250,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       tags,
       status,
       body: parsed.body,
-      media: photoMedia,
+      media,
       variants: [{
         name,
         gpx: gpxFilename,
