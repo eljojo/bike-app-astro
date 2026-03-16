@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../../src/lib/media/video-enrichment';
+import { CITY } from '../../../src/lib/config/config';
 
 describe('enrichMediaFromVideoJobs', () => {
   it('enriches video items with ready videoJobs metadata', async () => {
@@ -45,7 +46,7 @@ describe('enrichMediaFromVideoJobs', () => {
   it('normalizes annotated keys via bareVideoKey before D1 lookup', async () => {
     // Media has annotated key (ottawa/vid123), D1 stores bare key (vid123)
     const media = [
-      { key: 'ottawa/vid123', type: 'video', title: 'Annotated' },
+      { key: `${CITY}/vid123`, type: 'video', title: 'Annotated' },
     ];
     const mockDb = {
       select: vi.fn().mockReturnThis(),
@@ -58,7 +59,7 @@ describe('enrichMediaFromVideoJobs', () => {
     const result = await enrichMediaFromVideoJobs(media, mockDb as any);
     // Should match despite prefix difference
     expect(result.enrichedMedia[0]).toMatchObject({
-      key: 'ottawa/vid123', // key preserved as-is
+      key: `${CITY}/vid123`, // key preserved as-is
       width: 1280,
       height: 720,
     });

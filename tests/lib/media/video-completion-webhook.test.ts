@@ -91,6 +91,7 @@ vi.mock('../../../src/lib/media/video-service', () => ({
 // so we catch regressions when the cache shape changes
 
 import { persistVideoMetadataToGit } from '../../../src/lib/media/video-completion.webhook';
+import { CITY } from '../../../src/lib/config/config';
 
 describe('persistVideoMetadataToGit', () => {
   beforeEach(() => {
@@ -214,7 +215,7 @@ describe('persistVideoMetadataToGit', () => {
     const [files] = mockWriteFiles.mock.calls[0];
     // Real deriveGpxRelativePath: "2026-03-15" + "15-morning-ride.gpx" → "2026/03/15-morning-ride.gpx"
     // rideFilePathsFromRelPath: "2026/03/15-morning-ride.gpx" → media: "ottawa/rides/2026/03/15-morning-ride-media.yml"
-    expect(files[0].path).toBe('ottawa/rides/2026/03/15-morning-ride-media.yml');
+    expect(files[0].path).toBe(`${CITY}/rides/2026/03/15-morning-ride-media.yml`);
   });
 
   it('resolves tour ride media path with tour_slug in directory', async () => {
@@ -238,7 +239,7 @@ describe('persistVideoMetadataToGit', () => {
     const [files] = mockWriteFiles.mock.calls[0];
     // With tour_slug, path includes the tour directory:
     // deriveGpxRelativePath("2026-06-10", "10-paris.gpx", "euro-trip") → "2026/06/euro-trip/10-paris.gpx"
-    expect(files[0].path).toBe('ottawa/rides/2026/06/euro-trip/10-paris-media.yml');
+    expect(files[0].path).toBe(`${CITY}/rides/2026/06/euro-trip/10-paris-media.yml`);
   });
 
   it('returns not persisted when ride cache is missing', async () => {

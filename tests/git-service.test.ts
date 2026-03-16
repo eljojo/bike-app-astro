@@ -6,6 +6,7 @@ import {
   COMMITTER,
 } from '../src/lib/git/git.adapter-github';
 import type { FileChange, CommitAuthor } from '../src/lib/git/git.adapter-github';
+import { CITY } from '../src/lib/config/config';
 
 const TEST_CONFIG = {
   token: 'ghp_test_token_123',
@@ -98,7 +99,7 @@ describe('GitService', () => {
       ]);
       vi.stubGlobal('fetch', fetchMock);
 
-      const result = await service.readFile('ottawa/routes/my-route/index.md');
+      const result = await service.readFile(`${CITY}/routes/my-route/index.md`);
 
       expect(result).not.toBeNull();
       expect(result!.content).toBe(fileContent);
@@ -107,7 +108,7 @@ describe('GitService', () => {
       // Verify correct API call
       expect(fetchMock).toHaveBeenCalledOnce();
       const [url, options] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes/my-route/index.md?ref=main');
+      expect(url).toBe(`https://api.github.com/repos/eljojo/bike-routes/contents/${CITY}/routes/my-route/index.md?ref=main`);
       expect(options.headers['Authorization']).toBe('Bearer ghp_test_token_123');
       expect(options.headers['X-GitHub-Api-Version']).toBe('2022-11-28');
 
@@ -118,7 +119,7 @@ describe('GitService', () => {
       const fetchMock = mockFetch([{ status: 404 }]);
       vi.stubGlobal('fetch', fetchMock);
 
-      const result = await service.readFile('ottawa/routes/nonexistent/index.md');
+      const result = await service.readFile(`${CITY}/routes/nonexistent/index.md`);
       expect(result).toBeNull();
 
       vi.unstubAllGlobals();
@@ -140,19 +141,19 @@ describe('GitService', () => {
         {
           status: 200,
           body: [
-            { name: 'index.md', type: 'file', path: 'ottawa/routes/my-route/index.md', sha: 'a1' },
-            { name: 'media.yml', type: 'file', path: 'ottawa/routes/my-route/media.yml', sha: 'a2' },
-            { name: 'tracks', type: 'dir', path: 'ottawa/routes/my-route/tracks', sha: 'a3' },
+            { name: 'index.md', type: 'file', path: `${CITY}/routes/my-route/index.md`, sha: 'a1' },
+            { name: 'media.yml', type: 'file', path: `${CITY}/routes/my-route/media.yml`, sha: 'a2' },
+            { name: 'tracks', type: 'dir', path: `${CITY}/routes/my-route/tracks`, sha: 'a3' },
           ],
         },
       ]);
       vi.stubGlobal('fetch', fetchMock);
 
-      const entries = await service.listDirectory('ottawa/routes/my-route');
+      const entries = await service.listDirectory(`${CITY}/routes/my-route`);
 
       expect(entries).toHaveLength(3);
-      expect(entries[0]).toEqual({ name: 'index.md', type: 'file', path: 'ottawa/routes/my-route/index.md' });
-      expect(entries[2]).toEqual({ name: 'tracks', type: 'dir', path: 'ottawa/routes/my-route/tracks' });
+      expect(entries[0]).toEqual({ name: 'index.md', type: 'file', path: `${CITY}/routes/my-route/index.md` });
+      expect(entries[2]).toEqual({ name: 'tracks', type: 'dir', path: `${CITY}/routes/my-route/tracks` });
 
       // Should not leak extra fields like sha
       expect(entries[0]).not.toHaveProperty('sha');
@@ -184,7 +185,7 @@ describe('GitService', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       const sha = await service.writeFiles(
-        [{ path: 'ottawa/routes/new-route/index.md', content: '# New Route\n' }],
+        [{ path: `${CITY}/routes/new-route/index.md`, content: '# New Route\n' }],
         'Add new route',
         TEST_AUTHOR
       );
@@ -222,7 +223,7 @@ describe('GitService', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       const sha = await service.writeFiles(
-        [{ path: 'ottawa/routes/existing/index.md', content: 'updated content' }],
+        [{ path: `${CITY}/routes/existing/index.md`, content: 'updated content' }],
         'Update route',
         TEST_AUTHOR
       );
@@ -240,8 +241,8 @@ describe('GitService', () => {
   describe('writeFiles — multiple files', () => {
     it('uses Git Trees API for atomic multi-file commits', async () => {
       const files: FileChange[] = [
-        { path: 'ottawa/routes/route-a/index.md', content: '# Route A\n' },
-        { path: 'ottawa/routes/route-a/media.yml', content: 'photos: []\n' },
+        { path: `${CITY}/routes/route-a/index.md`, content: '# Route A\n' },
+        { path: `${CITY}/routes/route-a/media.yml`, content: 'photos: []\n' },
       ];
 
       const fetchMock = mockFetch([
@@ -506,10 +507,10 @@ describe('GitService', () => {
       const fetchMock = mockFetch([{ status: 200, body: { content: btoa('test'), sha: 'abc' } }]);
       vi.stubGlobal('fetch', fetchMock);
 
-      await stagingService.readFile('ottawa/routes/test/index.md');
+      await stagingService.readFile(`${CITY}/routes/test/index.md`);
 
       const [url] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes/test/index.md?ref=staging');
+      expect(url).toBe(`https://api.github.com/repos/eljojo/bike-routes/contents/${CITY}/routes/test/index.md?ref=staging`);
 
       vi.unstubAllGlobals();
     });
@@ -519,10 +520,10 @@ describe('GitService', () => {
       const fetchMock = mockFetch([{ status: 200, body: [] }]);
       vi.stubGlobal('fetch', fetchMock);
 
-      await stagingService.listDirectory('ottawa/routes');
+      await stagingService.listDirectory(`${CITY}/routes`);
 
       const [url] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://api.github.com/repos/eljojo/bike-routes/contents/ottawa/routes?ref=staging');
+      expect(url).toBe(`https://api.github.com/repos/eljojo/bike-routes/contents/${CITY}/routes?ref=staging`);
 
       vi.unstubAllGlobals();
     });
@@ -598,7 +599,7 @@ describe('GitService', () => {
       }]);
       vi.stubGlobal('fetch', fetchMock);
 
-      const commits = await service.listCommits({ path: 'ottawa/routes/test/index.md', perPage: 10 });
+      const commits = await service.listCommits({ path: `${CITY}/routes/test/index.md`, perPage: 10 });
       expect(commits).toHaveLength(1);
       expect(commits[0]).toEqual({
         sha: 'abc123',
@@ -609,7 +610,7 @@ describe('GitService', () => {
 
       const [url] = fetchMock.mock.calls[0];
       expect(url).toContain('/commits?');
-      expect(url).toContain('path=ottawa%2Froutes%2Ftest%2Findex.md');
+      expect(url).toContain(`path=${CITY}%2Froutes%2Ftest%2Findex.md`);
       expect(url).toContain('per_page=10');
 
       vi.unstubAllGlobals();

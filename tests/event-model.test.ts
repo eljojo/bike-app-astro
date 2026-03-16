@@ -18,7 +18,7 @@ describe('eventDetailFromGit', () => {
       end_time: '17:00',
       registration_url: 'https://example.com',
       distances: '50k, 100k',
-      location: 'Ottawa',
+      location: 'Ottawa', // eslint-disable-line bike-app/no-hardcoded-city-locale -- content fixture
       organizer: 'bike-club',
       poster_key: 'abc123',
     };

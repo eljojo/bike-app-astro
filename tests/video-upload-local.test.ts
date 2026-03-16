@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { CITY } from '../src/lib/config/config';
 
 // --- Mocks ---
 
@@ -94,9 +95,9 @@ describe('video-upload-local PUT', () => {
 
   it('accepts prefixed key format (prefix/8chars)', async () => {
     const { PUT } = await import('../src/views/api/video-upload-local');
-    const res = await PUT(makeRequest('ottawa/ab12cd34'));
+    const res = await PUT(makeRequest(`${CITY}/ab12cd34`));
     expect(res.status).toBe(200);
-    expect(mockPut).toHaveBeenCalledWith('ottawa/ab12cd34', expect.any(ArrayBuffer));
+    expect(mockPut).toHaveBeenCalledWith(`${CITY}/ab12cd34`, expect.any(ArrayBuffer));
   });
 
   it('returns 500 when bucket put fails', async () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildPhotoKeyChanges, computeMediaKeyDiff, buildMediaKeyChanges, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../src/lib/content/save-helpers';
+import { CITY } from '../../src/lib/config/config';
 
 describe('buildPhotoKeyChanges', () => {
   it('returns empty array when keys are the same', () => {
@@ -87,7 +88,7 @@ describe('buildMediaKeyChanges', () => {
 
 describe('buildCommitTrailer', () => {
   it('formats the Changes trailer line', () => {
-    expect(buildCommitTrailer('ottawa/routes/britannia')).toBe('\n\nChanges: ottawa/routes/britannia');
+    expect(buildCommitTrailer(`${CITY}/routes/britannia`)).toBe(`\n\nChanges: ${CITY}/routes/britannia`);
   });
 });
 

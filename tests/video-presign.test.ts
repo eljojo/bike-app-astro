@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { VIDEO_PREFIX } from '../src/lib/config/config';
 
 // --- Mocks ---
 
@@ -85,9 +86,9 @@ describe('video-presign POST', () => {
     expect(data.key).toBe('k3eovg6o');
     expect(data.uploadUrl).toBeDefined();
     // generateVideoKey checks the prefixed S3 path: ${VIDEO_PREFIX}/${key}
-    expect(mockHeadObject).toHaveBeenCalledWith('ottawa/k3eovg6o');
+    expect(mockHeadObject).toHaveBeenCalledWith(`${VIDEO_PREFIX}/k3eovg6o`);
     // presignUpload also receives the prefixed key
-    expect(mockPresignUpload).toHaveBeenCalledWith('ottawa/k3eovg6o', 'video/mp4');
+    expect(mockPresignUpload).toHaveBeenCalledWith(`${VIDEO_PREFIX}/k3eovg6o`, 'video/mp4');
   });
 
   it('accepts video/quicktime', async () => {
@@ -192,9 +193,9 @@ describe('video-presign POST', () => {
     const data = await res.json();
     expect(data.key).toBe('unique99');
     // Both keys checked with VIDEO_PREFIX
-    expect(mockHeadObject).toHaveBeenCalledWith('ottawa/collided1');
-    expect(mockHeadObject).toHaveBeenCalledWith('ottawa/unique99');
+    expect(mockHeadObject).toHaveBeenCalledWith(`${VIDEO_PREFIX}/collided1`);
+    expect(mockHeadObject).toHaveBeenCalledWith(`${VIDEO_PREFIX}/unique99`);
     // Only the non-colliding key gets presigned
-    expect(mockPresignUpload).toHaveBeenCalledWith('ottawa/unique99', 'video/mp4');
+    expect(mockPresignUpload).toHaveBeenCalledWith(`${VIDEO_PREFIX}/unique99`, 'video/mp4');
   });
 });

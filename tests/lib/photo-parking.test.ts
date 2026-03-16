@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../src/lib/media/photo-parking';
 import type { PhotoKeyChange } from '../../src/lib/content/save-helpers';
+import { CITY } from '../../src/lib/config/config';
 
 // Mock dependencies
+// eslint-disable-next-line bike-app/no-hardcoded-city-locale -- mock definition
 vi.mock('../../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
 const mockDbGet = vi.fn(() => null);
@@ -89,7 +91,7 @@ describe('parkOrphanedPhoto', () => {
 
     expect(result).not.toBeNull();
     expect(result!.mergedParked).toEqual([{ key: 'orphan-key' }]);
-    expect(result!.fileChange.path).toBe('ottawa/parked-photos.yml');
+    expect(result!.fileChange.path).toBe(`${CITY}/parked-photos.yml`);
   });
 
   it('returns null when photo is used by another content item', async () => {

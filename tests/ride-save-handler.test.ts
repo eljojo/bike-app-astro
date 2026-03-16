@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { CITY } from '../src/lib/config/config';
 
 // --- Mocks ---
 
@@ -10,9 +11,8 @@ vi.mock('../src/lib/env/env.service', () => ({
   },
 }));
 
-vi.mock('../src/lib/config/config', () => ({
-  CITY: 'ottawa',
-}));
+// eslint-disable-next-line bike-app/no-hardcoded-city-locale -- mock definition
+vi.mock('../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
 // slug module is not mocked — uses real slugify/validateSlug (pure functions)
 
@@ -137,7 +137,7 @@ describe('ride-save handlers', () => {
       handlers.parseRequest(body);
       // After parseRequest, getFilePaths should work (gpxRelPath was derived)
       const filePaths = handlers.getFilePaths('anything');
-      expect(filePaths.primary).toContain('ottawa/rides/2026/03/15-sunset-loop.md');
+      expect(filePaths.primary).toContain(`${CITY}/rides/2026/03/15-sunset-loop.md`);
     });
 
     it('strips full date prefix from GPX filename (Strava import)', () => {
@@ -222,9 +222,9 @@ describe('ride-save handlers', () => {
         gpxRelativePath: '2026/03/15-test.gpx',
       });
       const paths = handlers.getFilePaths('test');
-      expect(paths.primary).toBe('ottawa/rides/2026/03/15-test.md');
-      expect(paths.auxiliary).toContain('ottawa/rides/2026/03/15-test.gpx');
-      expect(paths.auxiliary).toContain('ottawa/rides/2026/03/15-test-media.yml');
+      expect(paths.primary).toBe(`${CITY}/rides/2026/03/15-test.md`);
+      expect(paths.auxiliary).toContain(`${CITY}/rides/2026/03/15-test.gpx`);
+      expect(paths.auxiliary).toContain(`${CITY}/rides/2026/03/15-test-media.yml`);
     });
   });
 
@@ -345,7 +345,7 @@ describe('ride-save handlers', () => {
         update, '2026-03-15-morning-ride', { primaryFile: null }, mockGit,
       );
       const paths = result.files.map((f: { path: string }) => f.path);
-      expect(paths).toContain('ottawa/rides/2026/03/15-morning-ride.md');
+      expect(paths).toContain(`${CITY}/rides/2026/03/15-morning-ride.md`);
       expect(result.isNew).toBe(true);
     });
 
@@ -362,7 +362,7 @@ describe('ride-save handlers', () => {
         update, '2026-03-15-photo-ride', { primaryFile: null }, mockGit,
       );
       const paths = result.files.map((f: { path: string }) => f.path);
-      expect(paths).toContain('ottawa/rides/2026/03/15-photo-ride-media.yml');
+      expect(paths).toContain(`${CITY}/rides/2026/03/15-photo-ride-media.yml`);
     });
 
     it('commits GPX file for new variant', async () => {
@@ -395,8 +395,8 @@ describe('ride-save handlers', () => {
         update, '2026-03-15-old-name', { primaryFile: existingFile }, mockGit,
       );
       // Old files should be in deletePaths
-      expect(result.deletePaths).toContain('ottawa/rides/2026/03/15-old-name.md');
-      expect(result.deletePaths).toContain('ottawa/rides/2026/03/15-old-name.gpx');
+      expect(result.deletePaths).toContain(`${CITY}/rides/2026/03/15-old-name.md`);
+      expect(result.deletePaths).toContain(`${CITY}/rides/2026/03/15-old-name.gpx`);
       // Redirect file should be generated
       const paths = result.files.map((f: { path: string }) => f.path);
       expect(paths.some((p: string) => p.includes('_redirects'))).toBe(true);
@@ -520,7 +520,7 @@ describe('ride-save handlers', () => {
         mockGit,
       );
       // Media file should be deleted when existing media was present but all removed
-      expect(result.deletePaths).toContain('ottawa/rides/2026/03/15-cleared-media.yml');
+      expect(result.deletePaths).toContain(`${CITY}/rides/2026/03/15-cleared-media.yml`);
     });
 
     it('tracks addedMediaKeys and removedMediaKeys from computeMediaKeyDiff', async () => {

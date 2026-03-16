@@ -1,3 +1,4 @@
+/* eslint-disable bike-app/no-hardcoded-city-locale -- tests multi-city path parsing with explicit city args */
 import { describe, it, expect } from 'vitest';
 import { buildAuthorEmail, parseAuthorEmail, buildResourcePathRegex, parseContentPath, extractChangesPath } from '../src/lib/git/commit-author';
 

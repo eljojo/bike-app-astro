@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { routeDetailFromGit, routeDetailToCache } from '../src/lib/models/route-model';
+import { CITY } from '../src/lib/config/config';
 
 // --- Mocks for admin-revert endpoint ---
 
@@ -26,9 +27,8 @@ vi.mock('../src/lib/env/env.service', () => ({
   },
 }));
 
-vi.mock('../src/lib/config/config', () => ({
-  CITY: 'ottawa',
-}));
+// eslint-disable-next-line bike-app/no-hardcoded-city-locale -- mock definition
+vi.mock('../src/lib/config/config', () => ({ CITY: 'ottawa' }));
 
 vi.mock('../src/lib/get-db', () => ({
   db: () => ({}),
@@ -76,8 +76,8 @@ vi.mock('../src/lib/content/content-types', () => ({
       name: 'routes',
       ops: {
         getFilePaths: (slug: string) => ({
-          primary: `ottawa/routes/${slug}/index.md`,
-          auxiliary: [`ottawa/routes/${slug}/media.yml`],
+          primary: `${CITY}/routes/${slug}/index.md`,
+          auxiliary: [`${CITY}/routes/${slug}/media.yml`],
         }),
         computeContentHash: () => 'hash-123',
         buildFreshData: (...args: unknown[]) => mockBuildFreshData(...args),
@@ -131,7 +131,7 @@ describe('admin-revert POST', () => {
   it('rejects non-admin users', async () => {
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ commitSha: 'abc123', contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ commitSha: 'abc123', contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: editorUser },
       params: {},
     } as any);
@@ -141,7 +141,7 @@ describe('admin-revert POST', () => {
   it('rejects missing commitSha', async () => {
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: adminUser },
       params: {},
     } as any);
@@ -162,7 +162,7 @@ describe('admin-revert POST', () => {
     mockGetCommitFiles.mockResolvedValue([]);
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ commitSha: 'abc123', contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ commitSha: 'abc123', contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: adminUser },
       params: {},
     } as any);
@@ -172,13 +172,13 @@ describe('admin-revert POST', () => {
   });
 
   it('returns success without writing when content already matches', async () => {
-    mockGetCommitFiles.mockResolvedValue(['ottawa/routes/test/index.md']);
+    mockGetCommitFiles.mockResolvedValue([`${CITY}/routes/test/index.md`]);
     mockGetFileAtCommit.mockResolvedValue({ content: 'same content' });
     mockReadFile.mockResolvedValue({ content: 'same content', sha: 'sha-x' });
 
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ commitSha: 'abc123', contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ commitSha: 'abc123', contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: adminUser },
       params: {},
     } as any);
@@ -189,13 +189,13 @@ describe('admin-revert POST', () => {
   });
 
   it('restores files and rebuilds cache for known content type', async () => {
-    mockGetCommitFiles.mockResolvedValue(['ottawa/routes/test/index.md']);
+    mockGetCommitFiles.mockResolvedValue([`${CITY}/routes/test/index.md`]);
     mockGetFileAtCommit.mockResolvedValue({ content: 'old content' });
     mockReadFile.mockResolvedValue({ content: 'new content', sha: 'sha-x' });
 
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ commitSha: 'abc123', contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ commitSha: 'abc123', contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: adminUser },
       params: {},
     } as any);
@@ -204,7 +204,7 @@ describe('admin-revert POST', () => {
     expect(data.success).toBe(true);
     expect(data.sha).toBe('new-sha-abc');
     expect(mockWriteFiles).toHaveBeenCalledWith(
-      [{ path: 'ottawa/routes/test/index.md', content: 'old content' }],
+      [{ path: `${CITY}/routes/test/index.md`, content: 'old content' }],
       expect.stringContaining('Restore'),
       expect.objectContaining({ name: 'admin' }),
     );
@@ -212,8 +212,8 @@ describe('admin-revert POST', () => {
     expect(mockReadCurrentState).toHaveBeenCalledWith(
       expect.anything(), // git service
       expect.objectContaining({
-        primary: 'ottawa/routes/test/index.md',
-        auxiliary: expect.arrayContaining(['ottawa/routes/test/media.yml']),
+        primary: `${CITY}/routes/test/index.md`,
+        auxiliary: expect.arrayContaining([`${CITY}/routes/test/media.yml`]),
       }),
     );
     // buildFreshData receives the slug and current files
@@ -233,8 +233,8 @@ describe('admin-revert POST', () => {
 
   it('restores multiple files changed by the commit', async () => {
     mockGetCommitFiles.mockResolvedValue([
-      'ottawa/routes/test/index.md',
-      'ottawa/routes/test/media.yml',
+      `${CITY}/routes/test/index.md`,
+      `${CITY}/routes/test/media.yml`,
     ]);
     mockGetFileAtCommit.mockImplementation((_sha: string, path: string) =>
       Promise.resolve({ content: `content of ${path}` }),
@@ -243,15 +243,15 @@ describe('admin-revert POST', () => {
 
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ commitSha: 'abc123', contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ commitSha: 'abc123', contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: adminUser },
       params: {},
     } as any);
     expect(res.status).toBe(200);
     expect(mockWriteFiles).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ path: 'ottawa/routes/test/index.md' }),
-        expect.objectContaining({ path: 'ottawa/routes/test/media.yml' }),
+        expect.objectContaining({ path: `${CITY}/routes/test/index.md` }),
+        expect.objectContaining({ path: `${CITY}/routes/test/media.yml` }),
       ]),
       expect.any(String),
       expect.any(Object),
@@ -259,14 +259,14 @@ describe('admin-revert POST', () => {
   });
 
   it('returns 500 when git write fails', async () => {
-    mockGetCommitFiles.mockResolvedValue(['ottawa/routes/test/index.md']);
+    mockGetCommitFiles.mockResolvedValue([`${CITY}/routes/test/index.md`]);
     mockGetFileAtCommit.mockResolvedValue({ content: 'old content' });
     mockReadFile.mockResolvedValue({ content: 'different', sha: 'sha-x' });
     mockWriteFiles.mockRejectedValueOnce(new Error('Git API error'));
 
     const { POST } = await import('../src/views/api/admin-revert');
     const res = await POST({
-      request: makeRequest({ commitSha: 'abc123', contentPath: 'ottawa/routes/test/index.md' }),
+      request: makeRequest({ commitSha: 'abc123', contentPath: `${CITY}/routes/test/index.md` }),
       locals: { user: adminUser },
       params: {},
     } as any);

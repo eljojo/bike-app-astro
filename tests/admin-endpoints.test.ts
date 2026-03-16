@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { CITY } from '../src/lib/config/config';
 
 // Mock shared dependencies
 vi.mock('../src/lib/get-db', () => ({
@@ -63,7 +64,7 @@ describe('admin endpoint guards enforce role-specific access (I-5)', () => {
   it('admin-history POST allows editor', async () => {
     const { POST } = await import('../src/views/api/admin-history');
     const res = await POST({
-      request: makeRequest({ path: 'ottawa/routes' }),
+      request: makeRequest({ path: `${CITY}/routes` }),
       locals: { user: editorUser },
     } as any);
     expect(res.status).toBe(200);

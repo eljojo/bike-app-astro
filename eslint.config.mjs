@@ -48,11 +48,22 @@ export default [
     },
   },
   {
-    // Exclude test files and config files from most rules
-    files: ['tests/**/*.ts', 'e2e/**/*.ts', '*.config.*'],
+    // Test files get no-hardcoded-city-locale for city names only — assertions
+    // must derive CITY from imports, not hardcode 'ottawa' (CI runs CITY=demo).
+    // Locale codes ('en', 'fr') are OK in tests since i18n tests need them.
+    files: ['tests/**/*.ts', 'e2e/**/*.ts'],
+    plugins: {
+      'bike-app': {
+        rules: {
+          'no-hardcoded-city-locale': noHardcodedCityLocale,
+        },
+      },
+    },
+    languageOptions: {
+      parser: tseslint.parser,
+    },
     rules: {
-      'bike-app/no-hardcoded-city-locale': 'off',
-      'bike-app/require-prerender-export': 'off',
+      'bike-app/no-hardcoded-city-locale': ['error', { checkLocales: false }],
     },
   },
   {
