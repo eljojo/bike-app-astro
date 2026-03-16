@@ -163,12 +163,20 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ${{ inputs.city }}
 
+      - name: Resolve VIDEO_PREFIX from wrangler config
+        id: video-prefix
+        run: |
+          if [ -n "${{ inputs.wrangler-env }}" ]; then
+            PREFIX=$(sed 's|//.*$||' wrangler.jsonc | jq -r '.env["${{ inputs.wrangler-env }}"].vars.VIDEO_PREFIX // empty')
+          fi
+          echo "value=${PREFIX:-${{ inputs.city }}}" >> "$GITHUB_OUTPUT"
+
       - name: Build site
         run: npx astro build
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ${{ inputs.city }}
-          VIDEO_PREFIX: ${{ vars.VIDEO_PREFIX || inputs.city }}
+          VIDEO_PREFIX: ${{ steps.video-prefix.outputs.value }}
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
 
