@@ -14,6 +14,55 @@ export interface AdminContentResult<T> {
 }
 
 /**
+ * Config for the generic admin list overlay factory.
+ * Each content type provides its own field mappings for overlay and fresh-item creation.
+ */
+export interface AdminListOverlayConfig<TItem, TCached> {
+  contentType: string;
+  buildTimeItems: TItem[];
+  getId: (item: TItem) => string;
+  fromCache: (json: string) => TCached;
+  overlay: (item: TItem, cached: TCached) => TItem;
+  freshItemFromCache: (id: string, cached: TCached) => TItem;
+}
+
+/**
+ * Generic admin list overlay: queries D1 cache, overlays cached data onto
+ * build-time items, and appends cache-only items created since last deploy.
+ */
+export async function loadAdminContentList<TItem, TCached>(
+  config: AdminListOverlayConfig<TItem, TCached>,
+): Promise<{ items: TItem[]; pendingIds: Set<string> }> {
+  const database = getDb();
+  const cachedEdits = await database.select().from(contentEdits)
+    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, config.contentType))).all();
+
+  const cacheMap = new Map(cachedEdits.flatMap(e => {
+    try {
+      return [[e.contentSlug, config.fromCache(e.data)] as const];
+    } catch {
+      return [];
+    }
+  }));
+
+  const items = config.buildTimeItems.map(item => {
+    const cached = cacheMap.get(config.getId(item));
+    if (!cached) return item;
+    return config.overlay(item, cached);
+  });
+
+  // Append cache-only items (created since last deploy)
+  const existingIds = new Set(config.buildTimeItems.map(config.getId));
+  for (const [id, cached] of cacheMap) {
+    if (!existingIds.has(id)) {
+      items.push(config.freshItemFromCache(id, cached));
+    }
+  }
+
+  return { items, pendingIds: new Set(cacheMap.keys()) };
+}
+
+/**
  * Two-tier data loading for admin detail pages:
  * 1. D1 content_edits cache (with optional validated parsing)
  * 2. Build-time virtual module data
@@ -87,37 +136,24 @@ export async function loadAdminRouteList(buildTimeRoutes: AdminRoute[]): Promise
   routes: AdminRoute[];
   pendingSlugs: Set<string>;
 }> {
-  const database = getDb();
-  const cachedEdits = await database.select().from(contentEdits)
-    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, 'routes'))).all();
-
-  const cacheMap = new Map(cachedEdits.flatMap(e => {
-    try {
-      return [[e.contentSlug, routeDetailFromCache(e.data)] as const];
-    } catch {
-      return [];
-    }
-  }));
-
-  const routes = buildTimeRoutes.map(r => {
-    const cached = cacheMap.get(r.slug);
-    if (!cached) return r;
-    const cachedCover = cached.media?.find(m => m.cover) || cached.media?.[0];
-    return {
-      ...r,
-      name: cached.name ?? r.name,
-      mediaCount: cached.media?.length ?? r.mediaCount,
-      status: cached.status ?? r.status,
-      coverKey: cachedCover?.key ?? r.coverKey,
-    };
-  });
-
-  // Append D1-only routes (created since last deploy)
-  const existingSlugs = new Set(buildTimeRoutes.map(r => r.slug));
-  for (const [slug, cached] of cacheMap) {
-    if (!existingSlugs.has(slug)) {
+  const { items, pendingIds } = await loadAdminContentList({
+    contentType: 'routes',
+    buildTimeItems: buildTimeRoutes,
+    getId: r => r.slug,
+    fromCache: routeDetailFromCache,
+    overlay: (r, cached) => {
+      const cachedCover = cached.media?.find(m => m.cover) || cached.media?.[0];
+      return {
+        ...r,
+        name: cached.name ?? r.name,
+        mediaCount: cached.media?.length ?? r.mediaCount,
+        status: cached.status ?? r.status,
+        coverKey: cachedCover?.key ?? r.coverKey,
+      };
+    },
+    freshItemFromCache: (slug, cached) => {
       const newCover = cached.media?.find(m => m.cover) || cached.media?.[0];
-      routes.push({
+      return {
         slug,
         name: cached.name || slug,
         mediaCount: cached.media?.length ?? 0,
@@ -125,11 +161,10 @@ export async function loadAdminRouteList(buildTimeRoutes: AdminRoute[]): Promise
         contentHash: '',
         difficultyScore: null,
         coverKey: newCover?.key,
-      });
-    }
-  }
-
-  return { routes, pendingSlugs: new Set(cacheMap.keys()) };
+      };
+    },
+  });
+  return { routes: items, pendingSlugs: pendingIds };
 }
 
 /**
@@ -141,22 +176,12 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
   events: AdminEvent[];
   pendingIds: Set<string>;
 }> {
-  const database = getDb();
-  const cachedEdits = await database.select().from(contentEdits)
-    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, 'events'))).all();
-
-  const cacheMap = new Map(cachedEdits.flatMap(e => {
-    try {
-      return [[e.contentSlug, eventDetailFromCache(e.data)] as const];
-    } catch {
-      return [];
-    }
-  }));
-
-  const events = buildTimeEvents.map(e => {
-    const cached = cacheMap.get(e.id);
-    if (!cached) return e;
-    return {
+  const { items, pendingIds } = await loadAdminContentList({
+    contentType: 'events',
+    buildTimeItems: buildTimeEvents,
+    getId: e => e.id,
+    fromCache: eventDetailFromCache,
+    overlay: (e, cached) => ({
       ...e,
       name: cached.name ?? e.name,
       start_date: cached.start_date ?? e.start_date,
@@ -164,15 +189,10 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
       routes: cached.routes ?? e.routes,
       mediaCount: cached.media?.length ?? e.mediaCount,
       waypointCount: cached.waypoints?.length ?? e.waypointCount,
-    };
-  });
-
-  // Append D1-only events (created since last deploy)
-  const existingIds = new Set(buildTimeEvents.map(e => e.id));
-  for (const [id, cached] of cacheMap) {
-    if (!existingIds.has(id)) {
+    }),
+    freshItemFromCache: (id, cached) => {
       const [year, slug] = id.split('/');
-      events.push({
+      return {
         id,
         slug: slug || id,
         year: year || '',
@@ -186,11 +206,10 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
         mediaCount: cached.media?.length ?? 0,
         waypointCount: cached.waypoints?.length ?? 0,
         contentHash: '',
-      });
-    }
-  }
-
-  return { events, pendingIds: new Set(cacheMap.keys()) };
+      };
+    },
+  });
+  return { events: items, pendingIds };
 }
 
 /**
@@ -235,48 +254,30 @@ export async function loadAdminRideList(buildTimeRides: AdminRide[]): Promise<{
   rides: AdminRide[];
   pendingSlugs: Set<string>;
 }> {
-  const database = getDb();
-  const cachedEdits = await database.select().from(contentEdits)
-    .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, 'rides'))).all();
-
-  const cacheMap = new Map(cachedEdits.flatMap(e => {
-    try {
-      return [[e.contentSlug, rideDetailFromCache(e.data)] as const];
-    } catch {
-      return [];
-    }
-  }));
-
-  const rides = buildTimeRides.map(r => {
-    const cached = cacheMap.get(r.slug);
-    if (!cached) return r;
-    return {
+  const { items, pendingIds } = await loadAdminContentList({
+    contentType: 'rides',
+    buildTimeItems: buildTimeRides,
+    getId: r => r.slug,
+    fromCache: rideDetailFromCache,
+    overlay: (r, cached) => ({
       ...r,
       name: cached.name ?? r.name,
       date: cached.ride_date ?? r.date,
       country: cached.country ?? r.country,
       highlight: cached.highlight ?? r.highlight,
-    };
+    }),
+    freshItemFromCache: (slug, cached) => ({
+      slug,
+      name: cached.name || slug,
+      date: cached.ride_date || '',
+      distance_km: 0,
+      elevation_m: 0,
+      country: cached.country,
+      highlight: cached.highlight,
+      contentHash: '',
+    }),
   });
-
-  // Append D1-only rides (created since last deploy)
-  const existingSlugs = new Set(buildTimeRides.map(r => r.slug));
-  for (const [slug, cached] of cacheMap) {
-    if (!existingSlugs.has(slug) && cached) {
-      rides.push({
-        slug,
-        name: cached.name || slug,
-        date: cached.ride_date || '',
-        distance_km: 0,
-        elevation_m: 0,
-        country: cached.country,
-        highlight: cached.highlight,
-        contentHash: '',
-      });
-    }
-  }
-
-  return { rides, pendingSlugs: new Set(cacheMap.keys()) };
+  return { rides: items, pendingSlugs: pendingIds };
 }
 
 export async function loadParkedPhotosWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
