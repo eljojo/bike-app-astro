@@ -23,7 +23,7 @@ import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
 import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../lib/media/video-enrichment';
-import { videoKeyForGit } from '../../lib/media/video-service';
+import { videoKeyForGit, bareVideoKey } from '../../lib/media/video-service';
 import { db } from '../../lib/get-db';
 
 export const prerender = false;
@@ -207,8 +207,14 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
       const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(update.media, database);
       consumedVideoKeys = consumedKeys;
 
+      // Only annotate newly-uploaded videos (consumed from videoJobs in this env).
+      // Existing video keys must keep their current prefix — re-annotating would
+      // retarget production videos to staging paths (or vice versa).
+      const consumedSet = new Set(consumedKeys);
       const annotatedMedia = enrichedMedia.map(item =>
-        item.type === 'video' ? { ...item, key: videoKeyForGit(item.key) } : item
+        item.type === 'video' && consumedSet.has(bareVideoKey(item.key))
+          ? { ...item, key: videoKeyForGit(item.key) }
+          : item
       );
 
       ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, annotatedMedia));

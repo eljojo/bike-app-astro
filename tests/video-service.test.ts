@@ -108,6 +108,123 @@ describe('videoFallbackUrl', () => {
   });
 });
 
+/**
+ * Save-time annotation: the save pipeline applies videoKeyForGit ONLY to
+ * newly-consumed keys (those returned by enrichMediaFromVideoJobs). Existing
+ * video keys must pass through unchanged — re-annotating would retarget
+ * production videos to staging paths or vice versa.
+ *
+ * This replicates the exact annotation pattern from route-save.ts / ride-save.ts.
+ */
+describe('save-time annotation guard', () => {
+  // Helper that mirrors the exact logic in route-save.ts / ride-save.ts
+  function annotateMedia(
+    media: Array<{ key: string; type?: string }>,
+    consumedKeys: string[],
+  ) {
+    const consumedSet = new Set(consumedKeys);
+    return media.map(item =>
+      item.type === 'video' && consumedSet.has(bareVideoKey(item.key))
+        ? { ...item, key: videoKeyForGit(item.key) }
+        : item
+    );
+  }
+
+  it('does NOT annotate existing video keys when no keys were consumed', () => {
+    // Scenario: re-saving a route with an existing production video, no new uploads
+    const media = [
+      { key: 'abc12345', type: 'video' },
+      { key: 'photo001', type: 'photo' },
+    ];
+    const consumedKeys: string[] = [];
+
+    const result = annotateMedia(media, consumedKeys);
+
+    expect(result[0].key).toBe('abc12345'); // video key unchanged
+    expect(result[1].key).toBe('photo001'); // photo unchanged
+  });
+
+  it('does NOT annotate existing annotated video keys on re-save', () => {
+    // Scenario: route has a staging-annotated video, user re-saves from staging
+    const media = [
+      { key: 'ottawa-staging/abc12345', type: 'video' },
+      { key: 'def67890', type: 'video' },
+    ];
+    const consumedKeys: string[] = [];
+
+    const result = annotateMedia(media, consumedKeys);
+
+    expect(result[0].key).toBe('ottawa-staging/abc12345'); // preserved
+    expect(result[1].key).toBe('def67890'); // preserved
+  });
+
+  it('annotates ONLY the newly-consumed video key', () => {
+    // Scenario: route has one existing video, user uploads a new one
+    const media = [
+      { key: 'existing1', type: 'video' },
+      { key: 'newvideo', type: 'video' },
+      { key: 'photo001', type: 'photo' },
+    ];
+    // In test env, VIDEO_PREFIX === CITY, so videoKeyForGit returns bare key.
+    // The important thing: only 'newvideo' goes through videoKeyForGit.
+    const consumedKeys = ['newvideo'];
+
+    const result = annotateMedia(media, consumedKeys);
+
+    expect(result[0].key).toBe('existing1'); // existing video: untouched
+    expect(result[1].key).toBe('newvideo');  // new video: processed by videoKeyForGit
+    expect(result[2].key).toBe('photo001');  // photo: always untouched
+  });
+
+  it('matches consumed keys using bare key extraction', () => {
+    // Scenario: media item already has an annotated key but the bare key
+    // appears in consumedKeys (videoJobs stores bare keys)
+    const media = [
+      { key: 'ottawa-staging/abc12345', type: 'video' },
+    ];
+    // enrichMediaFromVideoJobs returns bare keys in consumedKeys
+    const consumedKeys = ['abc12345'];
+
+    const result = annotateMedia(media, consumedKeys);
+
+    // In test env VIDEO_PREFIX === CITY, so videoKeyForGit strips to bare key.
+    // The critical assertion: bareVideoKey is used for matching, so it DOES match.
+    expect(result[0].key).toBe('abc12345');
+  });
+
+  it('leaves photos and non-video items completely untouched', () => {
+    const media = [
+      { key: 'photo1', type: 'photo' },
+      { key: 'photo2', type: 'photo' },
+    ];
+    const consumedKeys = ['photo1']; // even if key is in consumed, photos skip
+
+    const result = annotateMedia(media, consumedKeys);
+
+    expect(result[0].key).toBe('photo1');
+    expect(result[1].key).toBe('photo2');
+  });
+
+  it('handles mixed media with multiple consumed keys', () => {
+    const media = [
+      { key: 'old_vid_1', type: 'video' },
+      { key: 'new_vid_1', type: 'video' },
+      { key: 'photo_1', type: 'photo' },
+      { key: 'new_vid_2', type: 'video' },
+      { key: 'old_vid_2', type: 'video' },
+    ];
+    const consumedKeys = ['new_vid_1', 'new_vid_2'];
+
+    const result = annotateMedia(media, consumedKeys);
+
+    expect(result[0].key).toBe('old_vid_1');  // existing: untouched
+    expect(result[1].key).toBe('new_vid_1');  // consumed: annotated (bare in test env)
+    expect(result[2].key).toBe('photo_1');    // photo: untouched
+    expect(result[3].key).toBe('new_vid_2');  // consumed: annotated (bare in test env)
+    expect(result[4].key).toBe('old_vid_2');  // existing: untouched
+  });
+});
+
 describe('videoDisplaySize', () => {
   it('scales portrait videos to reasonable display size', () => {
     const { width, height } = videoDisplaySize(2160, 3840);
