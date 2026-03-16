@@ -2,6 +2,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import polylineCodec from '@mapbox/polyline';
 import { html, raw } from './map-helpers';
+import { buildImageUrl } from '../media/image-service';
 import type { MapStyleKey } from './map-style-switch';
 
 export const ROUTE_COLOR = '#350091';
@@ -343,8 +344,8 @@ function showPhotoPopup(
   coords: [number, number],
   cdnUrl: string,
 ): void {
-  const imgUrl = `${cdnUrl}/cdn-cgi/image/width=800,fit=scale-down/${props.key}`;
-  const fullUrl = `${cdnUrl}/cdn-cgi/image/width=1600/${props.key}`;
+  const imgUrl = buildImageUrl(cdnUrl, props.key, { width: 800, fit: 'scale-down' });
+  const fullUrl = buildImageUrl(cdnUrl, props.key, { width: 1600 });
 
   const routeLink = props.routeName && props.routeUrl
     ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
@@ -457,7 +458,7 @@ export function addPhotoMarkers(
       if (!bubbleMarkers.has(key)) {
         const props = f.properties!;
         const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
-        const thumbUrl = `${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${props.key}`;
+        const thumbUrl = buildImageUrl(cdnUrl, props.key, { width: 80, height: 80, fit: 'cover' });
 
         const el = document.createElement('div');
         el.className = 'photo-bubble';
@@ -465,7 +466,7 @@ export function addPhotoMarkers(
 
         el.addEventListener('mouseenter', () => {
           if (photosVisible.get(map) === false) return;
-          preloadImage(`${cdnUrl}/cdn-cgi/image/width=1000,fit=scale-down/${props.key}`);
+          preloadImage(buildImageUrl(cdnUrl, props.key, { width: 1000, fit: 'scale-down' }));
         });
 
         el.addEventListener('click', (e) => {
@@ -492,7 +493,7 @@ export function addPhotoMarkers(
     // Preload popup images for visible photos
     if (photosVisible.get(map) !== false) {
       for (const key of seenKeys) {
-        preloadImage(`${cdnUrl}/cdn-cgi/image/width=1000,fit=scale-down/${key}`);
+        preloadImage(buildImageUrl(cdnUrl, key, { width: 1000, fit: 'scale-down' }));
       }
     }
 
@@ -523,7 +524,7 @@ export function addPhotoMarkers(
           const leafKey = leaves[0]?.properties?.key as string | undefined;
           if (!leafKey) continue;
 
-          const thumbUrl = `${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${leafKey}`;
+          const thumbUrl = buildImageUrl(cdnUrl, leafKey, { width: 80, height: 80, fit: 'cover' });
 
           const el = document.createElement('div');
           el.className = 'photo-bubble photo-bubble--cluster';

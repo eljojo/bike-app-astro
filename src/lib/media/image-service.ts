@@ -19,18 +19,32 @@ export interface ImageOptions {
   format?: 'auto' | 'webp' | 'avif';
 }
 
-export function imageUrl(blobKey: string, options: ImageOptions = {}): string {
+/**
+ * Pure image URL builder — works in both server and client contexts.
+ * Unlike imageUrl(), takes the CDN base as a parameter so Preact islands
+ * can use it without access to server-side config.
+ */
+export function buildImageUrl(
+  cdnBase: string,
+  key: string,
+  opts?: ImageOptions,
+): string {
   const transforms: string[] = [];
-  if (options.width) transforms.push(`width=${options.width}`);
-  if (options.height) transforms.push(`height=${options.height}`);
-  if (options.fit) transforms.push(`fit=${options.fit}`);
-  if (options.format) transforms.push(`format=${options.format}`);
-  else if (transforms.length > 0) transforms.push('format=auto');
+  if (opts?.width) transforms.push(`width=${opts.width}`);
+  if (opts?.height) transforms.push(`height=${opts.height}`);
+  if (opts?.fit) transforms.push(`fit=${opts.fit}`);
+  if (opts?.format) transforms.push(`format=${opts.format}`);
 
   if (transforms.length > 0) {
-    return `${R2_PUBLIC_URL}/cdn-cgi/image/${transforms.join(',')}/${blobKey}`;
+    return `${cdnBase}/cdn-cgi/image/${transforms.join(',')}/${key}`;
   }
-  return `${R2_PUBLIC_URL}/${blobKey}`;
+  return `${cdnBase}/${key}`;
+}
+
+export function imageUrl(blobKey: string, options: ImageOptions = {}): string {
+  const opts = { ...options };
+  if (!opts.format && (opts.width || opts.height || opts.fit)) opts.format = 'auto';
+  return buildImageUrl(R2_PUBLIC_URL, blobKey, opts);
 }
 
 export function originalUrl(blobKey: string): string {

@@ -8,6 +8,7 @@ import adminRoutes from 'virtual:bike-app/admin-routes';
 import { env } from '../../lib/env/env.service';
 import { loadAdminRouteList } from '../../lib/content/load-admin-content';
 import { getCityConfig } from '../../lib/config/city-config';
+import { buildImageUrl } from '@/lib/media/image-service';
 import '../../styles/admin.scss';
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
@@ -55,7 +56,7 @@ let routes = mergedRoutes.sort((a, b) => {
         <a href={`/admin/routes/${route.slug}`} class="route-list-item">
           {route.coverKey && (
             <img
-              src={`${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${route.coverKey}`}
+              src={buildImageUrl(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
               alt=""
               loading="lazy"
               class="route-cover-thumb"

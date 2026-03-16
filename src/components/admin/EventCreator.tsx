@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'preact/hooks';
 import EventEditor from './EventEditor';
 import { useFileUpload } from '../../lib/hooks';
+import { buildImageUrl } from '../../lib/media/image-service';
 import type { EventDetail } from '../../lib/models/event-model';
 import type { AdminOrganizer } from '../../types/admin';
 
@@ -248,7 +249,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
         <div class={`event-creator-review ${posterKey ? '' : 'event-creator-review--no-poster'}`}>
           {posterKey && (
             <div class="event-creator-review-poster">
-              <img src={`${cdnUrl}/cdn-cgi/image/width=300,format=auto/${posterKey}`} alt="Event poster" />
+              <img src={buildImageUrl(cdnUrl, posterKey, { width: 300, format: 'auto' })} alt="Event poster" />
             </div>
           )}
           <div class="event-creator-review-data">

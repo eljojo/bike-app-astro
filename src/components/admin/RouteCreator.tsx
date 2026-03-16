@@ -6,6 +6,7 @@ import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
 import { parseGpx } from '../../lib/gpx/parse';
 import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
+import { buildImageUrl } from '../../lib/media/image-service';
 import photoLocations from 'virtual:bike-app/photo-locations';
 import { findNearbyPhotos } from '../../lib/geo/photo-proximity';
 
@@ -252,7 +253,7 @@ export default function RouteCreator({ cdnUrl }: Props) {
                       {nearbyPhotos.slice(0, 12).map(photo => (
                         <img
                           key={photo.key}
-                          src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`}
+                          src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })}
                           alt={photo.caption || ''}
                           loading="lazy"
                         />

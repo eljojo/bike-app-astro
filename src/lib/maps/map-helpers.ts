@@ -1,3 +1,5 @@
+import { buildImageUrl } from '../media/image-service';
+
 interface PlacePopupData {
   name: string;
   description?: string;
@@ -47,7 +49,7 @@ export function html(strings: TemplateStringsArray, ...values: unknown[]): strin
 export function buildPlacePopup(place: PlacePopupData, cdnUrl?: string): string {
   let popup = '<div class="place-popup">';
   if (place.photo_key && cdnUrl) {
-    popup += html`<img class="place-popup-photo" src="${cdnUrl}/cdn-cgi/image/width=280,height=160,fit=cover/${place.photo_key}" alt="" />`;
+    popup += html`<img class="place-popup-photo" src="${raw(buildImageUrl(cdnUrl, place.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" />`;
   }
   popup += html`<strong>${place.name}</strong>`;
   if (place.address) popup += html`<div class="place-popup-address">${place.address}</div>`;
@@ -84,7 +86,7 @@ export function buildWaypointPopup(wp: WaypointPopupData, cdnUrl?: string): stri
   let popup = '<div class="waypoint-popup">';
 
   if (wp.photo_key && cdnUrl) {
-    popup += html`<img class="waypoint-popup-photo" src="${cdnUrl}/cdn-cgi/image/width=280,height=160,fit=cover/${wp.photo_key}" alt="" />`;
+    popup += html`<img class="waypoint-popup-photo" src="${raw(buildImageUrl(cdnUrl, wp.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" />`;
   }
 
   popup += html`<strong>${wp.label}</strong>`;

@@ -7,6 +7,7 @@ import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/geo/place-categories';
+import { buildImageUrl } from '../../lib/media/image-service';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import photoLocations from 'virtual:bike-app/photo-locations';
@@ -397,7 +398,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
                     setPhotoKey(photo.key);
                   }}
                 >
-                  <img src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`} alt={photo.caption || ''} />
+                  <img src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })} alt={photo.caption || ''} />
                 </button>
               ))}
             </div>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import { formatIsoDuration } from '../../lib/date-utils';
+import { buildImageUrl } from '../../lib/media/image-service';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem & {
@@ -103,7 +104,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
   }, []);
 
   function thumbnailUrl(key: string): string {
-    return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
+    return buildImageUrl(cdnUrl, key, { width: 200, height: 150, fit: 'cover' });
   }
 
   function videoPosterUrl(item: MediaItem): string {

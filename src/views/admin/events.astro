@@ -8,6 +8,7 @@ import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env/env.service';
 import { loadAdminEventList } from '../../lib/content/load-admin-content';
 import { getCityConfig } from '../../lib/config/city-config';
+import { buildImageUrl } from '@/lib/media/image-service';
 import '../../styles/admin.scss';
 
 const { events, pendingIds } = await loadAdminEventList(adminEvents);
@@ -61,7 +62,7 @@ const user = Astro.locals.user;
               <a href={`/admin/events/${e.id}`} class="event-list-link">
                 {e.poster_key && (
                   <img
-                    src={`${cdnUrl}/cdn-cgi/image/width=80,height=80,fit=cover/${e.poster_key}`}
+                    src={buildImageUrl(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
                     alt=""
                     loading="lazy"
                     class="event-poster-thumb"

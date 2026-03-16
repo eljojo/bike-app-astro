@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'preact/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
+import { buildImageUrl } from '../../lib/media/image-service';
 
 interface PhotoLocation {
   key: string;
@@ -113,7 +114,7 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
                     onDragStart={(e: DragEvent) => handleSuggestionDragStart(e, photo, false)}
                   >
                     <img
-                      src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`}
+                      src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })}
                       alt={photo.caption || ''}
                       loading="lazy"
                     />
@@ -143,7 +144,7 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
                     onDragStart={(e: DragEvent) => handleSuggestionDragStart(e, photo, true)}
                   >
                     <img
-                      src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`}
+                      src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })}
                       alt={photo.caption || ''}
                       loading="lazy"
                     />

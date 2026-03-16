@@ -5,6 +5,7 @@ import { formatDistance, formatSpeed } from '../../lib/format';
 import type { MediaItem } from './MediaManager';
 import StaticRouteMap from './StaticRouteMap';
 import { CHART } from '../../lib/geo/elevation-profile';
+import { buildImageUrl } from '../../lib/media/image-service';
 import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 
 interface Props {
@@ -41,9 +42,9 @@ export default function RidePreview({
   const cover = media.find(m => m.cover) || media[0];
   const photos = media;
 
-  function imageUrl(key: string, opts?: { width?: number }) {
+  function rideImageUrl(key: string, opts?: { width?: number }) {
     const w = opts?.width || 400;
-    return `${cdnUrl}/cdn-cgi/image/width=${w},format=auto/${key}`;
+    return buildImageUrl(cdnUrl, key, { width: w, format: 'auto' });
   }
 
   return (
@@ -52,8 +53,8 @@ export default function RidePreview({
         {cover && (
           <div class="ride-preview-hero">
             <img
-              src={imageUrl(cover.key, { width: 830 })}
-              srcset={`${imageUrl(cover.key, { width: 1660 })} 2x`}
+              src={rideImageUrl(cover.key, { width: 830 })}
+              srcset={`${rideImageUrl(cover.key, { width: 1660 })} 2x`}
               alt={name}
             />
           </div>
@@ -143,7 +144,7 @@ export default function RidePreview({
         {photos.length > 0 && (
           <div class="ride-preview-gallery">
             {photos.map((photo) => (
-              <img key={photo.key} src={imageUrl(photo.key, { width: 200 })} alt={photo.caption || ''} />
+              <img key={photo.key} src={rideImageUrl(photo.key, { width: 200 })} alt={photo.caption || ''} />
             ))}
           </div>
         )}
