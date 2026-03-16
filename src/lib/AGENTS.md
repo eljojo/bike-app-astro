@@ -69,14 +69,14 @@ The only acceptable silent fallback is during Astro prerendering, where runtime 
 Three files use `fs.readFileSync` in Node.js but get **completely replaced** during the Vite build by `src/build-data-plugin.ts`:
 
 - `config/city-config.ts` — replaced with static JSON from config.yml
-- `i18n/tag-translations.ts` — replaced with static translation map
-- `fonts.ts` — replaced with static font preload URLs
+- `i18n/tag-translations.server.ts` — replaced with static translation map
+- `fonts.server.ts` — replaced with static font preload URLs
 
 If you change the exports of these files, you MUST also update the transform in `build-data-plugin.ts`.
 
 ## Config Layers — Don't Confuse Them
 
-- **Build-time** (`config/config.ts`): reads `process.env` at module evaluation. `CONTENT_DIR`, `CITY`, `cityDir`.
+- **Build-time** (`config/config.ts` + `config/config.server.ts`): `config.ts` exports `CITY` and `VIDEO_PREFIX` (browser-safe). `config.server.ts` exports `CONTENT_DIR` and `cityDir` (uses `node:path`, server-only).
 - **Runtime** (`env/env.service.ts`): reads Cloudflare bindings or local env at request time. `GITHUB_TOKEN`, `GIT_OWNER`, `GIT_DATA_REPO`, `DB`, `BUCKET`, etc. via `AppEnv`.
 
 ## Key Function Signatures
@@ -96,6 +96,10 @@ Use `getInstanceFeatures()` from `config/instance-features.ts` for all feature/c
 - `integrations/i18n-routes.ts` — which route sets to inject
 - `integrations/admin-routes.ts` — which admin pages to register
 - `integration.ts` — redirect generation
+
+## Server Boundary Convention
+
+See root AGENTS.md § Server Boundary Convention for the `.server.ts` naming convention and ESLint enforcement.
 
 ## CSP
 

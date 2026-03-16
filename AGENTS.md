@@ -136,6 +136,18 @@ Every cloud service is behind an adapter interface. Swap Cloudflare to Docker by
 
 Every server-rendered API endpoint MUST call `authorize(user, action)` from `src/lib/auth/authorize.ts`. Middleware protects routes but `authorize()` is the endpoint-level permission check. Forgetting it is a security hole. The `require-authorize-call` ESLint rule enforces this.
 
+### Server Boundary Convention
+
+Files in `src/lib/` follow a `.server.ts` naming convention. Files without `.server` in the name are **browser-safe** — they can be imported by Preact components and must not use Node.js APIs (`node:path`, `node:fs`, `node:crypto`). Files with `.server.ts` are **server-only** — they can use Node APIs and are only imported by server views, loaders, build scripts, and other `.server.ts` files.
+
+Two ESLint rules enforce this:
+- `no-server-import-in-browser` — blocks `.server` imports from `.tsx` files and shared `.ts` files in `src/lib/`
+- `no-restricted-imports` — bans `node:*` imports in non-`.server` files within `src/lib/`
+
+**Exempt:** Adapter files (`*.adapter-*.ts`), `git/` directory, build-time transform files (`city-config.ts`), and virtual-module-dependent files (`map-thumbnails.ts`).
+
+When splitting a mixed file: types, schemas, and pure functions stay in `.ts`. Functions using Node APIs move to a `.server.ts` companion. See `src/lib/models/` for the pattern.
+
 ### Don't Shrug Off Broken Things
 
 If something fails — a build, a tool, a command — investigate it. Don't dismiss it as "pre-existing" or "not my problem." A broken build you work around is a broken build you'll ship against. Diagnose it, fix it or raise it. Never normalize broken infrastructure.
