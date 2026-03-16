@@ -17,7 +17,7 @@ Geographic calculations for routes, places, and photos. Pure functions operating
 
 ## Gotchas
 
-- **Haversine is duplicated** in `proximity.ts` and `privacy-zone.ts` — both have their own implementation. `proximity.ts` is the canonical one; `privacy-zone.ts` has its own because it's a standalone module.
+- **Haversine** lives in `proximity.ts` as the single source of truth. `privacy-zone.ts` imports it from there.
 - **Elevation enrichment calls an external API** (Open-Meteo) — it's the only file in this domain that makes network requests. It batches in groups of 100 with a 5-second timeout per batch.
 - **Distance thresholds** are important constants: places within 300m, photos within 200m, photos near places within 750m. Changing these affects which places/photos appear on route pages.
 - **Privacy zone** is opt-in per city via `privacy_zone` in `config.yml`. The filter removes points entirely (not fuzzes them).
