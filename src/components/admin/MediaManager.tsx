@@ -1,8 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
-export type MediaItem = AdminMediaItem;
+export type MediaItem = AdminMediaItem & {
+  videoStatus?: 'uploading' | 'transcoding' | 'ready' | 'failed';
+  uploadPercent?: number;
+  transcodingStartedAt?: number;
+  posterChecked?: boolean;
+};
 
 function formatDuration(iso: string): string {
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -27,18 +32,41 @@ interface Props {
   contentSlug?: string;
   contentKind?: string;
   videoPrefix?: string;
+  onUpdateItem?: (key: string, patch: Record<string, unknown>) => void;
 }
 
-export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind, videoPrefix }: Props) {
+function TranscodingOverlay({ startedAt }: { startedAt?: number }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [startedAt]);
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const display = `${mins}:${String(secs).padStart(2, '0')}`;
+
+  return (
+    <div class="video-transcoding-overlay">
+      <span class="video-transcoding-timer">
+        {`Processing \u2014 ${display} / ~10 min`}
+      </span>
+    </div>
+  );
+}
+
+export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind, videoPrefix, onUpdateItem }: Props) {
   const fileUpload = useFileUpload();
 
-  const handleVideoReady = useCallback((key: string, metadata: Record<string, unknown>) => {
-    onChange(media.map(item =>
-      item.key === key ? { ...item, ...metadata } : item
-    ));
-  }, [media, onChange]);
+  const updateMedia = onUpdateItem || ((key: string, patch: Record<string, unknown>) => {
+    onChange(media.map(item => item.key === key ? { ...item, ...patch } : item));
+  });
 
-  const videoUpload = useVideoUpload(handleVideoReady);
+  const videoUpload = useVideoUpload(updateMedia);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [suggestionDragOver, setSuggestionDragOver] = useState(false);
@@ -51,14 +79,41 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
     }
   }, [pendingFiles]);
 
+  // Resume polling for videos that are still transcoding (page reload case)
+  useEffect(() => {
+    for (const item of media) {
+      if (item.type === 'video' && !item.width && !item.videoStatus) {
+        fetch(`/api/video/status/${item.key}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (!data) return;
+            if (data.status === 'transcoding') {
+              updateMedia(item.key, {
+                videoStatus: 'transcoding',
+                transcodingStartedAt: Date.now(),
+              });
+              videoUpload.resumePolling(item.key, videosCdnUrl, videoPrefix);
+            } else if (data.status === 'ready') {
+              const patch: Record<string, unknown> = { videoStatus: 'ready' };
+              if (data.width != null) patch.width = data.width;
+              if (data.height != null) patch.height = data.height;
+              if (data.duration != null) patch.duration = data.duration;
+              if (data.orientation != null) patch.orientation = data.orientation;
+              updateMedia(item.key, patch);
+            } else if (data.status === 'failed') {
+              updateMedia(item.key, { videoStatus: 'failed' });
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, []);
+
   function thumbnailUrl(key: string): string {
     return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${key}`;
   }
 
-  function videoPosterThumbUrl(item: MediaItem): string {
-    if (item.poster_key) {
-      return `${cdnUrl}/cdn-cgi/image/width=200,height=150,fit=cover/${item.poster_key}`;
-    }
+  function videoPosterUrl(item: MediaItem): string {
     const base = videosCdnUrl || cdnUrl;
     const slashIdx = item.key.indexOf('/');
     const prefix = slashIdx !== -1 ? item.key.slice(0, slashIdx) : (videoPrefix || '');
@@ -107,7 +162,10 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
     // Upload videos (new flow)
     if (contentSlug && videoFiles.length > 0) {
       for (const file of videoFiles) {
-        const item = await videoUpload.uploadVideo(file, contentSlug, contentKind || 'route');
+        const item = await videoUpload.startUpload(
+          file, contentSlug, contentKind || 'route',
+          videosCdnUrl, videoPrefix,
+        );
         if (item) newItems.push(item as MediaItem);
       }
     }
@@ -176,6 +234,9 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
 
   function removePhoto(idx: number) {
     const photo = media[idx];
+    if (photo.type === 'video' && photo.videoStatus) {
+      videoUpload.cancelPolling(photo.key);
+    }
     if (userRole !== 'admin' && onParkPhoto) {
       onParkPhoto(photo);
     }
@@ -197,7 +258,9 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
-        {fileUpload.uploading || videoUpload.videos.size > 0 ? 'Uploading...' : 'Drop photos or videos here, or click to add'}
+        {fileUpload.uploading || media.some(m => m.videoStatus === 'uploading')
+          ? 'Uploading...'
+          : 'Drop photos or videos here, or click to add'}
         <input
           ref={fileInputRef}
           type="file"
@@ -229,24 +292,28 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
           >
             {item.type === 'video' ? (
               <div class="video-thumb">
-                <img src={videoPosterThumbUrl(item)} alt={item.title || ''} loading="lazy" />
-                {(() => {
-                  const state = videoUpload.videos.get(item.key);
-                  if (!state) return <span class="video-play-icon" />;
-                  if (state.status === 'uploading') return (
-                    <div class="video-upload-progress">
-                      <div class="video-upload-progress-bar" style={{ width: `${state.uploadPercent}%` }} />
-                      <span class="video-upload-progress-label">{state.progress}</span>
-                    </div>
-                  );
-                  if (state.status === 'transcoding') return (
-                    <span class="video-transcoding-indicator">{state.progress}</span>
-                  );
-                  if (state.status === 'failed') return (
-                    <span class="video-transcoding-indicator video-transcoding-indicator--failed">Failed</span>
-                  );
-                  return <span class="video-play-icon" />;
-                })()}
+                {(item.videoStatus === 'ready' || item.posterChecked || (!item.videoStatus && item.width)) ? (
+                  <img src={videoPosterUrl(item)} alt={item.title || ''} loading="lazy" />
+                ) : (
+                  <div class="video-placeholder" />
+                )}
+                {item.videoStatus === 'uploading' && (
+                  <div class="video-upload-progress">
+                    <div class="video-upload-progress-bar" style={{ width: `${item.uploadPercent || 0}%` }} />
+                    <span class="video-upload-progress-label">
+                      {`Uploading ${item.uploadPercent || 0}%`}
+                    </span>
+                  </div>
+                )}
+                {item.videoStatus === 'transcoding' && (
+                  <TranscodingOverlay startedAt={item.transcodingStartedAt} />
+                )}
+                {item.videoStatus === 'failed' && (
+                  <span class="video-transcoding-indicator video-transcoding-indicator--failed">
+                    Processing failed
+                  </span>
+                )}
+                {!item.videoStatus && <span class="video-play-icon" />}
               </div>
             ) : (
               <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />
@@ -268,7 +335,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
                 onClick={() => removePhoto(idx)}
                 title="Remove"
               >
-                {'×'}
+                {'\u00d7'}
               </button>
             </div>
             {item.type === 'video' ? (

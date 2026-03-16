@@ -1,6 +1,7 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
@@ -60,6 +61,16 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
 
+  const [dirty, setDirty] = useState(false);
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, tagline, tags, status, body, media, variants, slug, translations]);
+
+  const hasTranscoding = media.some(m => m.videoStatus && m.videoStatus !== 'ready');
+  useUnsavedGuard(dirty || hasTranscoding);
+
   const { validate } = useFormValidation([
     { field: 'route-name', check: () => !name.trim(), message: 'Name is required' },
     { field: '', check: () => !variants.length, message: 'At least one route option is required' },
@@ -72,6 +83,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     userRole,
     validate,
     buildPayload: () => {
+      const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
       const payload: RouteUpdate = {
         frontmatter: {
           name,
@@ -81,7 +93,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         },
         body,
         ...(slug !== initialData.slug ? { newSlug: slug } : {}),
-        media,
+        media: cleanMedia,
         ...(newlyParked.length > 0 ? { parkedPhotos: newlyParked } : {}),
         ...(deletedParkedKeys.length > 0 ? { deletedParkedKeys } : {}),
         variants,
@@ -90,6 +102,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew) {
         window.location.href = `/admin/routes/${initialData.slug}`;
       }
@@ -296,6 +309,9 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           userRole={userRole}
           contentSlug={initialData.slug}
           contentKind="route"
+          onUpdateItem={(key, patch) => setMedia(prev => prev.map(item =>
+            item.key === key ? { ...item, ...patch } : item
+          ))}
           onParkPhoto={(photo) => {
             const entry = toParkedEntry(photo);
             setParkedPhotos(prev => [...prev, entry]);

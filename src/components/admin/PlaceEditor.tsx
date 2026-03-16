@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/place-categories';
@@ -56,6 +57,9 @@ function isGoogleMapsUrl(text: string): boolean {
 }
 
 export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLocales, mapCenter }: Props) {
+  const [dirty, setDirty] = useState(false);
+  useUnsavedGuard(dirty);
+
   const [name, setName] = useState(initialData.name || '');
 
   const locales = secondaryLocales || [];
@@ -81,6 +85,12 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
   const [googleMapsUrl, setGoogleMapsUrl] = useState(initialData.google_maps_url || '');
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
   const [prefilling, setPrefilling] = useState(false);
+
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey]);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
@@ -122,6 +132,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/places/${result.id}`;
       }

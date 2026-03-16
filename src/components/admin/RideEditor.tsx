@@ -13,6 +13,7 @@ import type { StravaImportResult } from './StravaActivityBrowser';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx';
@@ -48,6 +49,16 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
   const [highlight, setHighlight] = useState(initialData.highlight || false);
   const [privacyZone, setPrivacyZone] = useState(initialData.privacy_zone ?? false);
   const [stravaId, setStravaId] = useState(initialData.strava_id || '');
+
+  const [dirty, setDirty] = useState(false);
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, slug, status, body, media, variants, rideDate, country, tourSlug, highlight, privacyZone, stravaId]);
+
+  const hasTranscoding = media.some(m => m.videoStatus && m.videoStatus !== 'ready');
+  useUnsavedGuard(dirty || hasTranscoding);
 
   // Mobile tabs
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
@@ -196,24 +207,28 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
     initialContentHash: initialData.contentHash,
     userRole,
     validate,
-    buildPayload: () => ({
-      frontmatter: {
-        name,
-        status,
-        ride_date: rideDate || undefined,
-        country: country || undefined,
-        tour_slug: tourSlug || undefined,
-        highlight: highlight || undefined,
-        strava_id: stravaId || undefined,
-        privacy_zone: privacyZone || undefined,
-      },
-      body,
-      media,
-      variants,
-      ...(slug !== initialData.slug ? { newSlug: slug } : {}),
-      gpxRelativePath: initialData.gpxRelativePath,
-    }),
+    buildPayload: () => {
+      const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
+      return {
+        frontmatter: {
+          name,
+          status,
+          ride_date: rideDate || undefined,
+          country: country || undefined,
+          tour_slug: tourSlug || undefined,
+          highlight: highlight || undefined,
+          strava_id: stravaId || undefined,
+          privacy_zone: privacyZone || undefined,
+        },
+        body,
+        media: cleanMedia,
+        variants,
+        ...(slug !== initialData.slug ? { newSlug: slug } : {}),
+        gpxRelativePath: initialData.gpxRelativePath,
+      };
+    },
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/rides/${result.id}`;
       }
@@ -400,6 +415,9 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
               userRole={userRole}
               contentSlug={slug}
               contentKind="ride"
+              onUpdateItem={(key, patch) => setMedia(prev => prev.map(item =>
+                item.key === key ? { ...item, ...patch } : item
+              ))}
             />
           </section>
 

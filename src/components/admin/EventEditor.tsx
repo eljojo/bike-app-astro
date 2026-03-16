@@ -1,6 +1,7 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { useEditorState } from './useEditorState';
 import { useProgressiveDisclosure } from './useProgressiveDisclosure';
 import { useFormValidation } from './useFormValidation';
@@ -60,6 +61,9 @@ function resolveOrganizer(
 }
 
 export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [] }: Props) {
+  const [dirty, setDirty] = useState(false);
+  useUnsavedGuard(dirty);
+
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -116,6 +120,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [orgWebsite, setOrgWebsite] = useState(initOrg.website);
   const [orgInstagram, setOrgInstagram] = useState(initOrg.instagram);
 
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, posterKey, posterContentType, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
+
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
     time: !!(initialData.start_time || initialData.end_time),
@@ -171,6 +181,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/events/${result.id}`;
       }
