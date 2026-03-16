@@ -91,8 +91,6 @@ export default [
       // Build-time transforms: replaced by build-data-plugin.ts with static data.
       // Source files contain node:fs/node:path but this code never runs in production.
       'src/lib/config/city-config.ts',
-      'src/lib/fonts.ts',
-      'src/lib/i18n/tag-translations.ts',
     ],
     rules: {
       'no-restricted-imports': ['error', {
@@ -111,8 +109,6 @@ export default [
     files: [
       'src/lib/git/**',
       'src/lib/config/city-config.ts',
-      'src/lib/fonts.ts',
-      'src/lib/i18n/tag-translations.ts',
       // map-thumbnails depends on virtual module — build-time only, not browser code
       'src/lib/maps/map-thumbnails.ts',
     ],

@@ -349,7 +349,7 @@ export function isClubInstance() { return _data.instance_type === 'club'; }
           map: null,
         };
       }
-      if (id.endsWith('src/lib/i18n/tag-translations.ts')) {
+      if (id.endsWith('src/lib/i18n/tag-translations.server.ts')) {
         return {
           code: `
 import { shortLocale, defaultLocale } from './locale-utils';
@@ -366,7 +366,7 @@ export function tTag(tag, locale) {
           map: null,
         };
       }
-      if (id.endsWith('src/lib/fonts.ts')) {
+      if (id.endsWith('src/lib/fonts.server.ts')) {
         return {
           code: `
 const _data = ${JSON.stringify(fontPreloads)};
