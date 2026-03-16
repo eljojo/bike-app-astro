@@ -7,6 +7,7 @@ import requireAuthorizeCall from './eslint-rules/require-authorize-call.js';
 import enforceModelLayer from './eslint-rules/enforce-model-layer.js';
 import noCityDefaultParam from './eslint-rules/no-city-default-param.js';
 import requireCommitWrapper from './eslint-rules/require-commit-wrapper.js';
+import noServerImportInBrowser from './eslint-rules/no-server-import-in-browser.js';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -28,6 +29,7 @@ export default [
           'enforce-model-layer': enforceModelLayer,
           'no-city-default-param': noCityDefaultParam,
           'require-commit-wrapper': requireCommitWrapper,
+          'no-server-import-in-browser': noServerImportInBrowser,
         },
       },
     },
@@ -41,6 +43,7 @@ export default [
       'bike-app/enforce-model-layer': 'error',
       'bike-app/no-city-default-param': 'error',
       'bike-app/require-commit-wrapper': 'error',
+      'bike-app/no-server-import-in-browser': 'error',
     },
   },
   {
@@ -74,6 +77,51 @@ export default [
     files: ['src/i18n/**/*.ts', 'src/integrations/**/*.ts'],
     rules: {
       'bike-app/no-hardcoded-city-locale': 'off',
+    },
+  },
+  {
+    files: ['src/lib/**/*.ts'],
+    ignores: [
+      'src/lib/**/*.d.ts',
+      'src/lib/**/*.server.ts',
+      'src/lib/**/*.adapter-*.ts',
+      'src/lib/git/**',
+      // Build-time transforms: replaced by build-data-plugin.ts with static data.
+      // Source files contain node:fs/node:path but this code never runs in production.
+      'src/lib/config/city-config.ts',
+      'src/lib/fonts.ts',
+      'src/lib/i18n/tag-translations.ts',
+    ],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: 'node:path', message: 'Use .server.ts suffix for files needing node:path.' },
+          { name: 'node:fs', message: 'Use .server.ts suffix for files needing node:fs.' },
+          { name: 'node:crypto', message: 'Use .server.ts suffix for files needing node:crypto.' },
+        ],
+      }],
+    },
+  },
+  {
+    // Temporary: these files will be renamed to .server.ts or split in subsequent tasks.
+    // Remove entries as each file is migrated.
+    files: [
+      'src/lib/config/config.ts',
+      'src/lib/models/content-model.ts',
+      'src/lib/models/route-model.ts',
+      'src/lib/models/event-model.ts',
+      'src/lib/models/place-model.ts',
+      'src/lib/models/ride-model.ts',
+      'src/lib/gpx/paths.ts',
+      'src/lib/gpx/download.ts',
+      'src/lib/content/build-plan.ts',
+      'src/lib/content/content-cache.ts',
+      'src/lib/maps/map-generation.ts',
+      'src/lib/maps/map-paths.ts',
+      'src/lib/directory-digest.ts',
+    ],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
 ];
