@@ -15,6 +15,14 @@ export function useTextareaValue(initialValue: string) {
   return ref;
 }
 
+/** Pure reorder: move item at fromIdx to toIdx. Used by useDragReorder. */
+export function reorderItems<T>(items: T[], fromIdx: number, toIdx: number): T[] {
+  const updated = [...items];
+  const [moved] = updated.splice(fromIdx, 1);
+  updated.splice(toIdx, 0, moved);
+  return updated;
+}
+
 /**
  * Generic drag-to-reorder for ordered lists.
  * Returns drag handlers and current drag index.
@@ -30,10 +38,7 @@ export function useDragReorder<T>(items: T[], onChange: (items: T[]) => void) {
     handleDragOver(e: DragEvent, idx: number) {
       e.preventDefault();
       if (dragIdx === null || dragIdx === idx) return;
-      const updated = [...items];
-      const [moved] = updated.splice(dragIdx, 1);
-      updated.splice(idx, 0, moved);
-      onChange(updated);
+      onChange(reorderItems(items, dragIdx, idx));
       setDragIdx(idx);
     },
     handleDragEnd() {
