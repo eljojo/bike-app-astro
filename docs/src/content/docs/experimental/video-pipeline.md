@@ -15,7 +15,7 @@ The video pipeline has two flows: upload and delivery.
 Browser → presigned S3 PUT → originals bucket
   → S3 ObjectCreated trigger → Lambda (ffprobe: dimensions, duration, GPS)
   → Lambda submits MediaConvert job
-  → MediaConvert produces: HLS H.265 adaptive (480p + 1080p), H.264 MP4, poster frame
+  → MediaConvert produces: CMAF HLS H.265 adaptive (480p + 1080p), H.264 MP4, poster frame
   → outputs land in S3 outputs bucket
   → EventBridge catches job completion → Lambda
   → Lambda posts webhook to Worker → D1 status update
