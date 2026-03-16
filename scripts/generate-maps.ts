@@ -8,7 +8,7 @@ import {
   mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
   gpxHash, hashPath,
   needsRegeneration,
-} from '../src/lib/maps/map-generation';
+} from '../src/lib/maps/map-generation.server';
 import { variantKey } from '../src/lib/gpx/filenames';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CITY } from '../src/lib/config/config';

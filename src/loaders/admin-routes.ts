@@ -19,7 +19,7 @@ import type { RouteDetail } from '../lib/models/route-model';
 import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import { readRouteDir } from './route-file-reader';
 import { readContentCache, writeContentCache, type ContentCacheEntry } from '../lib/content/content-cache.server';
-import { computeDirectoryDigest } from '../lib/directory-digest';
+import { computeDirectoryDigest } from '../lib/directory-digest.server';
 
 interface CachedRouteData {
   route: AdminRoute;

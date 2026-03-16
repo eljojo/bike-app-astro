@@ -5,10 +5,11 @@
  */
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { MAP_CACHE_DIR } from './map-paths';
+import { MAP_CACHE_DIR, mapThumbPaths } from './map-paths.server';
 import path from 'node:path';
 
-export { mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti } from './map-paths';
+export { mapThumbPaths };
+export { buildStaticMapUrl, buildStaticMapUrlMulti } from './map-paths';
 export type { MapThumbPaths } from './map-paths';
 
 export function gpxHash(gpxContent: string): string {

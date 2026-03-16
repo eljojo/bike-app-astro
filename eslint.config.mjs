@@ -113,6 +113,8 @@ export default [
       'src/lib/config/city-config.ts',
       'src/lib/fonts.ts',
       'src/lib/i18n/tag-translations.ts',
+      // map-thumbnails depends on virtual module — build-time only, not browser code
+      'src/lib/maps/map-thumbnails.ts',
     ],
     rules: {
       'bike-app/no-server-import-in-browser': 'off',
@@ -123,9 +125,6 @@ export default [
     // Remove entries as each file is migrated.
     files: [
       'src/lib/content/save-helpers.ts',
-      'src/lib/maps/map-generation.ts',
-      'src/lib/maps/map-paths.ts',
-      'src/lib/directory-digest.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

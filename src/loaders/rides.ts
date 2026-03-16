@@ -17,7 +17,7 @@ import matter from 'gray-matter';
 import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx/parse';
 import { cityDir } from '../lib/config/config.server';
 import { getCityConfig } from '../lib/config/city-config';
-import { computeFileDigest } from '../lib/directory-digest';
+import { computeFileDigest } from '../lib/directory-digest.server';
 import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { slugify } from '../lib/slug';
