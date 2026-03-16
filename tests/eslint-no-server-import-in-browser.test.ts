@@ -19,7 +19,7 @@ describe('no-server-import-in-browser', () => {
         // tsx importing non-server is fine
         { code: "import { slugify } from '../../lib/slug';", filename: '/src/components/admin/RouteEditor.tsx' },
         // export from non-server is fine in shared file
-        { code: "export { rideGpxFilename } from './filenames';", filename: '/src/lib/gpx/paths.ts' },
+        { code: "export { rideGpxFilename } from './filenames';", filename: '/src/lib/gpx/paths.server.ts' },
       ],
       invalid: [
         // tsx importing .server

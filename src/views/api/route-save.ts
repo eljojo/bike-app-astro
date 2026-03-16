@@ -8,7 +8,7 @@ import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-seria
 import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media/media-merge';
 import { parseGpx } from '../../lib/gpx/parse';
 import { CITY } from '../../lib/config/config';
-import { routeGpxGitPath } from '../../lib/gpx/paths';
+import { routeGpxGitPath } from '../../lib/gpx/filenames';
 import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content/content-save';

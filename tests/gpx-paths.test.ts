@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   routeGpxGitPath, rideGpxGitPath,
-  routeGpxPath, rideGpxPath,
   variantSlug, variantKey, variantFilename,
-} from '../src/lib/gpx/paths';
+} from '../src/lib/gpx/filenames';
+import { routeGpxPath, rideGpxPath } from '../src/lib/gpx/paths.server';
 
 describe('routeGpxGitPath', () => {
   it('builds git-relative path for route variant', () => {

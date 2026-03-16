@@ -9,7 +9,7 @@ import {
   gpxHash, hashPath,
   needsRegeneration,
 } from '../src/lib/maps/map-generation';
-import { variantKey } from '../src/lib/gpx/paths';
+import { variantKey } from '../src/lib/gpx/filenames';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';

@@ -123,8 +123,6 @@ export default [
     // Remove entries as each file is migrated.
     files: [
       'src/lib/content/save-helpers.ts',
-      'src/lib/gpx/paths.ts',
-      'src/lib/gpx/download.ts',
       'src/lib/maps/map-generation.ts',
       'src/lib/maps/map-paths.ts',
       'src/lib/directory-digest.ts',

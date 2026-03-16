@@ -4,7 +4,7 @@ import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/media/image-service';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/media/video-service';
 import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
-import { variantKey as variantKeyFromGpx } from '@/lib/gpx/paths';
+import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
 import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/geo/distance';
 import PhotoGallery from '@/components/PhotoGallery.astro';

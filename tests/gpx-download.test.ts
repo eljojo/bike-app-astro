@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { variantSlug, variantFilename, routeGpxPath, rideGpxPath } from '../src/lib/gpx/download';
+import { variantSlug, variantFilename, routeGpxPath, rideGpxPath } from '../src/lib/gpx/download.server';
 
 describe('variantSlug', () => {
   it('strips .gpx from simple filename', () => {

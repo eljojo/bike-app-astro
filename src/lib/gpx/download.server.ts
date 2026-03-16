@@ -4,7 +4,8 @@
  */
 import fs from 'node:fs';
 
-export { variantSlug, variantFilename, routeGpxPath, rideGpxPath } from './paths';
+export { variantSlug, variantFilename } from './filenames';
+export { routeGpxPath, rideGpxPath } from './paths.server';
 
 /** Build a GPX download Response with appropriate headers. */
 export function gpxResponse(content: string, filename: string): Response {
