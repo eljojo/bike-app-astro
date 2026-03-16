@@ -1,13 +1,13 @@
 /**
  * HLS player — progressively enhances <video> elements with hls.js.
  *
- * On desktop (iPad-sized screens and up), hls.js takes over HLS playback
- * on all browsers — including Safari — and forces the highest quality
- * level from the first segment. Ride videos are short, and spending half
- * the video on 480p while ABR ramps up looks bad on a big screen.
+ * Safari handles HLS natively (and decodes HEVC), so we leave it alone.
+ * On other desktop browsers, hls.js takes over and forces the highest
+ * quality level from the first segment. Ride videos are short, and
+ * spending half the video on 480p while ABR ramps up looks bad.
  *
- * On mobile, hls.js is not loaded. Safari plays HLS natively with
- * adaptive quality. Chrome/Firefox fall through to the H.264 MP4 source.
+ * On mobile, hls.js is not loaded — Safari plays HLS natively, and
+ * Chrome/Firefox fall through to the H.264 MP4 source.
  *
  * Import this file from any page that renders <video> with HLS sources.
  * It self-initializes on DOMContentLoaded.
@@ -15,8 +15,14 @@
 
 const DESKTOP_MIN_WIDTH = 768;
 
+function isSafari(): boolean {
+  const ua = navigator.userAgent;
+  return ua.includes('Safari') && !ua.includes('Chrome') && !ua.includes('Chromium');
+}
+
 async function initHlsPlayers() {
   if (window.innerWidth < DESKTOP_MIN_WIDTH) return;
+  if (isSafari()) return; // Safari handles HLS natively with HEVC support
 
   const videos = document.querySelectorAll<HTMLVideoElement>('video');
   if (!videos.length) return;
@@ -35,23 +41,27 @@ async function initHlsPlayers() {
   if (!Hls.isSupported()) return;
 
   for (const { video, src } of hlsVideos) {
+    // Save MP4 fallback URL before hls.js takes over
+    const mp4Source = video.querySelector<HTMLSourceElement>('source[type="video/mp4"]');
+    const mp4Url = mp4Source?.src;
+
     const hls = new Hls({
-      // Assume a fast connection so hls.js picks the highest quality
-      // from the first segment. Desktop connections can handle it.
       abrEwmaDefaultEstimate: 10_000_000,
     });
     hls.loadSource(src);
     hls.attachMedia(video);
 
-    // Force the highest level once the manifest is loaded
     hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
       hls.currentLevel = data.levels.length - 1;
     });
 
-    // Remove the MP4 fallback sources since hls.js is handling playback
-    for (const s of video.querySelectorAll('source[type="video/mp4"]')) {
-      s.remove();
-    }
+    // If hls.js fails (e.g. HEVC not supported in MSE), fall back to MP4
+    hls.on(Hls.Events.ERROR, (_event, data) => {
+      if (data.fatal && mp4Url) {
+        hls.destroy();
+        video.src = mp4Url;
+      }
+    });
   }
 }
 
