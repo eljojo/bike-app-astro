@@ -1,4 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../../src/lib/media/video-enrichment';
 import { CITY } from '../../../src/lib/config/config';
 
@@ -116,22 +118,47 @@ describe('enrichMediaFromVideoJobs', () => {
   });
 });
 
-describe('deleteConsumedVideoJobs', () => {
-  it('does nothing when keys array is empty', async () => {
-    const mockDb = { delete: vi.fn() };
-    await deleteConsumedVideoJobs([], mockDb as any);
-    expect(mockDb.delete).not.toHaveBeenCalled();
+describe('deleteConsumedVideoJobs (integration)', () => {
+  const dbPath = path.join(import.meta.dirname, '.test-video-enrichment.db');
+  let database: any;
+
+  beforeEach(async () => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    const { createLocalDb } = await import('../../../src/db/local');
+    database = createLocalDb(dbPath);
+
+    const { videoJobs } = await import('../../../src/db/schema');
+    await database.insert(videoJobs).values([
+      { key: 'vid1', status: 'ready', contentKind: 'route', contentSlug: 'test-route' },
+      { key: 'vid2', status: 'ready', contentKind: 'route', contentSlug: 'test-route' },
+      { key: 'vid3', status: 'transcoding', contentKind: 'route', contentSlug: 'other-route' },
+    ]);
   });
 
-  it('deletes rows for given keys', async () => {
-    const mockWhere = vi.fn().mockResolvedValue(undefined);
-    const mockDb = {
-      delete: vi.fn().mockReturnValue({
-        where: mockWhere,
-      }),
-    };
-    await deleteConsumedVideoJobs(['vid1', 'vid2'], mockDb as any);
-    expect(mockDb.delete).toHaveBeenCalled();
-    expect(mockWhere).toHaveBeenCalled();
+  afterAll(() => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+  });
+
+  it('deletes rows for consumed keys', async () => {
+    const { videoJobs } = await import('../../../src/db/schema');
+    await deleteConsumedVideoJobs(['vid1', 'vid2'], database);
+
+    const remaining = await database.select().from(videoJobs);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].key).toBe('vid3');
+  });
+
+  it('no-ops for empty key list', async () => {
+    const { videoJobs } = await import('../../../src/db/schema');
+    await deleteConsumedVideoJobs([], database);
+
+    const remaining = await database.select().from(videoJobs);
+    expect(remaining).toHaveLength(3);
   });
 });
