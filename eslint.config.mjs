@@ -6,6 +6,7 @@ import zodImportSource from './eslint-rules/zod-import-source.js';
 import requireAuthorizeCall from './eslint-rules/require-authorize-call.js';
 import enforceModelLayer from './eslint-rules/enforce-model-layer.js';
 import noCityDefaultParam from './eslint-rules/no-city-default-param.js';
+import requireCommitWrapper from './eslint-rules/require-commit-wrapper.js';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -26,6 +27,7 @@ export default [
           'require-authorize-call': requireAuthorizeCall,
           'enforce-model-layer': enforceModelLayer,
           'no-city-default-param': noCityDefaultParam,
+          'require-commit-wrapper': requireCommitWrapper,
         },
       },
     },
@@ -38,6 +40,7 @@ export default [
       'bike-app/require-authorize-call': 'error',
       'bike-app/enforce-model-layer': 'error',
       'bike-app/no-city-default-param': 'error',
+      'bike-app/require-commit-wrapper': 'error',
     },
   },
   {
