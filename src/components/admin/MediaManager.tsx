@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import { formatIsoDuration } from '../../lib/date-utils';
 import { buildImageUrl } from '../../lib/media/image-service';
-import { buildVideoPosterUrl } from '../../lib/media/video-service';
+import { buildVideoPosterUrl } from '../../lib/media/video-urls';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem & {

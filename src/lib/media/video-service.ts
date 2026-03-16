@@ -65,20 +65,7 @@ export function videoFallbackUrl(key: string): string {
   return `${VIDEOS_CDN}/${prefix}/${bareKey}/${bareKey}-h264.mp4`;
 }
 
-/**
- * Pure video poster URL builder — works in both server and client contexts.
- * @param cdnBase - Video CDN base URL (e.g., "https://videos.ottawabybike.ca")
- * @param key - Video key, may include instance prefix ("ottawa/abc123") or be bare ("abc123")
- * @param defaultPrefix - Fallback prefix when key has no slash (e.g., "ottawa")
- */
-export function buildVideoPosterUrl(cdnBase: string, key: string, defaultPrefix?: string): string {
-  const slashIdx = key.indexOf('/');
-  const prefix = slashIdx !== -1 ? key.slice(0, slashIdx) : (defaultPrefix || '');
-  const bareKey = slashIdx !== -1 ? key.slice(slashIdx + 1) : key;
-  return prefix
-    ? `${cdnBase}/${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`
-    : `${cdnBase}/${bareKey}/${bareKey}-poster.0000000.jpg`;
-}
+export { buildVideoPosterUrl } from './video-urls';
 
 export function videoPosterUrl(key: string): string {
   const { prefix, bareKey } = resolveVideoPath(key);
