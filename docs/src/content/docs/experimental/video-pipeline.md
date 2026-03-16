@@ -59,6 +59,7 @@ The setup script (`scripts/setup-aws-video.js`) provisions everything in two pha
 - **Presign IAM user** — `whereto-presign-{prefix}` with S3 PutObject/HeadObject on the originals bucket (per-prefix key path restriction)
 - **Sippy IAM user** — `whereto-sippy` with S3 GetObject on the outputs bucket (shared across instances)
 - **R2 bucket** — creates `whereto-bike-videos` if it doesn't exist
+- **R2 CORS** — adds the instance domain as an allowed GET origin on the R2 bucket (required for hls.js fetch-based playback)
 - **Sippy configuration** — connects R2 bucket to S3 outputs bucket via Sippy
 - **Wrangler secrets** — MEDIACONVERT_ACCESS_KEY_ID, MEDIACONVERT_SECRET_ACCESS_KEY, S3_ORIGINALS_BUCKET, VIDEO_PREFIX
 - **GitHub variable** — sets VIDEO_PREFIX on the repo
