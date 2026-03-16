@@ -17,11 +17,8 @@ import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git/git-gpx';
 
-import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
-import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
-import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../lib/media/video-enrichment';
-import { videoKeyForGit, bareVideoKey } from '../../lib/media/video-service';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
 import { db } from '../../lib/get-db';
 
 export const prerender = false;
@@ -196,20 +193,9 @@ export function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> 
       if (update.media) {
         const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
 
-        // Enrich video items with metadata from videoJobs (if transcoding completed)
         const database = db();
-        const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(update.media, database);
-        consumedVideoKeys = consumedKeys;
-
-        // Only annotate newly-uploaded videos (consumed from videoJobs in this env).
-        // Existing video keys must keep their current prefix — re-annotating would
-        // retarget production videos to staging paths (or vice versa).
-        const consumedSet = new Set(consumedKeys);
-        const annotatedMedia = enrichedMedia.map(item =>
-          item.type === 'video' && consumedSet.has(bareVideoKey(item.key))
-            ? { ...item, key: videoKeyForGit(item.key) }
-            : item
-        );
+        const { annotatedMedia, consumedVideoKeys: consumed } = await enrichAndAnnotateMedia(update.media, database);
+        consumedVideoKeys = consumed;
 
         ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, annotatedMedia));
 
@@ -228,8 +214,7 @@ export function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> 
     async afterCommit(result, database) {
       const { rideSlug, addedMediaKeys, removedMediaKeys, consumedVideoKeys } = result;
       const changes = buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'route', rideSlug);
-      await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes });
-      await deleteConsumedVideoJobs(consumedVideoKeys, database);
+      await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, consumedVideoKeys });
     },
 
     buildCommitMessage(update, _slug, isNew): string {

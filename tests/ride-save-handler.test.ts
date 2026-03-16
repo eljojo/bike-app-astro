@@ -76,13 +76,18 @@ vi.mock('virtual:bike-app/photo-shared-keys', () => ({
 const mockMergeFrontmatter = vi.fn((_isNew: boolean, _existing: string | null, fm: Record<string, unknown>) => fm);
 const mockLoadExistingMedia = vi.fn().mockReturnValue([]);
 const mockComputeMediaKeyDiff = vi.fn().mockReturnValue({ addedKeys: [], removedKeys: [] });
-vi.mock('../src/lib/content/save-helpers', () => ({
-  buildMediaKeyChanges: () => [],
-  computeMediaKeyDiff: (a: unknown[], b: unknown[]) => mockComputeMediaKeyDiff(a, b),
-  buildCommitTrailer: (path: string) => `\n\nFile: ${path}`,
-  mergeFrontmatter: (a: boolean, b: string | null, c: Record<string, unknown>) => mockMergeFrontmatter(a, b, c),
-  loadExistingMedia: (a: unknown) => mockLoadExistingMedia(a),
-}));
+vi.mock('../src/lib/content/save-helpers', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>;
+  return {
+    ...actual,
+    buildMediaKeyChanges: () => [],
+    computeMediaKeyDiff: (a: unknown[], b: unknown[]) => mockComputeMediaKeyDiff(a, b),
+    buildCommitTrailer: (path: string) => `\n\nFile: ${path}`,
+    mergeFrontmatter: (a: boolean, b: string | null, c: Record<string, unknown>) => mockMergeFrontmatter(a, b, c),
+    loadExistingMedia: (a: unknown) => mockLoadExistingMedia(a),
+    afterCommitMediaCleanup: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 const mockEnrichMediaFromVideoJobs = vi.fn((_media: unknown[], _db?: unknown) =>
   Promise.resolve({ enrichedMedia: _media, consumedKeys: [] }) as Promise<{ enrichedMedia: unknown[]; consumedKeys: string[] }>);

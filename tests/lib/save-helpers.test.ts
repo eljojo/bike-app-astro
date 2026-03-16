@@ -1,4 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../../src/lib/media/photo-parking', () => ({
+  updatePhotoRegistryCache: vi.fn(),
+}));
+
+vi.mock('../../src/lib/media/video-enrichment', () => ({
+  enrichMediaFromVideoJobs: vi.fn(),
+  deleteConsumedVideoJobs: vi.fn(),
+}));
+
+vi.mock('../../src/lib/media/video-service', () => ({
+  bareVideoKey: vi.fn(),
+  videoKeyForGit: vi.fn(),
+}));
+
 import { buildPhotoKeyChanges, computeMediaKeyDiff, buildMediaKeyChanges, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../src/lib/content/save-helpers';
 import { CITY } from '../../src/lib/config/config';
 

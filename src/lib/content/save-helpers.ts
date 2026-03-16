@@ -1,6 +1,11 @@
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import type { PhotoUsage } from '../media/photo-registry';
+import type { Database } from '../../db/index';
+import { deleteConsumedVideoJobs, enrichMediaFromVideoJobs } from '../media/video-enrichment';
+import { bareVideoKey, videoKeyForGit } from '../media/video-service';
+import { updatePhotoRegistryCache } from '../media/photo-parking';
+import type { ParkedPhotoEntry } from '../media/media-merge';
 
 export interface PhotoKeyChange {
   key: string;
@@ -104,4 +109,51 @@ export function loadExistingMedia(
   const file = auxiliaryFiles[mediaPath];
   if (!file) return [];
   return (yaml.load(file.content) as Array<Record<string, unknown>>) || [];
+}
+
+/**
+ * Enrich media items with video job metadata and annotate consumed video keys
+ * for git storage. Shared by route-save and ride-save handlers.
+ *
+ * Only annotates newly-uploaded videos (consumed from videoJobs in this env).
+ * Existing video keys keep their current prefix — re-annotating would
+ * retarget production videos to staging paths (or vice versa).
+ */
+export async function enrichAndAnnotateMedia<T extends { key: string; type?: string }>(
+  media: T[],
+  database: Database,
+): Promise<{
+  annotatedMedia: T[];
+  consumedVideoKeys: string[];
+}> {
+  const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(media, database);
+  const consumedSet = new Set(consumedKeys);
+  const annotatedMedia = enrichedMedia.map(item =>
+    item.type === 'video' && consumedSet.has(bareVideoKey(item.key))
+      ? { ...item, key: videoKeyForGit(item.key) }
+      : item
+  );
+  return { annotatedMedia, consumedVideoKeys: consumedKeys };
+}
+
+/**
+ * Common afterCommit cleanup: update photo registry and delete consumed video jobs.
+ * Used by all four save handlers (route, ride, event, place).
+ */
+export async function afterCommitMediaCleanup(opts: {
+  database: Database;
+  sharedKeysData: Record<string, Array<{ type: string; slug: string }>>;
+  mediaKeyChanges: PhotoKeyChange[];
+  consumedVideoKeys?: string[];
+  mergedParked?: ParkedPhotoEntry[];
+}): Promise<void> {
+  await updatePhotoRegistryCache({
+    database: opts.database,
+    sharedKeysData: opts.sharedKeysData,
+    keyChanges: opts.mediaKeyChanges,
+    ...(opts.mergedParked !== undefined && { mergedParked: opts.mergedParked }),
+  });
+  if (opts.consumedVideoKeys?.length) {
+    await deleteConsumedVideoJobs(opts.consumedVideoKeys, opts.database);
+  }
 }

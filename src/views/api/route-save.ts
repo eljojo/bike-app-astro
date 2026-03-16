@@ -19,11 +19,8 @@ import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { routeOps } from '../../lib/content/content-ops';
 import { buildRedirectFileChange } from '../../lib/redirects';
-import { updatePhotoRegistryCache } from '../../lib/media/photo-parking';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
-import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia } from '../../lib/content/save-helpers';
-import { enrichMediaFromVideoJobs, deleteConsumedVideoJobs } from '../../lib/media/video-enrichment';
-import { videoKeyForGit, bareVideoKey } from '../../lib/media/video-service';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
 import { db } from '../../lib/get-db';
 
 export const prerender = false;
@@ -202,20 +199,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
     if (update.media) {
       const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
 
-      // Enrich video items with metadata from videoJobs (if transcoding completed)
       const database = db();
-      const { enrichedMedia, consumedKeys } = await enrichMediaFromVideoJobs(update.media, database);
-      consumedVideoKeys = consumedKeys;
-
-      // Only annotate newly-uploaded videos (consumed from videoJobs in this env).
-      // Existing video keys must keep their current prefix — re-annotating would
-      // retarget production videos to staging paths (or vice versa).
-      const consumedSet = new Set(consumedKeys);
-      const annotatedMedia = enrichedMedia.map(item =>
-        item.type === 'video' && consumedSet.has(bareVideoKey(item.key))
-          ? { ...item, key: videoKeyForGit(item.key) }
-          : item
-      );
+      const { annotatedMedia, consumedVideoKeys: consumed } = await enrichAndAnnotateMedia(update.media, database);
+      consumedVideoKeys = consumed;
 
       ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, annotatedMedia));
 
@@ -306,8 +292,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
   async afterCommit(result, database) {
     const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug, consumedVideoKeys } = result;
     const changes = buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'route', routeSlug);
-    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
-    await deleteConsumedVideoJobs(consumedVideoKeys, database);
+    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, consumedVideoKeys, mergedParked });
   },
 };
 

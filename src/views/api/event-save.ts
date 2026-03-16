@@ -15,8 +15,8 @@ import type { AdminEvent } from '../../types/admin';
 import { resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
 import { eventOps } from '../../lib/content/content-ops';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia } from '../../lib/content/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/media/photo-parking';
+import { buildPhotoKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers';
+import { extractFrontmatterField, parkOrphanedPhoto } from '../../lib/media/photo-parking';
 import type { ParkedPhotoEntry } from '../../lib/media/media-merge';
 import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
 
@@ -212,7 +212,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
       ...buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
       ...buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'event', eventSlug),
     ];
-    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
+    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
   },
 
   buildCommitMessage(update, eventId, isNew): string {
