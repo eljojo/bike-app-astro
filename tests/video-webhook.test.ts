@@ -38,6 +38,11 @@ vi.mock('drizzle-orm', () => ({
   eq: (a: unknown, b: unknown) => ({ a, b }),
 }));
 
+const mockPersist = vi.fn().mockResolvedValue({ persisted: true, reason: 'ok' });
+vi.mock('../src/lib/media/video-completion.webhook', () => ({
+  persistVideoMetadataToGit: mockPersist,
+}));
+
 function makeRequest(body: Record<string, unknown>, token?: string): Request {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -52,6 +57,7 @@ describe('video-webhook', () => {
   beforeEach(() => {
     lastUpdate = null;
     findJobResult = { ...mockJob };
+    mockPersist.mockClear();
   });
 
   it('returns 401 without bearer token', async () => {
@@ -109,7 +115,7 @@ describe('video-webhook', () => {
 
     const res = await POST({ request } as never);
     expect(res.status).toBe(200);
-    expect(lastUpdate).toMatchObject({ status: 'ready' });
+    expect(mockPersist).toHaveBeenCalledWith('abc12345');
   });
 
   it('updates video job on failed status', async () => {

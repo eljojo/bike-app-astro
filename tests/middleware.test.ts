@@ -63,7 +63,7 @@ describe('onRequest middleware', () => {
     const res = await onRequest(context as any, next) as Response;
 
     expect(res.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
-    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(context.locals.cspNonce).toMatch(/^[a-f0-9]{32}$/);
     expect(res.headers.get('Content-Security-Policy'))
       .toContain(`'nonce-${context.locals.cspNonce}'`);
   });
@@ -77,7 +77,7 @@ describe('onRequest middleware', () => {
     const res = await onRequest(context as any, next) as Response;
     const body = await res.text();
 
-    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(context.locals.cspNonce).toMatch(/^[a-f0-9]{32}$/);
     expect(body).toContain(`<script nonce="${context.locals.cspNonce}">window.a=1</script>`);
     expect(body).toContain('<script nonce="keep">window.b=2</script>');
   });
@@ -90,7 +90,7 @@ describe('onRequest middleware', () => {
     const res = await onRequest(context as any, next) as Response;
 
     expect(context.locals.user).toEqual(user);
-    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(context.locals.cspNonce).toMatch(/^[a-f0-9]{32}$/);
     expect(res.headers.get('Content-Security-Policy'))
       .toContain(`'nonce-${context.locals.cspNonce}'`);
   });
