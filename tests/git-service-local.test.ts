@@ -1,16 +1,27 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
 import path from 'node:path';
 import { CITY } from '../src/lib/config/config';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
 const GIT_BRANCH = process.env.GIT_BRANCH || 'main';
 
+/** Pick the first route slug that exists for the current CITY. */
+function firstRouteSlug(): string {
+  const routesDir = path.join(CONTENT_DIR, CITY, 'routes');
+  const entries = fs.readdirSync(routesDir);
+  const slug = entries.find(e => fs.statSync(path.join(routesDir, e)).isDirectory());
+  if (!slug) throw new Error(`No routes found in ${routesDir}`);
+  return slug;
+}
+
 describe('LocalGitService', () => {
   it('reads a file from the data repo', async () => {
     const { LocalGitService } = await import('../src/lib/git/git.adapter-local');
     const git = new LocalGitService(CONTENT_DIR, GIT_BRANCH);
+    const slug = firstRouteSlug();
 
-    const result = await git.readFile(`${CITY}/routes/carp/index.md`);
+    const result = await git.readFile(`${CITY}/routes/${slug}/index.md`);
     expect(result).not.toBeNull();
     expect(result!.content).toContain('---');
     expect(typeof result!.sha).toBe('string');
