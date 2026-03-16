@@ -145,7 +145,7 @@ When video is set up, you can upload ride videos directly from the ride editor i
 
 1. The browser uploads the video to S3 via a presigned URL
 2. An S3 trigger invokes a Lambda function that extracts metadata (dimensions, duration, GPS, capture date) using ffprobe
-3. Lambda submits a MediaConvert job that produces HLS adaptive streaming (two H.265 tiers) and an H.264 MP4 fallback
+3. Lambda submits a MediaConvert job that produces CMAF HLS adaptive streaming (two H.265 tiers in fMP4 segments) and an H.264 MP4 fallback
 4. When transcoding completes, an EventBridge rule triggers the Lambda again, which sends a webhook to your Worker
 5. The Worker updates the ride's video status in D1
 

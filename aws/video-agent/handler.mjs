@@ -232,22 +232,24 @@ export function buildJobDefinition(key, { width, height, duration }) {
             },
           ],
         },
-        // HLS adaptive: both H.265 (no codec switch mid-stream)
+        // CMAF HLS adaptive: both H.265 in fMP4 containers (Apple HLS spec Rule 1.5)
+        // CMAF requires separate outputs for video and audio (unlike HLS TS groups)
         {
           CustomName: 'hls',
           OutputGroupSettings: {
-            Type: 'HLS_GROUP_SETTINGS',
-            HlsGroupSettings: {
+            Type: 'CMAF_GROUP_SETTINGS',
+            CmafGroupSettings: {
               SegmentLength: 3,
-              MinSegmentLength: 0,
+              FragmentLength: 3,
               Destination: `s3://${S3_OUTPUTS_BUCKET}/${key}/`,
+              WriteDashManifest: 'DISABLED',
+              WriteHlsManifest: 'ENABLED',
             },
           },
           Outputs: [
             {
               NameModifier: '-thumb',
-              ContainerSettings: { Container: 'M3U8' },
-              OutputSettings: { HlsSettings: {} },
+              ContainerSettings: { Container: 'CMFC' },
               VideoDescription: {
                 ...thumbFields,
                 CodecSettings: {
@@ -263,12 +265,10 @@ export function buildJobDefinition(key, { width, height, duration }) {
                   },
                 },
               },
-              AudioDescriptions: aacAudio,
             },
             {
               NameModifier: '-big',
-              ContainerSettings: { Container: 'M3U8' },
-              OutputSettings: { HlsSettings: {} },
+              ContainerSettings: { Container: 'CMFC' },
               VideoDescription: {
                 ...bigFields,
                 CodecSettings: {
@@ -284,6 +284,10 @@ export function buildJobDefinition(key, { width, height, duration }) {
                   },
                 },
               },
+            },
+            {
+              NameModifier: '-audio',
+              ContainerSettings: { Container: 'CMFC' },
               AudioDescriptions: aacAudio,
             },
           ],
