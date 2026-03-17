@@ -11,6 +11,7 @@
  *   - scripts/setup.js   — interactive setup helper
  *   - astro.config.mjs   — Astro config
  *   - tsconfig.json      — TypeScript config
+ *   - package.json       — scripts only (merged, preserving name/deps)
  */
 
 import fs from 'node:fs';
@@ -97,6 +98,22 @@ for (const rel of sourceFiles) {
   if (!fs.existsSync(srcPath)) continue;
   if (syncFile(srcPath, path.join(cwd, rel), vars)) {
     console.log(`  updated ${rel}`);
+    updated++;
+  }
+}
+
+// --- Sync package.json scripts from template ---
+const templatePkgPath = path.join(templateRoot, 'package.json.tpl');
+if (fs.existsSync(templatePkgPath)) {
+  const templatePkg = JSON.parse(renderTemplate(fs.readFileSync(templatePkgPath, 'utf-8'), vars));
+  const blogPkgPath = path.join(cwd, 'package.json');
+  const blogPkg = JSON.parse(fs.readFileSync(blogPkgPath, 'utf-8'));
+
+  const before = JSON.stringify(blogPkg.scripts);
+  blogPkg.scripts = { ...blogPkg.scripts, ...templatePkg.scripts };
+  if (JSON.stringify(blogPkg.scripts) !== before) {
+    fs.writeFileSync(blogPkgPath, JSON.stringify(blogPkg, null, 2) + '\n');
+    console.log('  updated package.json (scripts)');
     updated++;
   }
 }
