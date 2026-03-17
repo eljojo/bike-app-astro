@@ -39,7 +39,7 @@ if (copyFromId) {
       edition: src.edition,
       event_url: src.event_url,
       map_url: src.map_url,
-      // Don't copy previous_event — it's specific to the source event
+      previous_event: copyFromId,
     };
   }
 }
