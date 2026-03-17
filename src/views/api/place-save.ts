@@ -14,7 +14,9 @@ import { slugify } from '../../lib/slug';
 import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
-import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
+
+let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 
 export const prerender = false;
 
@@ -157,6 +159,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSl
 };
 
 export async function POST({ params, request, locals }: APIContext) {
+  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
   if (params.id === 'new') {
     return saveContent(request, locals, params, 'places', placeHandlers);
   }

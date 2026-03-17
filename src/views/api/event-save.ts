@@ -2,7 +2,6 @@
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
-import adminEvents from 'virtual:bike-app/admin-events';
 import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
@@ -19,7 +18,10 @@ import { slugify } from '../../lib/slug';
 import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
-import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
+
+let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
+let adminEvents: AdminEvent[] = [];
 
 export const prerender = false;
 
@@ -236,6 +238,12 @@ export function isPastEvent(startDate: string | undefined): boolean {
 }
 
 export async function POST({ params, request, locals }: APIContext) {
+  const baseUrl = new URL(request.url);
+  [sharedKeysData, adminEvents] = await Promise.all([
+    fetchSharedKeysData(baseUrl),
+    fetch(new URL('/admin/data/events.json', baseUrl)).then(r => r.json()).then(d => d.events),
+  ]);
+
   const user = locals.user;
 
   // For existing past events, only admins can edit

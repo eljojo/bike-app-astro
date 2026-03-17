@@ -9,7 +9,8 @@ import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../..
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
 import { slugify } from '../../lib/slug';
 import { generateMediaKey, confirmUpload } from '../../lib/media/storage.adapter-r2';
-import adminOrganizers from 'virtual:bike-app/admin-organizers';
+
+let adminOrganizers: Array<{ slug: string; name: string; website?: string; instagram?: string }> = [];
 
 export const prerender = false;
 
@@ -279,6 +280,9 @@ async function stageImage(imageBuffer: ArrayBuffer): Promise<{ key: string; cont
 }
 
 export async function POST({ request, locals }: APIContext) {
+  const { organizers } = await fetch(new URL('/admin/data/events.json', request.url)).then(r => r.json());
+  adminOrganizers = organizers;
+
   const user = authorize(locals, 'event-draft');
   if (user instanceof Response) return user;
 

@@ -18,7 +18,9 @@ import { baseMediaItemSchema } from '../../lib/models/content-model';
 import { validateSlug } from '../../lib/slug';
 import { commitGpxFile } from '../../lib/git/git-gpx';
 
-import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
+
+let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { db } from '../../lib/get-db';
 
@@ -258,6 +260,7 @@ export function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> 
 }
 
 export async function POST({ params, request, locals }: APIContext) {
+  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
   const handlers = createRideHandlers();
   if (params.slug === 'new') {
     return saveContent(request, locals, params, 'rides', handlers);
