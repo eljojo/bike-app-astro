@@ -8,6 +8,7 @@ import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/geo/distance';
 import MediaGallery from '@/components/MediaGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import VariantCards from '@/components/VariantCards.astro';
 import { elevationConclusion } from '@/lib/geo/elevation';
 import { routeShape, placeCounts } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
@@ -177,56 +178,12 @@ const breadcrumbs = breadcrumbJsonLd([
 
         {/* Zone 4: Route Variants & External Links */}
         <div class="route-variants">
-          {variants.length > 1 ? (
-            <div>
-              <h3>{t('route.versions', locale, { count: variants.length })}</h3>
-              {variants.map((v, i) => (
-                <p>
-                  <a href={paths.routeVariantMap(slug, variantKeyFromGpx(v.gpx), locale)} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
-                    &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
-                  </a>
-                  {v.strava_url && (
-                    <Fragment>
-                      {' '}
-                      <a href={v.strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                        <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                      </a>
-                    </Fragment>
-                  )}
-                  {v.rwgps_url && (
-                    <Fragment>
-                      {' '}
-                      <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                        <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
-                      </a>
-                    </Fragment>
-                  )}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p>
-              <a href={paths.routeMap(slug, locale)} class="action-button --primary --wider">
-                &#x1F5FA;&#xFE0F; {t('route.view_map', locale, { name: localeName })}
-              </a>
-              {variants[0]?.strava_url && (
-                <Fragment>
-                  {' '}
-                  <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                    <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                  </a>
-                </Fragment>
-              )}
-              {variants[0]?.rwgps_url && (
-                <Fragment>
-                  {' '}
-                  <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                    <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
-                  </a>
-                </Fragment>
-              )}
-            </p>
-          )}
+          <VariantCards
+            variants={variants}
+            slug={slug}
+            localeName={localeName}
+            locale={locale}
+          />
         </div>
 
         {/* Zone 5: Reactions */}
