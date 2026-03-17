@@ -1,11 +1,18 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import { findNearbyPlaces, haversineM } from '@/lib/geo/proximity';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 export const prerender = true;
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const routes = await getCollection('routes');
+  const allRoutes = await getCollection('routes');
+  const plan = loadBuildPlan();
+
+  // If any place changed, all suggestions may be affected — rebuild all routes.
+  const placeChanged = plan?.mode === 'incremental' &&
+    plan.changedSlugs.some(key => key.startsWith('place:'));
+  const routes = placeChanged ? allRoutes : filterByBuildPlan(allRoutes, plan, 'route');
   const places = await getCollection('places');
   const placeData = places.map(p => ({
     id: p.id,
