@@ -154,15 +154,23 @@ interface AdminModuleConfig {
   loader: () => Promise<{ list: unknown; details: unknown }>;
 }
 
+// All admin module names that any view might dynamically import.
+// Inactive modules (e.g. admin-events on a blog instance) get empty stubs
+// so Rollup can resolve them even when the content type isn't registered.
+const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places'];
+
 function registerAdminModules(configs: AdminModuleConfig[]) {
   const promises = new Map<string, Promise<{ list: unknown; details: unknown }>>();
   const moduleIds = new Map<string, { type: 'list' | 'detail'; name: string }>();
 
+  for (const name of ALL_ADMIN_MODULE_NAMES) {
+    const listId = `virtual:bike-app/admin-${name}`;
+    const detailId = `virtual:bike-app/admin-${name.replace(/s$/, '')}-detail`;
+    moduleIds.set(listId, { type: 'list', name });
+    moduleIds.set(detailId, { type: 'detail', name });
+  }
+
   for (const config of configs) {
-    const listId = `virtual:bike-app/admin-${config.name}`;
-    const detailId = `virtual:bike-app/admin-${config.name.replace(/s$/, '')}-detail`;
-    moduleIds.set(listId, { type: 'list', name: config.name });
-    moduleIds.set(detailId, { type: 'detail', name: config.name });
     promises.set(config.name, config.loader());
   }
 
@@ -173,7 +181,14 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
     async load(id: string): Promise<string | undefined> {
       for (const [virtualId, meta] of moduleIds) {
         if (id === `\0${virtualId}`) {
-          const data = await promises.get(meta.name)!;
+          const promise = promises.get(meta.name);
+          if (!promise) {
+            // Inactive content type — return empty stub
+            return meta.type === 'list'
+              ? 'export default [];'
+              : 'export default {};';
+          }
+          const data = await promise;
           const value = meta.type === 'list' ? data.list : data.details;
           return `export default ${JSON.stringify(value)};`;
         }
