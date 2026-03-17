@@ -7,7 +7,7 @@
   "footer.community": "Built by people who ride here",
   "footer.powered_by": "made with whereto.bike",
   "home.welcome": "New to biking? Experienced rider? Find your new favourite ride and explore nature!",
-  "home.identity": "Community-maintained cycling routes for {display_name}. Built by people who ride here.",
+  "home.identity": "Community-maintained cycling routes for {name}. Built by people who ride here.",
   "home.suggest_route": "Know a route that's missing? You can add it — share a ride you love with other cyclists.",
   "filter.choose_tag": "choose a tag to filter:",
   "route.elevation_gain": "Elevation Gain",

@@ -7,7 +7,7 @@
   "footer.community": "Creado por personas que pedalean aquí",
   "footer.powered_by": "hecho con whereto.bike",
   "home.welcome": "¿Nuevo en el ciclismo? ¿Ciclista experimentado? ¡Encuentra tu nuevo recorrido favorito y explora la naturaleza!",
-  "home.identity": "Rutas ciclistas mantenidas por la comunidad para {display_name}. Creado por personas que pedalean aquí.",
+  "home.identity": "Rutas ciclistas mantenidas por la comunidad para {name}. Creado por personas que pedalean aquí.",
   "home.suggest_route": "¿Conoces una ruta que falta? Agrégala — comparte un recorrido que te guste con otros ciclistas.",
   "filter.choose_tag": "elige una etiqueta para filtrar:",
   "route.elevation_gain": "Desnivel positivo",

@@ -11,7 +11,7 @@ const config = getCityConfig();
 const { published, filterTags, routeTagsMap } = await loadHomepageData();
 ---
 
-<p class="site-identity-line">{t('home.identity', locale, { display_name: config.display_name })}</p>
+<p class="site-identity-line">{t('home.identity', locale, { name: config.name })}</p>
 <TagFilter tags={filterTags} />
 <ul class="routes-grid">
   {published.map((route, i) => {
