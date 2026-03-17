@@ -305,12 +305,14 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   useEffect(() => {
     if (!nearRouteSlug) return;
 
-    fetch(`/route-data/${nearRouteSlug}/route-data.json`)
+    fetch(`/routes/${nearRouteSlug}.json`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!data || !mapInstanceRef.current) return;
+        const variant = data.variants?.[0];
+        if (!variant?.polyline) return;
 
-        const decoded = polyline.decode(data.polyline);
+        const decoded = polyline.decode(variant.polyline);
         const geojson = {
           type: 'Feature' as const,
           geometry: {
@@ -333,9 +335,9 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           },
         });
 
-        if (!lat && !lng) {
+        if (!lat && !lng && variant.bounds) {
           map.fitBounds(
-            [[data.bounds[0][1], data.bounds[0][0]], [data.bounds[1][1], data.bounds[1][0]]],
+            [[variant.bounds[0][1], variant.bounds[0][0]], [variant.bounds[1][1], variant.bounds[1][0]]],
             { padding: 40 }
           );
         }
