@@ -8,6 +8,11 @@ import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { getCityConfig } from '../../lib/config/city-config';
 import { buildImageUrl } from '../../lib/media/image-service';
 import { env } from '../../lib/env/env.service';
+import { createGitService } from '../../lib/git/git-factory';
+import { parseCommitMessage, formatDetail } from '../../lib/history-format';
+import { parseAuthorEmail } from '../../lib/git/commit-author';
+import { CITY } from '../../lib/config/config';
+import { formatAdminDateTime } from '../../lib/date-utils';
 
 const user = Astro.locals.user;
 const features = getInstanceFeatures();
@@ -65,6 +70,41 @@ if (features.hasRoutes) {
 }
 
 const contentLabel = features.hasRides ? 'rides' : 'routes';
+
+// Recent changes — last 5 commits from history API
+const git = createGitService({
+  token: env.GITHUB_TOKEN,
+  owner: env.GIT_OWNER,
+  repo: env.GIT_DATA_REPO,
+  branch: env.GIT_BRANCH || 'main',
+});
+
+let recentCommits: Array<{
+  username: string;
+  headline: string;
+  detail: string;
+  editorUrl: string | null;
+  contentType: string | null;
+  date: string;
+}> = [];
+
+try {
+  const commits = await git.listCommits({ perPage: 5, page: 1 });
+  recentCommits = commits.map(c => {
+    const parsed = parseCommitMessage(c.message, CITY);
+    const authorParsed = parseAuthorEmail(c.author.email);
+    return {
+      username: authorParsed?.username ?? c.author.name,
+      headline: parsed.headline,
+      detail: formatDetail(parsed.detail),
+      editorUrl: parsed.editorUrl,
+      contentType: parsed.contentType,
+      date: c.date,
+    };
+  });
+} catch {
+  // GitHub API unavailable (local dev without token) — show empty
+}
 ---
 
 <Base title="Admin" admin>
@@ -182,6 +222,80 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
           </div>
         </section>
       )}
+    </div>
+
+    <!-- Bottom Row -->
+    <div class="dashboard-bottom">
+      <section class="dashboard-card dashboard-card--changes">
+        <div class="card-header">
+          <span class="card-label">RECENT CHANGES</span>
+          <a href="/admin/history" class="card-viewall">View full history &rarr;</a>
+        </div>
+        <div class="card-items">
+          {recentCommits.map((c) => (
+            <div class="change-item">
+              <div class="change-info">
+                <span class="change-headline">
+                  <strong>{c.username}</strong>
+                  {' '}
+                  {c.editorUrl
+                    ? <a href={c.editorUrl}>{c.headline}</a>
+                    : c.headline
+                  }
+                  {c.detail && ` \u2014 ${c.detail}`}
+                </span>
+                {c.contentType && <span class={`change-badge change-badge--${c.contentType}`}>{c.contentType.replace(/s$/, '')}</span>}
+              </div>
+              <time class="change-time">{formatAdminDateTime(c.date)}</time>
+            </div>
+          ))}
+          {recentCommits.length === 0 && <p class="card-empty">No recent changes.</p>}
+        </div>
+      </section>
+
+      <section class="dashboard-card dashboard-card--glance">
+        <div class="card-header">
+          <span class="card-label">AT A GLANCE</span>
+        </div>
+        <div class="glance-stats">
+          {features.hasRoutes && (
+            <>
+              <div class="glance-row">
+                <span>Published routes</span>
+                <strong>{routeCount - draftRouteCount}</strong>
+              </div>
+              {draftRouteCount > 0 && (
+                <div class="glance-row">
+                  <span>Draft routes</span>
+                  <strong>{draftRouteCount}</strong>
+                </div>
+              )}
+              <div class="glance-row">
+                <span>Total photos</span>
+                <strong>{totalPhotos}</strong>
+              </div>
+              {routesWithoutPhotos > 0 && (
+                <div class="glance-row glance-row--highlight">
+                  <span>Routes without photos</span>
+                  <strong>{routesWithoutPhotos}</strong>
+                </div>
+              )}
+            </>
+          )}
+          {features.hasEvents && (
+            <div class="glance-row">
+              <span>Upcoming events</span>
+              <strong>{eventCount}</strong>
+            </div>
+          )}
+          {features.hasPlaces && (
+            <div class="glance-row">
+              <span>Places</span>
+              <strong>{placeCount}</strong>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   </div>
 </Base>
@@ -444,5 +558,94 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
       @include muted-text;
       &:hover { text-decoration: underline; }
     }
+  }
+
+  .dashboard-bottom {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .change-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    gap: 1rem;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $color-border;
+      @include dark-mode { border-color: $color-border-subtle-dark; }
+    }
+  }
+
+  .change-info {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .change-headline {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    a {
+      color: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+  }
+
+  .change-badge {
+    font-size: 0.6875rem;
+    padding: 0.0625rem 0.375rem;
+    border-radius: $border-radius;
+    background: $color-tag-bg;
+    color: $color-tag-text;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .change-time {
+    font-size: 0.75rem;
+    @include muted-text;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .card-empty {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    @include muted-text;
+  }
+
+  .glance-stats {
+    padding: 0.5rem 1rem;
+  }
+
+  .glance-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.375rem 0;
+    font-size: 0.875rem;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $color-border;
+      @include dark-mode { border-color: $color-border-subtle-dark; }
+    }
+  }
+
+  .glance-row--highlight {
+    color: $color-warning;
+    @include dark-mode { color: $color-warning-dark; }
   }
 </style>
