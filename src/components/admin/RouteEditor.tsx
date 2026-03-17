@@ -337,7 +337,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
       <EditorFocusWrapper focused={effectiveFocus === 'media'} focusActive={!!effectiveFocus}>
       <section class="editor-section">
-        <h2>Photos</h2>
+        <h2>Photos and Videos</h2>
         <MediaManager
           media={media}
           onChange={setMedia}

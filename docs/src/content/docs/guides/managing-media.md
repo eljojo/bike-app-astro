@@ -1,16 +1,16 @@
 ---
 title: Managing media
-description: Uploading photos, reordering, and managing media for routes.
+description: Uploading photos and videos, reordering, and managing media for routes.
 ---
 
-Photos are what make a route come alive. They show people what to expect before they ride.
+Photos and videos are what make a route come alive. They show people what to expect before they ride.
 
 ## Upload photos
 
 There are two ways to add photos to a route:
 
 - **Drag and drop** — Drag photos anywhere onto the route editor page. A drop zone appears to confirm.
-- **Click to upload** — In the Photos section, click the upload area and select files from your device.
+- **Click to upload** — In the Photos and Videos section, click the upload area and select files from your device.
 
 You can upload multiple photos at once. Supported formats: JPEG, PNG, WebP, and HEIC.
 
@@ -53,3 +53,21 @@ Below the main photo grid, you may see a **Nearby Photos** panel. This contains 
 - You can also drag photos between the main grid and the Nearby Photos panel.
 
 This is useful when a photo from one route also makes sense on a nearby route.
+
+## Upload videos
+
+Upload videos the same way as photos — drag and drop, or use the upload area. Supported formats: MP4, QuickTime (.mov), and WebM, up to 500 MB.
+
+Videos take around ten minutes to process after uploading. A timer counts up so you know it's working. You can keep editing or leave the page — processing continues in the background, and the editor picks up where it left off when you return.
+
+When processing is done, the video appears in your media grid ready to go.
+
+## Add a video title
+
+Each video has a **title** field. The title shows below the video on the route page, and on community sites it links to a dedicated page for that video.
+
+Pick a title that tells someone what they're about to watch — "Crossing the Alexandra Bridge" rather than "VID_20250315."
+
+## Reorder and remove videos
+
+Videos can be reordered and removed the same way as photos — drag to reorder, tap the **x** to remove. The same parking behaviour applies: guests and editors park the video, admins remove it from the media list.

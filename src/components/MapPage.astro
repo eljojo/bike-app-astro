@@ -70,7 +70,7 @@ const locale = Astro.currentLocale;
 
 function gpxStudioUrl(gpxUrl: string): string {
   const urlParam = encodeURIComponent(gpxUrl);
-  return `https://gpx.studio/?state=%7B%22urls%22:%5B%22${urlParam}%22%5D%7D&distance&slope`;
+  return `https://gpx.studio/app?files=%5B%22${urlParam}%22%5D`;
 }
 
 const gpxUrl = `${siteUrl}${gpxPath || paths.routeGpx(routeSlug, variantKey)}`;
