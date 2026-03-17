@@ -810,54 +810,112 @@
   @include dark-mode {
     border-color: $color-border-subtle-dark;
   }
+}
 
-  h3 {
-    font-size: 1rem;
-    margin: 0 0 0.75rem;
-  }
+.history-subtitle {
+  font-size: 0.875rem;
+  @include muted-text;
+  margin: 0 0 1.5rem;
+}
+
+.history-day-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  @include muted-text;
+  margin: 1.5rem 0 0.5rem;
+  padding: 0;
+
+  &:first-child { margin-top: 0; }
 }
 
 .commit-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
 .commit-item {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid $color-border;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: $border-radius;
 
-  @include dark-mode {
-    border-color: $color-border-subtle-dark;
+  &:hover {
+    background: $color-card-hover;
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+
+  .commit-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    @media (max-width: $breakpoint-mobile) {
+      opacity: 1;
+    }
+  }
+
+  &:hover .commit-actions {
+    opacity: 1;
   }
 }
 
+.commit-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: $border-radius;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .commit-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex: 1;
   min-width: 0;
 }
 
-.commit-message {
-  word-break: break-word;
-}
-
-.commit-resource {
+.commit-headline {
+  font-size: 0.875rem;
   display: block;
-  font-size: 0.8em;
-  color: var(--muted-color, #888);
-  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
 }
 
-.commit-meta {
+.commit-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.75rem;
+
+  time {
+    @include muted-text;
+  }
+}
+
+.commit-sha-link {
+  font-family: $font-mono;
+  font-size: 0.6875rem;
+  text-decoration: none;
   @include muted-text;
+  &:hover { text-decoration: underline; }
+}
+
+.commit-type-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.0625rem 0.375rem;
+  border-radius: $border-radius;
+  background: $color-tag-bg;
+  color: $color-tag-text;
 }
 
 .commit-actions {
@@ -1144,23 +1202,42 @@
   }
 }
 
-.commit-diff {
+// Styled diff (replaces raw <pre>)
+.commit-diff-styled {
   font-family: $font-mono;
   font-size: 0.75rem;
   line-height: 1.5;
-  padding: 0.75rem;
-  margin: 0 0 0.5rem;
+  overflow-x: auto;
+  margin: 0 0 0.5rem 0;
+  padding: 0.5rem;
   background: $color-card-bg;
   border: 1px solid $color-border;
   border-radius: $border-radius;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
 
   @include dark-mode {
     background: $color-card-bg-dark;
-    border-color: $color-border-subtle-dark;
+    border-color: $color-border-dark;
   }
+}
+
+.diff-add {
+  color: $color-success;
+  @include dark-mode { color: $color-success-dark; }
+}
+
+.diff-remove {
+  color: $color-error;
+  text-decoration: line-through;
+  @include dark-mode { color: $color-error-dark; }
+}
+
+.diff-hunk {
+  color: $color-info;
+  @include dark-mode { color: $color-info-dark; }
+}
+
+.diff-context {
+  @include muted-text;
 }
 
 // Toast notifications

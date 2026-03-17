@@ -7,19 +7,49 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import '../../styles/admin.scss';
 import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
+import { getCityConfig } from '../../lib/config/city-config';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 const user = Astro.locals.user;
+const features = getInstanceFeatures();
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+
+// Build slug → coverKey/posterKey maps for thumbnail resolution
+const coverKeys: Record<string, string> = {};
+const posterKeys: Record<string, string> = {};
+
+if (features.hasRoutes || features.hasRides) {
+  const adminRoutes = (await import('virtual:bike-app/admin-routes')).default;
+  for (const r of adminRoutes) {
+    if (r.coverKey) coverKeys[r.slug] = r.coverKey;
+  }
+}
+if (features.hasEvents) {
+  const adminEvents = (await import('virtual:bike-app/admin-events')).default;
+  for (const e of adminEvents) {
+    if (e.poster_key) posterKeys[e.id] = e.poster_key;
+  }
+}
 ---
 
 <Base title="Edit History" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="history" />
-    <EditHistory client:load city={CITY} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
+    <p class="history-subtitle">Every change made to the site, newest first.</p>
+    <EditHistory
+      client:load
+      city={CITY}
+      gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`}
+      userRole={user?.role}
+      cdnUrl={cdnUrl}
+      coverKeys={coverKeys}
+      posterKeys={posterKeys}
+    />
   </div>
 </Base>
 
 <style lang="scss">
   .admin-page {
-    max-width: 700px;
+    max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
   }

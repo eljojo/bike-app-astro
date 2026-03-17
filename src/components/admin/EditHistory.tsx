@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';
-import { formatAdminDateTime } from '../../lib/date-utils';
 import { extractChangesPath } from '../../lib/git/commit-author';
+import { parseCommitMessage, formatDetail } from '../../lib/history-format';
+import { buildImageUrl } from '../../lib/media/image-service';
 
 interface CommitUser {
   id: string;
@@ -25,9 +26,31 @@ interface Props {
   city?: string;
   gitRepo?: string;
   userRole?: string;
+  cdnUrl?: string;
+  coverKeys?: Record<string, string>;
+  posterKeys?: Record<string, string>;
 }
 
-export default function EditHistory({ contentPath, city, gitRepo, userRole }: Props) {
+function groupByDay(commits: Commit[]): Map<string, Commit[]> {
+  const groups = new Map<string, Commit[]>();
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+  for (const c of commits) {
+    const d = new Date(c.date).toDateString();
+    let label: string;
+    if (d === today) label = 'Today';
+    else if (d === yesterday) label = 'Yesterday';
+    else label = new Date(c.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
+    const existing = groups.get(label);
+    if (existing) existing.push(c);
+    else groups.set(label, [c]);
+  }
+  return groups;
+}
+
+export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnUrl, coverKeys, posterKeys }: Props) {
   const isAdmin = userRole === 'admin';
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,94 +175,116 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole }: Pr
     }
   }
 
-  function extractResourceLabel(commit: Commit): string | null {
-    if (contentPath) return null;
-    const changesPath = extractChangesPath(commit.message);
-    if (changesPath) return changesPath;
-    const match = commit.message.match(resourcePathRegex);
-    return match ? match[0] : null;
-  }
+  const dayGroups = useMemo(() => groupByDay(commits), [commits]);
 
   return (
     <div class="edit-history">
-      <h3>Edit History</h3>
       {commits.length === 0 && !loading && <p class="muted">No commits found.</p>}
-      <div class="commit-list">
-        {commits.map((c, idx) => {
-          const filePath = resolveContentPath(c);
-          const resourceLabel = extractResourceLabel(c);
-          const isCurrentVersion = idx === 0;
-          return (
-            <Fragment key={c.sha}>
-            <div class="commit-item">
-              <div class="commit-info">
-                <span class="commit-message">{c.message.split('\n')[0]}</span>
-                {gitRepo && (
-                  <a
-                    class="commit-sha"
-                    href={`https://github.com/${gitRepo}/commit/${c.sha}`}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    {c.sha.slice(0, 7)}
-                  </a>
-                )}
-                {resourceLabel && (
-                  <span class="commit-resource">{resourceLabel}</span>
-                )}
-                <span class="commit-meta">
-                  {c.resolvedUser ? (
-                    <span class={c.resolvedUser.bannedAt ? 'user-banned' : ''}>
-                      {c.resolvedUser.username}
-                      {c.resolvedUser.wasGuest && ' (former guest)'}
-                      {c.resolvedUser.bannedAt && ' [banned]'}
-                    </span>
-                  ) : (
-                    <span>{c.author.name}</span>
+
+      {[...dayGroups.entries()].map(([day, dayCommits]) => (
+        <Fragment key={day}>
+          <h4 class="history-day-label">{day}</h4>
+          <div class="commit-list">
+            {dayCommits.map((c) => {
+              const filePath = resolveContentPath(c);
+              const parsed = city ? parseCommitMessage(c.message, city) : null;
+              const isCurrentVersion = commits.indexOf(c) === 0;
+              const thumb = parsed?.contentType === 'routes' && parsed.contentSlug && coverKeys?.[parsed.contentSlug]
+                ? buildImageUrl(cdnUrl || '', coverKeys[parsed.contentSlug], { width: 48, height: 48, fit: 'cover' })
+                : parsed?.contentType === 'events' && parsed.contentSlug && posterKeys?.[parsed.contentSlug]
+                  ? buildImageUrl(cdnUrl || '', posterKeys[parsed.contentSlug], { width: 36, height: 48, fit: 'cover' })
+                  : null;
+
+              const username = c.resolvedUser?.username ?? c.author.name;
+              const timeStr = new Date(c.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              const detail = parsed ? formatDetail(parsed.detail) : '';
+              const headline = parsed?.headline ?? c.message.split('\n')[0];
+              const action = parsed?.action ?? 'updated';
+              const editorUrl = parsed?.editorUrl ?? null;
+
+              return (
+                <Fragment key={c.sha}>
+                  <div class="commit-item">
+                    {thumb && <img src={thumb} alt="" class="commit-thumb" loading="lazy" />}
+                    <div class="commit-info">
+                      <span class="commit-headline">
+                        <strong>{username}</strong>
+                        {' '}{action}{' '}
+                        {editorUrl
+                          ? <a href={editorUrl}>{headline}</a>
+                          : headline
+                        }
+                        {detail && ` \u2014 ${detail}`}
+                      </span>
+                      <span class="commit-meta-line">
+                        {parsed?.contentType && (
+                          <span class="commit-type-badge">{parsed.contentType.replace(/s$/, '')}</span>
+                        )}
+                        <time>{timeStr}</time>
+                        {gitRepo && (
+                          <a
+                            class="commit-sha-link"
+                            href={`https://github.com/${gitRepo}/commit/${c.sha}`}
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            {c.sha.slice(0, 7)}
+                          </a>
+                        )}
+                        {c.resolvedUser?.bannedAt && <span class="user-banned">[banned]</span>}
+                      </span>
+                    </div>
+                    <div class="commit-actions">
+                      <button
+                        type="button"
+                        class="btn-small btn-secondary"
+                        onClick={() => handleShowDiff(c.sha)}
+                        disabled={diffLoading === c.sha}
+                      >
+                        {diffLoading === c.sha ? '...' : expandedDiff === c.sha ? 'Hide diff' : 'Diff'}
+                      </button>
+                      {isAdmin && filePath && (
+                        <button
+                          type="button"
+                          class="btn-small"
+                          onClick={() => handleRestore(c.sha, filePath)}
+                          disabled={isCurrentVersion || actionLoading === c.sha}
+                          title={isCurrentVersion ? 'This is the current version' : 'Restore this version'}
+                        >
+                          {actionLoading === c.sha ? '...' : 'Restore'}
+                        </button>
+                      )}
+                      {isAdmin && c.resolvedUser && c.resolvedUser.role !== 'admin' && !c.resolvedUser.bannedAt && (
+                        <button
+                          type="button"
+                          class="btn-small btn-danger"
+                          onClick={() => handleBan(c.resolvedUser!.id)}
+                          disabled={actionLoading === c.resolvedUser.id}
+                        >
+                          Ban
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {expandedDiff === c.sha && diffContent[c.sha] && (
+                    <div class="commit-diff-styled">
+                      {diffContent[c.sha].split('\n').map((line, i) => (
+                        <div key={i} class={
+                          line.startsWith('+') && !line.startsWith('+++') ? 'diff-add'
+                          : line.startsWith('-') && !line.startsWith('---') ? 'diff-remove'
+                          : line.startsWith('@@') ? 'diff-hunk'
+                          : 'diff-context'
+                        }>{line}</div>
+                      ))}
+                    </div>
                   )}
-                  {' · '}
-                  <time>{formatAdminDateTime(c.date)}</time>
-                </span>
-              </div>
-              <div class="commit-actions">
-                <button
-                  type="button"
-                  class="btn-small btn-secondary"
-                  onClick={() => handleShowDiff(c.sha)}
-                  disabled={diffLoading === c.sha}
-                >
-                  {diffLoading === c.sha ? '...' : expandedDiff === c.sha ? 'Hide diff' : 'Diff'}
-                </button>
-                {isAdmin && filePath && (
-                  <button
-                    type="button"
-                    class="btn-small"
-                    onClick={() => handleRestore(c.sha, filePath)}
-                    disabled={isCurrentVersion || actionLoading === c.sha}
-                    title={isCurrentVersion ? 'This is the current version' : 'Restore this version'}
-                  >
-                    {actionLoading === c.sha ? '...' : 'Restore'}
-                  </button>
-                )}
-                {isAdmin && c.resolvedUser && c.resolvedUser.role !== 'admin' && !c.resolvedUser.bannedAt && (
-                  <button
-                    type="button"
-                    class="btn-small btn-danger"
-                    onClick={() => handleBan(c.resolvedUser!.id)}
-                    disabled={actionLoading === c.resolvedUser.id}
-                  >
-                    Ban
-                  </button>
-                )}
-              </div>
-            </div>
-            {expandedDiff === c.sha && diffContent[c.sha] && (
-              <pre class="commit-diff">{diffContent[c.sha]}</pre>
-            )}
-            </Fragment>
-          );
-        })}
-      </div>
+                </Fragment>
+              );
+            })}
+          </div>
+        </Fragment>
+      ))}
+
       {loading && <p class="muted">Loading...</p>}
       {hasMore && !loading && commits.length > 0 && (
         <button type="button" class="btn-secondary" onClick={loadMore}>Load more</button>
