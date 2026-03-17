@@ -47,7 +47,37 @@ if (typeof data.organizer === 'string') {
 }
 
 const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
-const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 800 }) : undefined;
+
+function sameHost(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  try { return new URL(a).hostname === new URL(b).hostname; } catch { return false; }
+}
+
+function mapServiceName(url: string): string {
+  try {
+    const host = new URL(url).hostname;
+    if (host.includes('ridewithgps.com')) return 'RideWithGPS';
+    if (host.includes('strava.com')) return 'Strava';
+    if (host.includes('google.com') || host.includes('maps.google')) return 'Google Maps';
+    if (host.includes('komoot.com')) return 'Komoot';
+  } catch {}
+  return 'View map';
+}
+
+// Resolve organizer website and Instagram
+let organizerWebsite: string | undefined;
+let organizerInstagram: string | undefined;
+if (typeof data.organizer === 'string') {
+  const org = organizers.find((o: { id: string }) => o.id === data.organizer);
+  organizerWebsite = org?.data.website;
+  organizerInstagram = org?.data.instagram;
+} else if (data.organizer) {
+  organizerWebsite = data.organizer.website;
+  organizerInstagram = data.organizer.instagram;
+}
+const showOrgWebsite = organizerWebsite && !sameHost(data.event_url, organizerWebsite);
+const regUrl = data.registration?.url || data.registration_url;
 
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
@@ -80,35 +110,52 @@ const hasResults = data.results && data.results.length > 0;
 
 <Base title={`${data.name} | ${config.display_name}`} description={`${data.name} — ${dateDisplay}`} ogImage={coverUrl} jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
   <article class="event-detail">
-    {data.poster_key && (
-      <div class="event-detail-hero">
-        <ResponsiveImage
-          blobKey={data.poster_key}
-          alt={data.name}
-          widths={[600, 1200, 1800]}
-          width={1200}
-          height={628}
-          fit="cover"
-          loading="eager"
-          class="event-detail-poster"
-        />
-      </div>
-    )}
-
-    <header class="event-detail-header">
-      <h1>{data.name}</h1>
-      <p class="event-detail-date">{dateDisplay}</p>
-      {organizerName && (
-        <p class="event-detail-organizer">
-          {t('events.organizer', locale)}{' '}
-          {organizerUrl
-            ? <a href={organizerUrl} target="_blank" rel="noopener noreferrer">{organizerName}</a>
-            : organizerName
-          }
-        </p>
+    <div class="event-detail-hero">
+      {data.poster_key && (
+        <div class="event-detail-hero-poster">
+          <ResponsiveImage
+            blobKey={data.poster_key}
+            alt={data.name}
+            widths={[400, 800]}
+            fit="contain"
+            loading="eager"
+            class="gallery-cover-photo"
+          />
+        </div>
       )}
-      {data.distances && <p class="event-detail-distances">{data.distances}</p>}
-    </header>
+
+      <div class="event-detail-hero-info">
+        <h1>{data.name}</h1>
+        {data.edition && <p class="event-detail-edition">{data.edition}</p>}
+        <p class="event-detail-date">{dateDisplay}</p>
+        {organizerName && (
+          <p class="event-detail-organizer">
+            {t('events.organizer', locale)}{' '}
+            {organizerWebsite
+              ? <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">{organizerName}</a>
+              : organizerName
+            }
+          </p>
+        )}
+        {data.distances && <p class="event-detail-distances">{data.distances}</p>}
+        {regUrl && (
+          <a href={regUrl} class="event-hero-register-btn" target="_blank" rel="noopener noreferrer">
+            {t('events.register', locale)}
+          </a>
+        )}
+        <div class="event-detail-links">
+          {data.event_url && (
+            <a href={data.event_url} target="_blank" rel="noopener noreferrer">Event website</a>
+          )}
+          {showOrgWebsite && (
+            <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">Organizer website</a>
+          )}
+          {data.map_url && (
+            <a href={data.map_url} target="_blank" rel="noopener noreferrer">{mapServiceName(data.map_url)}</a>
+          )}
+        </div>
+      </div>
+    </div>
 
     <div class="event-detail-layout">
       <div class="event-detail-main">
@@ -149,6 +196,8 @@ const hasResults = data.results && data.results.length > 0;
           location={data.location}
           registration={data.registration}
           registrationUrl={data.registration_url}
+          organizerWebsite={organizerWebsite}
+          organizerInstagram={organizerInstagram}
           locale={locale}
         />
       </aside>
