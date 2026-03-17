@@ -65,7 +65,7 @@ function run(cmd, opts = {}) {
 
 function commandExists(cmd) {
   try {
-    safeExec(`which ${cmd}`, { stdio: 'pipe' });
+    safeExec(`command -v ${cmd}`, { stdio: 'pipe', shell: true });
     return true;
   } catch {
     return false;
