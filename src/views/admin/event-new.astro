@@ -42,6 +42,6 @@ if (copyFromId) {
 }
 ---
 
-<AdminEditorLayout title="New Event" backLink="/admin/events" backLabel="Back to events" user={Astro.locals.user} currentTab="events">
+<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events">
   <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} />
 </AdminEditorLayout>

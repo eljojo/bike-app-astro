@@ -31,7 +31,7 @@ const user = Astro.locals.user;
 const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
 ---
 
-<AdminEditorLayout title={`Edit: ${placeData.name}`} backLink="/admin/places" backLabel="Back to places" hideTitle user={user} currentTab="places">
+<AdminEditorLayout title={`Edit: ${placeData.name}`} hideTitle user={user} currentTab="places">
   <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
   <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

@@ -3,13 +3,12 @@
 
 .editor-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
 }
 
-.back-link,
 .view-link {
   @include muted-text;
   text-decoration: none;

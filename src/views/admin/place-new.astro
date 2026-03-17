@@ -29,6 +29,6 @@ const initialData = {
 };
 ---
 
-<AdminEditorLayout title="New Place" backLink="/admin/places" backLabel="Back to places" user={Astro.locals.user} currentTab="places">
+<AdminEditorLayout title="New Place" user={Astro.locals.user} currentTab="places">
   <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} />
 </AdminEditorLayout>
