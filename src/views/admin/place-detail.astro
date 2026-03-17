@@ -4,18 +4,17 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
-import adminPlaceDetails from 'virtual:bike-app/admin-place-detail';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
-import { loadDetailPageData } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
 import { placeDetailFromCache } from '../../lib/models/place-model';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 
-const result = await loadDetailPageData({
+const result = await loadDetailFromJson({
   contentType: 'places',
   id: Astro.params.id,
-  virtualModuleData: adminPlaceDetails,
+  jsonUrl: new URL(`/admin/data/places/${Astro.params.id}.json`, Astro.url),
   fromCache: placeDetailFromCache,
 });
 
@@ -29,9 +28,10 @@ const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const user = Astro.locals.user;
 const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
+const mediaLocations = await fetch(new URL('/admin/data/media-locations.json', Astro.url)).then(r => r.json());
 ---
 
 <AdminEditorLayout title={`Edit: ${placeData.name}`} hideTitle user={user} currentTab="places">
-  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
+  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} mediaLocations={mediaLocations} />
   <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

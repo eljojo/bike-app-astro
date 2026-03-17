@@ -4,11 +4,10 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RideEditor from '../../components/admin/RideEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
-import adminRideDetails from 'virtual:bike-app/admin-route-detail';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
-import { loadDetailPageData } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
 import { rideDetailFromCache } from '../../lib/models/ride-model';
 import { paths } from '@/lib/paths';
 import { t } from '@/i18n';
@@ -48,10 +47,10 @@ if (isNew) {
     isNew: true,
   };
 } else {
-  const result = await loadDetailPageData({
+  const result = await loadDetailFromJson({
     contentType: 'rides',
     id: slug,
-    virtualModuleData: adminRideDetails,
+    jsonUrl: new URL(`/admin/data/routes/${slug}.json`, Astro.url),
     fromCache: rideDetailFromCache,
   });
 
