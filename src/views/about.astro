@@ -5,6 +5,7 @@ import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { defaultLocale } from '@/lib/i18n/locale-utils';
+import { t } from '@/i18n';
 import contributors from 'virtual:bike-app/contributors';
 
 const config = getCityConfig();
@@ -27,10 +28,18 @@ const renderedBody = body
 ---
 
 <Base title={`${title} | ${config.display_name}`} description={`${title} - ${config.display_name} and ${config.author.name}`}>
+  {getInstanceFeatures().showsContributeLink && (
+    <section class="about-what-is-this">
+      <h2>{t('about.what_is_this', locale)}</h2>
+      {t('about.what_is_this_body', locale, { display_name: config.display_name, name: config.name }).split('\n').map((line: string) => (
+        <p>{line}</p>
+      ))}
+    </section>
+  )}
   <div class="about-page--intro-text" set:html={renderedBody} />
   {contributors.length > 0 && (
     <div class="about-contributors">
-      <h3>Contributors</h3>
+      <h3>{t('about.contributors_heading', locale)}</h3>
       <div class="contributor-list">
         {contributors.map(c => (
           <div class="contributor">
@@ -49,11 +58,10 @@ const renderedBody = body
   )}
   {getInstanceFeatures().showsContributeLink && (
     <div class="about-contribute">
-      <p>
-        This is a community project — anyone can contribute.
-        If you know a cycling route that's not listed, <a href="/admin/routes/new">suggest a new route</a>.
-        You can also <a href="/admin">suggest edits</a> to existing routes and events.
-      </p>
+      <p set:html={t('about.contribute', locale, {
+        link_new_route: `<a href="/admin/routes/new">${t('about.contribute_new_route', locale)}</a>`,
+        link_edits: `<a href="/admin">${t('about.contribute_edits', locale)}</a>`,
+      })} />
     </div>
   )}
   <br />

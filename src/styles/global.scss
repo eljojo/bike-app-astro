@@ -485,6 +485,26 @@ a.go-back-button {
 }
 
 // About
+.about-what-is-this {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    margin: 0.4em 0;
+    line-height: 1.6;
+  }
+}
+
 .about-page--intro-text {
   display: block;
   max-width: 1130px;
