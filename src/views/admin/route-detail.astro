@@ -6,7 +6,7 @@ import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
-import { loadDetailFromJson, loadParkedMediaWithOverlay } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson, loadParkedMediaWithOverlay, fetchJson } from '../../lib/content/load-admin-content.server';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
@@ -30,14 +30,14 @@ const result = await loadDetailFromJson({
 if (result.notFound) return new Response(null, { status: 404 });
 const routeData = result.data;
 
-const parkedPhotosData = await fetch(new URL('/admin/data/parked-media.json', Astro.url)).then(r => r.json());
+const parkedPhotosData = await fetchJson<_ParkedMedia[]>(new URL('/admin/data/parked-media.json', Astro.url));
 const parkedPhotos = await loadParkedMediaWithOverlay(parkedPhotosData);
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const videosCdnUrl = getCityConfig().videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const tagTranslations = loadTagTranslations();
-const knownTags = await fetch(new URL('/admin/data/known-tags.json', Astro.url)).then(r => r.json()) as string[];
-const allNearbyMedia = await fetch(new URL('/admin/data/nearby-media.json', Astro.url)).then(r => r.json()) as Record<string, Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: string }>>;
+const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
+const allNearbyMedia = await fetchJson<Record<string, Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: string }>>>(new URL('/admin/data/nearby-media.json', Astro.url));
 const focusParam = Astro.url.searchParams.get('focus');
 const focusMode = (focusParam === 'description' || focusParam === 'media') ? focusParam : null;
 const locale = Astro.currentLocale;

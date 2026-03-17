@@ -9,6 +9,7 @@ import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../..
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
 import { slugify } from '../../lib/slug';
 import { generateMediaKey, confirmUpload } from '../../lib/media/storage.adapter-r2';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 
 let adminOrganizers: Array<{ slug: string; name: string; website?: string; instagram?: string }> = [];
 
@@ -280,7 +281,7 @@ async function stageImage(imageBuffer: ArrayBuffer): Promise<{ key: string; cont
 }
 
 export async function POST({ request, locals }: APIContext) {
-  const { organizers } = await fetch(new URL('/admin/data/events.json', request.url)).then(r => r.json());
+  const { organizers } = await fetchJson<{ organizers: typeof adminOrganizers }>(new URL('/admin/data/events.json', request.url));
   adminOrganizers = organizers;
 
   const user = authorize(locals, 'event-draft');

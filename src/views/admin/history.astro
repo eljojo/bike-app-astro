@@ -9,6 +9,7 @@ import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 const user = Astro.locals.user;
 const features = getInstanceFeatures();
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
@@ -18,13 +19,13 @@ const coverKeys: Record<string, string> = {};
 const posterKeys: Record<string, string> = {};
 
 if (features.hasRoutes || features.hasRides) {
-  const adminRoutes = await fetch(new URL('/admin/data/routes.json', Astro.url)).then(r => r.json());
+  const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
   for (const r of adminRoutes) {
     if (r.coverKey) coverKeys[r.slug] = r.coverKey;
   }
 }
 if (features.hasEvents) {
-  const adminEvents = await fetch(new URL('/admin/data/events.json', Astro.url)).then(r => r.json()).then(d => d.events);
+  const { events: adminEvents } = await fetchJson<{ events: _AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url));
   for (const e of adminEvents) {
     if (e.poster_key) posterKeys[e.id] = e.poster_key;
   }

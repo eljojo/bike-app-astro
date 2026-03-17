@@ -303,9 +303,17 @@ export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promi
 /**
  * Fetch a prerendered JSON file from the app's own static assets.
  * On Cloudflare Workers, this hits the co-located asset binding (no network hop).
- * In local dev, this fetches from the dev server.
+ * On Node.js (@astrojs/node), reads directly from dist/client/ to avoid
+ * self-fetch deadlock in the standalone server.
  */
-async function fetchJson<T>(url: URL): Promise<T> {
+export async function fetchJson<T>(url: URL): Promise<T> {
+  if (__RUNTIME_LOCAL__ && import.meta.env.PROD) {
+    // Node.js production/preview: read prerendered JSON from disk.
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const filePath = join(process.cwd(), 'dist', 'client', url.pathname);
+    return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
+  }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
   return res.json() as Promise<T>;

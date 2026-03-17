@@ -18,7 +18,7 @@ import { slugify } from '../../lib/slug';
 import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
-import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
+import { fetchSharedKeysData, fetchJson } from '../../lib/content/load-admin-content.server';
 
 let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 let adminEvents: AdminEvent[] = [];
@@ -241,7 +241,7 @@ export async function POST({ params, request, locals }: APIContext) {
   const baseUrl = new URL(request.url);
   [sharedKeysData, adminEvents] = await Promise.all([
     fetchSharedKeysData(baseUrl),
-    fetch(new URL('/admin/data/events.json', baseUrl)).then(r => r.json()).then(d => d.events),
+    fetchJson<{ events: AdminEvent[] }>(new URL('/admin/data/events.json', baseUrl)).then(d => d.events),
   ]);
 
   const user = locals.user;

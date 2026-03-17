@@ -5,9 +5,10 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import { categoryEmoji } from '../../lib/geo/place-categories';
 import { getCityConfig } from '../../lib/config/city-config';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 import '../../styles/admin.scss';
 
-const adminPlaces = await fetch(new URL('/admin/data/places.json', Astro.url)).then(r => r.json());
+const adminPlaces = await fetchJson<_AdminPlace[]>(new URL('/admin/data/places.json', Astro.url));
 
 const user = Astro.locals.user;
 const config = getCityConfig();

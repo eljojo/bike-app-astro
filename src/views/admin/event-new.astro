@@ -4,11 +4,11 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventCreator from '../../components/admin/EventCreator.tsx';
 import { eventDetailFromCache } from '../../lib/models/event-model';
-import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 
-const { organizers: adminOrganizers } = await fetch(new URL('/admin/data/events.json', Astro.url)).then(r => r.json());
+const { organizers: adminOrganizers } = await fetchJson<{ organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
