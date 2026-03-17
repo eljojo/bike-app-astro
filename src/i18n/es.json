@@ -217,6 +217,5 @@
   "editor.focus_media": "Agregando medios a {name}",
   "editor.show_all_fields": "Mostrar todos los campos",
 
-  "place_editor.essential_heading": "Agregar un lugar",
   "place_editor.details_toggle": "Agregar detalles (dirección, sitio web, teléfono)"
 }

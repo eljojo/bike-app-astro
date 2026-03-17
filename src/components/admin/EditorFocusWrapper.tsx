@@ -26,21 +26,17 @@ export default function EditorFocusWrapper({ focused, focusActive, children }: P
 
 interface FocusHeaderProps {
   focusSection: string | null;
-  routeName: string;
-  labels: Record<string, string>; // focusSection → label
+  labels: Record<string, string>; // focusSection → pre-interpolated label
   showAllLabel: string;
   onExpand: () => void;
 }
 
-export function FocusHeader({ focusSection, routeName, labels, showAllLabel, onExpand }: FocusHeaderProps) {
+export function FocusHeader({ focusSection, labels, showAllLabel, onExpand }: FocusHeaderProps) {
   if (!focusSection) return null;
-
-  const label = labels[focusSection] || '';
-  const rendered = label.replace('{name}', routeName);
 
   return (
     <div class="focus-header">
-      <p class="focus-header-label">{rendered}</p>
+      <p class="focus-header-label">{labels[focusSection] || ''}</p>
       <button type="button" class="btn-secondary focus-expand-btn" onClick={onExpand}>
         {showAllLabel}
       </button>

@@ -194,7 +194,6 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       {effectiveFocus && focusLabels && (
         <FocusHeader
           focusSection={effectiveFocus}
-          routeName={name}
           labels={{ description: focusLabels.description, media: focusLabels.media }}
           showAllLabel={focusLabels.showAll}
           onExpand={() => setFocusExpanded(true)}

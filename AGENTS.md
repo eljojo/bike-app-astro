@@ -232,12 +232,13 @@ Screenshot tests build against `CITY=demo` (a fixture city). See `e2e/AGENTS.md`
 ```sh
 make build         # astro build → dist/
 make maps          # generate map thumbnail cache (public/maps/)
+make route-data    # generate route data JSON (public/route-data/)
 make validate      # validate content data
 make contributors  # build contributor stats (must run BEFORE astro build)
 make fonts         # download and embed Google Fonts
 ```
 
-**Build order matters:** `make contributors` and `make maps` must run before `astro build` — they generate files consumed by virtual modules.
+**Build order matters:** `make contributors`, `make maps`, and `make route-data` must run before `astro build` — they generate files consumed by virtual modules or served as static assets.
 
 ## Git Conventions
 

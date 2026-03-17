@@ -76,6 +76,22 @@ const minScore = variantScores.length > 0 ? Math.min(...variantScores) : null;
 const maxScore = variantScores.length > 0 ? Math.max(...variantScores) : null;
 const hasRange = minScore !== null && maxScore !== null && Math.abs(maxScore - minScore) > 3;
 const shape = primaryTrack ? routeShape(primaryTrack.points, primaryTrack.distance_m) : null;
+
+// Per-variant elevation conclusions and shapes for VariantCards
+const variantElevationConclusions: Record<string, string> = {};
+const variantShapes: Record<string, string> = {};
+for (const v of variants) {
+  const track = gpxTracks[v.gpx];
+  if (!track) continue;
+  const vKey = variantKeyFromGpx(v.gpx);
+  if (track.elevation_gain_m) {
+    const c = elevationConclusion(track.elevation_gain_m, allElevations);
+    if (c) variantElevationConclusions[vKey] = c;
+  }
+  const s = routeShape(track.points, track.distance_m);
+  if (s) variantShapes[vKey] = s;
+}
+
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
 
@@ -183,6 +199,8 @@ const breadcrumbs = breadcrumbJsonLd([
             slug={slug}
             localeName={localeName}
             locale={locale}
+            elevationConclusions={variantElevationConclusions}
+            shapes={variantShapes}
           />
         </div>
 
