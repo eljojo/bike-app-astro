@@ -119,8 +119,8 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
         );
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        const code = data?.address?.country_code;
-        if (code && !cancelled) setCountry(code.toUpperCase());
+        const countryName = data?.address?.country;
+        if (countryName && !cancelled) setCountry(countryName);
       } catch { /* Nominatim failures are non-critical */ }
     })();
 
