@@ -37,21 +37,9 @@ export async function GET({ locals }: APIContext) {
       workflowFile,
     });
 
-    const lastSuccessTime = latestSuccessfulRun?.updated_at ?? null;
-    const lastEditTime = latestEdit?.updatedAt ?? null;
-
-    if (!lastEditTime) {
-      return jsonResponse({ status: 'idle' });
-    }
-
-    const hasPendingChanges = lastSuccessTime
-      ? new Date(lastEditTime) > new Date(lastSuccessTime)
-      : true;
-
-    if (!hasPendingChanges) {
-      return jsonResponse({ status: 'live' });
-    }
-
+    // Active workflow takes priority — show progress regardless of contentEdits state.
+    // Deploys can be triggered by data repo pushes, code merges, or manual dispatch,
+    // not just admin UI saves that create contentEdits rows.
     if (latestRun && (latestRun.status === 'in_progress' || latestRun.status === 'queued')) {
       const startTime = new Date(latestRun.created_at).getTime();
       const elapsed = Date.now() - startTime;
@@ -65,6 +53,22 @@ export async function GET({ locals }: APIContext) {
         progress,
         estimatedMinutes,
       });
+    }
+
+    const lastSuccessTime = latestSuccessfulRun?.updated_at ?? null;
+    const lastEditTime = latestEdit?.updatedAt ?? null;
+
+    // No admin edits tracked — nothing to show as pending
+    if (!lastEditTime) {
+      return jsonResponse({ status: 'idle' });
+    }
+
+    const hasPendingChanges = lastSuccessTime
+      ? new Date(lastEditTime) > new Date(lastSuccessTime)
+      : true;
+
+    if (!hasPendingChanges) {
+      return jsonResponse({ status: 'idle' });
     }
 
     return jsonResponse({ status: 'queued' });
