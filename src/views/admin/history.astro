@@ -33,8 +33,7 @@ if (features.hasEvents) {
 
 <Base title="Edit History" admin>
   <div class="admin-page">
-    <AdminHeader user={user} currentTab="history" />
-    <p class="history-subtitle">Every change made to the site, newest first.</p>
+    <AdminHeader user={user} currentTab="history" subtitle="Every change made to the site, newest first." />
     <EditHistory
       client:load
       city={CITY}

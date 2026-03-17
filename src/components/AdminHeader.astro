@@ -8,9 +8,10 @@ import { getContentTypes } from '../lib/content/content-types.server';
 interface Props {
   user: { username: string; role: string; email?: string | null };
   currentTab: string;
+  subtitle?: string;
 }
 
-const { user, currentTab } = Astro.props;
+const { user, currentTab, subtitle } = Astro.props;
 const isStaging = env.ENVIRONMENT === 'staging';
 const features = getInstanceFeatures();
 const contentNav = getContentTypes()
@@ -20,7 +21,6 @@ const contentNav = getContentTypes()
     label: ct.label,
     tab: ct.name,
   }));
-const contactEmail = getCityConfig().author.email;
 const cspNonce = Astro.locals.cspNonce;
 const avatarHash = user.email
   ? createHash('md5').update(user.email.trim().toLowerCase()).digest('hex')
@@ -28,34 +28,13 @@ const avatarHash = user.email
 const avatarUrl = avatarHash
   ? `https://www.gravatar.com/avatar/${avatarHash}?d=mp&s=32`
   : 'https://www.gravatar.com/avatar/?d=mp&s=32';
+
+const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
+  ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1);
 ---
 
 {isStaging && (
   <div class="staging-banner">Staging Environment</div>
-)}
-{features.showsContributeLink && currentTab !== 'home' && (
-  <div class="community-banner" id="community-banner">
-    This is a community wiki — feel free to browse and edit routes and events.
-    Your changes go live within a few minutes.
-    Questions? Email <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
-    <button type="button" class="community-banner-dismiss" id="community-banner-dismiss" aria-label="Dismiss">{'×'}</button>
-  </div>
-)}
-<script is:inline nonce={cspNonce}>
-  const banner = document.getElementById('community-banner');
-  const dismiss = document.getElementById('community-banner-dismiss');
-  if (localStorage.getItem('community-banner-dismissed')) {
-    banner?.remove();
-  }
-  dismiss?.addEventListener('click', () => {
-    localStorage.setItem('community-banner-dismissed', '1');
-    banner?.remove();
-  });
-</script>
-{currentTab !== 'home' && (
-  <div class="admin-header">
-    <h1>{contentNav.find(n => n.tab === currentTab)?.label ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}</h1>
-  </div>
 )}
 
 <nav class="admin-nav">
@@ -84,6 +63,12 @@ const avatarUrl = avatarHash
     </div>
   </div>
 </nav>
+{currentTab !== 'home' && (
+  <div class="admin-header">
+    <h1>{tabLabel}</h1>
+    {subtitle && <p class="admin-subtitle">{subtitle}</p>}
+  </div>
+)}
 <script is:inline nonce={cspNonce}>
   const toggle = document.getElementById('user-menu-toggle');
   const dropdown = document.getElementById('user-menu-dropdown');
@@ -126,46 +111,6 @@ const avatarUrl = avatarHash
     }
   }
 
-  .community-banner {
-    background: $color-info-bg;
-    border: 1px solid $color-info-border;
-    border-radius: $border-radius;
-    padding: 0.5rem 1rem;
-    margin-bottom: 1rem;
-    font-size: 0.875rem;
-    color: $color-info;
-    position: relative;
-    padding-right: 2rem;
-
-    @include dark-mode {
-      background: $color-info-bg-dark;
-      border-color: $color-info-border-dark;
-      color: $color-info-dark;
-    }
-
-    a {
-      color: inherit;
-      font-weight: 600;
-    }
-  }
-
-  .community-banner-dismiss {
-    position: absolute;
-    top: 0.375rem;
-    right: 0.5rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.125rem;
-    line-height: 1;
-    color: inherit;
-    opacity: 0.5;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-
   .admin-header {
     margin-bottom: 1rem;
 
@@ -174,6 +119,12 @@ const avatarUrl = avatarHash
       font-size: 1.5rem;
       margin: 0;
     }
+  }
+
+  .admin-subtitle {
+    font-size: 0.875rem;
+    margin: 0.25rem 0 0;
+    @include muted-text;
   }
 
   .admin-nav {

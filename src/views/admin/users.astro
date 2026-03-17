@@ -15,7 +15,7 @@ if (!can(Astro.locals.user, 'manage-users')) {
 
 <Base title="Users" admin>
   <div class="admin-page">
-    <AdminHeader user={user} currentTab="users" />
+    <AdminHeader user={user} currentTab="users" subtitle="People who can edit the site." />
     <UserList client:load />
   </div>
 </Base>
