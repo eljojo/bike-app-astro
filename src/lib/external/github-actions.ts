@@ -28,6 +28,7 @@ export async function getDeployWorkflowRuns(opts: {
   const headers = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
+    'User-Agent': 'whereto-bike',
   };
 
   let latestRun: WorkflowRun | null = null;

@@ -350,6 +350,8 @@ try {
 
   if (bar && text && track && fill && dismissBtn) {
     let dismissed = false;
+    let prevStatus = '';
+    let interval = 30000;
 
     dismissBtn.addEventListener('click', () => {
       dismissed = true;
@@ -364,38 +366,54 @@ try {
         if (!res.ok) return;
         const data = await res.json();
 
+        // If we were deploying/queued and now idle, show "live" instead of hiding
+        if (data.status === 'idle' && (prevStatus === 'deploying' || prevStatus === 'queued')) {
+          data.status = 'live';
+        }
+
+        prevStatus = data.status;
+
         if (data.status === 'idle') {
           bar.style.display = 'none';
+          interval = 30000;
           return;
         }
 
         if (data.status === 'live' && sessionStorage.getItem('deploy-bar-dismissed')) {
           bar.style.display = 'none';
+          interval = 30000;
           return;
         }
 
         bar.style.display = 'block';
 
         if (data.status === 'deploying') {
-          text.textContent = `Your changes are on their way \u2014 about ${data.estimatedMinutes} minute${data.estimatedMinutes === 1 ? '' : 's'}`;
+          text.textContent = 'Your changes are on their way \u2014 about ' + data.estimatedMinutes + ' minute' + (data.estimatedMinutes === 1 ? '' : 's');
           track.style.display = 'block';
           fill.style.width = data.progress + '%';
           dismissBtn.style.display = 'none';
+          interval = 10000;
         } else if (data.status === 'queued') {
           text.textContent = 'Changes are queued \u2014 they\'ll go out with the next update.';
           track.style.display = 'none';
           dismissBtn.style.display = 'none';
+          interval = 10000;
         } else if (data.status === 'live') {
           text.textContent = 'Changes are live.';
           track.style.display = 'none';
           dismissBtn.style.display = 'block';
           sessionStorage.removeItem('deploy-bar-dismissed');
+          interval = 30000;
         }
       } catch { /* network error — skip silently */ }
     }
 
-    checkDeploy();
-    setInterval(checkDeploy, 30000);
+    function poll() {
+      checkDeploy().then(function() {
+        setTimeout(poll, interval);
+      });
+    }
+    poll();
   }
 </script>
 
