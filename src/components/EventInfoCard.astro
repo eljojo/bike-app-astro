@@ -19,12 +19,15 @@ interface Props {
   location?: string;
   registration?: Registration;
   registrationUrl?: string;
+  organizerWebsite?: string;
+  organizerInstagram?: string;
   locale?: string;
 }
 
 const {
   startDate, endDate, startTime, timeLimitHours, distances,
-  location, registration, registrationUrl, locale,
+  location, registration, registrationUrl, organizerWebsite,
+  organizerInstagram, locale,
 } = Astro.props;
 
 const dateDisplay = formatDateRange(startDate, endDate, locale);
@@ -79,6 +82,16 @@ const regUrl = registration?.url || registrationUrl;
   {regUrl && (
     <a href={regUrl} class="event-register-btn" target="_blank" rel="noopener noreferrer">
       {t('events.register', locale)}
+    </a>
+  )}
+  {organizerWebsite && (
+    <a href={organizerWebsite} class="event-organizer-link" target="_blank" rel="noopener noreferrer">
+      Organizer website
+    </a>
+  )}
+  {organizerInstagram && (
+    <a href={`https://instagram.com/${organizerInstagram}`} class="event-organizer-link" target="_blank" rel="noopener noreferrer">
+      @{organizerInstagram}
     </a>
   )}
 </div>

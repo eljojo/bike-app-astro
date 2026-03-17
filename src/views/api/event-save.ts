@@ -34,6 +34,7 @@ const eventUpdateSchema = z.object({
     name: z.string(),
     website: z.string().optional(),
     instagram: z.string().optional(),
+    isExistingRef: z.boolean().optional(),
   }).optional(),
   media: z.array(eventMediaItemSchema).optional(),
   slug: z.string().optional(),
@@ -147,20 +148,9 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
     // Organizer handling: inline vs separate file
     if (update.organizer && update.organizer.name) {
       const orgSlug = update.organizer.slug || slugify(update.organizer.name);
-      const otherRefs = countOrganizerReferences(orgSlug, eventId);
 
-      if (otherRefs === 0) {
-        const orgObj: Record<string, string> = { name: update.organizer.name };
-        if (update.organizer.website) orgObj.website = update.organizer.website;
-        if (update.organizer.instagram) orgObj.instagram = update.organizer.instagram;
-        fm.organizer = orgObj;
-
-        const orgFilePath = `${CITY}/organizers/${orgSlug}.md`;
-        const existingOrg = await git.readFile(orgFilePath);
-        if (existingOrg) {
-          deletePaths.push(orgFilePath);
-        }
-      } else {
+      if (update.organizer.isExistingRef) {
+        // User selected an existing organizer — always write/update the organizer file
         fm.organizer = orgSlug;
 
         const orgFm: Record<string, string> = { name: update.organizer.name };
@@ -169,6 +159,31 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
 
         const orgContent = serializeMdFile(orgFm);
         files.push({ path: `${CITY}/organizers/${orgSlug}.md`, content: orgContent });
+      } else {
+        // New/inline organizer — use reference count to decide
+        const otherRefs = countOrganizerReferences(orgSlug, eventId);
+
+        if (otherRefs === 0) {
+          const orgObj: Record<string, string> = { name: update.organizer.name };
+          if (update.organizer.website) orgObj.website = update.organizer.website;
+          if (update.organizer.instagram) orgObj.instagram = update.organizer.instagram;
+          fm.organizer = orgObj;
+
+          const orgFilePath = `${CITY}/organizers/${orgSlug}.md`;
+          const existingOrg = await git.readFile(orgFilePath);
+          if (existingOrg) {
+            deletePaths.push(orgFilePath);
+          }
+        } else {
+          fm.organizer = orgSlug;
+
+          const orgFm: Record<string, string> = { name: update.organizer.name };
+          if (update.organizer.website) orgFm.website = update.organizer.website;
+          if (update.organizer.instagram) orgFm.instagram = update.organizer.instagram;
+
+          const orgContent = serializeMdFile(orgFm);
+          files.push({ path: `${CITY}/organizers/${orgSlug}.md`, content: orgContent });
+        }
       }
     }
 
