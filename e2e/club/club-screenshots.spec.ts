@@ -75,6 +75,13 @@ test.describe('Club Screenshots — Admin Pages', () => {
     await proxyTiles(page);
   });
 
+  test('dashboard', async ({ page }) => {
+    await page.goto('/admin');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('admin-dashboard.png', screenshotOpts);
+  });
+
   test('event list', async ({ page }) => {
     await page.goto('/admin/events');
     await page.waitForLoadState('networkidle');

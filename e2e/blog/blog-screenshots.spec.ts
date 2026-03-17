@@ -84,6 +84,13 @@ test.describe('Blog Screenshots — Admin Pages', () => {
     await proxyTiles(page);
   });
 
+  test('dashboard', async ({ page }) => {
+    await page.goto('/admin');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('admin-dashboard.png', screenshotOpts);
+  });
+
   test('rides list', async ({ page }) => {
     await page.goto('/admin/rides');
     await page.waitForLoadState('networkidle');

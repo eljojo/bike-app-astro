@@ -27,6 +27,13 @@ test.describe('Admin Screenshots — Editor Pages', () => {
     await proxyTiles(page);
   });
 
+  test('dashboard', async ({ page }) => {
+    await page.goto('/admin');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('admin-dashboard.png', screenshotOpts);
+  });
+
   test('route list', async ({ page }) => {
     await page.goto('/admin/routes');
     await page.waitForLoadState('networkidle');
