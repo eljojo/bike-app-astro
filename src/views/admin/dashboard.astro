@@ -111,6 +111,17 @@ try {
   <div class="admin-dashboard">
     <AdminHeader user={user} currentTab="home" />
 
+    <!-- Deploy Progress Bar (populated by JS) -->
+    <div class="deploy-bar" id="deploy-bar" style="display: none;">
+      <div class="deploy-bar-content">
+        <span class="deploy-bar-text" id="deploy-bar-text"></span>
+        <div class="deploy-bar-track" id="deploy-bar-track" style="display: none;">
+          <div class="deploy-bar-fill" id="deploy-bar-fill"></div>
+        </div>
+        <button type="button" class="deploy-bar-dismiss" id="deploy-bar-dismiss" aria-label="Dismiss" style="display: none;">&times;</button>
+      </div>
+    </div>
+
     <!-- Welcome Area -->
     <section class="dashboard-welcome">
       <h1 class="dashboard-headline">Collaborator area</h1>
@@ -311,6 +322,64 @@ try {
     localStorage.setItem('dashboard-welcomed', '1');
     firstVisit?.remove();
   });
+</script>
+
+<script>
+  const bar = document.getElementById('deploy-bar');
+  const text = document.getElementById('deploy-bar-text');
+  const track = document.getElementById('deploy-bar-track');
+  const fill = document.getElementById('deploy-bar-fill');
+  const dismissBtn = document.getElementById('deploy-bar-dismiss');
+
+  if (bar && text && track && fill && dismissBtn) {
+    let dismissed = false;
+
+    dismissBtn.addEventListener('click', () => {
+      dismissed = true;
+      sessionStorage.setItem('deploy-bar-dismissed', '1');
+      bar.style.display = 'none';
+    });
+
+    async function checkDeploy() {
+      if (dismissed) return;
+      try {
+        const res = await fetch('/api/admin/deploy-status');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.status === 'idle') {
+          bar.style.display = 'none';
+          return;
+        }
+
+        if (data.status === 'live' && sessionStorage.getItem('deploy-bar-dismissed')) {
+          bar.style.display = 'none';
+          return;
+        }
+
+        bar.style.display = 'block';
+
+        if (data.status === 'deploying') {
+          text.textContent = `Your changes are on their way \u2014 about ${data.estimatedMinutes} minute${data.estimatedMinutes === 1 ? '' : 's'}`;
+          track.style.display = 'block';
+          fill.style.width = data.progress + '%';
+          dismissBtn.style.display = 'none';
+        } else if (data.status === 'queued') {
+          text.textContent = 'Changes are queued \u2014 they\'ll go out with the next update.';
+          track.style.display = 'none';
+          dismissBtn.style.display = 'none';
+        } else if (data.status === 'live') {
+          text.textContent = 'Changes are live.';
+          track.style.display = 'none';
+          dismissBtn.style.display = 'block';
+          sessionStorage.removeItem('deploy-bar-dismissed');
+        }
+      } catch { /* network error — skip silently */ }
+    }
+
+    checkDeploy();
+    setInterval(checkDeploy, 30000);
+  }
 </script>
 
 <style lang="scss">
@@ -647,5 +716,60 @@ try {
   .glance-row--highlight {
     color: $color-warning;
     @include dark-mode { color: $color-warning-dark; }
+  }
+
+  .deploy-bar {
+    background: $color-success-bg;
+    border: 1px solid $color-success-border;
+    border-radius: $border-radius;
+    margin-bottom: 1rem;
+    padding: 0.625rem 1rem;
+
+    @include dark-mode {
+      background: $color-success-bg-dark;
+      border-color: $color-success-border-dark;
+    }
+  }
+
+  .deploy-bar-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .deploy-bar-text {
+    font-size: 0.875rem;
+    color: $color-success;
+    @include dark-mode { color: $color-success-dark; }
+  }
+
+  .deploy-bar-track {
+    flex: 1;
+    max-width: 200px;
+    height: 4px;
+    background: $color-border;
+    border-radius: 2px;
+    overflow: hidden;
+
+    @include dark-mode { background: $color-border-dark; }
+  }
+
+  .deploy-bar-fill {
+    height: 100%;
+    background: $color-success;
+    border-radius: 2px;
+    transition: width 1s ease;
+    @include dark-mode { background: $color-success-dark; }
+  }
+
+  .deploy-bar-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.125rem;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.5;
+    &:hover { opacity: 1; }
   }
 </style>

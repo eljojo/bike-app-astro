@@ -70,6 +70,7 @@ const routes = [
   { pattern: '/api/admin/diff', entrypoint: view('api/admin-diff.ts') },
   { pattern: '/api/admin/event-draft', entrypoint: view('api/event-draft.ts') },
   { pattern: '/api/admin/fetch-image', entrypoint: view('api/fetch-image.ts') },
+  { pattern: '/api/admin/deploy-status', entrypoint: view('api/admin-deploy-status.ts') },
   { pattern: '/api/settings', entrypoint: view('api/settings.ts') },
   { pattern: '/api/suggest-waypoints', entrypoint: view('api/suggest-waypoints.ts') },
   { pattern: '/api/gpx/import', entrypoint: view('api/gpx/import.ts') },
