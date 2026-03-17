@@ -4,6 +4,7 @@ interface Props {
   returnTo: string;
   blogMode?: boolean;
   locale?: string;
+  aboutUrl?: string;
 }
 
 const translations: Record<string, Record<string, string>> = {
@@ -14,6 +15,7 @@ const translations: Record<string, Record<string, string>> = {
     signin: 'Already have an account? Sign in',
     register: 'Want credit for your contributions? Create account',
     howEditing: 'How does editing work?',
+    signinShort: 'Sign in',
     settingUp: 'Setting up...',
     failed: 'Failed to continue as guest',
   },
@@ -24,6 +26,7 @@ const translations: Record<string, Record<string, string>> = {
     signin: 'Vous avez d\u00e9j\u00e0 un compte\u00a0? Connectez-vous',
     register: 'Vous voulez \u00eatre cr\u00e9dit\u00e9 pour vos contributions\u00a0? Cr\u00e9ez un compte',
     howEditing: 'Comment fonctionne la modification\u00a0?',
+    signinShort: 'Se connecter',
     settingUp: 'Pr\u00e9paration...',
     failed: 'Impossible de continuer en tant qu\u2019invit\u00e9',
   },
@@ -34,6 +37,7 @@ const translations: Record<string, Record<string, string>> = {
     signin: '\u00bfYa tienes una cuenta? Inicia sesi\u00f3n',
     register: '\u00bfQuieres cr\u00e9dito por tus contribuciones? Crea una cuenta',
     howEditing: '\u00bfC\u00f3mo funciona la edici\u00f3n?',
+    signinShort: 'Iniciar sesi\u00f3n',
     settingUp: 'Preparando...',
     failed: 'No se pudo continuar como invitado',
   },
@@ -46,7 +50,7 @@ function tr(locale: string | undefined, key: string): string {
   return translations[lang]?.[key] || translations[FALLBACK_LOCALE]?.[key] || key;
 }
 
-export default function AuthGate({ returnTo, blogMode, locale }: Props) {
+export default function AuthGate({ returnTo, blogMode, locale, aboutUrl }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -77,7 +81,7 @@ export default function AuthGate({ returnTo, blogMode, locale }: Props) {
       <div class="gate-options">
         {error && <div class="auth-error">{error}</div>}
         <a href={`/login?returnTo=${encodeURIComponent(returnTo)}`} class="btn-primary gate-btn">
-          Sign in
+          {tr(locale, 'signinShort')}
         </a>
       </div>
     );
@@ -108,7 +112,7 @@ export default function AuthGate({ returnTo, blogMode, locale }: Props) {
         </a>
       </div>
 
-      <a href="/about" class="gate-how-link">{tr(locale, 'howEditing')}</a>
+      <a href={aboutUrl || '/about'} class="gate-how-link">{tr(locale, 'howEditing')}</a>
     </div>
   );
 }

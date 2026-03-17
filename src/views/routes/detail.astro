@@ -1,6 +1,5 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
@@ -12,7 +11,7 @@ import VariantCards from '@/components/VariantCards.astro';
 import { elevationConclusion } from '@/lib/geo/elevation';
 import { routeShape, placeCounts } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
-import { t, tCategory, localePath, formatLocale } from '@/i18n';
+import { t, tCategory, localePath } from '@/i18n';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
@@ -257,5 +256,5 @@ const breadcrumbs = breadcrumbJsonLd([
       <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
-  {videos.length > 0 && <script>import '@/lib/media/hls-player';</script>}
+  {media.some(m => m.type === 'video') && <script>import '@/lib/media/hls-player';</script>}
 </Base>

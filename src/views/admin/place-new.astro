@@ -17,7 +17,7 @@ const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
 
 const nearSlug = Astro.url.searchParams.get('near') || undefined;
-const detailsToggleLabel = t('place_editor.details_toggle', defaultLocale());
+const detailsToggleLabel = t('place_editor.details_toggle', Astro.currentLocale);
 
 const initialData = {
   id: '',
