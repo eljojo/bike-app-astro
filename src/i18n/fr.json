@@ -36,6 +36,7 @@
   "places.website": "site web",
   "places.summary_prefix": "passe par",
   "places.show_all": "Afficher les {count} lieux",
+  "places.add_near_route": "Vous connaissez un lieu près de cette route\u00a0? Ajoutez-le.",
   "calendar.title": "Événements cyclistes pour {year}",
   "calendar.subscribe": "S'abonner au flux iCal",
   "calendar.google": "Ajouter à Google Agenda",

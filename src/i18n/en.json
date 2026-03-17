@@ -36,6 +36,7 @@
   "places.website": "website",
   "places.summary_prefix": "passes",
   "places.show_all": "Show all {count} places",
+  "places.add_near_route": "Know a place near this route? Add it.",
   "calendar.title": "Cycling events for {year}",
   "calendar.subscribe": "Subscribe to iCal feed",
   "calendar.google": "Add to Google Calendar",

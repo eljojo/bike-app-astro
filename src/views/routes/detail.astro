@@ -247,7 +247,7 @@ const breadcrumbs = breadcrumbJsonLd([
             />
           </a>
           {nearbyPlaces.length > 0 && (
-            <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+            <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
           )}
           {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
         </div>
