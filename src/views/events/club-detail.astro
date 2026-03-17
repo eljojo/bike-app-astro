@@ -12,6 +12,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { formatDateRange } from '@/lib/date-utils';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 
 const config = getCityConfig();
@@ -155,7 +156,7 @@ const hasResults = data.results && data.results.length > 0;
   </article>
 
   <p style="margin-top: 2em;">
-    <a href={localePath('/events', locale)} class="go-back-button">&#x21A9; {t('events.go_back', locale)}</a>
+    <a href={localePath(getInstanceFeatures().hasEnrichedEvents ? '/events' : '/calendar', locale)} class="go-back-button">&#x21A9; {t('events.go_back', locale)}</a>
   </p>
 
   <script>
