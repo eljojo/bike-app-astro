@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import { cityDir } from '@/lib/config/config.server';
+import { slugify } from '@/lib/slug';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -30,6 +31,64 @@ export async function getStaticPaths() {
   const allRoutes = await getCollection('routes');
   const allPlaces = await getCollection('places');
   const eventsDir = path.join(cityDir, 'events');
+
+  // Build edition chains: walk previous_event links forward and backward
+  type EventEntry = typeof events[number];
+  const byId = new Map<string, EventEntry>();
+  const nextOf = new Map<string, string>(); // reverse index: previous -> next
+  for (const ev of events) {
+    byId.set(ev.id, ev);
+    const prev = ev.data.previous_event;
+    if (prev) nextOf.set(prev, ev.id);
+  }
+
+  function resolveEditions(eventId: string): { editions: Array<{ id: string; year: string }>; isFallback: boolean } {
+    const visited = new Set<string>();
+    const chain: Array<{ id: string; year: string }> = [];
+
+    // Walk backward via previous_event
+    let cur = byId.get(eventId)?.data.previous_event;
+    while (cur && !visited.has(cur)) {
+      visited.add(cur);
+      const ev = byId.get(cur);
+      if (!ev) break;
+      chain.unshift({ id: cur, year: cur.split('/')[0] });
+      cur = ev.data.previous_event;
+    }
+
+    // Walk forward via reverse index
+    visited.add(eventId);
+    cur = nextOf.get(eventId);
+    while (cur && !visited.has(cur)) {
+      visited.add(cur);
+      const ev = byId.get(cur);
+      if (!ev) break;
+      chain.push({ id: cur, year: cur.split('/')[0] });
+      cur = nextOf.get(cur);
+    }
+
+    if (chain.length > 0) return { editions: chain, isFallback: false };
+
+    // Fallback: match by organizer + slug
+    const self = byId.get(eventId);
+    if (!self) return { editions: [], isFallback: false };
+    const selfOrg = typeof self.data.organizer === 'string' ? self.data.organizer : undefined;
+    const selfSlug = eventId.split('/').slice(1).join('/');
+    if (!selfOrg) return { editions: [], isFallback: false };
+
+    const fallback: Array<{ id: string; year: string }> = [];
+    for (const ev of events) {
+      if (ev.id === eventId) continue;
+      const org = typeof ev.data.organizer === 'string' ? ev.data.organizer : undefined;
+      const slug = ev.id.split('/').slice(1).join('/');
+      if (org === selfOrg && slugify(slug) === slugify(selfSlug)) {
+        fallback.push({ id: ev.id, year: ev.id.split('/')[0] });
+      }
+    }
+    fallback.sort((a, b) => b.year.localeCompare(a.year));
+    return { editions: fallback, isFallback: true };
+  }
+
   return events.map(event => {
     let eventMedia: any[] | undefined;
     const mediaPath = path.join(eventsDir, event.id, 'media.yml');
@@ -38,14 +97,15 @@ export async function getStaticPaths() {
         eventMedia = yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as any[];
       } catch { /* ignore malformed media.yml */ }
     }
+    const { editions, isFallback } = resolveEditions(event.id);
     return {
       params: { slug: event.id },
-      props: { event, organizers, allRoutes, allPlaces, eventMedia },
+      props: { event, organizers, allRoutes, allPlaces, eventMedia, editions, editionsIsFallback: isFallback },
     };
   });
 }
 
-const { event, organizers, allRoutes, allPlaces, eventMedia } = Astro.props;
+const { event, organizers, allRoutes, allPlaces, eventMedia, editions, editionsIsFallback } = Astro.props;
 const { Content } = await render(event);
 const data = event.data;
 
@@ -193,6 +253,18 @@ const galleryMedia = (eventMedia ?? []).map((m: any) => ({
         {galleryMedia.length > 0 && (
           <section class="event-detail-section">
             <MediaGallery media={galleryMedia} name={data.name} />
+          </section>
+        )}
+
+        {editions.length > 0 && (
+          <section class="event-editions">
+            <h2>{editionsIsFallback ? 'Other editions' : 'Past editions'}</h2>
+            <div class="edition-pills">
+              <span class="edition-pill edition-pill--current">{event.id.split('/')[0]}</span>
+              {editions.map((ed: { id: string; year: string }) => (
+                <a href={paths.event(ed.id, locale)} class="edition-pill">{ed.year}</a>
+              ))}
+            </div>
           </section>
         )}
 

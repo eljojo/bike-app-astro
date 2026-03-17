@@ -1901,6 +1901,53 @@ a.go-back-button {
   }
 }
 
+.event-editions {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+.edition-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.edition-pill {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  border: 1px solid $color-border;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    background: $color-card-bg;
+  }
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    &:hover { background: $color-card-bg-dark; }
+  }
+}
+
+.edition-pill--current {
+  background: $color-accent;
+  color: #000;
+  border-color: $color-accent;
+  font-weight: 600;
+}
+
 // Event info card (sidebar)
 .event-info-card {
   background: $color-card-bg;
