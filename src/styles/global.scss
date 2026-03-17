@@ -1948,6 +1948,25 @@ a.go-back-button {
   font-weight: 600;
 }
 
+.event-map-link {
+  display: inline-block;
+  color: $color-accent;
+  font-size: 1.1em;
+  font-weight: 600;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+.event-map-external {
+  margin-top: 0.5rem;
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    font-size: 0.9em;
+    &:hover { text-decoration: underline; }
+  }
+}
+
 // Event info card (sidebar)
 .event-info-card {
   background: $color-card-bg;

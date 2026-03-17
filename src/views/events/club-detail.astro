@@ -275,6 +275,21 @@ const galleryMedia = (eventMedia ?? []).map((m: any) => ({
           </section>
         )}
 
+        {data.map_url && !eventRoutes.length && (
+          <section class="event-detail-section">
+            <a href={data.map_url} class="event-map-link" target="_blank" rel="noopener noreferrer">
+              View route map on {mapServiceName(data.map_url)} &#x2192;
+            </a>
+          </section>
+        )}
+        {data.map_url && eventRoutes.length > 0 && (
+          <p class="event-map-external">
+            <a href={data.map_url} target="_blank" rel="noopener noreferrer">
+              Also on {mapServiceName(data.map_url)} &#x2192;
+            </a>
+          </p>
+        )}
+
         {hasWaypoints && (
           <section class="event-detail-section">
             <h2>{t('events.waypoints', locale)}</h2>
