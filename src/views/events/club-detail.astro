@@ -14,6 +14,11 @@ import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
+import MediaGallery from '@/components/MediaGallery.astro';
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
+import { cityDir } from '@/lib/config/config.server';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -24,13 +29,23 @@ export async function getStaticPaths() {
   const organizers = await getCollection('organizers');
   const allRoutes = await getCollection('routes');
   const allPlaces = await getCollection('places');
-  return events.map(event => ({
-    params: { slug: event.id },
-    props: { event, organizers, allRoutes, allPlaces },
-  }));
+  const eventsDir = path.join(cityDir, 'events');
+  return events.map(event => {
+    let eventMedia: any[] | undefined;
+    const mediaPath = path.join(eventsDir, event.id, 'media.yml');
+    if (fs.existsSync(mediaPath)) {
+      try {
+        eventMedia = yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as any[];
+      } catch { /* ignore malformed media.yml */ }
+    }
+    return {
+      params: { slug: event.id },
+      props: { event, organizers, allRoutes, allPlaces, eventMedia },
+    };
+  });
 }
 
-const { event, organizers, allRoutes, allPlaces } = Astro.props;
+const { event, organizers, allRoutes, allPlaces, eventMedia } = Astro.props;
 const { Content } = await render(event);
 const data = event.data;
 
@@ -106,6 +121,14 @@ const eventRoutes = routeSlugs
 
 const hasWaypoints = data.waypoints && data.waypoints.length > 0;
 const hasResults = data.results && data.results.length > 0;
+
+const galleryMedia = (eventMedia ?? []).map((m: any) => ({
+  type: m.type || 'photo',
+  key: m.key,
+  caption: m.caption,
+  width: m.width,
+  height: m.height,
+}));
 ---
 
 <Base title={`${data.name} | ${config.display_name}`} description={`${data.name} — ${dateDisplay}`} ogImage={coverUrl} jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
@@ -121,6 +144,9 @@ const hasResults = data.results && data.results.length > 0;
             loading="eager"
             class="gallery-cover-photo"
           />
+          {galleryMedia.length > 0 && (
+            <span class="event-poster-photo-count">{galleryMedia.length}</span>
+          )}
         </div>
       )}
 
@@ -163,6 +189,12 @@ const hasResults = data.results && data.results.length > 0;
           <Content />
         </div>
         <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
+
+        {galleryMedia.length > 0 && (
+          <section class="event-detail-section">
+            <MediaGallery media={galleryMedia} name={data.name} />
+          </section>
+        )}
 
         {eventRoutes.length > 0 && (
           <section class="event-detail-section">
