@@ -193,9 +193,65 @@ jobs:
           # Then patch our config with the worker entry point and assets path
           # (can't be present at build time because Vite validates the file exists).
           #
-          # IMPORTANT: no_bundle must stay true. The Cloudflare adapter builds
-          # ESM chunks that break when wrangler re-bundles them with esbuild
-          # (NoMatchingRenderer errors for Preact islands in production).
+          # Before removing the generated config, diff it against ours to catch
+          # any settings the adapter introduced that we're missing. This is how
+          # the no_bundle bug was caught — the generated config had it, ours didn't.
+          node -e "
+            const fs = require('fs');
+            const generated = JSON.parse(fs.readFileSync('dist/server/wrangler.json', 'utf8'));
+            const ours = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
+
+            // Keys the adapter manages or patches below — skip these
+            const managed = new Set(['main', 'assets', 'upload_source_maps']);
+
+            // Keys that are adapter metadata, wrangler defaults, or adapter-managed bindings
+            const ignore = new Set([
+              'configPath', 'userConfigPath', 'topLevelName',
+              'definedEnvironments', 'legacy_env',
+              // Adapter-managed bindings (SESSION kv, IMAGES)
+              'kv_namespaces', 'images',
+              // Wrangler defaults that don't affect runtime
+              'jsx_factory', 'jsx_fragment', 'dev', 'name', 'vars',
+              'triggers', 'python_modules',
+            ]);
+
+            function isEmpty(v) {
+              if (v == null) return true;
+              if (Array.isArray(v) && v.length === 0) return true;
+              if (typeof v === 'object') {
+                return Object.values(v).every(sub => isEmpty(sub));
+              }
+              return false;
+            }
+
+            // These are the settings that actually affect runtime behaviour
+            const critical = ['no_bundle', 'rules', 'compatibility_date',
+              'compatibility_flags', 'node_compat'];
+
+            const missing = [];
+            for (const [key, value] of Object.entries(generated)) {
+              if (managed.has(key) || ignore.has(key)) continue;
+              if (isEmpty(value)) continue;
+              if (!(key in ours)) {
+                missing.push({ key, value, severity: critical.includes(key) ? 'CRITICAL' : 'warning' });
+              } else if (critical.includes(key) && JSON.stringify(ours[key]) !== JSON.stringify(value)) {
+                missing.push({ key, generated: value, ours: ours[key], severity: 'CRITICAL' });
+              }
+            }
+            const errors = missing.filter(m => m.severity === 'CRITICAL');
+            const warnings = missing.filter(m => m.severity === 'warning');
+            if (warnings.length > 0) {
+              console.log('New settings in generated wrangler.json (non-critical):');
+              console.log(JSON.stringify(warnings, null, 2));
+            }
+            if (errors.length > 0) {
+              console.error('CRITICAL: Generated wrangler.json has settings missing or different in wrangler.jsonc:');
+              console.error(JSON.stringify(errors, null, 2));
+              console.error('Update wrangler.jsonc to include these settings before deploying.');
+              process.exit(1);
+            }
+            console.log('Config diff check passed.');
+          "
           rm -f dist/server/wrangler.json
           rm -rf .wrangler/deploy
           node -e "
@@ -203,7 +259,6 @@ jobs:
             const c = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
             c.main = './dist/server/entry.mjs';
             c.assets.directory = './dist/client';
-            if (!c.no_bundle) throw new Error('wrangler.jsonc must have no_bundle: true');
             fs.writeFileSync('wrangler.jsonc', JSON.stringify(c, null, 2));
           "
 
