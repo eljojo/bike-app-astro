@@ -302,9 +302,10 @@ export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promi
 
 /**
  * Fetch a prerendered JSON file from the app's own static assets.
- * On Cloudflare Workers, this hits the co-located asset binding (no network hop).
- * On Node.js (@astrojs/node), reads directly from dist/client/ to avoid
- * self-fetch deadlock in the standalone server.
+ * Three execution paths:
+ * - Local dev: global fetch() works fine (Astro dev server handles concurrency)
+ * - Node.js production: reads from dist/client/ on disk (avoids self-fetch deadlock)
+ * - Cloudflare Workers: uses ASSETS binding (avoids self-fetch deadlock / 522)
  */
 export async function fetchJson<T>(url: URL): Promise<T> {
   if (__RUNTIME_LOCAL__ && import.meta.env.PROD) {
@@ -314,7 +315,19 @@ export async function fetchJson<T>(url: URL): Promise<T> {
     const filePath = join(process.cwd(), 'dist', 'client', url.pathname);
     return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
   }
-  const res = await fetch(url);
+  if (__RUNTIME_LOCAL__) {
+    // Local dev: Astro dev server handles concurrent requests, no deadlock.
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
+    return res.json() as Promise<T>;
+  }
+  // Cloudflare Workers: use ASSETS binding for internal static file reads.
+  // Global fetch() would route through the network back to the same Worker,
+  // causing a deadlock (522 timeout). The ASSETS binding reads directly from
+  // co-located static assets with no network round-trip.
+  const { env } = await import('../env/env.service');
+  const assets = env.ASSETS as { fetch: typeof fetch };
+  const res = await assets.fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
   return res.json() as Promise<T>;
 }
