@@ -39,10 +39,11 @@ const translations: Record<string, Record<string, string>> = {
   },
 };
 
+const FALLBACK_LOCALE = Object.keys(translations)[0];
+
 function tr(locale: string | undefined, key: string): string {
-  const fallback = defaultLocale();
-  const lang = locale || fallback;
-  return translations[lang]?.[key] || translations[fallback]?.[key] || key;
+  const lang = locale || FALLBACK_LOCALE;
+  return translations[lang]?.[key] || translations[FALLBACK_LOCALE]?.[key] || key;
 }
 
 export default function AuthGate({ returnTo, blogMode, locale }: Props) {
