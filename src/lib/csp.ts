@@ -10,7 +10,7 @@ function originFrom(raw: string | undefined, fallback: string): string {
 
 export function cspOrigins() {
   const config = getCityConfig();
-  const cdn = originFrom(process.env.R2_PUBLIC_URL || config.cdn_url, config.cdn_url);
+  const cdn = originFrom(config.cdn_url, config.cdn_url);
   const videos = originFrom(config.videos_cdn_url, config.videos_cdn_url);
 
   return { cdn, videos };
