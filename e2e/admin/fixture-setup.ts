@@ -339,7 +339,71 @@ An event for testing edits.
 `
   );
 
-  // Organizer fixture
+  // --- Event organizer test fixtures (owned by event-organizer.spec.ts) ---
+
+  // event-org-existing: uses slug ref to cycling-club
+  fs.writeFileSync(
+    path.join(eventDir, 'event-org-existing.md'),
+    `---
+name: Org Existing Test
+start_date: "2099-08-10"
+start_time: "08:00"
+location: Central Park
+organizer: cycling-club
+---
+
+Event for testing isExistingRef=true saves.
+`
+  );
+
+  // event-org-inline: uses inline organizer (only event referencing solo-org)
+  fs.writeFileSync(
+    path.join(eventDir, 'event-org-inline.md'),
+    `---
+name: Org Inline Test
+start_date: "2099-08-15"
+start_time: "09:00"
+location: Riverside
+organizer:
+  name: Solo Organizer
+  website: https://solo.example.com
+---
+
+Event for testing isExistingRef=false with 0 other refs.
+`
+  );
+
+  // event-org-shared-a: uses slug ref to shared-org (one of two events using it)
+  fs.writeFileSync(
+    path.join(eventDir, 'event-org-shared-a.md'),
+    `---
+name: Org Shared A
+start_date: "2099-09-01"
+start_time: "07:00"
+location: North Trail
+organizer: shared-org
+---
+
+First event using shared-org.
+`
+  );
+
+  // event-org-shared-b: uses slug ref to shared-org (second event using it)
+  fs.writeFileSync(
+    path.join(eventDir, 'event-org-shared-b.md'),
+    `---
+name: Org Shared B
+start_date: "2099-09-10"
+start_time: "10:00"
+location: South Trail
+organizer: shared-org
+---
+
+Second event using shared-org.
+`
+  );
+
+  // Organizer fixtures
   const orgDir = path.join(CITY_DIR, 'organizers');
   fs.mkdirSync(orgDir, { recursive: true });
   fs.writeFileSync(
@@ -347,6 +411,26 @@ An event for testing edits.
     `---
 name: Demo Cycling Club
 website: https://example.com/cycling
+---
+`
+  );
+
+  // solo-org: separate file that should be deleted when inlined (0 other refs)
+  fs.writeFileSync(
+    path.join(orgDir, 'solo-organizer.md'),
+    `---
+name: Solo Organizer
+website: https://solo.example.com
+---
+`
+  );
+
+  // shared-org: used by two events, should never be inlined
+  fs.writeFileSync(
+    path.join(orgDir, 'shared-org.md'),
+    `---
+name: Shared Org
+website: https://shared.example.com
 ---
 `
   );
