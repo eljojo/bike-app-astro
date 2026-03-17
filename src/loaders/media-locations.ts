@@ -8,6 +8,7 @@ export interface MediaLocation {
   caption?: string;
   width?: number;
   height?: number;
+  type?: 'photo' | 'video';
 }
 
 export interface ParkedMedia {
@@ -19,6 +20,7 @@ export interface ParkedMedia {
   height?: number;
   uploaded_by?: string;
   captured_at?: string;
+  type?: 'photo' | 'video';
 }
 
 /**
@@ -27,14 +29,13 @@ export interface ParkedMedia {
  * Used as a virtual module for cross-route media suggestions in the admin editor.
  */
 export function buildMediaLocations(
-  routeData: Record<string, { media: Array<{ key: string; lat?: number; lng?: number; caption?: string; width?: number; height?: number }> }>,
+  routeData: Record<string, { media: Array<{ key: string; lat?: number; lng?: number; caption?: string; width?: number; height?: number; type?: string }> }>,
   parkedMedia: ParkedMedia[] = [],
 ): MediaLocation[] {
   const locations: MediaLocation[] = [];
 
   for (const [routeSlug, route] of Object.entries(routeData)) {
     for (const m of route.media) {
-      // Admin detail media is already filtered to photos only (no type field)
       if (m.lat != null && m.lng != null) {
         locations.push({
           key: m.key,
@@ -44,6 +45,7 @@ export function buildMediaLocations(
           caption: m.caption,
           width: m.width,
           height: m.height,
+          ...(m.type === 'video' && { type: 'video' as const }),
         });
       }
     }
@@ -58,6 +60,7 @@ export function buildMediaLocations(
       caption: p.caption,
       width: p.width,
       height: p.height,
+      ...(p.type === 'video' && { type: 'video' as const }),
     });
   }
 

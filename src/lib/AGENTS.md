@@ -17,7 +17,7 @@ Service modules, adapters, and utilities organized into domain directories. This
 | `i18n/` | Locale utilities, URL path segment translations, tag translations, locale switcher |
 | `maps/` | MapLibre initialization, style switching, polyline/marker rendering, map thumbnails, static map URLs, tile proxy helpers |
 | `markdown/` | Markdown-to-HTML rendering with sanitization, preview text extraction |
-| `media/` | Media pipeline: R2/local storage, image dimensions, EXIF extraction, video transcoding, photo registry |
+| `media/` | Media pipeline: R2/local storage, image dimensions, EXIF extraction, video transcoding, media registry |
 | `tile-cache/` | Map tile caching with adapter pattern: KV store (prod) or local filesystem (dev) |
 
 ## Root-Level Files (Utilities)

@@ -11,9 +11,9 @@ Geographic calculations for routes, places, and photos. Pure functions operating
 | `elevation.ts` | `elevationConclusion()`, `elevationTags()` — quantile-based elevation classification relative to all routes (e.g., "flat", "above_average"). Uses `isPublished` filter |
 | `elevation-profile.ts` | `computeElevationProfile()`, `computeElevationPoints()` — generates SVG path data for elevation charts, downsamples to ~200 points. Exports chart dimensions as `CHART` constant |
 | `elevation-enrichment.ts` | `enrichWithElevation()` — fetches elevation data from Open-Meteo API, interpolates across track points. Used when importing routes without elevation data (e.g., Google Maps KML). Also exports `buildGpxFromPoints()` |
-| `photo-geo-interpolation.ts` | `interpolatePhotoLocation()` — estimates photo GPS coordinates by interpolating timestamps against GPX track time data. Binary search for performance |
-| `photo-proximity.ts` | `findNearbyPhotos()` — finds photos from other routes within 200m of a route track. Bounding-box pre-filter then haversine check |
-| `privacy-zone.ts` | `filterPrivacyZone()`, `stripPrivacyPhotos()` — removes track points and photo coordinates within a configurable radius of a private location (e.g., home). Per-city config in `config.yml` |
+| `media-geo-interpolation.ts` | `interpolateMediaLocation()` — estimates media GPS coordinates by interpolating timestamps against GPX track time data. Binary search for performance |
+| `media-proximity.ts` | `findNearbyMedia()` — finds media from other routes within 200m of a route track. Bounding-box pre-filter then haversine check |
+| `privacy-zone.ts` | `filterPrivacyZone()`, `stripPrivacyMedia()` — removes track points and media coordinates within a configurable radius of a private location (e.g., home). Per-city config in `config.yml` |
 
 ## Gotchas
 
@@ -25,5 +25,5 @@ Geographic calculations for routes, places, and photos. Pure functions operating
 ## Cross-References
 
 - `src/loaders/routes.ts` — calls `findNearbyPlaces` at build time
-- `src/build-data-plugin.ts` — calls `findNearbyPhotos` for the `nearby-photos` virtual module
+- `src/build-data-plugin.ts` — calls `findNearbyMedia` for the `nearby-media` virtual module
 - `config/city-config.ts` — `privacy_zone` field defines zone center and radius

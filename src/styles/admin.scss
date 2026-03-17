@@ -1275,8 +1275,8 @@
   @include muted-text;
 }
 
-// Cross-route photo suggestions
-.nearby-photos {
+// Cross-route media suggestions
+.nearby-media {
   margin-top: 1.5rem;
   border: 2px dashed $color-border;
   border-radius: $border-radius;
@@ -1325,7 +1325,7 @@
   @include muted-text;
 }
 
-.nearby-photo-card {
+.nearby-media-card {
   position: relative;
   cursor: grab;
 
@@ -1488,14 +1488,14 @@
   @include muted-text;
 }
 
-// Nearby photo suggestions (place editor)
-.nearby-photos-grid {
+// Nearby media suggestions (place editor)
+.nearby-media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 0.5rem;
 }
 
-.nearby-photo-btn {
+.nearby-media-btn {
   background: none;
   border: 2px solid transparent;
   border-radius: $border-radius;

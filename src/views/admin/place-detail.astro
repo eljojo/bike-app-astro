@@ -6,11 +6,11 @@ import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
 import adminPlaceDetails from 'virtual:bike-app/admin-place-detail';
 import { env } from '../../lib/env/env.service';
-import { CITY } from '../../lib/config/config';
+import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { loadDetailPageData } from '../../lib/content/load-admin-content.server';
 import { placeDetailFromCache } from '../../lib/models/place-model';
-import { getCityConfig } from '../../lib/config/city-config';
+import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 
 const result = await loadDetailPageData({
   contentType: 'places',
@@ -22,14 +22,16 @@ const result = await loadDetailPageData({
 if (result.notFound) return new Response(null, { status: 404 });
 const placeData = result.data;
 
-const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const cityConfig = getCityConfig();
+const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
+const videosCdnUrl = cityConfig.videos_cdn_url;
+const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const user = Astro.locals.user;
-const cityConfig = getCityConfig();
 const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
 ---
 
 <AdminEditorLayout title={`Edit: ${placeData.name}`} backLink="/admin/places" backLabel="Back to places" hideTitle user={user} currentTab="places">
-  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
+  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
   <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

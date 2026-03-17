@@ -9,6 +9,7 @@
  * The interface is: (blobKey, options?) => URL string.
  */
 import { getCityConfig } from '../config/city-config';
+import { videoPosterPath } from './video-urls';
 
 const R2_PUBLIC_URL = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
@@ -49,4 +50,27 @@ export function imageUrl(blobKey: string, options: ImageOptions = {}): string {
 
 export function originalUrl(blobKey: string): string {
   return `${R2_PUBLIC_URL}/${blobKey}`;
+}
+
+export interface MediaThumbnailConfig {
+  cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
+}
+
+/**
+ * Build a thumbnail URL for any media item (photo or video).
+ * Photos use the photos CDN with image transformations.
+ * Videos use the videos CDN, transforming the poster frame.
+ */
+export function buildMediaThumbnailUrl(
+  item: { key: string; type?: string },
+  config: MediaThumbnailConfig,
+  opts?: ImageOptions,
+): string {
+  if (item.type === 'video') {
+    const base = config.videosCdnUrl || config.cdnUrl;
+    return buildImageUrl(base, videoPosterPath(item.key, config.videoPrefix), opts);
+  }
+  return buildImageUrl(config.cdnUrl, item.key, opts);
 }

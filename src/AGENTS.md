@@ -49,7 +49,7 @@ The local-vs-production switch (`RUNTIME=local`) is checked at six isolation bou
 Vite plugin in `src/build-data-plugin.ts` provides 13+ virtual modules:
 
 - **Admin content** (via `registerAdminModules`, strips trailing `s` for detail names): `admin-routes`/`admin-route-detail`, `admin-events`/`admin-event-detail`, `admin-places`/`admin-place-detail`, `admin-organizers`
-- **Photo/media indexes**: `photo-locations`, `nearby-photos`, `parked-photos`, `photo-shared-keys`
+- **Media indexes**: `media-locations`, `nearby-media`, `parked-media`, `media-shared-keys`
 - **Other**: `cached-maps`, `contributors`
 
 Types: `src/virtual-modules.d.ts` (ambient — NO imports!) and `src/virtual.d.ts` (`cached-maps`).

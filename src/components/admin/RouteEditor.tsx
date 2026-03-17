@@ -7,7 +7,7 @@ import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
 import MarkdownEditor from './MarkdownEditor';
-import NearbyPhotos from './NearbyPhotos';
+import NearbyMedia from './NearbyMedia';
 import EditorActions from './EditorActions';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
@@ -15,7 +15,7 @@ import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import SlugEditor from './SlugEditor';
-import nearbyPhotosMap from 'virtual:bike-app/nearby-media';
+import nearbyMediaMap from 'virtual:bike-app/nearby-media';
 import { toParkedEntry } from '../../lib/media/media-merge';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { localeLabel } from '../../lib/i18n/locale-utils';
@@ -181,7 +181,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     <div class="route-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop media or GPX files to add to route</div>
+          <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
         </div>
       )}
       <div class="locale-tabs">
@@ -324,20 +324,22 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
             }
           }}
         />
-        <NearbyPhotos
-          nearbyPhotos={nearbyPhotosMap[initialData.slug] || []}
-          parkedPhotos={parkedPhotos}
+        <NearbyMedia
+          nearbyMedia={nearbyMediaMap[initialData.slug] || []}
+          parkedMedia={parkedPhotos}
           currentMediaKeys={new Set(media.map(m => m.key))}
           cdnUrl={cdnUrl}
+          videosCdnUrl={videosCdnUrl}
+          videoPrefix={videoPrefix}
           userRole={userRole}
           initiallyExpanded={media.length === 0}
-          onAddPhoto={(photo, wasParked) => {
+          onAddMedia={(photo, wasParked) => {
             setMedia([...media, photo]);
             if (wasParked) {
               setParkedPhotos(prev => prev.filter(p => p.key !== photo.key));
             }
           }}
-          onParkPhoto={(photo) => {
+          onParkMedia={(photo) => {
             setMedia(prev => prev.filter(m => m.key !== photo.key));
             const entry = toParkedEntry(photo);
             setParkedPhotos(prev => [...prev, entry]);

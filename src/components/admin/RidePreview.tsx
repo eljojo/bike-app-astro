@@ -5,7 +5,8 @@ import { formatDistance, formatSpeed } from '../../lib/format';
 import type { MediaItem } from './MediaManager';
 import StaticRouteMap from './StaticRouteMap';
 import { CHART } from '../../lib/geo/elevation-profile';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   body: string;
   media: MediaItem[];
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
   rideDate?: string;
   country?: string;
   distanceKm?: number;
@@ -26,10 +29,11 @@ interface Props {
 }
 
 export default function RidePreview({
-  name, body, media, cdnUrl, rideDate, country,
+  name, body, media, cdnUrl, videosCdnUrl, videoPrefix, rideDate, country,
   distanceKm, elevationM, movingTimeS, averageSpeedKmh, mapThumbnail, labels,
   coordinates, elevation,
 }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const renderedBody = useMemo(() => {
     if (!body) return '';
     try {
@@ -42,9 +46,9 @@ export default function RidePreview({
   const cover = media.find(m => m.cover) || media[0];
   const photos = media;
 
-  function rideImageUrl(key: string, opts?: { width?: number }) {
+  function rideImageUrl(item: { key: string; type?: string }, opts?: { width?: number }) {
     const w = opts?.width || 400;
-    return buildImageUrl(cdnUrl, key, { width: w, format: 'auto' });
+    return buildMediaThumbnailUrl(item, thumbConfig, { width: w, format: 'auto' });
   }
 
   return (
@@ -53,8 +57,8 @@ export default function RidePreview({
         {cover && (
           <div class="ride-preview-hero">
             <img
-              src={rideImageUrl(cover.key, { width: 830 })}
-              srcset={`${rideImageUrl(cover.key, { width: 1660 })} 2x`}
+              src={rideImageUrl(cover, { width: 830 })}
+              srcset={`${rideImageUrl(cover, { width: 1660 })} 2x`}
               alt={name}
             />
           </div>
@@ -144,7 +148,7 @@ export default function RidePreview({
         {photos.length > 0 && (
           <div class="ride-preview-gallery">
             {photos.map((photo) => (
-              <img key={photo.key} src={rideImageUrl(photo.key, { width: 200 })} alt={photo.caption || ''} />
+              <img key={photo.key} src={rideImageUrl(photo, { width: 200 })} alt={photo.caption || ''} />
             ))}
           </div>
         )}

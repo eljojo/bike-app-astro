@@ -241,7 +241,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
     <div class="ride-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop media or GPX files to add to ride</div>
+          <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
         </div>
       )}
 
@@ -436,6 +436,8 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
             body={body}
             media={media}
             cdnUrl={cdnUrl}
+            videosCdnUrl={videosCdnUrl}
+            videoPrefix={videoPrefix}
             rideDate={rideDate}
             country={country}
             distanceKm={distanceKm}

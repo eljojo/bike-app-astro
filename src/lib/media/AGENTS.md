@@ -17,21 +17,21 @@ Media pipeline: storage adapters, image processing, video transcoding, EXIF extr
 | `transcode.adapter-local.ts` | Local no-op transcode adapter for development |
 | `video-completion.ts` | Handles MediaConvert job completion callbacks |
 | `mp4-metadata.ts` | Extracts video duration and dimensions from MP4 file headers |
-| `photo-registry.ts` | `SharedKeysMap` — tracks which photos are used across multiple content types. `buildSharedKeysMap()`, `updateSharedKeys()`, `serializeSharedKeys()`. Prunes single-use keys |
-| `photo-parking.ts` | `toParkedEntry()` — converts media items to parked photo entries |
-| `media-merge.ts` | `mergeMedia()` — merges admin media changes with existing `media.yml` entries, preserving existing fields while overlaying edits. `mergeParkedPhotos()` for the parking queue |
+| `media-registry.ts` | `SharedKeysMap` — tracks which media are used across multiple content types. `buildSharedKeysMap()`, `updateSharedKeys()`, `serializeSharedKeys()`, `getMediaUsages()`. Prunes single-use keys |
+| `media-parking.server.ts` | Server-side media parking: `parkOrphanedMedia()`, `updateMediaRegistryCache()`. Manages D1 cache keys `media-shared-keys` and `parked-media`, YAML file `parked-media.yml` |
+| `media-merge.ts` | `mergeMedia()` — merges admin media changes with existing `media.yml` entries, preserving existing fields while overlaying edits. `mergeParkedMedia()` for the parking queue. Exports `ParkedMediaEntry` and `toParkedEntry()` |
 
 ## Gotchas
 
 - **`storage.adapter-local.ts` is a vendor isolation boundary** — it's one of the five adapter points listed in the root AGENTS.md.
 - **`confirmUpload()` validates before promoting** — checks image dimensions from file headers. Invalid images are deleted and rejected.
-- **Photo registry prunes single-use keys** — `buildSharedKeysMap()` only keeps keys referenced by 2+ content items. This is intentional: single-use photos don't need cross-reference tracking.
-- **`mergeMedia()` is order-sensitive** — the admin array drives final ordering. New photos get `score: 1` and `type: "photo"`. Existing entries preserve all fields (score, width, height, etc.).
+- **Media registry prunes single-use keys** — `buildSharedKeysMap()` only keeps keys referenced by 2+ content items. This is intentional: single-use media don't need cross-reference tracking.
+- **`mergeMedia()` is order-sensitive** — the admin array drives final ordering. New items get `score: 1` and `type: "photo"`. Existing entries preserve all fields (score, width, height, etc.).
 - **Video transcoding uses AWS SigV4** directly (no SDK) for Cloudflare Workers compatibility.
 - **EXIF extraction only works for JPEG** — PNG/WebP files silently return null.
 
 ## Cross-References
 
 - `env/env.adapter-local.ts` — creates the local bucket via `createLocalBucket()`
-- `content/save-helpers.ts` — uses `computeMediaKeyDiff()` to track photo changes across saves
-- `src/build-data-plugin.ts` — `photo-shared-keys` virtual module built from photo registry
+- `content/save-helpers.server.ts` — uses `computeMediaKeyDiff()` to track media changes across saves
+- `src/build-data-plugin.ts` — `media-shared-keys` virtual module built from media registry

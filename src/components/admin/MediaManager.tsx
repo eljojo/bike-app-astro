@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder, useFileUpload, useVideoUpload } from '../../lib/hooks';
 import { formatIsoDuration } from '../../lib/date-utils';
-import { buildImageUrl } from '../../lib/media/image-service';
-import { buildVideoPosterUrl } from '../../lib/media/video-urls';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 
 export type MediaItem = AdminMediaItem & {
@@ -55,6 +55,7 @@ function TranscodingOverlay({ startedAt }: { startedAt?: number }) {
 }
 
 export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pendingFiles, onPendingProcessed, onSuggestionDrop, userRole, onParkPhoto, contentSlug, contentKind, videoPrefix, onUpdateItem }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const fileUpload = useFileUpload();
 
   const updateMedia = onUpdateItem || ((key: string, patch: Record<string, unknown>) => {
@@ -105,8 +106,8 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
     }
   }, []);
 
-  function thumbnailUrl(key: string): string {
-    return buildImageUrl(cdnUrl, key, { width: 200, height: 150, fit: 'cover' });
+  function thumbnailUrl(item: { key: string; type?: string }): string {
+    return buildMediaThumbnailUrl(item, thumbConfig, { width: 200, height: 150, fit: 'cover' });
   }
 
 
@@ -280,7 +281,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
             {item.type === 'video' ? (
               <div class="video-thumb">
                 {(item.videoStatus === 'ready' || item.posterChecked || (!item.videoStatus && item.width)) ? (
-                  <img src={buildVideoPosterUrl(videosCdnUrl || cdnUrl, item.key, videoPrefix)} alt={item.title || ''} loading="lazy" />
+                  <img src={buildMediaThumbnailUrl(item, thumbConfig, { width: 200, height: 150, fit: 'cover' })} alt={item.title || ''} loading="lazy" />
                 ) : (
                   <div class="video-placeholder" />
                 )}
@@ -303,7 +304,7 @@ export default function MediaManager({ media, onChange, cdnUrl, videosCdnUrl, pe
                 {!item.videoStatus && <span class="video-play-icon" />}
               </div>
             ) : (
-              <img src={thumbnailUrl(item.key)} alt={item.caption || ''} loading="lazy" />
+              <img src={thumbnailUrl(item)} alt={item.caption || ''} loading="lazy" />
             )}
             <div class="photo-actions">
               {item.type !== 'video' && (

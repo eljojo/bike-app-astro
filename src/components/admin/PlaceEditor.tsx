@@ -7,7 +7,8 @@ import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/geo/place-categories';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import photoLocations from 'virtual:bike-app/media-locations';
@@ -18,6 +19,8 @@ import { localeLabel } from '../../lib/i18n/locale-utils';
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
   userRole?: string;
   secondaryLocales?: string[];
   mapCenter?: [number, number]; // [lat, lng] — city default center for new places
@@ -57,7 +60,8 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLocales, mapCenter }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
@@ -387,18 +391,18 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
         {!photoKey && lat !== 0 && lng !== 0 && nearbyPhotos.length > 0 && (
           <div class="form-field">
             <label>Nearby photos <span class="field-hint">(click to use)</span></label>
-            <div class="nearby-photos-grid">
+            <div class="nearby-media-grid">
               {nearbyPhotos.map((photo) => (
                 <button
                   key={photo.key}
                   type="button"
-                  class="nearby-photo-btn"
+                  class="nearby-media-btn"
                   title={photo.caption || photo.routeSlug}
                   onClick={() => {
                     setPhotoKey(photo.key);
                   }}
                 >
-                  <img src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })} alt={photo.caption || ''} />
+                  <img src={buildMediaThumbnailUrl(photo, thumbConfig, { width: 120, height: 120, fit: 'cover' })} alt={photo.caption || ''} />
                 </button>
               ))}
             </div>

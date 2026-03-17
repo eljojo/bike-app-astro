@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'preact/hooks';
 import type { AdminMediaItem } from '../../lib/models/route-model';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 
 interface MediaLocation {
   key: string;
@@ -14,35 +15,38 @@ interface MediaLocation {
 }
 
 interface Props {
-  nearbyPhotos: MediaLocation[];
-  parkedPhotos: ParkedMediaEntry[];
+  nearbyMedia: MediaLocation[];
+  parkedMedia: ParkedMediaEntry[];
   currentMediaKeys: Set<string>;
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
   userRole?: string;
-  onAddPhoto: (photo: AdminMediaItem, wasParked: boolean) => void;
-  onParkPhoto: (photo: AdminMediaItem) => void;
+  onAddMedia: (item: AdminMediaItem, wasParked: boolean) => void;
+  onParkMedia: (item: AdminMediaItem) => void;
   onDeleteParked?: (key: string) => void;
   initiallyExpanded?: boolean;
 }
 
-export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaKeys, cdnUrl, userRole, onAddPhoto, onParkPhoto, onDeleteParked, initiallyExpanded }: Props) {
+export default function NearbyMedia({ nearbyMedia, parkedMedia, currentMediaKeys, cdnUrl, videosCdnUrl, videoPrefix, userRole, onAddMedia, onParkMedia, onDeleteParked, initiallyExpanded }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [collapsed, setCollapsed] = useState(!initiallyExpanded);
   const [dragOverPanel, setDragOverPanel] = useState(false);
 
   const available = useMemo(
-    () => nearbyPhotos.filter(p => !currentMediaKeys.has(p.key)),
-    [nearbyPhotos, currentMediaKeys],
+    () => nearbyMedia.filter(p => !currentMediaKeys.has(p.key)),
+    [nearbyMedia, currentMediaKeys],
   );
 
   const availableParked = useMemo(
-    () => parkedPhotos.filter(p => !currentMediaKeys.has(p.key)),
-    [parkedPhotos, currentMediaKeys],
+    () => parkedMedia.filter(p => !currentMediaKeys.has(p.key)),
+    [parkedMedia, currentMediaKeys],
   );
 
   const totalCount = available.length + availableParked.length;
   if (totalCount === 0 && !dragOverPanel) return null;
 
-  // Group nearby photos by source route
+  // Group nearby media by source route
   const byRoute = new Map<string, MediaLocation[]>();
   for (const p of available) {
     if (p.routeSlug === '__parked') continue; // parked shown separately
@@ -51,9 +55,9 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
     byRoute.set(p.routeSlug, list);
   }
 
-  function handleSuggestionDragStart(e: DragEvent, photo: MediaLocation | ParkedMediaEntry, isParked: boolean) {
-    e.dataTransfer!.setData('text/photo-key', photo.key);
-    e.dataTransfer!.setData('text/suggestion-data', JSON.stringify({ ...photo, wasParked: isParked }));
+  function handleSuggestionDragStart(e: DragEvent, item: MediaLocation | ParkedMediaEntry, isParked: boolean) {
+    e.dataTransfer!.setData('text/photo-key', item.key);
+    e.dataTransfer!.setData('text/suggestion-data', JSON.stringify({ ...item, wasParked: isParked }));
     e.dataTransfer!.effectAllowed = 'move';
   }
 
@@ -79,51 +83,51 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
     setDragOverPanel(false);
     const photoData = e.dataTransfer?.getData('text/photo-data');
     if (photoData) {
-      const photo = JSON.parse(photoData) as AdminMediaItem;
-      onParkPhoto(photo);
+      const item = JSON.parse(photoData) as AdminMediaItem;
+      onParkMedia(item);
     }
   }
 
   return (
     <div
-      class={`nearby-photos${collapsed ? '' : ' nearby-photos--open'}${dragOverPanel ? ' nearby-photos--drop-target' : ''}`}
+      class={`nearby-media${collapsed ? '' : ' nearby-media--open'}${dragOverPanel ? ' nearby-media--drop-target' : ''}`}
       onDragOver={handlePanelDragOver}
       onDragLeave={handlePanelDragLeave}
       onDrop={handlePanelDrop}
     >
       <button
         type="button"
-        class="nearby-photos-toggle"
+        class="nearby-media-toggle"
         onClick={() => setCollapsed(!collapsed)}
       >
-        {dragOverPanel ? 'Drop here to park photo' : `Nearby Photos (${totalCount})`}
+        {dragOverPanel ? 'Drop here to park' : `Nearby Photos (${totalCount})`}
         {!dragOverPanel && (collapsed ? ' \u25b8' : ' \u25be')}
       </button>
 
       {!collapsed && (
-        <div class="nearby-photos-list">
-          {Array.from(byRoute.entries()).map(([slug, photos]) => (
+        <div class="nearby-media-list">
+          {Array.from(byRoute.entries()).map(([slug, items]) => (
             <div key={slug} class="nearby-route-group">
               <h4>{slug}</h4>
-              <div class="nearby-photos-grid">
-                {photos.map(photo => (
+              <div class="nearby-media-grid">
+                {items.map(item => (
                   <div
-                    key={photo.key}
-                    class="nearby-photo-card"
+                    key={item.key}
+                    class="nearby-media-card"
                     draggable
-                    onDragStart={(e: DragEvent) => handleSuggestionDragStart(e, photo, false)}
+                    onDragStart={(e: DragEvent) => handleSuggestionDragStart(e, item, false)}
                   >
                     <img
-                      src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })}
-                      alt={photo.caption || ''}
+                      src={buildMediaThumbnailUrl(item, thumbConfig, { width: 120, height: 120, fit: 'cover' })}
+                      alt={item.caption || ''}
                       loading="lazy"
                     />
-                    {photo.caption && <span class="caption">{photo.caption}</span>}
+                    {item.caption && <span class="caption">{item.caption}</span>}
                     <button
                       type="button"
                       class="add-btn"
                       title="Add to this route"
-                      onClick={() => onAddPhoto(photo, false)}
+                      onClick={() => onAddMedia(item, false)}
                     >
                       +
                     </button>
@@ -135,26 +139,26 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
           {availableParked.length > 0 && (
             <div class="nearby-route-group">
               <h4>Parked</h4>
-              <div class="nearby-photos-grid">
-                {availableParked.map(photo => (
+              <div class="nearby-media-grid">
+                {availableParked.map(item => (
                   <div
-                    key={photo.key}
-                    class="nearby-photo-card"
+                    key={item.key}
+                    class="nearby-media-card"
                     draggable
-                    onDragStart={(e: DragEvent) => handleSuggestionDragStart(e, photo, true)}
+                    onDragStart={(e: DragEvent) => handleSuggestionDragStart(e, item, true)}
                   >
                     <img
-                      src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })}
-                      alt={photo.caption || ''}
+                      src={buildMediaThumbnailUrl(item, thumbConfig, { width: 120, height: 120, fit: 'cover' })}
+                      alt={item.caption || ''}
                       loading="lazy"
                     />
                     <span class="parked-badge">parked</span>
-                    {photo.caption && <span class="caption">{photo.caption}</span>}
+                    {item.caption && <span class="caption">{item.caption}</span>}
                     <button
                       type="button"
                       class="add-btn"
                       title="Add to this route"
-                      onClick={() => onAddPhoto(photo, true)}
+                      onClick={() => onAddMedia(item, true)}
                     >
                       +
                     </button>
@@ -163,7 +167,7 @@ export default function NearbyPhotos({ nearbyPhotos, parkedPhotos, currentMediaK
                         type="button"
                         class="delete-parked-btn"
                         title="Remove permanently"
-                        onClick={() => onDeleteParked(photo.key)}
+                        onClick={() => onDeleteParked(item.key)}
                       >
                         &times;
                       </button>

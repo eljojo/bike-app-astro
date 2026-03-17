@@ -11,7 +11,7 @@ All files here MUST have `export const prerender = false`.
 
 ## afterCommit Pattern
 
-All save handlers update the photo-shared-keys registry via `updatePhotoRegistryCache()`. Failures are logged but don't fail the response. Track old vs new photo/media keys and build a changes array.
+All save handlers update the media-shared-keys registry via `updateMediaRegistryCache()`. Failures are logged but don't fail the response. Track old vs new media keys and build a changes array.
 
 ## Registering New Endpoints
 

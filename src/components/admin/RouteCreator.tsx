@@ -6,15 +6,19 @@ import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
 import { parseGpx } from '../../lib/gpx/parse';
 import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import photoLocations from 'virtual:bike-app/media-locations';
 import { findNearbyMedia } from '../../lib/geo/media-proximity';
 
 interface Props {
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
 }
 
-export default function RouteCreator({ cdnUrl }: Props) {
+export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');
   const [gpxContent, setGpxContent] = useState('');
   const [name, setName] = useState('');
@@ -253,7 +257,7 @@ export default function RouteCreator({ cdnUrl }: Props) {
                       {nearbyPhotos.slice(0, 12).map(photo => (
                         <img
                           key={photo.key}
-                          src={buildImageUrl(cdnUrl, photo.key, { width: 120, height: 120, fit: 'cover' })}
+                          src={buildMediaThumbnailUrl(photo, thumbConfig, { width: 120, height: 120, fit: 'cover' })}
                           alt={photo.caption || ''}
                           loading="lazy"
                         />

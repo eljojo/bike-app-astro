@@ -8,6 +8,9 @@ export interface ParkedMediaEntry {
   uploaded_by?: string;
   captured_at?: string;
   type?: 'photo' | 'video';
+  handle?: string;
+  duration?: string;
+  orientation?: string;
   title?: string;
 }
 
@@ -22,6 +25,9 @@ export function toParkedEntry(item: {
   uploaded_by?: string;
   captured_at?: string;
   type?: 'photo' | 'video';
+  handle?: string;
+  duration?: string;
+  orientation?: string;
   title?: string;
 }): ParkedMediaEntry {
   return {
@@ -35,6 +41,9 @@ export function toParkedEntry(item: {
     ...(item.captured_at != null && { captured_at: item.captured_at }),
     ...(item.type != null && { type: item.type }),
     ...(item.title != null && { title: item.title }),
+    ...(item.handle != null && { handle: item.handle }),
+    ...(item.duration != null && { duration: item.duration }),
+    ...(item.orientation != null && { orientation: item.orientation }),
   };
 }
 
@@ -61,6 +70,9 @@ export function mergeParkedMedia(
 interface AdminMediaInput {
   key: string;
   type?: 'photo' | 'video';
+  handle?: string;
+  duration?: string;
+  orientation?: string;
   caption?: string;
   cover?: boolean;
   width?: number;
@@ -70,9 +82,6 @@ interface AdminMediaInput {
   uploaded_by?: string;
   captured_at?: string;
   title?: string;
-  handle?: string;
-  duration?: string;
-  orientation?: string;
 }
 
 type MediaEntry = Record<string, unknown>;

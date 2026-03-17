@@ -224,6 +224,7 @@ interface _MediaLocation {
   caption?: string;
   width?: number;
   height?: number;
+  type?: 'photo' | 'video';
 }
 
 declare module 'virtual:bike-app/media-locations' {
@@ -247,6 +248,9 @@ interface _ParkedMedia {
   captured_at?: string;
   type?: 'photo' | 'video';
   title?: string;
+  handle?: string;
+  duration?: string;
+  orientation?: string;
 }
 
 declare module 'virtual:bike-app/parked-media' {
