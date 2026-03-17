@@ -15,6 +15,7 @@ import { CITY } from '../../lib/config/config';
 import { formatAdminDateTime } from '../../lib/date-utils';
 
 const user = Astro.locals.user;
+const cspNonce = Astro.locals.cspNonce;
 const features = getInstanceFeatures();
 const cityConfig = getCityConfig();
 const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
@@ -112,7 +113,7 @@ try {
     <AdminHeader user={user} currentTab="home" />
 
     <!-- Deploy Progress Bar (populated by JS) -->
-    <div class="deploy-bar" id="deploy-bar" style="display: none;">
+    <div class="deploy-bar" id="deploy-bar" style="display: none;" role="status" aria-live="polite">
       <div class="deploy-bar-content">
         <span class="deploy-bar-text" id="deploy-bar-text"></span>
         <div class="deploy-bar-track" id="deploy-bar-track" style="display: none;">
@@ -138,7 +139,7 @@ try {
           ? 'Upload GPX files from your rides, add photos, and write about where you went. Each ride gets its own page with a map and everything you want to remember.'
           : 'You can add routes you\'ve ridden, mark places worth stopping at, and keep the event calendar current. No special permissions needed — browse around, and edit anything that could use your knowledge.'
         }</p>
-        <a href="#" class="dashboard-first-visit-dismiss" id="dashboard-first-visit-dismiss">got it</a>
+        <button type="button" class="dashboard-first-visit-dismiss" id="dashboard-first-visit-dismiss">got it</button>
       </div>
 
       <div class="dashboard-quickstart">
@@ -326,20 +327,19 @@ try {
   </div>
 </Base>
 
-<script>
+<script is:inline nonce={cspNonce}>
   const firstVisit = document.getElementById('dashboard-first-visit');
   const dismiss = document.getElementById('dashboard-first-visit-dismiss');
   if (localStorage.getItem('dashboard-welcomed')) {
     firstVisit?.remove();
   }
-  dismiss?.addEventListener('click', (e) => {
-    e.preventDefault();
+  dismiss?.addEventListener('click', () => {
     localStorage.setItem('dashboard-welcomed', '1');
     firstVisit?.remove();
   });
 </script>
 
-<script>
+<script is:inline nonce={cspNonce}>
   const bar = document.getElementById('deploy-bar');
   const text = document.getElementById('deploy-bar-text');
   const track = document.getElementById('deploy-bar-track');
@@ -460,6 +460,10 @@ try {
     text-decoration: underline;
     white-space: nowrap;
     flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
   }
 
   .dashboard-quickstart {

@@ -62,7 +62,7 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
   const [diffLoading, setDiffLoading] = useState<string | null>(null);
 
   const resourcePathRegex = useMemo(
-    () => new RegExp(`${city}/(?:routes|events|guides|places|organizers)/[\\w/-]+`),
+    () => new RegExp(`${city}/(?:routes|rides|events|guides|places|organizers)/[\\w/-]+`),
     [city],
   );
 
@@ -78,6 +78,7 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
     const parts = resourcePath.split('/');
     const contentType = parts[1];
     if (contentType === 'routes') return `${resourcePath}/index.md`;
+    if (contentType === 'rides') return `${resourcePath}.md`;
     return `${resourcePath}.md`;
   }
 
@@ -119,6 +120,7 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
       });
       if (res.ok) {
         showToast('Version restored successfully');
+        setPage(1);
         fetchCommits(1);
       } else {
         const data = await res.json().catch(() => ({}));
@@ -141,6 +143,7 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'ban', userId }),
       });
+      setPage(1);
       fetchCommits(1);
     } finally {
       setActionLoading(null);

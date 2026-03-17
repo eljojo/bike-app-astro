@@ -57,12 +57,12 @@ const avatarUrl = avatarHash
     <h1>{contentNav.find(n => n.tab === currentTab)?.label ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}</h1>
   )}
   <div class="admin-user">
-    <button type="button" class="admin-user-toggle" id="user-menu-toggle">
+    <button type="button" class="admin-user-toggle" id="user-menu-toggle" aria-expanded="false" aria-controls="user-menu-dropdown">
       <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
       {user.username}
       <span class="admin-user-caret">&#9662;</span>
     </button>
-    <div class="admin-user-dropdown" id="user-menu-dropdown">
+    <div class="admin-user-dropdown" id="user-menu-dropdown" role="menu">
       <a href="/admin/settings" class="admin-user-dropdown-item">Settings</a>
       {user.role === 'guest' && features.allowsRegistration && (
         <a href="/register?join=1" class="admin-user-dropdown-item">Create account</a>
@@ -76,16 +76,21 @@ const avatarUrl = avatarHash
 <script is:inline nonce={cspNonce}>
   const toggle = document.getElementById('user-menu-toggle');
   const dropdown = document.getElementById('user-menu-dropdown');
+  function setOpen(open) {
+    if (open) dropdown?.classList.add('open');
+    else dropdown?.classList.remove('open');
+    toggle?.setAttribute('aria-expanded', String(open));
+  }
   toggle?.addEventListener('click', () => {
-    dropdown?.classList.toggle('open');
+    setOpen(!dropdown?.classList.contains('open'));
   });
   document.addEventListener('click', (e) => {
     if (!toggle?.contains(e.target) && !dropdown?.contains(e.target)) {
-      dropdown?.classList.remove('open');
+      setOpen(false);
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') dropdown?.classList.remove('open');
+    if (e.key === 'Escape') setOpen(false);
   });
 </script>
 

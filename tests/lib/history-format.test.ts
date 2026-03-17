@@ -29,6 +29,33 @@ describe('parseCommitMessage', () => {
     expect(result.editorUrl).toBe('/admin/events/2026/tour-de-fat');
   });
 
+  it('parses a ride create', () => {
+    const msg = 'Create ride Winter Ride\n\nChanges: blog/rides/2026/01/15-winter-ride';
+    const result = parseCommitMessage(msg, 'blog');
+    expect(result.action).toBe('created');
+    expect(result.headline).toBe('Winter Ride');
+    expect(result.contentType).toBe('rides');
+    expect(result.editorUrl).toBe('/admin/rides/2026/01/15-winter-ride');
+  });
+
+  it('parses a ride update with parts', () => {
+    const msg = 'Update + media for ride Winter Ride\n\nChanges: blog/rides/2026/01/15-winter-ride';
+    const result = parseCommitMessage(msg, 'blog');
+    expect(result.action).toBe('updated');
+    expect(result.headline).toBe('Winter Ride');
+    expect(result.contentType).toBe('rides');
+  });
+
+  it('parses a rename', () => {
+    const msg = 'Rename Canal Path: old-slug → new-slug\n\nChanges: ottawa/routes/new-slug';
+    const result = parseCommitMessage(msg, 'ottawa');
+    expect(result.action).toBe('renamed');
+    expect(result.headline).toBe('Canal Path');
+    expect(result.contentType).toBe('routes');
+    expect(result.contentSlug).toBe('new-slug');
+    expect(result.editorUrl).toBe('/admin/routes/new-slug');
+  });
+
   it('handles messages without Changes: trailer', () => {
     const msg = 'Update something';
     const result = parseCommitMessage(msg, 'ottawa');
