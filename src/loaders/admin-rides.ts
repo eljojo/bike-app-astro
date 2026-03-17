@@ -23,6 +23,7 @@ import {
   rideDateToIso,
   nameFromFilename,
   extractDateFromPath,
+  adjustTourYears,
   buildSlug,
 } from './rides';
 import { readRideFile } from './ride-file-reader';
@@ -73,8 +74,8 @@ export interface RideStats {
   by_year: Record<string, { rides: number; distance_km: number; elevation_m: number }>;
   by_country: Record<string, { rides: number; distance_km: number }>;
   records: {
-    longest_ride?: { slug: string; name: string; distance_km: number };
-    most_elevation?: { slug: string; name: string; elevation_m: number };
+    longest_ride?: { slug: string; name: string; distance_km: number; tour_slug?: string };
+    most_elevation?: { slug: string; name: string; elevation_m: number; tour_slug?: string };
     longest_tour?: { slug: string; name: string; distance_km: number; days: number };
   };
 }
@@ -122,6 +123,20 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     }
   }
 
+  // Adjust years for multi-year tours (e.g. Dec 2022 → Jan 2023)
+  const adjustedDates = new Map<string, { year: number; month: number; day: number }>();
+  for (const tour of tours) {
+    const tourDates: { gpxPath: string; date: { year: number; month: number; day: number } }[] = [];
+    for (const ridePath of tour.ridePaths) {
+      const date = extractDateFromPath(ridePath);
+      if (date) tourDates.push({ gpxPath: ridePath, date });
+    }
+    adjustTourYears(tourDates.map(td => td.date));
+    for (const td of tourDates) {
+      adjustedDates.set(td.gpxPath, td.date);
+    }
+  }
+
   // Load tour-level metadata
   const tourMeta = new Map<string, { name: string; description?: string; renderedDescription?: string; country?: string }>();
   for (const tour of tours) {
@@ -165,7 +180,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const digest = computeFileDigest([gpxAbsPath, sidecarPath, mediaYmlPath]);
 
     // Compute slug early for cache key
-    const date = extractDateFromPath(gpxRelPath);
+    const date = adjustedDates.get(gpxRelPath) || extractDateFromPath(gpxRelPath);
     if (!date) continue;
     const gpxFilename = path.basename(gpxRelPath);
     const slug = buildSlug(date, gpxFilename, !!tourInfo);
@@ -188,7 +203,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const parsed = readRideFile(ridesDir, gpxRelPath, tourInfo?.slug);
     if (!parsed) continue;
 
-    const isoDate = rideDateToIso(parsed.date);
+    const isoDate = rideDateToIso(date);
 
     // Compute content hash from raw file contents
     const contentHash = computeRideContentHash(
@@ -401,8 +416,8 @@ function buildStats(
     by_year: byYear,
     by_country: byCountry,
     records: {
-      longest_ride: longestRide ? { slug: longestRide.slug, name: longestRide.name, distance_km: longestRide.distance_km } : undefined,
-      most_elevation: mostElevation ? { slug: mostElevation.slug, name: mostElevation.name, elevation_m: mostElevation.elevation_m } : undefined,
+      longest_ride: longestRide ? { slug: longestRide.slug, name: longestRide.name, distance_km: longestRide.distance_km, tour_slug: longestRide.tour_slug } : undefined,
+      most_elevation: mostElevation ? { slug: mostElevation.slug, name: mostElevation.name, elevation_m: mostElevation.elevation_m, tour_slug: mostElevation.tour_slug } : undefined,
       longest_tour: longestTour ? { slug: longestTour.slug, name: longestTour.name, distance_km: longestTour.total_distance_km, days: longestTour.days } : undefined,
     },
   };

@@ -10,6 +10,7 @@ import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 import { loadDetailPageData } from '../../lib/content/load-admin-content.server';
 import { rideDetailFromCache } from '../../lib/models/ride-model';
+import { paths } from '@/lib/paths';
 import { t } from '@/i18n';
 import tours from 'virtual:bike-app/tours';
 import { db } from '@/lib/get-db';
@@ -91,7 +92,7 @@ try {
   title={title}
   backLink="/admin/rides"
   backLabel="Back to rides"
-  viewLink={slug ? (rideData.tour_slug ? `/tours/${rideData.tour_slug}/${slug}` : `/rides/${slug}`) : undefined}
+  viewLink={slug ? paths.ride(slug, rideData.tour_slug) : undefined}
   hideTitle
   user={Astro.locals.user}
   currentTab="routes"

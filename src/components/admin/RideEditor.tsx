@@ -13,6 +13,7 @@ import type { StravaImportResult } from './StravaActivityBrowser';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
+import { paths } from '../../lib/paths';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
@@ -424,7 +425,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
           <EditorActions
             error={error} githubUrl={githubUrl} saved={saved} saving={saving}
             onSave={handleSave} contentType="ride"
-            viewLink={initialData.tour_slug ? `/tours/${initialData.tour_slug}/${initialData.slug}` : `/rides/${initialData.slug}`}
+            viewLink={paths.ride(initialData.slug, initialData.tour_slug)}
             showLicenseNotice={false}
           />
         </div>

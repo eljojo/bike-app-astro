@@ -3,6 +3,7 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import stats from 'virtual:bike-app/ride-stats';
 import { getCityConfig } from '@/lib/config/city-config';
+import { paths } from '@/lib/paths';
 import { t } from '@/i18n';
 
 const config = getCityConfig();
@@ -55,7 +56,7 @@ const countryKeys = Object.keys(stats.by_country).sort((a, b) =>
         {stats.records.longest_ride && (
           <div class="stats-record-card">
             <span class="stats-record-card--label">{t('stats.longest_ride', locale)}</span>
-            <a href={`/rides/${stats.records.longest_ride.slug}`} class="stats-record-card--value">
+            <a href={paths.ride(stats.records.longest_ride.slug, stats.records.longest_ride.tour_slug)} class="stats-record-card--value">
               {stats.records.longest_ride.name}
             </a>
             <span class="stats-record-card--detail">{stats.records.longest_ride.distance_km} km</span>
@@ -64,7 +65,7 @@ const countryKeys = Object.keys(stats.by_country).sort((a, b) =>
         {stats.records.most_elevation && (
           <div class="stats-record-card">
             <span class="stats-record-card--label">{t('stats.most_elevation', locale)}</span>
-            <a href={`/rides/${stats.records.most_elevation.slug}`} class="stats-record-card--value">
+            <a href={paths.ride(stats.records.most_elevation.slug, stats.records.most_elevation.tour_slug)} class="stats-record-card--value">
               {stats.records.most_elevation.name}
             </a>
             <span class="stats-record-card--detail">{stats.records.most_elevation.elevation_m.toLocaleString()} m</span>

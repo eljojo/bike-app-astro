@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractDateFromPath, detectTours, buildSlug } from '../src/loaders/rides';
+import { extractDateFromPath, detectTours, buildSlug, adjustTourYears } from '../src/loaders/rides';
 
 describe('extractDateFromPath', () => {
   it('extracts date from YYYY/MM/DD-name.gpx', () => {
@@ -168,5 +168,67 @@ describe('buildSlug', () => {
   it('transliterates accented characters', () => {
     const date = { year: 2026, month: 1, day: 15 };
     expect(buildSlug(date, '15-café-ride.gpx')).toBe('2026-01-15-cafe-ride');
+  });
+});
+
+describe('adjustTourYears', () => {
+  it('increments year for January rides when tour spans Dec→Jan', () => {
+    const dates = [
+      { year: 2022, month: 12, day: 13 },
+      { year: 2022, month: 12, day: 19 },
+      { year: 2022, month: 1, day: 2 },
+      { year: 2022, month: 1, day: 7 },
+    ];
+    adjustTourYears(dates);
+    expect(dates[0]).toEqual({ year: 2022, month: 12, day: 13 });
+    expect(dates[1]).toEqual({ year: 2022, month: 12, day: 19 });
+    expect(dates[2]).toEqual({ year: 2023, month: 1, day: 2 });
+    expect(dates[3]).toEqual({ year: 2023, month: 1, day: 7 });
+  });
+
+  it('does not adjust single-year tours', () => {
+    const dates = [
+      { year: 2025, month: 5, day: 1 },
+      { year: 2025, month: 6, day: 15 },
+      { year: 2025, month: 7, day: 20 },
+    ];
+    adjustTourYears(dates);
+    expect(dates[0].year).toBe(2025);
+    expect(dates[1].year).toBe(2025);
+    expect(dates[2].year).toBe(2025);
+  });
+
+  it('does not adjust when only one ride', () => {
+    const dates = [{ year: 2022, month: 1, day: 5 }];
+    adjustTourYears(dates);
+    expect(dates[0].year).toBe(2022);
+  });
+
+  it('handles Oct–Mar tour spanning year boundary', () => {
+    const dates = [
+      { year: 2024, month: 10, day: 1 },
+      { year: 2024, month: 11, day: 15 },
+      { year: 2024, month: 12, day: 20 },
+      { year: 2024, month: 1, day: 5 },
+      { year: 2024, month: 2, day: 10 },
+      { year: 2024, month: 3, day: 1 },
+    ];
+    adjustTourYears(dates);
+    expect(dates[0].year).toBe(2024);
+    expect(dates[1].year).toBe(2024);
+    expect(dates[2].year).toBe(2024);
+    expect(dates[3].year).toBe(2025);
+    expect(dates[4].year).toBe(2025);
+    expect(dates[5].year).toBe(2025);
+  });
+
+  it('does not adjust 6-month tour within same year', () => {
+    const dates = [
+      { year: 2025, month: 1, day: 1 },
+      { year: 2025, month: 6, day: 30 },
+    ];
+    adjustTourYears(dates);
+    expect(dates[0].year).toBe(2025);
+    expect(dates[1].year).toBe(2025);
   });
 });

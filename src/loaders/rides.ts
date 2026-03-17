@@ -187,6 +187,49 @@ export function buildSlug(date: RideDate, gpxFilename: string, isTour?: boolean)
   return `${yyyy}-${mm}-${dd}-${slug}`;
 }
 
+/**
+ * Adjust years for rides in a multi-year tour.
+ *
+ * When a tour directory lives under a single YYYY/ folder but spans a year
+ * boundary (e.g. December 2022 → January 2023), all rides initially get the
+ * directory year. This function detects the year rollover by finding the
+ * largest internal gap between sorted months. If months [1,2,3,10,11,12] are
+ * present, the gap between 3 and 10 (7 months) indicates the tour runs
+ * Oct→Mar across a year boundary — months 1–3 become year + 1.
+ *
+ * Only considers non-circular gaps (between consecutive sorted months).
+ * The wrap-around gap from the highest to lowest month is ignored — it's
+ * always large for any clustered set of months and would cause false positives.
+ */
+export function adjustTourYears(dates: RideDate[]): void {
+  if (dates.length < 2) return;
+
+  const months = [...new Set(dates.map(d => d.month))].sort((a, b) => a - b);
+  if (months.length < 2) return;
+
+  // Find the largest gap between consecutive sorted months (non-circular).
+  // A gap > 6 means the months split into two clusters across a year boundary.
+  let maxGap = 0;
+  let gapAfterMonth = 0;
+  for (let i = 1; i < months.length; i++) {
+    const gap = months[i] - months[i - 1];
+    if (gap > maxGap) {
+      maxGap = gap;
+      gapAfterMonth = months[i - 1];
+    }
+  }
+
+  if (maxGap <= 6) return;
+
+  // Months at or before gapAfterMonth are the "early" cluster (next year).
+  // Months after gapAfterMonth are the "late" cluster (directory year).
+  for (const date of dates) {
+    if (date.month <= gapAfterMonth) {
+      date.year += 1;
+    }
+  }
+}
+
 /** Build an ISO date string from a RideDate. */
 export function rideDateToIso(date: RideDate): string {
   const mm = String(date.month).padStart(2, '0');
@@ -253,6 +296,21 @@ export function rideLoader(): Loader {
         }
       }
 
+      // Adjust years for multi-year tours (e.g. Dec 2022 → Jan 2023)
+      const adjustedDates = new Map<string, RideDate>();
+      for (const tour of tours) {
+        const tourDates: { gpxPath: string; date: RideDate }[] = [];
+        for (const ridePath of tour.ridePaths) {
+          const date = extractDateFromPath(ridePath);
+          if (date) tourDates.push({ gpxPath: ridePath, date });
+        }
+        const dates = tourDates.map(td => td.date);
+        adjustTourYears(dates);
+        for (const td of tourDates) {
+          adjustedDates.set(td.gpxPath, td.date);
+        }
+      }
+
       // Load privacy zone config once (if configured for this city)
       const privacyZone = getCityConfig().privacy_zone;
 
@@ -265,7 +323,7 @@ export function rideLoader(): Loader {
         const mediaYmlDigestPath = gpxAbsPath.replace(/\.gpx$/i, '-media.yml');
 
         // Incremental caching — need date+slug before checking digest
-        const date = extractDateFromPath(gpxRelPath);
+        const date = adjustedDates.get(gpxRelPath) || extractDateFromPath(gpxRelPath);
         if (!date) {
           logger.warn(`Could not extract date from path: ${gpxRelPath}`);
           continue;

@@ -294,8 +294,8 @@ interface _RideStats {
   by_year: Record<string, { rides: number; distance_km: number; elevation_m: number }>;
   by_country: Record<string, { rides: number; distance_km: number }>;
   records: {
-    longest_ride?: { slug: string; name: string; distance_km: number };
-    most_elevation?: { slug: string; name: string; elevation_m: number };
+    longest_ride?: { slug: string; name: string; distance_km: number; tour_slug?: string };
+    most_elevation?: { slug: string; name: string; elevation_m: number; tour_slug?: string };
     longest_tour?: { slug: string; name: string; distance_km: number; days: number };
   };
 }
