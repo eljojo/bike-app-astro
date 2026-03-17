@@ -168,6 +168,17 @@ jobs:
         if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: npx playwright install-deps chromium
 
+      - name: Add test bindings to generated wrangler config
+        run: |
+          node -e "
+            const fs = require('fs');
+            const f = 'dist/server/wrangler.json';
+            const c = JSON.parse(fs.readFileSync(f, 'utf8'));
+            c.vars = { ...c.vars, R2_ACCOUNT_ID: 'test-account-id' };
+            c.d1_databases = [{ binding: 'DB', database_name: 'test', database_id: 'local' }];
+            fs.writeFileSync(f, JSON.stringify(c));
+          "
+
       - name: Run E2E tests
         run: >-
           npx playwright test --config e2e/playwright.config.ts
