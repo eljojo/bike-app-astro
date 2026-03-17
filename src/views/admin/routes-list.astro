@@ -36,16 +36,15 @@ let routes = mergedRoutes.sort((a, b) => {
     <AdminHeader
       user={user}
       currentTab="routes"
+      subtitle="Cycling routes people can follow. Each one has a map, photos, and directions."
+      ctaHref="/admin/routes/new"
+      ctaLabel="+ New route"
     />
-
-    <div class="admin-actions">
-      <a href="/admin/routes/new" class="btn-new-route">+ New route</a>
-    </div>
 
     <div class="sort-controls">
       <span class="sort-label">Sort:</span>
-      <a href="/admin" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
-      <a href="/admin?sort=score" class:list={['sort-option', { active: sortBy === 'score' }]}>Difficulty</a>
+      <a href="/admin/routes" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
+      <a href="/admin/routes?sort=score" class:list={['sort-option', { active: sortBy === 'score' }]}>Difficulty</a>
       <label class="photo-toggle">
         <input type="checkbox" id="photo-toggle" checked /> Photos
       </label>
@@ -112,25 +111,6 @@ let routes = mergedRoutes.sort((a, b) => {
     max-width: 700px;
     margin: 1rem auto;
     padding: 0 1rem;
-  }
-
-  .admin-actions {
-    margin-bottom: 0.75rem;
-  }
-
-  .btn-new-route {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: $color-accent;
-    color: #000;
-    border-radius: $border-radius;
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 600;
-
-    &:hover {
-      opacity: 0.9;
-    }
   }
 
   .sort-controls {

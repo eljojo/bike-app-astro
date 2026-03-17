@@ -6,25 +6,25 @@ import '../styles/admin.scss';
 
 interface Props {
   title: string;
-  backLink: string;
-  backLabel?: string;
   viewLink?: string;
   hideTitle?: boolean;
+  wide?: boolean;
   user: { username: string; role: string; email?: string | null };
   currentTab: 'routes' | 'events' | 'places';
 }
 
-const { title, backLink, backLabel = 'Back', viewLink, hideTitle, user, currentTab } = Astro.props;
+const { title, viewLink, hideTitle, wide, user, currentTab } = Astro.props;
 ---
 
 <Base title={title} admin>
   <Toast client:load />
-  <div class="admin-page">
+  <div class:list={['admin-page', { 'admin-page--wide': wide }]}>
     <AdminHeader user={user} currentTab={currentTab} />
-    <div class="editor-header">
-      <a href={backLink} class="back-link">&larr; {backLabel}</a>
-      {viewLink && <a href={viewLink} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>}
-    </div>
+    {viewLink && (
+      <div class="editor-header">
+        <a href={viewLink} class="view-link" target="_blank" rel="noopener">View live &nearr;</a>
+      </div>
+    )}
     {!hideTitle && <h1 class="editor-title">{title}</h1>}
     <slot />
   </div>
@@ -32,4 +32,14 @@ const { title, backLink, backLabel = 'Back', viewLink, hideTitle, user, currentT
 
 <style lang="scss">
   @use '../styles/editor';
+
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+
+    &--wide {
+      max-width: 1200px;
+    }
+  }
 </style>

@@ -24,7 +24,7 @@ export function extractChangesPath(message: string): string | null {
 
 /** Build a regex that matches resource paths for the given city. */
 export function buildResourcePathRegex(city: string): RegExp {
-  return new RegExp(`${city}/(routes|events|guides|places|organizers)/[\\w/-]+`);
+  return new RegExp(`${city}/(routes|rides|events|guides|places|organizers)/[\\w/-]+`);
 }
 
 /**

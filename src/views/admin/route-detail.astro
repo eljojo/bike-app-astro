@@ -50,10 +50,9 @@ const focusLabels = focusMode ? {
 
 <AdminEditorLayout
   title={`Edit: ${routeData.name}`}
-  backLink="/admin"
-  backLabel="Back to routes"
   viewLink={`/routes/${slug}`}
   hideTitle
+  wide
   user={Astro.locals.user}
   currentTab="routes"
 >

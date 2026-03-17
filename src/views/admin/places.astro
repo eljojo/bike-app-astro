@@ -41,10 +41,9 @@ const grouped = groupByCategory(adminPlaces);
 
 <Base title="Places - Admin" admin>
   <div class="admin-page">
-    <AdminHeader user={user} currentTab="places" />
+    <AdminHeader user={user} currentTab="places" subtitle="Recommended stops along routes — cafes, viewpoints, swimming spots, parks." ctaHref="/admin/places/new" ctaLabel="+ New place" />
 
     <div class="place-actions-bar">
-      <a href="/admin/places/new" class="btn-primary">+ New place</a>
       <span class="place-count">{adminPlaces.length} places</span>
     </div>
 

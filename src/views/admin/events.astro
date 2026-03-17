@@ -47,11 +47,7 @@ const user = Astro.locals.user;
 
 <Base title="Events - Admin" admin>
   <div class="admin-page">
-    <AdminHeader user={user} currentTab="events" />
-
-    <div class="event-actions-bar">
-      <a href="/admin/events/new" class="btn-primary">+ New event</a>
-    </div>
+    <AdminHeader user={user} currentTab="events" subtitle="Upcoming cycling events in the area. Anyone can add or update event details." ctaHref="/admin/events/new" ctaLabel="+ New event" />
 
     {grouped.map(({ label, events: monthEvents }) => (
       <div class="event-month-group">
@@ -101,10 +97,6 @@ const user = Astro.locals.user;
     max-width: 700px;
     margin: 1rem auto;
     padding: 0 1rem;
-  }
-
-  .event-actions-bar {
-    margin-bottom: 1.5rem;
   }
 
   .event-month-group {

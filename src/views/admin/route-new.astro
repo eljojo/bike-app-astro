@@ -13,6 +13,6 @@ const videosCdnUrl = cityConfig.videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 ---
 
-<AdminEditorLayout title="New Route" backLink="/admin" backLabel="Back to routes" user={Astro.locals.user} currentTab="routes">
+<AdminEditorLayout title="New Route" wide user={Astro.locals.user} currentTab="routes">
   <RouteCreator client:load cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} />
 </AdminEditorLayout>
