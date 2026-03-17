@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild route-data validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -54,6 +54,9 @@ screenshots: map-style ## Update all screenshot baselines (public + admin)
 
 map-style: ## Generate cycling map style JSON
 	npx tsx scripts/build-map-style.ts
+
+route-data: ## Generate route data JSON
+	npx tsx scripts/generate-route-data.ts
 
 maps: ## Generate map thumbnails
 	npx tsx scripts/generate-maps.ts

@@ -34,6 +34,9 @@ result
 # map cache (build-time generated)
 public/maps/
 
+# route data cache (build-time generated)
+public/route-data/
+
 # map style (generated from scripts/build-map-style.ts)
 public/map-style-*
 
