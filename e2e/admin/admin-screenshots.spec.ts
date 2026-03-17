@@ -28,7 +28,7 @@ test.describe('Admin Screenshots — Editor Pages', () => {
   });
 
   test('route list', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/admin/routes');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot('admin-route-list.png', screenshotOpts);

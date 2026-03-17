@@ -772,4 +772,15 @@ try {
     opacity: 0.5;
     &:hover { opacity: 1; }
   }
+
+  @media (max-width: $breakpoint-mobile) {
+    .dashboard-quickstart {
+      flex-direction: column;
+    }
+
+    .dashboard-first-visit {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
 </style>

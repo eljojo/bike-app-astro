@@ -73,12 +73,12 @@ test.describe('Admin rides page', () => {
     cleanupSession(token);
   });
 
-  test('/admin serves rides page for blog instance', async ({ page }) => {
+  test('/admin serves dashboard for blog instance', async ({ page }) => {
     await loginAs(page, token);
     await page.goto('/admin');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('.admin-header h1')).toHaveText('Rides');
+    await expect(page.locator('.dashboard-headline')).toHaveText('Collaborator area');
   });
 
   test('admin/rides shows "Rides" in header title', async ({ page }) => {
