@@ -101,6 +101,7 @@ const routes = [
   { pattern: '/robots.txt', entrypoint: view('robots.txt.ts') },
   { pattern: '/rss.xml', entrypoint: view('rss.xml.ts') },
   { pattern: '/llms.txt', entrypoint: view('llms.txt.ts') },
+  { pattern: '/llms-full.txt', entrypoint: view('llms-full.txt.ts') },
   { pattern: '/calendar.ics', entrypoint: view('calendar.ics.ts') },
 ];
 

@@ -42,6 +42,7 @@ const { title, description, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateU
     <link rel="icon" type="image/png" href="/bicycle.png" />
     <link rel="apple-touch-icon" href="/bicycle.png" />
     <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
+    <link rel="llms-txt" href="/llms.txt" />
     {import.meta.env.PROD && <script>import '../lib/external/analytics';</script>}
     {import.meta.env.DISABLE_ANALYTICS === 'true' && <script is:inline nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
     <LocaleRedirect cspNonce={cspNonce} />

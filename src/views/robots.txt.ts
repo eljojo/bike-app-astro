@@ -19,6 +19,7 @@ Allow: /
 # LLM-readable site description
 # See https://llmstxt.org/ for the specification
 Allow: /llms.txt
+Allow: /llms-full.txt
 
 Sitemap: ${config.url}/sitemap.xml
 `);
