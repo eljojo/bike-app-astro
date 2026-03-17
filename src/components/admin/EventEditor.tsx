@@ -30,6 +30,7 @@ interface Props {
   isClub?: boolean;
   routeOptions?: RouteOption[];
   placeOptions?: Array<{ id: string; name: string }>;
+  eventOptions?: Array<{ id: string; name: string; year: string }>;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -60,7 +61,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [] }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [] }: Props) {
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
@@ -73,6 +74,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [distances, setDistances] = useState(initialData.distances || '');
   const [location, setLocation] = useState(initialData.location || '');
   const [reviewUrl, setReviewUrl] = useState(initialData.review_url || '');
+  const [edition, setEdition] = useState(initialData.edition || '');
+  const [eventUrl, setEventUrl] = useState(initialData.event_url || '');
+  const [mapUrl, setMapUrl] = useState(initialData.map_url || '');
+  const [previousEvent, setPreviousEvent] = useState(initialData.previous_event || '');
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
   const [body, setBody] = useState(initialData.body);
@@ -119,12 +124,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [orgName, setOrgName] = useState(initOrg.name);
   const [orgWebsite, setOrgWebsite] = useState(initOrg.website);
   const [orgInstagram, setOrgInstagram] = useState(initOrg.instagram);
+  const [isExistingRef, setIsExistingRef] = useState(initOrg.isRef);
 
   const initialRender = useRef(true);
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, posterKey, posterContentType, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
+  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
@@ -135,6 +141,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     distances: !!initialData.distances,
     registration: !!initialData.registration_url,
     review: !!initialData.review_url,
+    edition: !!initialData.edition,
+    eventUrl: !!initialData.event_url,
+    mapUrl: !!initialData.map_url,
+    previousEvent: !!initialData.previous_event,
     orgForm: initOrg.name !== '',
   });
 
@@ -162,6 +172,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(distances && { distances }),
           ...(location && { location }),
           ...(reviewUrl && { review_url: reviewUrl }),
+          ...(edition && { edition }),
+          ...(eventUrl && { event_url: eventUrl }),
+          ...(mapUrl && { map_url: mapUrl }),
+          ...(previousEvent && { previous_event: previousEvent }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
           ...(isClub && waypoints.length > 0 && { waypoints }),
@@ -176,6 +190,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           name: orgName,
           ...(orgWebsite && { website: orgWebsite }),
           ...(orgInstagram && { instagram: orgInstagram }),
+          isExistingRef,
         };
       }
       return payload as unknown as Record<string, unknown>;
@@ -195,11 +210,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       setOrgName(org.name);
       setOrgWebsite(org.website || '');
       setOrgInstagram(org.instagram || '');
+      setIsExistingRef(true);
       disclosure.open('orgForm');
     } else {
       setOrgName('');
       setOrgWebsite('');
       setOrgInstagram('');
+      setIsExistingRef(false);
       disclosure.close('orgForm');
     }
   }
@@ -209,6 +226,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     setOrgName('');
     setOrgWebsite('');
     setOrgInstagram('');
+    setIsExistingRef(false);
     disclosure.open('orgForm');
   }
 
@@ -329,6 +347,61 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               <button type="button" class="btn-link" onClick={() => disclosure.open('review')}>Add review link</button>
             )}
           </div>
+
+          <div class="disclosure-links">
+            {!disclosure.isOpen('edition') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('edition')}>Add edition info</button>
+            )}
+            {!disclosure.isOpen('eventUrl') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('eventUrl')}>Add event website</button>
+            )}
+            {!disclosure.isOpen('mapUrl') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('mapUrl')}>Add map link</button>
+            )}
+            {!disclosure.isOpen('previousEvent') && (
+              <button type="button" class="btn-link" onClick={() => disclosure.open('previousEvent')}>Link previous edition</button>
+            )}
+          </div>
+
+          {disclosure.isOpen('edition') && (
+            <div class="form-field">
+              <label for="event-edition">Edition</label>
+              <input id="event-edition" type="text" value={edition}
+                placeholder="e.g. 53rd, 2026"
+                onInput={(e) => setEdition((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          {disclosure.isOpen('eventUrl') && (
+            <div class="form-field">
+              <label for="event-url">Event website</label>
+              <input id="event-url" type="url" value={eventUrl}
+                placeholder="https://"
+                onInput={(e) => setEventUrl((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          {disclosure.isOpen('mapUrl') && (
+            <div class="form-field">
+              <label for="event-map-url">Map URL</label>
+              <input id="event-map-url" type="url" value={mapUrl}
+                placeholder="https://ridewithgps.com/..."
+                onInput={(e) => setMapUrl((e.target as HTMLInputElement).value)} />
+            </div>
+          )}
+
+          {disclosure.isOpen('previousEvent') && (
+            <div class="form-field">
+              <label for="event-previous">Previous edition</label>
+              <select id="event-previous" value={previousEvent}
+                onChange={(e) => setPreviousEvent((e.target as HTMLSelectElement).value)}>
+                <option value="">-- None --</option>
+                {(eventOptions ?? []).map(opt => (
+                  <option key={opt.id} value={opt.id}>{opt.year} — {opt.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div class="form-field">
             <label for="event-body">Description (markdown)</label>
