@@ -4,25 +4,213 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import '../../styles/admin.scss';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
+import { getCityConfig } from '../../lib/config/city-config';
+import { buildImageUrl } from '../../lib/media/image-service';
+import { env } from '../../lib/env/env.service';
 
 const user = Astro.locals.user;
+const features = getInstanceFeatures();
+const cityConfig = getCityConfig();
+const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
+
+// Content counts and card data from virtual modules (build-time snapshots)
+// Each module imported once and reused for both counts and card items.
+let routeCount = 0;
+let placeCount = 0;
+let eventCount = 0;
+let routesWithoutPhotos = 0;
+let draftRouteCount = 0;
+let totalPhotos = 0;
+let routeItems: _AdminRoute[] = [];
+let placeItems: _AdminPlace[] = [];
+let eventItems: _AdminEvent[] = [];
+
+if (features.hasRoutes || features.hasRides) {
+  const adminRoutes = (await import('virtual:bike-app/admin-routes')).default;
+  routeCount = adminRoutes.length;
+  routeItems = adminRoutes.slice(0, 6);
+  totalPhotos = adminRoutes.reduce((sum: number, r: _AdminRoute) => sum + (r.mediaCount ?? 0), 0);
+
+  if (features.hasRoutes) {
+    routesWithoutPhotos = adminRoutes.filter((r: _AdminRoute) => !r.mediaCount || r.mediaCount === 0).length;
+    draftRouteCount = adminRoutes.filter((r: _AdminRoute) => r.status === 'draft').length;
+  }
+}
+
+if (features.hasPlaces) {
+  const adminPlaces = (await import('virtual:bike-app/admin-places')).default;
+  placeCount = adminPlaces.length;
+  placeItems = adminPlaces.slice(0, 4);
+}
+
+if (features.hasEvents) {
+  const adminEvents = (await import('virtual:bike-app/admin-events')).default;
+  const now = new Date().toISOString().slice(0, 10);
+  eventCount = adminEvents.filter((e: _AdminEvent) => e.start_date >= now).length;
+  eventItems = adminEvents
+    .filter((e: _AdminEvent) => e.start_date >= now)
+    .sort((a: _AdminEvent, b: _AdminEvent) => a.start_date.localeCompare(b.start_date))
+    .slice(0, 4);
+}
+
+// Contextual nudge — first applicable wins
+let nudge = '';
+if (features.hasRoutes) {
+  if (routesWithoutPhotos > 0) {
+    nudge = `${routesWithoutPhotos} route${routesWithoutPhotos === 1 ? '' : 's'} don't have photos yet — they'd look great with some.`;
+  } else if (draftRouteCount > 0) {
+    nudge = `${draftRouteCount} route${draftRouteCount === 1 ? ' is' : 's are'} still in draft.`;
+  }
+}
+
+const contentLabel = features.hasRides ? 'rides' : 'routes';
 ---
 
 <Base title="Admin" admin>
   <div class="admin-dashboard">
     <AdminHeader user={user} currentTab="home" />
-    <h1 class="dashboard-headline">Collaborator area</h1>
-    <p class="dashboard-summary">Dashboard coming soon.</p>
+
+    <!-- Welcome Area -->
+    <section class="dashboard-welcome">
+      <h1 class="dashboard-headline">Collaborator area</h1>
+      <p class="dashboard-summary">
+        {features.hasRides
+          ? `Your personal ride journal. ${routeCount} ride${routeCount === 1 ? '' : 's'} so far. Every edit goes live within a few minutes.`
+          : `This is where ${cityConfig.display_name}'s cycling community builds and maintains the site together. ${routeCount} ${contentLabel}, ${placeCount} places, and ${eventCount} upcoming event${eventCount === 1 ? '' : 's'} so far. Every edit goes live within a few minutes.`
+        }
+      </p>
+      {nudge && <p class="dashboard-nudge">{nudge}</p>}
+
+      <div class="dashboard-first-visit" id="dashboard-first-visit">
+        <p>You can add routes you've ridden, mark places worth stopping at, and keep the event calendar current. No special permissions needed — browse around, and edit anything that could use your knowledge.</p>
+        <a href="#" class="dashboard-first-visit-dismiss" id="dashboard-first-visit-dismiss">got it</a>
+      </div>
+
+      <div class="dashboard-quickstart">
+        {features.hasRoutes && <a href="/admin/routes/new" class="quickstart-pill">Upload a route</a>}
+        {features.hasRides && <a href="/admin/rides/new" class="quickstart-pill">Upload a ride</a>}
+        {features.hasPlaces && <a href="/admin/places/new" class="quickstart-pill">Add a recommended stop</a>}
+        {features.hasEvents && <a href="/admin/events/new" class="quickstart-pill">Add an upcoming event</a>}
+      </div>
+    </section>
+
+    <!-- Content Cards -->
+    <div class="dashboard-cards">
+      {(features.hasRoutes || features.hasRides) && (
+        <section class="dashboard-card dashboard-card--routes">
+          <div class="card-header">
+            <span class="card-label">{features.hasRides ? 'RIDES' : 'ROUTES'}</span>
+            <span class="card-count">{routeCount}</span>
+            <a href={features.hasRides ? '/admin/rides' : '/admin/routes'} class="card-viewall">View all →</a>
+          </div>
+          <div class="card-items card-items--routes">
+            {routeItems.map((route) => (
+              <a href={`/admin/${features.hasRides ? 'rides' : 'routes'}/${route.slug}`} class="card-item">
+                {route.coverKey && (
+                  <img
+                    src={buildImageUrl(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
+                    alt="" loading="lazy" class="card-item-thumb"
+                  />
+                )}
+                <div class="card-item-info">
+                  <span class="card-item-name">{route.name}</span>
+                  <span class="card-item-meta">
+                    {route.distance_km != null && `${route.distance_km} km`}
+                    {route.mediaCount != null && route.mediaCount > 0 && ` ${route.mediaCount} photos`}
+                    {route.status === 'draft' && <span class="badge-draft">draft</span>}
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+          <div class="card-footer">
+            <a href={features.hasRides ? '/admin/rides/new' : '/admin/routes/new'}>+ Add new {features.hasRides ? 'ride' : 'route'}</a>
+            <a href={features.hasRides ? '/admin/rides' : '/admin/routes'}>View all {routeCount} →</a>
+          </div>
+        </section>
+      )}
+
+      {features.hasPlaces && placeItems.length > 0 && (
+        <section class="dashboard-card dashboard-card--places">
+          <div class="card-header">
+            <span class="card-label">PLACES</span>
+            <span class="card-count">{placeCount}</span>
+            <a href="/admin/places" class="card-viewall">View all →</a>
+          </div>
+          <div class="card-items">
+            {placeItems.map((place) => (
+              <a href={`/admin/places/${place.id}`} class="card-item">
+                <span class="card-item-name">{place.name}</span>
+                <span class="card-item-meta">{place.category}</span>
+              </a>
+            ))}
+          </div>
+          <div class="card-footer">
+            <a href="/admin/places/new">+ Add new place</a>
+            <a href="/admin/places">View all {placeCount} →</a>
+          </div>
+        </section>
+      )}
+
+      {features.hasEvents && (
+        <section class="dashboard-card dashboard-card--events">
+          <div class="card-header">
+            <span class="card-label">EVENTS</span>
+            <span class="card-count">{eventCount}</span>
+            <a href="/admin/events" class="card-viewall">View all →</a>
+          </div>
+          <div class="card-items">
+            {eventItems.map((event) => (
+              <a href={`/admin/events/${event.id}`} class="card-item">
+                {event.poster_key && (
+                  <img
+                    src={buildImageUrl(cdnUrl, event.poster_key, { width: 48, height: 64, fit: 'cover' })}
+                    alt="" loading="lazy" class="card-item-thumb card-item-thumb--portrait"
+                  />
+                )}
+                <div class="card-item-info">
+                  <span class="card-item-name">{event.name}</span>
+                  <span class="card-item-meta">{event.start_date}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+          <div class="card-footer">
+            <a href="/admin/events/new">+ Add new event</a>
+            <a href="/admin/events">View all →</a>
+          </div>
+        </section>
+      )}
+    </div>
   </div>
 </Base>
 
+<script>
+  const firstVisit = document.getElementById('dashboard-first-visit');
+  const dismiss = document.getElementById('dashboard-first-visit-dismiss');
+  if (localStorage.getItem('dashboard-welcomed')) {
+    firstVisit?.remove();
+  }
+  dismiss?.addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.setItem('dashboard-welcomed', '1');
+    firstVisit?.remove();
+  });
+</script>
+
 <style lang="scss">
   @use '../../styles/variables' as *;
+  @use '../../styles/mixins' as *;
 
   .admin-dashboard {
     max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
+  }
+
+  .dashboard-welcome {
+    margin-bottom: 2rem;
   }
 
   .dashboard-headline {
@@ -33,6 +221,228 @@ const user = Astro.locals.user;
 
   .dashboard-summary {
     font-size: 0.9375rem;
-    margin: 0 0 1.5rem;
+    margin: 0 0 0.75rem;
+    line-height: 1.5;
+  }
+
+  .dashboard-nudge {
+    font-size: 0.875rem;
+    margin: 0 0 0.75rem;
+    color: $color-warning;
+
+    @include dark-mode {
+      color: $color-warning-dark;
+    }
+  }
+
+  .dashboard-first-visit {
+    background: $color-info-bg;
+    border: 1px solid $color-info-border;
+    border-radius: $border-radius;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    color: $color-info;
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+
+    @include dark-mode {
+      background: $color-info-bg-dark;
+      border-color: $color-info-border-dark;
+      color: $color-info-dark;
+    }
+
+    p { margin: 0; }
+  }
+
+  .dashboard-first-visit-dismiss {
+    font-size: 0.8125rem;
+    color: inherit;
+    text-decoration: underline;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .dashboard-quickstart {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .quickstart-pill {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid $color-border;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    text-decoration: none;
+    color: $color-text;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+      @include dark-mode {
+        background: $color-card-hover-dark;
+      }
+    }
+  }
+
+  .dashboard-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .dashboard-card {
+    background: $color-card-bg;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      border-color: $color-border-dark;
+    }
+  }
+
+  .dashboard-card--routes {
+    grid-column: 1 / -1;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+
+  .card-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    @include muted-text;
+  }
+
+  .card-count {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: $font-heading;
+  }
+
+  .card-viewall {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    text-decoration: none;
+    @include muted-text;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  .card-items {
+    padding: 0.5rem;
+  }
+
+  .card-items--routes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: $border-radius;
+    text-decoration: none;
+    color: $color-text;
+
+    @include dark-mode {
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+      @include dark-mode { background: $color-card-hover-dark; }
+    }
+  }
+
+  .card-item-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: $border-radius;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .card-item-thumb--portrait {
+    width: 32px;
+    height: 44px;
+  }
+
+  .card-item-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .card-item-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-item-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+
+  .badge-draft {
+    background: $color-accent;
+    color: #000;
+    padding: 0.0625rem 0.25rem;
+    border-radius: $border-radius;
+    font-size: 0.6875rem;
+    margin-left: 0.25rem;
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid $color-border;
+    font-size: 0.8125rem;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+
+    a {
+      text-decoration: none;
+      @include muted-text;
+      &:hover { text-decoration: underline; }
+    }
   }
 </style>
