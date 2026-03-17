@@ -457,10 +457,10 @@ a.go-back-button {
 // ============================================================
 
 // Home
-.welcome-message {
-  h3 {
-    font-family: $font-heading;
-  }
+.site-identity-line {
+  @include muted-text;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
 }
 .routes-grid {
   list-style: none;

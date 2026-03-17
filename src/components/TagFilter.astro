@@ -104,18 +104,5 @@ const locale = Astro.currentLocale;
     }
   }
 
-  // Hide welcome message after 3+ visits
-  function setupHomeMessageHider() {
-    const messages = document.querySelectorAll('.welcome-message, .tag-filter--label');
-    if (!messages.length) return;
-    const key = 'welcomeMessageShownV2';
-    let visits = parseInt(localStorage.getItem(key) || '0');
-    if (visits >= 3) {
-      messages.forEach(el => (el as HTMLElement).style.display = 'none');
-    }
-    localStorage.setItem(key, String(visits + 1));
-  }
-
   setupTagFiltering();
-  setupHomeMessageHider();
 </script>
