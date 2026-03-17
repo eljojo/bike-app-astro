@@ -18,13 +18,13 @@ const coverKeys: Record<string, string> = {};
 const posterKeys: Record<string, string> = {};
 
 if (features.hasRoutes || features.hasRides) {
-  const adminRoutes = (await import('virtual:bike-app/admin-routes')).default;
+  const adminRoutes = await fetch(new URL('/admin/data/routes.json', Astro.url)).then(r => r.json());
   for (const r of adminRoutes) {
     if (r.coverKey) coverKeys[r.slug] = r.coverKey;
   }
 }
 if (features.hasEvents) {
-  const adminEvents = (await import('virtual:bike-app/admin-events')).default;
+  const adminEvents = await fetch(new URL('/admin/data/events.json', Astro.url)).then(r => r.json()).then(d => d.events);
   for (const e of adminEvents) {
     if (e.poster_key) posterKeys[e.id] = e.poster_key;
   }

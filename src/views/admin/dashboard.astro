@@ -33,7 +33,7 @@ let placeItems: _AdminPlace[] = [];
 let eventItems: _AdminEvent[] = [];
 
 if (features.hasRoutes || features.hasRides) {
-  const adminRoutes = (await import('virtual:bike-app/admin-routes')).default;
+  const adminRoutes = await fetch(new URL('/admin/data/routes.json', Astro.url)).then(r => r.json());
   routeCount = adminRoutes.length;
   routeItems = adminRoutes.slice(0, 6);
   totalPhotos = adminRoutes.reduce((sum: number, r: _AdminRoute) => sum + (r.mediaCount ?? 0), 0);
@@ -45,13 +45,13 @@ if (features.hasRoutes || features.hasRides) {
 }
 
 if (features.hasPlaces) {
-  const adminPlaces = (await import('virtual:bike-app/admin-places')).default;
+  const adminPlaces = await fetch(new URL('/admin/data/places.json', Astro.url)).then(r => r.json());
   placeCount = adminPlaces.length;
   placeItems = adminPlaces.slice(0, 4);
 }
 
 if (features.hasEvents) {
-  const adminEvents = (await import('virtual:bike-app/admin-events')).default;
+  const adminEvents = await fetch(new URL('/admin/data/events.json', Astro.url)).then(r => r.json()).then(d => d.events);
   const now = new Date().toISOString().slice(0, 10);
   eventCount = adminEvents.filter((e: _AdminEvent) => e.start_date >= now).length;
   eventItems = adminEvents

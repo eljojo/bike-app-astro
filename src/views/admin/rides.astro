@@ -4,7 +4,6 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import StravaImport from '../../components/admin/StravaImport.tsx';
-import adminRidesData from 'virtual:bike-app/admin-routes';
 import type { AdminRide } from '../../loaders/admin-rides';
 import { loadAdminRideList } from '../../lib/content/load-admin-content.server';
 import { formatDistance } from '../../lib/format';
@@ -15,6 +14,8 @@ import '../../styles/admin.scss';
 
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
+
+const adminRidesData = await fetch(new URL('/admin/data/routes.json', Astro.url)).then(r => r.json());
 
 const { rides, pendingSlugs } = await loadAdminRideList(adminRidesData as unknown as AdminRide[]);
 
