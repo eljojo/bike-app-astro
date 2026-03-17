@@ -1758,10 +1758,14 @@
 .route-editor-tabs {
   display: none;
 
+  &--hidden { display: none; }
+
   @media (max-width: $breakpoint-mobile) {
     display: flex;
     gap: 0;
     border-bottom: 1px solid $color-border;
+
+    &--hidden { display: none; }
 
     @include dark-mode {
       border-color: $color-border-dark;
@@ -1864,20 +1868,6 @@
 
   p {
     margin: 0.5em 0;
-  }
-}
-
-.route-preview-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 0.75rem;
-
-  img {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 4px;
   }
 }
 
@@ -2161,17 +2151,36 @@
   height: auto;
 }
 
-.ride-preview-gallery {
+.ride-preview-gallery,
+.route-preview-gallery {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 
   img {
     width: 80px;
-    height: 60px;
+    height: 80px;
     object-fit: cover;
     border-radius: $border-radius;
   }
+}
+
+// Shared play indicator for video thumbnails in editor previews
+.preview-gallery-item {
+  position: relative;
+  display: inline-block;
+}
+
+.preview-gallery-play {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
 }
 
 // Tour picker

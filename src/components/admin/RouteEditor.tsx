@@ -204,8 +204,8 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         />
       )}
 
-      {/* Mobile tabs */}
-      <div class="route-editor-tabs">
+      {/* Mobile tabs — hidden in focus mode */}
+      <div class={`route-editor-tabs ${effectiveFocus ? 'route-editor-tabs--hidden' : ''}`}>
         <button
           type="button"
           class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
