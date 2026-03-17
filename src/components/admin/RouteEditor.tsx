@@ -388,6 +388,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         onSave={handleSave} contentType="route" userRole={userRole}
         viewLink={`/routes/${initialData.slug}`}
         showLicenseNotice={showLicenseNotice !== false}
+        licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
     </div>
   );

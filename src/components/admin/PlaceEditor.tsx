@@ -475,6 +475,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
         onSave={handleSave} contentType="place" userRole={userRole}
         viewLink="/admin/places"
+        licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
     </div>
   );
