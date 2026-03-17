@@ -3,13 +3,13 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
-import adminEvents from 'virtual:bike-app/admin-events';
-import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import { env } from '../../lib/env/env.service';
-import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
+import { loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { getCityConfig } from '../../lib/config/city-config';
 import { buildImageUrl } from '@/lib/media/image-service';
 import '../../styles/admin.scss';
+
+const { events: adminEvents, organizers: adminOrganizers } = await fetchJson<{ events: _AdminEvent[]; organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
 
 const { events, pendingIds } = await loadAdminEventList(adminEvents);
 const orgMap = new Map(adminOrganizers.map(o => [o.slug, o.name]));

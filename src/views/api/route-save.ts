@@ -20,7 +20,9 @@ import { validateSlug } from '../../lib/slug';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { routeOps } from '../../lib/content/content-ops.server';
 import { buildRedirectFileChange } from '../../lib/redirects';
-import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
+
+let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { db } from '../../lib/get-db';
 
@@ -298,5 +300,6 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSl
 };
 
 export async function POST({ params, request, locals }: APIContext) {
+  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
   return saveContent(request, locals, params, 'routes', routeHandlers);
 }

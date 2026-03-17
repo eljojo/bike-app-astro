@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock virtual module and env dependencies
-vi.mock('virtual:bike-app/admin-places', () => ({ default: [] }));
-vi.mock('virtual:bike-app/media-shared-keys', () => ({ default: {} }));
+// Mock the JSON-fetching content loader (replaces virtual module mocks)
+vi.mock('../src/lib/content/load-admin-content.server', () => ({
+  fetchSharedKeysData: vi.fn().mockResolvedValue({}),
+}));
 vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test', GIT_OWNER: 'o', GIT_DATA_REPO: 'r' } }));
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));

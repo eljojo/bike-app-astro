@@ -299,3 +299,98 @@ export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promi
   }
   return buildTimeParked;
 }
+
+/**
+ * Fetch a prerendered JSON file from the app's own static assets.
+ * Three execution paths:
+ * - Local dev: global fetch() works fine (Astro dev server handles concurrency)
+ * - Node.js production: reads from dist/client/ on disk (avoids self-fetch deadlock)
+ * - Cloudflare Workers: uses ASSETS binding (avoids self-fetch deadlock / 522)
+ */
+export async function fetchJson<T>(url: URL): Promise<T> {
+  if (__RUNTIME_LOCAL__ && import.meta.env.PROD) {
+    // Node.js production/preview: read prerendered JSON from disk.
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const filePath = join(process.cwd(), 'dist', 'client', url.pathname);
+    return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
+  }
+  if (__RUNTIME_LOCAL__) {
+    // Local dev: Astro dev server handles concurrent requests, no deadlock.
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
+    return res.json() as Promise<T>;
+  }
+  // Cloudflare Workers: use ASSETS binding for internal static file reads.
+  // Global fetch() would route through the network back to the same Worker,
+  // causing a deadlock (522 timeout). The ASSETS binding reads directly from
+  // co-located static assets with no network round-trip.
+  const { env } = await import('../env/env.service');
+  const assets = env.ASSETS as { fetch: typeof fetch };
+  const res = await assets.fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Two-tier loading with static JSON fallback (replaces virtual module lookup).
+ * Tier 1: D1 cache (same as before)
+ * Tier 2: Fetch from prerendered JSON endpoint
+ */
+export async function loadDetailFromJson<T>(opts: {
+  contentType: string;
+  id: string | undefined;
+  jsonUrl: URL;
+  fromCache: (blob: string) => T;
+}): Promise<{ data: T; notFound: false } | { notFound: true }> {
+  if (!opts.id) return { notFound: true };
+
+  const database = getDb();
+
+  // Tier 1: D1 cache
+  const cached = await database.select().from(contentEdits)
+    .where(and(
+      eq(contentEdits.city, CITY),
+      eq(contentEdits.contentType, opts.contentType),
+      eq(contentEdits.contentSlug, opts.id),
+    ))
+    .get();
+
+  if (cached) {
+    try {
+      const data = opts.fromCache(cached.data);
+      return { data, notFound: false };
+    } catch {
+      console.warn(`Invalid cache for ${opts.contentType}/${opts.id}, falling back to JSON`);
+    }
+  }
+
+  // Tier 2: Static JSON
+  try {
+    const data = await fetchJson<T>(opts.jsonUrl);
+    return { data, notFound: false };
+  } catch {
+    return { notFound: true };
+  }
+}
+
+/**
+ * Load an admin list from a static JSON endpoint, with D1 cache overlay.
+ * Fetches the build-time list from JSON, then overlays D1 cached edits.
+ */
+export async function loadListFromJson<TItem, TCached>(
+  config: Omit<AdminListOverlayConfig<TItem, TCached>, 'buildTimeItems'> & {
+    jsonUrl: URL;
+  },
+): Promise<{ items: TItem[]; pendingIds: Set<string> }> {
+  const buildTimeItems = await fetchJson<TItem[]>(config.jsonUrl);
+  return loadAdminContentList({ ...config, buildTimeItems });
+}
+
+/**
+ * Fetch the media-shared-keys map from the static JSON endpoint.
+ * Used by save handlers that need the registry for media key tracking.
+ */
+export async function fetchSharedKeysData(baseUrl: URL): Promise<Record<string, Array<{ type: string; slug: string }>>> {
+  return fetchJson(new URL('/admin/data/media-shared-keys.json', baseUrl));
+}

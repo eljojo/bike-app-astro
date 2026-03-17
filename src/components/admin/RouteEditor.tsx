@@ -18,7 +18,6 @@ import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import SlugEditor from './SlugEditor';
-import nearbyMediaMap from 'virtual:bike-app/nearby-media';
 import { toParkedEntry } from '../../lib/media/media-merge';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { localeLabel } from '../../lib/i18n/locale-utils';
@@ -36,10 +35,11 @@ interface Props {
   showLicenseNotice?: boolean;
   focusMode?: 'description' | 'media' | null;
   focusLabels?: { description: string; media: string; showAll: string };
+  nearbyMedia?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels, nearbyMedia = [] }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -365,7 +365,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           }}
         />
         <NearbyMedia
-          nearbyMedia={nearbyMediaMap[initialData.slug] || []}
+          nearbyMedia={nearbyMedia}
           parkedMedia={parkedPhotos}
           currentMediaKeys={new Set(media.map(m => m.key))}
           cdnUrl={cdnUrl}

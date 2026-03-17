@@ -39,6 +39,19 @@ const routes = [
   { pattern: '/api/auth/remove-passkey', entrypoint: view('api/auth/remove-passkey.ts') },
   { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
   // Content-type admin pages and API endpoints (from registry)
+  // Admin data endpoints (prerendered static JSON)
+  { pattern: '/admin/data/routes.json', entrypoint: view('admin/data/routes.json.ts') },
+  { pattern: '/admin/data/routes/[slug].json', entrypoint: view('admin/data/route-detail.json.ts') },
+  { pattern: '/admin/data/known-tags.json', entrypoint: view('admin/data/known-tags.json.ts') },
+  { pattern: '/admin/data/events.json', entrypoint: view('admin/data/events.json.ts') },
+  { pattern: '/admin/data/events/[...id].json', entrypoint: view('admin/data/event-detail.json.ts') },
+  { pattern: '/admin/data/places.json', entrypoint: view('admin/data/places.json.ts') },
+  { pattern: '/admin/data/places/[id].json', entrypoint: view('admin/data/place-detail.json.ts') },
+  { pattern: '/admin/data/media-shared-keys.json', entrypoint: view('admin/data/media-shared-keys.json.ts') },
+  { pattern: '/admin/data/media-locations.json', entrypoint: view('admin/data/media-locations.json.ts') },
+  { pattern: '/admin/data/nearby-media.json', entrypoint: view('admin/data/nearby-media.json.ts') },
+  { pattern: '/admin/data/parked-media.json', entrypoint: view('admin/data/parked-media.json.ts') },
+  { pattern: '/admin/data/waypoint-suggestions/[slug].json', entrypoint: view('admin/data/waypoint-suggestions.json.ts') },
   ...contentTypeRoutes,
   // Dashboard — all instance types land here
   { pattern: '/admin', entrypoint: view('admin/dashboard.astro') },
@@ -72,7 +85,6 @@ const routes = [
   { pattern: '/api/admin/fetch-image', entrypoint: view('api/fetch-image.ts') },
   { pattern: '/api/admin/deploy-status', entrypoint: view('api/admin-deploy-status.ts') },
   { pattern: '/api/settings', entrypoint: view('api/settings.ts') },
-  { pattern: '/api/suggest-waypoints', entrypoint: view('api/suggest-waypoints.ts') },
   { pattern: '/api/gpx/import', entrypoint: view('api/gpx/import.ts') },
   // Reactions (static _starred must precede parameterized to avoid matching as params)
   { pattern: '/api/reactions', entrypoint: view('api/reactions.ts') },

@@ -3,13 +3,12 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventCreator from '../../components/admin/EventCreator.tsx';
-import adminOrganizers from 'virtual:bike-app/admin-organizers';
-import adminEventDetails from 'virtual:bike-app/admin-event-detail';
 import { eventDetailFromCache } from '../../lib/models/event-model';
-import { loadDetailPageData } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 
+const { organizers: adminOrganizers } = await fetchJson<{ organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
@@ -18,10 +17,10 @@ const copyFromId = Astro.url.searchParams.get('copy');
 let copyData: Record<string, unknown> | undefined;
 
 if (copyFromId) {
-  const result = await loadDetailPageData({
+  const result = await loadDetailFromJson({
     contentType: 'events',
     id: copyFromId,
-    virtualModuleData: adminEventDetails,
+    jsonUrl: new URL(`/admin/data/events/${copyFromId}.json`, Astro.url),
     fromCache: eventDetailFromCache,
   });
   if (!result.notFound) {

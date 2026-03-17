@@ -1,3 +1,6 @@
+/** Build-time constant: true when RUNTIME=local (Node.js adapter). */
+declare const __RUNTIME_LOCAL__: boolean;
+
 /**
  * Ambient module declarations for Vite virtual modules.
  *

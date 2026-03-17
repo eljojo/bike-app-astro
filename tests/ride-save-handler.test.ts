@@ -65,8 +65,9 @@ vi.mock('../src/lib/media/media-parking.server', () => ({
   updateMediaRegistryCache: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('virtual:bike-app/media-shared-keys', () => ({
-  default: {},
+// Mock the JSON-fetching content loader (replaces virtual module mock)
+vi.mock('../src/lib/content/load-admin-content.server', () => ({
+  fetchSharedKeysData: vi.fn().mockResolvedValue({}),
 }));
 
 const mockEnrichAndAnnotateMedia = vi.fn(async (media: unknown[], _db?: unknown) =>

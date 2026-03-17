@@ -1,15 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CITY } from '../src/lib/config/config';
 
-// Mock virtual module and env dependencies that event-save.ts imports transitively
-vi.mock('virtual:bike-app/admin-events', () => ({
-  default: [
-    { id: '2099/bike-fest', organizer: 'bike-club', start_date: '2099-06-01' },
-    { id: '2099/hill-climb', organizer: 'bike-club', start_date: '2099-07-01' },
-    { id: '2099/solo-event', organizer: 'solo-org', start_date: '2099-08-01' },
-  ],
+// Mock the JSON-fetching content loader (replaces virtual module mocks)
+vi.mock('../src/lib/content/load-admin-content.server', () => ({
+  fetchSharedKeysData: vi.fn().mockResolvedValue({}),
 }));
-vi.mock('virtual:bike-app/media-shared-keys', () => ({ default: {} }));
+
+// Mock fetch for admin events data endpoint
+const _originalFetch = globalThis.fetch;
+globalThis.fetch = vi.fn().mockImplementation((url: string | URL) => {
+  const pathname = typeof url === 'string' ? new URL(url).pathname : url.pathname;
+  if (pathname === '/admin/data/events.json') {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        events: [
+          { id: '2099/bike-fest', organizer: 'bike-club', start_date: '2099-06-01' },
+          { id: '2099/hill-climb', organizer: 'bike-club', start_date: '2099-07-01' },
+          { id: '2099/solo-event', organizer: 'solo-org', start_date: '2099-08-01' },
+        ],
+        organizers: [],
+      }),
+    });
+  }
+  return _originalFetch(url as any);
+}) as any;
 vi.mock('../src/lib/env/env.service', () => ({ env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test', GIT_OWNER: 'o', GIT_DATA_REPO: 'r' } }));
 vi.mock('../src/lib/git/git-factory', () => ({ createGitService: () => ({}) }));
 vi.mock('../src/lib/get-db', () => ({ db: () => ({}) }));

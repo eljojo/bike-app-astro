@@ -8,16 +8,16 @@ import { parseGpx } from '../../lib/gpx/parse';
 import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
-import photoLocations from 'virtual:bike-app/media-locations';
 import { findNearbyMedia } from '../../lib/geo/media-proximity';
 
 interface Props {
   cdnUrl: string;
   videosCdnUrl?: string;
   videoPrefix?: string;
+  mediaLocations?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
 }
 
-export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix }: Props) {
+export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaLocations = [] }: Props) {
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');
   const [gpxContent, setGpxContent] = useState('');
@@ -47,7 +47,7 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix }: Prop
     const step = Math.max(1, Math.floor(track.points.length / 50));
     const sampled = track.points.filter((_, i) => i % step === 0);
     const trackPts = sampled.map(p => ({ lat: p.lat, lng: p.lon }));
-    return findNearbyMedia(trackPts, photoLocations, '');
+    return findNearbyMedia(trackPts, mediaLocations, '');
   }, [track]);
 
   function slugToName(slug: string): string {

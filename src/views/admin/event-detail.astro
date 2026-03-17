@@ -4,29 +4,27 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventEditor from '../../components/admin/EventEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
-import adminEventDetails from 'virtual:bike-app/admin-event-detail';
-import adminOrganizers from 'virtual:bike-app/admin-organizers';
-import adminRoutes from 'virtual:bike-app/admin-routes';
-import adminPlaces from 'virtual:bike-app/admin-places';
 import { env } from '../../lib/env/env.service';
 import { can } from '../../lib/auth/authorize';
 import { CITY } from '../../lib/config/config';
-import { loadDetailPageData } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
 import { eventDetailFromCache } from '../../lib/models/event-model';
 import { getCityConfig } from '../../lib/config/city-config';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 
-const result = await loadDetailPageData({
+const result = await loadDetailFromJson({
   contentType: 'events',
   id: Astro.params.id,
-  virtualModuleData: adminEventDetails,
+  jsonUrl: new URL(`/admin/data/events/${Astro.params.id}.json`, Astro.url),
   fromCache: eventDetailFromCache,
 });
 
 if (result.notFound) return new Response(null, { status: 404 });
 const eventData = result.data;
 
-const organizers = adminOrganizers;
+const { organizers } = await fetchJson<{ organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
+const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
+const adminPlaces = await fetchJson<_AdminPlace[]>(new URL('/admin/data/places.json', Astro.url));
 const features = getInstanceFeatures();
 const routeOptions = features.hasEnrichedEvents ? adminRoutes.map((r: { slug: string; name: string }) => ({ slug: r.slug, name: r.name })) : [];
 const placeOptions = features.hasEnrichedEvents ? adminPlaces.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })) : [];

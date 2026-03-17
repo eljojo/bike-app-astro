@@ -4,9 +4,9 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
-import adminRoutes from 'virtual:bike-app/admin-routes';
+import type { AdminRoute } from '../../loaders/admin-routes';
 import { env } from '../../lib/env/env.service';
-import { loadAdminRouteList } from '../../lib/content/load-admin-content.server';
+import { loadAdminRouteList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { getCityConfig } from '../../lib/config/city-config';
 import { buildImageUrl } from '@/lib/media/image-service';
 import '../../styles/admin.scss';
@@ -15,6 +15,8 @@ const cspNonce = Astro.locals.cspNonce;
 const isStaging = env.ENVIRONMENT === 'staging';
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const sortBy = Astro.url.searchParams.get('sort') === 'score' ? 'score' : 'alpha';
+
+const adminRoutes = await fetchJson<AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
 
 const { routes: mergedRoutes, pendingSlugs } = await loadAdminRouteList(adminRoutes);
 

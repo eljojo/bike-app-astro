@@ -4,11 +4,9 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteEditor from '../../components/admin/RouteEditor.tsx';
 import EditHistory from '../../components/admin/EditHistory.tsx';
-import adminRouteDetails from 'virtual:bike-app/admin-route-detail';
-import parkedPhotosData from 'virtual:bike-app/parked-media';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
-import { loadDetailPageData, loadParkedMediaWithOverlay } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson, loadParkedMediaWithOverlay, fetchJson } from '../../lib/content/load-admin-content.server';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
@@ -22,22 +20,24 @@ if (slug && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
   return new Response(null, { status: 404 });
 }
 
-const result = await loadDetailPageData({
+const result = await loadDetailFromJson({
   contentType: 'routes',
   id: slug,
-  virtualModuleData: adminRouteDetails,
+  jsonUrl: new URL(`/admin/data/routes/${slug}.json`, Astro.url),
   fromCache: routeDetailFromCache,
 });
 
 if (result.notFound) return new Response(null, { status: 404 });
 const routeData = result.data;
 
+const parkedPhotosData = await fetchJson<_ParkedMedia[]>(new URL('/admin/data/parked-media.json', Astro.url));
 const parkedPhotos = await loadParkedMediaWithOverlay(parkedPhotosData);
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const videosCdnUrl = getCityConfig().videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const tagTranslations = loadTagTranslations();
-const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.tags))].sort();
+const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
+const allNearbyMedia = await fetchJson<Record<string, Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: string }>>>(new URL('/admin/data/nearby-media.json', Astro.url));
 const focusParam = Astro.url.searchParams.get('focus');
 const focusMode = (focusParam === 'description' || focusParam === 'media') ? focusParam : null;
 const locale = Astro.currentLocale;
@@ -56,6 +56,6 @@ const focusLabels = focusMode ? {
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} focusMode={focusMode} focusLabels={focusLabels} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} focusMode={focusMode} focusLabels={focusLabels} nearbyMedia={allNearbyMedia[slug!] || []} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>
