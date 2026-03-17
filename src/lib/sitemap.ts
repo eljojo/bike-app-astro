@@ -61,6 +61,7 @@ export function buildSitemapEntries({ routes, guides }: {
 
   // LLM-readable site description (not localized)
   entries.push({ url: `${BASE}/llms.txt`, priority: 0.3 });
+  entries.push({ url: `${BASE}/llms-full.txt`, priority: 0.2 });
 
   const published = routes.filter(r => r.data.status === 'published');
   for (const r of published) {
