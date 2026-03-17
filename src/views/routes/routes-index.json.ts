@@ -7,7 +7,9 @@ import { routeShape } from '../../lib/route-insights';
 import { difficultyLabel, scoreRoute } from '../../lib/difficulty';
 import { paths, routeSlug } from '../../lib/paths';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
-import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan.server';
+// NOTE: This is a single-output endpoint (not parameterized), so it must NOT
+// use filterByBuildPlan — doing so would produce a partial index in incremental
+// mode, overwriting the full one from the previous build.
 
 export const prerender = true;
 
@@ -21,7 +23,7 @@ export const GET: APIRoute = async ({ currentLocale }) => {
   const config = getCityConfig();
   const locale = currentLocale || defaultLocale();
   const allRoutes = await getCollection('routes');
-  const published = filterByBuildPlan(allRoutes.filter(isPublished), loadBuildPlan(), 'route');
+  const published = allRoutes.filter(isPublished);
 
   const allScores = published
     .map(r => scoreRoute(r))

@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .astro
-          key: astro-${{ hashFiles('blog/**') }}
+          key: astro-${{ github.run_id }}
           restore-keys: astro-
 
       - name: Resolve VIDEO_PREFIX from wrangler config
