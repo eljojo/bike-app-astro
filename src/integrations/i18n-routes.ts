@@ -21,6 +21,7 @@ const wikiPages: LocalePageWithSegments[] = [
   { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
   { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
   { pattern: '/routes/[slug]/map/[variant]', entrypoint: view('routes/map-variant.astro') },
+  { pattern: '/routes.json', entrypoint: view('routes/routes-index.json.ts') },
   { pattern: '/routes/[slug].json', entrypoint: view('routes/route-data.json.ts') },
   { pattern: '/guides', entrypoint: view('guides/index.astro') },
   { pattern: '/guides/[slug]', entrypoint: view('guides/detail.astro') },
