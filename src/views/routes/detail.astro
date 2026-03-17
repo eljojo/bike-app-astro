@@ -2,12 +2,11 @@
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/media/image-service';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/media/video-service';
 import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
 import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/geo/distance';
-import PhotoGallery from '@/components/PhotoGallery.astro';
+import MediaGallery from '@/components/MediaGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import { elevationConclusion } from '@/lib/geo/elevation';
 import { routeShape, placeCounts } from '@/lib/route-insights';
@@ -55,8 +54,6 @@ for (const loc of supportedLocales()) {
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
 const ogImageAlt = cover?.caption || t('route.photo_from', locale, { name: localeName });
-const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
-const videos = media.filter(m => m.type === 'video');
 const hasMap = hasCachedMap(route.id, undefined, locale);
 const mapLang = cachedMapLocale(route.id, undefined, locale);
 
@@ -257,35 +254,7 @@ const breadcrumbs = breadcrumbJsonLd([
       )}
     </div>
 
-    {photos.length > 0 && (
-      <PhotoGallery photos={photos} routeName={localeName} />
-    )}
-
-    {videos.length > 0 && (
-      <section class="route-videos">
-        <h3>{t('videos.title', locale)}</h3>
-        {videos.map(video => {
-          const sources = videoPlaybackSources(video.key);
-          const size = videoDisplaySize(video.width || 640, video.height || 360);
-          return (
-            <div class="route-video">
-              <video
-                controls
-                preload="metadata"
-                width={size.width}
-                height={size.height}
-                poster={videoPosterUrl(video.key)}
-                disablepictureinpicture
-              >
-                {sources.map(s => <source src={s.src} type={s.type} />)}
-                <p><a href={videoFallbackUrl(video.key)}>{video.title || t('videos.download', locale)}</a></p>
-              </video>
-              {video.title && <p><a href={paths.video(video.handle)}>{video.title}</a></p>}
-            </div>
-          );
-        })}
-      </section>
-    )}
+    <MediaGallery media={media} name={localeName} />
 
     {similarRoutes.length > 0 && (
       <div class="route-similar">

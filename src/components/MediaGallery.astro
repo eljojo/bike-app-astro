@@ -1,0 +1,161 @@
+---
+import './PhotoGallery.scss';
+import { imageUrl } from '../lib/media/image-service';
+import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../lib/media/video-service';
+import ResponsiveImage from './ResponsiveImage.astro';
+import { t } from '../i18n';
+import { paths } from '../lib/paths';
+import { isBlogInstance } from '../lib/config/city-config';
+
+const locale = Astro.currentLocale;
+
+interface MediaItem {
+  type: string;
+  key: string;
+  caption?: string;
+  title?: string;
+  handle?: string;
+  width?: number;
+  height?: number;
+  score?: number;
+  duration?: string;
+}
+
+interface Props {
+  media: MediaItem[];
+  name: string;
+}
+
+const { media, name } = Astro.props;
+const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
+const videos = media.filter(m => m.type === 'video');
+
+// Rails: Gallery.from_photos only shows photos with score >= 1, no fallback (empty gallery if none qualify).
+// We add a fallback to all photos in case scores haven't been set yet.
+const scored = photos.filter(p => (p.score || 0) >= 1);
+const allPhotos = scored.length > 0 ? scored : photos;
+const VISIBLE_COUNT = 9;
+const hasMore = allPhotos.length > VISIBLE_COUNT;
+
+const hasVideoPages = !isBlogInstance();
+
+function thumbDimensions(photo: MediaItem, targetWidth: number) {
+  if (!photo.width || !photo.height) return {};
+  const scale = targetWidth / photo.width;
+  return { width: targetWidth, height: Math.round(photo.height * scale) };
+}
+---
+
+{allPhotos.length > 0 && (
+  <section class="route-photos">
+    <h2>Photos</h2>
+    <div class="photo-gallery">
+      {allPhotos.map((photo, i) => (
+        <a
+          href={imageUrl(photo.key)}
+          data-pswp-width={photo.width}
+          data-pswp-height={photo.height}
+          data-cropped="true"
+          class={`photo-gallery--image${i >= VISIBLE_COUNT ? ' photo-hidden' : ''}`}
+          target="_blank"
+        >
+          <ResponsiveImage
+            blobKey={photo.key}
+            alt={photo.caption || name}
+            widths={[375, 750, 1170]}
+            width={thumbDimensions(photo, 375).width}
+            height={thumbDimensions(photo, 375).height}
+          />
+          {photo.caption && (
+            <span class="photo-gallery--caption pswp-caption-content">{photo.caption}</span>
+          )}
+        </a>
+      ))}
+    </div>
+    {hasMore && (
+      <button class="action-button" id="show-all-photos">
+        {t('photos.show_all', locale, { count: allPhotos.length })}
+      </button>
+    )}
+  </section>
+)}
+
+{videos.length > 0 && (
+  <section class="route-videos">
+    <h3>{t('videos.title', locale)}</h3>
+    {videos.map(video => {
+      const sources = videoPlaybackSources(video.key);
+      const size = videoDisplaySize(video.width || 640, video.height || 360);
+      return (
+        <div class="route-video">
+          <video
+            controls
+            preload="metadata"
+            width={size.width}
+            height={size.height}
+            poster={videoPosterUrl(video.key)}
+            disablepictureinpicture
+          >
+            {sources.map(s => <source src={s.src} type={s.type} />)}
+            <p><a href={videoFallbackUrl(video.key)}>{video.title || t('videos.download', locale)}</a></p>
+          </video>
+          {video.title && hasVideoPages && video.handle && (
+            <p><a href={paths.video(video.handle, locale)}>{video.title}</a></p>
+          )}
+          {video.title && !hasVideoPages && (
+            <p class="video-title">{video.title}</p>
+          )}
+        </div>
+      );
+    })}
+  </section>
+)}
+
+{(allPhotos.length > 0) && (
+  <script>
+    import PhotoSwipeLightbox from 'photoswipe/lightbox';
+    import 'photoswipe/style.css';
+    import 'photoswipe-dynamic-caption-plugin/photoswipe-dynamic-caption-plugin.css';
+    import PhotoSwipeDynamicCaption from 'photoswipe-dynamic-caption-plugin';
+    import ObjectPosition from '@vovayatsyuk/photoswipe-object-position';
+
+    const isMobile = window.innerWidth < 768;
+    const lightboxOptions: any = {
+      gallery: '.photo-gallery',
+      children: 'a.photo-gallery--image',
+      pswpModule: () => import('photoswipe'),
+    };
+    if (!isMobile) {
+      lightboxOptions.paddingFn = () => ({ top: 30, bottom: 30, left: 70, right: 70 });
+    }
+
+    const lightbox = new PhotoSwipeLightbox(lightboxOptions);
+    new ObjectPosition(lightbox);
+    new PhotoSwipeDynamicCaption(lightbox, { type: 'auto' });
+    lightbox.init();
+    lightbox.on('beforeOpen', () => {
+      window.BikeApp?.tE?.('gallery open', { props: { page: window.location.pathname } });
+    });
+
+    // Cover photo click opens first gallery image
+    const coverPhoto = document.querySelector('.gallery-cover-photo');
+    const firstPhoto = document.querySelector('.photo-gallery a.photo-gallery--image:first-child');
+    if (coverPhoto && firstPhoto) {
+      coverPhoto.addEventListener('click', () => {
+        window.BikeApp?.tE?.('click cover photo', { props: { page: window.location.pathname } });
+        (firstPhoto as HTMLElement).click();
+      });
+    }
+
+    const showAllBtn = document.getElementById('show-all-photos');
+    if (showAllBtn) {
+      showAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('.photo-hidden').forEach(el => {
+          (el as HTMLElement).classList.remove('photo-hidden');
+        });
+        showAllBtn.style.display = 'none';
+        window.BikeApp?.tE?.('show more photos', { props: { page: window.location.pathname } });
+      });
+    }
+  </script>
+)}

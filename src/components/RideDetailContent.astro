@@ -6,7 +6,7 @@ import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
 import { paths, assets } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
-import PhotoGallery from '@/components/PhotoGallery.astro';
+import MediaGallery from '@/components/MediaGallery.astro';
 import ContentDetail from '@/components/patterns/ContentDetail.astro';
 import StatBar from '@/components/StatBar.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
@@ -26,7 +26,6 @@ const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
 const locale = Astro.currentLocale;
 
 const cover = media.find((m: any) => m.cover);
-const photos = media.filter((m: any) => m.type === 'photo').sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 const hasMap = hasCachedMap(route.id);
 const mapLang = cachedMapLocale(route.id, undefined, locale);
 
@@ -157,9 +156,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
   </Fragment>
 
   <Fragment slot="gallery">
-    {photos.length > 0 && (
-      <PhotoGallery photos={photos} routeName={name} />
-    )}
+    <MediaGallery media={media} name={name} />
   </Fragment>
 
   <Fragment slot="after">
