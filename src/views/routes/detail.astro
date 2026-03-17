@@ -21,7 +21,6 @@ import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
-import RouteCard from '@/components/RouteCard.astro';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
@@ -33,17 +32,14 @@ export async function getStaticPaths() {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix } = await loadRouteData();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
-  // Build lightweight card data for similar routes rendering
-  const routeCardData: Record<string, { name: string; tagline?: string; distance_km: number; tags: string[]; coverKey?: string; variants: { name: string; gpx: string; distance_km?: number }[]; translations?: Record<string, { name?: string; tagline?: string; slug?: string }> }> = {};
+  // Build lightweight data for similar routes thumbnails
+  const routeCardData: Record<string, { name: string; distance_km: number; coverKey?: string; translations?: Record<string, { name?: string; slug?: string }> }> = {};
   for (const r of filtered) {
     const cover = r.data.media.find(m => m.cover);
     routeCardData[r.id] = {
       name: r.data.name,
-      tagline: r.data.tagline,
       distance_km: r.data.distance_km,
-      tags: r.data.tags,
       coverKey: cover?.key,
-      variants: r.data.variants.map(v => ({ name: v.name, gpx: v.gpx, distance_km: v.distance_km })),
       translations: r.data.translations,
     };
   }
@@ -261,18 +257,25 @@ const breadcrumbs = breadcrumbJsonLd([
           {similarRoutes.map(s => {
             const card = routeCardData[s.id];
             if (!card) return null;
-            const cardTrans = card.translations?.[locale!];
+            const cardName = card.translations?.[locale!]?.name || card.name;
+            const slug = routeSlug({ id: s.id, data: { translations: card.translations || {} } }, locale);
             return (
-              <RouteCard
-                slug={s.id}
-                name={cardTrans?.name || card.name}
-                tagline={cardTrans?.tagline || card.tagline}
-                distance_km={card.distance_km}
-                tags={card.tags}
-                coverKey={card.coverKey}
-                variants={card.variants}
-                localeSlug={routeSlug({ id: s.id, data: { translations: card.translations || {} } }, locale)}
-              />
+              <li class="route-similar--card">
+                <a href={paths.route(slug, locale)}>
+                  {card.coverKey && (
+                    <img
+                      src={imageUrl(card.coverKey, { width: 300, height: 200, fit: 'cover' })}
+                      srcset={`${imageUrl(card.coverKey, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                      alt={cardName}
+                      width="300"
+                      height="200"
+                      loading="lazy"
+                    />
+                  )}
+                  <span class="route-similar--card-name">{cardName}</span>
+                  <span class="route-similar--card-distance">{formatDistance([card.distance_km])}</span>
+                </a>
+              </li>
             );
           })}
         </ul>
