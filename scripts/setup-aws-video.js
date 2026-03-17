@@ -695,9 +695,10 @@ export async function ensureR2Cors(r2BucketName, domain, accountId, apiToken) {
     }
   } catch { /* no existing rules */ }
 
-  // Check if origin already present in any GET rule
+  // Check if origin already present with both GET and PUT
   const hasOrigin = rules.some(r =>
     r.allowed?.methods?.includes('GET') &&
+    r.allowed?.methods?.includes('PUT') &&
     r.allowed?.origins?.includes(origin),
   );
   if (hasOrigin) {
@@ -705,20 +706,17 @@ export async function ensureR2Cors(r2BucketName, domain, accountId, apiToken) {
     return;
   }
 
-  // Find existing GET rule to append to, or create new one
-  const getRule = rules.find(r => r.allowed?.methods?.includes('GET'));
-  if (getRule) {
-    getRule.allowed.origins = [...(getRule.allowed.origins || []), origin];
-  } else {
-    rules.push({
-      allowed: {
-        origins: [origin],
-        methods: ['GET'],
-        headers: ['*'],
-      },
-      maxAgeSeconds: 86400,
-    });
-  }
+  // Remove any existing rule that has this origin (will be replaced with GET+PUT)
+  const otherRules = rules.filter(r => !r.allowed?.origins?.includes(origin));
+  otherRules.push({
+    allowed: {
+      origins: [origin],
+      methods: ['GET', 'PUT'],
+      headers: ['*'],
+    },
+    maxAgeSeconds: 86400,
+  });
+  rules = otherRules;
 
   try {
     const res = await fetch(url, {
