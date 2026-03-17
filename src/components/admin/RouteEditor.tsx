@@ -9,6 +9,7 @@ import type { VariantItem } from './VariantManager';
 import MarkdownEditor from './MarkdownEditor';
 import NearbyMedia from './NearbyMedia';
 import EditorActions from './EditorActions';
+import RoutePreview from './RoutePreview';
 import EditorFocusWrapper from './EditorFocusWrapper';
 import { FocusHeader } from './EditorFocusWrapper';
 import { useEditorState } from './useEditorState';
@@ -64,6 +65,9 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
   const [focusExpanded, setFocusExpanded] = useState(false);
   const effectiveFocus = focusExpanded ? null : (focusMode || null);
+
+  // Mobile tabs for edit/preview
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
@@ -199,6 +203,24 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           onExpand={() => setFocusExpanded(true)}
         />
       )}
+
+      {/* Mobile tabs */}
+      <div class="route-editor-tabs">
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('edit')}
+        >Edit</button>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('preview')}
+        >Preview</button>
+      </div>
+
+      <div class="route-editor-panes">
+        {/* LEFT PANE: Editor */}
+        <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
       <EditorFocusWrapper focused={effectiveFocus === 'description'} focusActive={!!effectiveFocus}>
       <div class="locale-tabs">
         {[defaultLocale, ...Object.keys(translations).filter(l => l !== defaultLocale)].map(locale => (
@@ -390,6 +412,23 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         showLicenseNotice={showLicenseNotice !== false}
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
+        </div>
+
+        {/* RIGHT PANE: Preview */}
+        <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+          <RoutePreview
+            name={getField('name')}
+            tagline={getField('tagline')}
+            tags={tags}
+            body={getField('body')}
+            media={media}
+            cdnUrl={cdnUrl}
+            videosCdnUrl={videosCdnUrl}
+            videoPrefix={videoPrefix}
+            displayTag={displayTag}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1749,6 +1749,138 @@
   }
 }
 
+// ─── Route Editor — split pane layout ───
+
+.route-editor {
+  position: relative;
+}
+
+.route-editor-tabs {
+  display: none;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid $color-border;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+}
+
+.route-editor-tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  &--active {
+    border-bottom: 2px solid $color-accent;
+  }
+}
+
+.route-editor-panes {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: block;
+  }
+}
+
+.route-editor-edit {
+  flex: 1;
+  min-width: 0;
+}
+
+.route-editor-preview {
+  flex: 1;
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    position: static;
+    max-height: none;
+  }
+}
+
+.route-editor-pane--hidden {
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
+  }
+}
+
+// Route preview styles
+.route-preview-hero img {
+  width: 100%;
+  border-radius: $border-radius;
+}
+
+.route-preview-title {
+  font-size: 1.25rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.route-preview-tagline {
+  @include muted-text;
+  margin: 0 0 0.5rem;
+}
+
+.route-preview-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.route-preview-body {
+  line-height: 1.6;
+
+  h2 {
+    font-size: 1.1rem;
+    margin-top: 1rem;
+  }
+
+  p {
+    margin: 0.5em 0;
+  }
+}
+
+.route-preview-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 0.75rem;
+
+  img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+}
+
 // Ride details (collapsible)
 .ride-details {
   border: 1px solid $color-border;
