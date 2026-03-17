@@ -39,6 +39,7 @@ export default defineConfig({
             { label: 'How it works', slug: 'about/how-it-works' },
             { label: 'Licensing', slug: 'about/licensing' },
             { label: 'Bring it to your city', slug: 'about/bring-to-your-city' },
+            { label: 'Route Data API', slug: 'about/route-data-api' },
           ],
         },
         {
