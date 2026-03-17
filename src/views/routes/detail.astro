@@ -228,11 +228,14 @@ const breadcrumbs = breadcrumbJsonLd([
           )}
 
           {getInstanceFeatures().allowsReactions && (
-            <ReactionsWidget client:idle contentType="route" contentSlug={route.id} labels={[
-              { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
-              { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
-              { type: 'star', icon: '\u2B50', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
-            ]} />
+            <ReactionsWidget client:idle contentType="route" contentSlug={route.id}
+              bookmarkHint={t('reaction.bookmark_hint', locale)}
+              trustReceiptMessage={t('reaction.trust_receipt', locale)}
+              labels={[
+                { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
+                { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
+                { type: 'star', icon: '\u{1F516}', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
+              ]} />
           )}
         </div>
       </div>
