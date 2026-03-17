@@ -18,6 +18,7 @@ const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.ln
 
 const nearSlug = Astro.url.searchParams.get('near') || undefined;
 const detailsToggleLabel = t('place_editor.details_toggle', Astro.currentLocale);
+const mediaLocations = await fetch(new URL('/admin/data/media-locations.json', Astro.url)).then(r => r.json());
 
 const initialData = {
   id: '',
@@ -30,5 +31,5 @@ const initialData = {
 ---
 
 <AdminEditorLayout title="New Place" user={Astro.locals.user} currentTab="places">
-  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} />
+  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} mediaLocations={mediaLocations} />
 </AdminEditorLayout>

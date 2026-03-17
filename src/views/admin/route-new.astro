@@ -11,8 +11,9 @@ const cityConfig = getCityConfig();
 const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
 const videosCdnUrl = cityConfig.videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
+const mediaLocations = await fetch(new URL('/admin/data/media-locations.json', Astro.url)).then(r => r.json());
 ---
 
 <AdminEditorLayout title="New Route" wide user={Astro.locals.user} currentTab="routes">
-  <RouteCreator client:load cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} />
+  <RouteCreator client:load cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} mediaLocations={mediaLocations} />
 </AdminEditorLayout>

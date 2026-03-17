@@ -12,7 +12,6 @@ import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import polyline from '@mapbox/polyline';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
-import photoLocations from 'virtual:bike-app/media-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
 import { localeLabel } from '../../lib/i18n/locale-utils';
@@ -27,6 +26,7 @@ interface Props {
   mapCenter?: [number, number]; // [lat, lng] — city default center for new places
   nearRouteSlug?: string;
   detailsToggleLabel?: string;
+  mediaLocations?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
 }
 
 const categories = Object.entries(categoryEmoji);
@@ -63,7 +63,7 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [] }: Props) {
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -183,7 +183,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   // Filter photos near the current location
   const nearbyPhotos = useMemo(() => {
     if (!lat || !lng) return [];
-    return photoLocations
+    return mediaLocations
       .filter((p) => haversineM(lat, lng, p.lat, p.lng) <= PHOTO_NEAR_PLACE_M)
       .sort((a, b) => haversineM(lat, lng, a.lat, a.lng) - haversineM(lat, lng, b.lat, b.lng))
       .slice(0, 12);
