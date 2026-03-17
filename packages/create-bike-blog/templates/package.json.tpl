@@ -7,7 +7,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "setup": "node scripts/setup.js",
-    "sync": "node node_modules/whereto-bike/sync.js"
+    "sync": "node node_modules/whereto-bike/sync.js",
+    "postinstall": "node node_modules/whereto-bike/scripts/patch-astro-renderers.js"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.0.0-beta.11",

@@ -130,7 +130,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-lambda:
-    if: vars.VIDEO_PREFIX != ''
+    if: vars.VIDEO_PREFIX != '' && vars.SKIP_LAMBDA_DEPLOY != 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
