@@ -32,6 +32,16 @@ if (!plan || plan.mode === 'full' || !fs.existsSync(DIST_CACHE)) {
   // Incremental build — merge new pages into cached dist
   let copied = 0;
 
+  // The server bundle must come entirely from the current build — chunks
+  // have content hashes in their filenames, so merging old + new accumulates
+  // stale chunks and inflates the Worker size past Cloudflare's 10 MiB limit.
+  // Only client/ (static HTML pages) should be incrementally merged.
+  const cachedServer = path.join(DIST_CACHE, 'server');
+  if (fs.existsSync(cachedServer)) {
+    fs.rmSync(cachedServer, { recursive: true });
+    console.log('Cleared stale server chunks from cache');
+  }
+
   // Copy all files from new dist/ into cached dist/ (overwriting existing)
   copyRecursive(DIST, DIST_CACHE);
 
