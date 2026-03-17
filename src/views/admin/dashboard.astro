@@ -126,13 +126,6 @@ try {
     <!-- Welcome Area -->
     <section class="dashboard-welcome">
       <h1 class="dashboard-headline">{features.hasRides ? 'Your rides' : 'Collaborator area'}</h1>
-      <p class="dashboard-summary">
-        {features.hasRides
-          ? `Your personal ride journal. ${routeCount} ride${routeCount === 1 ? '' : 's'} so far. Every edit goes live within a few minutes.`
-          : `This is where ${cityConfig.display_name}'s cycling community builds and maintains the site together. ${routeCount} ${contentLabel}, ${placeCount} places, and ${eventCount} upcoming event${eventCount === 1 ? '' : 's'} so far. Every edit goes live within a few minutes.`
-        }
-      </p>
-      {nudge && <p class="dashboard-nudge">{nudge}</p>}
 
       <div class="dashboard-first-visit" id="dashboard-first-visit">
         <p>{features.hasRides
@@ -141,6 +134,14 @@ try {
         }</p>
         <button type="button" class="dashboard-first-visit-dismiss" id="dashboard-first-visit-dismiss">got it</button>
       </div>
+
+      <p class="dashboard-summary">
+        {features.hasRides
+          ? `Your personal ride journal. ${routeCount} ride${routeCount === 1 ? '' : 's'} so far. Every edit goes live within a few minutes.`
+          : `This is where ${cityConfig.display_name}'s cycling community builds and maintains the site together. ${routeCount} ${contentLabel}, ${placeCount} places, and ${eventCount} upcoming event${eventCount === 1 ? '' : 's'} so far. Every edit goes live within a few minutes.`
+        }
+      </p>
+      {nudge && <p class="dashboard-nudge">{nudge}</p>}
 
       <div class="dashboard-quickstart">
         {features.hasRoutes && <a href="/admin/routes/new" class="quickstart-pill">Upload a route</a>}
