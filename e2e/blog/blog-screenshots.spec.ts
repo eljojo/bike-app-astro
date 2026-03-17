@@ -111,7 +111,7 @@ test.describe('Blog Screenshots — Admin Pages', () => {
     await page.waitForTimeout(2000);
 
     // Blog settings shows profile section
-    await expect(page.locator('.settings-form h2').first()).toContainText('Profile');
+    await expect(page.locator('.settings-card-header').first()).toContainText('Profile');
 
     await expect(page).toHaveScreenshot('admin-settings.png', screenshotOpts);
   });

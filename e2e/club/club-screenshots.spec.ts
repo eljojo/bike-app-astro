@@ -109,7 +109,7 @@ test.describe('Club Screenshots — Admin Pages', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    await expect(page.locator('.settings-form h2').first()).toContainText('Profile');
+    await expect(page.locator('.settings-card-header').first()).toContainText('Profile');
 
     await expect(page).toHaveScreenshot('club-admin-settings.png', screenshotOpts);
   });
