@@ -51,6 +51,7 @@ const routes = [
   { pattern: '/admin/data/media-locations.json', entrypoint: view('admin/data/media-locations.json.ts') },
   { pattern: '/admin/data/nearby-media.json', entrypoint: view('admin/data/nearby-media.json.ts') },
   { pattern: '/admin/data/parked-media.json', entrypoint: view('admin/data/parked-media.json.ts') },
+  { pattern: '/admin/data/waypoint-suggestions/[slug].json', entrypoint: view('admin/data/waypoint-suggestions.json.ts') },
   ...contentTypeRoutes,
   // Dashboard — all instance types land here
   { pattern: '/admin', entrypoint: view('admin/dashboard.astro') },
