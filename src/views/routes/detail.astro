@@ -21,6 +21,7 @@ import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 const config = getCityConfig();
@@ -172,10 +173,10 @@ const breadcrumbs = breadcrumbJsonLd([
         {/* Zone 3: Description */}
         <div class="route-description" set:html={localeBody} />
 
-        <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">&#x270F;&#xFE0F; {t('route.suggest_edit', locale)}</a>
+        <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
-        {/* Zone 4: Actions */}
-        <div class="route-actions">
+        {/* Zone 4: Route Variants & External Links */}
+        <div class="route-variants">
           {variants.length > 1 ? (
             <div>
               <h3>{t('route.versions', locale, { count: variants.length })}</h3>
@@ -226,8 +227,11 @@ const breadcrumbs = breadcrumbJsonLd([
               )}
             </p>
           )}
+        </div>
 
-          {getInstanceFeatures().allowsReactions && (
+        {/* Zone 5: Reactions */}
+        {getInstanceFeatures().allowsReactions && (
+          <div class="route-reactions-zone">
             <ReactionsWidget client:idle contentType="route" contentSlug={route.id}
               bookmarkHint={t('reaction.bookmark_hint', locale)}
               trustReceiptMessage={t('reaction.trust_receipt', locale)}
@@ -236,8 +240,8 @@ const breadcrumbs = breadcrumbJsonLd([
                 { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
                 { type: 'star', icon: '\u{1F516}', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
               ]} />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {hasMap && (
@@ -258,6 +262,7 @@ const breadcrumbs = breadcrumbJsonLd([
     </div>
 
     <MediaGallery media={media} name={localeName} />
+    <EditEntryPoint text={t('route.add_photo', locale)} href={`/admin/routes/${route.id}?focus=media`} />
 
     {similarRoutes.length > 0 && (
       <div class="route-similar">

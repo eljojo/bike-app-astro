@@ -690,6 +690,21 @@ a.go-back-button {
   }
 }
 
+.edit-entry-point {
+  @include muted-text;
+  font-size: 0.85rem;
+  margin: 0.75rem 0;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 // Stats strip
 .route-stats {
   display: flex;
@@ -763,8 +778,24 @@ a.go-back-button {
   @include dark-mode { color: $color-text-muted-dark; }
 }
 
-// Actions bar
+// Actions bar (used by ride detail)
 .route-actions {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+// Route detail: variants zone
+.route-variants {
+  margin: 1.5rem 0;
+}
+
+// Route detail: reactions zone
+.route-reactions-zone {
   margin: 1.5rem 0;
   padding-top: 1rem;
   border-top: 1px solid $color-border;

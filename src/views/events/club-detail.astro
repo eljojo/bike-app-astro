@@ -12,6 +12,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { formatDateRange } from '@/lib/date-utils';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -113,6 +114,7 @@ const hasResults = data.results && data.results.length > 0;
         <div class="event-detail-body">
           <Content />
         </div>
+        <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
 
         {eventRoutes.length > 0 && (
           <section class="event-detail-section">
