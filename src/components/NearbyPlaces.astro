@@ -1,17 +1,21 @@
 ---
+import './NearbyPlaces.scss';
 import type { NearbyPlace } from '../lib/geo/proximity';
 import { categoryEmoji } from '../lib/geo/place-categories';
 import { defaultLocale } from '../lib/i18n/locale-utils';
 import { t } from '../i18n';
+import { getInstanceFeatures } from '../lib/config/instance-features';
 
 interface Props {
   nearby: NearbyPlace[];
   limit?: number;
+  routeSlug?: string;
 }
 
-const { nearby, limit } = Astro.props;
+const { nearby, limit, routeSlug } = Astro.props;
 const locale = Astro.currentLocale;
 const hasMore = limit != null && nearby.length > limit;
+const features = getInstanceFeatures();
 ---
 
 {nearby.length > 0 && (
@@ -44,6 +48,11 @@ const hasMore = limit != null && nearby.length > limit;
       <button class="action-button" id="show-all-places">
         {t('places.show_all', locale, { count: nearby.length })}
       </button>
+    )}
+    {features.showsContributeLink && routeSlug && (
+      <p class="nearby-places-add">
+        <a href={`/admin/places/new?near=${routeSlug}`}>{t('places.add_near_route_long', locale)}</a>
+      </p>
     )}
   </section>
 )}

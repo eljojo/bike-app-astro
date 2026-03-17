@@ -7,6 +7,7 @@ import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+import { t } from '@/i18n';
 
 const cityConfig = getCityConfig();
 const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
@@ -14,6 +15,9 @@ const videosCdnUrl = cityConfig.videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
+
+const nearSlug = Astro.url.searchParams.get('near') || undefined;
+const detailsToggleLabel = t('place_editor.details_toggle', Astro.currentLocale);
 
 const initialData = {
   id: '',
@@ -26,5 +30,5 @@ const initialData = {
 ---
 
 <AdminEditorLayout title="New Place" backLink="/admin/places" backLabel="Back to places" user={Astro.locals.user} currentTab="places">
-  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} />
+  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} />
 </AdminEditorLayout>

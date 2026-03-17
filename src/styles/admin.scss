@@ -321,33 +321,54 @@
   padding: 0.625rem 1.25rem;
 }
 
-.gate-btn-hint {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 400;
-  opacity: 0.8;
-  margin-top: 0.125rem;
-}
-
-.gate-divider {
+.gate-options--guest-first {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   text-align: center;
-  color: $color-text-muted;
-  font-size: 0.8125rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
 
-  @include dark-mode {
-    color: $color-text-muted-dark;
+.gate-reassurance {
+  @include muted-text;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.gate-btn--primary {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+}
+
+.gate-guest-hint {
+  @include muted-text;
+  font-size: 0.8rem;
+  margin: -0.25rem 0 0.75rem;
+}
+
+.gate-secondary-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+
+  a {
+    @include muted-text;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
   }
 }
 
-.gate-intro {
-  font-size: 0.875rem;
-  color: $color-text-muted;
-  margin: 0 0 0.5rem;
-  line-height: 1.5;
-
-  @include dark-mode {
-    color: $color-text-muted-dark;
-  }
+.gate-how-link {
+  @include muted-text;
+  font-size: 0.8rem;
+  margin-top: 1rem;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
 }
 
 // Tag editor (RouteEditor island)
@@ -1434,6 +1455,12 @@
   margin-top: 0.25rem;
 }
 
+.details-toggle {
+  margin: 0.75rem 0;
+  width: 100%;
+  text-align: left;
+}
+
 // Photo field (shared upload/preview component)
 .photo-field {
   display: flex;
@@ -1722,6 +1749,128 @@
   }
 }
 
+// ─── Route Editor — split pane layout ───
+
+.route-editor {
+  position: relative;
+}
+
+.route-editor-tabs {
+  display: none;
+
+  &--hidden { display: none; }
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid $color-border;
+
+    &--hidden { display: none; }
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+  }
+}
+
+.route-editor-tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: $color-text;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  &--active {
+    border-bottom: 2px solid $color-accent;
+  }
+}
+
+.route-editor-panes {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: block;
+  }
+}
+
+.route-editor-edit {
+  flex: 1;
+  min-width: 0;
+}
+
+.route-editor-preview {
+  flex: 1;
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    position: static;
+    max-height: none;
+  }
+}
+
+.route-editor-pane--hidden {
+  @media (max-width: $breakpoint-mobile) {
+    display: none;
+  }
+}
+
+// Route preview styles
+.route-preview-hero img {
+  width: 100%;
+  border-radius: $border-radius;
+}
+
+.route-preview-title {
+  font-size: 1.25rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.route-preview-tagline {
+  @include muted-text;
+  margin: 0 0 0.5rem;
+}
+
+.route-preview-tags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.route-preview-body {
+  line-height: 1.6;
+
+  h2 {
+    font-size: 1.1rem;
+    margin-top: 1rem;
+  }
+
+  p {
+    margin: 0.5em 0;
+  }
+}
+
 // Ride details (collapsible)
 .ride-details {
   border: 1px solid $color-border;
@@ -2002,17 +2151,36 @@
   height: auto;
 }
 
-.ride-preview-gallery {
+.ride-preview-gallery,
+.route-preview-gallery {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 
   img {
     width: 80px;
-    height: 60px;
+    height: 80px;
     object-fit: cover;
     border-radius: $border-radius;
   }
+}
+
+// Shared play indicator for video thumbnails in editor previews
+.preview-gallery-item {
+  position: relative;
+  display: inline-block;
+}
+
+.preview-gallery-play {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1;
 }
 
 // Tour picker
@@ -2371,6 +2539,33 @@
 .strava-activity--meta {
   font-size: 0.75rem;
   @include muted-text;
+}
+
+// Focus mode
+.focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  border: 1px solid $color-border;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.focus-header-label {
+  @include muted-text;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.focus-expand-btn {
+  white-space: nowrap;
 }
 
 .strava-browser--more {

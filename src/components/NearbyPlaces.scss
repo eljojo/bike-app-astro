@@ -1,25 +1,73 @@
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
-// Nearby places
-.nearby-places ul {
-  list-style: none;
-  padding: 0;
+.nearby-places {
+  h2 {
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    padding: 0.4em 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    line-height: 1.4;
+  }
 }
-.nearby-places li {
-  padding: 0.3em 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
+
+.place-emoji {
+  flex-shrink: 0;
+  font-size: 1.1em;
 }
+
 .place-name {
   text-decoration: none;
   color: inherit;
+
   &:hover {
     text-decoration: underline;
   }
 }
+
 .place-link {
   font-size: 0.85em;
-  opacity: 0.7;
+  @include muted-text;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &::before {
+    content: '·';
+    margin-right: 0.3em;
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.places-hidden {
+  display: none;
+}
+
+.nearby-places-summary {
+  @include muted-text;
+  font-size: 0.9em;
+  margin-top: 0.6em;
+}
+
+.nearby-places-add {
+  @include muted-text;
+  font-size: 0.9em;
+  margin-top: 0.8em;
+
+  a {
+    color: inherit;
+  }
 }

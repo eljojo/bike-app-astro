@@ -457,10 +457,10 @@ a.go-back-button {
 // ============================================================
 
 // Home
-.welcome-message {
-  h3 {
-    font-family: $font-heading;
-  }
+.site-identity-line {
+  @include muted-text;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
 }
 .routes-grid {
   list-style: none;
@@ -485,6 +485,26 @@ a.go-back-button {
 }
 
 // About
+.about-what-is-this {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    margin: 0.4em 0;
+    line-height: 1.6;
+  }
+}
+
 .about-page--intro-text {
   display: block;
   max-width: 1130px;
@@ -670,6 +690,21 @@ a.go-back-button {
   }
 }
 
+.edit-entry-point {
+  @include muted-text;
+  font-size: 0.85rem;
+  margin: 0.75rem 0;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 // Stats strip
 .route-stats {
   display: flex;
@@ -743,8 +778,77 @@ a.go-back-button {
   @include dark-mode { color: $color-text-muted-dark; }
 }
 
-// Actions bar
+// Actions bar (used by ride detail)
 .route-actions {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+// Route detail: variants zone
+.route-variants {
+  margin: 1.5rem 0;
+}
+
+// Variant cards
+.variant-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+
+  @media (min-width: $breakpoint-tablet) {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+.variant-card {
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+  background: $color-card-bg;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+}
+
+.variant-card-name {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.variant-card-stats {
+  font-size: 0.9rem;
+  @include muted-text;
+  margin-bottom: 0.25rem;
+}
+
+.variant-card-dot {
+  margin: 0 0.3em;
+}
+
+.variant-card-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-card-external {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+// Route detail: reactions zone
+.route-reactions-zone {
   margin: 1.5rem 0;
   padding-top: 1rem;
   border-top: 1px solid $color-border;
@@ -757,12 +861,51 @@ a.go-back-button {
 // Similar routes
 .route-similar {
   margin-top: 2em;
-  ul { list-style: none; padding: 0; }
-  li { padding: 0.3em 0; }
-  .route-similar--score {
-    opacity: 0.6;
-    font-size: 0.85em;
+}
+
+.route-similar--cards {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em;
+  padding: 0;
+  margin: 0;
+}
+
+.route-similar--card {
+  width: calc(50% - 0.375em);
+
+  @media (min-width: $breakpoint-desktop) {
+    width: calc(33.333% - 0.5em);
   }
+
+  a {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: $border-radius;
+    object-fit: cover;
+    aspect-ratio: 3 / 2;
+  }
+}
+
+.route-similar--card-name {
+  display: block;
+  font-weight: 600;
+  margin-top: 0.3em;
+  font-size: 0.95em;
+}
+
+.route-similar--card-distance {
+  display: block;
+  font-size: 0.85em;
+  @include muted-text;
 }
 
 // Hidden nearby places (truncation toggle)
@@ -789,9 +932,34 @@ a.go-back-button {
 }
 
 .reactions-widget {
+  margin: 1.25rem 0;
+}
+
+.reactions-buttons {
   display: flex;
   gap: 0.75rem;
-  margin: 1.25rem 0;
+  flex-wrap: wrap;
+}
+
+.trust-receipt {
+  display: inline-block;
+  font-size: 0.8rem;
+  @include muted-text;
+  animation: fade-in-out 4s ease-in-out forwards;
+  margin-top: 0.5rem;
+}
+
+@keyframes fade-in-out {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.reaction-hint {
+  font-size: 0.8rem;
+  @include muted-text;
+  margin: 0.5rem 0 0;
 }
 
 .reaction-btn {

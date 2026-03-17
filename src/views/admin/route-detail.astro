@@ -14,6 +14,7 @@ import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
+import { t } from '@/i18n';
 
 const { slug } = Astro.params;
 
@@ -37,6 +38,14 @@ const videosCdnUrl = getCityConfig().videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const tagTranslations = loadTagTranslations();
 const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.tags))].sort();
+const focusParam = Astro.url.searchParams.get('focus');
+const focusMode = (focusParam === 'description' || focusParam === 'media') ? focusParam : null;
+const locale = Astro.currentLocale;
+const focusLabels = focusMode ? {
+  description: t('editor.focus_description', locale, { name: routeData.name }),
+  media: t('editor.focus_media', locale, { name: routeData.name }),
+  showAll: t('editor.show_all_fields', locale),
+} : undefined;
 ---
 
 <AdminEditorLayout
@@ -48,6 +57,6 @@ const knownTags = [...new Set(Object.values(adminRouteDetails).flatMap(r => r.ta
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} focusMode={focusMode} focusLabels={focusLabels} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

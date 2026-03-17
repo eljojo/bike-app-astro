@@ -1,0 +1,17 @@
+---
+import { getInstanceFeatures } from '../lib/config/instance-features';
+
+interface Props {
+  text: string;
+  href: string;
+}
+
+const { text, href } = Astro.props;
+const features = getInstanceFeatures();
+---
+
+{features.showsContributeLink && (
+  <p class="edit-entry-point">
+    <a href={href}>{text}</a>
+  </p>
+)}

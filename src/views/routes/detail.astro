@@ -1,18 +1,17 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/media/image-service';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/media/video-service';
 import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
 import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/geo/distance';
-import PhotoGallery from '@/components/PhotoGallery.astro';
+import MediaGallery from '@/components/MediaGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import VariantCards from '@/components/VariantCards.astro';
 import { elevationConclusion } from '@/lib/geo/elevation';
 import { routeShape, placeCounts } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
-import { t, tCategory, localePath, formatLocale } from '@/i18n';
+import { t, tCategory, localePath } from '@/i18n';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
@@ -22,6 +21,7 @@ import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 const config = getCityConfig();
@@ -29,16 +29,28 @@ const locale = Astro.currentLocale;
 
 export const prerender = true;
 export async function getStaticPaths() {
-  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
+  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix } = await loadRouteData();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
+
+  // Build lightweight data for similar routes thumbnails
+  const routeCardData: Record<string, { name: string; distance_km: number; coverKey?: string; translations?: Record<string, { name?: string; slug?: string }> }> = {};
+  for (const r of filtered) {
+    const cover = r.data.media.find(m => m.cover);
+    routeCardData[r.id] = {
+      name: r.data.name,
+      distance_km: r.data.distance_km,
+      coverKey: cover?.key,
+      translations: r.data.translations,
+    };
+  }
 
   return filtered.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData },
   }));
 }
 
-const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -55,8 +67,6 @@ for (const loc of supportedLocales()) {
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
 const ogImageAlt = cover?.caption || t('route.photo_from', locale, { name: localeName });
-const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
-const videos = media.filter(m => m.type === 'video');
 const hasMap = hasCachedMap(route.id, undefined, locale);
 const mapLang = cachedMapLocale(route.id, undefined, locale);
 
@@ -77,6 +87,22 @@ const minScore = variantScores.length > 0 ? Math.min(...variantScores) : null;
 const maxScore = variantScores.length > 0 ? Math.max(...variantScores) : null;
 const hasRange = minScore !== null && maxScore !== null && Math.abs(maxScore - minScore) > 3;
 const shape = primaryTrack ? routeShape(primaryTrack.points, primaryTrack.distance_m) : null;
+
+// Per-variant elevation conclusions and shapes for VariantCards
+const variantElevationConclusions: Record<string, string> = {};
+const variantShapes: Record<string, string> = {};
+for (const v of variants) {
+  const track = gpxTracks[v.gpx];
+  if (!track) continue;
+  const vKey = variantKeyFromGpx(v.gpx);
+  if (track.elevation_gain_m) {
+    const c = elevationConclusion(track.elevation_gain_m, allElevations);
+    if (c) variantElevationConclusions[vKey] = c;
+  }
+  const s = routeShape(track.points, track.distance_m);
+  if (s) variantShapes[vKey] = s;
+}
+
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
 
@@ -175,69 +201,33 @@ const breadcrumbs = breadcrumbJsonLd([
         {/* Zone 3: Description */}
         <div class="route-description" set:html={localeBody} />
 
-        <a href={`/admin/routes/${route.id}`} class="suggest-edit-link">&#x270F;&#xFE0F; {t('route.suggest_edit', locale)}</a>
+        <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
-        {/* Zone 4: Actions */}
-        <div class="route-actions">
-          {variants.length > 1 ? (
-            <div>
-              <h3>{t('route.versions', locale, { count: variants.length })}</h3>
-              {variants.map((v, i) => (
-                <p>
-                  <a href={paths.routeVariantMap(slug, variantKeyFromGpx(v.gpx), locale)} class={`action-button --wider ${i === 0 ? '--primary' : ''}`}>
-                    &#x1F5FA;&#xFE0F; {v.name} ({v.distance_km} km)
-                  </a>
-                  {v.strava_url && (
-                    <Fragment>
-                      {' '}
-                      <a href={v.strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                        <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                      </a>
-                    </Fragment>
-                  )}
-                  {v.rwgps_url && (
-                    <Fragment>
-                      {' '}
-                      <a href={v.rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                        <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
-                      </a>
-                    </Fragment>
-                  )}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p>
-              <a href={paths.routeMap(slug, locale)} class="action-button --primary --wider">
-                &#x1F5FA;&#xFE0F; {t('route.view_map', locale, { name: localeName })}
-              </a>
-              {variants[0]?.strava_url && (
-                <Fragment>
-                  {' '}
-                  <a href={variants[0].strava_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                    <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
-                  </a>
-                </Fragment>
-              )}
-              {variants[0]?.rwgps_url && (
-                <Fragment>
-                  {' '}
-                  <a href={variants[0].rwgps_url} target="_blank" rel="noopener" class="action-button --light --logo">
-                    <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
-                  </a>
-                </Fragment>
-              )}
-            </p>
-          )}
-
-          {getInstanceFeatures().allowsReactions && (
-            <ReactionsWidget client:idle contentType="route" contentSlug={route.id} labels={[
-              { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
-              { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
-              { type: 'star', icon: '\u2B50', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
-            ]} />
-          )}
+        {/* Zone 4: Route Variants & External Links */}
+        <div class="route-variants">
+          <VariantCards
+            variants={variants}
+            slug={slug}
+            localeName={localeName}
+            locale={locale}
+            elevationConclusions={variantElevationConclusions}
+            shapes={variantShapes}
+          />
         </div>
+
+        {/* Zone 5: Reactions */}
+        {getInstanceFeatures().allowsReactions && (
+          <div class="route-reactions-zone">
+            <ReactionsWidget client:idle contentType="route" contentSlug={route.id}
+              bookmarkHint={t('reaction.bookmark_hint', locale)}
+              trustReceiptMessage={t('reaction.trust_receipt', locale)}
+              labels={[
+                { type: 'ridden', icon: '\u{1F6B4}', label: t('reaction.ridden', locale) },
+                { type: 'thumbs-up', icon: '\u{1F44D}', label: t('reaction.thumbs-up', locale) },
+                { type: 'star', icon: '\u{1F516}', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
+              ]} />
+          </div>
+        )}
       </div>
 
       {hasMap && (
@@ -250,53 +240,44 @@ const breadcrumbs = breadcrumbJsonLd([
             />
           </a>
           {nearbyPlaces.length > 0 && (
-            <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+            <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
           )}
           {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
         </div>
       )}
     </div>
 
-    {photos.length > 0 && (
-      <PhotoGallery photos={photos} routeName={localeName} />
-    )}
-
-    {videos.length > 0 && (
-      <section class="route-videos">
-        <h3>{t('videos.title', locale)}</h3>
-        {videos.map(video => {
-          const sources = videoPlaybackSources(video.key);
-          const size = videoDisplaySize(video.width || 640, video.height || 360);
-          return (
-            <div class="route-video">
-              <video
-                controls
-                preload="metadata"
-                width={size.width}
-                height={size.height}
-                poster={videoPosterUrl(video.key)}
-                disablepictureinpicture
-              >
-                {sources.map(s => <source src={s.src} type={s.type} />)}
-                <p><a href={videoFallbackUrl(video.key)}>{video.title || t('videos.download', locale)}</a></p>
-              </video>
-              {video.title && <p><a href={paths.video(video.handle)}>{video.title}</a></p>}
-            </div>
-          );
-        })}
-      </section>
-    )}
+    <MediaGallery media={media} name={localeName} />
+    <EditEntryPoint text={t('route.add_photo', locale)} href={`/admin/routes/${route.id}?focus=media`} />
 
     {similarRoutes.length > 0 && (
       <div class="route-similar">
         <h3>{t('route.similar', locale)}</h3>
-        <ul>
-          {similarRoutes.map(s => (
-            <li>
-              <a href={paths.route(s.id, locale)}>{routeNames[s.id]}</a>
-              <span class="route-similar--score"> ({t('route.similar_pct', locale, { score: s.score })})</span>
-            </li>
-          ))}
+        <ul class="route-similar--cards">
+          {similarRoutes.map(s => {
+            const card = routeCardData[s.id];
+            if (!card) return null;
+            const cardName = card.translations?.[locale!]?.name || card.name;
+            const slug = routeSlug({ id: s.id, data: { translations: card.translations || {} } }, locale);
+            return (
+              <li class="route-similar--card">
+                <a href={paths.route(slug, locale)}>
+                  {card.coverKey && (
+                    <img
+                      src={imageUrl(card.coverKey, { width: 300, height: 200, fit: 'cover' })}
+                      srcset={`${imageUrl(card.coverKey, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                      alt={cardName}
+                      width="300"
+                      height="200"
+                      loading="lazy"
+                    />
+                  )}
+                  <span class="route-similar--card-name">{cardName}</span>
+                  <span class="route-similar--card-distance">{formatDistance([card.distance_km])}</span>
+                </a>
+              </li>
+            );
+          })}
         </ul>
       </div>
     )}
@@ -305,5 +286,4 @@ const breadcrumbs = breadcrumbJsonLd([
       <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
-  {videos.length > 0 && <script>import '@/lib/media/hls-player';</script>}
 </Base>

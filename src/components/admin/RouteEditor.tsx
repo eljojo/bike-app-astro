@@ -9,6 +9,9 @@ import type { VariantItem } from './VariantManager';
 import MarkdownEditor from './MarkdownEditor';
 import NearbyMedia from './NearbyMedia';
 import EditorActions from './EditorActions';
+import RoutePreview from './RoutePreview';
+import EditorFocusWrapper from './EditorFocusWrapper';
+import { FocusHeader } from './EditorFocusWrapper';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
@@ -31,10 +34,12 @@ interface Props {
   defaultLocale?: string;
   userRole?: string;
   showLicenseNotice?: boolean;
+  focusMode?: 'description' | 'media' | null;
+  focusLabels?: { description: string; media: string; showAll: string };
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -57,6 +62,12 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       ])
     )
   );
+
+  const [focusExpanded, setFocusExpanded] = useState(false);
+  const effectiveFocus = focusExpanded ? null : (focusMode || null);
+
+  // Mobile tabs for edit/preview
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
@@ -184,6 +195,33 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
         </div>
       )}
+      {effectiveFocus && focusLabels && (
+        <FocusHeader
+          focusSection={effectiveFocus}
+          labels={{ description: focusLabels.description, media: focusLabels.media }}
+          showAllLabel={focusLabels.showAll}
+          onExpand={() => setFocusExpanded(true)}
+        />
+      )}
+
+      {/* Mobile tabs — hidden in focus mode */}
+      <div class={`route-editor-tabs ${effectiveFocus ? 'route-editor-tabs--hidden' : ''}`}>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('edit')}
+        >Edit</button>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('preview')}
+        >Preview</button>
+      </div>
+
+      <div class="route-editor-panes">
+        {/* LEFT PANE: Editor */}
+        <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
+      <EditorFocusWrapper focused={effectiveFocus === 'description'} focusActive={!!effectiveFocus}>
       <div class="locale-tabs">
         {[defaultLocale, ...Object.keys(translations).filter(l => l !== defaultLocale)].map(locale => (
           <button
@@ -295,7 +333,9 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
             />
           </div>
         </div>
+      </EditorFocusWrapper>
 
+      <EditorFocusWrapper focused={effectiveFocus === 'media'} focusActive={!!effectiveFocus}>
       <section class="editor-section">
         <h2>Photos</h2>
         <MediaManager
@@ -351,7 +391,9 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           }}
         />
       </section>
+      </EditorFocusWrapper>
 
+      <EditorFocusWrapper focused={false} focusActive={!!effectiveFocus}>
       <section class="editor-section">
         <h2>Route Options</h2>
         <VariantManager
@@ -361,13 +403,32 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           onPendingProcessed={() => setPendingGpxFiles([])}
         />
       </section>
+      </EditorFocusWrapper>
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
         onSave={handleSave} contentType="route" userRole={userRole}
         viewLink={`/routes/${initialData.slug}`}
         showLicenseNotice={showLicenseNotice !== false}
+        licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
+        </div>
+
+        {/* RIGHT PANE: Preview */}
+        <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+          <RoutePreview
+            name={getField('name')}
+            tagline={getField('tagline')}
+            tags={tags}
+            body={getField('body')}
+            media={media}
+            cdnUrl={cdnUrl}
+            videosCdnUrl={videosCdnUrl}
+            videoPrefix={videoPrefix}
+            displayTag={displayTag}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -237,7 +237,7 @@ make contributors  # build contributor stats (must run BEFORE astro build)
 make fonts         # download and embed Google Fonts
 ```
 
-**Build order matters:** `make contributors` and `make maps` must run before `astro build` — they generate files consumed by virtual modules.
+**Build order matters:** `make contributors` and `make maps` must run before `astro build` — they generate files consumed by virtual modules or served as static assets.
 
 ## Git Conventions
 

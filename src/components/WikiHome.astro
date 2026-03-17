@@ -2,16 +2,16 @@
 import RouteCard from '@/components/RouteCard.astro';
 import TagFilter from '@/components/TagFilter.astro';
 import { t } from '@/i18n';
+import { getCityConfig } from '@/lib/config/city-config';
 import { routeSlug } from '@/lib/paths';
 import { loadHomepageData } from '@/lib/route-data';
 
 const locale = Astro.currentLocale;
+const config = getCityConfig();
 const { published, filterTags, routeTagsMap } = await loadHomepageData();
 ---
 
-<div class="welcome-message">
-  <h3>{t('home.welcome', locale)}</h3>
-</div>
+<p class="site-identity-line">{t('home.identity', locale, { display_name: config.display_name })}</p>
 <TagFilter tags={filterTags} />
 <ul class="routes-grid">
   {published.map((route, i) => {
@@ -35,7 +35,7 @@ const { published, filterTags, routeTagsMap } = await loadHomepageData();
 </ul>
 <div class="suggest-route-cta">
   <a href="/admin/routes/new" class="suggest-route-link">
-    Know a route that's missing? Suggest a new route
+    {t('home.suggest_route', locale)}
   </a>
 </div>
 <script>

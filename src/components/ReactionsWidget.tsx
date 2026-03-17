@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
+import TrustReceipt from './TrustReceipt';
 
 interface ReactionButton {
   type: string;
@@ -11,39 +12,21 @@ interface Props {
   contentType: 'route' | 'event';
   contentSlug: string;
   labels: ReactionButton[];
+  bookmarkHint?: string;
+  trustReceiptMessage?: string;
 }
 
 interface ReactionCounts {
   [key: string]: number;
 }
 
-const PENDING_KEY = 'pending_reaction';
-
-function storePendingReaction(contentType: string, contentSlug: string, reactionType: string) {
-  try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ contentType, contentSlug, reactionType }));
-  } catch { /* localStorage unavailable */ }
-}
-
-function consumePendingReaction(contentType: string, contentSlug: string): string | null {
-  try {
-    const raw = localStorage.getItem(PENDING_KEY);
-    if (!raw) return null;
-    const pending = JSON.parse(raw);
-    if (pending.contentType === contentType && pending.contentSlug === contentSlug) {
-      localStorage.removeItem(PENDING_KEY);
-      return pending.reactionType;
-    }
-  } catch { /* ignore */ }
-  return null;
-}
-
-export default function ReactionsWidget({ contentType, contentSlug, labels }: Props) {
+export default function ReactionsWidget({ contentType, contentSlug, labels, bookmarkHint, trustReceiptMessage }: Props) {
   const [counts, setCounts] = useState<ReactionCounts>({});
   const [userReactions, setUserReactions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [animating, setAnimating] = useState<string | null>(null);
-  const pendingProcessed = useRef(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const hasShownReceipt = useRef(false);
 
   const fetchReactions = useCallback(async () => {
     try {
@@ -69,17 +52,42 @@ export default function ReactionsWidget({ contentType, contentSlug, labels }: Pr
     setTimeout(() => setAnimating(null), 600);
   };
 
+  const createSilentGuest = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/auth/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const toggleReaction = useCallback(async (reactionType: string) => {
-    const res = await fetch('/api/reactions', {
+    let res = await fetch('/api/reactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contentType, contentSlug, reactionType }),
     });
 
+    // Silent guest creation on 401
     if (res.status === 401) {
-      storePendingReaction(contentType, contentSlug, reactionType);
-      window.location.href = `/gate?returnTo=${encodeURIComponent(window.location.pathname)}`;
-      return;
+      const created = await createSilentGuest();
+      if (!created) return;
+
+      // Retry the reaction with the new session cookie
+      res = await fetch('/api/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType, contentSlug, reactionType }),
+      });
+
+      // Show trust receipt on first silent guest creation
+      if (res.ok && !hasShownReceipt.current) {
+        hasShownReceipt.current = true;
+        setShowReceipt(true);
+      }
     }
 
     if (res.ok) {
@@ -99,40 +107,38 @@ export default function ReactionsWidget({ contentType, contentSlug, labels }: Pr
         setUserReactions(prev => prev.filter(r => r !== reactionType));
       }
     }
-  }, [contentType, contentSlug]);
-
-  // After loading, check for a pending reaction (user just returned from gate)
-  useEffect(() => {
-    if (loading || pendingProcessed.current) return;
-    pendingProcessed.current = true;
-    const pending = consumePendingReaction(contentType, contentSlug);
-    if (pending) {
-      toggleReaction(pending);
-    }
-  }, [loading, contentType, contentSlug, toggleReaction]);
+  }, [contentType, contentSlug, createSilentGuest]);
 
   if (loading) return null;
 
   return (
     <div class="reactions-widget">
-      {labels.map(({ type, icon, label, title }) => {
-        const count = counts[type] || 0;
-        const active = userReactions.includes(type);
-        const isAnimating = animating === type;
-        return (
-          <button
-            key={type}
-            type="button"
-            class={`reaction-btn ${active ? 'active' : ''} ${isAnimating ? 'pop' : ''}`}
-            onClick={() => toggleReaction(type)}
-            title={title || label}
-          >
-            <span class={`reaction-icon ${isAnimating ? 'pop' : ''}`}>{icon}</span>
-            <span class="reaction-label">{label}</span>
-            {count > 0 && <span class="reaction-count">{count}</span>}
-          </button>
-        );
-      })}
+      <div class="reactions-buttons">
+        {labels.map(({ type, icon, label, title }) => {
+          const count = counts[type] || 0;
+          const active = userReactions.includes(type);
+          const isAnimating = animating === type;
+          return (
+            <button
+              key={type}
+              type="button"
+              class={`reaction-btn ${active ? 'active' : ''} ${isAnimating ? 'pop' : ''}`}
+              onClick={() => toggleReaction(type)}
+              title={title || label}
+            >
+              <span class={`reaction-icon ${isAnimating ? 'pop' : ''}`}>{icon}</span>
+              <span class="reaction-label">{label}</span>
+              {count > 0 && <span class="reaction-count">{count}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {showReceipt && trustReceiptMessage && (
+        <TrustReceipt message={trustReceiptMessage} />
+      )}
+      {bookmarkHint && (
+        <p class="reaction-hint">{bookmarkHint}</p>
+      )}
     </div>
   );
 }

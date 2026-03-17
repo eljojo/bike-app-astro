@@ -44,9 +44,8 @@ export default function RidePreview({
   }, [body]);
 
   const cover = media.find(m => m.cover) || media[0];
-  const photos = media;
 
-  function rideImageUrl(item: { key: string; type?: string }, opts?: { width?: number }) {
+  function thumbUrl(item: { key: string; type?: string }, opts?: { width?: number }) {
     const w = opts?.width || 400;
     return buildMediaThumbnailUrl(item, thumbConfig, { width: w, format: 'auto' });
   }
@@ -57,8 +56,8 @@ export default function RidePreview({
         {cover && (
           <div class="ride-preview-hero">
             <img
-              src={rideImageUrl(cover, { width: 830 })}
-              srcset={`${rideImageUrl(cover, { width: 1660 })} 2x`}
+              src={thumbUrl(cover, { width: 830 })}
+              srcset={`${thumbUrl(cover, { width: 1660 })} 2x`}
               alt={name}
             />
           </div>
@@ -145,10 +144,13 @@ export default function RidePreview({
           );
         })()}
 
-        {photos.length > 0 && (
+        {media.length > 0 && (
           <div class="ride-preview-gallery">
-            {photos.map((photo) => (
-              <img key={photo.key} src={rideImageUrl(photo, { width: 200 })} alt={photo.caption || ''} />
+            {media.map((item) => (
+              <div key={item.key} class="preview-gallery-item">
+                <img src={thumbUrl(item, { width: 200 })} alt={item.caption || ''} />
+                {item.type === 'video' && <span class="preview-gallery-play">&#x25B6;</span>}
+              </div>
             ))}
           </div>
         )}

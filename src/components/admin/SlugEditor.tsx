@@ -27,8 +27,8 @@ export default function SlugEditor({ slug, onSlugChange, prefix, canEdit = true 
       <button type="button" class="btn-small" onClick={() => setEditing(false)}>Done</button>
     </div>
   ) : (
-    <button type="button" class="editor-slug-toggle" onClick={() => setEditing(true)}>
-      {prefix}{slug}
-    </button>
+    <span class="editor-slug-toggle" role="button" tabIndex={0} onClick={() => setEditing(true)} onKeyDown={(e) => { if (e.key === 'Enter') setEditing(true); }}>
+      <span class="editor-slug-origin">{typeof window !== 'undefined' ? window.location.origin : ''}</span>{prefix}{slug}
+    </span>
   );
 }

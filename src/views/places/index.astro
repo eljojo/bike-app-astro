@@ -3,9 +3,12 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { categoryEmoji } from '@/lib/geo/place-categories';
+import { t } from '@/i18n';
 
 const config = getCityConfig();
+const locale = Astro.currentLocale;
 
 const places = await getCollection('places');
 const sorted = places
@@ -25,4 +28,11 @@ const sorted = places
       </li>
     ))}
   </ul>
+  {getInstanceFeatures().showsContributeLink && (
+    <div class="suggest-route-cta">
+      <a href="/admin/places/new" class="suggest-route-link">
+        {t('places.add_missing', locale)}
+      </a>
+    </div>
+  )}
 </Base>

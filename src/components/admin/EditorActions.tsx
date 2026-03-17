@@ -14,6 +14,8 @@ interface Props {
   viewLink?: string;
   /** Show CC BY-SA license notice (default true) */
   showLicenseNotice?: boolean;
+  /** URL for "What does this mean?" link next to license notice */
+  licenseDocsUrl?: string;
   /** Extra disabled condition beyond `saving` */
   disabled?: boolean;
 }
@@ -21,7 +23,7 @@ interface Props {
 export default function EditorActions({
   error, githubUrl, saved, saving, onSave,
   contentType, userRole, viewLink,
-  showLicenseNotice = true, disabled = false,
+  showLicenseNotice = true, licenseDocsUrl, disabled = false,
 }: Props) {
   return (
     <div class="editor-actions">
@@ -55,8 +57,9 @@ export default function EditorActions({
       )}
       {showLicenseNotice && (
         <p class="editor-license-notice">
-          By saving, you agree to release your contribution under{' '}
+          Your contribution will be shared under{' '}
           <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
+          {licenseDocsUrl && <>{' '}<a href={licenseDocsUrl}>What does this mean?</a></>}
         </p>
       )}
       <button type="button" class="btn-primary" onClick={onSave} disabled={saving || disabled}>

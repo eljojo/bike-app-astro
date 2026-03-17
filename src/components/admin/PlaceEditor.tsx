@@ -10,6 +10,7 @@ import { categoryEmoji } from '../../lib/geo/place-categories';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
+import polyline from '@mapbox/polyline';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import photoLocations from 'virtual:bike-app/media-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
@@ -24,6 +25,8 @@ interface Props {
   userRole?: string;
   secondaryLocales?: string[];
   mapCenter?: [number, number]; // [lat, lng] — city default center for new places
+  nearRouteSlug?: string;
+  detailsToggleLabel?: string;
 }
 
 const categories = Object.entries(categoryEmoji);
@@ -60,7 +63,7 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel }: Props) {
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -90,6 +93,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [googleMapsUrl, setGoogleMapsUrl] = useState(initialData.google_maps_url || '');
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
   const [prefilling, setPrefilling] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(!initialData.isNew);
 
   const initialRender = useRef(true);
   useEffect(() => {
@@ -297,6 +301,50 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     };
   }, []);
 
+  // Draw reference route polyline when creating a place near a route
+  useEffect(() => {
+    if (!nearRouteSlug) return;
+
+    fetch(`/routes/${nearRouteSlug}.json`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data || !mapInstanceRef.current) return;
+        const variant = data.variants?.[0];
+        if (!variant?.polyline) return;
+
+        const decoded = polyline.decode(variant.polyline);
+        const geojson = {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: decoded.map(([lat, lng]: [number, number]) => [lng, lat]),
+          },
+          properties: {},
+        };
+
+        const map = mapInstanceRef.current;
+        map.addSource('route-reference', { type: 'geojson', data: geojson });
+        map.addLayer({
+          id: 'route-reference-line',
+          type: 'line',
+          source: 'route-reference',
+          paint: {
+            'line-color': '#2563eb',
+            'line-width': 3,
+            'line-opacity': 0.4,
+          },
+        });
+
+        if (!lat && !lng && variant.bounds) {
+          map.fitBounds(
+            [[variant.bounds[0][1], variant.bounds[0][0]], [variant.bounds[1][1], variant.bounds[1][0]]],
+            { padding: 40 }
+          );
+        }
+      })
+      .catch(() => {});
+  }, [nearRouteSlug]);
+
   const googleMapsField = (
     <div class="form-field">
       <label for="place-google-maps">
@@ -330,14 +378,6 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
             onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         </div>
 
-        {locales.map(locale => (
-          <div class="form-field" key={locale}>
-            <label for={`place-name-${locale}`}>Name ({localeLabel(locale)})</label>
-            <input id={`place-name-${locale}`} type="text" value={translations[locale] || ''}
-              onInput={(e) => setTranslation(locale, (e.target as HTMLInputElement).value)} />
-          </div>
-        ))}
-
         <div class="form-field">
           <label for="place-category">Category</label>
           <select id="place-category" value={category}
@@ -358,24 +398,45 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           )}
         </div>
 
-        <div class="form-field">
-          <label for="place-address">Address</label>
-          <input id="place-address" type="text" value={address}
-            onInput={(e) => setAddress((e.target as HTMLInputElement).value)} />
-        </div>
+        {initialData.isNew && !detailsExpanded && (
+          <button type="button" class="btn-secondary details-toggle"
+            onClick={() => setDetailsExpanded(true)}>
+            {detailsToggleLabel || 'Add details (address, website, phone)'}
+          </button>
+        )}
 
-        <div class="form-field">
-          <label for="place-website">Website</label>
-          <input id="place-website" type="url" value={website}
-            placeholder="https://"
-            onInput={(e) => setWebsite((e.target as HTMLInputElement).value)} />
-        </div>
+        {(detailsExpanded || !initialData.isNew) && (
+          <>
+            {locales.map(locale => (
+              <div class="form-field" key={locale}>
+                <label for={`place-name-${locale}`}>Name ({localeLabel(locale)})</label>
+                <input id={`place-name-${locale}`} type="text" value={translations[locale] || ''}
+                  onInput={(e) => setTranslation(locale, (e.target as HTMLInputElement).value)} />
+              </div>
+            ))}
 
-        <div class="form-field">
-          <label for="place-phone">Phone</label>
-          <input id="place-phone" type="tel" value={phone}
-            onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
-        </div>
+            <div class="form-field">
+              <label for="place-address">Address</label>
+              <input id="place-address" type="text" value={address}
+                onInput={(e) => setAddress((e.target as HTMLInputElement).value)} />
+            </div>
+
+            <div class="form-field">
+              <label for="place-website">Website</label>
+              <input id="place-website" type="url" value={website}
+                placeholder="https://"
+                onInput={(e) => setWebsite((e.target as HTMLInputElement).value)} />
+            </div>
+
+            <div class="form-field">
+              <label for="place-phone">Phone</label>
+              <input id="place-phone" type="tel" value={phone}
+                onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
+            </div>
+
+            {initialData.isNew && googleMapsField}
+          </>
+        )}
 
         {!initialData.isNew && googleMapsField}
 
@@ -414,6 +475,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
         onSave={handleSave} contentType="place" userRole={userRole}
         viewLink="/admin/places"
+        licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
     </div>
   );

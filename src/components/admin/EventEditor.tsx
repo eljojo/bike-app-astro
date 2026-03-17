@@ -442,6 +442,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         onSave={handleSave} contentType="event" userRole={userRole}
         viewLink={`/events/${initialData.id}`}
         showLicenseNotice={showLicenseNotice !== false}
+        licenseDocsUrl="https://whereto.bike/about/licensing/"
         disabled={readOnly}
       />
     </fieldset>
