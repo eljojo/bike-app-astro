@@ -52,9 +52,20 @@ const avatarUrl = avatarHash
     banner?.remove();
   });
 </script>
-<div class="admin-header">
-  {currentTab !== 'home' && (
+{currentTab !== 'home' && (
+  <div class="admin-header">
     <h1>{contentNav.find(n => n.tab === currentTab)?.label ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}</h1>
+  </div>
+)}
+
+<nav class="admin-nav">
+  <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
+  {contentNav.map(({ href, label, tab }) => (
+    <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
+  ))}
+  <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
+  {user.role === 'admin' && features.allowsRegistration && (
+    <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
   )}
   <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle" aria-expanded="false" aria-controls="user-menu-dropdown">
@@ -72,7 +83,7 @@ const avatarUrl = avatarHash
       </form>
     </div>
   </div>
-</div>
+</nav>
 <script is:inline nonce={cspNonce}>
   const toggle = document.getElementById('user-menu-toggle');
   const dropdown = document.getElementById('user-menu-dropdown');
@@ -93,17 +104,6 @@ const avatarUrl = avatarHash
     if (e.key === 'Escape') setOpen(false);
   });
 </script>
-
-<nav class="admin-nav">
-  <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
-  {contentNav.map(({ href, label, tab }) => (
-    <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
-  ))}
-  <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
-  {user.role === 'admin' && features.allowsRegistration && (
-    <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
-  )}
-</nav>
 
 <style lang="scss">
   @use '../styles/variables' as *;
@@ -167,9 +167,6 @@ const avatarUrl = avatarHash
   }
 
   .admin-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 1rem;
 
     h1 {
@@ -181,6 +178,7 @@ const avatarUrl = avatarHash
 
   .admin-nav {
     display: flex;
+    align-items: center;
     gap: 0.25rem;
     margin-bottom: 1rem;
     border-bottom: 1px solid $color-border;
@@ -213,6 +211,7 @@ const avatarUrl = avatarHash
     display: flex;
     align-items: center;
     font-size: 0.875rem;
+    margin-left: auto;
   }
 
   .admin-user-toggle {
