@@ -1,7 +1,6 @@
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
-// Event card
 .event-card {
   border: 1px solid $color-border;
   border-radius: 8px;
@@ -12,12 +11,38 @@
   flex: 0 0 24%;
   @media (max-width: $breakpoint-tablet) { flex: 0 0 49%; }
   @media (max-width: $breakpoint-mobile) { flex: auto; }
-  img { border-radius: 4px; margin-top: 0.5em; }
 }
+
+.event-card-poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 200px;
+  margin-top: 0.5em;
+  background: $color-card-bg;
+  border-radius: 4px;
+  overflow: hidden;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  img {
+    object-fit: contain;
+    max-height: 200px;
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
 .event-organizer { font-size: 1.5em; }
 .event-name { font-size: 1.5em; font-weight: bold; color: inherit; }
 .event-dates { font-size: 1.2em; }
 .event-distances { font-size: 0.9em; }
+.event-edition {
+  @include muted-text;
+  font-size: 0.85em;
+}
 .event-review { color: $color-accent; font-weight: 600; }
 @include dark-mode {
   .event-card { border-color: #333; }

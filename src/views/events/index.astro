@@ -51,6 +51,7 @@ const pastByYear = groupByYear(past);
           registration_url={e.data.registration?.url || e.data.registration_url}
           organizer={e.data.organizer}
           poster_key={e.data.poster_key}
+          edition={e.data.edition}
           eventId={e.id}
           href={paths.event(e.id, locale)}
         />
@@ -73,6 +74,7 @@ const pastByYear = groupByYear(past);
             location={e.data.location}
             organizer={e.data.organizer}
             poster_key={e.data.poster_key}
+            edition={e.data.edition}
             eventId={e.id}
             href={paths.event(e.id, locale)}
           />
