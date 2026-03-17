@@ -171,96 +171,109 @@ export default function SettingsForm({ username: initialUsername, email: initial
 
   return (
     <div class="settings-form">
-      <h2>Profile</h2>
-      {isGuest ? (
-        <div class="auth-form">
-          <p class="settings-help">
-            You're browsing as <strong>{initialUsername}</strong>.{' '}
-            <a href="/register?join=1">Create an account</a> to choose a username, set an email, and get credit for your contributions.
-          </p>
+      {/* Profile card */}
+      <div class="settings-card">
+        <div class="settings-card-header">Profile</div>
+        <div class="settings-card-body">
+          {isGuest ? (
+            <p class="settings-help" style={{ margin: 0 }}>
+              You're browsing as <strong>{initialUsername}</strong>.{' '}
+              <a href="/register?join=1">Create an account</a> to choose a username, set an email, and get credit for your contributions.
+            </p>
+          ) : (
+            <div class="settings-profile-row">
+              <div class="settings-avatar-col">
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  class="settings-avatar"
+                  width={80}
+                  height={80}
+                />
+                {emailModified && (
+                  <span class="settings-avatar-hint">Updates on save</span>
+                )}
+              </div>
+              <div class="settings-fields">
+                <div class="form-field">
+                  <label for="settings-email">Email</label>
+                  <input
+                    id="settings-email"
+                    type="email"
+                    value={email}
+                    placeholder="your@email.com"
+                    onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
+                  />
+                  <p class="settings-help">
+                    Used for your <a href="https://gravatar.com" target="_blank" rel="noopener noreferrer">Gravatar</a> avatar and optionally for commit attribution.
+                  </p>
+                </div>
+                <div class="form-field">
+                  <label for="settings-username">Username</label>
+                  <input
+                    id="settings-username"
+                    type="text"
+                    value={username}
+                    onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        <>
-          <div class="settings-profile">
-            <img
-              src={avatarUrl}
-              alt=""
-              class="settings-avatar"
-              width={80}
-              height={80}
-            />
-            {emailModified && (
-              <p class="settings-help">Gravatar updates on save</p>
-            )}
-          </div>
+      </div>
 
-          <div class="auth-form">
-            <div class="form-field">
-              <label for="settings-email">Email</label>
-              <input
-                id="settings-email"
-                type="email"
-                value={email}
-                placeholder="your@email.com"
-                onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
-              />
+      {/* Preferences card */}
+      <div class="settings-card">
+        <div class="settings-card-header">Preferences</div>
+        <div class="settings-card-body">
+          {!isGuest && (
+            <div class="settings-pref-group">
+              <label class="settings-checkbox">
+                <input
+                  type="checkbox"
+                  checked={emailInCommits}
+                  onChange={(e) => setEmailInCommits((e.target as HTMLInputElement).checked)}
+                />
+                Include my email in commit history
+              </label>
               <p class="settings-help">
-                Used for your <a href="https://gravatar.com" target="_blank" rel="noopener noreferrer">Gravatar</a> avatar and optionally for commit attribution.
+                When enabled, your email is used as the commit author so GitHub can link it to your account. Your username still gets credit in contributor stats.
               </p>
+              {!email.trim() && (
+                <p class="settings-help settings-help--warn">
+                  You need to set an email above for this to take effect.
+                </p>
+              )}
             </div>
-            <div class="form-field">
-              <label for="settings-username">Username</label>
-              <input
-                id="settings-username"
-                type="text"
-                value={username}
-                onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
-              />
-            </div>
-          </div>
-        </>
-      )}
+          )}
 
-      <h2>Preferences</h2>
-      <div class="auth-form">
-        {!isGuest && (
-          <>
+          <div class="settings-pref-group">
             <label class="settings-checkbox">
               <input
                 type="checkbox"
-                checked={emailInCommits}
-                onChange={(e) => setEmailInCommits((e.target as HTMLInputElement).checked)}
+                checked={analyticsOptOut}
+                onChange={(e) => setAnalyticsOptOut((e.target as HTMLInputElement).checked)}
               />
-              Include my email in commit history
+              Don't count my visits
             </label>
             <p class="settings-help">
-              When enabled, your email is used as the commit author so GitHub can link it to your account. Your username still gets credit in contributor stats.
+              Your page views won't be included in the site's Plausible analytics.
             </p>
-            {!email.trim() && (
-              <p class="settings-help settings-help--warn">
-                You need to set an email above for this to take effect.
-              </p>
-            )}
-          </>
-        )}
-
-        <label class="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={analyticsOptOut}
-            onChange={(e) => setAnalyticsOptOut((e.target as HTMLInputElement).checked)}
-          />
-          Don't count my visits
-        </label>
-        <p class="settings-help">
-          Your page views won't be included in the site's Plausible analytics.
-        </p>
+          </div>
+        </div>
       </div>
 
+      {/* Passkeys card */}
       {!isGuest && (
-        <>
-          <h2>Passkeys</h2>
-          <div class="auth-form">
+        <div class="settings-card">
+          <div class="settings-card-header">
+            Passkeys
+            {passkeys.length > 0 && (
+              <span class="settings-card-count">{passkeys.length}</span>
+            )}
+          </div>
+          <div class="settings-card-body">
             {passkeyError && <div class="auth-error">{passkeyError}</div>}
             {passkeys.length > 0 ? (
               <ul class="passkey-list">
@@ -283,28 +296,36 @@ export default function SettingsForm({ username: initialUsername, email: initial
                 ))}
               </ul>
             ) : (
-              <p class="settings-help">No passkeys registered.</p>
+              <p class="settings-help" style={{ margin: 0 }}>
+                No passkeys yet. Passkeys let you sign in with your fingerprint, face, or security key instead of a password.
+              </p>
             )}
             <button
               type="button"
-              class="btn-primary"
+              class="btn-secondary"
               onClick={handleAddPasskey}
               disabled={passkeyLoading}
             >
-              {passkeyLoading ? 'Adding...' : 'Add new passkey'}
+              {passkeyLoading ? 'Adding...' : '+ Add passkey'}
             </button>
           </div>
-        </>
+        </div>
       )}
 
+      {/* Strava card */}
       {stravaStatus?.configured && isAdmin && (
-        <>
-          <h2>Strava</h2>
-          <div class="auth-form">
+        <div class="settings-card">
+          <div class="settings-card-header">
+            Strava
+            {stravaStatus.connected && (
+              <span class="settings-card-badge settings-card-badge--connected">Connected</span>
+            )}
+          </div>
+          <div class="settings-card-body">
             {stravaStatus.connected ? (
               <>
-                <p class="settings-help">
-                  Connected to Strava{stravaStatus.athleteId ? ` (athlete ${stravaStatus.athleteId})` : ''}. You can import rides from the <a href="/admin/rides">rides page</a>.
+                <p class="settings-help" style={{ margin: 0 }}>
+                  Connected{stravaStatus.athleteId ? ` as athlete ${stravaStatus.athleteId}` : ''}. You can import rides from the <a href="/admin/rides">rides page</a>.
                 </p>
                 <button
                   type="button"
@@ -312,12 +333,12 @@ export default function SettingsForm({ username: initialUsername, email: initial
                   onClick={handleStravaDisconnect}
                   disabled={stravaLoading}
                 >
-                  {stravaLoading ? 'Disconnecting...' : 'Disconnect Strava'}
+                  {stravaLoading ? 'Disconnecting...' : 'Disconnect'}
                 </button>
               </>
             ) : (
               <>
-                <p class="settings-help">
+                <p class="settings-help" style={{ margin: 0 }}>
                   Connect your Strava account to import rides with GPS data and photos.
                 </p>
                 <a href="/api/strava/connect" class="btn-primary">
@@ -326,19 +347,20 @@ export default function SettingsForm({ username: initialUsername, email: initial
               </>
             )}
           </div>
-        </>
+        </div>
       )}
 
-      <div class="editor-actions">
+      {/* Save bar */}
+      <div class="settings-save-bar">
         {error && <div class="auth-error">{error}</div>}
-        {saved && <div class="save-success">Settings saved!</div>}
+        {saved && <div class="save-success">Settings saved</div>}
         <button
           type="button"
           class="btn-primary"
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Save settings'}
         </button>
       </div>
     </div>
