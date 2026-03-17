@@ -3,6 +3,7 @@ import './PhotoGallery.scss';
 import { imageUrl } from '../lib/media/image-service';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../lib/media/video-service';
 import ResponsiveImage from './ResponsiveImage.astro';
+import VideoPlayer from './VideoPlayer.tsx';
 import { t } from '../i18n';
 import { paths } from '../lib/paths';
 import { isBlogInstance } from '../lib/config/city-config';
@@ -88,17 +89,15 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
       const size = videoDisplaySize(video.width || 640, video.height || 360);
       return (
         <div class="route-video">
-          <video
-            controls
-            preload="metadata"
+          <VideoPlayer
+            client:idle
+            sources={sources}
+            poster={videoPosterUrl(video.key)}
+            fallbackUrl={videoFallbackUrl(video.key)}
             width={size.width}
             height={size.height}
-            poster={videoPosterUrl(video.key)}
-            disablepictureinpicture
-          >
-            {sources.map(s => <source src={s.src} type={s.type} />)}
-            <p><a href={videoFallbackUrl(video.key)}>{video.title || t('videos.download', locale)}</a></p>
-          </video>
+            title={video.title}
+          />
           {video.title && hasVideoPages && video.handle && (
             <p><a href={paths.video(video.handle, locale)}>{video.title}</a></p>
           )}
