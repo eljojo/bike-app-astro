@@ -2394,6 +2394,33 @@
   @include muted-text;
 }
 
+// Focus mode
+.focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  border: 1px solid $color-border;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.focus-header-label {
+  @include muted-text;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.focus-expand-btn {
+  white-space: nowrap;
+}
+
 .strava-browser--more {
   display: block;
   width: 100%;
