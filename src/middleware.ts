@@ -72,9 +72,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.cspNonce = createCspNonce();
   }
 
-  // Only protect admin pages and non-auth API routes
+  // Only protect admin pages and non-auth API routes.
+  // /admin/data/ endpoints are prerendered static JSON — exclude from auth
+  // so the build can generate real JSON files (not redirect pages).
   const isProtected =
-    pathname.startsWith('/admin') ||
+    (pathname.startsWith('/admin') && !pathname.startsWith('/admin/data/')) ||
     (pathname.startsWith('/api/') &&
      !pathname.startsWith('/api/auth/') &&
      !pathname.startsWith('/api/reactions/') &&
