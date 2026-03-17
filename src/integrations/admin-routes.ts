@@ -1,18 +1,9 @@
 import type { AstroIntegration } from 'astro';
 import { isBlogInstance } from '../lib/config/city-config';
 import { getContentTypes } from '../lib/content/content-types.server';
-import { getInstanceFeatures } from '../lib/config/instance-features';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
-
-/** Pick the admin index view based on instance type (evaluated at build time). */
-function adminIndexView(): string {
-  const features = getInstanceFeatures();
-  if (features.hasRides) return 'admin/rides.astro';
-  if (features.hasEnrichedEvents) return 'admin/events.astro';
-  return 'admin/index.astro';
-}
 
 // Content-type routes (admin pages + API) derived from registry.
 // Entrypoints in the registry are relative view paths (e.g. 'admin/events.astro')
@@ -49,11 +40,8 @@ const routes = [
   { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
   // Content-type admin pages and API endpoints (from registry)
   ...contentTypeRoutes,
-  // Admin index — serves the primary content type's list page per instance type.
-  // Skipped when a content type already claims /admin via adminListRoute (e.g. routes on wiki).
-  ...(!contentTypeRoutes.some(r => r.pattern === '/admin')
-    ? [{ pattern: '/admin', entrypoint: view(adminIndexView()) }]
-    : []),
+  // Dashboard — all instance types land here
+  { pattern: '/admin', entrypoint: view('admin/dashboard.astro') },
   // Non-content-type admin pages
   { pattern: '/admin/history', entrypoint: view('admin/history.astro') },
   { pattern: '/admin/users', entrypoint: view('admin/users.astro') },

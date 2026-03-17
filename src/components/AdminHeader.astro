@@ -33,7 +33,7 @@ const avatarUrl = avatarHash
 {isStaging && (
   <div class="staging-banner">Staging Environment</div>
 )}
-{features.showsContributeLink && (
+{features.showsContributeLink && currentTab !== 'home' && (
   <div class="community-banner" id="community-banner">
     This is a community wiki — feel free to browse and edit routes and events.
     Your changes go live within a few minutes.
@@ -53,7 +53,9 @@ const avatarUrl = avatarHash
   });
 </script>
 <div class="admin-header">
-  <h1>{contentNav.find(n => n.tab === currentTab)?.label ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}</h1>
+  {currentTab !== 'home' && (
+    <h1>{contentNav.find(n => n.tab === currentTab)?.label ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}</h1>
+  )}
   <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle">
       <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
@@ -88,6 +90,7 @@ const avatarUrl = avatarHash
 </script>
 
 <nav class="admin-nav">
+  <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
   {contentNav.map(({ href, label, tab }) => (
     <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
   ))}
