@@ -1,7 +1,7 @@
 {
   "name": "whereto-bike",
   "type": "module",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Open-source cycling platform — the CMS for cycling",
   "license": "AGPL-3.0",
   "repository": {
