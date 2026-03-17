@@ -132,7 +132,7 @@ try {
           ? 'Upload GPX files from your rides, add photos, and write about where you went. Each ride gets its own page with a map and everything you want to remember.'
           : 'You can add routes you\'ve ridden, mark places worth stopping at, and keep the event calendar current. No special permissions needed — browse around, and edit anything that could use your knowledge.'
         }</p>
-        <button type="button" class="dashboard-first-visit-dismiss" id="dashboard-first-visit-dismiss">got it</button>
+        <button type="button" class="dashboard-first-visit-dismiss" id="dashboard-first-visit-dismiss" aria-label="Dismiss">&times;</button>
       </div>
 
       <p class="dashboard-summary">
@@ -435,16 +435,14 @@ try {
   }
 
   .dashboard-first-visit {
+    position: relative;
     background: $color-info-bg;
     border: 1px solid $color-info-border;
     border-radius: $border-radius;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 2rem 0.75rem 1rem;
     margin-bottom: 0.75rem;
     font-size: 0.875rem;
     color: $color-info;
-    display: flex;
-    align-items: baseline;
-    gap: 1rem;
 
     @include dark-mode {
       background: $color-info-bg-dark;
@@ -456,15 +454,19 @@ try {
   }
 
   .dashboard-first-visit-dismiss {
-    font-size: 0.8125rem;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 1.125rem;
+    line-height: 1;
     color: inherit;
-    text-decoration: underline;
-    white-space: nowrap;
-    flex-shrink: 0;
+    opacity: 0.5;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
+    padding: 0.125rem 0.25rem;
+
+    &:hover { opacity: 1; }
   }
 
   .dashboard-quickstart {
