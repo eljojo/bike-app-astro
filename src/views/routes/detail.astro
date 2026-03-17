@@ -21,6 +21,7 @@ import { paths, assets, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
+import RouteCard from '@/components/RouteCard.astro';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
@@ -29,16 +30,31 @@ const locale = Astro.currentLocale;
 
 export const prerender = true;
 export async function getStaticPaths() {
-  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
+  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix } = await loadRouteData();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
+
+  // Build lightweight card data for similar routes rendering
+  const routeCardData: Record<string, { name: string; tagline?: string; distance_km: number; tags: string[]; coverKey?: string; variants: { name: string; gpx: string; distance_km?: number }[]; translations?: Record<string, { name?: string; tagline?: string; slug?: string }> }> = {};
+  for (const r of filtered) {
+    const cover = r.data.media.find(m => m.cover);
+    routeCardData[r.id] = {
+      name: r.data.name,
+      tagline: r.data.tagline,
+      distance_km: r.data.distance_km,
+      tags: r.data.tags,
+      coverKey: cover?.key,
+      variants: r.data.variants.map(v => ({ name: v.name, gpx: v.gpx, distance_km: v.distance_km })),
+      translations: r.data.translations,
+    };
+  }
 
   return filtered.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData },
   }));
 }
 
-const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeNames } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -241,13 +257,24 @@ const breadcrumbs = breadcrumbJsonLd([
     {similarRoutes.length > 0 && (
       <div class="route-similar">
         <h3>{t('route.similar', locale)}</h3>
-        <ul>
-          {similarRoutes.map(s => (
-            <li>
-              <a href={paths.route(s.id, locale)}>{routeNames[s.id]}</a>
-              <span class="route-similar--score"> ({t('route.similar_pct', locale, { score: s.score })})</span>
-            </li>
-          ))}
+        <ul class="route-similar--cards">
+          {similarRoutes.map(s => {
+            const card = routeCardData[s.id];
+            if (!card) return null;
+            const cardTrans = card.translations?.[locale!];
+            return (
+              <RouteCard
+                slug={s.id}
+                name={cardTrans?.name || card.name}
+                tagline={cardTrans?.tagline || card.tagline}
+                distance_km={card.distance_km}
+                tags={card.tags}
+                coverKey={card.coverKey}
+                variants={card.variants}
+                localeSlug={routeSlug({ id: s.id, data: { translations: card.translations || {} } }, locale)}
+              />
+            );
+          })}
         </ul>
       </div>
     )}
