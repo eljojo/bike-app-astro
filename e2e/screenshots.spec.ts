@@ -106,3 +106,20 @@ test.describe('Screenshots', () => {
     await expect(page.locator('.maplibregl-map')).toBeVisible();
   });
 });
+
+// SSR pages with Preact islands — verify they render in the Cloudflare build.
+// These catch "NoMatchingRenderer" errors where the Preact renderer is missing
+// from the server bundle at runtime (the page 500s instead of rendering).
+test.describe('SSR Preact islands', () => {
+  test('gate page renders AuthGate', async ({ page }) => {
+    const response = await page.goto('/gate');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('.gate-options')).toBeVisible();
+  });
+
+  test('register page renders RegisterForm', async ({ page }) => {
+    const response = await page.goto('/register');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('.auth-form')).toBeVisible();
+  });
+});

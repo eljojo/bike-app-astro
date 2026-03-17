@@ -192,6 +192,10 @@ jobs:
           # worker names). Remove it so wrangler uses our wrangler.jsonc.
           # Then patch our config with the worker entry point and assets path
           # (can't be present at build time because Vite validates the file exists).
+          #
+          # IMPORTANT: no_bundle must stay true. The Cloudflare adapter builds
+          # ESM chunks that break when wrangler re-bundles them with esbuild
+          # (NoMatchingRenderer errors for Preact islands in production).
           rm -f dist/server/wrangler.json
           rm -rf .wrangler/deploy
           node -e "
@@ -199,6 +203,7 @@ jobs:
             const c = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
             c.main = './dist/server/entry.mjs';
             c.assets.directory = './dist/client';
+            if (!c.no_bundle) throw new Error('wrangler.jsonc must have no_bundle: true');
             fs.writeFileSync('wrangler.jsonc', JSON.stringify(c, null, 2));
           "
 

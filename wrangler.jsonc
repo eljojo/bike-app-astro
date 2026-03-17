@@ -2,6 +2,8 @@
   "name": "whereto-bike",
   "compatibility_date": "2025-03-25",
   "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",

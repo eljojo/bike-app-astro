@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+// In CI (no .env file), the build uses the Cloudflare adapter and astro preview
+// runs on Workerd via @cloudflare/vite-plugin — the same runtime as production.
+// This means SSR tests here catch Workerd-specific issues like missing renderers.
 export default defineConfig({
   testDir: '.',
   testMatch: 'screenshots.spec.ts',
