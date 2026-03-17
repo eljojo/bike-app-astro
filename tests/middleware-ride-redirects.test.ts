@@ -16,7 +16,7 @@ vi.mock('virtual:bike-app/ride-redirects', () => ({
 }));
 
 // Mock remaining dependencies
-vi.mock('../src/lib/auth', () => ({
+vi.mock('../src/lib/auth/auth', () => ({
   validateSession: vi.fn(),
 }));
 vi.mock('../src/lib/get-db', () => ({

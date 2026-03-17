@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  eventDetailFromGit,
   eventDetailToCache,
   eventDetailFromCache,
+} from '../src/lib/models/event-model';
+import {
+  eventDetailFromGit,
   computeEventContentHash,
   computeEventContentHashFromFiles,
   buildFreshEventData,
-} from '../src/lib/models/event-model';
+} from '../src/lib/models/event-model.server';
 
 describe('eventDetailFromGit', () => {
   it('parses frontmatter and body into canonical shape', () => {
@@ -18,7 +20,7 @@ describe('eventDetailFromGit', () => {
       end_time: '17:00',
       registration_url: 'https://example.com',
       distances: '50k, 100k',
-      location: 'Ottawa',
+      location: 'Ottawa', // eslint-disable-line bike-app/no-hardcoded-city-locale -- content fixture
       organizer: 'bike-club',
       poster_key: 'abc123',
     };

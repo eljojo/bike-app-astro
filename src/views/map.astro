@@ -4,12 +4,12 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import BigMap from '@/components/BigMap.astro';
 import { getCollection } from 'astro:content';
-import { categoryEmoji } from '@/lib/place-categories';
-import { getCityConfig } from '@/lib/city-config';
+import { categoryEmoji } from '@/lib/geo/place-categories';
+import { getCityConfig } from '@/lib/config/city-config';
 import { t } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
-import photoLocations from 'virtual:bike-app/photo-locations';
-import { haversineM, PHOTO_NEAR_PLACE_M } from '@/lib/proximity';
+import photoLocations from 'virtual:bike-app/media-locations';
+import { haversineM, PHOTO_NEAR_PLACE_M } from '@/lib/geo/proximity';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;

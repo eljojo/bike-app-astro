@@ -2,10 +2,10 @@
 export const prerender = true;
 import Base from '../layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { getCityConfig } from '../lib/city-config';
+import { getCityConfig } from '../lib/config/city-config';
 import { paths, routeSlug } from '../lib/paths';
 import { localePath, t } from '../i18n/index';
-import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 
 const config = getCityConfig();
 const locales = supportedLocales();

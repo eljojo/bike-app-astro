@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
-import { authorize } from '@/lib/authorize';
-import { buildAuthorizationUrl } from '@/lib/strava-api';
-import { env } from '@/lib/env';
+import { authorize } from '@/lib/auth/authorize';
+import { buildAuthorizationUrl } from '@/lib/external/strava-api';
+import { env } from '@/lib/env/env.service';
 
 export const prerender = false;
 

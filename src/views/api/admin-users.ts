@@ -2,8 +2,8 @@ import type { APIContext } from 'astro';
 import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
 import { desc } from 'drizzle-orm';
-import { authorize } from '../../lib/authorize';
-import { banUser, unbanUser } from '../../lib/ban-service';
+import { authorize } from '../../lib/auth/authorize';
+import { banUser, unbanUser } from '../../lib/auth/ban-service';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;

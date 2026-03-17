@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/city-config', () => ({
+vi.mock('../src/lib/config/city-config', () => ({
   getCityConfig: vi.fn(() => ({
-    name: 'Ottawa',
+    name: 'Ottawa', // eslint-disable-line bike-app/no-hardcoded-city-locale -- display name fixture
     display_name: 'Ottawa by Bike',
     url: 'https://ottawabybike.ca',
     author: {

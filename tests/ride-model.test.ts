@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { rideDetailFromCache, rideDetailToCache, computeRideContentHash } from '../src/lib/models/ride-model';
+import { rideDetailFromCache, rideDetailToCache } from '../src/lib/models/ride-model';
 import type { RideDetail } from '../src/lib/models/ride-model';
+import { computeRideContentHash, rideDetailFromGit } from '../src/lib/models/ride-model.server';
 
 const sampleDetail: RideDetail = {
   slug: '2026-01-23-winter-ride',
@@ -54,6 +55,50 @@ describe('rideDetailToCache + rideDetailFromCache', () => {
     const parsed = rideDetailFromCache(cached);
     expect(parsed.strava_id).toBeUndefined();
     expect(parsed.privacy_zone).toBeUndefined();
+  });
+});
+
+describe('rideDetailFromGit media parsing', () => {
+  it('preserves video media items alongside photos', () => {
+    const mediaYaml = [
+      '- type: photo',
+      '  key: abc123',
+      '  caption: A photo',
+      '- type: video',
+      '  key: vid456',
+      '  title: A video',
+      '  duration: "00:01:30"',
+      '  orientation: landscape',
+      '  width: 1920',
+      '  height: 1080',
+    ].join('\n');
+
+    const detail = rideDetailFromGit('test-ride', { name: 'Test' }, '', undefined, mediaYaml);
+    expect(detail.media).toHaveLength(2);
+
+    const photo = detail.media.find(m => m.key === 'abc123');
+    expect(photo).toBeDefined();
+    expect(photo!.caption).toBe('A photo');
+
+    const video = detail.media.find(m => m.key === 'vid456');
+    expect(video).toBeDefined();
+    expect(video!.title).toBe('A video');
+    expect(video!.duration).toBe('00:01:30');
+    expect(video!.orientation).toBe('landscape');
+    expect(video!.width).toBe(1920);
+    expect(video!.height).toBe(1080);
+  });
+
+  it('preserves items without explicit type', () => {
+    const mediaYaml = [
+      '- key: legacy123',
+      '  caption: Legacy item',
+    ].join('\n');
+
+    const detail = rideDetailFromGit('test-ride', { name: 'Test' }, '', undefined, mediaYaml);
+    expect(detail.media).toHaveLength(1);
+    expect(detail.media[0].key).toBe('legacy123');
+    expect(detail.media[0].caption).toBe('Legacy item');
   });
 });
 

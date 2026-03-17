@@ -40,7 +40,7 @@ interface Props {
   center: [number, number];
 }
 
-import { getCityConfig } from '../lib/city-config';
+import { getCityConfig } from '../lib/config/city-config';
 const { routes, places, photos = [], center } = Astro.props;
 ---
 
@@ -58,9 +58,9 @@ const { routes, places, photos = [], center } = Astro.props;
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/map-init';
-  import { buildPlacePopup, html } from '../lib/map-helpers';
-  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/map-style-switch';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
+  import { buildPlacePopup, html } from '../lib/maps/map-helpers';
+  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
 

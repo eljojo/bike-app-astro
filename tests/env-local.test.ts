@@ -18,7 +18,7 @@ describe('local environment', () => {
   it('creates an env object with DB (drizzle instance)', async () => {
     process.env.LOCAL_DB_PATH = TEST_DB_PATH;
     process.env.LOCAL_UPLOADS_DIR = TEST_UPLOADS_DIR;
-    const { createLocalEnv } = await import('../src/lib/env-local');
+    const { createLocalEnv } = await import('../src/lib/env/env.adapter-local');
     const localEnv = createLocalEnv();
     expect(localEnv).toHaveProperty('DB');
     // DB should be a drizzle instance (has select, insert, etc.)
@@ -29,7 +29,7 @@ describe('local environment', () => {
   it('creates an env object with BUCKET (local storage)', async () => {
     process.env.LOCAL_DB_PATH = TEST_DB_PATH;
     process.env.LOCAL_UPLOADS_DIR = TEST_UPLOADS_DIR;
-    const { createLocalEnv } = await import('../src/lib/env-local');
+    const { createLocalEnv } = await import('../src/lib/env/env.adapter-local');
     const localEnv = createLocalEnv();
     expect(localEnv).toHaveProperty('BUCKET');
     expect(typeof localEnv.BUCKET.head).toBe('function');
@@ -45,7 +45,7 @@ describe('local environment', () => {
     process.env.WEBAUTHN_RP_NAME = 'test-app';
     process.env.WEBAUTHN_ORIGIN = 'http://localhost:9999';
     try {
-      const { createLocalEnv } = await import('../src/lib/env-local');
+      const { createLocalEnv } = await import('../src/lib/env/env.adapter-local');
       const localEnv = createLocalEnv();
       expect(localEnv.WEBAUTHN_RP_ID).toBe('test-localhost');
       expect(localEnv.WEBAUTHN_RP_NAME).toBe('test-app');
@@ -61,7 +61,7 @@ describe('local environment', () => {
     process.env.LOCAL_DB_PATH = TEST_DB_PATH;
     process.env.LOCAL_UPLOADS_DIR = TEST_UPLOADS_DIR;
     delete process.env.ENVIRONMENT;
-    const { createLocalEnv } = await import('../src/lib/env-local');
+    const { createLocalEnv } = await import('../src/lib/env/env.adapter-local');
     const localEnv = createLocalEnv();
     expect(localEnv.ENVIRONMENT).toBe('local');
   });

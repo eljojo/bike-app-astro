@@ -1,4 +1,4 @@
-import { translatePath } from './path-translations';
+import { translatePath } from './i18n/path-translations';
 
 /**
  * Generate Cloudflare-compatible _redirects lines for a translated route slug.

@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 import { eq } from 'drizzle-orm';
-import { authorize } from '@/lib/authorize';
+import { authorize } from '@/lib/auth/authorize';
 import { jsonResponse } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
 import { stravaTokens } from '@/db/schema';

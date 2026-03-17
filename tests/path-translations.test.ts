@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/city-config', () => ({
+vi.mock('../src/lib/config/city-config', () => ({
   getCityConfig: vi.fn(() => ({
     locale: 'en-CA',
     locales: ['en-CA', 'fr-CA'],
   })),
 }));
 
-import { translatePath, reverseTranslatePath } from '../src/lib/path-translations';
+import { translatePath, reverseTranslatePath } from '../src/lib/i18n/path-translations';
 
 describe('translatePath()', () => {
   it('returns path unchanged for English', () => {

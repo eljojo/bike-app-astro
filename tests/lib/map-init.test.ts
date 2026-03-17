@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeToGeoJson, buildPolylineFeature, photoPopupMaxWidth, TOUR_PALETTE } from '../../src/lib/map-init';
+import { decodeToGeoJson, buildPolylineFeature, photoPopupMaxWidth, TOUR_PALETTE } from '../../src/lib/maps/map-init';
 
 describe('map-init helpers', () => {
   it('decodes an encoded polyline to GeoJSON coordinates', () => {

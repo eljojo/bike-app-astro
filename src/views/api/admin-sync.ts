@@ -1,11 +1,11 @@
 import type { APIContext } from 'astro';
-import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
+import { env } from '../../lib/env/env.service';
+import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { contentEdits } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { CITY } from '../../lib/config';
-import { authorize } from '../../lib/authorize';
+import { CITY } from '../../lib/config/config';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;

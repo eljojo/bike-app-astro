@@ -11,6 +11,7 @@ import {
   loginAs,
   cleanupSession as _cleanupSession,
   clearContentEdits as _clearContentEdits,
+  getContentEdit as _getContentEdit,
   proxyTiles,
   type SeedOptions,
 } from '../shared-helpers.ts';
@@ -18,6 +19,7 @@ import {
 export const seedSession = (opts?: SeedOptions) => _seedSession(DB_PATH, opts);
 export const cleanupSession = (token: string) => _cleanupSession(DB_PATH, token);
 export const clearContentEdits = (contentType: string, slug: string) => _clearContentEdits(DB_PATH, contentType, slug);
+export const getContentEdit = (contentType: string, slug: string) => _getContentEdit(DB_PATH, contentType, slug);
 export { loginAs, proxyTiles };
 
 // --- Admin-only helpers below ---
@@ -34,9 +36,14 @@ function getFixtureRootCommit(): string {
 }
 
 /**
- * Remove files/dirs created by a previous test attempt so retries start clean.
- * Only touches the filesystem — no git operations needed since the server's
- * LocalGitService reads from disk, not from git objects.
+ * Remove files/dirs created by a previous test run so retries start clean.
+ *
+ * Deletes from the filesystem AND removes from the git index. The git
+ * index cleanup is critical: LocalGitService.writeFiles() uses
+ * `git add` + `git diff --cached` to detect changes. If a file was
+ * committed in a prior test run and then deleted from disk without
+ * removing it from the index, `git add` on identical content is a no-op
+ * and no commit happens — causing tests to fail with "HEAD unchanged".
  */
 export function cleanupCreatedFiles(paths: string[]) {
   for (const relPath of paths) {
@@ -44,6 +51,15 @@ export function cleanupCreatedFiles(paths: string[]) {
     if (fs.existsSync(fullPath)) {
       fs.rmSync(fullPath, { recursive: true });
     }
+  }
+  // Remove from git index so the next `git add` treats them as new.
+  // Uses `--ignore-unmatch` so it's safe if the files aren't tracked.
+  try {
+    execSync(`git rm --cached --ignore-unmatch ${paths.map(p => `"${p}"`).join(' ')}`, {
+      cwd: FIXTURE_DIR, stdio: 'pipe',
+    });
+  } catch {
+    // Ignore errors — files may not be tracked
   }
 }
 

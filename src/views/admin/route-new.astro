@@ -3,12 +3,16 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import RouteCreator from '../../components/admin/RouteCreator.tsx';
-import { env } from '../../lib/env';
-import { getCityConfig } from '../../lib/city-config';
+import { env } from '../../lib/env/env.service';
+import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
+import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 
-const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const cityConfig = getCityConfig();
+const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
+const videosCdnUrl = cityConfig.videos_cdn_url;
+const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 ---
 
 <AdminEditorLayout title="New Route" backLink="/admin" backLabel="Back to routes" user={Astro.locals.user} currentTab="routes">
-  <RouteCreator client:load cdnUrl={cdnUrl} />
+  <RouteCreator client:load cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} />
 </AdminEditorLayout>

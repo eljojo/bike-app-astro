@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/city-config', () => ({
+vi.mock('../src/lib/config/city-config', () => ({
   getCityConfig: () => ({
     locale: 'es-CL',
     locales: ['es-CL'],

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createLocalEmailService, createSesEmailService } from '../src/lib/email';
-import type { AppEnv } from '../src/lib/app-env';
+import { createLocalEmailService, createSesEmailService } from '../src/lib/external/email';
+import type { AppEnv } from '../src/lib/config/app-env';
 
 describe('email service', () => {
   it('creates a service with send method', () => {

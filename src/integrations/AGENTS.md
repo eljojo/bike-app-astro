@@ -10,4 +10,4 @@ Static routes MUST precede parameterized routes when they share a prefix. Exampl
 
 ## i18n Sync Requirement
 
-`localePages` in `i18n-routes.ts` and `segmentTranslations` in `src/lib/path-translations.ts` MUST stay in sync. Adding a route to `localePages` without a translation entry means the French URL uses the English segment.
+`localePages` in `i18n-routes.ts` and `segmentTranslations` in `src/lib/i18n/path-translations.ts` MUST stay in sync. Adding a route to `localePages` without a translation entry means the French URL uses the English segment.

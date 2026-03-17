@@ -1,13 +1,13 @@
 import type { APIContext } from 'astro';
-import { authorize } from '@/lib/authorize';
+import { authorize } from '@/lib/auth/authorize';
 import { jsonResponse, jsonError } from '@/lib/api-response';
 import { db } from '@/lib/get-db';
 import { reactions } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CITY } from '@/lib/config';
+import { CITY } from '@/lib/config/config';
 import { reactionSchema } from '@/lib/reaction-types';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';
-import { getInstanceFeatures } from '@/lib/instance-features';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/auth/rate-limit';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 
 export const prerender = false;
 

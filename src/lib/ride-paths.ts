@@ -33,11 +33,23 @@ export function rideFilePathsWithTour(gpxRelPath: string, tourSlug: string | und
 export function deriveGpxRelativePath(rideDate: string, gpxFilename: string, tourSlug?: string): string {
   if (!rideDate) throw new Error('ride_date is required to compute GPX path');
   if (!gpxFilename) throw new Error('GPX filename is required to compute GPX path');
-  const [year, month] = rideDate.split('-');
-  if (!year || !month) throw new Error(`Invalid ride_date format: ${rideDate}`);
+  const [year, month, dayStr] = rideDate.split('-');
+  if (!year || !month || !dayStr) throw new Error(`Invalid ride_date format: ${rideDate}`);
+
+  // Normalize filename to DD-name.gpx format.
+  // The editor may send various formats:
+  //   "2026-03-09-name.gpx" (Strava import — full date prefix)
+  //   "name.gpx" (GPX file upload — no date prefix)
+  //   "09-name.gpx" (already correct)
+  let baseName = gpxFilename.replace(/\.gpx$/i, '');
+  baseName = baseName.replace(/^\d{4}-\d{2}-\d{2}-/, ''); // strip YYYY-MM-DD-
+  baseName = baseName.replace(/^\d{1,2}-/, '');            // strip DD-
+  const day = dayStr.padStart(2, '0');
+  const normalizedFilename = `${day}-${baseName}.gpx`;
+
   const parts = [year, month];
   if (tourSlug) parts.push(tourSlug);
-  parts.push(gpxFilename);
+  parts.push(normalizedFilename);
   return parts.join('/');
 }
 

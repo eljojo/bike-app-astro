@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env';
+import { env } from '../../../lib/env/env.service';
 import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
 import { users } from '../../../db/schema';
@@ -7,11 +7,11 @@ import {
   normalizeEmail,
   getWebAuthnConfig,
   storeChallenge,
-} from '../../../lib/auth';
+} from '../../../lib/auth/auth';
 import { sanitizeUsername } from '../../../lib/username';
 import { eq } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { getInstanceFeatures } from '../../../lib/instance-features';
+import { getInstanceFeatures } from '../../../lib/config/instance-features';
 
 export const prerender = false;
 

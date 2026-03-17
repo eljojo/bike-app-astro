@@ -2,19 +2,19 @@
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
-import { serializeMdFile } from '../../lib/file-serializers';
-import { CITY } from '../../lib/config';
-import { env } from '../../lib/env';
+import { serializeMdFile } from '../../lib/content/file-serializers';
+import { CITY } from '../../lib/config/config';
+import { env } from '../../lib/env/env.service';
 import { jsonError } from '../../lib/api-response';
-import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
-import type { FileChange } from '../../lib/git-service';
-import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../../lib/models/place-model';
+import { saveContent } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
+import type { FileChange } from '../../lib/git/git.adapter-github';
+import { placeOps } from '../../lib/content/content-ops.server';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges } from '../../lib/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
+import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
 
 export const prerender = false;
 
@@ -56,14 +56,10 @@ interface PlaceBuildResult extends BuildResult {
   oldPhotoKey: string | undefined;
   newPhotoKey: string | undefined;
   placeSlug: string;
-  mergedParked: ParkedPhotoEntry[] | undefined;
+  mergedParked: ParkedMediaEntry[] | undefined;
 }
 
-function resolvePlacePath(placeId: string): string {
-  return `${CITY}/places/${placeId}.md`;
-}
-
-export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
+export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<PlaceBuildResult> = {
   parseRequest(body: unknown): PlaceUpdate {
     return placeUpdateSchema.parse(body);
   },
@@ -81,20 +77,12 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
     return null;
   },
 
-  getFilePaths(placeId: string) {
-    return { primary: resolvePlacePath(placeId) };
-  },
-
-  computeContentHash(currentFiles: CurrentFiles): string {
-    return computePlaceContentHashFromFiles(currentFiles);
-  },
-
-  buildFreshData(placeId: string, currentFiles: CurrentFiles): string {
-    return buildFreshPlaceData(placeId, currentFiles);
-  },
+  getFilePaths: placeOps.getFilePaths,
+  computeContentHash: placeOps.computeContentHash,
+  buildFreshData: placeOps.buildFreshData,
 
   async checkExistence(git, placeId) {
-    const placePath = resolvePlacePath(placeId);
+    const placePath = placeOps.getFilePaths(placeId).primary;
     const existing = await git.readFile(placePath);
     if (existing) {
       return jsonError(`Place ${placeId} already exists`, 409);
@@ -103,7 +91,7 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
   },
 
   async buildFileChanges(update, placeId, currentFiles, git) {
-    const placePath = resolvePlacePath(placeId);
+    const placePath = placeOps.getFilePaths(placeId).primary;
     const isNew = !currentFiles.primaryFile;
     const files: FileChange[] = [];
 
@@ -113,8 +101,8 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
       : undefined;
     const newPhotoKey = update.frontmatter.photo_key;
 
-    let mergedParked: ParkedPhotoEntry[] | undefined;
-    const parked = await parkOrphanedPhoto({
+    let mergedParked: ParkedMediaEntry[] | undefined;
+    const parked = await parkOrphanedMedia({
       oldKey: oldPhotoKey,
       newKey: newPhotoKey,
       contentType: 'place',
@@ -152,27 +140,27 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> = {
 
   async afterCommit(result, database) {
     const { oldPhotoKey, newPhotoKey, placeSlug, mergedParked } = result;
-    const changes = buildPhotoKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
-    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
+    const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
+    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
   },
 
   buildCommitMessage(update, placeId, isNew): string {
     const resourcePath = `${CITY}/places/${placeId}`;
     const title = update.frontmatter.name || placeId;
-    const trailer = `\n\nChanges: ${resourcePath}`;
+    const trailer = buildCommitTrailer(resourcePath);
     return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
   },
 
   buildGitHubUrl(placeId: string, baseBranch: string): string {
-    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${resolvePlacePath(placeId)}`;
+    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${placeOps.getFilePaths(placeId).primary}`;
   },
 };
 
 export async function POST({ params, request, locals }: APIContext) {
-  const id = params.id;
-  const handlers = id === 'new'
-    ? placeHandlers
-    : { ...placeHandlers, checkExistence: undefined };
-
-  return saveContent(request, locals, params, 'places', handlers);
+  if (params.id === 'new') {
+    return saveContent(request, locals, params, 'places', placeHandlers);
+  }
+  // For edits, omit checkExistence — only check when creating new places
+  const { checkExistence, ...editHandlers } = placeHandlers;
+  return saveContent(request, locals, params, 'places', editHandlers);
 }

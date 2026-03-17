@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { CITY } from '../src/lib/config/config';
 
 // Mock shared dependencies
 vi.mock('../src/lib/get-db', () => ({
@@ -15,11 +16,11 @@ vi.mock('../src/lib/get-db', () => ({
   }),
 }));
 
-vi.mock('../src/lib/env', () => ({
+vi.mock('../src/lib/env/env.service', () => ({
   env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test' },
 }));
 
-vi.mock('../src/lib/git-factory', () => ({
+vi.mock('../src/lib/git/git-factory', () => ({
   createGitService: () => ({
     readFile: vi.fn(),
     writeFiles: vi.fn(),
@@ -28,7 +29,7 @@ vi.mock('../src/lib/git-factory', () => ({
   }),
 }));
 
-vi.mock('../src/lib/ban-service', () => ({
+vi.mock('../src/lib/auth/ban-service', () => ({
   banUser: vi.fn(),
   unbanUser: vi.fn(),
 }));
@@ -63,7 +64,7 @@ describe('admin endpoint guards enforce role-specific access (I-5)', () => {
   it('admin-history POST allows editor', async () => {
     const { POST } = await import('../src/views/api/admin-history');
     const res = await POST({
-      request: makeRequest({ path: 'ottawa/routes' }),
+      request: makeRequest({ path: `${CITY}/routes` }),
       locals: { user: editorUser },
     } as any);
     expect(res.status).toBe(200);

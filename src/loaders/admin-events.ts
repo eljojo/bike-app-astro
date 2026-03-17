@@ -1,10 +1,25 @@
+// admin-events.ts — Admin virtual module loader for events.
+//
+// Reads event files (flat .md or directory-based year/slug/) from the
+// content directory, parses frontmatter and media, and produces data
+// for the virtual module system.
+//
+// Data flow:
+//   content files → admin-events.ts → build-data-plugin.ts
+//     → virtual:bike-app/admin-events (list)
+//     → virtual:bike-app/admin-event-detail (details)
+//
+// Events use Astro's built-in glob loader for public pages, so there is
+// no shared file reader — the admin loader reads files directly.
+
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { cityDir } from '../lib/config';
+import { cityDir } from '../lib/config/config.server';
 import type { AdminEvent } from '../types/admin';
-import { eventDetailFromGit, computeEventContentHash, type EventDetail } from '../lib/models/event-model';
+import { eventDetailFromGit, computeEventContentHash } from '../lib/models/event-model.server';
+import type { EventDetail } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
 

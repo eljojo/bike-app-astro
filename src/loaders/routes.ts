@@ -1,33 +1,24 @@
-import type { Loader } from 'astro/loaders';
-import fs from 'node:fs';
-import path from 'node:path';
-import matter from 'gray-matter';
-import yaml from 'js-yaml';
-import { parseGpx, type GpxTrack } from '../lib/gpx';
-import { cityDir } from '../lib/config';
-import { computeDirectoryDigest } from '../lib/directory-digest';
-import { renderMarkdownHtml } from '../lib/markdown-render';
-import { loadLocaleTranslations } from './locale-content';
-import { supportedLocales, defaultLocale } from '../lib/locale-utils';
+// routes.ts — Public content collection loader for routes.
+//
+// Reads route directories via route-file-reader.ts (shared I/O layer),
+// then applies incremental caching, renders markdown, and stores entries
+// in Astro's content collection for static page generation.
+//
+// Data flow:
+//   route-file-reader.ts → routes.ts → Astro content collection → static pages
 
-/** A media entry (photo or video) attached to a route. */
-export interface RouteMedia {
-  type: 'photo' | 'video';
-  key: string;
-  handle: string;
-  cover?: boolean;
-  caption?: string;
-  title?: string;
-  score?: number;
-  width?: number;
-  height?: number;
-  duration?: string;
-  orientation?: string;
-  lat?: number;
-  lng?: number;
-  uploaded_by?: string;
-  captured_at?: string;
-}
+import type { Loader } from 'astro/loaders';
+import path from 'node:path';
+import fs from 'node:fs';
+import { cityDir } from '../lib/config/config.server';
+import { computeDirectoryDigest } from '../lib/directory-digest.server';
+import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
+import { loadLocaleTranslations } from './locale-content';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
+import { readRouteDir } from './route-file-reader';
+
+/** Re-export RouteMedia — other modules import it from here. */
+export type { RouteMedia } from './route-file-reader';
 
 export function routeLoader(): Loader {
   return {
@@ -47,8 +38,6 @@ export function routeLoader(): Loader {
 
       for (const slug of slugs) {
         const routeDir = path.join(routesDir, slug);
-        const indexPath = path.join(routeDir, 'index.md');
-        if (!fs.existsSync(indexPath)) continue;
 
         // Incremental caching: skip unchanged routes
         const digest = computeDirectoryDigest(routeDir, { includeSubdirs: ['variants'] });
@@ -59,42 +48,24 @@ export function routeLoader(): Loader {
           continue;
         }
 
-        const raw = fs.readFileSync(indexPath, 'utf-8');
-        const { data: frontmatter, content: body } = matter(raw);
+        const parsed = readRouteDir(routeDir, slug);
+        if (!parsed) continue;
 
-        // Load media.yml
-        const mediaPath = path.join(routeDir, 'media.yml');
-        let media: RouteMedia[] = [];
-        if (fs.existsSync(mediaPath)) {
-          const mediaRaw = fs.readFileSync(mediaPath, 'utf-8');
-          media = (yaml.load(mediaRaw) as RouteMedia[]) || [];
-        }
-
-        // Parse GPX files from variants
-        const gpxTracks: Record<string, GpxTrack> = {};
-        const variants = frontmatter.variants || [];
-        for (const variant of variants) {
-          const gpxPath = path.join(routeDir, variant.gpx);
-          if (fs.existsSync(gpxPath)) {
-            try {
-              const gpxXml = fs.readFileSync(gpxPath, 'utf-8');
-              gpxTracks[variant.gpx] = parseGpx(gpxXml);
-            } catch (e: unknown) {
-              const message = e instanceof Error ? e.message : String(e);
-              logger.warn(`Failed to parse GPX ${gpxPath}: ${message}`);
-            }
-          }
-        }
-
-        const renderedBody = await renderMarkdownHtml(body);
+        const renderedBody = await renderMarkdownHtml(parsed.body);
 
         const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
         const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);
 
         store.set({
           id: slug,
-          data: { ...frontmatter, media, gpxTracks, renderedBody, translations },
-          body,
+          data: {
+            ...parsed.frontmatter,
+            media: parsed.media,
+            gpxTracks: parsed.gpxTracks,
+            renderedBody,
+            translations,
+          },
+          body: parsed.body,
           digest,
         });
         meta.set(`route:${slug}:digest`, digest);

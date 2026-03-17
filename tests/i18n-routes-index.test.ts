@@ -14,13 +14,9 @@ import path from 'node:path';
 describe('French routes index', () => {
   const distDir = path.resolve('dist');
   const frIndexPath = path.join(distDir, 'fr', 'index.html');
+  const frIndexExists = fs.existsSync(frIndexPath);
 
-  it('should show French taglines on the French homepage, not English ones', () => {
-    if (!fs.existsSync(frIndexPath)) {
-      // Skip if dist not built — this test runs against build output
-      return;
-    }
-
+  it.skipIf(!frIndexExists)('should show French taglines on the French homepage, not English ones', () => {
     const html = fs.readFileSync(frIndexPath, 'utf-8');
 
     // The Aylmer route has a French translation with tagline "Parcours de l'année : 2022"
@@ -31,11 +27,7 @@ describe('French routes index', () => {
     expect(html).toMatch(/Parcours de l(&#39;|')année/);
   });
 
-  it('should link route cards to French URLs on the French homepage', () => {
-    if (!fs.existsSync(frIndexPath)) {
-      return;
-    }
-
+  it.skipIf(!frIndexExists)('should link route cards to French URLs on the French homepage', () => {
     const html = fs.readFileSync(frIndexPath, 'utf-8');
 
     // Route card links should go to /fr/parcours/slug (translated path), not /routes/slug

@@ -1,17 +1,17 @@
 import type { APIContext } from 'astro';
-import { authorize } from '@/lib/authorize';
+import { authorize } from '@/lib/auth/authorize';
 import { jsonResponse, jsonError } from '@/lib/api-response';
 import {
   fetchActivityStreams,
   fetchActivityPhotos,
   buildGpxFromStravaStreams,
   type StravaPhoto,
-} from '@/lib/strava-api';
-import { interpolatePhotoLocation } from '@/lib/photo-geo-interpolation';
-import { createStravaTokenProvider } from '@/lib/strava-token-provider';
+} from '@/lib/external/strava-api';
+import { interpolateMediaLocation } from '@/lib/geo/media-geo-interpolation';
+import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
-import { env } from '@/lib/env';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/rate-limit';
+import { env } from '@/lib/env/env.service';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '@/lib/auth/rate-limit';
 
 export const prerender = false;
 
@@ -70,7 +70,7 @@ export async function POST({ request, locals }: APIContext) {
           const photoUrl = photo.urls[String(maxSize)] || Object.values(photo.urls)[0];
 
           const timeOffset = photoTimeOffset(photo, startTime);
-          const location = timeOffset != null ? interpolatePhotoLocation(timeOffset, track) : null;
+          const location = timeOffset != null ? interpolateMediaLocation(timeOffset, track) : null;
 
           // Download photo and upload to R2
           let key: string | undefined;

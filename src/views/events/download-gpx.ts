@@ -1,9 +1,9 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
 import fs from 'node:fs';
-import path from 'node:path';
-import { cityDir } from '../../lib/config';
-import { injectWaypointsIntoGpx, type GpxWaypoint } from '../../lib/gpx-waypoint-inject';
+import { cityDir } from '../../lib/config/config.server';
+import { variantSlug, routeGpxPath, gpxResponse } from '../../lib/gpx/download.server';
+import { injectWaypointsIntoGpx, type GpxWaypoint } from '../../lib/gpx/waypoint-inject';
 
 export const prerender = true;
 
@@ -21,8 +21,8 @@ export const getStaticPaths: GetStaticPaths = async () => {
       if (!route) continue;
 
       for (const variant of route.data.variants) {
-        const variantKey = variant.gpx.replace(/\.gpx$/, '').replace(/^variants\//, '');
-        const gpxFilePath = path.join(cityDir, 'routes', route.id, variant.gpx);
+        const variantKey = variantSlug(variant.gpx);
+        const gpxFilePath = routeGpxPath(cityDir, route.id, variant.gpx);
         if (fs.existsSync(gpxFilePath)) {
           results.push({
             params: { path: `${event.id}/${routeSlug}-${variantKey}` },
@@ -53,7 +53,6 @@ export const GET: APIRoute = async ({ props }) => {
   let gpxContent = fs.readFileSync(gpxFilePath as string, 'utf-8');
 
   if (gpxInclude && eventWaypoints.length > 0) {
-    // Resolve place coordinates
     const places = await getCollection('places');
     const gpxWaypoints: GpxWaypoint[] = [];
 
@@ -82,10 +81,5 @@ export const GET: APIRoute = async ({ props }) => {
     gpxContent = injectWaypointsIntoGpx(gpxContent, gpxWaypoints);
   }
 
-  return new Response(gpxContent, {
-    headers: {
-      'Content-Type': 'application/gpx+xml',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    },
-  });
+  return gpxResponse(gpxContent, filename);
 };

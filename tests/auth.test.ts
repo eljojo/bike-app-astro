@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier } from '../src/lib/auth';
+import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier } from '../src/lib/auth/auth';
 
 describe('auth helpers', () => {
   describe('normalizeEmail', () => {
@@ -85,7 +85,7 @@ describe('session lifecycle', () => {
   });
 
   it('createSession + validateSession returns correct user', async () => {
-    const { createSession, validateSession } = await import('../src/lib/auth');
+    const { createSession, validateSession } = await import('../src/lib/auth/auth');
 
     const token = await createSession(database, 'user-1');
     expect(token).toMatch(/^[0-9a-f]{64}$/);
@@ -98,7 +98,7 @@ describe('session lifecycle', () => {
   });
 
   it('validateSession returns null for expired session', async () => {
-    const { validateSession } = await import('../src/lib/auth');
+    const { validateSession } = await import('../src/lib/auth/auth');
     const { sessions } = await import('../src/db/schema');
 
     await database.insert(sessions).values({
@@ -114,13 +114,13 @@ describe('session lifecycle', () => {
   });
 
   it('validateSession returns null for invalid token', async () => {
-    const { validateSession } = await import('../src/lib/auth');
+    const { validateSession } = await import('../src/lib/auth/auth');
     const user = await validateSession(database, 'nonexistent-token');
     expect(user).toBeNull();
   });
 
   it('createSession cleans up expired sessions', async () => {
-    const { createSession } = await import('../src/lib/auth');
+    const { createSession } = await import('../src/lib/auth/auth');
     const { sessions } = await import('../src/db/schema');
 
     await database.insert(sessions).values({
@@ -138,7 +138,7 @@ describe('session lifecycle', () => {
   });
 
   it('validateSession returns user settings', async () => {
-    const { createSession, validateSession } = await import('../src/lib/auth');
+    const { createSession, validateSession } = await import('../src/lib/auth/auth');
     const { userSettings } = await import('../src/db/schema');
 
     await database.insert(userSettings).values({
@@ -155,7 +155,7 @@ describe('session lifecycle', () => {
   });
 
   it('validateSession returns defaults when no settings row', async () => {
-    const { createSession, validateSession } = await import('../src/lib/auth');
+    const { createSession, validateSession } = await import('../src/lib/auth/auth');
 
     const token = await createSession(database, 'user-1');
     const user = await validateSession(database, token);

@@ -1,10 +1,11 @@
 ---
+import './RideCard.scss';
 import type { CollectionEntry } from 'astro:content';
-import { imageUrl } from '@/lib/image-service';
+import { imageUrl } from '@/lib/media/image-service';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance } from '@/lib/format';
 import { paths, assets } from '@/lib/paths';
-import { hasCachedMap } from '@/lib/map-thumbnails';
+import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import { countryToFlag } from '@/lib/country-flags';
 
 interface Props {

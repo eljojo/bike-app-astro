@@ -1,4 +1,4 @@
-import { getCityConfig } from './city-config';
+import { getCityConfig } from './config/city-config';
 
 function originFrom(raw: string | undefined, fallback: string): string {
   try {
@@ -16,8 +16,18 @@ export function cspOrigins() {
   return { cdn, videos };
 }
 
-export function sharedCspDirectives(): string[] {
+interface CspOptions {
+  /** Exact R2 origin for image presigned uploads, e.g. https://acctid.r2.cloudflarestorage.com */
+  r2Origin?: string;
+  /** Exact S3 origin for video presigned uploads, e.g. https://bucket.s3.us-east-1.amazonaws.com */
+  s3Origin?: string;
+}
+
+export function sharedCspDirectives(options?: CspOptions): string[] {
   const { cdn, videos } = cspOrigins();
+  const connectSources = ["'self'", 'https://nominatim.openstreetmap.org', videos];
+  if (options?.r2Origin) connectSources.push(options.r2Origin);
+  if (options?.s3Origin) connectSources.push(options.s3Origin);
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -27,15 +37,15 @@ export function sharedCspDirectives(): string[] {
     `img-src 'self' data: blob: ${cdn} ${videos} https://www.gravatar.com`,
     `media-src 'self' blob: ${videos} ${cdn}`,
     "font-src 'self' data:",
-    "connect-src 'self' https://*.r2.cloudflarestorage.com https://nominatim.openstreetmap.org",
+    `connect-src ${connectSources.join(' ')}`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
   ];
 }
 
-export function buildNonceCspHeader(nonce: string): string {
+export function buildNonceCspHeader(nonce: string, options?: CspOptions): string {
   return [
-    ...sharedCspDirectives(),
+    ...sharedCspDirectives(options),
     `script-src 'self' 'nonce-${nonce}'`,
     "style-src 'self' 'unsafe-inline'",
     "style-src-attr 'unsafe-inline'",

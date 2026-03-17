@@ -19,16 +19,16 @@ test.describe('Photo Parking', () => {
   test.beforeEach(() => {
     clearContentEdits('routes', 'route-park-a');
     clearContentEdits('routes', 'route-park-b');
-    clearContentEdits('parked-photos', '__global');
+    clearContentEdits('parked-media', '__global');
     // Restore modified fixture files so retries see original state
     restoreFixtureFiles([
       'demo/routes/route-park-a/media.yml',
       'demo/routes/route-park-b/media.yml',
     ]);
-    deleteFixtureFile('demo/parked-photos.yml');
+    deleteFixtureFile('demo/parked-media.yml');
   });
 
-  test('park a photo via save API and verify parked-photos.yml', async ({ page }) => {
+  test('park a photo via save API and verify parked-media.yml', async ({ page }) => {
     await loginAs(page, token);
     await page.goto('/admin/routes/route-park-a');
     await page.waitForLoadState('networkidle');
@@ -68,8 +68,8 @@ test.describe('Photo Parking', () => {
 
     expect(res.status).toBe(200);
 
-    // Verify parked-photos.yml was created with our specific key
-    const parkedPath = path.join(FIXTURE_DIR, 'demo', 'parked-photos.yml');
+    // Verify parked-media.yml was created with our specific key
+    const parkedPath = path.join(FIXTURE_DIR, 'demo', 'parked-media.yml');
     expect(fs.existsSync(parkedPath)).toBe(true);
 
     const parked = yaml.load(fs.readFileSync(parkedPath, 'utf-8')) as any[];
@@ -116,7 +116,7 @@ test.describe('Photo Parking', () => {
     });
 
     // Verify photo is parked
-    const parkedPath = path.join(FIXTURE_DIR, 'demo', 'parked-photos.yml');
+    const parkedPath = path.join(FIXTURE_DIR, 'demo', 'parked-media.yml');
     expect(fs.existsSync(parkedPath)).toBe(true);
     const parkedBefore = yaml.load(fs.readFileSync(parkedPath, 'utf-8')) as any[];
     expect(parkedBefore.some((p: any) => p.key === 'park-b-parkable-key')).toBe(true);

@@ -217,6 +217,27 @@ place_categories:
     extraKey: 'community-extra-key',
   });
 
+  // route-video: owned by video-save.spec.ts (video key annotation)
+  createRouteFixture('route-video', {
+    name: 'Video Test Route',
+    coverKey: 'video-cover-key',
+    extraKey: 'video-extra-key',
+  });
+
+  // route-cache: owned by cache-conflict.spec.ts (D1 cache + conflict detection)
+  createRouteFixture('route-cache', {
+    name: 'Cache Test Route',
+    coverKey: 'cache-cover-key',
+    extraKey: 'cache-extra-key',
+  });
+
+  // route-perms: owned by cache-conflict.spec.ts (permission stripping)
+  createRouteFixture('route-perms', {
+    name: 'Permissions Test Route',
+    coverKey: 'perms-cover-key',
+    extraKey: 'perms-extra-key',
+  });
+
   // Second route for tag autocomplete tests — adds more known tags
   const canalDir = path.join(CITY_DIR, 'routes', 'canal');
   fs.mkdirSync(canalDir, { recursive: true });

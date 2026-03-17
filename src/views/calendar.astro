@@ -5,7 +5,7 @@ import Base from '@/layouts/Base.astro';
 import EventCard from '@/components/EventCard.astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate, formatMonthName } from '@/lib/date-utils';
-import { getCityConfig } from '@/lib/city-config';
+import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath, formatLocale } from '@/i18n';
 import { paths } from '@/lib/paths';
 import type { CollectionEntry } from 'astro:content';

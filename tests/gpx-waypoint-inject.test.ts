@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { injectWaypointsIntoGpx } from '../src/lib/gpx-waypoint-inject';
+import { injectWaypointsIntoGpx } from '../src/lib/gpx/waypoint-inject';
 
 describe('injectWaypointsIntoGpx', () => {
   it('adds wpt elements before trk', () => {

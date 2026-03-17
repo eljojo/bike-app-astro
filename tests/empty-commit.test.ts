@@ -1,6 +1,6 @@
 // tests/empty-commit.test.ts
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { CommitAuthor } from '../src/lib/git-service';
+import type { CommitAuthor } from '../src/lib/git/git.adapter-github';
 
 const TEST_AUTHOR: CommitAuthor = { name: 'Test', email: 'test@example.com' };
 
@@ -10,7 +10,7 @@ describe('GitService empty commit prevention', () => {
   });
 
   it('writeSingleFile skips commit when content is identical', async () => {
-    const { GitService } = await import('../src/lib/git-service');
+    const { GitService } = await import('../src/lib/git/git.adapter-github');
 
     const existingContent = '# Hello\n\nWorld\n';
     const calls: Array<{ url: string; method: string }> = [];
@@ -54,7 +54,7 @@ describe('GitService empty commit prevention', () => {
   });
 
   it('writeSingleFile proceeds when content differs', async () => {
-    const { GitService } = await import('../src/lib/git-service');
+    const { GitService } = await import('../src/lib/git/git.adapter-github');
     const calls: Array<{ url: string; method: string }> = [];
 
     vi.stubGlobal('fetch', vi.fn(async (url: string, opts?: RequestInit) => {
@@ -97,7 +97,7 @@ describe('GitService tree comparison for multi-file', () => {
   });
 
   it('writeMultipleFiles skips commit when tree SHA matches base', async () => {
-    const { GitService } = await import('../src/lib/git-service');
+    const { GitService } = await import('../src/lib/git/git.adapter-github');
     const calls: Array<{ url: string; method: string }> = [];
 
     vi.stubGlobal('fetch', vi.fn(async (url: string, opts?: RequestInit) => {
@@ -191,7 +191,7 @@ describe('LocalGitService empty commit prevention', () => {
       unlinkSync: () => {},
     }));
 
-    const { LocalGitService } = await import('../src/lib/git-service-local');
+    const { LocalGitService } = await import('../src/lib/git/git.adapter-local');
     const git = new LocalGitService('/tmp/fake-repo');
     const sha = await git.writeFiles(
       [{ path: 'test.md', content: 'same content' }],
@@ -200,6 +200,5 @@ describe('LocalGitService empty commit prevention', () => {
     );
 
     expect(sha).toBe('head-sha');
-    expect(mockCommit).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,8 @@ import zodImportSource from './eslint-rules/zod-import-source.js';
 import requireAuthorizeCall from './eslint-rules/require-authorize-call.js';
 import enforceModelLayer from './eslint-rules/enforce-model-layer.js';
 import noCityDefaultParam from './eslint-rules/no-city-default-param.js';
+import requireCommitWrapper from './eslint-rules/require-commit-wrapper.js';
+import noServerImportInBrowser from './eslint-rules/no-server-import-in-browser.js';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -26,6 +28,8 @@ export default [
           'require-authorize-call': requireAuthorizeCall,
           'enforce-model-layer': enforceModelLayer,
           'no-city-default-param': noCityDefaultParam,
+          'require-commit-wrapper': requireCommitWrapper,
+          'no-server-import-in-browser': noServerImportInBrowser,
         },
       },
     },
@@ -38,6 +42,8 @@ export default [
       'bike-app/require-authorize-call': 'error',
       'bike-app/enforce-model-layer': 'error',
       'bike-app/no-city-default-param': 'error',
+      'bike-app/require-commit-wrapper': 'error',
+      'bike-app/no-server-import-in-browser': 'error',
     },
   },
   {
@@ -48,11 +54,22 @@ export default [
     },
   },
   {
-    // Exclude test files and config files from most rules
-    files: ['tests/**/*.ts', 'e2e/**/*.ts', '*.config.*'],
+    // Test files get no-hardcoded-city-locale for city names only — assertions
+    // must derive CITY from imports, not hardcode 'ottawa' (CI runs CITY=demo).
+    // Locale codes ('en', 'fr') are OK in tests since i18n tests need them.
+    files: ['tests/**/*.ts', 'e2e/**/*.ts'],
+    plugins: {
+      'bike-app': {
+        rules: {
+          'no-hardcoded-city-locale': noHardcodedCityLocale,
+        },
+      },
+    },
+    languageOptions: {
+      parser: tseslint.parser,
+    },
     rules: {
-      'bike-app/no-hardcoded-city-locale': 'off',
-      'bike-app/require-prerender-export': 'off',
+      'bike-app/no-hardcoded-city-locale': ['error', { checkLocales: false }],
     },
   },
   {
@@ -60,6 +77,43 @@ export default [
     files: ['src/i18n/**/*.ts', 'src/integrations/**/*.ts'],
     rules: {
       'bike-app/no-hardcoded-city-locale': 'off',
+    },
+  },
+  {
+    // Server boundary enforcement for shared src/lib/ files.
+    // Exempt: .server.ts, adapter files, git/, build-time transforms.
+    files: ['src/lib/**/*.ts'],
+    ignores: [
+      'src/lib/**/*.d.ts',
+      'src/lib/**/*.server.ts',
+      'src/lib/**/*.adapter-*.ts',
+      'src/lib/git/**',
+      // Build-time transforms: replaced by build-data-plugin.ts with static data.
+      // Source files contain node:fs/node:path but this code never runs in production.
+      'src/lib/config/city-config.ts',
+    ],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: 'node:path', message: 'Use .server.ts suffix for files needing node:path.' },
+          { name: 'node:fs', message: 'Use .server.ts suffix for files needing node:fs.' },
+          { name: 'node:crypto', message: 'Use .server.ts suffix for files needing node:crypto.' },
+        ],
+      }],
+    },
+  },
+  {
+    // These src/lib/ files are server-only but don't use .server.ts suffix:
+    // git/ directory (all server-side), build-time transforms (replaced by build-data-plugin).
+    // They may import .server modules freely.
+    files: [
+      'src/lib/git/**',
+      'src/lib/config/city-config.ts',
+      // map-thumbnails depends on virtual module — build-time only, not browser code
+      'src/lib/maps/map-thumbnails.ts',
+    ],
+    rules: {
+      'bike-app/no-server-import-in-browser': 'off',
     },
   },
 ];

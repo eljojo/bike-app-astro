@@ -1,7 +1,7 @@
-import { getCityConfig } from './city-config';
+import { getCityConfig } from './config/city-config';
 import { paths, routeSlug } from './paths';
-import { translatePath } from './path-translations';
-import { supportedLocales, defaultLocale } from './locale-utils';
+import { translatePath } from './i18n/path-translations';
+import { supportedLocales, defaultLocale } from './i18n/locale-utils';
 
 const BASE = getCityConfig().url;
 

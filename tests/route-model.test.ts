@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-  routeDetailFromGit,
   routeDetailToCache,
   routeDetailFromCache,
+} from '../src/lib/models/route-model';
+import {
+  routeDetailFromGit,
   computeRouteContentHash,
   computeRouteContentHashFromFiles,
   buildFreshRouteData,
-} from '../src/lib/models/route-model';
+} from '../src/lib/models/route-model.server';
 
 describe('routeDetailFromGit', () => {
   it('parses frontmatter, body, and photo-only media into canonical shape', () => {
@@ -29,8 +31,9 @@ describe('routeDetailFromGit', () => {
     expect(result.tags).toEqual(['scenic']);
     expect(result.status).toBe('published');
     expect(result.body).toBe('Route description here.');
-    expect(result.media).toHaveLength(1); // videos filtered out
+    expect(result.media).toHaveLength(2);
     expect(result.media[0]).toEqual({ key: 'abc123', caption: 'Nice view', cover: true, width: 1600, height: 1200 });
+    expect(result.media[1]).toMatchObject({ key: 'vid456', type: 'video', title: 'Ride Along' });
     expect(result.variants).toEqual([{ name: 'Main', gpx: 'main.gpx', distance_km: 12.5 }]);
   });
 
@@ -50,6 +53,27 @@ describe('routeDetailFromGit', () => {
     expect(result.media).toEqual([]);
     expect(result.variants).toEqual([]);
     expect(result.body).toBe('');
+  });
+
+  it('includes video media items from media.yml', () => {
+    const mediaYml = [
+      '- type: photo',
+      '  key: abc',
+      '  cover: true',
+      '- type: video',
+      '  key: def',
+      '  title: My Ride',
+      '  handle: my-ride',
+      '  duration: PT31S',
+
+      '  width: 1920',
+      '  height: 1080',
+    ].join('\n');
+    const detail = routeDetailFromGit('test-route', { name: 'Test' }, 'body', mediaYml);
+    expect(detail.media).toHaveLength(2);
+    expect(detail.media[1].type).toBe('video');
+    expect(detail.media[1].title).toBe('My Ride');
+    expect(detail.media[1].duration).toBe('PT31S');
   });
 
   it('handles null/undefined mediaYml', () => {

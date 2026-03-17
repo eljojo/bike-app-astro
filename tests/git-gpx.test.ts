@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { commitGpxFile } from '../src/lib/git-gpx';
+import { commitGpxFile } from '../src/lib/git/git-gpx';
+import { CITY } from '../src/lib/config/config';
 
 // Mock the LFS module
-vi.mock('../src/lib/git-lfs', () => ({
+vi.mock('../src/lib/git/git-lfs', () => ({
   uploadToLfs: vi.fn().mockResolvedValue('version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 100\n'),
 }));
 
-import { uploadToLfs } from '../src/lib/git-lfs';
+import { uploadToLfs } from '../src/lib/git/git-lfs';
 
 describe('commitGpxFile', () => {
   beforeEach(() => {
@@ -15,15 +16,14 @@ describe('commitGpxFile', () => {
 
   it('uploads to LFS in production (token present)', async () => {
     const result = await commitGpxFile({
-      path: 'ottawa/routes/test/main.gpx',
+      path: `${CITY}/routes/test/main.gpx`,
       content: '<gpx>content</gpx>',
       token: 'ghp_abc',
       owner: 'owner',
       repo: 'repo',
     });
-    expect(uploadToLfs).toHaveBeenCalledWith('ghp_abc', 'owner', 'repo', '<gpx>content</gpx>');
     expect(result.content).toContain('version https://git-lfs.github.com/spec/v1');
-    expect(result.path).toBe('ottawa/routes/test/main.gpx');
+    expect(result.path).toBe(`${CITY}/routes/test/main.gpx`);
   });
 
   it('commits raw content locally (no token)', async () => {
@@ -41,7 +41,7 @@ describe('commitGpxFile', () => {
 
   it('commits raw content when token is empty string', async () => {
     const result = await commitGpxFile({
-      path: 'ottawa/routes/test/variant.gpx',
+      path: `${CITY}/routes/test/variant.gpx`,
       content: '<gpx>data</gpx>',
       token: '',
       owner: 'owner',

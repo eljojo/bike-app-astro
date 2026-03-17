@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseLocalDate, formatDate, formatDateRange, formatMonthName, formatAdminDate, formatAdminDateTime } from '../src/lib/date-utils';
+import { parseLocalDate, formatDate, formatDateRange, formatMonthName, formatAdminDate, formatAdminDateTime, formatDurationLoose, formatIsoDuration } from '../src/lib/date-utils';
 
 describe('parseLocalDate', () => {
   it('parses date-only string without timezone shift', () => {
@@ -111,5 +111,32 @@ describe('formatAdminDateTime', () => {
     expect(result).toContain('15');
     expect(result).toContain('2025');
     expect(result).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
+
+describe('formatDurationLoose', () => {
+  it('formats hours and minutes with space', () => {
+    expect(formatDurationLoose(7500)).toBe('2h 5m');
+  });
+  it('formats minutes only when under an hour', () => {
+    expect(formatDurationLoose(300)).toBe('5m');
+  });
+  it('formats zero minutes', () => {
+    expect(formatDurationLoose(0)).toBe('0m');
+  });
+});
+
+describe('formatIsoDuration', () => {
+  it('formats full HMS duration', () => {
+    expect(formatIsoDuration('PT1H5M30S')).toBe('1:05:30');
+  });
+  it('formats minutes and seconds only', () => {
+    expect(formatIsoDuration('PT5M30S')).toBe('5:30');
+  });
+  it('formats hours and minutes without seconds', () => {
+    expect(formatIsoDuration('PT2H10M')).toBe('2:10:00');
+  });
+  it('returns empty string for invalid input', () => {
+    expect(formatIsoDuration('garbage')).toBe('');
   });
 });

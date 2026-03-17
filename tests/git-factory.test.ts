@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { createGitService } from '../src/lib/git-factory';
-import { GitService } from '../src/lib/git-service';
-import { LocalGitService } from '../src/lib/git-service-local';
+import { createGitService } from '../src/lib/git/git-factory';
+import { GitService } from '../src/lib/git/git.adapter-github';
+import { LocalGitService } from '../src/lib/git/git.adapter-local';
 
 describe('createGitService', () => {
   const originalRuntime = process.env.RUNTIME;

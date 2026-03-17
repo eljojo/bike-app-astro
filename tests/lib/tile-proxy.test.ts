@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildThunderforestUrl, contentTypeForPath } from '../../src/lib/tile-proxy-helpers';
+import { buildThunderforestUrl, contentTypeForPath } from '../../src/lib/maps/tile-proxy-helpers';
 
 describe('tile proxy helpers', () => {
   it('builds Thunderforest URL with API key', () => {

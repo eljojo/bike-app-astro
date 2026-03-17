@@ -1,10 +1,10 @@
 import type { APIContext } from 'astro';
-import { authorize } from '@/lib/authorize';
+import { authorize } from '@/lib/auth/authorize';
 import { jsonError } from '@/lib/api-response';
-import { fetchActivities } from '@/lib/strava-api';
-import { createStravaTokenProvider } from '@/lib/strava-token-provider';
+import { fetchActivities } from '@/lib/external/strava-api';
+import { createStravaTokenProvider } from '@/lib/external/strava-token-provider';
 import { db } from '@/lib/get-db';
-import { env } from '@/lib/env';
+import { env } from '@/lib/env/env.service';
 
 export const prerender = false;
 

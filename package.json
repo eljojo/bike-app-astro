@@ -15,7 +15,8 @@
     "eslint-rules/",
     "public/",
     "sync.js",
-    "packages/create-bike-blog/templates/"
+    "packages/create-bike-blog/templates/",
+    "aws/"
   ],
   "exports": {
     ".": "./src/integration.ts",
@@ -24,7 +25,7 @@
     "./loaders/pages": "./src/loaders/pages.ts",
     "./schemas": "./src/schemas/index.ts",
     "./plugin": "./src/build-data-plugin.ts",
-    "./lib/adapter": "./src/lib/adapter.ts",
+    "./lib/adapter": "./src/lib/env/adapter.ts",
     "./middleware": "./src/middleware.ts",
     "./content-collections": "./src/content-collections.ts"
   },
@@ -63,6 +64,7 @@
     "fast-xml-parser": "^5.4.1",
     "fflate": "^0.8.2",
     "gray-matter": "^4.0.3",
+    "hls.js": "^1.6.15",
     "js-yaml": "^4.1.1",
     "maplibre-gl": "^5.19.0",
     "marked": "^17.0.3",

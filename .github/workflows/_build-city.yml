@@ -114,7 +114,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: public/maps
-          key: maps-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/routes/**/variants/*.gpx', inputs.city), format('bike-routes/{0}/routes/**/*.gpx', inputs.city), format('bike-routes/{0}/rides/**/*.gpx', inputs.city), 'scripts/generate-maps.ts', 'src/loaders/rides.ts', 'src/lib/map-paths.ts') }}
+          key: maps-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/routes/**/variants/*.gpx', inputs.city), format('bike-routes/{0}/routes/**/*.gpx', inputs.city), format('bike-routes/{0}/rides/**/*.gpx', inputs.city), 'scripts/generate-maps.ts', 'src/loaders/rides.ts', 'src/lib/maps/map-paths.ts') }}
           restore-keys: |
             maps-${{ inputs.city }}-
 
@@ -125,6 +125,15 @@ jobs:
           key: astro-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/**', inputs.city)) }}
           restore-keys: |
             astro-${{ inputs.city }}-
+
+      - name: Restore dist cache
+        if: inputs.deploy
+        uses: actions/cache@v5
+        with:
+          path: dist-cache
+          key: dist-${{ inputs.city }}-${{ github.run_id }}
+          restore-keys: |
+            dist-${{ inputs.city }}-
 
       - name: Generate map thumbnails
         run: npx tsx scripts/generate-maps.ts
@@ -148,13 +157,32 @@ jobs:
       - name: Build map style
         run: npx tsx scripts/build-map-style.ts
 
+      - name: Prepare build plan
+        run: npx tsx scripts/prepare-build-plan.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ${{ inputs.city }}
+
+      - name: Resolve VIDEO_PREFIX from wrangler config
+        id: video-prefix
+        run: |
+          if [ -n "${{ inputs.wrangler-env }}" ]; then
+            PREFIX=$(sed 's|//.*$||' wrangler.jsonc | jq -r '.env["${{ inputs.wrangler-env }}"].vars.VIDEO_PREFIX // empty')
+          fi
+          echo "value=${PREFIX:-${{ inputs.city }}}" >> "$GITHUB_OUTPUT"
+
       - name: Build site
         run: npx astro build
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ${{ inputs.city }}
+          VIDEO_PREFIX: ${{ steps.video-prefix.outputs.value }}
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Merge incremental build
+        if: inputs.deploy
+        run: npx tsx scripts/merge-incremental-build.ts
 
       - name: Prepare wrangler config for deploy
         if: inputs.deploy

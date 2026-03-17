@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generatePseudonym } from '../src/lib/pseudonym';
+import { generatePseudonym } from '../src/lib/auth/pseudonym';
 
 describe('generatePseudonym', () => {
   it('returns a string matching cyclist-XXXX pattern', () => {

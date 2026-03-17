@@ -2,19 +2,25 @@
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useEditorState } from './useEditorState';
+import { useFormValidation } from './useFormValidation';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
-import { categoryEmoji } from '../../lib/place-categories';
-import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
-import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/proximity';
-import photoLocations from 'virtual:bike-app/photo-locations';
+import { categoryEmoji } from '../../lib/geo/place-categories';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
+import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
+import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
+import photoLocations from 'virtual:bike-app/media-locations';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
-import { localeLabel } from '../../lib/locale-utils';
+import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
   userRole?: string;
   secondaryLocales?: string[];
   mapCenter?: [number, number]; // [lat, lng] — city default center for new places
@@ -54,7 +60,11 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLocales, mapCenter }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
+  const [dirty, setDirty] = useState(false);
+  useUnsavedGuard(dirty);
+
   const [name, setName] = useState(initialData.name || '');
 
   const locales = secondaryLocales || [];
@@ -81,26 +91,30 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
   const [prefilling, setPrefilling] = useState(false);
 
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey]);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
   const markerRef = useRef<import('maplibre-gl').Marker | null>(null);
   const createMarkerRef = useRef<((position: [number, number]) => import('maplibre-gl').Marker) | null>(null);
   const lastPrefillQuery = useRef<string>('');
 
+  const { validate } = useFormValidation([
+    { field: 'place-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: 'place-category', check: () => !category, message: 'Category is required' },
+    { field: '', check: () => !lat && !lng, message: 'Click on the map to set a location' },
+  ]);
+
   const { saving, saved, error, githubUrl, save: handleSave, setError } = useEditorState({
     apiBase: '/api/places',
     contentId: initialData.isNew ? null : initialData.id,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) {
-        document.getElementById('place-name')?.focus();
-        return 'Name is required';
-      }
-      if (!category) return 'Category is required';
-      if (!lat && !lng) return 'Click on the map to set a location';
-      return null;
-    },
+    validate,
     buildPayload: () => {
       const payload: PlaceUpdate = {
         frontmatter: {
@@ -123,6 +137,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/places/${result.id}`;
       }
@@ -227,7 +242,7 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
     if (!mapContainerRef.current) return;
 
     import('maplibre-gl').then(async (maplibregl) => {
-      const { initMap } = await import('../../lib/map-init');
+      const { initMap } = await import('../../lib/maps/map-init');
 
       const defaultCenter: [number, number] = lat && lng ? [lat, lng] : (mapCenter || [45.4215, -75.6972]);
       const defaultZoom = lat && lng ? 15 : 11;
@@ -376,18 +391,18 @@ export default function PlaceEditor({ initialData, cdnUrl, userRole, secondaryLo
         {!photoKey && lat !== 0 && lng !== 0 && nearbyPhotos.length > 0 && (
           <div class="form-field">
             <label>Nearby photos <span class="field-hint">(click to use)</span></label>
-            <div class="nearby-photos-grid">
+            <div class="nearby-media-grid">
               {nearbyPhotos.map((photo) => (
                 <button
                   key={photo.key}
                   type="button"
-                  class="nearby-photo-btn"
+                  class="nearby-media-btn"
                   title={photo.caption || photo.routeSlug}
                   onClick={() => {
                     setPhotoKey(photo.key);
                   }}
                 >
-                  <img src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`} alt={photo.caption || ''} />
+                  <img src={buildMediaThumbnailUrl(photo, thumbConfig, { width: 120, height: 120, fit: 'cover' })} alt={photo.caption || ''} />
                 </button>
               ))}
             </div>

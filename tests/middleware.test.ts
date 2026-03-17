@@ -7,7 +7,7 @@ vi.mock('astro:middleware', () => ({
 
 // Mock dependencies before importing middleware
 const mockValidateSession = vi.fn();
-vi.mock('../src/lib/auth', () => ({
+vi.mock('../src/lib/auth/auth', () => ({
   validateSession: (...args: any[]) => mockValidateSession(...args),
 }));
 vi.mock('../src/lib/get-db', () => ({
@@ -39,49 +39,6 @@ function makeContext(pathname: string, opts: { cookie?: string } = {}) {
   return { context, deletedCookies };
 }
 
-// Path matching tests (preserved from original)
-describe('middleware path matching', () => {
-  function isProtectedRoute(pathname: string): boolean {
-    return (
-      pathname.startsWith('/admin') ||
-      (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/'))
-    );
-  }
-
-  it('protects /admin', () => {
-    expect(isProtectedRoute('/admin')).toBe(true);
-    expect(isProtectedRoute('/admin/')).toBe(true);
-    expect(isProtectedRoute('/admin/routes/my-route')).toBe(true);
-  });
-
-  it('protects non-auth API routes', () => {
-    expect(isProtectedRoute('/api/routes/my-route')).toBe(true);
-    expect(isProtectedRoute('/api/media/presign')).toBe(true);
-    expect(isProtectedRoute('/api/admin/invite')).toBe(true);
-  });
-
-  it('does not protect auth API routes', () => {
-    expect(isProtectedRoute('/api/auth/login')).toBe(false);
-    expect(isProtectedRoute('/api/auth/login-options')).toBe(false);
-    expect(isProtectedRoute('/api/auth/register')).toBe(false);
-    expect(isProtectedRoute('/api/auth/register-options')).toBe(false);
-    expect(isProtectedRoute('/api/auth/logout')).toBe(false);
-  });
-
-  it('does not protect public pages', () => {
-    expect(isProtectedRoute('/')).toBe(false);
-    expect(isProtectedRoute('/routes')).toBe(false);
-    expect(isProtectedRoute('/routes/my-route')).toBe(false);
-    expect(isProtectedRoute('/login')).toBe(false);
-    expect(isProtectedRoute('/register')).toBe(false);
-    expect(isProtectedRoute('/setup')).toBe(false);
-    expect(isProtectedRoute('/map')).toBe(false);
-    expect(isProtectedRoute('/guides')).toBe(false);
-    expect(isProtectedRoute('/calendar')).toBe(false);
-  });
-});
-
-// onRequest handler tests
 describe('onRequest middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -106,7 +63,7 @@ describe('onRequest middleware', () => {
     const res = await onRequest(context as any, next) as Response;
 
     expect(res.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
-    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(context.locals.cspNonce).toMatch(/^[a-f0-9]{32}$/);
     expect(res.headers.get('Content-Security-Policy'))
       .toContain(`'nonce-${context.locals.cspNonce}'`);
   });
@@ -120,7 +77,7 @@ describe('onRequest middleware', () => {
     const res = await onRequest(context as any, next) as Response;
     const body = await res.text();
 
-    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(context.locals.cspNonce).toMatch(/^[a-f0-9]{32}$/);
     expect(body).toContain(`<script nonce="${context.locals.cspNonce}">window.a=1</script>`);
     expect(body).toContain('<script nonce="keep">window.b=2</script>');
   });
@@ -133,7 +90,7 @@ describe('onRequest middleware', () => {
     const res = await onRequest(context as any, next) as Response;
 
     expect(context.locals.user).toEqual(user);
-    expect(context.locals.cspNonce).toBeTypeOf('string');
+    expect(context.locals.cspNonce).toMatch(/^[a-f0-9]{32}$/);
     expect(res.headers.get('Content-Security-Policy'))
       .toContain(`'nonce-${context.locals.cspNonce}'`);
   });

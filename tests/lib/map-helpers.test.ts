@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { html, raw, buildPlacePopup, buildWaypointPopup } from '../../src/lib/map-helpers';
+import { html, raw, buildPlacePopup, buildWaypointPopup } from '../../src/lib/maps/map-helpers';
 
 describe('html tagged template', () => {
   it('escapes interpolated strings', () => {

@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { authorize } from '../../lib/authorize';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;
@@ -166,7 +166,7 @@ export async function POST({ request, locals }: APIContext) {
     return jsonError('Missing query', 400);
   }
 
-  const { env } = await import('../../lib/env');
+  const { env } = await import('../../lib/env/env.service');
   const apiKey = env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
     return jsonError('GOOGLE_PLACES_API_KEY is not configured', 500);

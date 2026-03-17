@@ -4,16 +4,21 @@ import StaticRouteMap from './StaticRouteMap';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
-import { parseGpx } from '../../lib/gpx';
-import { computeElevationProfile, CHART } from '../../lib/elevation-profile';
-import photoLocations from 'virtual:bike-app/photo-locations';
-import { findNearbyPhotos } from '../../lib/photo-proximity';
+import { parseGpx } from '../../lib/gpx/parse';
+import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
+import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
+import type { MediaThumbnailConfig } from '../../lib/media/image-service';
+import photoLocations from 'virtual:bike-app/media-locations';
+import { findNearbyMedia } from '../../lib/geo/media-proximity';
 
 interface Props {
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
 }
 
-export default function RouteCreator({ cdnUrl }: Props) {
+export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix }: Props) {
+  const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');
   const [gpxContent, setGpxContent] = useState('');
   const [name, setName] = useState('');
@@ -42,7 +47,7 @@ export default function RouteCreator({ cdnUrl }: Props) {
     const step = Math.max(1, Math.floor(track.points.length / 50));
     const sampled = track.points.filter((_, i) => i % step === 0);
     const trackPts = sampled.map(p => ({ lat: p.lat, lng: p.lon }));
-    return findNearbyPhotos(trackPts, photoLocations, '');
+    return findNearbyMedia(trackPts, photoLocations, '');
   }, [track]);
 
   function slugToName(slug: string): string {
@@ -252,7 +257,7 @@ export default function RouteCreator({ cdnUrl }: Props) {
                       {nearbyPhotos.slice(0, 12).map(photo => (
                         <img
                           key={photo.key}
-                          src={`${cdnUrl}/cdn-cgi/image/width=120,height=120,fit=cover/${photo.key}`}
+                          src={buildMediaThumbnailUrl(photo, thumbConfig, { width: 120, height: 120, fit: 'cover' })}
                           alt={photo.caption || ''}
                           loading="lazy"
                         />

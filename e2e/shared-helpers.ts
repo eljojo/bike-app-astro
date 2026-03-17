@@ -88,6 +88,27 @@ export function clearContentEdits(dbPath: string, contentType: string, slug: str
   db.close();
 }
 
+/** Read a content_edits cache entry. Returns null if not found. */
+export function getContentEdit(
+  dbPath: string,
+  contentType: string,
+  slug: string,
+): { data: string; githubSha: string; updatedAt: string } | null {
+  if (!fs.existsSync(dbPath)) return null;
+  const db = openDb(dbPath);
+  try {
+    const row = db.prepare(
+      'SELECT data, github_sha, updated_at FROM content_edits WHERE content_type = ? AND content_slug = ?'
+    ).get(contentType, slug) as { data: string; github_sha: string; updated_at: string } | undefined;
+    if (!row) return null;
+    return { data: row.data, githubSha: row.github_sha, updatedAt: row.updated_at };
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
 // Staging origin used to proxy tile requests in E2E — CI has no Thunderforest
 // API key, so we intercept /api/tiles/* and forward to staging which has one.
 const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';

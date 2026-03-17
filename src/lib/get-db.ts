@@ -1,4 +1,4 @@
-import { env, openLocalDb, localDbPath } from './env';
+import { env, openLocalDb, localDbPath } from './env/env.service';
 import { getDb as getD1Db, type Database } from '../db';
 
 /**

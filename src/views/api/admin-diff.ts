@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
-import { env } from '../../lib/env';
-import { createGitService } from '../../lib/git-factory';
-import { authorize } from '../../lib/authorize';
+import { env } from '../../lib/env/env.service';
+import { createGitService } from '../../lib/git/git-factory';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 
 export const prerender = false;

@@ -1,15 +1,16 @@
 ---
 import Base from '@/layouts/Base.astro';
 import MapPage from '@/components/MapPage.astro';
-import { elevationConclusion } from '@/lib/elevation';
-import { findNearbyPlaces } from '@/lib/proximity';
-import { toMapPlaces } from '@/lib/places';
+import { elevationConclusion } from '@/lib/geo/elevation';
+import { findNearbyPlaces } from '@/lib/geo/proximity';
+import { toMapPlaces } from '@/lib/geo/places';
 import { loadRouteData } from '@/lib/route-data';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
-import { getCityConfig } from '@/lib/city-config';
+import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
-import { supportedLocales } from '@/lib/locale-utils';
+import { supportedLocales } from '@/lib/i18n/locale-utils';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -17,8 +18,9 @@ const locale = Astro.currentLocale;
 export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData } = await loadRouteData();
+  const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
-  return routes.map(route => ({
+  return filtered.map(route => ({
     params: { slug: route.id },
     props: { route, allElevations, placeData },
   }));

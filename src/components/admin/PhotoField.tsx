@@ -1,5 +1,6 @@
 import { useState, useRef } from 'preact/hooks';
 import { useFileUpload } from '../../lib/hooks';
+import { buildImageUrl } from '../../lib/media/image-service';
 
 interface Props {
   photoKey: string;
@@ -39,7 +40,7 @@ export default function PhotoField({ photoKey, cdnUrl, onPhotoChange, label = 'P
       <label>{label}</label>
       {photoKey ? (
         <div class="photo-field-preview">
-          <img src={`${cdnUrl}/cdn-cgi/image/width=400/${photoKey}`} alt="" />
+          <img src={buildImageUrl(cdnUrl, photoKey, { width: 400 })} alt="" />
           <button type="button" class="btn-remove-photo" onClick={() => onPhotoChange('', '')}>
             Remove
           </button>

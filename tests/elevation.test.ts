@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { quantiles, elevationConclusion, elevationTags, getAllElevations } from '../src/lib/elevation';
+import { quantiles, elevationConclusion, elevationTags, getAllElevations } from '../src/lib/geo/elevation';
 
 describe('quantiles', () => {
   it('computes median of odd-length array', () => {

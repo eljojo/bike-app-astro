@@ -1,22 +1,23 @@
 import type { AstroIntegration } from 'astro';
-import { translatePath } from '../lib/path-translations';
-import { isBlogInstance, isClubInstance } from '../lib/city-config';
+import { translatePath, buildSegmentTranslations, setSegmentTranslations } from '../lib/i18n/path-translations';
+import type { LocalePageWithSegments } from '../lib/i18n/path-translations';
+import { isBlogInstance, isClubInstance } from '../lib/config/city-config';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
 
 /** Pages shared between both wiki and blog instance types. */
-const sharedPages = [
+const sharedPages: LocalePageWithSegments[] = [
   { pattern: '/', entrypoint: view('index.astro') },
-  { pattern: '/about', entrypoint: view('about.astro') },
+  { pattern: '/about', entrypoint: view('about.astro'), segments: { about: { fr: 'a-propos', es: 'acerca-de' } } },
 ];
 
 /** Wiki-only pages. */
-const wikiPages = [
-  { pattern: '/calendar', entrypoint: view('calendar.astro') },
-  { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
-  { pattern: '/map', entrypoint: view('map.astro') },
-  { pattern: '/routes', entrypoint: view('routes/index.astro') },
+const wikiPages: LocalePageWithSegments[] = [
+  { pattern: '/calendar', entrypoint: view('calendar.astro'), segments: { calendar: { fr: 'calendrier', es: 'calendario' } } },
+  { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro'), segments: { events: { fr: 'evenements', es: 'eventos' } } },
+  { pattern: '/map', entrypoint: view('map.astro'), segments: { map: { fr: 'carte', es: 'mapa' } } },
+  { pattern: '/routes', entrypoint: view('routes/index.astro'), segments: { routes: { fr: 'parcours', es: 'rutas' } } },
   { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
   { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
   { pattern: '/routes/[slug]/map/[variant]', entrypoint: view('routes/map-variant.astro') },
@@ -27,15 +28,15 @@ const wikiPages = [
 ];
 
 /** Blog-only pages. */
-const blogPages = [
-  { pattern: '/rides', entrypoint: view('rides/index.astro') },
+const blogPages: LocalePageWithSegments[] = [
+  { pattern: '/rides', entrypoint: view('rides/index.astro'), segments: { rides: { fr: 'sorties', es: 'recorridos' } } },
   { pattern: '/rides/[slug]', entrypoint: view('rides/detail.astro') },
   { pattern: '/rides/[slug]/map', entrypoint: view('rides/map.astro') },
-  { pattern: '/tours', entrypoint: view('tours/index.astro') },
+  { pattern: '/tours', entrypoint: view('tours/index.astro'), segments: { tours: { fr: 'voyages', es: 'viajes' } } },
   { pattern: '/tours/[slug]', entrypoint: view('tours/detail.astro') },
   { pattern: '/tours/[tourSlug]/[rideSlug]', entrypoint: view('tours/ride-detail.astro') },
   { pattern: '/tours/[tourSlug]/[rideSlug]/map', entrypoint: view('tours/ride-map.astro') },
-  { pattern: '/stats', entrypoint: view('stats.astro') },
+  { pattern: '/stats', entrypoint: view('stats.astro'), segments: { stats: { fr: 'statistiques', es: 'estadisticas' } } },
 ];
 
 /** Routes that don't need locale variants (downloads, feeds, etc.). */
@@ -48,12 +49,12 @@ const blogStaticRoutes = [
 ];
 
 /** Club-only pages (randonneuring clubs, cycling organizations). */
-const clubPages = [
-  { pattern: '/events', entrypoint: view('events/index.astro') },
+const clubPages: LocalePageWithSegments[] = [
+  { pattern: '/events', entrypoint: view('events/index.astro'), segments: { events: { fr: 'evenements', es: 'eventos' } } },
   { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
-  { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro') },
+  { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro'), segments: { routes: { fr: 'parcours', es: 'rutas' } } },
   { pattern: '/routes/[slug]/map', entrypoint: view('routes/map.astro') },
-  { pattern: '/places', entrypoint: view('places/index.astro') },
+  { pattern: '/places', entrypoint: view('places/index.astro'), segments: { places: { fr: 'lieux', es: 'lugares' } } },
 ];
 
 const clubStaticRoutes = [
@@ -75,6 +76,10 @@ export function i18nRoutes(): AstroIntegration {
           ...sharedPages,
           ...(blog ? blogPages : club ? clubPages : wikiPages),
         ];
+
+        // Build and set segment translations from colocated route definitions
+        const translations = buildSegmentTranslations(localePages);
+        setSegmentTranslations(translations);
 
         for (const page of localePages) {
           // Default locale: routes at root (no prefix)

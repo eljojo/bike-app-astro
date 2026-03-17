@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/city-config', () => ({
+vi.mock('../src/lib/config/city-config', () => ({
   getCityConfig: vi.fn(() => ({
     locale: 'en-CA',
     locales: ['en-CA', 'fr-CA'],
   })),
 }));
 
-import { switchLocalePath } from '../src/lib/locale-switcher';
+import { switchLocalePath } from '../src/lib/i18n/locale-switcher';
 
 describe('switchLocalePath()', () => {
   it('English to French: translates segments', () => {

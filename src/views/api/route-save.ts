@@ -4,22 +4,25 @@ import type { APIContext } from 'astro';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import { z } from 'astro/zod';
-import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
-import { mergeMedia, mergeParkedPhotos, type ParkedPhotoEntry } from '../../lib/media-merge';
-import { parseGpx } from '../../lib/gpx';
-import { CITY } from '../../lib/config';
+import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
+import { mergeMedia, mergeParkedMedia, type ParkedMediaEntry } from '../../lib/media/media-merge';
+import { parseGpx } from '../../lib/gpx/parse';
+import { CITY } from '../../lib/config/config';
+import { routeGpxGitPath } from '../../lib/gpx/filenames';
 import { jsonError } from '../../lib/api-response';
-import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
-import type { FileChange } from '../../lib/git-service';
-import { commitGpxFile } from '../../lib/git-gpx';
-import { env } from '../../lib/env';
-import { buildFreshRouteData, computeRouteContentHashFromFiles, adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
+import { saveContent } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithAfterCommit } from '../../lib/content/content-save';
+import type { FileChange } from '../../lib/git/git.adapter-github';
+import { commitGpxFile } from '../../lib/git/git-gpx';
+import { env } from '../../lib/env/env.service';
+import { adminMediaItemSchema, adminVariantSchema } from '../../lib/models/route-model';
 import { validateSlug } from '../../lib/slug';
-import { supportedLocales, defaultLocale } from '../../lib/locale-utils';
+import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
+import { routeOps } from '../../lib/content/content-ops.server';
 import { buildRedirectFileChange } from '../../lib/redirects';
-import { updatePhotoRegistryCache } from '../../lib/photo-parking';
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
+import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { db } from '../../lib/get-db';
 
 export const prerender = false;
 
@@ -56,13 +59,14 @@ const routeUpdateSchema = z.object({
 export type RouteUpdate = z.infer<typeof routeUpdateSchema>;
 
 interface RouteBuildResult extends BuildResult {
-  mergedParked: ParkedPhotoEntry[] | undefined;
+  mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
   slug: string;
+  consumedVideoKeys: string[];
 }
 
-export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
+export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> & WithSlugValidation & WithAfterCommit<RouteBuildResult> = {
   parseRequest(body: unknown): RouteUpdate {
     return routeUpdateSchema.parse(body);
   },
@@ -73,25 +77,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
 
   validateSlug,
 
-  getFilePaths(slug: string) {
-    const basePath = `${CITY}/routes/${slug}`;
-    const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
-    return {
-      primary: `${basePath}/index.md`,
-      auxiliary: [
-        `${basePath}/media.yml`,
-        ...secondaryLocales.map(l => `${basePath}/index.${l}.md`),
-      ],
-    };
-  },
-
-  computeContentHash(currentFiles: CurrentFiles): string {
-    return computeRouteContentHashFromFiles(currentFiles);
-  },
-
-  buildFreshData(slug: string, currentFiles: CurrentFiles): string {
-    return buildFreshRouteData(slug, currentFiles);
-  },
+  getFilePaths: routeOps.getFilePaths,
+  computeContentHash: routeOps.computeContentHash,
+  buildFreshData: routeOps.buildFreshData,
 
   async buildFileChanges(update, slug, currentFiles, git) {
     const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
@@ -121,20 +109,8 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     }
 
     // Build frontmatter
-    let mergedFrontmatter: Record<string, unknown>;
-    let existingFrontmatter: Record<string, unknown> = {};
-
-    if (isNew) {
-      const adminFields: Record<string, unknown> = { ...update.frontmatter };
-      if (!adminFields.status) adminFields.status = 'published';
-      adminFields.created_at = new Date().toISOString().split('T')[0];
-      adminFields.updated_at = new Date().toISOString().split('T')[0];
-      mergedFrontmatter = adminFields;
-    } else {
-      const { data } = matter(currentFiles.primaryFile!.content);
-      existingFrontmatter = data;
-      mergedFrontmatter = { ...existingFrontmatter, ...update.frontmatter };
-    }
+    const mergedFrontmatter = mergeFrontmatter(isNew, currentFiles.primaryFile?.content ?? null, update.frontmatter as Record<string, unknown>);
+    const existingFrontmatter: Record<string, unknown> = isNew ? {} : matter(currentFiles.primaryFile!.content).data;
 
     // Process variants
     if (update.variants) {
@@ -165,7 +141,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
       for (const v of update.variants) {
         if (v.isNew && v.gpxContent) {
           files.push(await commitGpxFile({
-            path: `${basePath}/${v.gpx}`,
+            path: routeGpxGitPath(CITY, targetSlug, v.gpx),
             content: v.gpxContent,
             token: env.GITHUB_TOKEN,
             owner: env.GIT_OWNER,
@@ -181,7 +157,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
         const newGpxFiles = new Set(update.variants.map(v => v.gpx));
         for (const gpx of existingGpxFiles) {
           if (!newGpxFiles.has(gpx)) {
-            deletePaths.push(`${basePath}/${gpx}`);
+            deletePaths.push(routeGpxGitPath(CITY, targetSlug, gpx));
           }
         }
       }
@@ -220,32 +196,28 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     // Build media.yml and track added/removed keys for shared-keys map
     let addedMediaKeys: string[] = [];
     let removedMediaKeys: string[] = [];
+    let consumedVideoKeys: string[] = [];
     if (update.media) {
-      const mediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
-      const currentMedia = mediaPath ? currentFiles.auxiliaryFiles![mediaPath] : null;
-      let existingMedia: Array<Record<string, unknown>> = [];
-      if (currentMedia) {
-        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
-      }
+      const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
 
-      // Compute diffs for shared-keys map
-      const oldKeys = new Set(existingMedia.map(m => m.key as string));
-      const newKeys = new Set(update.media.map(m => m.key));
-      addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
-      removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
+      const database = db();
+      const { annotatedMedia, consumedVideoKeys: consumed } = await enrichAndAnnotateMedia(update.media, database);
+      consumedVideoKeys = consumed;
 
-      const merged = mergeMedia(update.media, existingMedia);
+      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, annotatedMedia));
+
+      const merged = mergeMedia(annotatedMedia, existingMedia);
       if (merged.length > 0) {
         files.push({ path: `${basePath}/media.yml`, content: serializeYamlFile(merged) });
       }
     }
 
-    // Update parked-photos.yml
-    const parkedPath = `${CITY}/parked-photos.yml`;
-    let existingParked: ParkedPhotoEntry[] = [];
+    // Update parked-media.yml
+    const parkedPath = `${CITY}/parked-media.yml`;
+    let existingParked: ParkedMediaEntry[] = [];
     const parkedFile = await git.readFile(parkedPath);
     if (parkedFile) {
-      existingParked = (yaml.load(parkedFile.content) as ParkedPhotoEntry[]) || [];
+      existingParked = (yaml.load(parkedFile.content) as ParkedMediaEntry[]) || [];
     }
 
     // Un-park any photos that were added to this route from parking
@@ -261,7 +233,7 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
     }
 
     const toAdd = update.parkedPhotos || [];
-    const mergedParked = mergeParkedPhotos(existingParked, toAdd, unparkedKeys);
+    const mergedParked = mergeParkedMedia(existingParked, toAdd, unparkedKeys);
 
     if (mergedParked.length > 0) {
       files.push({ path: parkedPath, content: serializeYamlFile(mergedParked) });
@@ -269,14 +241,14 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
       deletePaths.push(parkedPath);
     }
 
-    return { files, deletePaths, isNew, mergedParked, addedMediaKeys, removedMediaKeys, slug: targetSlug };
+    return { files, deletePaths, isNew, mergedParked, addedMediaKeys, removedMediaKeys, slug: targetSlug, consumedVideoKeys };
   },
 
   buildCommitMessage(update, slug, isNew, currentFiles): string {
     const targetSlug = update.newSlug && update.newSlug !== slug ? update.newSlug : slug;
     const resourcePath = `${CITY}/routes/${targetSlug}`;
     const title = (update.frontmatter as Record<string, unknown>)?.name as string || slug;
-    const trailer = `\n\nChanges: ${resourcePath}`;
+    const trailer = buildCommitTrailer(resourcePath);
 
     if (targetSlug !== slug) {
       return `Rename ${title}: ${slug} → ${targetSlug}${trailer}`;
@@ -319,12 +291,9 @@ export const routeHandlers: SaveHandlers<RouteUpdate, RouteBuildResult> = {
   },
 
   async afterCommit(result, database) {
-    const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug } = result;
-    const changes = [
-      ...removedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: routeSlug }, action: 'remove' as const })),
-      ...addedMediaKeys.map(key => ({ key, usage: { type: 'route' as const, slug: routeSlug }, action: 'add' as const })),
-    ];
-    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
+    const { mergedParked, addedMediaKeys, removedMediaKeys, slug: routeSlug, consumedVideoKeys } = result;
+    const changes = buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'route', routeSlug);
+    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, consumedVideoKeys, mergedParked });
   },
 };
 

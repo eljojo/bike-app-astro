@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, blob, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, blob, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -101,4 +102,24 @@ export const stravaTokens = sqliteTable('strava_tokens', {
   accessToken: text('access_token').notNull(),
   refreshToken: text('refresh_token').notNull(),
   expiresAt: integer('expires_at').notNull(),
+});
+
+export const videoJobs = sqliteTable('video_jobs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  key: text('key').notNull().unique(),
+  contentKind: text('content_kind').notNull(),
+  contentSlug: text('content_slug').notNull(),
+  jobId: text('job_id'),
+  status: text('status').notNull().default('uploading'),
+  width: integer('width'),
+  height: integer('height'),
+  duration: text('duration'),
+  orientation: text('orientation'),
+  lat: real('lat'),
+  lng: real('lng'),
+  capturedAt: text('captured_at'),
+  title: text('title'),
+  handle: text('handle'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });

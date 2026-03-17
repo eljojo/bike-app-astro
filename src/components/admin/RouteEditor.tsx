@@ -1,27 +1,31 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
 import VariantManager from './VariantManager';
 import type { VariantItem } from './VariantManager';
 import MarkdownEditor from './MarkdownEditor';
-import NearbyPhotos from './NearbyPhotos';
+import NearbyMedia from './NearbyMedia';
 import EditorActions from './EditorActions';
 import { useEditorState } from './useEditorState';
+import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
 import SlugEditor from './SlugEditor';
-import nearbyPhotosMap from 'virtual:bike-app/nearby-photos';
-import { toParkedEntry } from '../../lib/media-merge';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
-import { localeLabel } from '../../lib/locale-utils';
+import nearbyMediaMap from 'virtual:bike-app/nearby-media';
+import { toParkedEntry } from '../../lib/media/media-merge';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
+import { localeLabel } from '../../lib/i18n/locale-utils';
 
 interface Props {
   initialData: RouteDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
-  parkedPhotos?: ParkedPhotoEntry[];
+  videosCdnUrl?: string;
+  videoPrefix?: string;
+  parkedPhotos?: ParkedMediaEntry[];
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
   defaultLocale?: string;
@@ -30,7 +34,7 @@ interface Props {
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice }: Props) {
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
@@ -39,7 +43,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
   const [parkedPhotos, setParkedPhotos] = useState(initialParkedPhotos);
-  const [newlyParked, setNewlyParked] = useState<ParkedPhotoEntry[]>([]);
+  const [newlyParked, setNewlyParked] = useState<ParkedMediaEntry[]>([]);
   const [deletedParkedKeys, setDeletedParkedKeys] = useState<string[]>([]);
   const [variants, setVariants] = useState<VariantItem[]>(initialData.variants || []);
   const [slug, setSlug] = useState(initialData.slug);
@@ -57,22 +61,29 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingGpxFiles, setPendingGpxFiles] = useState<File[]>([]);
 
+  const [dirty, setDirty] = useState(false);
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, tagline, tags, status, body, media, variants, slug, translations]);
+
+  const hasTranscoding = media.some(m => m.videoStatus && m.videoStatus !== 'ready');
+  useUnsavedGuard(dirty || hasTranscoding);
+
+  const { validate } = useFormValidation([
+    { field: 'route-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: '', check: () => !variants.length, message: 'At least one route option is required' },
+  ]);
+
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/routes',
     contentId: initialData.slug,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) {
-        document.getElementById('route-name')?.focus();
-        return 'Name is required';
-      }
-      if (!variants.length) {
-        return 'At least one route option is required';
-      }
-      return null;
-    },
+    validate,
     buildPayload: () => {
+      const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
       const payload: RouteUpdate = {
         frontmatter: {
           name,
@@ -82,7 +93,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
         },
         body,
         ...(slug !== initialData.slug ? { newSlug: slug } : {}),
-        media,
+        media: cleanMedia,
         ...(newlyParked.length > 0 ? { parkedPhotos: newlyParked } : {}),
         ...(deletedParkedKeys.length > 0 ? { deletedParkedKeys } : {}),
         variants,
@@ -91,6 +102,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew) {
         window.location.href = `/admin/routes/${initialData.slug}`;
       }
@@ -98,9 +110,9 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
   });
 
   const { dragging } = useDragDrop((files) => {
-    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const gpxFiles = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-    if (imageFiles.length > 0) setPendingFiles(imageFiles);
+    if (mediaFiles.length > 0) setPendingFiles(mediaFiles);
     if (gpxFiles.length > 0) setPendingGpxFiles(gpxFiles);
   });
 
@@ -169,7 +181,7 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
     <div class="route-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos or GPX files to add to route</div>
+          <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
         </div>
       )}
       <div class="locale-tabs">
@@ -290,9 +302,16 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
           media={media}
           onChange={setMedia}
           cdnUrl={cdnUrl}
+          videosCdnUrl={videosCdnUrl}
+          videoPrefix={videoPrefix}
           pendingFiles={pendingFiles}
           onPendingProcessed={() => setPendingFiles([])}
           userRole={userRole}
+          contentSlug={initialData.slug}
+          contentKind="route"
+          onUpdateItem={(key, patch) => setMedia(prev => prev.map(item =>
+            item.key === key ? { ...item, ...patch } : item
+          ))}
           onParkPhoto={(photo) => {
             const entry = toParkedEntry(photo);
             setParkedPhotos(prev => [...prev, entry]);
@@ -305,20 +324,22 @@ export default function RouteEditor({ initialData, cdnUrl, parkedPhotos: initial
             }
           }}
         />
-        <NearbyPhotos
-          nearbyPhotos={nearbyPhotosMap[initialData.slug] || []}
-          parkedPhotos={parkedPhotos}
+        <NearbyMedia
+          nearbyMedia={nearbyMediaMap[initialData.slug] || []}
+          parkedMedia={parkedPhotos}
           currentMediaKeys={new Set(media.map(m => m.key))}
           cdnUrl={cdnUrl}
+          videosCdnUrl={videosCdnUrl}
+          videoPrefix={videoPrefix}
           userRole={userRole}
           initiallyExpanded={media.length === 0}
-          onAddPhoto={(photo, wasParked) => {
+          onAddMedia={(photo, wasParked) => {
             setMedia([...media, photo]);
             if (wasParked) {
               setParkedPhotos(prev => prev.filter(p => p.key !== photo.key));
             }
           }}
-          onParkPhoto={(photo) => {
+          onParkMedia={(photo) => {
             setMedia(prev => prev.filter(m => m.key !== photo.key));
             const entry = toParkedEntry(photo);
             setParkedPhotos(prev => [...prev, entry]);

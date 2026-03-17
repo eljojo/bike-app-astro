@@ -1,6 +1,6 @@
 /// <reference types="astro/client" />
 
-import type { SessionUser } from './lib/auth';
+import type { SessionUser } from './lib/auth/auth';
 
 /**
  * Cloudflare Workers runtime type stubs.
@@ -22,6 +22,9 @@ declare global {
 
   /** City slug, baked in at build time via vite.define */
   const __CITY__: string;
+
+  /** Video storage prefix, baked in at build time via vite.define */
+  const __VIDEO_PREFIX__: string;
 
   // -- D1 (SQL database) types used by drizzle-orm/d1 --
 

@@ -2,8 +2,8 @@
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
-import { getCityConfig } from '@/lib/city-config';
-import { categoryEmoji } from '@/lib/place-categories';
+import { getCityConfig } from '@/lib/config/city-config';
+import { categoryEmoji } from '@/lib/geo/place-categories';
 
 const config = getCityConfig();
 

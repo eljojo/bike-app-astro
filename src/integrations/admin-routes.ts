@@ -1,8 +1,27 @@
 import type { AstroIntegration } from 'astro';
-import { isBlogInstance } from '../lib/city-config';
+import { isBlogInstance } from '../lib/config/city-config';
+import { getContentTypes } from '../lib/content/content-types.server';
+import { getInstanceFeatures } from '../lib/config/instance-features';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
+
+/** Pick the admin index view based on instance type (evaluated at build time). */
+function adminIndexView(): string {
+  const features = getInstanceFeatures();
+  if (features.hasRides) return 'admin/rides.astro';
+  if (features.hasEnrichedEvents) return 'admin/events.astro';
+  return 'admin/index.astro';
+}
+
+// Content-type routes (admin pages + API) derived from registry.
+// Entrypoints in the registry are relative view paths (e.g. 'admin/events.astro')
+// — resolve them here at build time via view() so content-types.ts stays runtime-safe.
+const contentTypeRoutes = getContentTypes().flatMap(ct => [
+  ...(ct.adminListRoute ? [{ ...ct.adminListRoute, entrypoint: view(ct.adminListRoute.entrypoint) }] : []),
+  ...(ct.adminDetailRoutes || []).map(r => ({ ...r, entrypoint: view(r.entrypoint) })),
+  ...(ct.apiRoutes || []).map(r => ({ ...r, entrypoint: view(r.entrypoint) })),
+]);
 
 /**
  * All application routes — auth, admin, API, and public feeds.
@@ -28,38 +47,26 @@ const routes = [
   { pattern: '/api/auth/add-passkey', entrypoint: view('api/auth/add-passkey.ts') },
   { pattern: '/api/auth/remove-passkey', entrypoint: view('api/auth/remove-passkey.ts') },
   { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
-  // Admin list pages
-  { pattern: '/admin', entrypoint: view('admin/index.astro') },
-  { pattern: '/admin/events', entrypoint: view('admin/events.astro') },
-  { pattern: '/admin/places', entrypoint: view('admin/places.astro') },
-  // Blog ride admin pages (static routes before parameterized)
-  ...(isBlogInstance() ? [
-    { pattern: '/admin/rides', entrypoint: view('admin/rides.astro') },
-    { pattern: '/admin/rides/new', entrypoint: view('admin/ride-detail.astro') },
-    { pattern: '/admin/rides/[slug]', entrypoint: view('admin/ride-detail.astro') },
-  ] : []),
-  // Admin detail pages
-  { pattern: '/admin/routes/new', entrypoint: view('admin/route-new.astro') },
-  { pattern: '/admin/routes/[slug]', entrypoint: view('admin/route-detail.astro') },
-  { pattern: '/admin/events/new', entrypoint: view('admin/event-new.astro') },
-  { pattern: '/admin/events/[...id]', entrypoint: view('admin/event-detail.astro') },
-  { pattern: '/admin/places/new', entrypoint: view('admin/place-new.astro') },
-  { pattern: '/admin/places/[id]', entrypoint: view('admin/place-detail.astro') },
+  // Content-type admin pages and API endpoints (from registry)
+  ...contentTypeRoutes,
+  // Admin index — serves the primary content type's list page per instance type
+  { pattern: '/admin', entrypoint: view(adminIndexView()) },
+  // Non-content-type admin pages
   { pattern: '/admin/history', entrypoint: view('admin/history.astro') },
   { pattern: '/admin/users', entrypoint: view('admin/users.astro') },
   { pattern: '/admin/settings', entrypoint: view('admin/settings.astro') },
-  // Content API (static routes before parameterized)
-  { pattern: '/api/routes/[slug]', entrypoint: view('api/route-save.ts') },
-  { pattern: '/api/events/[...id]', entrypoint: view('api/event-save.ts') },
-  { pattern: '/api/places/prefill', entrypoint: view('api/places-prefill.ts') },
-  { pattern: '/api/places/[id]', entrypoint: view('api/place-save.ts') },
+  // Blog-only API routes (Strava integration — not part of content type registry)
   ...(isBlogInstance() ? [
-    { pattern: '/api/rides/[slug]', entrypoint: view('api/ride-save.ts') },
     { pattern: '/api/strava/connect', entrypoint: view('api/strava/connect.ts') },
     { pattern: '/api/strava/disconnect', entrypoint: view('api/strava/disconnect.ts') },
     { pattern: '/api/strava/activities', entrypoint: view('api/strava/activities.ts') },
     { pattern: '/api/strava/import', entrypoint: view('api/strava/import.ts') },
   ] : []),
+  // Video API (static routes before parameterized)
+  { pattern: '/api/video/presign', entrypoint: view('api/video-presign.ts') },
+  { pattern: '/api/video/webhook', entrypoint: view('api/video-webhook.ts') },
+  { pattern: '/api/video/upload-local', entrypoint: view('api/video-upload-local.ts') },
+  { pattern: '/api/video/status/[key]', entrypoint: view('api/video-status.ts') },
   // Media API
   { pattern: '/api/media/presign', entrypoint: view('api/media/presign.ts') },
   { pattern: '/api/media/confirm', entrypoint: view('api/media/confirm.ts') },

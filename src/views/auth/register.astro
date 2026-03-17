@@ -3,7 +3,7 @@ export const prerender = false;
 
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import RegisterForm from '../../components/admin/RegisterForm.tsx';
-import { getInstanceFeatures } from '../../lib/instance-features';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 
 if (!getInstanceFeatures().allowsRegistration) {
   return new Response(null, { status: 404 });

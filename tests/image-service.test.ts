@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { imageUrl, originalUrl } from '../src/lib/image-service';
+import { buildImageUrl, imageUrl, originalUrl } from '../src/lib/media/image-service';
 
 describe('imageUrl', () => {
   it('generates a transform URL with dimensions', () => {
@@ -40,5 +40,34 @@ describe('imageUrl', () => {
     expect(url).toContain('width=375');
     expect(url).toContain('height=375');
     expect(url).toContain('fit=cover');
+  });
+});
+
+describe('buildImageUrl', () => {
+  const cdn = 'https://cdn.example.com';
+
+  it('builds URL with width only', () => {
+    expect(buildImageUrl(cdn, 'abc123', { width: 400 }))
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=400/abc123');
+  });
+
+  it('builds URL with width, height, and fit', () => {
+    expect(buildImageUrl(cdn, 'abc123', { width: 200, height: 150, fit: 'cover' }))
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=200,height=150,fit=cover/abc123');
+  });
+
+  it('builds URL with format', () => {
+    expect(buildImageUrl(cdn, 'abc123', { width: 300, format: 'auto' }))
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=300,format=auto/abc123');
+  });
+
+  it('builds URL with scale-down fit', () => {
+    expect(buildImageUrl(cdn, 'abc123', { width: 800, fit: 'scale-down' }))
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=800,fit=scale-down/abc123');
+  });
+
+  it('returns plain URL when no transforms', () => {
+    expect(buildImageUrl(cdn, 'abc123'))
+      .toBe('https://cdn.example.com/abc123');
   });
 });

@@ -1,24 +1,25 @@
 // AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
-import yaml from 'js-yaml';
 import { z } from 'astro/zod';
 import adminEvents from 'virtual:bike-app/admin-events';
-import { serializeMdFile, serializeYamlFile } from '../../lib/file-serializers';
-import { CITY } from '../../lib/config';
-import { env } from '../../lib/env';
+import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
+import { CITY } from '../../lib/config/config';
+import { env } from '../../lib/env/env.service';
 import { jsonError } from '../../lib/api-response';
-import { can } from '../../lib/authorize';
-import { saveContent } from '../../lib/content-save';
-import type { SaveHandlers, BuildResult, CurrentFiles } from '../../lib/content-save';
-import type { IGitService, FileChange } from '../../lib/git-service';
+import { can } from '../../lib/auth/authorize';
+import { saveContent } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
+import type { IGitService, FileChange } from '../../lib/git/git.adapter-github';
 import type { AdminEvent } from '../../types/admin';
-import { buildFreshEventData, computeEventContentHashFromFiles, resolveEffectivePrimary, eventMediaItemSchema } from '../../lib/models/event-model';
+import { resolveEffectivePrimary } from '../../lib/models/event-model.server';
+import { eventMediaItemSchema } from '../../lib/models/event-model';
+import { eventOps } from '../../lib/content/content-ops.server';
 import { slugify } from '../../lib/slug';
-import { buildPhotoKeyChanges } from '../../lib/save-helpers';
-import { extractFrontmatterField, parkOrphanedPhoto, updatePhotoRegistryCache } from '../../lib/photo-parking';
-import type { ParkedPhotoEntry } from '../../lib/media-merge';
-import sharedKeysData from 'virtual:bike-app/photo-shared-keys';
+import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
+import sharedKeysData from 'virtual:bike-app/media-shared-keys';
 
 export const prerender = false;
 
@@ -42,7 +43,7 @@ interface EventBuildResult extends BuildResult {
   oldPosterKey: string | undefined;
   newPosterKey: string | undefined;
   eventSlug: string;
-  mergedParked: ParkedPhotoEntry[] | undefined;
+  mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
 }
@@ -62,7 +63,7 @@ function resolveEventPath(eventId: string, isDirectory: boolean): string {
     : `${CITY}/events/${year}/${slug}.md`;
 }
 
-export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
+export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<EventBuildResult> = {
   parseRequest(body: unknown): EventUpdate {
     return eventUpdateSchema.parse(body);
   },
@@ -85,24 +86,9 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
     return null;
   },
 
-  getFilePaths(eventId: string) {
-    const [year, slug] = eventId.split('/');
-    const dirBase = `${CITY}/events/${year}/${slug}`;
-    // Primary tries directory index.md; flat .md and media.yml are auxiliaries.
-    // resolveEffectivePrimary in event-model handles promotion when needed.
-    return {
-      primary: `${dirBase}/index.md`,
-      auxiliary: [`${dirBase}.md`, `${dirBase}/media.yml`],
-    };
-  },
-
-  computeContentHash(currentFiles: CurrentFiles): string {
-    return computeEventContentHashFromFiles(currentFiles);
-  },
-
-  buildFreshData(eventId: string, currentFiles: CurrentFiles): string {
-    return buildFreshEventData(eventId, currentFiles);
-  },
+  getFilePaths: eventOps.getFilePaths,
+  computeContentHash: eventOps.computeContentHash,
+  buildFreshData: eventOps.buildFreshData,
 
   async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {
     const [year, slug] = eventId.split('/');
@@ -139,8 +125,8 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
       : undefined;
     const newPosterKey = update.frontmatter.poster_key as string | undefined;
 
-    let mergedParked: ParkedPhotoEntry[] | undefined;
-    const parked = await parkOrphanedPhoto({
+    let mergedParked: ParkedMediaEntry[] | undefined;
+    const parked = await parkOrphanedMedia({
       oldKey: oldPosterKey,
       newKey: newPosterKey,
       contentType: 'event',
@@ -193,17 +179,8 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
     if (useDirectory && update.media) {
       const dirBase = `${CITY}/events/${year}/${slug}`;
       const mediaPath = `${dirBase}/media.yml`;
-      const currentMediaPath = Object.keys(currentFiles.auxiliaryFiles || {}).find(p => p.endsWith('media.yml'));
-      const currentMedia = currentMediaPath ? currentFiles.auxiliaryFiles![currentMediaPath] : null;
-      let existingMedia: Array<Record<string, unknown>> = [];
-      if (currentMedia) {
-        existingMedia = (yaml.load(currentMedia.content) as Array<Record<string, unknown>>) || [];
-      }
-
-      const oldKeys = new Set(existingMedia.map(m => m.key as string));
-      const newKeys = new Set(update.media.map(m => m.key));
-      addedMediaKeys = update.media.filter(m => !oldKeys.has(m.key)).map(m => m.key);
-      removedMediaKeys = existingMedia.filter(m => !newKeys.has(m.key as string)).map(m => m.key as string);
+      const existingMedia = loadExistingMedia(currentFiles.auxiliaryFiles);
+      ({ addedKeys: addedMediaKeys, removedKeys: removedMediaKeys } = computeMediaKeyDiff(existingMedia, update.media));
 
       if (update.media.length > 0) {
         const mediaItems = update.media.map(m => {
@@ -218,7 +195,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
           return entry;
         });
         files.push({ path: mediaPath, content: serializeYamlFile(mediaItems) });
-      } else if (currentMedia) {
+      } else if (existingMedia.length > 0) {
         deletePaths.push(mediaPath);
       }
     }
@@ -233,17 +210,16 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> = {
   async afterCommit(result, database) {
     const { oldPosterKey, newPosterKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
     const changes = [
-      ...buildPhotoKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
-      ...removedMediaKeys.map(key => ({ key, usage: { type: 'event' as const, slug: eventSlug }, action: 'remove' as const })),
-      ...addedMediaKeys.map(key => ({ key, usage: { type: 'event' as const, slug: eventSlug }, action: 'add' as const })),
+      ...buildSingleMediaKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
+      ...buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'event', eventSlug),
     ];
-    await updatePhotoRegistryCache({ database, sharedKeysData, keyChanges: changes, mergedParked });
+    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
   },
 
   buildCommitMessage(update, eventId, isNew): string {
     const resourcePath = `${CITY}/events/${eventId}`;
     const title = (update.frontmatter as Record<string, unknown>)?.name as string || eventId;
-    const trailer = `\n\nChanges: ${resourcePath}`;
+    const trailer = buildCommitTrailer(resourcePath);
     return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
   },
 
@@ -271,10 +247,9 @@ export async function POST({ params, request, locals }: APIContext) {
   }
 
   // For new events, checkExistence should run; for existing events, it shouldn't
-  const id = params.id;
-  const handlers = id === 'new'
-    ? eventHandlers
-    : { ...eventHandlers, checkExistence: undefined };
-
-  return saveContent(request, locals, params, 'events', handlers);
+  if (params.id === 'new') {
+    return saveContent(request, locals, params, 'events', eventHandlers);
+  }
+  const { checkExistence, ...editHandlers } = eventHandlers;
+  return saveContent(request, locals, params, 'events', editHandlers);
 }

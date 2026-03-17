@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { filterPrivacyZone, stripPrivacyPhotos, type PrivacyZoneConfig } from '../src/lib/privacy-zone';
-import { buildTrackFromPoints, type GpxPoint } from '../src/lib/gpx';
+import { filterPrivacyZone, stripPrivacyMedia, type PrivacyZoneConfig } from '../src/lib/geo/privacy-zone';
+import { buildTrackFromPoints, type GpxPoint } from '../src/lib/gpx/parse';
 
 /**
  * Tests for privacy zone integration with GpxPoint (lon) → privacy zone (lng) mapping.
@@ -32,12 +32,6 @@ describe('privacy zone with GpxPoint mapping', () => {
     expect(result.length).toBe(3);
     expect(result[0].lat).toBeCloseTo(45.45);
     expect(result[0].lon).toBeCloseTo(-75.65);
-  });
-
-  it('preserves all points when zone is not configured', () => {
-    // When privacyZone is undefined, filtering is skipped entirely
-    const allPoints = [...gpxPoints];
-    expect(allPoints).toHaveLength(5);
   });
 
   it('preserves all points when none are in zone', () => {
@@ -77,7 +71,7 @@ describe('privacy zone photo stripping with RouteMedia', () => {
       { key: 'photo3.jpg' },                                 // no coordinates
     ];
 
-    const result = stripPrivacyPhotos(media, zone);
+    const result = stripPrivacyMedia(media, zone);
 
     // Photo 1: coordinates stripped (inside zone)
     expect(result[0].key).toBe('photo1.jpg');
@@ -97,7 +91,7 @@ describe('privacy zone photo stripping with RouteMedia', () => {
       { key: 'photo1.jpg', lat: 45.4215, lng: -75.6972 },
     ];
     const original = { ...media[0] };
-    stripPrivacyPhotos(media, zone);
+    stripPrivacyMedia(media, zone);
     expect(media[0].lat).toBe(original.lat);
     expect(media[0].lng).toBe(original.lng);
   });

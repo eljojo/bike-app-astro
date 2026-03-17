@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterPrivacyZone, stripPrivacyPhotos } from '../src/lib/privacy-zone';
+import { filterPrivacyZone, stripPrivacyMedia } from '../src/lib/geo/privacy-zone';
 
 const zone = { lat: 45.4, lng: -75.7, radius_m: 500 };
 
@@ -51,13 +51,13 @@ describe('filterPrivacyZone', () => {
   });
 });
 
-describe('stripPrivacyPhotos', () => {
+describe('stripPrivacyMedia', () => {
   it('nullifies lat/lng for photos inside the zone', () => {
     const photos = [
       { key: 'a', lat: 45.4, lng: -75.7 },    // inside
       { key: 'b', lat: 45.5, lng: -75.7 },    // outside
     ];
-    const result = stripPrivacyPhotos(photos, zone);
+    const result = stripPrivacyMedia(photos, zone);
     expect(result[0].lat).toBeUndefined();
     expect(result[0].lng).toBeUndefined();
     expect(result[1].lat).toBe(45.5);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeElevationProfile } from '../src/lib/elevation-profile';
+import { computeElevationProfile } from '../src/lib/geo/elevation-profile';
 
 // A simple uphill-then-downhill track
 const hillTrack = [

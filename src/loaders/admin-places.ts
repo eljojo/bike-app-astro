@@ -1,9 +1,23 @@
+// admin-places.ts — Admin virtual module loader for places.
+//
+// Reads place .md files from the content directory, parses frontmatter,
+// and produces data for the virtual module system.
+//
+// Data flow:
+//   content files → admin-places.ts → build-data-plugin.ts
+//     → virtual:bike-app/admin-places (list)
+//     → virtual:bike-app/admin-place-detail (details)
+//
+// Places use Astro's built-in glob loader for public pages, so there is
+// no shared file reader — the admin loader reads files directly.
+
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { cityDir } from '../lib/config';
+import { cityDir } from '../lib/config/config.server';
 import type { AdminPlace } from '../types/admin';
-import { placeDetailFromGit, computePlaceContentHash, type PlaceDetail } from '../lib/models/place-model';
+import { placeDetailFromGit, computePlaceContentHash } from '../lib/models/place-model.server';
+import type { PlaceDetail } from '../lib/models/place-model';
 
 const CITY_DIR = cityDir;
 

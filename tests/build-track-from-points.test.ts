@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildTrackFromPoints } from '../src/lib/gpx';
-import type { GpxPoint } from '../src/lib/gpx';
+import { buildTrackFromPoints } from '../src/lib/gpx/parse';
+import type { GpxPoint } from '../src/lib/gpx/parse';
 
 describe('buildTrackFromPoints', () => {
   const samplePoints: GpxPoint[] = [
@@ -11,7 +11,9 @@ describe('buildTrackFromPoints', () => {
 
   it('computes distance from points', () => {
     const track = buildTrackFromPoints(samplePoints);
-    expect(track.distance_m).toBeGreaterThan(0);
+    // 3 points ~1 km apart each ≈ 2.7 km total
+    expect(track.distance_m).toBeGreaterThan(2500);
+    expect(track.distance_m).toBeLessThan(3000);
     expect(track.points).toHaveLength(3);
   });
 
@@ -23,8 +25,8 @@ describe('buildTrackFromPoints', () => {
 
   it('generates encoded polyline', () => {
     const track = buildTrackFromPoints(samplePoints);
-    expect(track.polyline).toBeTruthy();
-    expect(typeof track.polyline).toBe('string');
+    expect(track.polyline).toBeTypeOf('string');
+    expect(track.polyline.length).toBeGreaterThan(10);
   });
 
   it('returns empty track for no points', () => {
@@ -39,7 +41,8 @@ describe('buildTrackFromPoints', () => {
     const track = buildTrackFromPoints([samplePoints[0]]);
     expect(track.distance_m).toBe(0);
     expect(track.points).toHaveLength(1);
-    expect(track.polyline).toBeTruthy();
+    expect(track.polyline).toBeTypeOf('string');
+    expect(track.polyline.length).toBeGreaterThanOrEqual(10);
   });
 
   it('recomputes metrics after filtering (fewer points = shorter distance)', () => {
@@ -56,7 +59,9 @@ describe('buildTrackFromPoints', () => {
     ];
     const track = buildTrackFromPoints(pointsWithTime);
     expect(track.elapsed_time_s).toBe(600); // 10 minutes
-    expect(track.moving_time_s).toBeGreaterThan(0);
-    expect(track.average_speed_kmh).toBeGreaterThan(0);
+    expect(track.moving_time_s).toBe(600); // continuously moving
+    // ~2.7 km in 10 min ≈ 16.3 km/h
+    expect(track.average_speed_kmh).toBeGreaterThan(14);
+    expect(track.average_speed_kmh).toBeLessThan(19);
   });
 });

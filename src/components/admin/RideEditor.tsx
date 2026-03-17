@@ -11,12 +11,15 @@ import RidePreview from './RidePreview';
 import StravaActivityBrowser from './StravaActivityBrowser';
 import type { StravaImportResult } from './StravaActivityBrowser';
 import { useEditorState } from './useEditorState';
+import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
+import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
-import { extractRideDate, parseGpx } from '../../lib/gpx';
-import { computeElevationProfile } from '../../lib/elevation-profile';
-import type { ElevationProfileData } from '../../lib/elevation-profile';
+import { extractRideDate, parseGpx } from '../../lib/gpx/parse';
+import { rideGpxFilename } from '../../lib/gpx/filenames';
+import { computeElevationProfile } from '../../lib/geo/elevation-profile';
+import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
 import type { TourSummary } from '../../types/admin';
@@ -24,6 +27,8 @@ import type { TourSummary } from '../../types/admin';
 interface Props {
   initialData: RideDetail & { contentHash?: string; isNew?: boolean; gpxRelativePath?: string };
   cdnUrl: string;
+  videosCdnUrl?: string;
+  videoPrefix?: string;
   userRole?: string;
   mapThumbnail?: string;
   rideLabels?: Record<string, string>;
@@ -31,7 +36,7 @@ interface Props {
   stravaConnected?: boolean;
 }
 
-export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
+export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -45,6 +50,16 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   const [highlight, setHighlight] = useState(initialData.highlight || false);
   const [privacyZone, setPrivacyZone] = useState(initialData.privacy_zone ?? false);
   const [stravaId, setStravaId] = useState(initialData.strava_id || '');
+
+  const [dirty, setDirty] = useState(false);
+  const initialRender = useRef(true);
+  useEffect(() => {
+    if (initialRender.current) { initialRender.current = false; return; }
+    setDirty(true);
+  }, [name, slug, status, body, media, variants, rideDate, country, tourSlug, highlight, privacyZone, stravaId]);
+
+  const hasTranscoding = media.some(m => m.videoStatus && m.videoStatus !== 'ready');
+  useUnsavedGuard(dirty || hasTranscoding);
 
   // Mobile tabs
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
@@ -73,8 +88,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
         setSlug(slugify(`${dateStr}-${result.name}`));
       }
       if (result.gpxContent) {
-        const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
-        setVariants([{ name: result.name, gpx: gpxFilename, isNew: true, gpxContent: result.gpxContent }]);
+        const day = dateStr.split('-')[2] || '01';
+        setVariants([{ name: result.name, gpx: rideGpxFilename(day, result.name), isNew: true, gpxContent: result.gpxContent }]);
       }
       if (result.photos?.length) {
         setMedia(result.photos.map((p: { key: string; caption: string; lat?: number; lng?: number }, i: number) => ({
@@ -114,9 +129,9 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   // Drag-and-drop
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const { dragging } = useDragDrop((files) => {
-    const images = files.filter(f => f.type.startsWith('image/'));
+    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
     const gpx = files.filter(f => f.name.toLowerCase().endsWith('.gpx'));
-    if (images.length > 0) setPendingFiles(images);
+    if (mediaFiles.length > 0) setPendingFiles(mediaFiles);
     if (gpx.length > 0) handleGpxUpload(gpx[0]);
   });
 
@@ -144,12 +159,12 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
     setPrivacyZone(false); // Strava already trims
 
     const dateStr = result.start_date_local?.split('T')[0] || '';
-    const gpxFilename = `${dateStr}-${slugify(result.name)}.gpx`;
+    const day = dateStr.split('-')[2] || '01';
     if (dateStr && !rideDate) setRideDate(dateStr);
     setSlug(slugify(`${dateStr}-${result.name}`));
     setVariants([{
       name: result.name,
-      gpx: gpxFilename,
+      gpx: rideGpxFilename(day, result.name),
       isNew: true,
       gpxContent: result.gpxContent,
     }]);
@@ -180,34 +195,39 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
   );
 
   // Save
+  const { validate } = useFormValidation([
+    { field: 'ride-name', check: () => !name.trim(), message: 'Name is required' },
+    { field: '', check: () => !variants.length, message: 'A GPX file is required' },
+  ]);
+
   const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
     apiBase: '/api/rides',
     contentId: initialData.isNew ? null : initialData.slug,
     initialContentHash: initialData.contentHash,
     userRole,
-    validate: () => {
-      if (!name.trim()) return 'Name is required';
-      if (!variants.length) return 'A GPX file is required';
-      return null;
+    validate,
+    buildPayload: () => {
+      const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
+      return {
+        frontmatter: {
+          name,
+          status,
+          ride_date: rideDate || undefined,
+          country: country || undefined,
+          tour_slug: tourSlug || undefined,
+          highlight: highlight || undefined,
+          strava_id: stravaId || undefined,
+          privacy_zone: privacyZone || undefined,
+        },
+        body,
+        media: cleanMedia,
+        variants,
+        ...(slug !== initialData.slug ? { newSlug: slug } : {}),
+        gpxRelativePath: initialData.gpxRelativePath,
+      };
     },
-    buildPayload: () => ({
-      frontmatter: {
-        name,
-        status,
-        ride_date: rideDate || undefined,
-        country: country || undefined,
-        tour_slug: tourSlug || undefined,
-        highlight: highlight || undefined,
-        strava_id: stravaId || undefined,
-        privacy_zone: privacyZone || undefined,
-      },
-      body,
-      media,
-      variants,
-      ...(slug !== initialData.slug ? { newSlug: slug } : {}),
-      gpxRelativePath: initialData.gpxRelativePath,
-    }),
     onSuccess: (result) => {
+      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/rides/${result.id}`;
       }
@@ -221,7 +241,7 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
     <div class="ride-editor">
       {dragging && (
         <div class="drop-overlay">
-          <div class="drop-overlay-content">Drop photos or GPX files to add to ride</div>
+          <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
         </div>
       )}
 
@@ -387,9 +407,16 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
               media={media}
               onChange={setMedia}
               cdnUrl={cdnUrl}
+              videosCdnUrl={videosCdnUrl}
+              videoPrefix={videoPrefix}
               pendingFiles={pendingFiles}
               onPendingProcessed={() => setPendingFiles([])}
               userRole={userRole}
+              contentSlug={slug}
+              contentKind="ride"
+              onUpdateItem={(key, patch) => setMedia(prev => prev.map(item =>
+                item.key === key ? { ...item, ...patch } : item
+              ))}
             />
           </section>
 
@@ -409,6 +436,8 @@ export default function RideEditor({ initialData, cdnUrl, userRole, mapThumbnail
             body={body}
             media={media}
             cdnUrl={cdnUrl}
+            videosCdnUrl={videosCdnUrl}
+            videoPrefix={videoPrefix}
             rideDate={rideDate}
             country={country}
             distanceKm={distanceKm}

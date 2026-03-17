@@ -3,7 +3,8 @@ import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CONTENT_DIR, CITY } from '../src/lib/config';
+import { CITY } from '../src/lib/config/config';
+import { CONTENT_DIR } from '../src/lib/config/config.server';
 
 interface AuthorEntry {
   name: string;

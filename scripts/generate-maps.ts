@@ -3,14 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import sharp from 'sharp';
-import { parseGpx } from '../src/lib/gpx';
+import { parseGpx } from '../src/lib/gpx/parse';
 import {
   mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
-  variantKeyFromGpx, gpxHash, hashPath,
+  gpxHash, hashPath,
   needsRegeneration,
-} from '../src/lib/map-generation';
-import { getCityConfig } from '../src/lib/city-config';
-import { CONTENT_DIR, CITY } from '../src/lib/config';
+} from '../src/lib/maps/map-generation.server';
+import { variantKey } from '../src/lib/gpx/filenames';
+import { getCityConfig } from '../src/lib/config/city-config';
+import { CITY } from '../src/lib/config/config';
+import { CONTENT_DIR } from '../src/lib/config/config.server';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
@@ -80,17 +82,17 @@ async function main() {
 
       for (let i = 0; i < variants.length; i++) {
         const variant = variants[i];
-        const variantKey = variantKeyFromGpx(variant.gpx);
+        const vKey = variantKey(variant.gpx);
         const gpxPath = path.join(routeDir, variant.gpx);
 
         if (!fs.existsSync(gpxPath)) {
-          console.log(`[maps] ${slug}/${variantKey}: no GPX, skipping`);
+          console.log(`[maps] ${slug}/${vKey}: no GPX, skipping`);
           continue;
         }
 
         const gpxContent = fs.readFileSync(gpxPath, 'utf-8');
         const hash = gpxHash(gpxContent);
-        const variantCacheKey = variantKey;
+        const variantCacheKey = vKey;
 
         for (const lang of languages) {
           const langPrefix = lang === defaultLang ? undefined : lang;
@@ -101,7 +103,7 @@ async function main() {
             continue;
           }
 
-          const label = langPrefix ? `${slug}/${variantKey} [${lang}]` : `${slug}/${variantKey}`;
+          const label = langPrefix ? `${slug}/${vKey} [${lang}]` : `${slug}/${vKey}`;
           console.log(`[maps] ${label}: generating...`);
 
           const track = parseGpx(gpxContent);

@@ -36,8 +36,60 @@ function copyTemplate(templateDir, destDir, vars) {
 
 // --- Prompts ---
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+function exitOnSigint() {
+  console.log('');
+  process.exit(130);
+}
+
+function ask(q) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      rl.removeListener('SIGINT', onSigint);
+      rl.removeListener('close', onClose);
+    };
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rl.close();
+      resolve(value);
+    };
+
+    const onSigint = () => {
+      cleanup();
+      rl.close();
+      exitOnSigint();
+    };
+
+    const onClose = () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        process.exit(0);
+      }
+    };
+
+    rl.once('SIGINT', onSigint);
+    rl.once('close', onClose);
+    rl.question(q, (answer) => finish(answer));
+  });
+}
+
+function safeExec(cmd, opts = {}) {
+  try {
+    return execSync(cmd, opts);
+  } catch (err) {
+    if (err.signal === 'SIGINT' || err.status === 130) {
+      exitOnSigint();
+    }
+    throw err;
+  }
+}
 
 // --- Main ---
 
@@ -117,7 +169,7 @@ async function main() {
   const install = await ask('  Install dependencies? (npm install) [Y/n] ');
   if (install.toLowerCase() !== 'n') {
     try {
-      execSync('npm install', { cwd: destDir, stdio: 'inherit' });
+      safeExec('npm install', { cwd: destDir, stdio: 'inherit' });
     } catch {
       console.error('\n  npm install failed. You can retry manually: cd ' + folder + ' && npm install\n');
     }
@@ -128,9 +180,9 @@ async function main() {
   // Initialize git repo
   const gitInit = await ask('  Initialize git repo? (git init + first commit) [Y/n] ');
   if (gitInit.toLowerCase() !== 'n') {
-    execSync('git init', { cwd: destDir, stdio: 'pipe' });
-    execSync('git add -A', { cwd: destDir, stdio: 'pipe' });
-    execSync('git commit -m "initial blog scaffold"', { cwd: destDir, stdio: 'pipe' });
+    safeExec('git init', { cwd: destDir, stdio: 'pipe' });
+    safeExec('git add -A', { cwd: destDir, stdio: 'pipe' });
+    safeExec('git commit -m "initial blog scaffold"', { cwd: destDir, stdio: 'pipe' });
     console.log('\n  ✓ Git repo initialized with first commit.\n');
   } else {
     console.log(`\n  Skipped. Run it yourself:\n\n    cd ${folder} && git init && git add -A && git commit -m "initial blog scaffold"\n`);
@@ -142,8 +194,6 @@ async function main() {
     # edit blog/config.yml and blog/pages/about.md
     npm run setup
 `);
-
-  rl.close();
 }
 
 // Only run when invoked directly (not when imported for tests)

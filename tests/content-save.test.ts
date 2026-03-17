@@ -1,98 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SaveHandlers, CurrentFiles } from '../src/lib/content-save';
-
-// Existing handler interface tests (preserved)
-describe('SaveHandlers interface', () => {
-  const testHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
-    parseRequest: (body: unknown) => body as { body: string; contentHash?: string },
-    resolveContentId: (params) => params.slug!,
-    validateSlug: (slug) => slug.length < 2 ? 'Too short' : null,
-    getFilePaths: (slug) => ({ primary: `test/${slug}.md` }),
-    computeContentHash: (files) => `hash-${files.primaryFile?.sha || 'none'}`,
-    buildFreshData: (id, files) => JSON.stringify({ id, content: files.primaryFile?.content }),
-    async buildFileChanges(update, id, files) {
-      return {
-        files: [{ path: `test/${id}.md`, content: update.body }],
-        deletePaths: [],
-        isNew: !files.primaryFile,
-      };
-    },
-    buildCommitMessage: (_update, id, isNew) => isNew ? `Create ${id}` : `Update ${id}`,
-    buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/test/${id}.md`,
-  };
-
-  it('parseRequest returns the body', () => {
-    const result = testHandlers.parseRequest({ body: 'hello', contentHash: 'abc' });
-    expect(result).toEqual({ body: 'hello', contentHash: 'abc' });
-  });
-
-  it('resolveContentId extracts slug from params', () => {
-    expect(testHandlers.resolveContentId({ slug: 'my-route' }, { body: '' })).toBe('my-route');
-  });
-
-  it('validateSlug rejects short slugs', () => {
-    expect(testHandlers.validateSlug!('a')).toBe('Too short');
-    expect(testHandlers.validateSlug!('ab')).toBeNull();
-  });
-
-  it('getFilePaths returns the correct paths', () => {
-    expect(testHandlers.getFilePaths('my-route')).toEqual({
-      primary: 'test/my-route.md',
-    });
-  });
-
-  it('computeContentHash uses file sha', () => {
-    const files: CurrentFiles = {
-      primaryFile: { content: 'test', sha: '123' },
-    };
-    expect(testHandlers.computeContentHash(files)).toBe('hash-123');
-  });
-
-  it('buildFileChanges detects new content', async () => {
-    const result = await testHandlers.buildFileChanges(
-      { body: 'new content' },
-      'new-slug',
-      { primaryFile: null },
-      {} as any,
-    );
-    expect(result.isNew).toBe(true);
-    expect(result.files).toHaveLength(1);
-  });
-
-  it('buildFileChanges detects existing content', async () => {
-    const result = await testHandlers.buildFileChanges(
-      { body: 'updated' },
-      'existing-slug',
-      { primaryFile: { content: 'old', sha: 'abc' } },
-      {} as any,
-    );
-    expect(result.isNew).toBe(false);
-  });
-
-  it('buildCommitMessage varies by isNew', () => {
-    const files: CurrentFiles = { primaryFile: null };
-    expect(testHandlers.buildCommitMessage({ body: '' }, 'test', true, files)).toBe('Create test');
-    expect(testHandlers.buildCommitMessage({ body: '' }, 'test', false, files)).toBe('Update test');
-  });
-
-  it('buildGitHubUrl constructs correct URL', () => {
-    expect(testHandlers.buildGitHubUrl('my-route', 'main'))
-      .toBe('https://github.com/test/repo/blob/main/test/my-route.md');
-  });
-});
-
-// --- New: saveContent pipeline integration tests ---
+import type { SaveHandlers, BuildResult } from '../src/lib/content/content-save';
 
 // Mock modules BEFORE importing saveContent
 const mockReadFile = vi.fn();
 const mockWriteFiles = vi.fn();
 const mockGit = { readFile: mockReadFile, writeFiles: mockWriteFiles };
 
-vi.mock('../src/lib/git-factory', () => ({
+vi.mock('../src/lib/git/git-factory', () => ({
   createGitService: () => mockGit,
 }));
 
-vi.mock('../src/lib/env', () => ({
+vi.mock('../src/lib/env/env.service', () => ({
   env: { GIT_BRANCH: 'main', GITHUB_TOKEN: 'test-token' },
 }));
 
@@ -117,7 +35,7 @@ vi.mock('../src/lib/get-db', () => ({
   }),
 }));
 
-const { saveContent } = await import('../src/lib/content-save');
+const { saveContent } = await import('../src/lib/content/content-save');
 
 function makeRequest(body: object): Request {
   return new Request('http://localhost/api/test', {
@@ -263,5 +181,127 @@ describe('saveContent pipeline', () => {
       expect.objectContaining({ name: 'admin' }),
       undefined,
     );
+  });
+});
+
+// --- Permission stripping tests ---
+
+describe('saveContent permission stripping', () => {
+  const editorUser = { id: 'u3', username: 'editor', email: null, role: 'editor' as const, bannedAt: null };
+  const guestUser = { id: 'u4', username: 'guest-1234', email: null, role: 'guest' as const, bannedAt: null };
+
+  // Handlers that capture the update as seen by buildFileChanges
+  let capturedUpdate: Record<string, unknown> | null = null;
+
+  const capturingHandlers: SaveHandlers<Record<string, unknown>> = {
+    parseRequest: (b: unknown) => b as Record<string, unknown>,
+    resolveContentId: (params) => params.slug!,
+    getFilePaths: (slug) => ({ primary: `test/${slug}.md` }),
+    computeContentHash: () => 'hash',
+    buildFreshData: () => '{}',
+    async buildFileChanges(update, id, files) {
+      capturedUpdate = update;
+      return {
+        files: [{ path: `test/${id}.md`, content: 'test' }],
+        deletePaths: [],
+        isNew: !files.primaryFile,
+      };
+    },
+    buildCommitMessage: (_u, id) => `Update ${id}`,
+    buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/test/${id}.md`,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedUpdate = null;
+    mockReadFile.mockResolvedValue({ content: 'existing', sha: 'sha-old' });
+    mockGetResult.mockReturnValue({ githubSha: 'sha-old', data: '{}' });
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('admin user: status preserved in frontmatter', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test', status: 'draft' },
+      body: 'test',
+    });
+    await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.frontmatter).toMatchObject({ status: 'draft' });
+  });
+
+  it('editor user: status stripped from frontmatter', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test', status: 'draft' },
+      body: 'test',
+    });
+    await saveContent(req, { user: editorUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect((capturedUpdate?.frontmatter as Record<string, unknown>)?.status).toBeUndefined();
+  });
+
+  it('guest user: status stripped from frontmatter', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test', status: 'published' },
+      body: 'test',
+    });
+    await saveContent(req, { user: guestUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect((capturedUpdate?.frontmatter as Record<string, unknown>)?.status).toBeUndefined();
+  });
+
+  it('editor user: newSlug preserved', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test' },
+      body: 'test',
+      newSlug: 'new-slug',
+    });
+    await saveContent(req, { user: editorUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.newSlug).toBe('new-slug');
+  });
+
+  it('guest user: newSlug stripped', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test' },
+      body: 'test',
+      newSlug: 'new-slug',
+    });
+    await saveContent(req, { user: guestUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.newSlug).toBeUndefined();
+  });
+
+  it('admin user: newSlug preserved', async () => {
+    const req = makeRequest({
+      frontmatter: { name: 'Test' },
+      body: 'test',
+      newSlug: 'renamed',
+    });
+    await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', capturingHandlers);
+    expect(capturedUpdate?.newSlug).toBe('renamed');
+  });
+});
+
+// --- afterCommit failure isolation tests ---
+
+describe('saveContent afterCommit isolation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadFile.mockResolvedValue({ content: 'existing', sha: 'sha-old' });
+    mockGetResult.mockReturnValue({ githubSha: 'sha-old', data: '{}' });
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('returns 200 even when afterCommit throws', async () => {
+    const throwingHandlers: SaveHandlers<{ body: string; contentHash?: string }> & { afterCommit: (result: BuildResult, db: unknown) => Promise<void> } = {
+      ...stubHandlers,
+      afterCommit: async () => {
+        throw new Error('afterCommit exploded');
+      },
+    };
+
+    const req = makeRequest({ body: 'new content' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'test' }, 'routes', throwingHandlers);
+
+    // Git commit happened, response should be 200 despite afterCommit failure
+    expect(res.status).toBe(200);
+    expect(mockWriteFiles).toHaveBeenCalledOnce();
+    const data = await res.json();
+    expect(data.success).toBe(true);
   });
 });

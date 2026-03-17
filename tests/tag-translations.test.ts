@@ -15,7 +15,7 @@ const translations: Record<string, Record<string, string>> = {
   ferry: { fr: 'traversier' },
 };
 
-vi.mock('../src/lib/tag-translations', () => ({
+vi.mock('../src/lib/i18n/tag-translations.server', () => ({
   tTag: (tag: string, locale: string | undefined) => {
     const short = (locale || 'en').split('-')[0];
     if (short === 'en') return tag;
@@ -24,7 +24,7 @@ vi.mock('../src/lib/tag-translations', () => ({
   },
 }));
 
-const { tTag } = await import('../src/lib/tag-translations');
+const { tTag } = await import('../src/lib/i18n/tag-translations.server');
 
 describe('tTag', () => {
   it('returns French translation when available', () => {

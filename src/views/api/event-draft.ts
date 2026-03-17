@@ -1,14 +1,14 @@
 import type { APIContext } from 'astro';
-import { env } from '../../lib/env';
-import { authorize } from '../../lib/authorize';
+import { env } from '../../lib/env/env.service';
+import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
-import { CITY } from '../../lib/config';
-import { getCityConfig } from '../../lib/city-config';
+import { CITY } from '../../lib/config/config';
+import { getCityConfig } from '../../lib/config/city-config';
 import { db } from '../../lib/get-db';
-import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/rate-limit';
+import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/auth/rate-limit';
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
 import { slugify } from '../../lib/slug';
-import { generateMediaKey, confirmUpload } from '../../lib/storage';
+import { generateMediaKey, confirmUpload } from '../../lib/media/storage.adapter-r2';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 
 export const prerender = false;

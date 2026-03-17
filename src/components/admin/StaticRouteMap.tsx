@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'preact/hooks';
-import { getStyleUrl, loadStylePreference } from '../../lib/map-style-switch';
-import { getRouteColor } from '../../lib/map-init';
+import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
+import { getRouteColor } from '../../lib/maps/map-init';
 
 interface Props {
   /** Array of [lon, lat] coordinate pairs */

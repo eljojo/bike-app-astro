@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getStyleUrl, loadStylePreference, switchStyle } from '../../src/lib/map-style-switch';
-import { MAP_STYLE_URL, MAP_STYLE_HC_URL } from '../../src/lib/map-style-url';
+import { getStyleUrl, loadStylePreference, switchStyle } from '../../src/lib/maps/map-style-switch';
+import { MAP_STYLE_URL, MAP_STYLE_HC_URL } from '../../src/lib/maps/map-style-url';
 
 describe('getStyleUrl', () => {
   it('returns default URL for "default" key', () => {
