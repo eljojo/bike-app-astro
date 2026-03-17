@@ -48,6 +48,7 @@ export const contentTypes: ContentTypeConfig[] = [
     label: 'Routes',
     featureGate: 'hasRoutes',
     ops: routeOps,
+    adminListRoute: { pattern: '/admin', entrypoint: 'admin/index.astro' },
     adminDetailRoutes: [
       { pattern: '/admin/routes/new', entrypoint: 'admin/route-new.astro' },
       { pattern: '/admin/routes/[slug]', entrypoint: 'admin/route-detail.astro' },

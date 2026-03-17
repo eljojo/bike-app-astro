@@ -49,8 +49,11 @@ const routes = [
   { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
   // Content-type admin pages and API endpoints (from registry)
   ...contentTypeRoutes,
-  // Admin index — serves the primary content type's list page per instance type
-  { pattern: '/admin', entrypoint: view(adminIndexView()) },
+  // Admin index — serves the primary content type's list page per instance type.
+  // Skipped when a content type already claims /admin via adminListRoute (e.g. routes on wiki).
+  ...(!contentTypeRoutes.some(r => r.pattern === '/admin')
+    ? [{ pattern: '/admin', entrypoint: view(adminIndexView()) }]
+    : []),
   // Non-content-type admin pages
   { pattern: '/admin/history', entrypoint: view('admin/history.astro') },
   { pattern: '/admin/users', entrypoint: view('admin/users.astro') },
