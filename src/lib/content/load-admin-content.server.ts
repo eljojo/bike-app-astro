@@ -299,3 +299,77 @@ export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promi
   }
   return buildTimeParked;
 }
+
+/**
+ * Fetch a prerendered JSON file from the app's own static assets.
+ * On Cloudflare Workers, this hits the co-located asset binding (no network hop).
+ * In local dev, this fetches from the dev server.
+ */
+async function fetchJson<T>(url: URL): Promise<T> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Two-tier loading with static JSON fallback (replaces virtual module lookup).
+ * Tier 1: D1 cache (same as before)
+ * Tier 2: Fetch from prerendered JSON endpoint
+ */
+export async function loadDetailFromJson<T>(opts: {
+  contentType: string;
+  id: string | undefined;
+  jsonUrl: URL;
+  fromCache: (blob: string) => T;
+}): Promise<{ data: T; notFound: false } | { notFound: true }> {
+  if (!opts.id) return { notFound: true };
+
+  const database = getDb();
+
+  // Tier 1: D1 cache
+  const cached = await database.select().from(contentEdits)
+    .where(and(
+      eq(contentEdits.city, CITY),
+      eq(contentEdits.contentType, opts.contentType),
+      eq(contentEdits.contentSlug, opts.id),
+    ))
+    .get();
+
+  if (cached) {
+    try {
+      const data = opts.fromCache(cached.data);
+      return { data, notFound: false };
+    } catch {
+      console.warn(`Invalid cache for ${opts.contentType}/${opts.id}, falling back to JSON`);
+    }
+  }
+
+  // Tier 2: Static JSON
+  try {
+    const data = await fetchJson<T>(opts.jsonUrl);
+    return { data, notFound: false };
+  } catch {
+    return { notFound: true };
+  }
+}
+
+/**
+ * Load an admin list from a static JSON endpoint, with D1 cache overlay.
+ * Fetches the build-time list from JSON, then overlays D1 cached edits.
+ */
+export async function loadListFromJson<TItem, TCached>(
+  config: Omit<AdminListOverlayConfig<TItem, TCached>, 'buildTimeItems'> & {
+    jsonUrl: URL;
+  },
+): Promise<{ items: TItem[]; pendingIds: Set<string> }> {
+  const buildTimeItems = await fetchJson<TItem[]>(config.jsonUrl);
+  return loadAdminContentList({ ...config, buildTimeItems });
+}
+
+/**
+ * Fetch the media-shared-keys map from the static JSON endpoint.
+ * Used by save handlers that need the registry for media key tracking.
+ */
+export async function fetchSharedKeysData(baseUrl: URL): Promise<Record<string, Array<{ type: string; slug: string }>>> {
+  return fetchJson(new URL('/admin/data/media-shared-keys.json', baseUrl));
+}
