@@ -63,6 +63,10 @@ export const eventDetailSchema = z.object({
   organizer: z.union([z.string(), organizerRefSchema]).optional(),
   poster_key: z.string().optional(),
   poster_content_type: z.string().optional(),
+  previous_event: z.string().optional(),
+  edition: z.string().optional(),
+  event_url: z.string().optional(),
+  map_url: z.string().optional(),
   body: z.string(),
   media: z.array(eventMediaItemSchema).default([]),
 });

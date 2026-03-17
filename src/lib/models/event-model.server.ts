@@ -94,6 +94,10 @@ export function eventDetailFromGit(
     organizer: frontmatter.organizer as string | { name: string; website?: string; instagram?: string } | undefined,
     poster_key: frontmatter.poster_key as string | undefined,
     poster_content_type: frontmatter.poster_content_type as string | undefined,
+    previous_event: frontmatter.previous_event as string | undefined,
+    edition: frontmatter.edition as string | undefined,
+    event_url: frontmatter.event_url as string | undefined,
+    map_url: frontmatter.map_url as string | undefined,
     body: body.trim(),
     media,
   };

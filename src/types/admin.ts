@@ -22,6 +22,10 @@ export interface AdminEvent {
   routes?: string[];
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
+  previous_event?: string;
+  edition?: string;
+  event_url?: string;
+  map_url?: string;
   mediaCount: number;
   waypointCount: number;
   contentHash: string;
