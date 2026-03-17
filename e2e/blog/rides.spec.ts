@@ -78,7 +78,7 @@ test.describe('Admin rides page', () => {
     await page.goto('/admin');
     await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('.dashboard-headline')).toHaveText('Collaborator area');
+    await expect(page.locator('.dashboard-headline')).toHaveText('Your rides');
   });
 
   test('admin/rides shows "Rides" in header title', async ({ page }) => {
