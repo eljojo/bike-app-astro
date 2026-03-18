@@ -45,42 +45,32 @@ test.describe('Club event detail — past event with results', () => {
     // Event name
     await expect(page.locator('h1')).toHaveText('BRM 300 Vuelta Rocas');
 
-    // Date displayed
-    await expect(page.locator('.event-detail-date')).toBeVisible();
-
-    // Organizer shown
-    await expect(page.locator('.event-detail-organizer')).toContainText('Randonneurs Chile');
-
-    // Distance shown
-    await expect(page.locator('.event-detail-distances')).toHaveText('300 km');
+    // Essential line shows date, distance, and organizer
+    const essential = page.locator('.event-detail-essential');
+    await expect(essential).toBeVisible();
+    await expect(essential).toContainText('300 km');
+    await expect(essential).toContainText('Randonneurs Chile');
   });
 
-  test('renders event info card with registration details', async ({ page }) => {
+  test('renders essential line with event details', async ({ page }) => {
     await page.goto('/events/2024/brm-300-vuelta-rocas');
     await page.waitForLoadState('networkidle');
 
-    const card = page.locator('.event-info-card');
-    await expect(card).toBeVisible();
+    const essential = page.locator('.event-detail-essential');
+    await expect(essential).toBeVisible();
 
     // Time limit
-    await expect(card).toContainText('20');
-
-    // Location
-    await expect(card).toContainText('Plaza Italia, Santiago');
-
-    // Price
-    await expect(card).toContainText('$15.000 CLP');
-
-    // Slots
-    await expect(card).toContainText('80');
-
-    // Departure groups
-    await expect(card.locator('.departure-groups li')).toHaveCount(2);
+    await expect(essential).toContainText('20h');
   });
 
-  test('renders waypoint timeline', async ({ page }) => {
+  test('renders waypoint timeline inside collapsible', async ({ page }) => {
     await page.goto('/events/2024/brm-300-vuelta-rocas');
     await page.waitForLoadState('networkidle');
+
+    // Waypoints are inside a collapsible <details> — open it
+    const waypointsDetails = page.locator('.event-detail-collapsible').first();
+    await expect(waypointsDetails).toBeVisible();
+    await waypointsDetails.locator('summary').click();
 
     const timeline = page.locator('.waypoint-timeline');
     await expect(timeline).toBeVisible();
@@ -101,14 +91,19 @@ test.describe('Club event detail — past event with results', () => {
     await page.goto('/events/2024/brm-300-vuelta-rocas');
     await page.waitForLoadState('networkidle');
 
-    const results = page.locator('.results-section');
+    // Results are inside a collapsible <details> — open it
+    const resultsDetails = page.locator('.event-detail-collapsible').nth(1);
+    await expect(resultsDetails).toBeVisible();
+    await resultsDetails.locator('summary').click();
+
+    const results = resultsDetails.locator('.results-section');
     await expect(results).toBeVisible();
 
     // Results summary shows finisher count
     await expect(results.locator('.results-summary')).toContainText('3');
 
     // Finishers table (exclude non-finishers section)
-    const rows = results.locator('> .event-results-table tbody tr');
+    const rows = results.locator('.event-results-table tbody tr');
     await expect(rows).toHaveCount(3);
 
     // Check first finisher
@@ -133,26 +128,32 @@ test.describe('Club event detail — past event with results', () => {
 });
 
 test.describe('Club event detail — upcoming event', () => {
-  test('renders upcoming event with registration button', async ({ page }) => {
+  test('renders upcoming event with registration link', async ({ page }) => {
     await page.goto('/events/2099/brm-200-ruta-del-vino');
     await page.waitForLoadState('networkidle');
 
     // Event name
     await expect(page.locator('h1')).toHaveText('BRM 200 Ruta del Vino');
 
-    // Registration button
-    const regBtn = page.locator('.event-register-btn');
-    await expect(regBtn).toBeVisible();
-    await expect(regBtn).toHaveAttribute('href', 'https://example.com/register-200');
+    // Registration link in quiet registration section
+    const regSection = page.locator('.event-detail-registration');
+    await expect(regSection).toBeVisible();
+    const regLink = regSection.locator('a');
+    await expect(regLink).toHaveAttribute('href', 'https://example.com/register-200');
 
-    // Info card
-    await expect(page.locator('.event-info-card')).toBeVisible();
-    await expect(page.locator('.event-info-card')).toContainText('13.5');
+    // Essential line shows time limit
+    const essential = page.locator('.event-detail-essential');
+    await expect(essential).toContainText('13.5h');
   });
 
   test('renders waypoint for upcoming event', async ({ page }) => {
     await page.goto('/events/2099/brm-200-ruta-del-vino');
     await page.waitForLoadState('networkidle');
+
+    // Waypoints are inside a collapsible <details> — open it
+    const waypointsDetails = page.locator('.event-detail-collapsible').first();
+    await expect(waypointsDetails).toBeVisible();
+    await waypointsDetails.locator('summary').click();
 
     const timeline = page.locator('.waypoint-timeline');
     await expect(timeline).toBeVisible();
