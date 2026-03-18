@@ -1,0 +1,30 @@
+---
+// Static SVG illustration of Ottawa's cycling network
+// High-contrast aesthetic: bold bike paths, subtle everything else
+// CSS classes used for dark mode switching
+---
+<svg class="about-hero-svg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
+  <!-- Ottawa River -->
+  <path class="about-hero-river" d="M0 235 Q80 215 180 225 Q300 245 420 230 Q540 210 650 235 Q780 260 880 240 Q950 228 1000 235 L1000 290 Q950 300 880 295 Q780 315 650 290 Q540 265 420 285 Q300 300 180 280 Q80 268 0 285 Z" />
+
+  <!-- Green spaces -->
+  <ellipse class="about-hero-park" cx="130" cy="100" rx="120" ry="80" />
+  <ellipse class="about-hero-park" cx="750" cy="90" rx="100" ry="55" />
+  <ellipse class="about-hero-park" cx="500" cy="400" rx="70" ry="40" />
+  <ellipse class="about-hero-park" cx="280" cy="380" rx="50" ry="30" />
+
+  <!-- Roads (faint) -->
+  <line class="about-hero-road" x1="0" y1="155" x2="1000" y2="165" stroke-width="3" />
+  <line class="about-hero-road" x1="0" y1="350" x2="1000" y2="340" stroke-width="3" />
+  <line class="about-hero-road" x1="250" y1="0" x2="260" y2="520" stroke-width="2.5" />
+  <line class="about-hero-road" x1="520" y1="0" x2="510" y2="520" stroke-width="3" />
+  <line class="about-hero-road" x1="780" y1="0" x2="770" y2="520" stroke-width="2.5" />
+
+  <!-- Bike paths (draw-in animation) -->
+  <path class="about-hero-bikepath" d="M480 100 Q490 180 495 250 Q498 320 490 400" />
+  <path class="about-hero-bikepath about-hero-bikepath--delay1" d="M40 200 Q160 175 310 195 Q460 215 610 190 Q760 165 950 185" />
+  <path class="about-hero-bikepath about-hero-bikepath--delay2" d="M500 310 Q600 330 720 315 Q840 300 960 320" />
+  <path class="about-hero-bikepath about-hero-bikepath--delay3" d="M100 160 Q130 120 170 90 Q210 65 250 80" />
+  <path class="about-hero-bikepath about-hero-bikepath--delay4" d="M300 360 Q400 370 500 380 Q580 385 650 370" />
+  <path class="about-hero-bikepath about-hero-bikepath--delay5" d="M520 215 Q560 195 610 175 Q660 160 720 140" />
+</svg>

@@ -1,6 +1,7 @@
 @use 'variables' as *;
 @use 'mixins' as *;
 @use 'webfonts';
+@use 'about';
 
 * { box-sizing: border-box; }
 body {
@@ -482,57 +483,6 @@ a.go-back-button {
   flex-wrap: wrap;
   gap: 1em;
   margin: 1em 0;
-}
-
-// About
-.about-what-is-this {
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid $color-border;
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-  }
-
-  h2 {
-    font-size: 1.3rem;
-    margin-bottom: 0.75rem;
-  }
-
-  p {
-    margin: 0.4em 0;
-    line-height: 1.6;
-  }
-}
-
-.about-page--intro-text {
-  display: block;
-  max-width: 1130px;
-  font-size: 1.05em;
-
-  .about-inline-title {
-    font-size: 1.7em;
-  }
-
-  .about-inline-title-text {
-    display: inline-block;
-  }
-
-  .about-contact-email {
-    font-weight: bold;
-  }
-
-  img {
-    float: right;
-    margin-left: 10px;
-    width: 300px;
-    max-width: 50vw;
-    border-radius: 8px;
-  }
-}
-
-.about-inline-icon {
-  vertical-align: middle;
 }
 
 // Guides
@@ -1046,41 +996,7 @@ a.go-back-button {
   }
 }
 
-.about-contributors {
-  margin: 2rem 0;
 
-  .contributor-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .contributor {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    img {
-      border-radius: 50%;
-    }
-  }
-}
-
-.about-contribute {
-  margin-top: 2rem;
-  padding: 1rem 1.25rem;
-  background: $color-card-bg;
-  border-radius: $border-radius;
-  font-size: 0.9rem;
-
-  @include dark-mode {
-    background: $color-card-bg-dark;
-  }
-
-  a {
-    color: $color-accent;
-  }
-}
 
 // -----------------------------------------------
 // Blog instance styles (rides, tours, stats)

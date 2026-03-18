@@ -39,6 +39,26 @@ if (fs.existsSync(routesDir)) {
   }
 }
 
+// Check GPX downloads exist for routes that have variant GPX files
+if (fs.existsSync(routesDir)) {
+  for (const slug of fs.readdirSync(routesDir)) {
+    const routeDir = path.join(routesDir, slug);
+    if (!fs.statSync(routeDir).isDirectory()) continue;
+    const variantsDir = path.join(routeDir, 'variants');
+    const gpxFiles = fs.existsSync(variantsDir)
+      ? fs.readdirSync(variantsDir).filter(f => f.endsWith('.gpx'))
+      : fs.readdirSync(routeDir).filter(f => f.endsWith('.gpx'));
+    for (const gpx of gpxFiles) {
+      const variantSlug = gpx.replace(/\.gpx$/i, '');
+      const gpxPath = path.join(distDir, 'routes', slug, `${variantSlug}.gpx`);
+      if (!fs.existsSync(gpxPath)) {
+        console.error(`MISSING GPX: /routes/${slug}/${variantSlug}.gpx`);
+        errors++;
+      }
+    }
+  }
+}
+
 // Check guide pages exist for every guide in the data repo
 const guidesDir = path.join(cityDir, 'guides');
 if (fs.existsSync(guidesDir)) {
@@ -56,6 +76,7 @@ if (fs.existsSync(guidesDir)) {
 
 const routeCount = fs.existsSync(routesDir) ? fs.readdirSync(routesDir).filter(s => fs.statSync(path.join(routesDir, s)).isDirectory() && fs.existsSync(path.join(routesDir, s, 'index.md'))).length : 0;
 const guideCount = fs.existsSync(guidesDir) ? fs.readdirSync(guidesDir).filter(f => f.endsWith('.md') && !/\.\w{2}\.md$/.test(f)).length : 0;
-console.log(`Checked ${expectedPages.length} pages, ${routeCount} routes, ${guideCount} guides`);
+const gpxCount = fs.existsSync(distDir) ? fs.readdirSync(path.join(distDir, 'routes'), { recursive: true }).filter(f => String(f).endsWith('.gpx')).length : 0;
+console.log(`Checked ${expectedPages.length} pages, ${routeCount} routes, ${guideCount} guides, ${gpxCount} GPX files`);
 console.log(`\nValidation: ${errors === 0 ? 'PASS' : `FAIL — ${errors} errors`}`);
 process.exit(errors > 0 ? 1 : 0);
