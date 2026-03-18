@@ -134,8 +134,8 @@ const selectedPlaces = pinCategories
         <details>
           <summary>
             <div>
-              <div class="about-accordion__title">{section.title}</div>
-              {section.desc && <div class="about-accordion__desc">{section.desc}</div>}
+              <div class="about-accordion__title" set:html={section.title} />
+              {section.desc && <div class="about-accordion__desc" set:html={section.desc} />}
             </div>
           </summary>
           <div class="about-accordion__body" set:html={section.body} />
