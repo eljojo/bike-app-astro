@@ -11,8 +11,8 @@ import contributors from 'virtual:bike-app/contributors';
 import { categoryEmoji } from '@/lib/geo/place-categories';
 
 const config = getCityConfig();
-const locale = Astro.currentLocale || defaultLocale();
 const features = getInstanceFeatures();
+const locale = Astro.currentLocale || defaultLocale();
 
 const pages = await getCollection('pages');
 const aboutPage = pages.find(p => p.id === 'about');
@@ -20,16 +20,40 @@ if (!aboutPage) throw new Error('About page not found in content');
 
 const translation = aboutPage.data.translations?.[locale];
 const title = translation?.title || aboutPage.data.title;
-const backstoryHtml = (translation?.renderedBody || aboutPage.data.renderedBody)
+const rawHtml = translation?.renderedBody || aboutPage.data.renderedBody;
+
+// Variable replacement on the full rendered HTML
+const contentHtml = rawHtml
   .replace(/\{author_email\}/g, config.author.email)
   .replace(/\{author_photo_url\}/g, config.author.photo_url)
   .replace(/\{author_name\}/g, config.author.name)
   .replace(/\{display_name\}/g, config.display_name);
 
-// Links from frontmatter (friends & resources)
-const links = (aboutPage.data.links || []) as Array<{
-  name: string; url: string; desc?: string; category?: string;
-}>;
+// Parse H2-delimited sections into accordion items
+// Each <h2> starts a section; a <blockquote> right after becomes the description
+interface AccordionSection {
+  title: string;
+  desc: string;
+  body: string;
+}
+
+const sections: AccordionSection[] = [];
+const parts = contentHtml.split(/<h2[^>]*>([\s\S]*?)<\/h2>/);
+// parts[0] = content before first h2 (ignored)
+// parts[1] = h2 inner html, parts[2] = body, parts[3] = h2, parts[4] = body, ...
+for (let i = 1; i < parts.length; i += 2) {
+  const sectionTitle = parts[i].trim();
+  let body = (parts[i + 1] || '').trim();
+  let desc = '';
+
+  const bqMatch = body.match(/^<blockquote>\s*<p>([\s\S]*?)<\/p>\s*<\/blockquote>/);
+  if (bqMatch) {
+    desc = bqMatch[1].trim();
+    body = body.slice(bqMatch[0].length).trim();
+  }
+
+  sections.push({ title: sectionTitle, desc, body });
+}
 
 // Places for emoji pins (curated selection from places collection)
 const allPlaces = await getCollection('places');
@@ -106,74 +130,17 @@ const selectedPlaces = pinCategories
   <div class="about-accordions">
     <div class="about-section-label">{t('about.section_learn_more', locale)}</div>
     <div class="about-accordion">
-
-      <!-- Backstory -->
-      <details>
-        <summary>
-          <div>
-            <div class="about-accordion__title">{t('about.accordion_story_title', locale)}</div>
-            <div class="about-accordion__desc">{t('about.accordion_story_desc', locale, { name: config.name })}</div>
-          </div>
-        </summary>
-        <div class="about-accordion__body" set:html={backstoryHtml} />
-      </details>
-
-      <!-- Contribute (wiki only) -->
-      {features.showsContributeLink && (
+      {sections.map(section => (
         <details>
           <summary>
             <div>
-              <div class="about-accordion__title">{t('about.accordion_contribute_title', locale)}</div>
-              <div class="about-accordion__desc">{t('about.accordion_contribute_desc', locale)}</div>
+              <div class="about-accordion__title">{section.title}</div>
+              {section.desc && <div class="about-accordion__desc">{section.desc}</div>}
             </div>
           </summary>
-          <div class="about-accordion__body">
-            <p set:html={t('about.contribute', locale, {
-              link_new_route: `<a href="/admin/routes/new">${t('about.contribute_new_route', locale)}</a>`,
-              link_edits: `<a href="/admin">${t('about.contribute_edits', locale)}</a>`,
-            })} />
-          </div>
+          <div class="about-accordion__body" set:html={section.body} />
         </details>
-      )}
-
-      <!-- Platform -->
-      <details>
-        <summary>
-          <div>
-            <div class="about-accordion__title">{t('about.accordion_platform_title', locale)}</div>
-            <div class="about-accordion__desc">{t('about.accordion_platform_desc', locale)}</div>
-          </div>
-        </summary>
-        <div class="about-accordion__body">
-          <p set:html={t('about.platform_body', locale, { display_name: config.display_name })} />
-          <p set:html={t('about.platform_start', locale)} />
-          <p set:html={t('about.platform_open_data', locale)} />
-        </div>
-      </details>
-
-      <!-- Friends & Resources -->
-      {links.length > 0 && (
-        <details>
-          <summary>
-            <div>
-              <div class="about-accordion__title">{t('about.accordion_friends_title', locale)}</div>
-              <div class="about-accordion__desc">{t('about.accordion_friends_desc', locale)}</div>
-            </div>
-          </summary>
-          <div class="about-accordion__body">
-            <ul>
-              {links.map(link => (
-                <li>
-                  <a href={link.url} target={link.url.startsWith('/') ? undefined : '_blank'} rel={link.url.startsWith('/') ? undefined : 'noopener'}>
-                    {link.name}
-                  </a>
-                  {link.desc && ` — ${link.desc}`}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </details>
-      )}
+      ))}
     </div>
 
     <!-- Contributors -->
