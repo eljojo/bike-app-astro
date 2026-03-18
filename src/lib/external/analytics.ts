@@ -1,6 +1,6 @@
 import { init, track } from '@plausible-analytics/tracker';
 
-init({ domain: location.hostname, autoCapturePageviews: true, bindToWindow: false });
+init({ domain: location.hostname, endpoint: '/api/event', autoCapturePageviews: true, bindToWindow: false });
 
 declare global {
   interface Window {
