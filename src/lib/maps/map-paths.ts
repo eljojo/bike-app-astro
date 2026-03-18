@@ -122,3 +122,18 @@ export function buildStaticMapUrl(polyline: string, apiKey: string, language?: s
 
   return url;
 }
+
+/**
+ * Simplify an encoded polyline to a schema.org GeoShape.line string.
+ * Returns "lat,lng lat,lng ..." with ~maxPoints coordinate pairs.
+ */
+export function simplifyPolylineForSchema(encoded: string, maxPoints = 80): string {
+  const points = polylineCodec.decode(encoded);
+  if (points.length === 0) return '';
+  const interval = Math.max(1, Math.floor(points.length / maxPoints));
+  const sampled = points.filter((_: number[], i: number) => i % interval === 0);
+  if (sampled[sampled.length - 1] !== points[points.length - 1]) {
+    sampled.push(points[points.length - 1]);
+  }
+  return sampled.map(([lat, lng]: number[]) => `${lat},${lng}`).join(' ');
+}

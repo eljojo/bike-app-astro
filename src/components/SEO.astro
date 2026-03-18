@@ -12,13 +12,15 @@ interface Props {
   canonical?: string;
   ogImage?: string;
   ogImageAlt?: string;
-  jsonLd?: Record<string, any>;
+  ogType?: string;
+  jsonLd?: Record<string, any> | Record<string, any>[];
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
   cspNonce?: string;
 }
 
-const { title, description, canonical, ogImage, ogImageAlt, jsonLd, breadcrumbs, alternateUrls, cspNonce } = Astro.props;
+const { title, description, canonical, ogImage, ogImageAlt, ogType, jsonLd, breadcrumbs, alternateUrls, cspNonce } = Astro.props;
+const jsonLdEntries = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 const siteUrl = config.url;
 const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
 
@@ -75,7 +77,8 @@ const hreflangEntries = locales.map(locale => ({
 {description && <meta property="og:description" content={description} />}
 {ogImage && <meta property="og:image" content={ogImage} />}
 {ogImage && <meta property="og:image:secure_url" content={ogImage} />}
-<meta property="og:type" content="website" />
+{ogImageAlt && <meta property="og:image:alt" content={ogImageAlt} />}
+<meta property="og:type" content={ogType || 'website'} />
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
@@ -89,9 +92,9 @@ const hreflangEntries = locales.map(locale => ({
 <meta name="twitter:creator" content={config.author.twitter} />
 <meta name="twitter:site" content={config.author.twitter} />
 
-{jsonLd && (
-  <script nonce={cspNonce} type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-)}
+{jsonLdEntries.map(entry => (
+  <script nonce={cspNonce} type="application/ld+json" set:html={JSON.stringify(entry)} />
+))}
 
 {breadcrumbs && (
   <script nonce={cspNonce} type="application/ld+json" set:html={JSON.stringify(breadcrumbs)} />
