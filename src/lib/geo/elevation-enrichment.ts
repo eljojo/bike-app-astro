@@ -101,7 +101,7 @@ export function buildGpxFromPoints(
     .join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="whereto.bike">
+<gpx version="1.1" creator="whereto.bike" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>${escapeXml(name)}</name>
     <trkseg>

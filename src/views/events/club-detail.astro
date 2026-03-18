@@ -15,10 +15,6 @@ import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
-import fs from 'node:fs';
-import path from 'node:path';
-import yaml from 'js-yaml';
-import { cityDir } from '@/lib/config/config.server';
 import { slugify } from '@/lib/slug';
 
 const config = getCityConfig();
@@ -30,7 +26,6 @@ export async function getStaticPaths() {
   const organizers = await getCollection('organizers');
   const allRoutes = await getCollection('routes');
   const allPlaces = await getCollection('places');
-  const eventsDir = path.join(cityDir, 'events');
 
   // Build edition chains: walk previous_event links forward and backward
   type EventEntry = typeof events[number];
@@ -97,22 +92,15 @@ export async function getStaticPaths() {
   }
 
   return events.map(event => {
-    let eventMedia: any[] | undefined;
-    const mediaPath = path.join(eventsDir, event.id, 'media.yml');
-    if (fs.existsSync(mediaPath)) {
-      try {
-        eventMedia = yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as any[];
-      } catch { /* ignore malformed media.yml */ }
-    }
     const editions = resolveEditions(event.id);
     return {
       params: { slug: event.id },
-      props: { event, organizers, allRoutes, allPlaces, eventMedia, editions },
+      props: { event, organizers, allRoutes, allPlaces, editions },
     };
   });
 }
 
-const { event, organizers, allRoutes, allPlaces, eventMedia, editions } = Astro.props;
+const { event, organizers, allRoutes, allPlaces, editions } = Astro.props;
 const { Content } = await render(event);
 const data = event.data;
 
@@ -193,7 +181,7 @@ const posterMedia: Array<{ type: string; key: string; score?: number }> =
   data.poster_key ? [{ type: 'photo', key: data.poster_key, score: 999 }] : [];
 const galleryMedia = [
   ...posterMedia,
-  ...(eventMedia ?? []).map((m: any) => ({
+  ...(data.media ?? []).map((m) => ({
     type: m.type || 'photo',
     key: m.key,
     caption: m.caption,

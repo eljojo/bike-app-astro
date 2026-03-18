@@ -5,7 +5,7 @@ import { defineConfig } from '@playwright/test';
 // This means SSR tests here catch Workerd-specific issues like missing renderers.
 export default defineConfig({
   testDir: '.',
-  testMatch: 'screenshots.spec.ts',
+  testMatch: ['screenshots.spec.ts', 'functional.spec.ts'],
   fullyParallel: true,
   workers: '100%',
   outputDir: './test-results',

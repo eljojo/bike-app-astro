@@ -152,4 +152,11 @@ export const eventSchema = z.object({
   edition: z.string().optional(),
   event_url: z.string().optional(),
   map_url: z.string().optional(),
+  media: z.array(z.object({
+    type: z.string().optional(),
+    key: z.string(),
+    caption: z.string().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  })).optional(),
 });

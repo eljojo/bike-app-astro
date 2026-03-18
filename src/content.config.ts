@@ -2,6 +2,7 @@ import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { routeLoader } from './loaders/routes';
 import { rideLoader } from './loaders/rides';
+import { eventLoader } from './loaders/events';
 import { pageLoader } from './loaders/pages';
 import { isBlogInstance } from './lib/config/city-config';
 import { cityDir } from './lib/config/config.server';
@@ -31,7 +32,7 @@ const guides = defineCollection({
 });
 
 const events = defineCollection({
-  loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/events` }),
+  loader: eventLoader(),
   schema: eventSchema,
 });
 
