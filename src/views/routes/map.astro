@@ -5,10 +5,14 @@ import { elevationConclusion } from '@/lib/geo/elevation';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { toMapPlaces } from '@/lib/geo/places';
 import { loadRouteData } from '@/lib/route-data';
-import { breadcrumbJsonLd } from '@/lib/json-ld';
+import { routeMapJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
+import { simplifyPolylineForSchema } from '@/lib/maps/map-paths';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
-import { paths, routeSlug } from '@/lib/paths';
+import { paths, assets, routeSlug } from '@/lib/paths';
+import { formatDistance } from '@/lib/geo/distance';
+import { routeShape } from '@/lib/route-insights';
+import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
@@ -54,9 +58,34 @@ const breadcrumbs = breadcrumbJsonLd([
   { name: localeName, url: `${config.url}${paths.route(slug, locale)}` },
   { name: t('nav.map', locale), url: `${config.url}${paths.routeMap(slug, locale)}` },
 ]);
+
+const shape = track ? routeShape(track.points, track.distance_m) : null;
+const geoLine = track?.polyline ? simplifyPolylineForSchema(track.polyline) : undefined;
+const mapPlacesForSchema = nearby.map(p => ({
+  name: p.name, lat: p.lat, lng: p.lng, category: p.category,
+}));
+
+const distanceTag = formatDistance([route.data.distance_km]);
+const mapDescription = `${distanceTag} ${t('route.bike_route', locale)} — ${localeName}`;
+const mapUrl = `${config.url}${paths.routeMap(slug, locale)}`;
+
+const jsonLd = routeMapJsonLd({
+  name: localeName,
+  description: mapDescription,
+  url: mapUrl,
+  geoLine,
+  containsPlaces: mapPlacesForSchema,
+  distance: distanceTag,
+  ...(elevation && { elevationGain: `${elevation} m` }),
+  ...(shape && { routeShape: shape }),
+});
+
+const mapLang = cachedMapLocale(route.id, undefined, locale);
+const hasSocialMap = hasCachedMap(route.id, undefined, locale);
+const socialMapUrl = hasSocialMap ? `${config.url}${assets.mapSocial(route.id, mapLang)}` : undefined;
 ---
 
-<Base title={`Map: ${name} | ${config.display_name}`} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
+<Base title={`Map: ${name} | ${config.display_name}`} description={mapDescription} ogImage={socialMapUrl} ogImageAlt={`Map of ${localeName}`} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
   {variant && track ? (
     <MapPage
       routeSlug={route.id}

@@ -4,6 +4,7 @@ import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { imageUrl } from '@/lib/media/image-service';
 import { getCityConfig } from '@/lib/config/city-config';
+import { rideJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { isPublished } from '@/lib/content/content-filters';
 import { paths } from '@/lib/paths';
 import RideDetailContent from '@/components/RideDetailContent.astro';
@@ -50,9 +51,24 @@ const seoTitle = `${name} | ${tour?.name || config.display_name}`;
 const seoDescription = route.data.ride_date
   ? `${name} — ${distance_km.toFixed(0)} km ride on ${route.data.ride_date}`
   : `${name} — ${distance_km.toFixed(0)} km ride`;
+
+const jsonLd = rideJsonLd({
+  name,
+  description: seoDescription,
+  ride_date: route.data.ride_date,
+  id: route.id,
+  coverUrl,
+});
+
+const breadcrumbItems = [
+  { name: 'Home', url: `${config.url}/` },
+  ...(tour ? [{ name: tour.name, url: `${config.url}${paths.tour(tour.slug)}` }] : []),
+  { name, url: `${config.url}${paths.ride(route.id, route.data.tour_slug)}` },
+];
+const breadcrumbs = breadcrumbJsonLd(breadcrumbItems);
 ---
 
-<Base title={seoTitle} description={seoDescription} ogImage={coverUrl} ogImageAlt={name}>
+<Base title={seoTitle} description={seoDescription} ogImage={coverUrl} ogImageAlt={name} ogType="article" jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
   <RideDetailContent
     route={route}
     tour={tour}

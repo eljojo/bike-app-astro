@@ -60,4 +60,8 @@ export const assets = {
     const prefix = lang ? `/maps/${lang}` : '/maps';
     return `${prefix}/${slug}/${variant}/map.png`;
   },
+  mapSocial: (slug: string, lang?: string) => {
+    const prefix = lang ? `/maps/${lang}` : '/maps';
+    return `${prefix}/${slug}/map-social.jpg`;
+  },
 };

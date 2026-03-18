@@ -3,7 +3,7 @@ import Base from '@/layouts/Base.astro';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
-import { routeJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
+import { routeJsonLd, touristAttractionJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/geo/distance';
 import MediaGallery from '@/components/MediaGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
@@ -139,9 +139,23 @@ const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
   { name: localeName, url: `${config.url}${paths.route(slug, locale)}` },
 ]);
+
+const startPoint = primaryTrack?.points[0];
+const routeUrl = `${config.url}${paths.route(slug, locale)}`;
+const jsonLd = [
+  routeJsonLd({...route.data, id: route.id}, coverUrl),
+  touristAttractionJsonLd({
+    name: localeName,
+    description: localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`,
+    imageUrl: coverUrl,
+    url: routeUrl,
+    startLat: startPoint?.[0],
+    startLng: startPoint?.[1],
+  }),
+];
 ---
 
-<Base title={seoTitle} description={localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`} ogImage={coverUrl} ogImageAlt={ogImageAlt} jsonLd={routeJsonLd({...route.data, id: route.id}, coverUrl)} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
+<Base title={seoTitle} description={localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`} ogImage={coverUrl} ogImageAlt={ogImageAlt} ogType="article" jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
   <div class="route-detail">
     {cover && (
       <div class="route-detail--hero">
