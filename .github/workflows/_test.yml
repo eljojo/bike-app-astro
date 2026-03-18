@@ -151,22 +151,33 @@ jobs:
           path: /usr/share/fonts/truetype/msttcorefonts
           key: msttcorefonts-v1
 
-      - name: Install fonts for screenshots
+      - name: Cache Playwright system deps
+        id: playwright-deps-cache
+        uses: actions/cache@v5
+        with:
+          path: /tmp/.playwright-deps-installed
+          key: playwright-deps-${{ hashFiles('package-lock.json') }}-v1
+
+      - name: Install Microsoft core fonts
+        if: ${{ steps.msfonts-cache.outputs.cache-hit != 'true' }}
         run: |
-          if [ "${{ steps.msfonts-cache.outputs.cache-hit }}" != "true" ]; then
-            echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
-            sudo apt-get install -y ttf-mscorefonts-installer
-          fi
-          sudo apt-get install -y fonts-noto-color-emoji
-          sudo fc-cache -f
+          echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+          sudo apt-get install -y ttf-mscorefonts-installer
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers and deps
         if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
-        run: npx playwright install --with-deps chromium
+        run: |
+          npx playwright install --with-deps chromium
+          touch /tmp/.playwright-deps-installed
 
-      - name: Install Playwright deps (cached)
-        if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' }}
-        run: npx playwright install-deps chromium
+      - name: Install Playwright system deps
+        if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' && steps.playwright-deps-cache.outputs.cache-hit != 'true' }}
+        run: |
+          npx playwright install-deps chromium
+          touch /tmp/.playwright-deps-installed
+
+      - name: Refresh font cache
+        run: sudo fc-cache -f
 
       - name: Add test bindings to generated wrangler config
         run: |
