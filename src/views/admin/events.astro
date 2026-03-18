@@ -6,7 +6,7 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import { env } from '../../lib/env/env.service';
 import { loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { getCityConfig } from '../../lib/config/city-config';
-import { buildImageUrl } from '@/lib/media/image-service';
+import { buildImageUrl, buildImageSrcSet2x } from '@/lib/media/image-service';
 import '../../styles/admin.scss';
 
 const { events: adminEvents, organizers: adminOrganizers } = await fetchJson<{ events: _AdminEvent[]; organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
@@ -59,6 +59,7 @@ const user = Astro.locals.user;
                 {e.poster_key && (
                   <img
                     src={buildImageUrl(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
+                    srcset={buildImageSrcSet2x(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
                     alt=""
                     loading="lazy"
                     class="event-poster-thumb"

@@ -3,7 +3,7 @@ import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';
 import { extractChangesPath } from '../../lib/git/commit-author';
 import { parseCommitMessage, formatDetail } from '../../lib/history-format';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
 
 interface CommitUser {
   id: string;
@@ -193,11 +193,17 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
               const filePath = resolveContentPath(c);
               const parsed = city ? parseCommitMessage(c.message, city) : null;
               const isCurrentVersion = commits.indexOf(c) === 0;
-              const thumb = parsed?.contentType === 'routes' && parsed.contentSlug && coverKeys?.[parsed.contentSlug]
-                ? buildImageUrl(cdnUrl || '', coverKeys[parsed.contentSlug], { width: 48, height: 48, fit: 'cover' })
+              const thumbKey = parsed?.contentType === 'routes' && parsed.contentSlug && coverKeys?.[parsed.contentSlug]
+                ? { key: coverKeys[parsed.contentSlug], w: 48, h: 48 }
                 : parsed?.contentType === 'events' && parsed.contentSlug && posterKeys?.[parsed.contentSlug]
-                  ? buildImageUrl(cdnUrl || '', posterKeys[parsed.contentSlug], { width: 36, height: 48, fit: 'cover' })
+                  ? { key: posterKeys[parsed.contentSlug], w: 36, h: 48 }
                   : null;
+              const thumb = thumbKey
+                ? buildImageUrl(cdnUrl || '', thumbKey.key, { width: thumbKey.w, height: thumbKey.h, fit: 'cover' })
+                : null;
+              const thumbSrcSet = thumbKey
+                ? buildImageSrcSet2x(cdnUrl || '', thumbKey.key, { width: thumbKey.w, height: thumbKey.h, fit: 'cover' })
+                : undefined;
 
               const username = c.resolvedUser?.username ?? c.author.name;
               const timeStr = new Date(c.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -214,7 +220,7 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
                 <Fragment key={c.sha}>
                   <div class="commit-item">
                     <img src={avatarUrl} alt="" class="commit-avatar" loading="lazy" />
-                    {thumb && <img src={thumb} alt="" class="commit-thumb" loading="lazy" />}
+                    {thumb && <img src={thumb} srcset={thumbSrcSet} alt="" class="commit-thumb" loading="lazy" />}
                     <div class="commit-info">
                       <span class="commit-headline">
                         <strong>{username}</strong>

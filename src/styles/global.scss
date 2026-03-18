@@ -495,10 +495,53 @@ a.go-back-button {
   }
 }
 
+.calendar-months-grid {
+  @media (min-width: $breakpoint-tablet) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2em;
+    align-items: start;
+  }
+
+  @media (min-width: $breakpoint-desktop) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.calendar-month-card {
+  @media (min-width: $breakpoint-tablet) {
+    .events-list {
+      gap: 0.3em;
+    }
+
+    .event-card-compact {
+      padding: 0.4em 0.5em;
+      gap: 0.5em;
+    }
+
+    .event-card-compact-thumb {
+      width: 40px;
+      height: 40px;
+    }
+
+    .event-card-compact-name {
+      font-size: 0.9em;
+    }
+
+    .event-card-compact-meta {
+      font-size: 0.75em;
+    }
+  }
+}
+
 .month-header {
   margin: 1.2em 0 0.4em;
   font-size: 1.4em;
   font-weight: bold;
+
+  .calendar-month-card & {
+    margin-top: 0;
+  }
 }
 .events-grid {
   display: grid;

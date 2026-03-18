@@ -42,6 +42,21 @@ export function buildImageUrl(
   return `${cdnBase}/${key}`;
 }
 
+/**
+ * Build a 2x srcset string for retina displays.
+ * Returns e.g. "https://cdn/cdn-cgi/image/width=160,height=160,fit=cover/key 2x"
+ */
+export function buildImageSrcSet2x(
+  cdnBase: string,
+  key: string,
+  opts?: ImageOptions,
+): string {
+  const retinaOpts: ImageOptions = { ...opts };
+  if (retinaOpts.width) retinaOpts.width *= 2;
+  if (retinaOpts.height) retinaOpts.height *= 2;
+  return `${buildImageUrl(cdnBase, key, retinaOpts)} 2x`;
+}
+
 export function imageUrl(blobKey: string, options: ImageOptions = {}): string {
   const opts = { ...options };
   if (!opts.format && (opts.width || opts.height || opts.fit)) opts.format = 'auto';

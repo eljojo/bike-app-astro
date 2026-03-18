@@ -6,7 +6,7 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import '../../styles/admin.scss';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { getCityConfig } from '../../lib/config/city-config';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { parseCommitMessage, formatDetail } from '../../lib/history-format';
@@ -167,6 +167,7 @@ try {
                 {route.coverKey && (
                   <img
                     src={buildImageUrl(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
+                    srcset={buildImageSrcSet2x(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
                     alt="" loading="lazy" class="card-item-thumb"
                   />
                 )}
@@ -223,6 +224,7 @@ try {
                 {event.poster_key && (
                   <img
                     src={buildImageUrl(cdnUrl, event.poster_key, { width: 48, height: 64, fit: 'cover' })}
+                    srcset={buildImageSrcSet2x(cdnUrl, event.poster_key, { width: 48, height: 64, fit: 'cover' })}
                     alt="" loading="lazy" class="card-item-thumb card-item-thumb--portrait"
                   />
                 )}

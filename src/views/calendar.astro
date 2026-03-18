@@ -213,16 +213,18 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
   {Object.keys(upcomingByMonth).length > 0 && (
     <section>
       <h2>{t('calendar.full_calendar', locale)}</h2>
-      {Object.entries(upcomingByMonth).map(([month, evts]) => (
-        <div>
-          <h3 class="month-header">{month}</h3>
-          <div class="events-list">
-            {evts.map(e => (
-              <EventCardCompact event={e} locale={locale} />
-            ))}
+      <div class="calendar-months-grid">
+        {Object.entries(upcomingByMonth).map(([month, evts]) => (
+          <div class="calendar-month-card">
+            <h3 class="month-header">{month}</h3>
+            <div class="events-list">
+              {evts.map(e => (
+                <EventCardCompact event={e} locale={locale} />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </section>
   )}
 
