@@ -22,7 +22,7 @@ function initials(name: string): string {
 {organizers.length > 0 && (
   <section class="organizer-spotlight">
     <h2>{t('calendar.organizer_spotlight', locale)}</h2>
-    <div class="organizer-spotlight-strip">
+    <div class="organizer-spotlight-strip" data-show="3">
       {organizers.map(org => {
         const content = (
           <div class="organizer-spotlight-item">
@@ -56,5 +56,27 @@ function initials(name: string): string {
         );
       })}
     </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const strip = document.querySelector<HTMLElement>('.organizer-spotlight-strip[data-show]');
+        if (!strip) return;
+        const count = parseInt(strip.dataset.show || '3', 10);
+        const children = Array.from(strip.children) as HTMLElement[];
+        if (children.length <= count) {
+          children.forEach(c => c.style.display = '');
+          return;
+        }
+        // Fisher-Yates shuffle to pick `count` random items
+        const indices = children.map((_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        const shown = new Set(indices.slice(0, count));
+        children.forEach((child, i) => {
+          child.style.display = shown.has(i) ? '' : 'none';
+        });
+      });
+    </script>
   </section>
 )}

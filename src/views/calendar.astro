@@ -142,7 +142,7 @@ const rankedOrganizers = spotlightCandidates
     return a.tiebreaker - b.tiebreaker;
   });
 
-const spotlightOrganizers = rankedOrganizers.slice(0, 5).map(r => ({
+const spotlightOrganizers = rankedOrganizers.slice(0, 8).map(r => ({
   name: r.organizer.data.name,
   instagram: r.organizer.data.instagram,
   photo_key: r.organizer.data.photo_key,
