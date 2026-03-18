@@ -1,0 +1,58 @@
+---
+import './OrganizerSpotlight.scss';
+import ResponsiveImage from './ResponsiveImage.astro';
+import { t } from '../i18n';
+
+interface Props {
+  organizers: Array<{
+    name: string;
+    instagram?: string;
+    photo_key?: string;
+  }>;
+  locale?: string;
+}
+
+const { organizers, locale } = Astro.props;
+
+function initials(name: string): string {
+  return name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+---
+
+{organizers.length > 0 && (
+  <section class="organizer-spotlight">
+    <h2>{t('calendar.organizer_spotlight', locale)}</h2>
+    <div class="organizer-spotlight-strip">
+      {organizers.map(org => {
+        const content = (
+          <div class="organizer-spotlight-item">
+            {org.photo_key ? (
+              <ResponsiveImage
+                blobKey={org.photo_key}
+                alt={org.name}
+                widths={[128]}
+                width={64}
+                height={64}
+                class="organizer-spotlight-avatar"
+              />
+            ) : (
+              <div class="organizer-spotlight-initials">{initials(org.name)}</div>
+            )}
+            <span class="organizer-spotlight-name">{org.name}</span>
+            {org.instagram && (
+              <span class="organizer-spotlight-handle">@{org.instagram}</span>
+            )}
+          </div>
+        );
+
+        return org.instagram ? (
+          <a href={`https://instagram.com/${org.instagram}`} target="_blank" rel="noopener" class="organizer-spotlight-link">
+            {content}
+          </a>
+        ) : (
+          content
+        );
+      })}
+    </div>
+  </section>
+)}

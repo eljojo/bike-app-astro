@@ -1,0 +1,75 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.organizer-spotlight {
+  h2 {
+    font-size: 1.2em;
+    margin-bottom: 0.75em;
+  }
+}
+
+.organizer-spotlight-strip {
+  display: flex;
+  gap: 1.5em;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5em;
+}
+
+.organizer-spotlight-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.organizer-spotlight-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.organizer-spotlight-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.organizer-spotlight-initials {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: $color-card-bg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.2em;
+  @include muted-text;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.organizer-spotlight-name {
+  font-size: 0.8em;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 0.4em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.organizer-spotlight-handle {
+  font-size: 0.7em;
+  @include muted-text;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
