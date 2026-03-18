@@ -481,16 +481,17 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                   const opts = eventOptions ?? [];
 
                   // Normalize event names for grouping: strip years, emoji,
-                  // collapse case/whitespace so clumsy human input still groups.
+                  // Normalize event names for grouping: strip years, emoji, punctuation,
+                  // spaces, and case so clumsy human input still groups.
                   // "BACK FORTY HIGHLANDER" and "Back Forty Highlander" → same key
                   // "Wendigo Ultra 2024" and "Wendigo Ultra" → same key
-                  // "Weekend Bikedays" and "Weekend Bike Days" won't merge (genuinely different strings)
+                  // "Weekend Bikedays" and "Weekend Bike Days" → same key
                   const normalizeForGrouping = (n: string) =>
                     n.replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu, '') // strip emoji
                      .replace(/^(\d{4})\s+[-–—:]?\s*/, '')  // leading year: "2024 Grand Départ"
                      .replace(/\s+[-–—:]?\s*(\d{4})$/, '')   // trailing year: "Fancy Women Bike Ride 2023"
-                     .replace(/\s+/g, ' ')                    // collapse whitespace
-                     .trim()
+                     .replace(/[-–—:&#!?+.,()]/g, '')        // strip punctuation
+                     .replace(/\s+/g, '')                     // strip all spaces
                      .toLowerCase();
 
                   // Pick the best display label from a group of names:
