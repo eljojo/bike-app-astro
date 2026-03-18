@@ -8,6 +8,8 @@ export interface TagColor {
 	darkText: string;
 }
 
+export const EVENT_TAG_SLUGS = ['social', 'group-ride', 'critical-mass', 'race', 'criterium', 'brevet', 'gran-fondo', 'gravel', 'charity-ride', 'workshop', 'festival', 'swap-meet', 'advocacy', 'tour', 'bikepacking', 'triathlon'] as const;
+
 const TAG_COLORS: Record<string, TagColor> = {
 	'social':        { lightBg: '#dbeafe', lightText: '#1e40af', darkBg: '#1e3a5f', darkText: '#93c5fd' },
 	'group-ride':    { lightBg: '#dbeafe', lightText: '#1e40af', darkBg: '#1e3a5f', darkText: '#93c5fd' },

@@ -7,6 +7,7 @@ import { getCityConfig } from '../../lib/config/city-config';
 import { db } from '../../lib/get-db';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts, LIMITS } from '../../lib/auth/rate-limit';
 import { fuzzyMatchOrganizer } from '../../lib/fuzzy-match';
+import { EVENT_TAG_SLUGS } from '../../lib/event-tags';
 import { slugify } from '../../lib/slug';
 import { generateMediaKey, confirmUpload } from '../../lib/media/storage.adapter-r2';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
@@ -20,12 +21,13 @@ const TEXT_MODEL = VISION_MODEL;
 
 const FIELD_SPEC = `Return this exact JSON structure (omit fields you cannot find at all):
 
-{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4}}
+{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4},"tags":["tag1","tag2"]}
 
 Rules:
 - "c" is your confidence from 0 to 10 (integer)
 - Dates must be YYYY-MM-DD, times must be HH:MM in 24h format
 - Omit fields entirely if not found (do NOT use empty strings or "null")
+- "tags" is a plain array of tag slugs (not {value,c}). Only use tags from the provided list. Omit if none clearly apply.
 - URLs must have proper JSON escaping (escape backslashes and quotes)
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
 
@@ -116,6 +118,13 @@ export function buildDraft(
     draft.organizer = inline;
   }
 
+  // Tags: plain array, validated against known slugs
+  if (Array.isArray(raw.tags)) {
+    const validTags = (raw.tags as unknown[])
+      .filter((t): t is string => typeof t === 'string' && EVENT_TAG_SLUGS.includes(t as typeof EVENT_TAG_SLUGS[number]));
+    if (validTags.length > 0) draft.tags = validTags;
+  }
+
   // Don't leak organizer sub-fields to the draft
   delete draft.organizer_website;
   delete draft.organizer_instagram;
@@ -145,6 +154,8 @@ function buildContextSuffix(): string {
   if (organizerNames.length > 0) {
     ctx += `\n\nKnown organizers (try to match one if applicable): ${organizerNames.join(', ')}`;
   }
+
+  ctx += `\n\nEvent tags (use only if clearly applicable): ${EVENT_TAG_SLUGS.join(', ')}`;
 
   return ctx;
 }

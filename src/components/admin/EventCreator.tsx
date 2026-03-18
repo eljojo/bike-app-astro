@@ -23,7 +23,7 @@ interface EventDraftResponse {
   poster_content_type?: string;
 }
 
-const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
+const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'name',
@@ -38,6 +38,7 @@ const FIELD_LABELS: Record<string, string> = {
   event_url: 'event website',
   map_url: 'map link',
   edition: 'edition',
+  tags: 'tags',
 };
 
 function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
@@ -279,7 +280,9 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
                 {REVIEW_FIELDS.map(field => {
                   const value = field === 'organizer'
                     ? getOrganizerDisplay(draft.organizer as EventDetail['organizer'])
-                    : draft[field] as string | undefined;
+                    : field === 'tags'
+                      ? (Array.isArray(draft.tags) && draft.tags.length > 0 ? (draft.tags as string[]).join(', ') : '')
+                      : draft[field] as string | undefined;
                   if (!value) return null;
                   const isUncertain = uncertain.includes(field);
                   return (

@@ -85,3 +85,44 @@ describe('buildDraft organizer resolution', () => {
     expect(draft.organizer_instagram).toBeUndefined();
   });
 });
+
+describe('buildDraft tag extraction', () => {
+  it('includes valid tags from AI response', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Gravel Race', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      tags: ['gravel', 'race'],
+    }, organizers);
+
+    expect(draft.tags).toEqual(['gravel', 'race']);
+  });
+
+  it('filters out invalid tags', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Fun Ride', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      tags: ['social', 'invented-tag', 'group-ride'],
+    }, organizers);
+
+    expect(draft.tags).toEqual(['social', 'group-ride']);
+  });
+
+  it('omits tags field when no valid tags', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Mystery Event', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      tags: ['not-a-real-tag'],
+    }, organizers);
+
+    expect(draft.tags).toBeUndefined();
+  });
+
+  it('omits tags when not provided', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Plain Event', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+    }, organizers);
+
+    expect(draft.tags).toBeUndefined();
+  });
+});
