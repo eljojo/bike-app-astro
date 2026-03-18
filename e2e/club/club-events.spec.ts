@@ -102,8 +102,8 @@ test.describe('Club event detail — past event with results', () => {
     // Results summary shows finisher count
     await expect(results.locator('.results-summary')).toContainText('3');
 
-    // Finishers table (exclude non-finishers section)
-    const rows = results.locator('.event-results-table tbody tr');
+    // Finishers table only (direct child, excludes non-finishers nested table)
+    const rows = results.locator('> .event-results-table tbody tr');
     await expect(rows).toHaveCount(3);
 
     // Check first finisher
