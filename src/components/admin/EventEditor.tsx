@@ -480,79 +480,32 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 {(() => {
                   const opts = eventOptions ?? [];
 
-                  // Normalize event names for grouping: strip years, emoji,
-                  // Normalize event names for grouping: strip years, emoji, punctuation,
-                  // spaces, and case so clumsy human input still groups.
-                  // "BACK FORTY HIGHLANDER" and "Back Forty Highlander" → same key
-                  // "Wendigo Ultra 2024" and "Wendigo Ultra" → same key
-                  // "Weekend Bikedays" and "Weekend Bike Days" → same key
-                  const normalizeForGrouping = (n: string) =>
-                    n.replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu, '') // strip emoji
-                     .replace(/^(\d{4})\s+[-–—:]?\s*/, '')  // leading year: "2024 Grand Départ"
-                     .replace(/\s+[-–—:]?\s*(\d{4})$/, '')   // trailing year: "Fancy Women Bike Ride 2023"
-                     .replace(/[-–—:&#!?+.,()]/g, '')        // strip punctuation
-                     .replace(/\s+/g, '')                     // strip all spaces
-                     .toLowerCase();
-
-                  // Pick the best display label from a group of names:
-                  // prefer mixed-case over ALL CAPS, and without year over with year
-                  const pickLabel = (names: string[]) => {
-                    const withoutYear = names.filter(n => !/(?:^|\s)\d{4}(?:\s|$)/.test(n));
-                    const pool = withoutYear.length ? withoutYear : names;
-                    const mixedCase = pool.filter(n => n !== n.toUpperCase());
-                    return (mixedCase.length ? mixedCase : pool)[0];
-                  };
-
-                  // Group events by normalized name
-                  const groups = new Map<string, typeof opts>();
-                  const labelsByKey = new Map<string, string[]>();
+                  // Group events by year, newest first; within each year, newest first
+                  const byYear = new Map<string, typeof opts>();
                   for (const opt of opts) {
-                    const key = normalizeForGrouping(opt.name);
-                    const list = groups.get(key) || [];
+                    const list = byYear.get(opt.year) || [];
                     list.push(opt);
-                    groups.set(key, list);
-                    const labels = labelsByKey.get(key) || [];
-                    labels.push(opt.name);
-                    labelsByKey.set(key, labels);
+                    byYear.set(opt.year, list);
                   }
-                  for (const list of groups.values()) {
-                    list.sort((a, b) => b.year.localeCompare(a.year) || b.id.localeCompare(a.id));
+                  for (const list of byYear.values()) {
+                    list.sort((a, b) => b.id.localeCompare(a.id));
                   }
+                  const years = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
 
-                  // Sort group keys: current event name first, then alphabetical by label
-                  const currentKey = normalizeForGrouping(name);
-                  const groupLabels = new Map<string, string>();
-                  for (const [key, names] of labelsByKey) {
-                    groupLabels.set(key, pickLabel(names));
+                  if (years.length <= 1) {
+                    return opts
+                      .sort((a, b) => b.id.localeCompare(a.id))
+                      .map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.name}</option>
+                      ));
                   }
-                  const sortedKeys = [...groups.keys()].sort((a, b) => {
-                    if (a === currentKey && b !== currentKey) return -1;
-                    if (b === currentKey && a !== currentKey) return 1;
-                    return (groupLabels.get(a) || a).localeCompare(groupLabels.get(b) || b);
-                  });
-
-                  // Flat list when few events, grouped optgroups otherwise
-                  if (groups.size <= 1 || opts.length <= 10) {
-                    return opts.map(opt => (
-                      <option key={opt.id} value={opt.id}>{opt.name} ({opt.year})</option>
-                    ));
-                  }
-                  return sortedKeys.map(key => {
-                    const items = groups.get(key)!;
-                    const label = groupLabels.get(key) || key;
-                    return (
-                      <optgroup key={key} label={label}>
-                        {items.map(opt => {
-                          // Show slug suffix for same-year duplicates (e.g. workshop, workshop-2)
-                          const sameYear = items.filter(o => o.year === opt.year);
-                          const suffix = sameYear.length > 1
-                            ? ` — ${opt.id.replace(/^\d{4}\//, '')}`
-                            : '';
-                          return <option key={opt.id} value={opt.id}>{opt.year}{suffix}</option>;
-                        })}
-                      </optgroup>
-                    );
-                  });
+                  return years.map(year => (
+                    <optgroup key={year} label={year}>
+                      {byYear.get(year)!.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.name}</option>
+                      ))}
+                    </optgroup>
+                  ));
                 })()}
               </select>
             </div>
