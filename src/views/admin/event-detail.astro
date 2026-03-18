@@ -7,7 +7,7 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import { env } from '../../lib/env/env.service';
 import { can } from '../../lib/auth/authorize';
 import { CITY } from '../../lib/config/config';
-import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson, loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { eventDetailFromCache } from '../../lib/models/event-model';
 import { getCityConfig } from '../../lib/config/city-config';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
@@ -23,7 +23,8 @@ const result = await loadDetailFromJson({
 if (result.notFound) return new Response(null, { status: 404 });
 const eventData = result.data;
 
-const { organizers, events: allEvents } = await fetchJson<{ organizers: _AdminOrganizer[]; events: AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url));
+const { organizers, events: buildTimeEvents } = await fetchJson<{ organizers: _AdminOrganizer[]; events: AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url));
+const { events: allEvents } = await loadAdminEventList(buildTimeEvents);
 const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
 const adminPlaces = await fetchJson<_AdminPlace[]>(new URL('/admin/data/places.json', Astro.url));
 const features = getInstanceFeatures();
@@ -31,7 +32,7 @@ const routeOptions = features.hasEnrichedEvents ? adminRoutes.map((r: { slug: st
 const placeOptions = features.hasEnrichedEvents ? adminPlaces.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })) : [];
 const eventOptions = allEvents
   .map((e: AdminEvent) => ({ id: e.id, name: e.name, year: e.year }))
-  .sort((a: { year: string }, b: { year: string }) => b.year.localeCompare(a.year));
+  .sort((a: { year: string; name: string }, b: { year: string; name: string }) => b.year.localeCompare(a.year) || a.name.localeCompare(b.name));
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const user = Astro.locals.user;
 const today = new Date().toISOString().slice(0, 10);

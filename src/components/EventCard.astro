@@ -35,10 +35,10 @@ if (typeof props.organizer === 'string') {
 const dateDisplay = formatDateRange(props.start_date, props.end_date);
 ---
 
-<div class="event-card">
+<div class={`event-card${props.href ? ' event-card--linked' : ''}`}>
   {organizerName && <span class="event-organizer">{organizerName}</span>}
   {props.href
-    ? <a href={props.href} class="event-name">{props.name}</a>
+    ? <a href={props.href} class="event-name event-name--stretched">{props.name}</a>
     : props.registration_url
       ? <a href={props.registration_url} class="event-name" target="_blank" rel="noopener">{props.name}</a>
       : <span class="event-name">{props.name}</span>

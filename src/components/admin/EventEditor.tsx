@@ -396,9 +396,38 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               <select id="event-previous" value={previousEvent}
                 onChange={(e) => setPreviousEvent((e.target as HTMLSelectElement).value)}>
                 <option value="">-- None --</option>
-                {(eventOptions ?? []).map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.year} — {opt.name}</option>
-                ))}
+                {(() => {
+                  const opts = eventOptions ?? [];
+                  // Group events by name, sorted by year desc within each group
+                  const groups = new Map<string, typeof opts>();
+                  for (const opt of opts) {
+                    const list = groups.get(opt.name) || [];
+                    list.push(opt);
+                    groups.set(opt.name, list);
+                  }
+                  for (const list of groups.values()) {
+                    list.sort((a, b) => b.year.localeCompare(a.year) || b.id.localeCompare(a.id));
+                  }
+                  // Sort group names: current event name first, then alphabetical
+                  const sortedNames = [...groups.keys()].sort((a, b) => {
+                    if (a === name && b !== name) return -1;
+                    if (b === name && a !== name) return 1;
+                    return a.localeCompare(b);
+                  });
+                  // Flat list when few events, grouped optgroups otherwise
+                  if (groups.size <= 1 || opts.length <= 10) {
+                    return opts.map(opt => (
+                      <option key={opt.id} value={opt.id}>{opt.name} ({opt.year})</option>
+                    ));
+                  }
+                  return sortedNames.map(groupName => (
+                    <optgroup key={groupName} label={groupName}>
+                      {groups.get(groupName)!.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.year}</option>
+                      ))}
+                    </optgroup>
+                  ));
+                })()}
               </select>
             </div>
           )}

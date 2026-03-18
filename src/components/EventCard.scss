@@ -9,8 +9,15 @@
   flex-direction: column;
   gap: 0.3em;
   flex: 0 0 24%;
+  position: relative;
   @media (max-width: $breakpoint-tablet) { flex: 0 0 49%; }
   @media (max-width: $breakpoint-mobile) { flex: auto; }
+}
+
+.event-card--linked {
+  cursor: pointer;
+  transition: border-color 0.15s;
+  &:hover { border-color: $color-accent; }
 }
 
 .event-card-poster {
@@ -37,6 +44,21 @@
 
 .event-organizer { font-size: 1.5em; }
 .event-name { font-size: 1.5em; font-weight: bold; color: inherit; }
+
+// Stretched link: makes the entire card clickable via an ::after overlay
+.event-name--stretched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+// Links inside the card that need to remain independently clickable
+.event-review,
+.suggest-edit-link {
+  position: relative;
+  z-index: 1;
+}
 .event-dates { font-size: 1.2em; }
 .event-distances { font-size: 0.9em; }
 .event-edition {

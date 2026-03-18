@@ -20,7 +20,7 @@ const TEXT_MODEL = VISION_MODEL;
 
 const FIELD_SPEC = `Return this exact JSON structure (omit fields you cannot find at all):
 
-{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5}}
+{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4}}
 
 Rules:
 - "c" is your confidence from 0 to 10 (integer)
@@ -42,7 +42,7 @@ const MAX_TEXT_LENGTH = 15_000; // Characters of page text to send
 const HIGH_CONFIDENCE = 7; // 0-10 scale
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'organizer_website', 'organizer_instagram', 'registration_url'] as const;
+const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'organizer_website', 'organizer_instagram', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const;
 
 /** Unwrap a field from the AI response, which may be {value, c} or a flat string. */
 function unwrap(field: unknown): { value: string; confidence: number } | null {
@@ -93,7 +93,7 @@ function buildDraft(raw: Record<string, unknown>): {
   };
 
   // Optional string fields
-  for (const field of ['start_time', 'end_date', 'end_time', 'location', 'distances', 'registration_url'] as const) {
+  for (const field of ['start_time', 'end_date', 'end_time', 'location', 'distances', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const) {
     if (values[field]) draft[field] = values[field].value;
   }
 

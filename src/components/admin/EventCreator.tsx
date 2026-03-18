@@ -9,6 +9,7 @@ interface Props {
   cdnUrl: string;
   organizers: AdminOrganizer[];
   copyData?: Partial<EventDetail>;
+  eventOptions?: Array<{ id: string; name: string; year: string }>;
 }
 
 /** Draft fields returned by the server, already in EventDetail shape. */
@@ -19,7 +20,7 @@ interface EventDraftResponse {
   poster_content_type?: string;
 }
 
-const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'registration_url'] as const;
+const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'name',
@@ -31,6 +32,9 @@ const FIELD_LABELS: Record<string, string> = {
   distances: 'distances',
   organizer: 'organizer',
   registration_url: 'registration URL',
+  event_url: 'event website',
+  map_url: 'map link',
+  edition: 'edition',
 };
 
 function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
@@ -39,7 +43,7 @@ function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
   return organizer.name || '';
 }
 
-export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
+export default function EventCreator({ cdnUrl, organizers, copyData, eventOptions }: Props) {
   const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>(copyData ? 'edit' : 'upload');
   const [dragOver, setDragOver] = useState(false);
   const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
@@ -165,6 +169,10 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
       distances: source.distances as string | undefined,
       registration_url: source.registration_url as string | undefined,
       organizer: source.organizer as EventDetail['organizer'],
+      review_url: source.review_url as string | undefined,
+      edition: source.edition as string | undefined,
+      event_url: source.event_url as string | undefined,
+      map_url: source.map_url as string | undefined,
       poster_key: posterKey,
       poster_content_type: posterContentType,
       body: (source.body as string) || '',
@@ -295,6 +303,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData }: Props) {
       initialData={initialData}
       organizers={organizers}
       cdnUrl={cdnUrl}
+      eventOptions={eventOptions}
     />
   );
 }

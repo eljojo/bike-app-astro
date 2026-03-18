@@ -22,6 +22,8 @@ import { fetchSharedKeysData, fetchJson } from '../../lib/content/load-admin-con
 
 let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 let adminEvents: AdminEvent[] = [];
+// Captured from the current save request so buildFreshData can enrich the D1 cache
+let lastOrganizerUpdate: EventUpdate['organizer'] | undefined;
 
 export const prerender = false;
 
@@ -91,7 +93,25 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
 
   getFilePaths: eventOps.getFilePaths,
   computeContentHash: eventOps.computeContentHash,
-  buildFreshData: eventOps.buildFreshData,
+  buildFreshData(contentId, currentFiles) {
+    // Build base cache data from committed git files
+    const json = eventOps.buildFreshData(contentId, currentFiles);
+    // Enrich organizer: if the git file stores a slug reference but we have
+    // the full organizer details from the save payload, embed the inline
+    // object in the D1 cache so the editor doesn't depend on the stale
+    // build-time organizers virtual module.
+    if (lastOrganizerUpdate?.name) {
+      const data = JSON.parse(json);
+      if (typeof data.organizer === 'string') {
+        const org: Record<string, string> = { name: lastOrganizerUpdate.name };
+        if (lastOrganizerUpdate.website) org.website = lastOrganizerUpdate.website;
+        if (lastOrganizerUpdate.instagram) org.instagram = lastOrganizerUpdate.instagram;
+        data.organizer = org;
+        return JSON.stringify(data);
+      }
+    }
+    return json;
+  },
 
   async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {
     const [year, slug] = eventId.split('/');
@@ -106,6 +126,8 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
   },
 
   async buildFileChanges(update, eventId, currentFiles, git) {
+    // Capture organizer details for buildFreshData to enrich the D1 cache
+    lastOrganizerUpdate = update.organizer;
     const files: FileChange[] = [];
     const deletePaths: string[] = [];
     const effectivePrimary = resolveEffectivePrimary(currentFiles);
