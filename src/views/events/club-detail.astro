@@ -4,7 +4,7 @@ import EventRouteMap from '@/components/EventRouteMap.astro';
 import WaypointTimeline from '@/components/WaypointTimeline.astro';
 import ResultsTable from '@/components/ResultsTable.astro';
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
-import { getCollection, render } from 'astro:content';
+import { getCollection } from 'astro:content';
 import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
@@ -125,7 +125,6 @@ export async function getStaticPaths() {
 }
 
 const { event, organizers, allRoutes, allPlaces, editions } = Astro.props;
-const { Content } = await render(event);
 const data = event.data;
 
 // Resolve organizer name and URL
@@ -440,11 +439,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
         {event.body?.trim() && (
           <div class="event-detail-body">
-            {youtubeIds.length > 0 ? (
-              <div class="event-description" set:html={await renderMarkdownHtml(cleanBody)} />
-            ) : (
-              <div class="event-description"><Content /></div>
-            )}
+            <div class="event-description" set:html={await renderMarkdownHtml(cleanBody)} />
           </div>
         )}
       </div>
