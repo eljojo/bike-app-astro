@@ -68,6 +68,12 @@ export const eventDetailSchema = z.object({
   tags: z.array(z.string()).default([]),
   previous_event: z.string().optional(),
   edition: z.string().optional(),
+  banner_text: z.string().optional(),
+  linked_routes: z.array(z.object({
+    route: z.string(),
+    variant: z.string().optional(),
+    label: z.string(),
+  })).optional(),
   event_url: z.string().optional(),
   map_url: z.string().optional(),
   body: z.string(),
