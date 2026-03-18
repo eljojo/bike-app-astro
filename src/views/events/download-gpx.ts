@@ -1,8 +1,7 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { getCollection } from 'astro:content';
-import fs from 'node:fs';
-import { cityDir } from '../../lib/config/config.server';
-import { variantSlug, routeGpxPath, gpxResponse } from '../../lib/gpx/download.server';
+import { variantSlug, gpxResponse } from '../../lib/gpx/download.server';
+import { buildGpxFromPoints } from '../../lib/geo/elevation-enrichment';
 import { injectWaypointsIntoGpx, type GpxWaypoint } from '../../lib/gpx/waypoint-inject';
 
 export const prerender = true;
@@ -21,20 +20,20 @@ export const getStaticPaths: GetStaticPaths = async () => {
       if (!route) continue;
 
       for (const variant of route.data.variants) {
+        const track = route.data.gpxTracks[variant.gpx];
+        if (!track?.points?.length) continue;
+
         const variantKey = variantSlug(variant.gpx);
-        const gpxFilePath = routeGpxPath(cityDir, route.id, variant.gpx);
-        if (fs.existsSync(gpxFilePath)) {
-          results.push({
-            params: { path: `${event.id}/${routeSlug}-${variantKey}` },
-            props: {
-              gpxFilePath,
-              filename: `${event.data.name}-${route.data.name}-${variantKey}.gpx`,
-              eventWaypoints: event.data.waypoints ?? [],
-              gpxInclude: event.data.gpx_include_waypoints !== false,
-              routeSlug,
-            },
-          });
-        }
+        results.push({
+          params: { path: `${event.id}/${routeSlug}-${variantKey}` },
+          props: {
+            routeName: route.data.name,
+            track: { points: track.points },
+            filename: `${event.data.name}-${route.data.name}-${variantKey}.gpx`,
+            eventWaypoints: event.data.waypoints ?? [],
+            gpxInclude: event.data.gpx_include_waypoints !== false,
+          },
+        });
       }
     }
   }
@@ -43,14 +42,16 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const GET: APIRoute = async ({ props }) => {
-  const { gpxFilePath, filename, eventWaypoints, gpxInclude } = props as {
-    gpxFilePath: string;
+  const { routeName, track, filename, eventWaypoints, gpxInclude } = props as {
+    routeName: string;
+    track: { points: { lat: number; lon: number; ele?: number }[] };
     filename: string;
     eventWaypoints: Array<{ place: string; type: string; label: string; opening?: string; closing?: string; distance_km?: number; route?: string }>;
     gpxInclude: boolean;
   };
 
-  let gpxContent = fs.readFileSync(gpxFilePath as string, 'utf-8');
+  const points = track.points.map((p) => ({ lat: p.lat, lon: p.lon, ele: p.ele }));
+  let gpxContent = buildGpxFromPoints(routeName, points);
 
   if (gpxInclude && eventWaypoints.length > 0) {
     const places = await getCollection('places');
