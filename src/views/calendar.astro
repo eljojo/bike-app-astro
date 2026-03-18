@@ -134,11 +134,12 @@ const rankedOrganizers = spotlightCandidates
     organizer: o,
     yearSpan: organizerYears.get(o.id)?.size ?? 0,
     count: upcomingOrganizerCounts.get(o.id) || 0,
+    tiebreaker: rng(),
   }))
   .sort((a, b) => {
     if (b.yearSpan !== a.yearSpan) return b.yearSpan - a.yearSpan;
     if (b.count !== a.count) return b.count - a.count;
-    return rng() - 0.5;
+    return a.tiebreaker - b.tiebreaker;
   });
 
 const spotlightOrganizers = rankedOrganizers.map(r => ({

@@ -482,6 +482,12 @@ a.go-back-button {
   font-size: 1.4em;
   font-weight: bold;
 }
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1em;
+  margin: 0.5em 0 1em;
+}
 .events-list {
   display: flex;
   flex-direction: column;
@@ -624,23 +630,6 @@ a.go-back-button {
 @media (max-width: $breakpoint-mobile) {
   .admin-visible .nav-about {
     display: none;
-  }
-}
-
-.suggest-edit-link {
-  display: inline-block;
-  font-size: 0.8125rem;
-  color: $color-text-muted;
-  text-decoration: none;
-  margin-top: 0.5rem;
-
-  @include dark-mode {
-    color: #aaa;
-  }
-
-  &:hover {
-    text-decoration: underline;
-    color: $color-accent;
   }
 }
 
