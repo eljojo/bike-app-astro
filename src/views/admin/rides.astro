@@ -20,11 +20,13 @@ const adminRidesData = await fetchJson<AdminRide[]>(new URL('/admin/data/routes.
 const { rides, pendingSlugs } = await loadAdminRideList(adminRidesData as unknown as AdminRide[]);
 
 let stravaConnected = false;
-try {
-  const rows = await db().select({ userId: stravaTokens.userId }).from(stravaTokens).where(eq(stravaTokens.userId, user.id));
-  stravaConnected = rows.length > 0;
-} catch {
-  // Table may not exist yet
+if (user.id) {
+  try {
+    const rows = await db().select({ userId: stravaTokens.userId }).from(stravaTokens).where(eq(stravaTokens.userId, user.id));
+    stravaConnected = rows.length > 0;
+  } catch {
+    // Table may not exist yet
+  }
 }
 const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 

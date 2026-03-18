@@ -9,6 +9,15 @@ vi.mock('astro:middleware', () => ({
 const mockValidateSession = vi.fn();
 vi.mock('../src/lib/auth/auth', () => ({
   validateSession: (...args: any[]) => mockValidateSession(...args),
+  ANONYMOUS_USER: {
+    id: '',
+    username: '',
+    email: null,
+    role: 'guest',
+    bannedAt: null,
+    emailInCommits: false,
+    analyticsOptOut: false,
+  },
 }));
 vi.mock('../src/lib/get-db', () => ({
   db: () => 'mock-db',
@@ -85,7 +94,7 @@ describe('onRequest middleware', () => {
   it('adds nonce-based CSP header for authenticated admin HTML pages', async () => {
     const user = { id: 'u1', username: 'test', role: 'editor', bannedAt: null };
     mockValidateSession.mockResolvedValue(user);
-    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const { context } = makeContext('/admin/settings', { cookie: 'valid-token' });
     const next = vi.fn(async () => htmlResponse());
     const res = await onRequest(context as any, next) as Response;
 
@@ -104,8 +113,8 @@ describe('onRequest middleware', () => {
     expect(res.headers.get('Content-Security-Policy')).toBeNull();
   });
 
-  it('redirects to /gate for admin pages with no cookie', async () => {
-    const { context } = makeContext('/admin/routes');
+  it('redirects to /gate for non-browsable admin pages with no cookie', async () => {
+    const { context } = makeContext('/admin/settings');
     const next = vi.fn();
     const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
@@ -138,7 +147,7 @@ describe('onRequest middleware', () => {
     mockValidateSession.mockResolvedValue({
       id: 'u1', username: 'banned', role: 'editor', bannedAt: '2026-01-01',
     });
-    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const { context } = makeContext('/admin/settings', { cookie: 'valid-token' });
     const next = vi.fn();
     const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
@@ -149,7 +158,7 @@ describe('onRequest middleware', () => {
   it('valid session sets user on locals and calls next', async () => {
     const user = { id: 'u1', username: 'test', role: 'editor', bannedAt: null };
     mockValidateSession.mockResolvedValue(user);
-    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const { context } = makeContext('/admin/settings', { cookie: 'valid-token' });
     const next = vi.fn(async () => new Response('OK'));
     await onRequest(context as any, next);
     expect(next).toHaveBeenCalled();
@@ -158,11 +167,92 @@ describe('onRequest middleware', () => {
 
   it('invalid token clears cookies and redirects', async () => {
     mockValidateSession.mockResolvedValue(null);
-    const { context, deletedCookies } = makeContext('/admin/routes', { cookie: 'bad-token' });
+    const { context, deletedCookies } = makeContext('/admin/settings', { cookie: 'bad-token' });
     const next = vi.fn();
     const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
     expect(deletedCookies).toContain('session_token');
     expect(deletedCookies).toContain('logged_in');
+  });
+});
+
+describe('browsable admin paths', () => {
+  function htmlResponse() {
+    return new Response('<html></html>', {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  }
+
+  it('allows unauthenticated access to /admin (dashboard)', async () => {
+    const { context } = makeContext('/admin');
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user).toBeDefined();
+    expect(context.locals.user.id).toBe('');
+    expect(context.locals.user.role).toBe('guest');
+  });
+
+  it('allows unauthenticated access to /admin/routes', async () => {
+    const { context } = makeContext('/admin/routes');
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user.id).toBe('');
+  });
+
+  it('strips trailing slash when matching browsable paths', async () => {
+    const { context } = makeContext('/admin/routes/');
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user.id).toBe('');
+  });
+
+  it('still redirects /admin/routes/new to gate', async () => {
+    const { context } = makeContext('/admin/routes/new');
+    const next = vi.fn();
+    const res = await onRequest(context as any, next) as Response;
+    expect(res.status).toBe(302);
+    expect(res.headers.get('Location')).toContain('/gate');
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('still redirects /admin/history to gate (not yet browsable)', async () => {
+    const { context } = makeContext('/admin/history');
+    const next = vi.fn();
+    const res = await onRequest(context as any, next) as Response;
+    expect(res.status).toBe(302);
+    expect(res.headers.get('Location')).toContain('/gate');
+  });
+
+  it('populates real user on browsable path when valid session exists', async () => {
+    const user = { id: 'u1', username: 'test', role: 'editor', bannedAt: null };
+    mockValidateSession.mockResolvedValue(user);
+    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(context.locals.user).toEqual(user);
+  });
+
+  it('falls back to anonymous on browsable path when session is invalid', async () => {
+    mockValidateSession.mockResolvedValue(null);
+    const { context, deletedCookies } = makeContext('/admin/routes', { cookie: 'bad-token' });
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user.id).toBe('');
+    expect(deletedCookies).toContain('session_token');
+  });
+
+  it('falls back to anonymous for banned user on browsable path', async () => {
+    mockValidateSession.mockResolvedValue({
+      id: 'u1', username: 'banned', role: 'editor', bannedAt: '2026-01-01',
+    });
+    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user.id).toBe('');
   });
 });

@@ -54,6 +54,13 @@ describe('authorize', () => {
     expect(authorize(mockLocals(editor), 'edit-slug')).not.toBeInstanceOf(Response);
     expect(authorize(mockLocals(admin), 'edit-slug')).not.toBeInstanceOf(Response);
   });
+
+  it('returns 401 Response when user has empty id (anonymous sentinel)', () => {
+    const anonymous = { ...base, id: '', username: '', role: 'guest' as const, bannedAt: null };
+    const result = authorize(mockLocals(anonymous), 'view-history');
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(401);
+  });
 });
 
 describe('can', () => {

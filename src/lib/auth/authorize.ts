@@ -38,7 +38,7 @@ export function authorize(
   action: Action,
 ): SessionUser | Response {
   const user = (locals as unknown as Record<string, unknown>).user as SessionUser | null | undefined;
-  if (!user) return jsonError('Unauthorized', 401);
+  if (!user || !user.id) return jsonError('Unauthorized', 401);
   if (user.bannedAt) return jsonError('Forbidden', 403);
   if (!policies[action](user)) return jsonError('Forbidden', 403);
   return user;

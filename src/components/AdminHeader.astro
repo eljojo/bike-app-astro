@@ -6,7 +6,7 @@ import { getInstanceFeatures } from '../lib/config/instance-features';
 import { getContentTypes } from '../lib/content/content-types.server';
 
 interface Props {
-  user: { username: string; role: string; email?: string | null };
+  user: { id: string; username: string; role: string; email?: string | null };
   currentTab: string;
   subtitle?: string;
   ctaHref?: string;
@@ -48,7 +48,7 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
   {user.role === 'admin' && features.allowsRegistration && (
     <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
   )}
-  <div class="admin-user">
+  {user.id && <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle" aria-expanded="false" aria-controls="user-menu-dropdown">
       <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
       {user.username}
@@ -63,7 +63,7 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
         <button type="submit" class="admin-user-dropdown-item">Sign out</button>
       </form>
     </div>
-  </div>
+  </div>}
 </nav>
 {currentTab !== 'home' && (
   <div class="admin-header">

@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { validateSession } from './lib/auth/auth';
+import { ANONYMOUS_USER, validateSession } from './lib/auth/auth';
 import { jsonError } from './lib/api-response';
 import { db } from './lib/get-db';
 import { buildNonceCspHeader, createCspNonce } from './lib/csp';
@@ -7,6 +7,21 @@ import { getCspEnv } from './lib/csp-env';
 import rideRedirects from 'virtual:bike-app/ride-redirects';
 
 const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate', '/auth/verify']);
+
+/** Admin paths that can be browsed without authentication.
+ * Exact match after stripping trailing slashes. */
+const BROWSABLE_ADMIN_PATHS = new Set([
+  '/admin',
+  '/admin/routes',
+  '/admin/rides',
+  '/admin/places',
+  '/admin/events',
+]);
+
+function isBrowsableAdmin(pathname: string): boolean {
+  const normalized = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+  return BROWSABLE_ADMIN_PATHS.has(normalized);
+}
 
 function needsNonceCsp(pathname: string): boolean {
   return pathname.startsWith('/admin') || NONCE_CSP_PATHS.has(pathname);
@@ -95,6 +110,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
           context.locals.user = optionalUser;
         }
       }
+    }
+    const response = await next();
+    if (withNonceCsp && context.locals.cspNonce) {
+      return applyNonceCsp(response, context.locals.cspNonce);
+    }
+    return response;
+  }
+
+  // Browsable admin pages: optionally load user, but don't require auth
+  if (isBrowsableAdmin(pathname)) {
+    const database = db();
+    const token = context.cookies.get('session_token')?.value;
+    if (token) {
+      const user = await validateSession(database, token);
+      if (user && !user.bannedAt) {
+        context.locals.user = user;
+      } else if (!user) {
+        // Clear stale cookies but don't redirect — fall through to anonymous
+        context.cookies.delete('session_token', { path: '/' });
+        context.cookies.delete('logged_in', { path: '/' });
+      }
+      // Banned users on browsable paths: fall through to anonymous (no redirect)
+    }
+    if (!context.locals.user) {
+      context.locals.user = ANONYMOUS_USER;
     }
     const response = await next();
     if (withNonceCsp && context.locals.cspNonce) {

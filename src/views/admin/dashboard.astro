@@ -114,7 +114,7 @@ try {
     <AdminHeader user={user} currentTab="home" />
 
     <!-- Deploy Progress Bar (populated by JS) -->
-    <div class="deploy-bar" id="deploy-bar" style="display: none;" role="status" aria-live="polite">
+    <div class="deploy-bar" id="deploy-bar" style="display: none;" role="status" aria-live="polite" data-anonymous={!user.id ? 'true' : undefined}>
       <div class="deploy-bar-content">
         <span class="deploy-bar-text" id="deploy-bar-text"></span>
         <div class="deploy-bar-track" id="deploy-bar-track" style="display: none;">
@@ -349,6 +349,7 @@ try {
   const dismissBtn = document.getElementById('deploy-bar-dismiss');
 
   if (bar && text && track && fill && dismissBtn) {
+    if (bar.dataset.anonymous === 'true') return;
     let dismissed = false;
     let prevStatus = '';
     let interval = 30000;

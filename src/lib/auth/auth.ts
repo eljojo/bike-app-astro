@@ -14,6 +14,16 @@ export interface SessionUser {
   analyticsOptOut: boolean;
 }
 
+export const ANONYMOUS_USER: SessionUser = {
+  id: '',
+  username: '',
+  email: null,
+  role: 'guest',
+  bannedAt: null,
+  emailInCommits: false,
+  analyticsOptOut: false,
+};
+
 export interface WebAuthnConfig {
   rpID: string;
   rpName: string;
