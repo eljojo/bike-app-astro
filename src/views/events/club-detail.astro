@@ -137,7 +137,7 @@ if (typeof data.organizer === 'string') {
 const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
 const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 800 }) : undefined;
 
-function mapServiceName(url: string): string {
+function mapServiceName(url: string): string | undefined {
   try {
     const host = new URL(url).hostname;
     if (host.includes('ridewithgps.com')) return 'RideWithGPS';
@@ -145,7 +145,7 @@ function mapServiceName(url: string): string {
     if (host.includes('google.com') || host.includes('maps.google')) return 'Google Maps';
     if (host.includes('komoot.com')) return 'Komoot';
   } catch {}
-  return 'View map';
+  return undefined;
 }
 
 // Resolve organizer website and Instagram
@@ -188,6 +188,11 @@ const essentialParts: string[] = [dateDisplay];
 if (data.start_time) essentialParts[0] += ` \u00b7 ${data.start_time}`;
 if (data.distances) essentialParts.push(data.distances);
 if (data.time_limit_hours) essentialParts.push(`${data.time_limit_hours}h ${t('events.time_limit', locale).toLowerCase()}`);
+if (data.location) essentialParts.push(data.location);
+
+// Registration details
+const reg = data.registration;
+const departureGroups = reg?.departure_groups ?? [];
 
 // Registration link text
 const isInstagramReg = regUrl && (regUrl.includes('instagram.com') || regUrl.includes('instagr.am'));
@@ -313,10 +318,35 @@ function editionDateLabel(startDate: string, loc?: string): string {
           </div>
         ) : regUrl ? (
           <div class="event-detail-registration">
-            <span>{isInstagramReg ? t('events.rsvp_instagram', locale) : t('events.registration_open', locale)}</span>
-            <a href={regUrl} target="_blank" rel="noopener noreferrer">
-              {isInstagramReg && followName ? `${followName} \u2192` : `${t('events.sign_up', locale)} \u2192`}
-            </a>
+            <div class="event-detail-registration-header">
+              <span>{isInstagramReg ? t('events.rsvp_instagram', locale) : t('events.registration_open', locale)}</span>
+              <a href={regUrl} target="_blank" rel="noopener noreferrer">
+                {isInstagramReg && followName ? `${followName} \u2192` : `${t('events.sign_up', locale)} \u2192`}
+              </a>
+            </div>
+            {(reg?.price || reg?.slots || reg?.deadline || departureGroups.length > 0) && (
+              <dl class="event-detail-registration-details">
+                {reg?.price && (
+                  <Fragment><dt>{t('events.price', locale)}</dt><dd>{reg.price}</dd></Fragment>
+                )}
+                {reg?.slots && (
+                  <Fragment><dt>{t('events.slots', locale)}</dt><dd>{reg.slots}</dd></Fragment>
+                )}
+                {reg?.deadline && (
+                  <Fragment><dt>{t('events.deadline', locale)}</dt><dd>{reg.deadline}</dd></Fragment>
+                )}
+                {departureGroups.length > 0 && (
+                  <Fragment>
+                    <dt>{t('events.departure_groups', locale)}</dt>
+                    <dd>
+                      <ul class="event-detail-departure-groups">
+                        {departureGroups.map((g: string) => <li>{g}</li>)}
+                      </ul>
+                    </dd>
+                  </Fragment>
+                )}
+              </dl>
+            )}
           </div>
         ) : null}
       </div>
@@ -340,14 +370,18 @@ function editionDateLabel(startDate: string, loc?: string): string {
       {data.map_url && !eventRoutes.length && (
         <section class="event-detail-section">
           <a href={data.map_url} class="event-map-link" target="_blank" rel="noopener noreferrer">
-            View route map on {mapServiceName(data.map_url)} &#x2192;
+            {mapServiceName(data.map_url)
+              ? `View route map on ${mapServiceName(data.map_url)}`
+              : 'View route map'} &#x2192;
           </a>
         </section>
       )}
       {data.map_url && eventRoutes.length > 0 && (
         <p class="event-map-external">
           <a href={data.map_url} target="_blank" rel="noopener noreferrer">
-            Also on {mapServiceName(data.map_url)} &#x2192;
+            {mapServiceName(data.map_url)
+              ? `Also on ${mapServiceName(data.map_url)}`
+              : 'View route map'} &#x2192;
           </a>
         </p>
       )}

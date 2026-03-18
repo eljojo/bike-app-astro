@@ -98,22 +98,14 @@
   margin-top: 0.5rem;
 }
 
-// Quiet registration link
+// Registration section
 .event-detail-registration {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding-top: 0.75rem;
   margin-top: 0.5rem;
   border-top: 1px solid $color-border;
 
   @include dark-mode {
     border-color: $color-border-dark;
-  }
-
-  span {
-    @include muted-text;
-    font-size: 0.95em;
   }
 
   a {
@@ -123,6 +115,58 @@
     font-size: 0.95em;
     &:hover { text-decoration: underline; }
   }
+}
+
+.event-detail-registration-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  span {
+    @include muted-text;
+    font-size: 0.95em;
+  }
+
+  a {
+    border: 1.5px solid $color-accent;
+    border-radius: $border-radius;
+    padding: 0.35rem 0.75rem;
+
+    &:hover {
+      background: $color-accent;
+      color: #fff;
+      text-decoration: none;
+    }
+  }
+}
+
+.event-detail-registration-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+
+  dt {
+    @include muted-text;
+    text-transform: uppercase;
+    font-size: 0.75em;
+    letter-spacing: 0.5px;
+    align-self: center;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+  }
+}
+
+.event-detail-departure-groups {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li { font-weight: 600; }
 }
 
 // Past event state
