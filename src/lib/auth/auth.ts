@@ -14,7 +14,7 @@ export interface SessionUser {
   analyticsOptOut: boolean;
 }
 
-export const ANONYMOUS_USER: SessionUser = {
+export const ANONYMOUS_USER: SessionUser = Object.freeze({
   id: '',
   username: '',
   email: null,
@@ -22,7 +22,7 @@ export const ANONYMOUS_USER: SessionUser = {
   bannedAt: null,
   emailInCommits: false,
   analyticsOptOut: false,
-};
+});
 
 export interface WebAuthnConfig {
   rpID: string;

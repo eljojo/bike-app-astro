@@ -245,14 +245,16 @@ describe('browsable admin paths', () => {
     expect(deletedCookies).toContain('session_token');
   });
 
-  it('falls back to anonymous for banned user on browsable path', async () => {
+  it('falls back to anonymous and clears cookies for banned user on browsable path', async () => {
     mockValidateSession.mockResolvedValue({
       id: 'u1', username: 'banned', role: 'editor', bannedAt: '2026-01-01',
     });
-    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const { context, deletedCookies } = makeContext('/admin/routes', { cookie: 'valid-token' });
     const next = vi.fn(async () => htmlResponse());
     await onRequest(context as any, next);
     expect(next).toHaveBeenCalled();
     expect(context.locals.user.id).toBe('');
+    expect(deletedCookies).toContain('session_token');
+    expect(deletedCookies).toContain('logged_in');
   });
 });

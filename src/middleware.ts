@@ -72,6 +72,14 @@ async function applyNonceCsp(response: Response, nonce: string): Promise<Respons
   });
 }
 
+/** Apply nonce CSP header if the path requires it. Single exit point for all branches. */
+async function finalize(response: Response, context: { locals: { cspNonce?: string } }): Promise<Response> {
+  if (context.locals.cspNonce) {
+    return applyNonceCsp(response, context.locals.cspNonce);
+  }
+  return response;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
@@ -111,11 +119,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         }
       }
     }
-    const response = await next();
-    if (withNonceCsp && context.locals.cspNonce) {
-      return applyNonceCsp(response, context.locals.cspNonce);
-    }
-    return response;
+    return finalize(await next(), context);
   }
 
   // Browsable admin pages: optionally load user, but don't require auth
@@ -130,17 +134,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
         // Clear stale cookies but don't redirect — fall through to anonymous
         context.cookies.delete('session_token', { path: '/' });
         context.cookies.delete('logged_in', { path: '/' });
+      } else if (user.bannedAt) {
+        // Banned: clear cookies so we don't re-validate on every request
+        context.cookies.delete('session_token', { path: '/' });
+        context.cookies.delete('logged_in', { path: '/' });
       }
-      // Banned users on browsable paths: fall through to anonymous (no redirect)
     }
     if (!context.locals.user) {
       context.locals.user = ANONYMOUS_USER;
     }
-    const response = await next();
-    if (withNonceCsp && context.locals.cspNonce) {
-      return applyNonceCsp(response, context.locals.cspNonce);
-    }
-    return response;
+    return finalize(await next(), context);
   }
 
   const database = db();
@@ -178,9 +181,5 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Make user available to page/API handlers
   context.locals.user = user;
-  const response = await next();
-  if (withNonceCsp && context.locals.cspNonce) {
-    return applyNonceCsp(response, context.locals.cspNonce);
-  }
-  return response;
+  return finalize(await next(), context);
 });
