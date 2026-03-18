@@ -175,6 +175,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       map_url: source.map_url as string | undefined,
       poster_key: posterKey,
       poster_content_type: posterContentType,
+      tags: (source.tags as string[]) || [],
       body: (source.body as string) || '',
       routes: (source.routes as string[]) || [],
       waypoints: (source.waypoints as EventDetail['waypoints']) || [],

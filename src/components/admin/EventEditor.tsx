@@ -80,6 +80,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [previousEvent, setPreviousEvent] = useState(initialData.previous_event || '');
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
+  const [tags, setTags] = useState<string[]>(initialData.tags || []);
+  const [tagInput, setTagInput] = useState('');
   const [body, setBody] = useState(initialData.body);
 
   // Club-specific state
@@ -130,7 +132,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
+  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
@@ -177,6 +179,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(mapUrl && { map_url: mapUrl }),
           ...(previousEvent && { previous_event: previousEvent }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
+          ...(tags.length > 0 && { tags }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
           ...(isClub && waypoints.length > 0 && { waypoints }),
           ...(isClub && eventResults.length > 0 && { results: eventResults }),
@@ -230,6 +233,25 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     disclosure.open('orgForm');
   }
 
+  function addTag() {
+    const val = tagInput.trim().toLowerCase();
+    if (val && !tags.includes(val)) {
+      setTags([...tags, val]);
+    }
+    setTagInput('');
+  }
+
+  function removeTag(tag: string) {
+    setTags(tags.filter(t => t !== tag));
+  }
+
+  function handleTagKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+  }
+
   return (
     <fieldset class="event-editor" disabled={readOnly}>
         <div class="auth-form">
@@ -237,6 +259,27 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             <label for="event-name">Name</label>
             <input id="event-name" type="text" value={name}
               onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          </div>
+
+          <div class="form-field">
+            <label>Tags</label>
+            <div class="tag-editor">
+              {tags.map((tag) => (
+                <span key={tag} class="tag-pill">
+                  {tag}
+                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
+                </span>
+              ))}
+              <input
+                type="text"
+                class="tag-input"
+                value={tagInput}
+                onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={addTag}
+                placeholder="Add tag..."
+              />
+            </div>
           </div>
 
           <div class="form-field">

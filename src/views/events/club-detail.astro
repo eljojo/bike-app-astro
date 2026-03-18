@@ -1,6 +1,5 @@
 ---
 import Base from '@/layouts/Base.astro';
-import EventInfoCard from '@/components/EventInfoCard.astro';
 import EventRouteMap from '@/components/EventRouteMap.astro';
 import WaypointTimeline from '@/components/WaypointTimeline.astro';
 import ResultsTable from '@/components/ResultsTable.astro';
@@ -9,10 +8,11 @@ import { getCollection, render } from 'astro:content';
 import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
-import { formatDateRange } from '@/lib/date-utils';
+import { formatDateRange, parseLocalDate } from '@/lib/date-utils';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
+import { tTag } from '@/lib/i18n/tag-translations.server';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
 import { slugify } from '@/lib/slug';
@@ -37,7 +37,14 @@ export async function getStaticPaths() {
     if (prev) nextOf.set(prev, ev.id);
   }
 
-  function resolveEditions(eventId: string): Array<{ id: string; year: string }> {
+  function resolveEditions(eventId: string): Array<{
+    id: string;
+    year: string;
+    name: string;
+    poster_key?: string;
+    start_date: string;
+    distances?: string;
+  }> {
     const visited = new Set<string>();
     const chain: Array<{ id: string; year: string }> = [];
 
@@ -65,30 +72,41 @@ export async function getStaticPaths() {
     if (chain.length > 0) {
       chain.push({ id: eventId, year: eventId.split('/')[0] });
       chain.sort((a, b) => a.year.localeCompare(b.year));
-      return chain;
-    }
-
-    // Fallback: match by organizer + slug
-    const self = byId.get(eventId);
-    if (!self) return [];
-    const selfOrg = typeof self.data.organizer === 'string' ? self.data.organizer : undefined;
-    const selfSlug = eventId.split('/').slice(1).join('/');
-    if (!selfOrg) return [];
-
-    const fallback: Array<{ id: string; year: string }> = [];
-    for (const ev of events) {
-      if (ev.id === eventId) continue;
-      const org = typeof ev.data.organizer === 'string' ? ev.data.organizer : undefined;
-      const slug = ev.id.split('/').slice(1).join('/');
-      if (org === selfOrg && slugify(slug) === slugify(selfSlug)) {
-        fallback.push({ id: ev.id, year: ev.id.split('/')[0] });
+    } else {
+      // Fallback: match by organizer + slug
+      const self = byId.get(eventId);
+      if (self) {
+        const selfOrg = typeof self.data.organizer === 'string' ? self.data.organizer : undefined;
+        const selfSlug = eventId.split('/').slice(1).join('/');
+        if (selfOrg) {
+          for (const ev of events) {
+            if (ev.id === eventId) continue;
+            const org = typeof ev.data.organizer === 'string' ? ev.data.organizer : undefined;
+            const slug = ev.id.split('/').slice(1).join('/');
+            if (org === selfOrg && slugify(slug) === slugify(selfSlug)) {
+              chain.push({ id: ev.id, year: ev.id.split('/')[0] });
+            }
+          }
+          if (chain.length > 0) {
+            chain.push({ id: eventId, year: eventId.split('/')[0] });
+            chain.sort((a, b) => a.year.localeCompare(b.year));
+          }
+        }
       }
     }
-    if (fallback.length > 0) {
-      fallback.push({ id: eventId, year: eventId.split('/')[0] });
-      fallback.sort((a, b) => a.year.localeCompare(b.year));
-    }
-    return fallback;
+
+    // Enrich with event data for thumbnail cards
+    return chain.map(ed => {
+      const ev = byId.get(ed.id);
+      return {
+        id: ed.id,
+        year: ed.year,
+        name: ev?.data.name || '',
+        poster_key: ev?.data.poster_key,
+        start_date: ev?.data.start_date || '',
+        distances: ev?.data.distances,
+      };
+    });
   }
 
   return events.map(event => {
@@ -119,11 +137,6 @@ if (typeof data.organizer === 'string') {
 const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
 const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 800 }) : undefined;
 
-function sameHost(a?: string, b?: string): boolean {
-  if (!a || !b) return false;
-  try { return new URL(a).hostname === new URL(b).hostname; } catch { return false; }
-}
-
 function mapServiceName(url: string): string {
   try {
     const host = new URL(url).hostname;
@@ -146,8 +159,41 @@ if (typeof data.organizer === 'string') {
   organizerWebsite = data.organizer.website;
   organizerInstagram = data.organizer.instagram;
 }
-const showOrgWebsite = organizerWebsite && !sameHost(data.event_url, organizerWebsite);
 const regUrl = data.registration?.url || data.registration_url;
+
+// Past event detection
+const eventEndDate = data.end_date || data.start_date;
+const isPastEvent = parseLocalDate(eventEndDate) < new Date();
+
+// Find next edition (forward in chain) for past event messaging
+const currentIndex = editions.findIndex((ed: { id: string }) => ed.id === event.id);
+const nextEdition = currentIndex >= 0 && currentIndex < editions.length - 1
+  ? editions[currentIndex + 1]
+  : undefined;
+
+// Build organizer follow link for past events
+let followUrl: string | undefined;
+let followName: string | undefined;
+if (organizerInstagram) {
+  const handle = organizerInstagram.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
+  followUrl = `https://instagram.com/${handle}`;
+  followName = `@${handle}`;
+} else if (organizerWebsite) {
+  followUrl = organizerWebsite;
+  followName = organizerName;
+}
+
+// Build essential line parts
+const essentialParts: string[] = [dateDisplay];
+if (data.start_time) essentialParts[0] += ` \u00b7 ${data.start_time}`;
+if (data.distances) essentialParts.push(data.distances);
+if (data.time_limit_hours) essentialParts.push(`${data.time_limit_hours}h ${t('events.time_limit', locale).toLowerCase()}`);
+
+// Registration link text
+const isInstagramReg = regUrl && (regUrl.includes('instagram.com') || regUrl.includes('instagr.am'));
+
+// Tags
+const tags = data.tags ?? [];
 
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
@@ -189,11 +235,21 @@ const galleryMedia = [
     height: m.height,
   })),
 ];
+
+// Other editions (excluding current) for past rides section
+const otherEditions = editions.filter((ed: { id: string }) => ed.id !== event.id);
+
+// Format edition date as "Mon YYYY"
+function editionDateLabel(startDate: string, loc?: string): string {
+  if (!startDate) return '';
+  const d = parseLocalDate(startDate);
+  return d.toLocaleString(loc || 'en-CA', { month: 'short', year: 'numeric' });
+}
 ---
 
 <Base title={`${data.name} | ${config.display_name}`} description={`${data.name} — ${dateDisplay}`} ogImage={coverUrl} jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
   <article class="event-detail">
-    <div class="event-detail-hero">
+    <div class={`event-detail-hero ${data.poster_key ? '' : 'event-detail-hero--no-poster'}`}>
       {data.poster_key && (
         <div class="event-detail-hero-poster">
           <ResponsiveImage
@@ -203,124 +259,138 @@ const galleryMedia = [
             fit="contain"
             loading="eager"
             class="gallery-cover-photo"
+            data-pswp-width={data.poster_width || 800}
+            data-pswp-height={data.poster_height || 1200}
           />
           {galleryMedia.length > 1 && (
-            <span class="event-poster-photo-count">{galleryMedia.length}</span>
+            <span class="event-poster-photo-count">
+              {t('events.photos_count', locale, { count: galleryMedia.length })}
+            </span>
           )}
         </div>
       )}
 
       <div class="event-detail-hero-info">
         <h1>{data.name}</h1>
-        {data.edition && <p class="event-detail-edition">{data.edition}</p>}
-        <p class="event-detail-date">{dateDisplay}</p>
-        {organizerName && (
-          <p class="event-detail-organizer">
-            {t('events.organizer', locale)}{' '}
-            {organizerWebsite
-              ? <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">{organizerName}</a>
-              : organizerName
-            }
-          </p>
+
+        {tags.length > 0 && (
+          <ul class="event-detail-tags">
+            {tags.map((tag: string) => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+          </ul>
         )}
-        {data.distances && <p class="event-detail-distances">{data.distances}</p>}
-        {regUrl && (
-          <a href={regUrl} class="event-hero-register-btn" target="_blank" rel="noopener noreferrer">
-            {t('events.register', locale)}
-          </a>
+
+        <p class="event-detail-essential">
+          {essentialParts.join(' \u00b7 ')}
+          {organizerName && (
+            <Fragment>
+              {' \u00b7 '}
+              {organizerWebsite
+                ? <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">{organizerName}</a>
+                : organizerName
+              }
+            </Fragment>
+          )}
+        </p>
+
+        {event.body?.trim() && (
+          <div class="event-detail-body">
+            <Content />
+          </div>
         )}
-        <div class="event-detail-links">
-          {data.event_url && (
-            <a href={data.event_url} target="_blank" rel="noopener noreferrer">Event website</a>
-          )}
-          {showOrgWebsite && (
-            <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">Organizer website</a>
-          )}
-          {data.map_url && (
-            <a href={data.map_url} target="_blank" rel="noopener noreferrer">{mapServiceName(data.map_url)}</a>
-          )}
-        </div>
+
+        {isPastEvent ? (
+          <div class="event-detail-past-state">
+            <p>{t('events.past_event', locale)}</p>
+            {nextEdition ? (
+              <a href={paths.event(nextEdition.id, locale)}>
+                {t('events.next_edition', locale, { name: nextEdition.name })} &#x2192;
+              </a>
+            ) : followUrl && followName ? (
+              <a href={followUrl} target="_blank" rel="noopener noreferrer">
+                {t('events.follow_next', locale, { name: followName })} &#x2192;
+              </a>
+            ) : null}
+          </div>
+        ) : regUrl ? (
+          <div class="event-detail-registration">
+            <span>{isInstagramReg ? t('events.rsvp_instagram', locale) : t('events.registration_open', locale)}</span>
+            <a href={regUrl} target="_blank" rel="noopener noreferrer">
+              {isInstagramReg && followName ? `${followName} \u2192` : `${t('events.sign_up', locale)} \u2192`}
+            </a>
+          </div>
+        ) : null}
       </div>
     </div>
 
-    <div class="event-detail-layout">
-      <div class="event-detail-main">
-        <div class="event-detail-body">
-          <Content />
-        </div>
-        <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
+    <div class="event-detail-content">
+      <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
 
-        {galleryMedia.length > 0 && (
-          <section class="event-detail-section">
-            <MediaGallery media={galleryMedia} name={data.name} />
-          </section>
-        )}
+      {galleryMedia.length > 1 && (
+        <section class="event-detail-section">
+          <MediaGallery media={galleryMedia} name={data.name} />
+        </section>
+      )}
 
-        {editions.length > 0 && (
-          <section class="event-editions">
-            <h2>Editions</h2>
-            <div class="edition-pills">
-              {editions.map((ed: { id: string; year: string }) => (
-                ed.id === event.id
-                  ? <span class="edition-pill edition-pill--current">{ed.year}</span>
-                  : <a href={paths.event(ed.id, locale)} class="edition-pill">{ed.year}</a>
-              ))}
-            </div>
-          </section>
-        )}
+      {eventRoutes.length > 0 && (
+        <section class="event-detail-section">
+          <EventRouteMap routes={eventRoutes} locale={locale} waypoints={data.waypoints} places={allPlaces} />
+        </section>
+      )}
 
-        {eventRoutes.length > 0 && (
-          <section class="event-detail-section">
-            <h2>{t('events.routes', locale)}</h2>
-            <EventRouteMap routes={eventRoutes} locale={locale} waypoints={data.waypoints} places={allPlaces} />
-          </section>
-        )}
+      {data.map_url && !eventRoutes.length && (
+        <section class="event-detail-section">
+          <a href={data.map_url} class="event-map-link" target="_blank" rel="noopener noreferrer">
+            View route map on {mapServiceName(data.map_url)} &#x2192;
+          </a>
+        </section>
+      )}
+      {data.map_url && eventRoutes.length > 0 && (
+        <p class="event-map-external">
+          <a href={data.map_url} target="_blank" rel="noopener noreferrer">
+            Also on {mapServiceName(data.map_url)} &#x2192;
+          </a>
+        </p>
+      )}
 
-        {data.map_url && !eventRoutes.length && (
-          <section class="event-detail-section">
-            <a href={data.map_url} class="event-map-link" target="_blank" rel="noopener noreferrer">
-              View route map on {mapServiceName(data.map_url)} &#x2192;
-            </a>
-          </section>
-        )}
-        {data.map_url && eventRoutes.length > 0 && (
-          <p class="event-map-external">
-            <a href={data.map_url} target="_blank" rel="noopener noreferrer">
-              Also on {mapServiceName(data.map_url)} &#x2192;
-            </a>
-          </p>
-        )}
+      {hasWaypoints && (
+        <details class="event-detail-collapsible">
+          <summary>{t('events.waypoints', locale)} <span class="event-detail-count">{t('events.checkpoints_count', locale, { count: data.waypoints!.length })}</span></summary>
+          <WaypointTimeline waypoints={data.waypoints!} locale={locale} />
+        </details>
+      )}
 
-        {hasWaypoints && (
-          <section class="event-detail-section">
-            <h2>{t('events.waypoints', locale)}</h2>
-            <WaypointTimeline waypoints={data.waypoints!} locale={locale} />
-          </section>
-        )}
+      {hasResults && (
+        <details class="event-detail-collapsible">
+          <summary>{t('events.results', locale)} <span class="event-detail-count">{t('events.finishers_count', locale, { count: data.results!.filter((r: { status?: string }) => !r.status).length })}</span></summary>
+          <ResultsTable results={data.results!} locale={locale} privacy={config.results_privacy} />
+        </details>
+      )}
 
-        {hasResults && (
-          <section class="event-detail-section">
-            <h2>{t('events.results', locale)}</h2>
-            <ResultsTable results={data.results!} locale={locale} privacy={config.results_privacy} />
-          </section>
-        )}
-      </div>
-
-      <aside class="event-detail-sidebar">
-        <EventInfoCard
-          startDate={data.start_date}
-          endDate={data.end_date}
-          startTime={data.start_time}
-          timeLimitHours={data.time_limit_hours}
-          distances={data.distances}
-          location={data.location}
-          registration={data.registration}
-          registrationUrl={data.registration_url}
-          organizerWebsite={organizerWebsite}
-          organizerInstagram={organizerInstagram}
-          locale={locale}
-        />
-      </aside>
+      {otherEditions.length > 0 && (
+        <section class="event-editions">
+          <h2>{t('events.editions', locale)}</h2>
+          <div class="edition-cards">
+            {otherEditions.map((ed: { id: string; year: string; name: string; poster_key?: string; start_date: string; distances?: string }) => (
+              <a href={paths.event(ed.id, locale)} class={`edition-card ${ed.id === event.id ? 'edition-card--current' : ''}`}>
+                {ed.poster_key ? (
+                  <img
+                    src={imageUrl(ed.poster_key, { width: 200, height: 200, fit: 'cover' })}
+                    alt={ed.name}
+                    class="edition-card-poster"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div class="edition-card-placeholder" />
+                )}
+                <div class="edition-card-info">
+                  <span class="edition-card-date">{editionDateLabel(ed.start_date, locale)}</span>
+                  {ed.distances && <span class="edition-card-distance">{ed.distances}</span>}
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   </article>
 
@@ -329,7 +399,6 @@ const galleryMedia = [
   </p>
 
   <script>
-    /** Poster click: open full-size image when no gallery is present to handle it. */
     /** Convert FAQ section: h3 headings after an h2 "FAQ" become collapsible details/summary. */
     document.addEventListener('DOMContentLoaded', () => {
       const body = document.querySelector('.event-detail-body');
@@ -376,6 +445,53 @@ const galleryMedia = [
         item.heading.remove();
       }
       faqH2.after(faqSection);
+    });
+
+    /** Poster lightbox: click poster to open full-size in overlay with zoom. */
+    document.addEventListener('DOMContentLoaded', () => {
+      const poster = document.querySelector('.event-detail-hero-poster img') as HTMLImageElement;
+      if (!poster) return;
+
+      poster.addEventListener('click', () => {
+        const overlay = document.createElement('div');
+        overlay.className = 'event-lightbox';
+
+        const img = document.createElement('img');
+        const blobKey = poster.dataset.blobKey || poster.src;
+        // Use original resolution if available
+        const w = poster.dataset.pswpWidth;
+        const h = poster.dataset.pswpHeight;
+        img.src = poster.src.replace(/width=\d+/, 'width=1600');
+        if (w) img.dataset.width = w;
+        if (h) img.dataset.height = h;
+        img.alt = poster.alt;
+
+        const close = document.createElement('button');
+        close.className = 'event-lightbox-close';
+        close.textContent = '\u00d7';
+        close.setAttribute('aria-label', 'Close');
+
+        function closeLightbox() {
+          overlay.remove();
+          document.body.style.overflow = '';
+        }
+
+        close.addEventListener('click', closeLightbox);
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeLightbox();
+        });
+        document.addEventListener('keydown', function onKey(e) {
+          if (e.key === 'Escape') {
+            closeLightbox();
+            document.removeEventListener('keydown', onKey);
+          }
+        });
+
+        overlay.appendChild(img);
+        overlay.appendChild(close);
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+      });
     });
   </script>
 </Base>
