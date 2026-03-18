@@ -22,6 +22,8 @@ export interface AdminEvent {
   routes?: string[];
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
+  poster_width?: number;
+  poster_height?: number;
   tags?: string[];
   previous_event?: string;
   edition?: string;

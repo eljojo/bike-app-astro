@@ -175,6 +175,8 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       map_url: source.map_url as string | undefined,
       poster_key: posterKey,
       poster_content_type: posterContentType,
+      poster_width: source.poster_width as number | undefined,
+      poster_height: source.poster_height as number | undefined,
       tags: (source.tags as string[]) || [],
       body: (source.body as string) || '',
       routes: (source.routes as string[]) || [],

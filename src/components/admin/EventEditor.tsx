@@ -80,6 +80,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [previousEvent, setPreviousEvent] = useState(initialData.previous_event || '');
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
+  const [posterWidth, setPosterWidth] = useState<number | undefined>(initialData.poster_width);
+  const [posterHeight, setPosterHeight] = useState<number | undefined>(initialData.poster_height);
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
   const [tagInput, setTagInput] = useState('');
   const [body, setBody] = useState(initialData.body);
@@ -178,7 +180,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(eventUrl && { event_url: eventUrl }),
           ...(mapUrl && { map_url: mapUrl }),
           ...(previousEvent && { previous_event: previousEvent }),
-          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
+          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg', ...(posterWidth && { poster_width: posterWidth }), ...(posterHeight && { poster_height: posterHeight }) }),
           ...(tags.length > 0 && { tags }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
           ...(isClub && waypoints.length > 0 && { waypoints }),
@@ -489,9 +491,11 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             photoKey={posterKey}
             cdnUrl={cdnUrl}
             label="Poster"
-            onPhotoChange={(key, contentType) => {
+            onPhotoChange={(key, contentType, width, height) => {
               setPosterKey(key);
               setPosterContentType(contentType);
+              setPosterWidth(width);
+              setPosterHeight(height);
             }}
           />
         </div>
