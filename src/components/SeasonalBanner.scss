@@ -1,0 +1,47 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.seasonal-banner {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  padding: 1em 1.5em;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity 0.15s;
+
+  &:hover { opacity: 0.85; }
+}
+
+.seasonal-banner--active {
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  @include dark-mode {
+    background: linear-gradient(135deg, #0d2137, #1a3a5c);
+  }
+}
+
+.seasonal-banner--upcoming {
+  background: $color-card-bg;
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.seasonal-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.seasonal-banner-title { font-size: 1em; }
+
+.seasonal-banner--upcoming .seasonal-banner-title {
+  color: $color-text-muted;
+  @include dark-mode { color: $color-text-muted-dark; }
+}
+
+.seasonal-banner-text {
+  font-size: 0.85em;
+  color: $color-text-muted;
+  @include dark-mode { color: $color-text-muted-dark; }
+}
