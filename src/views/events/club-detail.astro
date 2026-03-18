@@ -243,17 +243,19 @@ const eventRoutes = routeSlugs
 const hasWaypoints = data.waypoints && data.waypoints.length > 0;
 const hasResults = data.results && data.results.length > 0;
 
+const mediaItems = (data.media ?? []).map((m) => ({
+  type: m.type || 'photo',
+  key: m.key,
+  caption: m.caption,
+  width: m.width,
+  height: m.height,
+}));
+const posterAlreadyInMedia = data.poster_key && mediaItems.some(m => m.key === data.poster_key);
 const posterMedia: Array<{ type: string; key: string; score?: number }> =
-  data.poster_key ? [{ type: 'photo', key: data.poster_key, score: 999 }] : [];
+  data.poster_key && !posterAlreadyInMedia ? [{ type: 'photo', key: data.poster_key, score: 999 }] : [];
 const galleryMedia = [
   ...posterMedia,
-  ...(data.media ?? []).map((m) => ({
-    type: m.type || 'photo',
-    key: m.key,
-    caption: m.caption,
-    width: m.width,
-    height: m.height,
-  })),
+  ...mediaItems,
 ];
 
 const { videoIds: youtubeIds, cleanedMarkdown: cleanBody } = extractYouTubeUrls(event.body || '');
@@ -264,10 +266,11 @@ const heroSelfHosted = selfHostedVideos[0];
 const heroYouTubeId = !heroSelfHosted ? youtubeIds[0] : undefined;
 const hasHeroVideo = !!heroSelfHosted || !!heroYouTubeId;
 
-// Exclude hero video from gallery
-const galleryMediaFiltered = hasHeroVideo && heroSelfHosted
-  ? galleryMedia.filter(m => m.key !== heroSelfHosted.key)
-  : galleryMedia;
+// Exclude hero video and poster from gallery (both are shown separately)
+const excludeKeys = new Set<string>();
+if (heroSelfHosted) excludeKeys.add(heroSelfHosted.key);
+if (data.poster_key) excludeKeys.add(data.poster_key);
+const galleryMediaFiltered = galleryMedia.filter(m => !excludeKeys.has(m.key));
 
 // TODO: Render additional YouTube videos (youtubeIds.slice(1)) in gallery
 
@@ -302,25 +305,6 @@ function editionDateLabel(startDate: string, loc?: string): string {
               {t('events.photos_count', locale, { count: galleryMedia.length })}
             </span>
           )}
-        </div>
-      )}
-
-      {heroSelfHosted && (
-        <div class="event-detail-hero-video">
-          <VideoPlayer
-            client:idle
-            sources={videoPlaybackSources(heroSelfHosted.key)}
-            poster={videoPosterUrl(heroSelfHosted.key)}
-            fallbackUrl={videoFallbackUrl(heroSelfHosted.key)}
-            width={videoDisplaySize(heroSelfHosted.width || 640, heroSelfHosted.height || 360).width}
-            height={videoDisplaySize(heroSelfHosted.width || 640, heroSelfHosted.height || 360).height}
-            title={data.name}
-          />
-        </div>
-      )}
-      {heroYouTubeId && (
-        <div class="event-detail-hero-video">
-          <YouTubeEmbed videoId={heroYouTubeId} title={data.name} />
         </div>
       )}
 
@@ -442,13 +426,32 @@ function editionDateLabel(startDate: string, loc?: string): string {
             <div class="event-description" set:html={await renderMarkdownHtml(cleanBody)} />
           </div>
         )}
+
+        {heroSelfHosted && (
+          <div class="event-detail-hero-video">
+            <VideoPlayer
+              client:idle
+              sources={videoPlaybackSources(heroSelfHosted.key)}
+              poster={videoPosterUrl(heroSelfHosted.key)}
+              fallbackUrl={videoFallbackUrl(heroSelfHosted.key)}
+              width={videoDisplaySize(heroSelfHosted.width || 640, heroSelfHosted.height || 360).width}
+              height={videoDisplaySize(heroSelfHosted.width || 640, heroSelfHosted.height || 360).height}
+              title={data.name}
+            />
+          </div>
+        )}
+        {heroYouTubeId && (
+          <div class="event-detail-hero-video">
+            <YouTubeEmbed videoId={heroYouTubeId} title={data.name} />
+          </div>
+        )}
       </div>
     </div>
 
     <div class="event-detail-content">
       <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
 
-      {galleryMediaFiltered.length > 1 && (
+      {galleryMediaFiltered.length > 0 && (
         <section class="event-detail-section">
           <MediaGallery media={galleryMediaFiltered} name={data.name} />
         </section>
