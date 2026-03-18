@@ -3,11 +3,14 @@ import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
 import { users } from '../../db/schema';
-import { eq, like } from 'drizzle-orm';
+import { like, inArray, or } from 'drizzle-orm';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { parseAuthorEmail } from '../../lib/git/commit-author';
 import { checkRateLimit, recordAttempt } from '../../lib/auth/rate-limit';
+import { createHash } from 'node:crypto';
+
+type ResolvedUser = { id: string; username: string; role: string; bannedAt: string | null; wasGuest?: boolean };
 
 export const prerender = false;
 
@@ -39,40 +42,91 @@ export async function POST({ request, locals }: APIContext) {
   const commits = await git.listCommits({ path, perPage, page });
 
   const database = db();
-  const enriched = await Promise.all(commits.map(async (c) => {
-    const parsed = parseAuthorEmail(c.author.email);
-    if (!parsed) return { ...c, resolvedUser: null };
 
-    // New format: look up by userId first
-    if (parsed.userId) {
-      const [user] = await database.select().from(users)
-        .where(eq(users.id, parsed.userId))
-        .limit(1);
-      if (user) {
-        return { ...c, resolvedUser: { id: user.id, username: user.username, role: user.role, bannedAt: user.bannedAt } };
+  // Parse all commit emails and collect unique lookup keys
+  const parsed = commits.map((c) => parseAuthorEmail(c.author.email));
+  const userIds = new Set<string>();
+  const usernames = new Set<string>();
+  const personalEmails = new Set<string>();
+
+  for (let i = 0; i < commits.length; i++) {
+    const p = parsed[i];
+    if (!p) {
+      personalEmails.add(commits[i].author.email);
+    } else {
+      if (p.userId) userIds.add(p.userId);
+      if (p.username) usernames.add(p.username);
+    }
+  }
+
+  // Batch-fetch all candidate users in one query
+  const conditions = [];
+  if (userIds.size > 0) conditions.push(inArray(users.id, [...userIds]));
+  if (usernames.size > 0) conditions.push(inArray(users.username, [...usernames]));
+  if (personalEmails.size > 0) conditions.push(inArray(users.email, [...personalEmails]));
+
+  const allUsers = conditions.length > 0
+    ? await database.select().from(users).where(or(...conditions))
+    : [];
+
+  // Build lookup indexes
+  const byId = new Map(allUsers.map((u) => [u.id, u]));
+  const byUsername = new Map(allUsers.map((u) => [u.username, u]));
+  const byEmail = new Map(allUsers.filter((u) => u.email).map((u) => [u.email!, u]));
+
+  // Resolve each commit — previousUsernames is a LIKE query, handled as a fallback
+  const unresolvedUsernames = new Set<string>();
+
+  const enriched = commits.map((c, i) => {
+    const p = parsed[i];
+
+    if (!p) {
+      const user = byEmail.get(c.author.email);
+      return { ...c, resolvedUser: user ? toResolved(user) : null, gravatarHash: gravatarHash(user?.email ?? c.author.email) };
+    }
+
+    if (p.userId) {
+      const user = byId.get(p.userId);
+      if (user) return { ...c, resolvedUser: toResolved(user), gravatarHash: gravatarHash(user.email ?? c.author.email) };
+    }
+
+    if (p.username) {
+      const user = byUsername.get(p.username);
+      if (user) return { ...c, resolvedUser: toResolved(user), gravatarHash: gravatarHash(user.email ?? c.author.email) };
+      unresolvedUsernames.add(p.username);
+    }
+
+    return { ...c, resolvedUser: null as ResolvedUser | null, gravatarHash: gravatarHash(c.author.email) };
+  });
+
+  // Fallback: batch previousUsernames lookup for any still-unresolved usernames
+  if (unresolvedUsernames.size > 0) {
+    const prevUsers = await database.select().from(users)
+      .where(or(...[...unresolvedUsernames].map((u) => like(users.previousUsernames, `%${u}%`))));
+    const byPrevUsername = new Map<string, typeof prevUsers[number]>();
+    for (const u of prevUsers) {
+      if (!u.previousUsernames) continue;
+      for (const name of unresolvedUsernames) {
+        if (u.previousUsernames.includes(name)) byPrevUsername.set(name, u);
       }
     }
 
-    // Old format or userId not found: look up by username
-    if (parsed.username) {
-      const [user] = await database.select().from(users)
-        .where(eq(users.username, parsed.username))
-        .limit(1);
-      if (user) {
-        return { ...c, resolvedUser: { id: user.id, username: user.username, role: user.role, bannedAt: user.bannedAt } };
-      }
-
-      // Fall back to previousUsernames
-      const [prevUser] = await database.select().from(users)
-        .where(like(users.previousUsernames, `%${parsed.username}%`))
-        .limit(1);
-      if (prevUser) {
-        return { ...c, resolvedUser: { id: prevUser.id, username: prevUser.username, role: prevUser.role, bannedAt: prevUser.bannedAt, wasGuest: true } };
-      }
+    for (let i = 0; i < enriched.length; i++) {
+      if (enriched[i].resolvedUser) continue;
+      const p = parsed[i];
+      if (!p?.username) continue;
+      const user = byPrevUsername.get(p.username);
+      if (user) enriched[i] = { ...enriched[i], resolvedUser: { ...toResolved(user), wasGuest: true }, gravatarHash: gravatarHash(user.email ?? commits[i].author.email) };
     }
-
-    return { ...c, resolvedUser: null };
-  }));
+  }
 
   return jsonResponse({ commits: enriched });
+}
+
+function toResolved(u: { id: string; username: string; role: string; bannedAt: string | null }): ResolvedUser {
+  return { id: u.id, username: u.username, role: u.role, bannedAt: u.bannedAt };
+}
+
+function gravatarHash(email: string): string {
+  return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
 }

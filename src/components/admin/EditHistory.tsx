@@ -19,6 +19,7 @@ interface Commit {
   author: { name: string; email: string };
   date: string;
   resolvedUser: CommitUser | null;
+  gravatarHash?: string;
 }
 
 interface Props {
@@ -205,9 +206,14 @@ export default function EditHistory({ contentPath, city, gitRepo, userRole, cdnU
               const action = parsed?.action ?? 'updated';
               const editorUrl = parsed?.editorUrl ?? null;
 
+              const avatarUrl = c.gravatarHash
+                ? `https://www.gravatar.com/avatar/${c.gravatarHash}?d=mp&s=48`
+                : 'https://www.gravatar.com/avatar/?d=mp&s=48';
+
               return (
                 <Fragment key={c.sha}>
                   <div class="commit-item">
+                    <img src={avatarUrl} alt="" class="commit-avatar" loading="lazy" />
                     {thumb && <img src={thumb} alt="" class="commit-thumb" loading="lazy" />}
                     <div class="commit-info">
                       <span class="commit-headline">
