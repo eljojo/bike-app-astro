@@ -16,11 +16,18 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/rides',
   '/admin/places',
   '/admin/events',
+  '/admin/history',
+]);
+
+/** API paths that support anonymous browsing (rate-limited in the endpoint). */
+const BROWSABLE_API_PATHS = new Set([
+  '/api/admin/history',
+  '/api/admin/diff',
 ]);
 
 function isBrowsableAdmin(pathname: string): boolean {
   const normalized = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-  return BROWSABLE_ADMIN_PATHS.has(normalized);
+  return BROWSABLE_ADMIN_PATHS.has(normalized) || BROWSABLE_API_PATHS.has(normalized);
 }
 
 function needsNonceCsp(pathname: string): boolean {

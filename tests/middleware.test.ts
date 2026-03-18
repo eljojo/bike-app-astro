@@ -218,12 +218,20 @@ describe('browsable admin paths', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('still redirects /admin/history to gate (not yet browsable)', async () => {
+  it('allows anonymous browsing of /admin/history', async () => {
     const { context } = makeContext('/admin/history');
-    const next = vi.fn();
-    const res = await onRequest(context as any, next) as Response;
-    expect(res.status).toBe(302);
-    expect(res.headers.get('Location')).toContain('/gate');
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user).toEqual(expect.objectContaining({ id: '', role: 'guest' }));
+  });
+
+  it('allows anonymous browsing of /api/admin/history', async () => {
+    const { context } = makeContext('/api/admin/history');
+    const next = vi.fn(async () => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user).toEqual(expect.objectContaining({ id: '', role: 'guest' }));
   });
 
   it('populates real user on browsable path when valid session exists', async () => {
