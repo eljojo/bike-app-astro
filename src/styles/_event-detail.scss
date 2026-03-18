@@ -148,17 +148,29 @@
   margin-top: 0.75rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  font-size: 0.9em;
+  gap: 0.4rem;
+  font-size: 0.85em;
 
   a {
     color: $color-accent;
     text-decoration: none;
-    &:hover { text-decoration: underline; }
+    border: 1px solid $color-accent;
+    border-radius: 99px;
+    padding: 0.25em 0.75em;
+
+    &:hover {
+      background: $color-accent;
+      color: #fff;
+      text-decoration: none;
+    }
   }
 
   span {
     @include muted-text;
+    border: 1px solid currentColor;
+    border-radius: 99px;
+    padding: 0.25em 0.75em;
+    opacity: 0.5;
   }
 }
 
