@@ -61,7 +61,10 @@ function unwrap(field: unknown): { value: string; confidence: number } | null {
  * Normalize raw AI output into a clean event draft that matches EventDetail shape,
  * plus a list of field names the user should double-check.
  */
-function buildDraft(raw: Record<string, unknown>): {
+export function buildDraft(
+  raw: Record<string, unknown>,
+  organizers: typeof adminOrganizers = adminOrganizers,
+): {
   draft: Record<string, unknown>;
   uncertain: string[];
 } {
@@ -97,18 +100,20 @@ function buildDraft(raw: Record<string, unknown>): {
     if (values[field]) draft[field] = values[field].value;
   }
 
-  // Resolve organizer: slug reference if matched, inline object with details if not
+  // Resolve organizer: always produce an inline object so extracted fields aren't lost
   if (values.organizer) {
     const orgName = values.organizer.value;
-    const match = fuzzyMatchOrganizer(orgName, adminOrganizers);
+    const match = fuzzyMatchOrganizer(orgName, organizers);
+    const inline: Record<string, string> = { name: match ? match.name : orgName };
+    // Carry over known organizer fields first, then overlay extracted fields
     if (match && match.confidence >= 0.7) {
-      draft.organizer = match.slug;
-    } else {
-      const inline: Record<string, string> = { name: orgName };
-      if (values.organizer_website) inline.website = values.organizer_website.value;
-      if (values.organizer_instagram) inline.instagram = values.organizer_instagram.value;
-      draft.organizer = inline;
+      const known = organizers.find(o => o.slug === match.slug);
+      if (known?.website) inline.website = known.website;
+      if (known?.instagram) inline.instagram = known.instagram;
     }
+    if (values.organizer_website) inline.website = values.organizer_website.value;
+    if (values.organizer_instagram) inline.instagram = values.organizer_instagram.value;
+    draft.organizer = inline;
   }
 
   // Don't leak organizer sub-fields to the draft
