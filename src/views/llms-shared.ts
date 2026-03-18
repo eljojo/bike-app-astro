@@ -1,8 +1,9 @@
 import { getCollection } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteData } from '../lib/route-data';
-import { difficultyLabel } from '../lib/difficulty';
+import { difficultyLabel, estimatedHours, surfaceScore } from '../lib/difficulty';
 import { routeShape } from '../lib/route-insights';
 import { findNearbyPlaces } from '../lib/geo/proximity';
 import { isPublished } from '../lib/content/content-filters';
@@ -41,7 +42,11 @@ export interface RouteFacts {
   surface: string;
   shape: string | null;
   elevation_gain_m: number;
+  max_gradient_pct: number;
+  estimated_hours: number;
   difficulty: string;
+  beginner_friendly: boolean;
+  family_friendly: boolean;
   tags: string[];
   tagline: string;
   body: string;
@@ -62,9 +67,9 @@ export async function loadRouteFacts(): Promise<RouteFacts[]> {
   const { routes, placeData, routeDifficultyScores, allScores } = await loadRouteData();
 
   const published = routes.filter(isPublished)
-    .sort((a, b) => a.data.name.localeCompare(b.data.name));
+    .sort((a: CollectionEntry<'routes'>, b: CollectionEntry<'routes'>) => a.data.name.localeCompare(b.data.name));
 
-  return published.map(route => {
+  return published.map((route: CollectionEntry<'routes'>) => {
     const gpx = route.data.variants[0]?.gpx;
     const track = gpx ? route.data.gpxTracks[gpx] : null;
 
@@ -87,16 +92,29 @@ export async function loadRouteFacts(): Promise<RouteFacts[]> {
     const variantName = gpx ? gpx.replace(/\.gpx$/, '') : null;
     const gpxDownloadPath = variantName ? paths.routeGpx(route.id, variantName) : null;
 
+    const maxGradient = track?.max_gradient_pct ?? 0;
+    const surface = surfaceScore(route.data.tags);
+    const hours = estimatedHours(route.data.distance_km, elevationGain, surface);
+    const tags = route.data.tags;
+    const isFamilyFriendly = tags.includes('family friendly');
+    const isBeginnerFriendly = isFamilyFriendly
+      || (difficulty === 'easiest' || difficulty === 'easy')
+      && !tags.includes('road') && !tags.includes('single track');
+
     return {
       name: stripEmoji(route.data.name),
       slug: route.id,
       url: `${config.url}${paths.route(route.id)}`,
       distance_km: route.data.distance_km,
-      surface: surfaceType(route.data.tags),
+      surface: surfaceType(tags),
       shape,
       elevation_gain_m: elevationGain,
+      max_gradient_pct: maxGradient,
+      estimated_hours: hours,
       difficulty,
-      tags: humanTags(route.data.tags),
+      beginner_friendly: isBeginnerFriendly,
+      family_friendly: isFamilyFriendly,
+      tags: humanTags(tags),
       tagline: stripEmoji(route.data.tagline || ''),
       body: route.body || '',
       gpxDownloadPath,
@@ -113,12 +131,12 @@ export async function loadUpcomingEvents(): Promise<EventFacts[]> {
   const now = new Date();
 
   const upcoming = events
-    .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
-    .sort((a, b) =>
+    .filter((e: CollectionEntry<'events'>) => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
+    .sort((a: CollectionEntry<'events'>, b: CollectionEntry<'events'>) =>
       parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime()
     );
 
-  return upcoming.map(e => ({
+  return upcoming.map((e: CollectionEntry<'events'>) => ({
     name: e.data.name,
     date: formatDateRange(e.data.start_date, e.data.end_date),
     location: e.data.location || '',
