@@ -179,6 +179,9 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
     </section>
   )}
 
+  {/* TODO: Display recurring cadence when events have recurrence metadata
+      (e.g. "Every Thursday", "Last Friday of the month")
+      Requires teaching the data model about recurrence patterns. */}
   {showCommunity && (
     <section>
       <h2>{t('calendar.find_your_people', locale)}</h2>
