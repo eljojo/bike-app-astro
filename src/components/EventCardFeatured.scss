@@ -1,0 +1,83 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.event-card-featured {
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background: $color-card-bg;
+  transition: box-shadow 0.15s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+.event-card-featured-poster {
+  height: 180px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    margin: 0;
+  }
+}
+
+.event-card-featured-body {
+  padding: 0.75em 1em 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.event-card-featured-organizer {
+  font-size: 0.8em;
+  @include muted-text;
+}
+
+.event-card-featured-name {
+  font-weight: bold;
+  color: inherit;
+  text-decoration: none;
+
+  // Stretched link: makes the entire card clickable via an ::after overlay
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+}
+
+.event-card-featured-tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.75em;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: var(--pill-bg);
+  color: var(--pill-text);
+  position: relative;
+  z-index: 1;
+
+  @include dark-mode {
+    background: var(--pill-bg-dark);
+    color: var(--pill-text-dark);
+  }
+}
+
+.event-card-featured-date {
+  font-size: 0.85em;
+  @include muted-text;
+}
