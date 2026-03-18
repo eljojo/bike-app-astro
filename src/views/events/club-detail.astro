@@ -9,7 +9,7 @@ import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
 import { formatDateRange, parseLocalDate } from '@/lib/date-utils';
-import { t, localePath } from '@/i18n';
+import { t, localePath, eventNoun } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { tTag } from '@/lib/i18n/tag-translations.server';
@@ -340,9 +340,13 @@ function editionDateLabel(startDate: string, loc?: string): string {
             )}
           </dl>
 
-          {!isPastEvent && regUrl && (
+          {!isPastEvent && regUrl ? (
             <a class="event-detail-facts-cta" href={regUrl} target="_blank" rel="noopener noreferrer">
               {isInstagramReg && followName ? followName : t('events.sign_up', locale)} &#x2192;
+            </a>
+          ) : !isPastEvent && data.event_url && (
+            <a class="event-detail-facts-cta" href={data.event_url} target="_blank" rel="noopener noreferrer">
+              {t('events.event_website', locale)} &#x2192;
             </a>
           )}
 
@@ -357,7 +361,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 @{organizerInstagram.replace(/^@/, '')}
               </a>
             )}
-            {data.event_url && (
+            {data.event_url && regUrl && (
               <a href={data.event_url} target="_blank" rel="noopener noreferrer">
                 {t('events.event_website', locale)}
               </a>
@@ -367,7 +371,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
         {isPastEvent && (
           <div class="event-detail-past-state">
-            <p>{t('events.past_event', locale)}</p>
+            <p>{t('events.past_event', locale, { noun: eventNoun(tags, locale) })}</p>
             {nextEdition ? (
               <a href={paths.event(nextEdition.id, locale)}>
                 {t('events.next_edition', locale, { name: nextEdition.name })} &#x2192;

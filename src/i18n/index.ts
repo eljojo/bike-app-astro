@@ -56,6 +56,28 @@ export function tOrdinal(n: number, locale: string | undefined): string {
 }
 
 /**
+ * Derive a human noun for an event from its tags.
+ * Returns a localized noun like "ride", "workshop", "race" —
+ * or "event" if no tag maps to a known noun.
+ * Pass plural: true for the plural form ("rides", "workshops").
+ */
+export function eventNoun(tags: string[], locale: string | undefined, plural = false): string {
+  const short = shortLocale(locale || defaultLocale());
+  const strings = translations[short] || translations[defaultLocale()];
+  const fallback = translations[defaultLocale()];
+  const idx = plural ? 1 : 0;
+  for (const tag of tags) {
+    const key = `events.noun.${tag}`;
+    const value = strings[key] ?? fallback[key];
+    if (value) {
+      return Array.isArray(value) ? value[idx] : value;
+    }
+  }
+  const def = strings['events.noun.default'] ?? fallback['events.noun.default'] ?? 'event';
+  return Array.isArray(def) ? def[idx] : def;
+}
+
+/**
  * Build a locale-prefixed path. Default locale gets no prefix.
  */
 export function localePath(path: string, locale: string | undefined): string {

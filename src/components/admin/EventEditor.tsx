@@ -31,6 +31,9 @@ interface Props {
   routeOptions?: RouteOption[];
   placeOptions?: Array<{ id: string; name: string }>;
   eventOptions?: Array<{ id: string; name: string; year: string }>;
+  tagTranslations?: Record<string, Record<string, string>>;
+  knownTags?: string[];
+  defaultLocale?: string;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -61,7 +64,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [] }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '' }: Props) {
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
@@ -235,10 +238,28 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     disclosure.open('orgForm');
   }
 
+  const activeLocale = defaultLocale; // events don't have per-editor locale switching
+
+  function displayTag(tag: string): string {
+    return tagTranslations[tag]?.[activeLocale] ?? tag;
+  }
+
+  function resolveTag(input: string): string {
+    if (knownTags.includes(input)) return input;
+    for (const [key, locales] of Object.entries(tagTranslations)) {
+      for (const translated of Object.values(locales)) {
+        if (translated.toLowerCase() === input) return key;
+      }
+    }
+    return input;
+  }
+
   function addTag() {
-    const val = tagInput.trim().toLowerCase();
-    if (val && !tags.includes(val)) {
-      setTags([...tags, val]);
+    const raw = tagInput.trim().toLowerCase();
+    if (!raw) { setTagInput(''); return; }
+    const tag = resolveTag(raw);
+    if (!tags.includes(tag)) {
+      setTags([...tags, tag]);
     }
     setTagInput('');
   }
@@ -268,19 +289,34 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             <div class="tag-editor">
               {tags.map((tag) => (
                 <span key={tag} class="tag-pill">
-                  {tag}
+                  {displayTag(tag)}
                   <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
                 </span>
               ))}
               <input
                 type="text"
                 class="tag-input"
+                list="event-tag-suggestions"
                 value={tagInput}
                 onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
                 onKeyDown={handleTagKeyDown}
                 onBlur={addTag}
                 placeholder="Add tag..."
               />
+              <datalist id="event-tag-suggestions">
+                {knownTags
+                  .filter(t => !tags.includes(t))
+                  .flatMap(tag => {
+                    const options = [<option key={tag} value={tag} />];
+                    const locales = tagTranslations[tag];
+                    if (locales) {
+                      for (const [locale, translated] of Object.entries(locales)) {
+                        options.push(<option key={`${tag}-${locale}`} value={translated} />);
+                      }
+                    }
+                    return options;
+                  })}
+              </datalist>
             </div>
           </div>
 

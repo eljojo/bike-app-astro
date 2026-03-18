@@ -57,6 +57,10 @@ test.describe('Club event detail — past event with results', () => {
 
     // Departure groups
     await expect(facts.locator('.event-detail-departure-groups li')).toHaveCount(2);
+
+    // Past event uses tag-derived noun (brevet → "recorrido" in es-CL)
+    const pastState = page.locator('.event-detail-past-state');
+    await expect(pastState).toContainText('recorrido');
   });
 
   test('renders waypoint timeline inside collapsible', async ({ page }) => {

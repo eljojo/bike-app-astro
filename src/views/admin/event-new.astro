@@ -7,12 +7,16 @@ import { eventDetailFromCache } from '../../lib/models/event-model';
 import { loadDetailFromJson, loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
+import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
+import { defaultLocale } from '../../lib/i18n/locale-utils';
 import type { AdminEvent } from '../../types/admin';
 
 const { organizers: adminOrganizers, events: buildTimeEvents } = await fetchJson<{ organizers: _AdminOrganizer[]; events: AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url));
 const { events: allEvents } = await loadAdminEventList(buildTimeEvents);
 const organizers = adminOrganizers;
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const tagTranslations = loadTagTranslations();
+const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
 const eventOptions = allEvents
   .map((e: AdminEvent) => ({ id: e.id, name: e.name, year: e.year }))
   .sort((a: { year: string; name: string }, b: { year: string; name: string }) => b.year.localeCompare(a.year) || a.name.localeCompare(b.name));
@@ -51,5 +55,5 @@ if (copyFromId) {
 ---
 
 <AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events">
-  <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} eventOptions={eventOptions} />
+  <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} />
 </AdminEditorLayout>
