@@ -183,12 +183,8 @@ if (organizerInstagram) {
   followName = organizerName;
 }
 
-// Build essential line parts
-const essentialParts: string[] = [dateDisplay];
-if (data.start_time) essentialParts[0] += ` \u00b7 ${data.start_time}`;
-if (data.distances) essentialParts.push(data.distances);
-if (data.time_limit_hours) essentialParts.push(`${data.time_limit_hours}h ${t('events.time_limit', locale).toLowerCase()}`);
-if (data.location) essentialParts.push(data.location);
+// Build date display with optional time
+const dateWithTime = data.start_time ? `${dateDisplay} \u2014 ${data.start_time}` : dateDisplay;
 
 // Registration details
 const reg = data.registration;
@@ -284,26 +280,82 @@ function editionDateLabel(startDate: string, loc?: string): string {
           </ul>
         )}
 
-        <p class="event-detail-essential">
-          {essentialParts.join(' \u00b7 ')}
+        <div class="event-detail-facts">
+          <dl class="event-detail-facts-grid">
+            <dt>{t('events.date', locale)}</dt>
+            <dd>{dateWithTime}</dd>
+
+            {data.distances && (
+              <Fragment>
+                <dt>{t('events.distance', locale)}</dt>
+                <dd>{data.distances}</dd>
+              </Fragment>
+            )}
+
+            {data.time_limit_hours && (
+              <Fragment>
+                <dt>{t('events.time_limit', locale)}</dt>
+                <dd>{data.time_limit_hours} {t('events.hours', locale)}</dd>
+              </Fragment>
+            )}
+
+            {data.location && (
+              <Fragment>
+                <dt>{t('events.location', locale)}</dt>
+                <dd>{data.location}</dd>
+              </Fragment>
+            )}
+
+            {reg?.price && (
+              <Fragment>
+                <dt>{t('events.price', locale)}</dt>
+                <dd>{reg.price}</dd>
+              </Fragment>
+            )}
+
+            {reg?.slots && (
+              <Fragment>
+                <dt>{t('events.slots', locale)}</dt>
+                <dd>{reg.slots}</dd>
+              </Fragment>
+            )}
+
+            {reg?.deadline && (
+              <Fragment>
+                <dt>{t('events.deadline', locale)}</dt>
+                <dd>{reg.deadline}</dd>
+              </Fragment>
+            )}
+
+            {departureGroups.length > 0 && (
+              <Fragment>
+                <dt>{t('events.departure_groups', locale)}</dt>
+                <dd>
+                  <ul class="event-detail-departure-groups">
+                    {departureGroups.map((g: string) => <li>{g}</li>)}
+                  </ul>
+                </dd>
+              </Fragment>
+            )}
+          </dl>
+
+          {!isPastEvent && regUrl && (
+            <a class="event-detail-facts-cta" href={regUrl} target="_blank" rel="noopener noreferrer">
+              {isInstagramReg && followName ? followName : t('events.sign_up', locale)} &#x2192;
+            </a>
+          )}
+
           {organizerName && (
-            <Fragment>
-              {' \u00b7 '}
+            <div class="event-detail-facts-organizer">
               {organizerWebsite
                 ? <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">{organizerName}</a>
                 : organizerName
               }
-            </Fragment>
+            </div>
           )}
-        </p>
+        </div>
 
-        {event.body?.trim() && (
-          <div class="event-detail-body">
-            <Content />
-          </div>
-        )}
-
-        {isPastEvent ? (
+        {isPastEvent && (
           <div class="event-detail-past-state">
             <p>{t('events.past_event', locale)}</p>
             {nextEdition ? (
@@ -316,39 +368,13 @@ function editionDateLabel(startDate: string, loc?: string): string {
               </a>
             ) : null}
           </div>
-        ) : regUrl ? (
-          <div class="event-detail-registration">
-            <div class="event-detail-registration-header">
-              <span>{isInstagramReg ? t('events.rsvp_instagram', locale) : t('events.registration_open', locale)}</span>
-              <a href={regUrl} target="_blank" rel="noopener noreferrer">
-                {isInstagramReg && followName ? `${followName} \u2192` : `${t('events.sign_up', locale)} \u2192`}
-              </a>
-            </div>
-            {(reg?.price || reg?.slots || reg?.deadline || departureGroups.length > 0) && (
-              <dl class="event-detail-registration-details">
-                {reg?.price && (
-                  <Fragment><dt>{t('events.price', locale)}</dt><dd>{reg.price}</dd></Fragment>
-                )}
-                {reg?.slots && (
-                  <Fragment><dt>{t('events.slots', locale)}</dt><dd>{reg.slots}</dd></Fragment>
-                )}
-                {reg?.deadline && (
-                  <Fragment><dt>{t('events.deadline', locale)}</dt><dd>{reg.deadline}</dd></Fragment>
-                )}
-                {departureGroups.length > 0 && (
-                  <Fragment>
-                    <dt>{t('events.departure_groups', locale)}</dt>
-                    <dd>
-                      <ul class="event-detail-departure-groups">
-                        {departureGroups.map((g: string) => <li>{g}</li>)}
-                      </ul>
-                    </dd>
-                  </Fragment>
-                )}
-              </dl>
-            )}
+        )}
+
+        {event.body?.trim() && (
+          <div class="event-detail-body">
+            <Content />
           </div>
-        ) : null}
+        )}
       </div>
     </div>
 

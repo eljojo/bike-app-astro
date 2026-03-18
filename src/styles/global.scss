@@ -483,8 +483,8 @@ a.go-back-button {
   font-weight: bold;
 }
 .events-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1em;
   margin: 1em 0;
 }

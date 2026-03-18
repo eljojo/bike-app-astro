@@ -45,22 +45,22 @@ test.describe('Club event detail — past event with results', () => {
     // Event name
     await expect(page.locator('h1')).toHaveText('BRM 300 Vuelta Rocas');
 
-    // Essential line shows date, distance, and organizer
-    const essential = page.locator('.event-detail-essential');
-    await expect(essential).toBeVisible();
-    await expect(essential).toContainText('300 km');
-    await expect(essential).toContainText('Randonneurs Chile');
+    // Facts card shows distance and organizer
+    const facts = page.locator('.event-detail-facts');
+    await expect(facts).toBeVisible();
+    await expect(facts).toContainText('300 km');
+    await expect(facts).toContainText('Randonneurs Chile');
   });
 
   test('renders essential line with event details', async ({ page }) => {
     await page.goto('/events/2024/brm-300-vuelta-rocas');
     await page.waitForLoadState('networkidle');
 
-    const essential = page.locator('.event-detail-essential');
-    await expect(essential).toBeVisible();
+    const facts = page.locator('.event-detail-facts');
+    await expect(facts).toBeVisible();
 
     // Time limit
-    await expect(essential).toContainText('20h');
+    await expect(facts).toContainText('20');
   });
 
   test('renders waypoint timeline inside collapsible', async ({ page }) => {
@@ -135,15 +135,12 @@ test.describe('Club event detail — upcoming event', () => {
     // Event name
     await expect(page.locator('h1')).toHaveText('BRM 200 Ruta del Vino');
 
-    // Registration link in quiet registration section
-    const regSection = page.locator('.event-detail-registration');
-    await expect(regSection).toBeVisible();
-    const regLink = regSection.locator('a');
+    // Facts card with registration link and time limit
+    const facts = page.locator('.event-detail-facts');
+    await expect(facts).toBeVisible();
+    const regLink = facts.locator('.event-detail-facts-cta');
     await expect(regLink).toHaveAttribute('href', 'https://example.com/register-200');
-
-    // Essential line shows time limit
-    const essential = page.locator('.event-detail-essential');
-    await expect(essential).toContainText('13.5h');
+    await expect(facts).toContainText('13.5');
   });
 
   test('renders waypoint for upcoming event', async ({ page }) => {

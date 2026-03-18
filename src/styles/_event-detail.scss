@@ -81,76 +81,30 @@
   margin: 0;
 }
 
-.event-detail-essential {
-  font-size: 1.05em;
-  @include muted-text;
-  margin: 0;
-
-  a {
-    color: $color-accent;
-    text-decoration: none;
-    &:hover { text-decoration: underline; }
-  }
-}
-
-.event-detail-body {
-  font-size: 1.05em;
-  margin-top: 0.5rem;
-}
-
-// Registration section
-.event-detail-registration {
-  padding-top: 0.75rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid $color-border;
+// Facts card — the "island" with all hard facts
+.event-detail-facts {
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem 1.25rem;
+  margin-top: 0.75rem;
 
   @include dark-mode {
+    background: $color-card-bg-dark;
     border-color: $color-border-dark;
   }
-
-  a {
-    color: $color-accent;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.95em;
-    &:hover { text-decoration: underline; }
-  }
 }
 
-.event-detail-registration-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  span {
-    @include muted-text;
-    font-size: 0.95em;
-  }
-
-  a {
-    border: 1.5px solid $color-accent;
-    border-radius: $border-radius;
-    padding: 0.35rem 0.75rem;
-
-    &:hover {
-      background: $color-accent;
-      color: #fff;
-      text-decoration: none;
-    }
-  }
-}
-
-.event-detail-registration-details {
+.event-detail-facts-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.2rem 0.75rem;
-  margin-top: 0.5rem;
-  font-size: 0.9em;
+  gap: 0.35rem 1rem;
+  margin: 0;
 
   dt {
     @include muted-text;
     text-transform: uppercase;
-    font-size: 0.75em;
+    font-size: 0.7em;
     letter-spacing: 0.5px;
     align-self: center;
   }
@@ -161,12 +115,46 @@
   }
 }
 
+.event-detail-facts-cta {
+  display: block;
+  text-align: center;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: $color-accent;
+  color: #fff;
+  font-weight: 600;
+  border-radius: $border-radius;
+  text-decoration: none;
+
+  &:hover {
+    opacity: 0.9;
+    color: #fff;
+    text-decoration: none;
+  }
+}
+
+.event-detail-facts-organizer {
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
 .event-detail-departure-groups {
   list-style: none;
   padding: 0;
   margin: 0;
 
   li { font-weight: 600; }
+}
+
+.event-detail-body {
+  font-size: 1.05em;
+  margin-top: 0.75rem;
 }
 
 // Past event state
