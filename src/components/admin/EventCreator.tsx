@@ -10,6 +10,9 @@ interface Props {
   organizers: AdminOrganizer[];
   copyData?: Partial<EventDetail>;
   eventOptions?: Array<{ id: string; name: string; year: string }>;
+  tagTranslations?: Record<string, Record<string, string>>;
+  knownTags?: string[];
+  defaultLocale?: string;
 }
 
 /** Draft fields returned by the server, already in EventDetail shape. */
@@ -43,7 +46,7 @@ function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
   return organizer.name || '';
 }
 
-export default function EventCreator({ cdnUrl, organizers, copyData, eventOptions }: Props) {
+export default function EventCreator({ cdnUrl, organizers, copyData, eventOptions, tagTranslations, knownTags, defaultLocale }: Props) {
   const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>(copyData ? 'edit' : 'upload');
   const [dragOver, setDragOver] = useState(false);
   const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
@@ -137,14 +140,20 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to process URL');
+        // Could not fetch — skip to editor with the URL pre-filled as event_url
+        setEventDraft({ draft: { event_url: pasteUrl }, uncertain: [] });
+        setPasteUrl('');
+        setPhase('edit');
+        return;
       }
 
       setPasteUrl('');
       handleDraftResponse(await res.json() as EventDraftResponse);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to process URL');
+    } catch {
+      // Network error — same fallback: skip to editor with URL pre-filled
+      setEventDraft({ draft: { event_url: pasteUrl }, uncertain: [] });
+      setPasteUrl('');
+      setPhase('edit');
     } finally {
       setFetchingUrl(false);
     }
@@ -307,6 +316,9 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       organizers={organizers}
       cdnUrl={cdnUrl}
       eventOptions={eventOptions}
+      tagTranslations={tagTranslations}
+      knownTags={knownTags}
+      defaultLocale={defaultLocale}
     />
   );
 }
