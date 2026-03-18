@@ -38,10 +38,12 @@ function initials(name: string): string {
             ) : (
               <div class="organizer-spotlight-initials">{initials(org.name)}</div>
             )}
-            <span class="organizer-spotlight-name">{org.name}</span>
-            {org.instagram && (
-              <span class="organizer-spotlight-handle">@{org.instagram}</span>
-            )}
+            <div class="organizer-spotlight-info">
+              <span class="organizer-spotlight-name">{org.name}</span>
+              {org.instagram && (
+                <span class="organizer-spotlight-handle">@{org.instagram}</span>
+              )}
+            </div>
           </div>
         );
 
