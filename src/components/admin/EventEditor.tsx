@@ -15,7 +15,8 @@ import WaypointEditor from './WaypointEditor';
 import type { Waypoint } from './WaypointEditor';
 import ResultsEditor from './ResultsEditor';
 import type { Result } from './ResultsEditor';
-import type { EventDetail } from '../../lib/models/event-model';
+// SeriesEditor import deferred until series UI task wires it into the form
+import type { EventDetail, EventSeries } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
 import type { AdminOrganizer, RouteOption } from '../../types/admin';
@@ -80,7 +81,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
   const [endDate, setEndDate] = useState(initialData.end_date || '');
+  const [meetTime, _setMeetTime] = useState(initialData.meet_time || '');
   const [endTime, setEndTime] = useState(initialData.end_time || '');
+  const [seriesMode, _setSeriesMode] = useState<boolean>(!!initialData.series);
+  const [seriesData, _setSeriesData] = useState<EventSeries | undefined>(initialData.series);
   const [registrationUrl, setRegistrationUrl] = useState(initialData.registration_url || '');
   const [distances, setDistances] = useState(initialData.distances || '');
   const [location, setLocation] = useState(initialData.location || '');
@@ -149,11 +153,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey]);
+  }, [name, startDate, startTime, meetTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey, seriesMode, seriesData]);
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
-    time: !!(initialData.start_time || initialData.end_time),
+    time: !!(initialData.start_time || initialData.end_time || initialData.meet_time),
+    meetTime: !!initialData.meet_time,
     endDate: !!initialData.end_date,
     endTime: !!initialData.end_time,
     location: !!initialData.location,
@@ -169,7 +174,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   const { validate } = useFormValidation([
     { field: 'event-name', check: () => !name.trim(), message: 'Name is required' },
-    { field: 'event-start-date', check: () => !startDate, message: 'Start date is required' },
+    { field: 'event-start-date', check: () => !seriesMode && !startDate, message: 'Start date is required' },
+    { field: 'series-season-start', check: () => seriesMode && !startDate, message: 'Series needs at least one occurrence' },
   ]);
 
   // Save state
@@ -185,8 +191,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           name,
           start_date: startDate,
           ...(startTime && { start_time: startTime }),
+          ...(meetTime && { meet_time: meetTime }),
           ...(endDate && { end_date: endDate }),
           ...(endTime && { end_time: endTime }),
+          ...(seriesMode && seriesData && { series: seriesData }),
           ...(registrationUrl && { registration_url: registrationUrl }),
           ...(distances && { distances }),
           ...(location && { location }),

@@ -23,6 +23,21 @@ import type { EventDetail } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
 
+function buildSeriesLabel(series: unknown): string | undefined {
+  if (!series || typeof series !== 'object') return undefined;
+  const s = series as Record<string, unknown>;
+  if (s.recurrence && s.recurrence_day) {
+    const day = String(s.recurrence_day);
+    const capitalized = day.charAt(0).toUpperCase() + day.slice(1);
+    const prefix = s.recurrence === 'biweekly' ? 'Every other' : 'Every';
+    return `${prefix} ${capitalized}`;
+  }
+  if (Array.isArray(s.schedule) && s.schedule.length > 0) {
+    return `${s.schedule.length} dates`;
+  }
+  return undefined;
+}
+
 interface AdminEventData {
   events: AdminEvent[];
   details: Record<string, EventDetail & { contentHash: string }>;
@@ -61,6 +76,9 @@ function loadFlatEvent(yearDir: string, slug: string, filePath: string): {
     mediaCount: 0,
     waypointCount: Array.isArray(fm.waypoints) ? fm.waypoints.length : 0,
     contentHash,
+    is_series: !!fm.series,
+    meet_time: fm.meet_time as string | undefined,
+    series_label: buildSeriesLabel(fm.series),
   };
 
   const detail = eventDetailFromGit(id, fm, body.trim());
@@ -109,6 +127,9 @@ function loadDirectoryEvent(yearDir: string, slug: string, eventDir: string): {
     mediaCount,
     waypointCount: Array.isArray(fm.waypoints) ? fm.waypoints.length : 0,
     contentHash,
+    is_series: !!fm.series,
+    meet_time: fm.meet_time as string | undefined,
+    series_label: buildSeriesLabel(fm.series),
   };
 
   const detail = eventDetailFromGit(id, fm, body.trim(), mediaYml);

@@ -21,7 +21,7 @@ const TEXT_MODEL = VISION_MODEL;
 
 const FIELD_SPEC = `Return this exact JSON structure (omit fields you cannot find at all):
 
-{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4},"tags":["tag1","tag2"]}
+{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"meet_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4},"tags":["tag1","tag2"],"series":{"schedule":[{"date":"YYYY-MM-DD","location":"optional"}],"recurrence":"weekly or biweekly","recurrence_day":"day name","season_start":"YYYY-MM-DD","season_end":"YYYY-MM-DD"}}
 
 Rules:
 - "c" is your confidence from 0 to 10 (integer)
@@ -29,6 +29,13 @@ Rules:
 - Omit fields entirely if not found (do NOT use empty strings or "null")
 - "tags" is a plain array of tag slugs (not {value,c}). Only use tags from the provided list. Omit if none clearly apply.
 - URLs must have proper JSON escaping (escape backslashes and quotes)
+- "meet_time" is separate from "start_time" — e.g. "meet 6:45, roll 7:00" means meet_time=18:45, start_time=19:00
+- "series" — only include when the poster/page shows MULTIPLE dates for the SAME recurring event:
+  - If 2+ specific dates are listed, use "schedule" with an array of {date, location?} entries
+  - If dates follow a weekly or biweekly pattern, ALSO set "recurrence", "recurrence_day", "season_start", "season_end"
+  - The "name" field should be the SERIES name (e.g. "#OttBike Social"), not include specific dates
+  - Each schedule entry needs at minimum: date (YYYY-MM-DD)
+  - If different locations per date, include "location" in each entry
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
 
 const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
@@ -44,7 +51,7 @@ const MAX_TEXT_LENGTH = 15_000; // Characters of page text to send
 const HIGH_CONFIDENCE = 7; // 0-10 scale
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'organizer_website', 'organizer_instagram', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const;
+const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'meet_time', 'location', 'distances', 'organizer', 'organizer_website', 'organizer_instagram', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const;
 
 /** Unwrap a field from the AI response, which may be {value, c} or a flat string. */
 function unwrap(field: unknown): { value: string; confidence: number } | null {
@@ -98,7 +105,7 @@ export function buildDraft(
   };
 
   // Optional string fields
-  for (const field of ['start_time', 'end_date', 'end_time', 'location', 'distances', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const) {
+  for (const field of ['start_time', 'end_date', 'end_time', 'meet_time', 'location', 'distances', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const) {
     if (values[field]) draft[field] = values[field].value;
   }
 
@@ -123,6 +130,57 @@ export function buildDraft(
     const validTags = (raw.tags as unknown[])
       .filter((t): t is string => typeof t === 'string' && EVENT_TAG_SLUGS.includes(t as typeof EVENT_TAG_SLUGS[number]));
     if (validTags.length > 0) draft.tags = validTags;
+  }
+
+  // Series: pass through after basic shape validation
+  if (raw.series && typeof raw.series === 'object') {
+    const s = raw.series as Record<string, unknown>;
+    const series: Record<string, unknown> = {};
+
+    // Explicit schedule: array of {date, location?}
+    if (Array.isArray(s.schedule)) {
+      const schedule = (s.schedule as Array<Record<string, unknown>>)
+        .filter(entry => entry && typeof entry === 'object' && typeof entry.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.date as string))
+        .map(entry => {
+          const cleaned: Record<string, string> = { date: entry.date as string };
+          if (typeof entry.location === 'string' && entry.location) cleaned.location = entry.location;
+          if (typeof entry.start_time === 'string' && entry.start_time) cleaned.start_time = entry.start_time;
+          if (typeof entry.meet_time === 'string' && entry.meet_time) cleaned.meet_time = entry.meet_time;
+          if (typeof entry.note === 'string' && entry.note) cleaned.note = entry.note;
+          return cleaned;
+        });
+      if (schedule.length >= 2) series.schedule = schedule;
+    }
+
+    // Recurrence fields
+    if (typeof s.recurrence === 'string' && (s.recurrence === 'weekly' || s.recurrence === 'biweekly')) {
+      series.recurrence = s.recurrence;
+    }
+    if (typeof s.recurrence_day === 'string') {
+      const day = s.recurrence_day.toLowerCase();
+      if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(day)) {
+        series.recurrence_day = day;
+      }
+    }
+    if (typeof s.season_start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.season_start)) {
+      series.season_start = s.season_start;
+    }
+    if (typeof s.season_end === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.season_end)) {
+      series.season_end = s.season_end;
+    }
+
+    // Only include series if it has a valid schedule or complete recurrence rule
+    const hasSchedule = Array.isArray(series.schedule) && (series.schedule as unknown[]).length >= 2;
+    const hasRecurrence = series.recurrence && series.recurrence_day && series.season_start && series.season_end;
+    if (hasSchedule || hasRecurrence) {
+      draft.series = series;
+      // Set start_date to the first occurrence if not already set from other fields
+      if (hasSchedule && !values.start_date) {
+        const firstDate = (series.schedule as Array<{ date: string }>)[0].date;
+        draft.start_date = firstDate;
+        draft.year = firstDate.substring(0, 4);
+      }
+    }
   }
 
   // Don't leak organizer sub-fields to the draft

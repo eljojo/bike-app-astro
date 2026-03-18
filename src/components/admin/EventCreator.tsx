@@ -23,13 +23,15 @@ interface EventDraftResponse {
   poster_content_type?: string;
 }
 
-const REVIEW_FIELDS = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
+const REVIEW_FIELDS = ['name', 'series', 'start_date', 'end_date', 'start_time', 'meet_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'name',
+  series: 'series',
   start_date: 'start date',
   end_date: 'end date',
   start_time: 'start time',
+  meet_time: 'meet time',
   end_time: 'end time',
   location: 'location',
   distances: 'distances',
@@ -40,6 +42,35 @@ const FIELD_LABELS: Record<string, string> = {
   edition: 'edition',
   tags: 'tags',
 };
+
+const DAY_NAMES_CAPITALIZED: Record<string, string> = {
+  monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday',
+  thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday',
+};
+
+function getSeriesDisplay(series: EventDetail['series']): string {
+  if (!series) return '';
+  if (series.schedule?.length) {
+    const count = series.schedule.length;
+    if (series.recurrence && series.recurrence_day) {
+      const day = DAY_NAMES_CAPITALIZED[series.recurrence_day] || series.recurrence_day;
+      const freq = series.recurrence === 'biweekly' ? 'Biweekly' : 'Weekly';
+      const first = series.schedule[0].date;
+      const last = series.schedule[count - 1].date;
+      return `${freq} on ${day}, ${first} \u2013 ${last}`;
+    }
+    return `${count} dates`;
+  }
+  if (series.recurrence && series.recurrence_day) {
+    const day = DAY_NAMES_CAPITALIZED[series.recurrence_day] || series.recurrence_day;
+    const freq = series.recurrence === 'biweekly' ? 'Biweekly' : 'Weekly';
+    if (series.season_start && series.season_end) {
+      return `${freq} on ${day}, ${series.season_start} \u2013 ${series.season_end}`;
+    }
+    return `${freq} on ${day}`;
+  }
+  return '';
+}
 
 function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
   if (!organizer) return '';
@@ -173,6 +204,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       // When copying, leave dates empty so user must pick new ones
       start_date: copyData ? '' : ((source.start_date as string) || today),
       start_time: source.start_time as string | undefined,
+      meet_time: source.meet_time as string | undefined,
       end_date: copyData ? undefined : (source.end_date as string | undefined),
       end_time: source.end_time as string | undefined,
       location: source.location as string | undefined,
@@ -193,6 +225,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       waypoints: (source.waypoints as EventDetail['waypoints']) || [],
       results: (source.results as EventDetail['results']) || [],
       media: (source.media as EventDetail['media']) || [],
+      series: source.series as EventDetail['series'],
       isNew: true,
     };
   }
@@ -282,7 +315,9 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
                     ? getOrganizerDisplay(draft.organizer as EventDetail['organizer'])
                     : field === 'tags'
                       ? (Array.isArray(draft.tags) && draft.tags.length > 0 ? (draft.tags as string[]).join(', ') : '')
-                      : draft[field] as string | undefined;
+                      : field === 'series'
+                        ? getSeriesDisplay(draft.series)
+                        : draft[field] as string | undefined;
                   if (!value) return null;
                   const isUncertain = uncertain.includes(field);
                   return (

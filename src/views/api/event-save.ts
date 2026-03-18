@@ -14,6 +14,7 @@ import type { AdminEvent } from '../../types/admin';
 import { resolveEffectivePrimary } from '../../lib/models/event-model.server';
 import { eventMediaItemSchema } from '../../lib/models/event-model';
 import { eventOps } from '../../lib/content/content-ops.server';
+import { expandSeriesOccurrences } from '../../lib/series-utils';
 import { slugify } from '../../lib/slug';
 import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
@@ -242,6 +243,15 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
         if (!mergedParked) mergedParked = [];
         mergedParked.push(...(orgPhotoParked.mergedParked || []));
         files.push(orgPhotoParked.fileChange);
+      }
+    }
+
+    // Compute start_date/end_date from series occurrences
+    if (fm.series) {
+      const occurrences = expandSeriesOccurrences(fm as Parameters<typeof expandSeriesOccurrences>[0]);
+      if (occurrences.length > 0) {
+        fm.start_date = occurrences[0].date;
+        fm.end_date = occurrences[occurrences.length - 1].date;
       }
     }
 
