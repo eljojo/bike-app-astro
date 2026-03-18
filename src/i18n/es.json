@@ -129,6 +129,7 @@
   "events.poi": "Punto de interés",
   "events.km": "km",
   "events.organizer": "Organizado por",
+  "events.event_website": "Sitio del evento",
   "events.routes": "Rutas",
   "events.photos": "Fotos",
   "events.status.dns": "No partió",

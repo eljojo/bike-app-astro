@@ -38,29 +38,25 @@ test.describe('Club events list', () => {
 });
 
 test.describe('Club event detail — past event with results', () => {
-  test('renders event header', async ({ page }) => {
+  test('renders event header and facts card', async ({ page }) => {
     await page.goto('/events/2024/brm-300-vuelta-rocas');
     await page.waitForLoadState('networkidle');
 
     // Event name
     await expect(page.locator('h1')).toHaveText('BRM 300 Vuelta Rocas');
 
-    // Facts card shows distance and organizer
+    // Facts card shows all hard facts
     const facts = page.locator('.event-detail-facts');
     await expect(facts).toBeVisible();
     await expect(facts).toContainText('300 km');
-    await expect(facts).toContainText('Randonneurs Chile');
-  });
-
-  test('renders essential line with event details', async ({ page }) => {
-    await page.goto('/events/2024/brm-300-vuelta-rocas');
-    await page.waitForLoadState('networkidle');
-
-    const facts = page.locator('.event-detail-facts');
-    await expect(facts).toBeVisible();
-
-    // Time limit
     await expect(facts).toContainText('20');
+    await expect(facts).toContainText('Plaza Italia, Santiago');
+    await expect(facts).toContainText('$15.000 CLP');
+    await expect(facts).toContainText('80');
+    await expect(facts).toContainText('Randonneurs Chile');
+
+    // Departure groups
+    await expect(facts.locator('.event-detail-departure-groups li')).toHaveCount(2);
   });
 
   test('renders waypoint timeline inside collapsible', async ({ page }) => {
@@ -128,19 +124,30 @@ test.describe('Club event detail — past event with results', () => {
 });
 
 test.describe('Club event detail — upcoming event', () => {
-  test('renders upcoming event with registration link', async ({ page }) => {
+  test('renders upcoming event with facts and registration', async ({ page }) => {
     await page.goto('/events/2099/brm-200-ruta-del-vino');
     await page.waitForLoadState('networkidle');
 
     // Event name
     await expect(page.locator('h1')).toHaveText('BRM 200 Ruta del Vino');
 
-    // Facts card with registration link and time limit
+    // Facts card with all details
     const facts = page.locator('.event-detail-facts');
     await expect(facts).toBeVisible();
-    const regLink = facts.locator('.event-detail-facts-cta');
-    await expect(regLink).toHaveAttribute('href', 'https://example.com/register-200');
+    await expect(facts).toContainText('200 km');
     await expect(facts).toContainText('13.5');
+    await expect(facts).toContainText('Estación Mapocho, Santiago');
+    await expect(facts).toContainText('$12.000 CLP');
+    await expect(facts).toContainText('100');
+    await expect(facts).toContainText('2099-04-15');
+
+    // Registration CTA links to registration URL
+    const regLink = facts.locator('.event-detail-facts-cta');
+    await expect(regLink).toBeVisible();
+    await expect(regLink).toHaveAttribute('href', 'https://example.com/register-200');
+
+    // Organizer link
+    await expect(facts).toContainText('Randonneurs Chile');
   });
 
   test('renders waypoint for upcoming event', async ({ page }) => {

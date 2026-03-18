@@ -81,6 +81,12 @@
   margin: 0;
 }
 
+.event-detail-edition {
+  @include muted-text;
+  font-size: 0.95em;
+  margin: 0;
+}
+
 // Facts card — the "island" with all hard facts
 .event-detail-facts {
   background: $color-card-bg;
@@ -133,14 +139,21 @@
   }
 }
 
-.event-detail-facts-organizer {
-  margin-top: 0.5rem;
+.event-detail-facts-links {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
   font-size: 0.9em;
 
   a {
     color: $color-accent;
     text-decoration: none;
     &:hover { text-decoration: underline; }
+  }
+
+  span {
+    @include muted-text;
   }
 }
 

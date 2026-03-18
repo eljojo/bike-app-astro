@@ -273,6 +273,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
       <div class="event-detail-hero-info">
         <h1>{data.name}</h1>
+        {data.edition && <p class="event-detail-edition">{data.edition}</p>}
 
         {tags.length > 0 && (
           <ul class="event-detail-tags">
@@ -345,14 +346,23 @@ function editionDateLabel(startDate: string, loc?: string): string {
             </a>
           )}
 
-          {organizerName && (
-            <div class="event-detail-facts-organizer">
-              {organizerWebsite
+          <div class="event-detail-facts-links">
+            {organizerName && (
+              organizerWebsite
                 ? <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">{organizerName}</a>
-                : organizerName
-              }
-            </div>
-          )}
+                : <span>{organizerName}</span>
+            )}
+            {organizerInstagram && (
+              <a href={`https://instagram.com/${organizerInstagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer">
+                @{organizerInstagram.replace(/^@/, '')}
+              </a>
+            )}
+            {data.event_url && (
+              <a href={data.event_url} target="_blank" rel="noopener noreferrer">
+                {t('events.event_website', locale)}
+              </a>
+            )}
+          </div>
         </div>
 
         {isPastEvent && (

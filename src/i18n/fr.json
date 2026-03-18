@@ -135,6 +135,7 @@
   "events.poi": "Point d'intérêt",
   "events.km": "km",
   "events.organizer": "Organisé par",
+  "events.event_website": "Site de l'événement",
   "events.routes": "Parcours",
   "events.photos": "Photos",
   "events.status.dns": "Non-partant",
