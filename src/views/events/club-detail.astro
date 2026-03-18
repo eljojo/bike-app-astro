@@ -42,7 +42,7 @@ export async function getStaticPaths() {
     if (prev) nextOf.set(prev, ev.id);
   }
 
-  function resolveEditions(eventId: string): { editions: Array<{ id: string; year: string }>; isFallback: boolean } {
+  function resolveEditions(eventId: string): Array<{ id: string; year: string }> {
     const visited = new Set<string>();
     const chain: Array<{ id: string; year: string }> = [];
 
@@ -67,14 +67,18 @@ export async function getStaticPaths() {
       cur = nextOf.get(cur);
     }
 
-    if (chain.length > 0) return { editions: chain, isFallback: false };
+    if (chain.length > 0) {
+      chain.push({ id: eventId, year: eventId.split('/')[0] });
+      chain.sort((a, b) => a.year.localeCompare(b.year));
+      return chain;
+    }
 
     // Fallback: match by organizer + slug
     const self = byId.get(eventId);
-    if (!self) return { editions: [], isFallback: false };
+    if (!self) return [];
     const selfOrg = typeof self.data.organizer === 'string' ? self.data.organizer : undefined;
     const selfSlug = eventId.split('/').slice(1).join('/');
-    if (!selfOrg) return { editions: [], isFallback: false };
+    if (!selfOrg) return [];
 
     const fallback: Array<{ id: string; year: string }> = [];
     for (const ev of events) {
@@ -85,8 +89,11 @@ export async function getStaticPaths() {
         fallback.push({ id: ev.id, year: ev.id.split('/')[0] });
       }
     }
-    fallback.sort((a, b) => b.year.localeCompare(a.year));
-    return { editions: fallback, isFallback: true };
+    if (fallback.length > 0) {
+      fallback.push({ id: eventId, year: eventId.split('/')[0] });
+      fallback.sort((a, b) => a.year.localeCompare(b.year));
+    }
+    return fallback;
   }
 
   return events.map(event => {
@@ -97,15 +104,15 @@ export async function getStaticPaths() {
         eventMedia = yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as any[];
       } catch { /* ignore malformed media.yml */ }
     }
-    const { editions, isFallback } = resolveEditions(event.id);
+    const editions = resolveEditions(event.id);
     return {
       params: { slug: event.id },
-      props: { event, organizers, allRoutes, allPlaces, eventMedia, editions, editionsIsFallback: isFallback },
+      props: { event, organizers, allRoutes, allPlaces, eventMedia, editions },
     };
   });
 }
 
-const { event, organizers, allRoutes, allPlaces, eventMedia, editions, editionsIsFallback } = Astro.props;
+const { event, organizers, allRoutes, allPlaces, eventMedia, editions } = Astro.props;
 const { Content } = await render(event);
 const data = event.data;
 
@@ -182,13 +189,18 @@ const eventRoutes = routeSlugs
 const hasWaypoints = data.waypoints && data.waypoints.length > 0;
 const hasResults = data.results && data.results.length > 0;
 
-const galleryMedia = (eventMedia ?? []).map((m: any) => ({
-  type: m.type || 'photo',
-  key: m.key,
-  caption: m.caption,
-  width: m.width,
-  height: m.height,
-}));
+const posterMedia: Array<{ type: string; key: string; score?: number }> =
+  data.poster_key ? [{ type: 'photo', key: data.poster_key, score: 999 }] : [];
+const galleryMedia = [
+  ...posterMedia,
+  ...(eventMedia ?? []).map((m: any) => ({
+    type: m.type || 'photo',
+    key: m.key,
+    caption: m.caption,
+    width: m.width,
+    height: m.height,
+  })),
+];
 ---
 
 <Base title={`${data.name} | ${config.display_name}`} description={`${data.name} — ${dateDisplay}`} ogImage={coverUrl} jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
@@ -204,7 +216,7 @@ const galleryMedia = (eventMedia ?? []).map((m: any) => ({
             loading="eager"
             class="gallery-cover-photo"
           />
-          {galleryMedia.length > 0 && (
+          {galleryMedia.length > 1 && (
             <span class="event-poster-photo-count">{galleryMedia.length}</span>
           )}
         </div>
@@ -258,11 +270,12 @@ const galleryMedia = (eventMedia ?? []).map((m: any) => ({
 
         {editions.length > 0 && (
           <section class="event-editions">
-            <h2>{editionsIsFallback ? 'Other editions' : 'Past editions'}</h2>
+            <h2>Editions</h2>
             <div class="edition-pills">
-              <span class="edition-pill edition-pill--current">{event.id.split('/')[0]}</span>
               {editions.map((ed: { id: string; year: string }) => (
-                <a href={paths.event(ed.id, locale)} class="edition-pill">{ed.year}</a>
+                ed.id === event.id
+                  ? <span class="edition-pill edition-pill--current">{ed.year}</span>
+                  : <a href={paths.event(ed.id, locale)} class="edition-pill">{ed.year}</a>
               ))}
             </div>
           </section>
@@ -328,6 +341,7 @@ const galleryMedia = (eventMedia ?? []).map((m: any) => ({
   </p>
 
   <script>
+    /** Poster click: open full-size image when no gallery is present to handle it. */
     /** Convert FAQ section: h3 headings after an h2 "FAQ" become collapsible details/summary. */
     document.addEventListener('DOMContentLoaded', () => {
       const body = document.querySelector('.event-detail-body');
