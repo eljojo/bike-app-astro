@@ -172,6 +172,9 @@ a.go-back-button {
   align-items: center;
   a { padding: 4px; text-decoration: none; }
   .powered-by { opacity: 0.5; font-size: 0.85em; &:hover { opacity: 1; } }
+  @media (max-width: $breakpoint-mobile) {
+    .powered-by { display: none; }
+  }
 }
 @media (prefers-color-scheme: light) {
   .site-footer {
