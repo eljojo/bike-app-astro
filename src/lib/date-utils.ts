@@ -1,3 +1,11 @@
+/** Format a Date to YYYY-MM-DD string. Inverse of parseLocalDate. */
+export function formatDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * Parse a date-only ISO string (YYYY-MM-DD) without timezone shift.
  */
