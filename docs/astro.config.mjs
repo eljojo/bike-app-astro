@@ -57,6 +57,7 @@ export default defineConfig({
         {
           label: 'Experimental',
           items: [
+            { label: 'About our maps', slug: 'experimental/maps' },
             { label: 'Bike blog', slug: 'experimental/bike-blog' },
             { label: 'Club instance', slug: 'experimental/club-instance' },
           ],
