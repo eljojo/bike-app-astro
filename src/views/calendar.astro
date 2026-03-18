@@ -8,7 +8,6 @@ import { parseLocalDate, formatMonthName } from '@/lib/date-utils';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath, formatLocale } from '@/i18n';
 import { paths } from '@/lib/paths';
-import type { CollectionEntry } from 'astro:content';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -42,14 +41,6 @@ function groupByMonth(evts: typeof events) {
 
 const upcomingByMonth = groupByMonth(upcoming);
 
-function hasDetailPage(event: CollectionEntry<'events'>): boolean {
-  return !!(
-    event.body?.trim() ||
-    event.data.poster_key ||
-    event.data.routes?.length ||
-    event.data.waypoints?.length
-  );
-}
 ---
 
 <Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`}>
@@ -78,7 +69,7 @@ function hasDetailPage(event: CollectionEntry<'events'>): boolean {
             organizer={e.data.organizer}
             poster_key={e.data.poster_key}
             eventId={e.id}
-            href={hasDetailPage(e) ? paths.event(e.id, locale) : undefined}
+            href={paths.event(e.id, locale)}
           />
         ))}
       </div>
@@ -107,7 +98,7 @@ function hasDetailPage(event: CollectionEntry<'events'>): boolean {
               organizer={e.data.organizer}
               poster_key={e.data.poster_key}
               eventId={e.id}
-              href={hasDetailPage(e) ? paths.event(e.id, locale) : undefined}
+              href={paths.event(e.id, locale)}
             />
           ))}
         </div>
