@@ -720,11 +720,13 @@ a.go-back-button {
   color: $color-bg;
   transition: opacity 0.2s;
 
+  &, &:visited { color: $color-bg; }
   &:hover { opacity: 0.85; }
 
   @include dark-mode {
     background: $color-text-dark;
     color: $color-bg-dark;
+    &, &:visited { color: $color-bg-dark; }
   }
 }
 
@@ -739,11 +741,13 @@ a.go-back-button {
   border: 1px solid $color-border;
   transition: opacity 0.2s;
 
+  &, &:visited { color: $color-text; }
   &:hover { opacity: 0.7; }
 
   @include dark-mode {
     color: $color-text-dark;
     border-color: $color-border-dark;
+    &, &:visited { color: $color-text-dark; }
   }
 }
 
