@@ -162,6 +162,13 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
     margin-bottom: 1rem;
     border-bottom: 1px solid $color-border;
     padding-bottom: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
 
     @include dark-mode {
       border-color: $color-border-subtle-dark;
@@ -173,6 +180,8 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
     border-radius: $border-radius;
     text-decoration: none;
     font-size: 0.875rem;
+    white-space: nowrap;
+    flex-shrink: 0;
     @include muted-text;
 
     &.active {
@@ -191,6 +200,7 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
     align-items: center;
     font-size: 0.875rem;
     margin-left: auto;
+    flex-shrink: 0;
   }
 
   .admin-user-toggle {
