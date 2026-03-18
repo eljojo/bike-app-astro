@@ -29,7 +29,7 @@ const breadcrumbs = breadcrumbJsonLd([
 ]);
 ---
 
-<Base title={`${guide.data.name} | ${config.display_name}`} description={guide.data.tagline} jsonLd={guideJsonLd({...guide.data, id: guide.id})} breadcrumbs={breadcrumbs}>
+<Base title={`${guide.data.name} | ${config.display_name}`} description={guide.data.tagline} ogType="article" jsonLd={guideJsonLd({...guide.data, id: guide.id})} breadcrumbs={breadcrumbs}>
   <div class="guide-detail">
     <h1>{guide.data.name}</h1>
     {guide.data.tagline && <p class="guide-tagline">{guide.data.tagline}</p>}

@@ -250,5 +250,7 @@
   "editor.focus_media": "Adding media to {name}",
   "editor.show_all_fields": "Show all fields",
 
-  "place_editor.details_toggle": "Add details (address, website, phone)"
+  "place_editor.details_toggle": "Add details (address, website, phone)",
+
+  "map.description": "{count} cycling routes in {city}"
 }

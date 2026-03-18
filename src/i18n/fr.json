@@ -250,5 +250,7 @@
   "editor.focus_media": "Ajout de médias à {name}",
   "editor.show_all_fields": "Afficher tous les champs",
 
-  "place_editor.details_toggle": "Ajouter des détails (adresse, site web, téléphone)"
+  "place_editor.details_toggle": "Ajouter des détails (adresse, site web, téléphone)",
+
+  "map.description": "{count} itinéraires cyclables à {city}"
 }
