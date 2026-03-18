@@ -5,6 +5,10 @@ const organizerRefSchema = z.object({
   name: z.string(),
   website: z.string().optional(),
   instagram: z.string().optional(),
+  photo_key: z.string().optional(),
+  photo_content_type: z.string().optional(),
+  photo_width: z.number().optional(),
+  photo_height: z.number().optional(),
 });
 
 const waypointDetailSchema = z.object({

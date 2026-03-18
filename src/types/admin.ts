@@ -20,7 +20,7 @@ export interface AdminEvent {
   end_date?: string;
   status?: string;
   routes?: string[];
-  organizer?: string | { name: string; website?: string; instagram?: string };
+  organizer?: string | { name: string; website?: string; instagram?: string; photo_key?: string; photo_content_type?: string; photo_width?: number; photo_height?: number };
   poster_key?: string;
   poster_width?: number;
   poster_height?: number;
@@ -48,6 +48,10 @@ export interface AdminOrganizer {
   name: string;
   website?: string;
   instagram?: string;
+  photo_key?: string;
+  photo_content_type?: string;
+  photo_width?: number;
+  photo_height?: number;
 }
 
 /** Minimal route reference used by event editors. */
