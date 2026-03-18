@@ -94,7 +94,7 @@ test.describe('Club event detail — past event with results', () => {
     // Results are inside a collapsible <details> — open it
     const resultsDetails = page.locator('.event-detail-collapsible').nth(1);
     await expect(resultsDetails).toBeVisible();
-    await resultsDetails.locator('summary').click();
+    await resultsDetails.locator('> summary').click();
 
     const results = resultsDetails.locator('.results-section');
     await expect(results).toBeVisible();
