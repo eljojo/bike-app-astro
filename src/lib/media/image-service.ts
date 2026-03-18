@@ -37,7 +37,7 @@ export function buildImageUrl(
   if (opts?.format) transforms.push(`format=${opts.format}`);
 
   if (transforms.length > 0) {
-    return `${cdnBase}/cdn-cgi/image/${transforms.join(',')}/${key}`;
+    return `${cdnBase}/cdn-cgi/image/${transforms.join('%2C')}/${key}`;
   }
   return `${cdnBase}/${key}`;
 }

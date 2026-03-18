@@ -53,17 +53,17 @@ describe('buildImageUrl', () => {
 
   it('builds URL with width, height, and fit', () => {
     expect(buildImageUrl(cdn, 'abc123', { width: 200, height: 150, fit: 'cover' }))
-      .toBe('https://cdn.example.com/cdn-cgi/image/width=200,height=150,fit=cover/abc123');
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=200%2Cheight=150%2Cfit=cover/abc123');
   });
 
   it('builds URL with format', () => {
     expect(buildImageUrl(cdn, 'abc123', { width: 300, format: 'auto' }))
-      .toBe('https://cdn.example.com/cdn-cgi/image/width=300,format=auto/abc123');
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=300%2Cformat=auto/abc123');
   });
 
   it('builds URL with scale-down fit', () => {
     expect(buildImageUrl(cdn, 'abc123', { width: 800, fit: 'scale-down' }))
-      .toBe('https://cdn.example.com/cdn-cgi/image/width=800,fit=scale-down/abc123');
+      .toBe('https://cdn.example.com/cdn-cgi/image/width=800%2Cfit=scale-down/abc123');
   });
 
   it('returns plain URL when no transforms', () => {
