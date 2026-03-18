@@ -6,6 +6,7 @@ import ResultsTable from '@/components/ResultsTable.astro';
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
 import { getCollection, render } from 'astro:content';
 import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
+import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
 import { formatDateRange, parseLocalDate } from '@/lib/date-utils';
@@ -202,6 +203,9 @@ const breadcrumbs = breadcrumbJsonLd([
   { name: data.name, url: `${config.url}${paths.event(event.id, locale)}` },
 ]);
 
+// Build a plain-text description for JSON-LD from the markdown body
+const bodyPreview = makePreview(event.body).join(' ').slice(0, 200) || undefined;
+
 const jsonLd = eventJsonLd({
   name: data.name,
   start_date: data.start_date,
@@ -209,11 +213,22 @@ const jsonLd = eventJsonLd({
   end_date: data.end_date,
   end_time: data.end_time,
   location: data.location,
-  registration_url: data.registration?.url || data.registration_url,
+  registration_url: regUrl,
   organizer_name: organizerName,
   organizer_url: organizerUrl,
   poster_key: data.poster_key,
+  description: bodyPreview,
+  tags,
+  isPast: isPastEvent,
+  price: reg?.price,
 });
+
+// Social preview description: date, location, distance, noun — no name repetition
+const seoDescParts = [dateDisplay, data.location, data.distances].filter(Boolean);
+const seoNoun = eventNoun(tags, locale);
+const seoDescription = seoDescParts.length > 0
+  ? `${seoDescParts.join(' \u2014 ')}. ${seoNoun.charAt(0).toUpperCase() + seoNoun.slice(1)}.`
+  : data.name;
 
 // Resolve event routes to route collection items
 const routeSlugs = data.routes ?? [];
@@ -248,7 +263,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 }
 ---
 
-<Base title={`${data.name} | ${config.display_name}`} description={`${data.name} — ${dateDisplay}`} ogImage={coverUrl} jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
+<Base title={`${data.name} | ${config.display_name}`} description={seoDescription} ogImage={coverUrl} ogImageAlt={data.name} ogType="event" jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
   <article class="event-detail">
     <div class={`event-detail-hero ${data.poster_key ? '' : 'event-detail-hero--no-poster'}`}>
       {data.poster_key && (
