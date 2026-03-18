@@ -46,9 +46,10 @@ function localizedEntryPerLocale(pathFn: (locale: string) => string, priority: n
   }));
 }
 
-export function buildSitemapEntries({ routes, guides }: {
+export function buildSitemapEntries({ routes, guides, events }: {
   routes: { id: string; data: { status: string; updated_at: string; variants?: { name: string; gpx: string; [k: string]: unknown }[]; translations?: Record<string, { slug?: string; [k: string]: unknown }>; [k: string]: unknown } }[];
   guides: { id: string; data: { status: string; [k: string]: unknown } }[];
+  events?: { id: string }[];
 }): SitemapEntry[] {
   const entries: SitemapEntry[] = [
     ...localizedEntry('/', 1.0),
@@ -72,6 +73,12 @@ export function buildSitemapEntries({ routes, guides }: {
   const pubGuides = guides.filter(g => g.data.status === 'published');
   for (const g of pubGuides) {
     entries.push(...localizedEntry(paths.guide(g.id), 0.7));
+  }
+
+  if (events) {
+    for (const e of events) {
+      entries.push(...localizedEntry(paths.event(e.id), 0.6));
+    }
   }
 
   return entries;

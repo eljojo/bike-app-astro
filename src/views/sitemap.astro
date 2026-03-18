@@ -13,6 +13,7 @@ const defLocale = defaultLocale();
 
 const routes = await getCollection('routes');
 const guides = await getCollection('guides');
+const events = await getCollection('events').catch(() => []);
 
 const publishedRoutes = routes
   .filter(r => r.data.status === 'published')
@@ -59,6 +60,15 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
         ))}
       </ul>
     </li>
+    {events.length > 0 && (
+      <li><a href="/events">{t('nav.events', defLocale)}</a>
+        <ul>
+          {events.map(e => (
+            <li><a href={paths.event(e.id, defLocale)}>{e.data.name}</a></li>
+          ))}
+        </ul>
+      </li>
+    )}
   </ul>
 
   {nonDefaultLocales.map(locale => (
@@ -93,6 +103,15 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
           ))}
         </ul>
       </li>
+      {events.length > 0 && (
+        <li><a href={localePath('/events', locale)}>{t('nav.events', locale)}</a>
+          <ul>
+            {events.map(e => (
+              <li><a href={paths.event(e.id, locale)}>{e.data.name}</a></li>
+            ))}
+          </ul>
+        </li>
+      )}
     </ul>
   ))}
 
