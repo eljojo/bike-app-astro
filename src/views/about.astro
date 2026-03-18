@@ -55,11 +55,14 @@ for (let i = 1; i < parts.length; i += 2) {
   sections.push({ title: sectionTitle, desc, body });
 }
 
-// Places for emoji pins (curated selection from places collection)
+// Places for emoji pins (random selection per category at build time)
 const allPlaces = await getCollection('places');
 const pinCategories = ['cafe', 'poutine', 'beach', 'park', 'ice-cream', 'lookout', 'beer', 'bike-shop', 'camping-spot'];
 const selectedPlaces = pinCategories
-  .map(cat => allPlaces.find(p => p.data.category === cat))
+  .map(cat => {
+    const matches = allPlaces.filter(p => p.data.category === cat);
+    return matches.length > 0 ? matches[Math.floor(Math.random() * matches.length)] : undefined;
+  })
   .filter(Boolean);
 ---
 
