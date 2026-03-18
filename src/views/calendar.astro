@@ -92,25 +92,21 @@ function groupByMonth(evts: typeof events) {
 
 const upcomingByMonth = groupByMonth(nonSeasonalUpcoming);
 
-// Organizer spotlight: organizers with >=2 upcoming events and instagram
-const upcomingOrganizerCounts = new Map<string, number>();
+// Organizer spotlight: organizers with >=2 total events and instagram
+const totalOrganizerCounts = new Map<string, number>();
 const organizerYears = new Map<string, Set<number>>();
 
 for (const e of events) {
   const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
   if (!orgId) continue;
+  totalOrganizerCounts.set(orgId, (totalOrganizerCounts.get(orgId) || 0) + 1);
   const year = parseLocalDate(e.data.start_date).getFullYear();
   if (!organizerYears.has(orgId)) organizerYears.set(orgId, new Set());
   organizerYears.get(orgId)!.add(year);
 }
-for (const e of upcoming) {
-  const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
-  if (!orgId) continue;
-  upcomingOrganizerCounts.set(orgId, (upcomingOrganizerCounts.get(orgId) || 0) + 1);
-}
 
 const spotlightCandidates = allOrganizers
-  .filter(o => o.data.instagram && (upcomingOrganizerCounts.get(o.id) || 0) >= 2);
+  .filter(o => o.data.instagram && (totalOrganizerCounts.get(o.id) || 0) >= 2);
 
 // Rank by year span (desc) then event count (desc), shuffle within tiers
 function seededRandom(seed: string) {
@@ -130,15 +126,15 @@ const dailySeed = new Date().toISOString().slice(0, 10);
 const rng = seededRandom(dailySeed);
 
 const rankedOrganizers = spotlightCandidates
-  .map(o => ({
-    organizer: o,
-    yearSpan: organizerYears.get(o.id)?.size ?? 0,
-    count: upcomingOrganizerCounts.get(o.id) || 0,
-    tiebreaker: rng(),
-  }))
+  .map(o => {
+    const years = organizerYears.get(o.id)?.size ?? 0;
+    const count = totalOrganizerCounts.get(o.id) || 0;
+    // Years active worth 3 points each, total events worth 1 point each
+    const score = years * 3 + count;
+    return { organizer: o, score, tiebreaker: rng() };
+  })
   .sort((a, b) => {
-    if (b.yearSpan !== a.yearSpan) return b.yearSpan - a.yearSpan;
-    if (b.count !== a.count) return b.count - a.count;
+    if (b.score !== a.score) return b.score - a.score;
     return a.tiebreaker - b.tiebreaker;
   });
 
