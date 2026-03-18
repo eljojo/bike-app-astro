@@ -37,6 +37,35 @@ describe('eventDetailFromGit', () => {
     expect(result.organizer).toBe('bike-club');
   });
 
+  it('parses tags from frontmatter', () => {
+    const fm = {
+      name: 'Gravel Ride',
+      start_date: '2099-05-01',
+      tags: ['gravel', 'beginner-friendly'],
+    };
+    const result = eventDetailFromGit('2099/gravel-ride', fm, '');
+    expect(result.tags).toEqual(['gravel', 'beginner-friendly']);
+  });
+
+  it('defaults tags to empty array when absent', () => {
+    const fm = { name: 'Test', start_date: '2099-01-01' };
+    const result = eventDetailFromGit('2099/test', fm, '');
+    expect(result.tags).toEqual([]);
+  });
+
+  it('parses poster dimensions from frontmatter', () => {
+    const fm = {
+      name: 'Poster Event',
+      start_date: '2099-06-01',
+      poster_key: 'abc',
+      poster_width: 1200,
+      poster_height: 1800,
+    };
+    const result = eventDetailFromGit('2099/poster-event', fm, '');
+    expect(result.poster_width).toBe(1200);
+    expect(result.poster_height).toBe(1800);
+  });
+
   it('handles inline organizer object', () => {
     const fm = {
       name: 'Test',
@@ -101,6 +130,21 @@ describe('enriched event fields', () => {
     expect(parsed.routes).toEqual(['route-a']);
     expect(parsed.waypoints).toHaveLength(1);
     expect(parsed.results).toHaveLength(1);
+  });
+
+  it('round-trips tags and poster dimensions through cache', () => {
+    const detail = eventDetailFromGit('2099/tagged-event', {
+      name: 'Tagged Event', start_date: '2099-03-15',
+      tags: ['gravel', 'social'],
+      poster_key: 'poster-abc',
+      poster_width: 800,
+      poster_height: 1200,
+    }, 'body');
+    const cached = eventDetailToCache(detail);
+    const parsed = eventDetailFromCache(cached);
+    expect(parsed.tags).toEqual(['gravel', 'social']);
+    expect(parsed.poster_width).toBe(800);
+    expect(parsed.poster_height).toBe(1200);
   });
 });
 

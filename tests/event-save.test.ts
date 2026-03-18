@@ -213,6 +213,28 @@ describe('eventHandlers.buildFileChanges', () => {
     expect(paths).toContain(`${CITY}/events/2099/simple-event.md`);
   });
 
+  it('includes poster dimensions in serialized frontmatter', async () => {
+    const update = {
+      frontmatter: {
+        name: 'Poster Event',
+        start_date: '2099-06-01',
+        poster_key: 'posters/abc.jpg',
+        poster_content_type: 'image/jpeg',
+        poster_width: 1200,
+        poster_height: 1800,
+      },
+      body: 'Description',
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/poster-event', { primaryFile: null }, mockGit as any,
+    );
+    const mdFile = result.files.find(f => f.path.endsWith('.md'));
+    expect(mdFile).toBeDefined();
+    expect(mdFile!.content).toContain('poster_width: 1200');
+    expect(mdFile!.content).toContain('poster_height: 1800');
+  });
+
   it('deletes flat file when migrating to directory on media addition', async () => {
     const update = {
       frontmatter: { name: 'Upgrading Event' },

@@ -5,7 +5,7 @@ import { buildImageUrl } from '../../lib/media/image-service';
 interface Props {
   photoKey: string;
   cdnUrl: string;
-  onPhotoChange: (key: string, contentType: string) => void;
+  onPhotoChange: (key: string, contentType: string, width?: number, height?: number) => void;
   label?: string;
 }
 
@@ -18,7 +18,7 @@ export default function PhotoField({ photoKey, cdnUrl, onPhotoChange, label = 'P
     setError('');
     const results = await upload.upload(file);
     if (results && results.length > 0) {
-      onPhotoChange(results[0].key, results[0].contentType || file.type);
+      onPhotoChange(results[0].key, results[0].contentType || file.type, results[0].width, results[0].height);
     } else if (upload.error) {
       setError(upload.error);
     }

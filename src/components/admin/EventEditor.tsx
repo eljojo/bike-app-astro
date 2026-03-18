@@ -31,6 +31,9 @@ interface Props {
   routeOptions?: RouteOption[];
   placeOptions?: Array<{ id: string; name: string }>;
   eventOptions?: Array<{ id: string; name: string; year: string }>;
+  tagTranslations?: Record<string, Record<string, string>>;
+  knownTags?: string[];
+  defaultLocale?: string;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -61,7 +64,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [] }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '' }: Props) {
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
@@ -80,6 +83,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [previousEvent, setPreviousEvent] = useState(initialData.previous_event || '');
   const [posterKey, setPosterKey] = useState(initialData.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(initialData.poster_content_type || '');
+  const [posterWidth, setPosterWidth] = useState<number | undefined>(initialData.poster_width);
+  const [posterHeight, setPosterHeight] = useState<number | undefined>(initialData.poster_height);
+  const [tags, setTags] = useState<string[]>(initialData.tags || []);
+  const [tagInput, setTagInput] = useState('');
   const [body, setBody] = useState(initialData.body);
 
   // Club-specific state
@@ -130,7 +137,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
+  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
@@ -176,7 +183,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(eventUrl && { event_url: eventUrl }),
           ...(mapUrl && { map_url: mapUrl }),
           ...(previousEvent && { previous_event: previousEvent }),
-          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg' }),
+          ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg', ...(posterWidth && { poster_width: posterWidth }), ...(posterHeight && { poster_height: posterHeight }) }),
+          ...(tags.length > 0 && { tags }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
           ...(isClub && waypoints.length > 0 && { waypoints }),
           ...(isClub && eventResults.length > 0 && { results: eventResults }),
@@ -230,6 +238,43 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     disclosure.open('orgForm');
   }
 
+  const activeLocale = defaultLocale; // events don't have per-editor locale switching
+
+  function displayTag(tag: string): string {
+    return tagTranslations[tag]?.[activeLocale] ?? tag;
+  }
+
+  function resolveTag(input: string): string {
+    if (knownTags.includes(input)) return input;
+    for (const [key, locales] of Object.entries(tagTranslations)) {
+      for (const translated of Object.values(locales)) {
+        if (translated.toLowerCase() === input) return key;
+      }
+    }
+    return input;
+  }
+
+  function addTag() {
+    const raw = tagInput.trim().toLowerCase();
+    if (!raw) { setTagInput(''); return; }
+    const tag = resolveTag(raw);
+    if (!tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+    setTagInput('');
+  }
+
+  function removeTag(tag: string) {
+    setTags(tags.filter(t => t !== tag));
+  }
+
+  function handleTagKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+  }
+
   return (
     <fieldset class="event-editor" disabled={readOnly}>
         <div class="auth-form">
@@ -237,6 +282,42 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             <label for="event-name">Name</label>
             <input id="event-name" type="text" value={name}
               onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          </div>
+
+          <div class="form-field">
+            <label>Tags</label>
+            <div class="tag-editor">
+              {tags.map((tag) => (
+                <span key={tag} class="tag-pill">
+                  {displayTag(tag)}
+                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
+                </span>
+              ))}
+              <input
+                type="text"
+                class="tag-input"
+                list="event-tag-suggestions"
+                value={tagInput}
+                onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={addTag}
+                placeholder="Add tag..."
+              />
+              <datalist id="event-tag-suggestions">
+                {knownTags
+                  .filter(t => !tags.includes(t))
+                  .flatMap(tag => {
+                    const options = [<option key={tag} value={tag} />];
+                    const locales = tagTranslations[tag];
+                    if (locales) {
+                      for (const [locale, translated] of Object.entries(locales)) {
+                        options.push(<option key={`${tag}-${locale}`} value={translated} />);
+                      }
+                    }
+                    return options;
+                  })}
+              </datalist>
+            </div>
           </div>
 
           <div class="form-field">
@@ -398,32 +479,30 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 <option value="">-- None --</option>
                 {(() => {
                   const opts = eventOptions ?? [];
-                  // Group events by name, sorted by year desc within each group
-                  const groups = new Map<string, typeof opts>();
+
+                  // Group events by year, newest first; within each year, newest first
+                  const byYear = new Map<string, typeof opts>();
                   for (const opt of opts) {
-                    const list = groups.get(opt.name) || [];
+                    const list = byYear.get(opt.year) || [];
                     list.push(opt);
-                    groups.set(opt.name, list);
+                    byYear.set(opt.year, list);
                   }
-                  for (const list of groups.values()) {
-                    list.sort((a, b) => b.year.localeCompare(a.year) || b.id.localeCompare(a.id));
+                  for (const list of byYear.values()) {
+                    list.sort((a, b) => b.id.localeCompare(a.id));
                   }
-                  // Sort group names: current event name first, then alphabetical
-                  const sortedNames = [...groups.keys()].sort((a, b) => {
-                    if (a === name && b !== name) return -1;
-                    if (b === name && a !== name) return 1;
-                    return a.localeCompare(b);
-                  });
-                  // Flat list when few events, grouped optgroups otherwise
-                  if (groups.size <= 1 || opts.length <= 10) {
-                    return opts.map(opt => (
-                      <option key={opt.id} value={opt.id}>{opt.name} ({opt.year})</option>
-                    ));
+                  const years = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
+
+                  if (years.length <= 1) {
+                    return opts
+                      .sort((a, b) => b.id.localeCompare(a.id))
+                      .map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.name}</option>
+                      ));
                   }
-                  return sortedNames.map(groupName => (
-                    <optgroup key={groupName} label={groupName}>
-                      {groups.get(groupName)!.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.year}</option>
+                  return years.map(year => (
+                    <optgroup key={year} label={year}>
+                      {byYear.get(year)!.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.name}</option>
                       ))}
                     </optgroup>
                   ));
@@ -446,9 +525,11 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             photoKey={posterKey}
             cdnUrl={cdnUrl}
             label="Poster"
-            onPhotoChange={(key, contentType) => {
+            onPhotoChange={(key, contentType, width, height) => {
               setPosterKey(key);
               setPosterContentType(contentType);
+              setPosterWidth(width);
+              setPosterHeight(height);
             }}
           />
         </div>

@@ -250,6 +250,8 @@ time_limit_hours: 20
 location: Plaza Italia, Santiago
 organizer: randonneur-chile
 distances: "300 km"
+tags:
+  - brevet
 routes:
   - vuelta-rocas-300
 waypoints:

@@ -6,6 +6,7 @@ import BigMap from '@/components/BigMap.astro';
 import { getCollection } from 'astro:content';
 import { categoryEmoji } from '@/lib/geo/place-categories';
 import { getCityConfig } from '@/lib/config/city-config';
+import { webPageJsonLd } from '@/lib/json-ld';
 import { t } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
 import photoLocations from 'virtual:bike-app/media-locations';
@@ -94,8 +95,16 @@ const photoData = photoLocations
       index: i,
     };
   });
+const mapTitle = `${t('nav.map', locale)} | ${config.display_name}`;
+const mapDescription = t('map.description', locale, { count: String(routeData.length), city: config.name });
+const jsonLd = webPageJsonLd({
+  name: mapTitle,
+  description: mapDescription,
+  url: `${config.url}/map`,
+  aboutName: config.name,
+});
 ---
 
-<Base title={`${t('nav.map', locale)} | ${config.display_name}`}>
+<Base title={mapTitle} description={mapDescription} jsonLd={jsonLd}>
   <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} />
 </Base>

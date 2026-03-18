@@ -5,6 +5,7 @@ import RouteMap from '@/components/RouteMap.astro';
 import tours from 'virtual:bike-app/tours';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
+import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
@@ -61,9 +62,15 @@ const photos = tourRides.flatMap(ride =>
 
 const seoTitle = `${tour.name} | ${config.display_name}`;
 const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km over ${tour.days} days`;
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: 'Home', url: `${config.url}/` },
+  { name: t('nav.tours', locale), url: `${config.url}/tours` },
+  { name: tour.name, url: `${config.url}${paths.tour(tour.slug)}` },
+]);
 ---
 
-<Base title={seoTitle} description={seoDescription}>
+<Base title={seoTitle} description={seoDescription} ogType="article" breadcrumbs={breadcrumbs}>
   <div class="tour-detail">
     <nav class="ride-breadcrumb">
       <a href="/tours">{t('nav.tours', locale)}</a>

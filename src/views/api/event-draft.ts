@@ -342,7 +342,7 @@ export async function POST({ request, locals }: APIContext) {
       // cannot reach private/internal IP ranges, providing built-in SSRF protection.
       const response = await fetch(body.url);
       if (!response.ok) {
-        return jsonError(`Failed to fetch URL: ${response.status}`, 502);
+        return jsonError('Could not retrieve content from that URL. The page may be blocked or unavailable.', 502);
       }
 
       const contentType = response.headers.get('content-type') || '';
