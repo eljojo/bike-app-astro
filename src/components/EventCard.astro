@@ -4,7 +4,6 @@ import './EventCard.scss';
 import { getCollection } from 'astro:content';
 import ResponsiveImage from './ResponsiveImage.astro';
 import { formatDateRange } from '../lib/date-utils';
-import { getInstanceFeatures } from '../lib/config/instance-features';
 
 interface Props {
   name: string;
@@ -57,8 +56,5 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
   {props.edition && <span class="event-edition">{props.edition}</span>}
   {props.review_url && (
     <a href={props.review_url} class="event-review">Read my review!</a>
-  )}
-  {props.eventId && getInstanceFeatures().showsContributeLink && (
-    <a href={`/admin/events/${props.eventId}`} class="suggest-edit-link">Suggest an edit</a>
   )}
 </div>

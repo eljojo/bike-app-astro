@@ -51,8 +51,7 @@
 }
 
 // Links inside the card that need to remain independently clickable
-.event-review,
-.suggest-edit-link {
+.event-review {
   position: relative;
   z-index: 1;
 }
