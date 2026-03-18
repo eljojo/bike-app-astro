@@ -18,7 +18,7 @@ import { buildTrackFromPoints, type GpxTrack, type GpxPoint } from '../lib/gpx/p
 import { cityDir } from '../lib/config/config.server';
 import { getCityConfig } from '../lib/config/city-config';
 import { computeFileDigest } from '../lib/directory-digest.server';
-import { filterPrivacyZone, stripPrivacyMedia, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
+import { filterPrivacyZones, stripPrivacyMediaMulti, computeDynamicZones, type PrivacyZoneConfig } from '../lib/geo/privacy-zone';
 import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { slugify } from '../lib/slug';
 import type { RouteMedia } from './route-file-reader';
@@ -350,10 +350,25 @@ export function rideLoader(): Loader {
           : privacyZone?.default_enabled ?? false;
 
         let filteredPoints = parsed.gpxTrack.points;
-        if (privacyZoneEnabled && privacyZone) {
-          const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
+        if (privacyZoneEnabled) {
           const mappedPoints = parsed.gpxTrack.points.map(p => ({ lat: p.lat, lng: p.lon, ele: p.ele }));
-          const filtered = filterPrivacyZone(mappedPoints, zone);
+
+          // Build list of zones: static (from config) + dynamic (from ride start/end)
+          const zones: PrivacyZoneConfig[] = [];
+
+          // Static zone from config (if lat/lng are configured)
+          if (privacyZone?.lat != null && privacyZone?.lng != null) {
+            zones.push({ lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m ?? 500 });
+          }
+
+          // Dynamic zones from ride start/end points
+          const dynamicZones = computeDynamicZones(mappedPoints, slug, {
+            radius_m: privacyZone?.radius_m,
+            jitter_m: privacyZone?.jitter_m,
+          });
+          zones.push(...dynamicZones);
+
+          const filtered = filterPrivacyZones(mappedPoints, zones);
           filteredPoints = filtered.map(p => ({ lat: p.lat, lon: p.lng, ele: p.ele } as GpxPoint));
         }
 
@@ -366,16 +381,19 @@ export function rideLoader(): Loader {
 
         const gpxTrack: GpxTrack = buildTrackFromPoints(filteredPoints);
 
-        // Strip photo GPS coordinates that fall inside the privacy zone
+        // Strip photo GPS coordinates that fall inside privacy zones
         let media: RouteMedia[] = parsed.media;
-        if (privacyZone && media.length > 0) {
-          const privacyEnabled = typeof parsed.frontmatter.privacy_zone === 'boolean'
-            ? parsed.frontmatter.privacy_zone
-            : privacyZone.default_enabled;
-          if (privacyEnabled) {
-            const zone: PrivacyZoneConfig = { lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m };
-            media = stripPrivacyMedia(media, zone);
+        if (privacyZoneEnabled && media.length > 0) {
+          const mappedForMedia = parsed.gpxTrack.points.map(p => ({ lat: p.lat, lng: p.lon }));
+          const mediaZones: PrivacyZoneConfig[] = [];
+          if (privacyZone?.lat != null && privacyZone?.lng != null) {
+            mediaZones.push({ lat: privacyZone.lat, lng: privacyZone.lng, radius_m: privacyZone.radius_m ?? 500 });
           }
+          mediaZones.push(...computeDynamicZones(mappedForMedia, slug, {
+            radius_m: privacyZone?.radius_m,
+            jitter_m: privacyZone?.jitter_m,
+          }));
+          media = stripPrivacyMediaMulti(media, mediaZones);
         }
 
         // Load tour-level metadata if this ride belongs to a tour

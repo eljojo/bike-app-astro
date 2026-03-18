@@ -29,9 +29,10 @@ export interface CityConfig {
   bounds: { north: number; south: number; east: number; west: number };
   place_categories: Record<string, string[]>;
   privacy_zone?: {
-    lat: number;
-    lng: number;
-    radius_m: number;
+    lat?: number;
+    lng?: number;
+    radius_m?: number;
+    jitter_m?: number;
     default_enabled: boolean;
   };
   acp_club_code?: string;
