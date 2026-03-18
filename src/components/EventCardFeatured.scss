@@ -77,6 +77,21 @@
   }
 }
 
+.event-card-featured-series {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.75em;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  opacity: 0.7;
+
+  @include dark-mode {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
 .event-card-featured-date {
   font-size: 0.85em;
   @include muted-text;

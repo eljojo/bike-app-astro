@@ -13,6 +13,7 @@ import { t, formatLocale } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { classifyEvent } from '@/lib/event-tags';
 import { tTag } from '@/lib/i18n/tag-translations.server';
+import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -28,22 +29,88 @@ const allOrganizers = await getCollection('organizers');
 const now = new Date();
 const currentYear = now.getFullYear();
 
-const upcoming = events
-  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) >= now)
-  .sort((a, b) => parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime());
+// CalendarEntry wraps events with optional occurrence overrides for series
+interface CalendarEntry {
+  event: typeof events[0];
+  occurrenceDate?: string;
+  occurrenceLocation?: string;
+}
 
-const past = events
-  .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
-  .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime());
+function effectiveDate(entry: CalendarEntry): string {
+  return entry.occurrenceDate || entry.event.data.start_date;
+}
+function effectiveEndDate(entry: CalendarEntry): string {
+  return entry.occurrenceDate || entry.event.data.end_date || entry.event.data.start_date;
+}
 
-// Classify upcoming events
-const seasonal: typeof upcoming = [];
-const community: typeof upcoming = [];
-const learnConnect: typeof upcoming = [];
-const general: typeof upcoming = [];
+// Expand series events into one CalendarEntry per occurrence
+const expanded: CalendarEntry[] = [];
+for (const event of events) {
+  if (isSeriesEvent(event.data)) {
+    const occurrences = expandSeriesOccurrences(event.data);
+    for (const occ of occurrences) {
+      if (!occ.cancelled) {
+        expanded.push({
+          event,
+          occurrenceDate: occ.date,
+          occurrenceLocation: occ.location,
+        });
+      }
+    }
+  } else {
+    expanded.push({ event });
+  }
+}
 
-for (const e of upcoming) {
-  const section = classifyEvent(e.data.tags ?? []);
+const upcoming = expanded
+  .filter(e => parseLocalDate(effectiveEndDate(e)) >= now)
+  .sort((a, b) => parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime());
+
+const past = expanded
+  .filter(e => parseLocalDate(effectiveEndDate(e)) < now)
+  .sort((a, b) => parseLocalDate(effectiveDate(b)).getTime() - parseLocalDate(effectiveDate(a)).getTime());
+
+// Deduplicate series for section views: show each series once with its next occurrence date
+function deduplicateSeries(entries: CalendarEntry[]): CalendarEntry[] {
+  const seen = new Set<string>();
+  const result: CalendarEntry[] = [];
+  for (const entry of entries) {
+    const id = entry.event.id;
+    if (isSeriesEvent(entry.event.data)) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+    }
+    result.push(entry);
+  }
+  return result;
+}
+
+// Build a series badge label for display on cards
+function getSeriesBadge(entry: CalendarEntry): string | undefined {
+  if (!isSeriesEvent(entry.event.data)) return undefined;
+  const series = entry.event.data.series;
+  if (!series) return undefined;
+  if (series.recurrence && series.recurrence_day) {
+    const dayName = series.recurrence_day.charAt(0).toUpperCase() + series.recurrence_day.slice(1);
+    return series.recurrence === 'biweekly' ? `Every other ${dayName}` : `Every ${dayName}`;
+  }
+  if (series.schedule?.length) {
+    return `${series.schedule.length} dates`;
+  }
+  return undefined;
+}
+
+// Deduplicated upcoming entries for section views
+const upcomingDeduped = deduplicateSeries(upcoming);
+
+// Classify upcoming events (deduplicated for sections)
+const seasonal: CalendarEntry[] = [];
+const community: CalendarEntry[] = [];
+const learnConnect: CalendarEntry[] = [];
+const general: CalendarEntry[] = [];
+
+for (const e of upcomingDeduped) {
+  const section = classifyEvent(e.event.data.tags ?? []);
   switch (section) {
     case 'seasonal': seasonal.push(e); break;
     case 'community': community.push(e); break;
@@ -60,32 +127,32 @@ const showLearnConnect = learnConnect.length >= 2;
 const comingUpPool = [...general];
 if (!showCommunity) comingUpPool.push(...community);
 if (!showLearnConnect) comingUpPool.push(...learnConnect);
-comingUpPool.sort((a, b) => parseLocalDate(a.data.start_date).getTime() - parseLocalDate(b.data.start_date).getTime());
+comingUpPool.sort((a, b) => parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime());
 const comingUp = comingUpPool.slice(0, 3);
 
 // For folded events, determine if they need a tag pill
-function getTagLabel(event: typeof upcoming[0]): string | undefined {
-  const section = classifyEvent(event.data.tags ?? []);
+function getTagLabel(entry: CalendarEntry): string | undefined {
+  const section = classifyEvent(entry.event.data.tags ?? []);
   if (section === 'community' && !showCommunity) {
-    const tag = event.data.tags?.find((t: string) => ['social', 'group-ride', 'critical-mass'].includes(t));
+    const tag = entry.event.data.tags?.find((t: string) => ['social', 'group-ride', 'critical-mass'].includes(t));
     return tag ? tTag(tag, locale) : undefined;
   }
   if (section === 'learn-connect' && !showLearnConnect) {
-    const tag = event.data.tags?.find((t: string) => ['workshop', 'swap-meet', 'festival', 'advocacy', 'bikepacking'].includes(t));
+    const tag = entry.event.data.tags?.find((t: string) => ['workshop', 'swap-meet', 'festival', 'advocacy', 'bikepacking'].includes(t));
     return tag ? tTag(tag, locale) : undefined;
   }
   return undefined;
 }
 
-// Non-seasonal upcoming for full calendar section
-const nonSeasonalUpcoming = upcoming.filter(e => classifyEvent(e.data.tags ?? []) !== 'seasonal');
+// Non-seasonal upcoming for full calendar section (expanded — shows all occurrences)
+const nonSeasonalUpcoming = upcoming.filter(e => classifyEvent(e.event.data.tags ?? []) !== 'seasonal');
 
-function groupByMonth(evts: typeof events) {
-  const groups: Record<string, typeof events> = {};
-  for (const e of evts) {
-    const month = formatMonthName(e.data.start_date, fmtLocale);
+function groupByMonth(entries: CalendarEntry[]) {
+  const groups: Record<string, CalendarEntry[]> = {};
+  for (const entry of entries) {
+    const month = formatMonthName(effectiveDate(entry), fmtLocale);
     if (!groups[month]) groups[month] = [];
-    groups[month].push(e);
+    groups[month].push(entry);
   }
   return groups;
 }
@@ -154,11 +221,11 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
 
   {seasonal.map(e => (
     <SeasonalBanner
-      name={e.data.name}
-      startDate={e.data.start_date}
-      endDate={e.data.end_date}
-      bannerText={e.data.banner_text}
-      eventId={e.id}
+      name={e.event.data.name}
+      startDate={effectiveDate(e)}
+      endDate={e.event.data.end_date}
+      bannerText={e.event.data.banner_text}
+      eventId={e.event.id}
       locale={locale}
     />
   ))}
@@ -172,21 +239,18 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <h2>{t('calendar.coming_up', locale)}</h2>
       <div class="featured-cards">
         {comingUp.map(e => (
-          <EventCardFeatured event={e} tagLabel={getTagLabel(e)} locale={locale} />
+          <EventCardFeatured event={e.event} tagLabel={getTagLabel(e)} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} locale={locale} />
         ))}
       </div>
     </section>
   )}
 
-  {/* TODO: Display recurring cadence when events have recurrence metadata
-      (e.g. "Every Thursday", "Last Friday of the month")
-      Requires teaching the data model about recurrence patterns. */}
   {showCommunity && (
     <section class="calendar-section">
       <h2>{t('calendar.find_your_people', locale)}</h2>
       <div class="featured-cards">
         {community.slice(0, 3).map(e => (
-          <EventCardFeatured event={e} locale={locale} />
+          <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} locale={locale} />
         ))}
       </div>
     </section>
@@ -197,7 +261,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <h2>{t('calendar.learn_and_connect', locale)}</h2>
       <div class="featured-cards">
         {learnConnect.slice(0, 3).map(e => (
-          <EventCardFeatured event={e} locale={locale} />
+          <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} locale={locale} />
         ))}
       </div>
     </section>
@@ -219,7 +283,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
             <h3 class="month-header">{month}</h3>
             <div class="events-list">
               {evts.map(e => (
-                <EventCardCompact event={e} locale={locale} />
+                <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} seriesBadge={getSeriesBadge(e)} locale={locale} />
               ))}
             </div>
           </div>
@@ -239,7 +303,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <div class="past-events" style="display: none;">
         <div class="events-list">
           {past.map(e => (
-            <EventCardCompact event={e} locale={locale} />
+            <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} locale={locale} />
           ))}
         </div>
       </div>

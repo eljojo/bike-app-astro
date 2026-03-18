@@ -24,10 +24,13 @@ interface Props {
       distance?: number;
     };
   };
+  occurrenceDate?: string;
+  occurrenceLocation?: string;
+  seriesBadge?: string;
   locale?: string;
 }
 
-const { event, locale } = Astro.props;
+const { event, occurrenceDate, occurrenceLocation, seriesBadge, locale } = Astro.props;
 const { data } = event;
 
 let organizerName = '';
@@ -39,7 +42,9 @@ if (typeof data.organizer === 'string') {
   organizerName = data.organizer.name;
 }
 
-const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
+const displayStartDate = occurrenceDate || data.start_date;
+const displayEndDate = occurrenceDate ? undefined : data.end_date;
+const dateDisplay = formatDateRange(displayStartDate, displayEndDate, locale);
 const href = paths.event(event.id, locale);
 
 const firstTag = data.tags?.[0];
@@ -67,6 +72,9 @@ const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(
   <div class="event-card-compact-body">
     <div class="event-card-compact-line1">
       <a href={href} class="event-card-compact-name">{data.name}</a>
+      {seriesBadge && (
+        <span class="event-card-compact-series">{seriesBadge}</span>
+      )}
       {tagLabel && tagColor && (
         <span
           class="event-card-compact-tag"

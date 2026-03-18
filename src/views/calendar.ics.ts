@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate } from '../lib/date-utils';
 import { getCityConfig } from '../lib/config/city-config';
+import { expandSeriesOccurrences, isSeriesEvent } from '../lib/series-utils';
 
 export const prerender = true;
 
@@ -78,6 +79,39 @@ export const GET: APIRoute = async () => {
 
   for (const event of events) {
     const e = event.data;
+
+    if (isSeriesEvent(e)) {
+      const occurrences = expandSeriesOccurrences(e);
+      for (const occ of occurrences) {
+        if (occ.cancelled) continue;
+        const uid = `${event.id}-${occ.date}@${config.domain}`;
+        lines.push('BEGIN:VEVENT');
+        lines.push(`UID:${uid}`);
+        lines.push(`DTSTAMP:${dtstamp}`);
+        const time = occ.start_time;
+        if (time) {
+          lines.push(`DTSTART;TZID=${config.timezone}:${formatIcalDate(occ.date)}T${formatIcalTime(time)}`);
+          const fallback = addOneHour(occ.date, time);
+          lines.push(`DTEND;TZID=${config.timezone}:${formatIcalDate(fallback.date)}T${formatIcalTime(fallback.time)}`);
+        } else {
+          lines.push(`DTSTART;VALUE=DATE:${formatIcalDate(occ.date)}`);
+        }
+        lines.push(`SUMMARY:${escapeIcal(e.name)}`);
+        if (occ.location) lines.push(`LOCATION:${escapeIcal(occ.location)}`);
+        if (e.registration_url) lines.push(`URL:${e.registration_url}`);
+
+        const descParts: string[] = [];
+        if (occ.meet_time && time) {
+          descParts.push(`Meet: ${occ.meet_time}, Roll: ${time}`);
+        }
+        if (e.distances) descParts.push(e.distances);
+        if (descParts.length) lines.push(`DESCRIPTION:${escapeIcal(descParts.join('\\n'))}`);
+
+        lines.push('END:VEVENT');
+      }
+      continue;
+    }
+
     const uid = `${event.id}@${config.domain}`;
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${uid}`);

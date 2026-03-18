@@ -131,11 +131,35 @@ export const resultSchema = z.object({
   status: z.enum(['DNS', 'DNF', 'DQ']).optional(),
 });
 
+const seriesOccurrenceOverrideSchema = z.object({
+  date: z.string(),
+  location: z.string().optional(),
+  start_time: z.string().optional(),
+  meet_time: z.string().optional(),
+  note: z.string().optional(),
+  cancelled: z.boolean().optional(),
+  rescheduled_from: z.string().optional(),
+});
+
+const eventSeriesSchema = z.object({
+  recurrence: z.enum(['weekly', 'biweekly']).optional(),
+  recurrence_day: z.enum([
+    'monday', 'tuesday', 'wednesday', 'thursday',
+    'friday', 'saturday', 'sunday',
+  ]).optional(),
+  season_start: z.string().optional(),
+  season_end: z.string().optional(),
+  skip_dates: z.array(z.string()).optional(),
+  overrides: z.array(seriesOccurrenceOverrideSchema).optional(),
+  schedule: z.array(seriesOccurrenceOverrideSchema).optional(),
+});
+
 export const eventSchema = z.object({
   name: z.string(),
   start_date: z.string(),
   event_date: z.string().optional(),
   start_time: z.string().optional(),
+  meet_time: z.string().optional(),
   end_date: z.string().optional(),
   end_time: z.string().optional(),
   time_limit_hours: z.number().optional(),
@@ -172,4 +196,5 @@ export const eventSchema = z.object({
     width: z.number().optional(),
     height: z.number().optional(),
   })).optional(),
+  series: eventSeriesSchema.optional(),
 });

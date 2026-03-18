@@ -23,10 +23,12 @@ interface Props {
     };
   };
   tagLabel?: string;
+  seriesBadge?: string;
+  occurrenceDate?: string;
   locale?: string;
 }
 
-const { event, tagLabel, locale } = Astro.props;
+const { event, tagLabel, seriesBadge, occurrenceDate, locale } = Astro.props;
 const { data } = event;
 
 let organizerName = '';
@@ -38,7 +40,9 @@ if (typeof data.organizer === 'string') {
   organizerName = data.organizer.name;
 }
 
-const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
+const displayStartDate = occurrenceDate || data.start_date;
+const displayEndDate = occurrenceDate ? undefined : data.end_date;
+const dateDisplay = formatDateRange(displayStartDate, displayEndDate, locale);
 const href = paths.event(event.id, locale);
 
 const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
@@ -65,6 +69,9 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
       >
         {tagLabel}
       </span>
+    )}
+    {seriesBadge && (
+      <span class="event-card-featured-series">{seriesBadge}</span>
     )}
     <span class="event-card-featured-date">{dateDisplay}</span>
   </div>
