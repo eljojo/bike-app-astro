@@ -64,6 +64,11 @@
   border-radius: $border-radius;
 }
 
+.event-detail-hero-video {
+  max-width: 640px;
+  margin: 1.5em auto;
+}
+
 .event-detail-hero-info {
   flex: 1;
   display: flex;
