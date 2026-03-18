@@ -172,11 +172,13 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
   )}
 
   {comingUp.length > 0 && (
-    <section>
+    <section class="calendar-section">
       <h2>{t('calendar.coming_up', locale)}</h2>
-      {comingUp.map(e => (
-        <EventCardFeatured event={e} tagLabel={getTagLabel(e)} locale={locale} />
-      ))}
+      <div class="featured-cards">
+        {comingUp.map(e => (
+          <EventCardFeatured event={e} tagLabel={getTagLabel(e)} locale={locale} />
+        ))}
+      </div>
     </section>
   )}
 
@@ -184,20 +186,24 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       (e.g. "Every Thursday", "Last Friday of the month")
       Requires teaching the data model about recurrence patterns. */}
   {showCommunity && (
-    <section>
+    <section class="calendar-section">
       <h2>{t('calendar.find_your_people', locale)}</h2>
-      {community.slice(0, 3).map(e => (
-        <EventCardFeatured event={e} locale={locale} />
-      ))}
+      <div class="featured-cards">
+        {community.slice(0, 3).map(e => (
+          <EventCardFeatured event={e} locale={locale} />
+        ))}
+      </div>
     </section>
   )}
 
   {showLearnConnect && (
-    <section>
+    <section class="calendar-section">
       <h2>{t('calendar.learn_and_connect', locale)}</h2>
-      {learnConnect.slice(0, 3).map(e => (
-        <EventCardFeatured event={e} locale={locale} />
-      ))}
+      <div class="featured-cards">
+        {learnConnect.slice(0, 3).map(e => (
+          <EventCardFeatured event={e} locale={locale} />
+        ))}
+      </div>
     </section>
   )}
 
