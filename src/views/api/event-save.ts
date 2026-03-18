@@ -36,6 +36,10 @@ const eventUpdateSchema = z.object({
     name: z.string(),
     website: z.string().optional(),
     instagram: z.string().optional(),
+    photo_key: z.string().optional(),
+    photo_content_type: z.string().optional(),
+    photo_width: z.number().optional(),
+    photo_height: z.number().optional(),
     isExistingRef: z.boolean().optional(),
   }).optional(),
   media: z.array(eventMediaItemSchema).optional(),
@@ -47,6 +51,8 @@ export type EventUpdate = z.infer<typeof eventUpdateSchema>;
 interface EventBuildResult extends BuildResult {
   oldPosterKey: string | undefined;
   newPosterKey: string | undefined;
+  oldOrgPhotoKey: string | undefined;
+  newOrgPhotoKey: string | undefined;
   eventSlug: string;
   mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
@@ -103,9 +109,15 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
     if (lastOrganizerUpdate?.name) {
       const data = JSON.parse(json);
       if (typeof data.organizer === 'string') {
-        const org: Record<string, string> = { name: lastOrganizerUpdate.name };
+        const org: Record<string, unknown> = { name: lastOrganizerUpdate.name };
         if (lastOrganizerUpdate.website) org.website = lastOrganizerUpdate.website;
         if (lastOrganizerUpdate.instagram) org.instagram = lastOrganizerUpdate.instagram;
+        if (lastOrganizerUpdate.photo_key) {
+          org.photo_key = lastOrganizerUpdate.photo_key;
+          if (lastOrganizerUpdate.photo_content_type) org.photo_content_type = lastOrganizerUpdate.photo_content_type;
+          if (lastOrganizerUpdate.photo_width) org.photo_width = lastOrganizerUpdate.photo_width;
+          if (lastOrganizerUpdate.photo_height) org.photo_height = lastOrganizerUpdate.photo_height;
+        }
         data.organizer = org;
         return JSON.stringify(data);
       }
@@ -168,44 +180,68 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
     const fm: Record<string, unknown> = { ...update.frontmatter };
 
     // Organizer handling: inline vs separate file
+    let oldOrgPhotoKey: string | undefined;
+    let newOrgPhotoKey: string | undefined;
     if (update.organizer && update.organizer.name) {
       const orgSlug = update.organizer.slug || slugify(update.organizer.name);
+      newOrgPhotoKey = update.organizer.photo_key;
+
+      // Read existing organizer file to detect old photo key for media parking
+      const orgFilePath = `${CITY}/organizers/${orgSlug}.md`;
+      const existingOrgFile = await git.readFile(orgFilePath);
+      if (existingOrgFile) {
+        oldOrgPhotoKey = extractFrontmatterField(existingOrgFile.content, 'photo_key');
+      }
+
+      // Build common organizer fields
+      function buildOrgFields(): Record<string, unknown> {
+        const fields: Record<string, unknown> = { name: update.organizer!.name };
+        if (update.organizer!.website) fields.website = update.organizer!.website;
+        if (update.organizer!.instagram) fields.instagram = update.organizer!.instagram;
+        if (update.organizer!.photo_key) {
+          fields.photo_key = update.organizer!.photo_key;
+          if (update.organizer!.photo_content_type) fields.photo_content_type = update.organizer!.photo_content_type;
+          if (update.organizer!.photo_width) fields.photo_width = update.organizer!.photo_width;
+          if (update.organizer!.photo_height) fields.photo_height = update.organizer!.photo_height;
+        }
+        return fields;
+      }
 
       if (update.organizer.isExistingRef) {
         // User selected an existing organizer — always write/update the organizer file
         fm.organizer = orgSlug;
-
-        const orgFm: Record<string, string> = { name: update.organizer.name };
-        if (update.organizer.website) orgFm.website = update.organizer.website;
-        if (update.organizer.instagram) orgFm.instagram = update.organizer.instagram;
-
-        const orgContent = serializeMdFile(orgFm);
-        files.push({ path: `${CITY}/organizers/${orgSlug}.md`, content: orgContent });
+        const orgContent = serializeMdFile(buildOrgFields());
+        files.push({ path: orgFilePath, content: orgContent });
       } else {
         // New/inline organizer — use reference count to decide
         const otherRefs = countOrganizerReferences(orgSlug, eventId);
 
         if (otherRefs === 0) {
-          const orgObj: Record<string, string> = { name: update.organizer.name };
-          if (update.organizer.website) orgObj.website = update.organizer.website;
-          if (update.organizer.instagram) orgObj.instagram = update.organizer.instagram;
-          fm.organizer = orgObj;
+          fm.organizer = buildOrgFields();
 
-          const orgFilePath = `${CITY}/organizers/${orgSlug}.md`;
-          const existingOrg = await git.readFile(orgFilePath);
-          if (existingOrg) {
+          if (existingOrgFile) {
             deletePaths.push(orgFilePath);
           }
         } else {
           fm.organizer = orgSlug;
-
-          const orgFm: Record<string, string> = { name: update.organizer.name };
-          if (update.organizer.website) orgFm.website = update.organizer.website;
-          if (update.organizer.instagram) orgFm.instagram = update.organizer.instagram;
-
-          const orgContent = serializeMdFile(orgFm);
-          files.push({ path: `${CITY}/organizers/${orgSlug}.md`, content: orgContent });
+          const orgContent = serializeMdFile(buildOrgFields());
+          files.push({ path: orgFilePath, content: orgContent });
         }
+      }
+
+      // Park orphaned organizer photo if key changed
+      const orgPhotoParked = await parkOrphanedMedia({
+        oldKey: oldOrgPhotoKey,
+        newKey: newOrgPhotoKey,
+        contentType: 'event',
+        contentId: `organizer/${orgSlug}`,
+        sharedKeysData,
+        git,
+      });
+      if (orgPhotoParked) {
+        if (!mergedParked) mergedParked = [];
+        mergedParked.push(...(orgPhotoParked.mergedParked || []));
+        files.push(orgPhotoParked.fileChange);
       }
     }
 
@@ -241,15 +277,18 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
 
     return {
       files, deletePaths, isNew,
-      oldPosterKey, newPosterKey, eventSlug: eventId,
+      oldPosterKey, newPosterKey,
+      oldOrgPhotoKey, newOrgPhotoKey,
+      eventSlug: eventId,
       mergedParked, addedMediaKeys, removedMediaKeys,
     };
   },
 
   async afterCommit(result, database) {
-    const { oldPosterKey, newPosterKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
+    const { oldPosterKey, newPosterKey, oldOrgPhotoKey, newOrgPhotoKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
     const changes = [
       ...buildSingleMediaKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
+      ...buildSingleMediaKeyChanges(oldOrgPhotoKey, newOrgPhotoKey, 'event', eventSlug),
       ...buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'event', eventSlug),
     ];
     await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });

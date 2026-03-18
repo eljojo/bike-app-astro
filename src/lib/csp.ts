@@ -34,11 +34,12 @@ export function sharedCspDirectives(options?: CspOptions): string[] {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `img-src 'self' data: blob: ${cdn} ${videos} https://www.gravatar.com`,
+    `img-src 'self' data: blob: ${cdn} ${videos} https://www.gravatar.com https://img.youtube.com`,
     `media-src 'self' blob: ${videos} ${cdn}`,
     "font-src 'self' data:",
     `connect-src ${connectSources.join(' ')}`,
     "worker-src 'self' blob:",
+    "frame-src 'self' https://www.youtube-nocookie.com",
     "manifest-src 'self'",
   ];
 }

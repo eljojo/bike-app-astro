@@ -140,6 +140,26 @@ describe('eventHandlers.parseRequest', () => {
     const parsed = eventHandlers.parseRequest(body);
     expect(parsed.organizer?.slug).toBe('bike-club');
   });
+
+  it('accepts organizer with photo fields', () => {
+    const body = {
+      frontmatter: { name: 'Test' },
+      body: '',
+      organizer: {
+        slug: 'bike-club',
+        name: 'Bike Club',
+        photo_key: 'organizers/bike-club.jpg',
+        photo_content_type: 'image/jpeg',
+        photo_width: 400,
+        photo_height: 400,
+      },
+    };
+    const parsed = eventHandlers.parseRequest(body);
+    expect(parsed.organizer?.photo_key).toBe('organizers/bike-club.jpg');
+    expect(parsed.organizer?.photo_width).toBe(400);
+    expect(parsed.organizer?.photo_height).toBe(400);
+    expect(parsed.organizer?.photo_content_type).toBe('image/jpeg');
+  });
 });
 
 describe('eventHandlers.checkExistence', () => {
@@ -263,6 +283,142 @@ describe('eventHandlers.buildFileChanges', () => {
     // Should delete the old flat file
     expect(result.deletePaths).toContain(`${CITY}/events/2099/upgrading.md`);
   });
+
+  it('writes organizer photo fields to separate file (existing ref)', async () => {
+    const update = {
+      frontmatter: { name: 'Photo Org Event', start_date: '2099-06-01' },
+      body: '',
+      organizer: {
+        slug: 'bike-club',
+        name: 'Bike Club',
+        instagram: 'bikeclub',
+        photo_key: 'organizers/bike-club.jpg',
+        photo_content_type: 'image/jpeg',
+        photo_width: 400,
+        photo_height: 400,
+        isExistingRef: true,
+      },
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/photo-org-event', { primaryFile: null }, mockGit as any,
+    );
+    const orgFile = result.files.find(f => f.path === `${CITY}/organizers/bike-club.md`);
+    expect(orgFile).toBeDefined();
+    expect(orgFile!.content).toContain('photo_key: organizers/bike-club.jpg');
+    expect(orgFile!.content).toContain('photo_width: 400');
+    expect(orgFile!.content).toContain('photo_height: 400');
+    expect(orgFile!.content).toContain('photo_content_type: image/jpeg');
+  });
+
+  it('inlines organizer photo fields when no other references', async () => {
+    const update = {
+      frontmatter: { name: 'Inline Org Event', start_date: '2099-06-01' },
+      body: '',
+      organizer: {
+        slug: 'new-org',
+        name: 'New Org',
+        photo_key: 'organizers/new-org.jpg',
+        photo_content_type: 'image/jpeg',
+        photo_width: 300,
+        photo_height: 300,
+      },
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/inline-org-event', { primaryFile: null }, mockGit as any,
+    );
+    const eventFile = result.files.find(f => f.path.endsWith('.md') && !f.path.includes('organizers'));
+    expect(eventFile).toBeDefined();
+    expect(eventFile!.content).toContain('photo_key: organizers/new-org.jpg');
+    expect(eventFile!.content).toContain('photo_width: 300');
+  });
+
+  it('writes organizer photo to file when isExistingRef even with different slug', async () => {
+    // isExistingRef always writes the organizer file, regardless of ref count
+    const update = {
+      frontmatter: { name: 'Ref Org Event', start_date: '2099-06-01' },
+      body: '',
+      organizer: {
+        slug: 'shared-org',
+        name: 'Shared Org',
+        photo_key: 'organizers/shared-org.jpg',
+        photo_content_type: 'image/jpeg',
+        photo_width: 500,
+        photo_height: 500,
+        isExistingRef: true,
+      },
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/ref-org-event', { primaryFile: null }, mockGit as any,
+    );
+    const orgFile = result.files.find(f => f.path === `${CITY}/organizers/shared-org.md`);
+    expect(orgFile).toBeDefined();
+    expect(orgFile!.content).toContain('photo_key: organizers/shared-org.jpg');
+    expect(orgFile!.content).toContain('photo_width: 500');
+    // Event frontmatter should reference by slug, not inline
+    const eventFile = result.files.find(f => f.path.endsWith('.md') && !f.path.includes('organizers'));
+    expect(eventFile!.content).toContain('organizer: shared-org');
+  });
+
+  it('tracks old and new organizer photo keys for media parking', async () => {
+    mockExtractFrontmatterField.mockReturnValueOnce('organizers/old-photo.jpg');
+    const update = {
+      frontmatter: { name: 'Replace Photo Event', start_date: '2099-06-01' },
+      body: '',
+      organizer: {
+        slug: 'photo-org',
+        name: 'Photo Org',
+        photo_key: 'organizers/new-photo.jpg',
+        photo_content_type: 'image/jpeg',
+        photo_width: 200,
+        photo_height: 200,
+        isExistingRef: true,
+      },
+    };
+    const mockGit = {
+      readFile: vi.fn().mockImplementation((path: string) => {
+        if (path.includes('organizers/photo-org.md')) {
+          return { content: '---\nname: Photo Org\nphoto_key: organizers/old-photo.jpg\n---', sha: 'sha1' };
+        }
+        return null;
+      }),
+    };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/replace-photo-event', { primaryFile: null }, mockGit as any,
+    );
+    expect(result.oldOrgPhotoKey).toBe('organizers/old-photo.jpg');
+    expect(result.newOrgPhotoKey).toBe('organizers/new-photo.jpg');
+    // parkOrphanedMedia should have been called for the org photo
+    expect(mockParkOrphanedMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        oldKey: 'organizers/old-photo.jpg',
+        newKey: 'organizers/new-photo.jpg',
+      }),
+    );
+  });
+
+  it('omits photo fields from organizer when not provided', async () => {
+    const update = {
+      frontmatter: { name: 'No Photo Event', start_date: '2099-06-01' },
+      body: '',
+      organizer: {
+        slug: 'no-photo-org',
+        name: 'No Photo Org',
+        website: 'https://example.com',
+        isExistingRef: true,
+      },
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/no-photo-event', { primaryFile: null }, mockGit as any,
+    );
+    const orgFile = result.files.find(f => f.path === `${CITY}/organizers/no-photo-org.md`);
+    expect(orgFile).toBeDefined();
+    expect(orgFile!.content).not.toContain('photo_key');
+    expect(orgFile!.content).not.toContain('photo_width');
+  });
 });
 
 describe('eventHandlers.afterCommit', () => {
@@ -352,6 +508,31 @@ describe('eventHandlers.afterCommit', () => {
     await eventHandlers.afterCommit!(result as any, {} as any);
     expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
       expect.objectContaining({ keyChanges: [] }),
+    );
+  });
+
+  it('includes organizer photo key changes in registry update', async () => {
+    const result = {
+      files: [],
+      deletePaths: [],
+      isNew: false,
+      oldPosterKey: undefined,
+      newPosterKey: undefined,
+      oldOrgPhotoKey: 'organizers/old-org.jpg',
+      newOrgPhotoKey: 'organizers/new-org.jpg',
+      eventSlug: '2099/bike-fest',
+      mergedParked: undefined,
+      addedMediaKeys: [],
+      removedMediaKeys: [],
+    };
+    await eventHandlers.afterCommit!(result as any, {} as any);
+    expect(mockUpdateMediaRegistryCache).toHaveBeenCalledWith(
+      expect.objectContaining({
+        keyChanges: expect.arrayContaining([
+          expect.objectContaining({ key: 'organizers/old-org.jpg', action: 'remove' }),
+          expect.objectContaining({ key: 'organizers/new-org.jpg', action: 'add' }),
+        ]),
+      }),
     );
   });
 });

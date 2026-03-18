@@ -1,0 +1,38 @@
+---
+import './SeasonalBanner.scss';
+import { parseLocalDate } from '../lib/date-utils';
+import { t, formatLocale } from '../i18n';
+import { paths } from '../lib/paths';
+
+interface Props {
+  name: string;
+  startDate: string;
+  endDate?: string;
+  bannerText?: string;
+  eventId: string;
+  locale?: string;
+}
+
+const { name, startDate, endDate, bannerText, eventId, locale } = Astro.props;
+
+const now = new Date();
+const start = parseLocalDate(startDate);
+const end = endDate ? parseLocalDate(endDate) : start;
+const isActive = now >= start && now <= end;
+const daysUntilStart = Math.ceil((start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+const isComingSoon = !isActive && daysUntilStart > 0 && daysUntilStart <= 30;
+
+const fmtLocale = formatLocale(locale);
+const startLabel = start.toLocaleDateString(fmtLocale, { month: 'long', day: 'numeric' });
+---
+
+{(isActive || isComingSoon) && (
+  <a href={paths.event(eventId, locale)} class={`seasonal-banner ${isActive ? 'seasonal-banner--active' : 'seasonal-banner--upcoming'}`}>
+    <div class="seasonal-banner-content">
+      <strong class="seasonal-banner-title">
+        {isActive ? name : t('calendar.seasonal_starts', locale, { date: startLabel })}
+      </strong>
+      {bannerText && <span class="seasonal-banner-text">{bannerText}</span>}
+    </div>
+  </a>
+)}

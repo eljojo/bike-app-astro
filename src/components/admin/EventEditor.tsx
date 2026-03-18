@@ -41,7 +41,7 @@ function resolveOrganizer(
   organizer: EventDetail['organizer'],
   allOrganizers: AdminOrganizer[],
 ) {
-  if (!organizer) return { slug: '', name: '', website: '', instagram: '', isRef: false };
+  if (!organizer) return { slug: '', name: '', website: '', instagram: '', photoKey: '', photoContentType: '', photoWidth: undefined as number | undefined, photoHeight: undefined as number | undefined, isRef: false };
 
   if (typeof organizer === 'string') {
     const org = allOrganizers.find(o => o.slug === organizer);
@@ -50,6 +50,10 @@ function resolveOrganizer(
       name: org?.name || organizer,
       website: org?.website || '',
       instagram: org?.instagram || '',
+      photoKey: org?.photo_key || '',
+      photoContentType: org?.photo_content_type || '',
+      photoWidth: org?.photo_width,
+      photoHeight: org?.photo_height,
       isRef: true,
     };
   }
@@ -60,6 +64,10 @@ function resolveOrganizer(
     name: organizer.name,
     website: organizer.website || '',
     instagram: organizer.instagram || '',
+    photoKey: organizer.photo_key || '',
+    photoContentType: organizer.photo_content_type || '',
+    photoWidth: organizer.photo_width,
+    photoHeight: organizer.photo_height,
     isRef: false,
   };
 }
@@ -131,13 +139,17 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [orgName, setOrgName] = useState(initOrg.name);
   const [orgWebsite, setOrgWebsite] = useState(initOrg.website);
   const [orgInstagram, setOrgInstagram] = useState(initOrg.instagram);
+  const [orgPhotoKey, setOrgPhotoKey] = useState(initOrg.photoKey);
+  const [orgPhotoContentType, setOrgPhotoContentType] = useState(initOrg.photoContentType);
+  const [orgPhotoWidth, setOrgPhotoWidth] = useState<number | undefined>(initOrg.photoWidth);
+  const [orgPhotoHeight, setOrgPhotoHeight] = useState<number | undefined>(initOrg.photoHeight);
   const [isExistingRef, setIsExistingRef] = useState(initOrg.isRef);
 
   const initialRender = useRef(true);
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram]);
+  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey]);
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
@@ -198,6 +210,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           name: orgName,
           ...(orgWebsite && { website: orgWebsite }),
           ...(orgInstagram && { instagram: orgInstagram }),
+          ...(orgPhotoKey && { photo_key: orgPhotoKey, photo_content_type: orgPhotoContentType || 'image/jpeg', ...(orgPhotoWidth && { photo_width: orgPhotoWidth }), ...(orgPhotoHeight && { photo_height: orgPhotoHeight }) }),
           isExistingRef,
         };
       }
@@ -218,12 +231,20 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       setOrgName(org.name);
       setOrgWebsite(org.website || '');
       setOrgInstagram(org.instagram || '');
+      setOrgPhotoKey(org.photo_key || '');
+      setOrgPhotoContentType(org.photo_content_type || '');
+      setOrgPhotoWidth(org.photo_width);
+      setOrgPhotoHeight(org.photo_height);
       setIsExistingRef(true);
       disclosure.open('orgForm');
     } else {
       setOrgName('');
       setOrgWebsite('');
       setOrgInstagram('');
+      setOrgPhotoKey('');
+      setOrgPhotoContentType('');
+      setOrgPhotoWidth(undefined);
+      setOrgPhotoHeight(undefined);
       setIsExistingRef(false);
       disclosure.close('orgForm');
     }
@@ -234,6 +255,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     setOrgName('');
     setOrgWebsite('');
     setOrgInstagram('');
+    setOrgPhotoKey('');
+    setOrgPhotoContentType('');
+    setOrgPhotoWidth(undefined);
+    setOrgPhotoHeight(undefined);
     setIsExistingRef(false);
     disclosure.open('orgForm');
   }
@@ -615,6 +640,17 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                   placeholder="without @"
                   onInput={(e) => setOrgInstagram((e.target as HTMLInputElement).value)} />
               </div>
+              <PhotoField
+                photoKey={orgPhotoKey}
+                cdnUrl={cdnUrl}
+                label="Photo"
+                onPhotoChange={(key, contentType, width, height) => {
+                  setOrgPhotoKey(key);
+                  setOrgPhotoContentType(contentType);
+                  setOrgPhotoWidth(width);
+                  setOrgPhotoHeight(height);
+                }}
+              />
             </div>
           )}
         </div>

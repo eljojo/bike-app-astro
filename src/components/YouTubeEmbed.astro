@@ -1,0 +1,21 @@
+---
+import './YouTubeEmbed.scss';
+
+interface Props {
+  videoId: string;
+  title?: string;
+}
+
+const { videoId, title = 'Video' } = Astro.props;
+const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}`;
+---
+
+<div class="youtube-embed">
+  <iframe
+    src={embedUrl}
+    title={title}
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen
+    loading="lazy"
+  ></iframe>
+</div>

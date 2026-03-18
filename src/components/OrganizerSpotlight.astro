@@ -1,0 +1,82 @@
+---
+import './OrganizerSpotlight.scss';
+import ResponsiveImage from './ResponsiveImage.astro';
+import { t } from '../i18n';
+
+interface Props {
+  organizers: Array<{
+    name: string;
+    instagram?: string;
+    photo_key?: string;
+  }>;
+  locale?: string;
+}
+
+const { organizers, locale } = Astro.props;
+
+function initials(name: string): string {
+  return name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+---
+
+{organizers.length > 0 && (
+  <section class="organizer-spotlight">
+    <h2>{t('calendar.organizer_spotlight', locale)}</h2>
+    <div class="organizer-spotlight-strip" data-show="3">
+      {organizers.map(org => {
+        const content = (
+          <div class="organizer-spotlight-item">
+            {org.photo_key ? (
+              <ResponsiveImage
+                blobKey={org.photo_key}
+                alt={org.name}
+                widths={[128]}
+                width={64}
+                height={64}
+                class="organizer-spotlight-avatar"
+              />
+            ) : (
+              <div class="organizer-spotlight-initials">{initials(org.name)}</div>
+            )}
+            <div class="organizer-spotlight-info">
+              <span class="organizer-spotlight-name">{org.name}</span>
+              {org.instagram && (
+                <span class="organizer-spotlight-handle">@{org.instagram}</span>
+              )}
+            </div>
+          </div>
+        );
+
+        return org.instagram ? (
+          <a href={`https://instagram.com/${org.instagram}`} target="_blank" rel="noopener" class="organizer-spotlight-link">
+            {content}
+          </a>
+        ) : (
+          content
+        );
+      })}
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const strip = document.querySelector<HTMLElement>('.organizer-spotlight-strip[data-show]');
+        if (!strip) return;
+        const count = parseInt(strip.dataset.show || '3', 10);
+        const children = Array.from(strip.children) as HTMLElement[];
+        if (children.length <= count) {
+          children.forEach(c => c.style.display = '');
+          return;
+        }
+        // Fisher-Yates shuffle to pick `count` random items
+        const indices = children.map((_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        const shown = new Set(indices.slice(0, count));
+        children.forEach((child, i) => {
+          child.style.display = shown.has(i) ? '' : 'none';
+        });
+      });
+    </script>
+  </section>
+)}

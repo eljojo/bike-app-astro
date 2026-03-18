@@ -477,16 +477,40 @@ a.go-back-button {
 }
 
 // Calendar
+.calendar-section {
+  margin: 2em 0;
+}
+
+.featured-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.2em;
+
+  @media (min-width: $breakpoint-tablet) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: $breakpoint-desktop) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .month-header {
-  margin: 1.5em 0 0.5em;
-  font-size: 1.8em;
+  margin: 1.2em 0 0.4em;
+  font-size: 1.4em;
   font-weight: bold;
 }
 .events-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1em;
-  margin: 1em 0;
+  margin: 0.5em 0 1em;
+}
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin: 0.5em 0 1em;
 }
 
 // Guides
@@ -624,23 +648,6 @@ a.go-back-button {
 @media (max-width: $breakpoint-mobile) {
   .admin-visible .nav-about {
     display: none;
-  }
-}
-
-.suggest-edit-link {
-  display: inline-block;
-  font-size: 0.8125rem;
-  color: $color-text-muted;
-  text-decoration: none;
-  margin-top: 0.5rem;
-
-  @include dark-mode {
-    color: #aaa;
-  }
-
-  &:hover {
-    text-decoration: underline;
-    color: $color-accent;
   }
 }
 

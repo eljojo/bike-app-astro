@@ -35,6 +35,10 @@ export async function loadAdminOrganizers(): Promise<AdminOrganizer[]> {
       name: fm.name as string,
       website: fm.website as string | undefined,
       instagram: fm.instagram as string | undefined,
+      photo_key: fm.photo_key as string | undefined,
+      photo_content_type: fm.photo_content_type as string | undefined,
+      photo_width: fm.photo_width as number | undefined,
+      photo_height: fm.photo_height as number | undefined,
     });
   }
 

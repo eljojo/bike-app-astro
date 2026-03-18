@@ -16,6 +16,11 @@ import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
+import VideoPlayer from '@/components/VideoPlayer';
+import { videoPlaybackSources, videoPosterUrl, videoFallbackUrl, videoDisplaySize } from '@/lib/media/video-service';
+import { extractYouTubeUrls } from '@/lib/youtube-extract';
+import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
+import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { slugify } from '@/lib/slug';
 
 const config = getCityConfig();
@@ -252,6 +257,21 @@ const galleryMedia = [
   })),
 ];
 
+const { videoIds: youtubeIds, cleanedMarkdown: cleanBody } = extractYouTubeUrls(event.body || '');
+
+// Determine hero video: first self-hosted video, or first YouTube
+const selfHostedVideos = (data.media ?? []).filter(m => m.type === 'video');
+const heroSelfHosted = selfHostedVideos[0];
+const heroYouTubeId = !heroSelfHosted ? youtubeIds[0] : undefined;
+const hasHeroVideo = !!heroSelfHosted || !!heroYouTubeId;
+
+// Exclude hero video from gallery
+const galleryMediaFiltered = hasHeroVideo && heroSelfHosted
+  ? galleryMedia.filter(m => m.key !== heroSelfHosted.key)
+  : galleryMedia;
+
+// TODO: Render additional YouTube videos (youtubeIds.slice(1)) in gallery
+
 // Other editions (excluding current) for past rides section
 const otherEditions = editions.filter((ed: { id: string }) => ed.id !== event.id);
 
@@ -283,6 +303,25 @@ function editionDateLabel(startDate: string, loc?: string): string {
               {t('events.photos_count', locale, { count: galleryMedia.length })}
             </span>
           )}
+        </div>
+      )}
+
+      {heroSelfHosted && (
+        <div class="event-detail-hero-video">
+          <VideoPlayer
+            client:idle
+            sources={videoPlaybackSources(heroSelfHosted.key)}
+            poster={videoPosterUrl(heroSelfHosted.key)}
+            fallbackUrl={videoFallbackUrl(heroSelfHosted.key)}
+            width={videoDisplaySize(heroSelfHosted.width || 640, heroSelfHosted.height || 360).width}
+            height={videoDisplaySize(heroSelfHosted.width || 640, heroSelfHosted.height || 360).height}
+            title={data.name}
+          />
+        </div>
+      )}
+      {heroYouTubeId && (
+        <div class="event-detail-hero-video">
+          <YouTubeEmbed videoId={heroYouTubeId} title={data.name} />
         </div>
       )}
 
@@ -401,7 +440,11 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
         {event.body?.trim() && (
           <div class="event-detail-body">
-            <Content />
+            {youtubeIds.length > 0 ? (
+              <div class="event-description" set:html={await renderMarkdownHtml(cleanBody)} />
+            ) : (
+              <div class="event-description"><Content /></div>
+            )}
           </div>
         )}
       </div>
@@ -410,9 +453,9 @@ function editionDateLabel(startDate: string, loc?: string): string {
     <div class="event-detail-content">
       <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
 
-      {galleryMedia.length > 1 && (
+      {galleryMediaFiltered.length > 1 && (
         <section class="event-detail-section">
-          <MediaGallery media={galleryMedia} name={data.name} />
+          <MediaGallery media={galleryMediaFiltered} name={data.name} />
         </section>
       )}
 
