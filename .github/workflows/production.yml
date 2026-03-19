@@ -3,6 +3,10 @@ name: Deploy Production
 on:
   push:
     branches: [main]
+  schedule:
+    # 6 AM Ottawa time (EDT; shifts to 5 AM EST in winter).
+    # Rebuilds the calendar page so upcoming events stay current.
+    - cron: '0 10 * * *'
   workflow_dispatch:
   repository_dispatch:
     types: [data-updated]
@@ -24,6 +28,9 @@ jobs:
             # Data repo webhook — check payload for city
             CITY="${{ github.event.client_payload.city || 'ottawa' }}"
             echo "cities=[\"${CITY}\"]" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Daily scheduled rebuild — only Ottawa (calendar page)
+            echo 'cities=["ottawa"]' >> "$GITHUB_OUTPUT"
           else
             # Code change or manual dispatch — rebuild all cities
             echo 'cities=["ottawa","demo","brevet"]' >> "$GITHUB_OUTPUT"
@@ -62,7 +69,7 @@ jobs:
 
   # Deploy video agent Lambda — only on code changes, not data-only updates
   deploy-lambda:
-    if: github.event_name != 'repository_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     steps:

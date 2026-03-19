@@ -1,6 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useCallback, useState, useRef, useEffect } from 'preact/hooks';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { useEditorState } from './useEditorState';
 import { useProgressiveDisclosure } from './useProgressiveDisclosure';
@@ -232,11 +232,11 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     },
   });
 
-  function handleSeriesChange(series: EventSeries | undefined, firstDate: string, lastDate: string) {
+  const handleSeriesChange = useCallback((series: EventSeries | undefined, firstDate: string, lastDate: string) => {
     setSeriesData(series);
     if (firstDate) setStartDate(firstDate);
     if (lastDate) setEndDate(lastDate);
-  }
+  }, []);
 
   function selectOrganizer(slug: string) {
     setOrgSlug(slug);
