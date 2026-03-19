@@ -310,6 +310,139 @@
   }
 }
 
+// Series "Next ride" callout
+.event-series-next-ride {
+  background: rgba($color-accent, 0.1);
+  border-left: 3px solid $color-accent;
+  padding: 0.6rem 1rem;
+  border-radius: 0 $border-radius $border-radius 0;
+  font-size: 0.95em;
+  line-height: 1.4;
+
+  @include dark-mode {
+    background: rgba($color-accent, 0.15);
+  }
+
+  strong {
+    white-space: nowrap;
+  }
+}
+
+// Series schedule section
+.event-series-schedule {
+  margin-top: 2rem;
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.event-series-pattern {
+  @include muted-text;
+  font-size: 0.95em;
+  margin: 0 0 0.75rem;
+}
+
+.event-series-season {
+  font-size: 0.9em;
+}
+
+.event-series-ended {
+  @include muted-text;
+  font-style: italic;
+  margin: 0 0 0.75rem;
+}
+
+.event-series-dates {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.event-series-date-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &--cancelled {
+    .event-series-date-day,
+    .event-series-date-time,
+    .event-series-date-location {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+  }
+
+  &--past {
+    opacity: 0.6;
+  }
+}
+
+.event-series-date-day {
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.event-series-date-time {
+  @include muted-text;
+  font-size: 0.9em;
+}
+
+.event-series-date-location {
+  font-size: 0.9em;
+}
+
+.event-series-date-badge {
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $color-error;
+  font-weight: 600;
+
+  @include dark-mode {
+    color: $color-error-dark;
+  }
+}
+
+.event-series-date-note {
+  font-size: 0.85em;
+  font-style: italic;
+  @include muted-text;
+  width: 100%;
+}
+
+// Past dates collapsible
+.event-series-past-dates {
+  margin-top: 0.5rem;
+
+  summary {
+    cursor: pointer;
+    @include muted-text;
+    font-size: 0.9em;
+    padding: 0.5rem 0;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.event-series-dates--past {
+  .event-series-date-item {
+    padding: 0.35rem 0;
+  }
+}
+
 // Edition thumbnail cards
 .event-editions {
   margin-top: 2rem;

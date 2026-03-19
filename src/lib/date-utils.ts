@@ -1,3 +1,11 @@
+/** Format a Date to YYYY-MM-DD string. Inverse of parseLocalDate. */
+export function formatDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * Parse a date-only ISO string (YYYY-MM-DD) without timezone shift.
  */
@@ -54,7 +62,7 @@ export function formatDateRange(startStr: string, endStr?: string, locale?: stri
 }
 
 export function formatMonthName(dateStr: string, locale?: string): string {
-  return parseLocalDate(dateStr).toLocaleString(locale || 'en-CA', { month: 'long' });
+  return parseLocalDate(dateStr).toLocaleString(locale || 'en-CA', { month: 'long', year: 'numeric' });
 }
 
 /** Format seconds into a compact duration string like "2h05m". */
@@ -80,6 +88,16 @@ export function formatIsoDuration(iso: string): string {
   const s = parseInt(match[3] || '0');
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Parse a date string to end-of-day (23:59:59.999).
+ * Use for "is upcoming" comparisons so today's events aren't treated as past.
+ */
+export function endOfDay(dateStr: string): Date {
+  const d = parseLocalDate(dateStr);
+  d.setHours(23, 59, 59, 999);
+  return d;
 }
 
 /** Format an ISO date string for admin UI (no time). */

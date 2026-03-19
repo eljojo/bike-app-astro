@@ -86,12 +86,16 @@ describe('formatDateRange', () => {
 });
 
 describe('formatMonthName', () => {
-  it('returns English month name by default', () => {
-    expect(formatMonthName('2025-05-03')).toBe('May');
+  it('returns English month name with year by default', () => {
+    expect(formatMonthName('2025-05-03')).toBe('May 2025');
   });
 
-  it('returns French month name', () => {
-    expect(formatMonthName('2025-05-03', 'fr-CA')).toBe('mai');
+  it('returns French month name with year', () => {
+    expect(formatMonthName('2025-05-03', 'fr-CA')).toBe('mai 2025');
+  });
+
+  it('distinguishes same month in different years', () => {
+    expect(formatMonthName('2026-01-15')).not.toBe(formatMonthName('2027-01-15'));
   });
 });
 

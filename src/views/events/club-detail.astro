@@ -9,8 +9,9 @@ import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
-import { formatDateRange, parseLocalDate } from '@/lib/date-utils';
+import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/date-utils';
 import { t, localePath, eventNoun } from '@/i18n';
+import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { tTag } from '@/lib/i18n/tag-translations.server';
@@ -166,9 +167,33 @@ if (typeof data.organizer === 'string') {
 }
 const regUrl = data.registration?.url || data.registration_url;
 
-// Past event detection
+// Format a 24h time string (e.g. "18:00") to locale-friendly display (e.g. "6:00 pm")
+function formatTime(time: string, loc?: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m);
+  return d.toLocaleTimeString(loc || 'en-CA', { hour: 'numeric', minute: '2-digit' });
+}
+
+// Build date display with optional time — meet time shown when available
+const hasMeetTime = !!data.meet_time && !!data.start_time;
+const timeDisplay = hasMeetTime
+  ? t('events.meet_time', locale, { meet: formatTime(data.meet_time!, locale), roll: formatTime(data.start_time!, locale) })
+  : data.start_time
+    ? formatTime(data.start_time, locale)
+    : undefined;
+const dateWithTime = timeDisplay ? `${dateDisplay} \u2014 ${timeDisplay}` : dateDisplay;
+
+// Series data — must be declared before isPastEvent which depends on them
+const isSeries = isSeriesEvent(data);
+const seriesOccurrences = isSeries ? expandSeriesOccurrences(data) : [];
+const now = new Date();
+const nextOccurrence = isSeries ? getNextOccurrence(seriesOccurrences, now) : undefined;
+const seriesActive = isSeries && isSeriesActive(seriesOccurrences, now);
+const seriesEnded = isSeries && !seriesActive;
+
+// Past event detection — for series, use whether the series is still active
 const eventEndDate = data.end_date || data.start_date;
-const isPastEvent = parseLocalDate(eventEndDate) < new Date();
+const isPastEvent = isSeries ? seriesEnded : endOfDay(eventEndDate) < new Date();
 
 // Find next edition (forward in chain) for past event messaging
 const currentIndex = editions.findIndex((ed: { id: string }) => ed.id === event.id);
@@ -188,8 +213,44 @@ if (organizerInstagram) {
   followName = organizerName;
 }
 
-// Build date display with optional time
-const dateWithTime = data.start_time ? `${dateDisplay} \u2014 ${data.start_time}` : dateDisplay;
+// Split occurrences into upcoming and past
+const upcomingOccurrences = seriesOccurrences.filter(o => endOfDay(o.date) >= now);
+const pastOccurrences = seriesOccurrences.filter(o => endOfDay(o.date) < now);
+
+// Series recurrence pattern description
+function seriesPatternLabel(): string | undefined {
+  const series = data.series;
+  if (!series) return undefined;
+  if (series.recurrence && series.recurrence_day) {
+    const localizedDay = parseLocalDate(
+      // Find first occurrence to get a real date for this day name
+      seriesOccurrences[0]?.date || '2026-01-01'
+    ).toLocaleString(locale || 'en-CA', { weekday: 'long' });
+    const timeStr = data.start_time ? formatTime(data.start_time, locale) : '';
+    const key = series.recurrence === 'biweekly' ? 'events.series_every_two_weeks' : 'events.series_every_week';
+    return t(key, locale, { day: localizedDay, time: timeStr });
+  }
+  return undefined;
+}
+
+function seriesSeasonLabel(): string | undefined {
+  const series = data.series;
+  if (!series?.season_start || !series?.season_end) return undefined;
+  const startStr = formatDate(parseLocalDate(series.season_start), { locale: locale || 'en-CA', includeYear: false });
+  const endStr = formatDate(parseLocalDate(series.season_end), { locale: locale || 'en-CA' });
+  return t('events.series_season', locale, { start: startStr, end: endStr });
+}
+
+// Format occurrence date for display
+function formatOccurrenceDate(dateStr: string): string {
+  const d = parseLocalDate(dateStr);
+  return d.toLocaleDateString(locale || 'en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function formatOccurrenceDateLong(dateStr: string): string {
+  const d = parseLocalDate(dateStr);
+  return d.toLocaleDateString(locale || 'en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
+}
 
 // Registration details
 const reg = data.registration;
@@ -316,6 +377,15 @@ function editionDateLabel(startDate: string, loc?: string): string {
           <ul class="event-detail-tags">
             {tags.map((tag: string) => <li class="tag-pill">{tTag(tag, locale)}</li>)}
           </ul>
+        )}
+
+        {nextOccurrence && (
+          <div class="event-series-next-ride">
+            <strong>{t('events.next_ride', locale)}:</strong>{' '}
+            {formatOccurrenceDateLong(nextOccurrence.date)}
+            {nextOccurrence.start_time && ` \u00b7 ${formatTime(nextOccurrence.start_time, locale)}`}
+            {nextOccurrence.location && ` \u00b7 ${nextOccurrence.location}`}
+          </div>
         )}
 
         <div class="event-detail-facts">
@@ -450,6 +520,64 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
     <div class="event-detail-content">
       <EditEntryPoint text={t('events.edit_description', locale)} href={`/admin/events/${event.id}?focus=description`} />
+
+      {isSeries && seriesOccurrences.length > 0 && (
+        <section class="event-series-schedule">
+          <h2>{t('events.series_schedule', locale)}</h2>
+
+          {seriesPatternLabel() && (
+            <p class="event-series-pattern">
+              {seriesPatternLabel()}
+              {seriesSeasonLabel() && <span class="event-series-season"> &mdash; {seriesSeasonLabel()}</span>}
+            </p>
+          )}
+
+          {!seriesPatternLabel() && seriesOccurrences.length > 0 && (
+            <p class="event-series-pattern">
+              {t('events.series_dates_count', locale, { count: seriesOccurrences.filter(o => !o.cancelled).length })}
+            </p>
+          )}
+
+          {seriesEnded && (
+            <p class="event-series-ended">{t('events.series_ended', locale)}</p>
+          )}
+
+          {upcomingOccurrences.length > 0 && (
+            <ul class="event-series-dates">
+              {upcomingOccurrences.map((occ: SeriesOccurrence) => (
+                <li class={`event-series-date-item ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
+                  <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
+                  {occ.start_time && <span class="event-series-date-time">{formatTime(occ.start_time, locale)}</span>}
+                  {occ.location && <span class="event-series-date-location">{occ.location}</span>}
+                  {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
+                  {occ.rescheduled_from && (
+                    <span class="event-series-date-note">
+                      {t('events.series_rescheduled_from', locale, { date: formatOccurrenceDate(occ.rescheduled_from) })}
+                    </span>
+                  )}
+                  {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {pastOccurrences.length > 0 && (
+            <details class="event-series-past-dates">
+              <summary>{t('events.series_past_dates', locale)} <span class="event-detail-count">({pastOccurrences.length})</span></summary>
+              <ul class="event-series-dates event-series-dates--past">
+                {pastOccurrences.toReversed().map((occ: SeriesOccurrence) => (
+                  <li class={`event-series-date-item event-series-date-item--past ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
+                    <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
+                    {occ.location && <span class="event-series-date-location">{occ.location}</span>}
+                    {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
+                    {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
 
       {galleryMediaFiltered.length > 0 && (
         <section class="event-detail-section">

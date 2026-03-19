@@ -29,6 +29,9 @@ export interface AdminEvent {
   edition?: string;
   event_url?: string;
   map_url?: string;
+  is_series?: boolean;
+  meet_time?: string;
+  series_label?: string;
   mediaCount: number;
   waypointCount: number;
   contentHash: string;

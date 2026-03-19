@@ -3,7 +3,7 @@
 import './EventCardCompact.scss';
 import { getCollection } from 'astro:content';
 import ResponsiveImage from './ResponsiveImage.astro';
-import { formatDateRange } from '../lib/date-utils';
+import { formatDateRange, parseLocalDate } from '../lib/date-utils';
 import { tagPillColor } from '../lib/event-tags';
 import { tTag } from '../lib/i18n/tag-translations.server';
 import { paths } from '../lib/paths';
@@ -24,22 +24,30 @@ interface Props {
       distance?: number;
     };
   };
+  occurrenceDate?: string;
+  occurrenceLocation?: string;
+  seriesBadge?: string;
+  organizerName?: string;
   locale?: string;
 }
 
-const { event, locale } = Astro.props;
+const { event, occurrenceDate, occurrenceLocation, seriesBadge, organizerName: preResolvedOrg, locale } = Astro.props;
 const { data } = event;
 
-let organizerName = '';
-if (typeof data.organizer === 'string') {
-  const organizers = await getCollection('organizers');
-  const org = organizers.find(o => o.id === data.organizer);
-  organizerName = org?.data.name || data.organizer;
-} else if (data.organizer?.name) {
-  organizerName = data.organizer.name;
+let organizerName = preResolvedOrg || '';
+if (!organizerName) {
+  if (typeof data.organizer === 'string') {
+    const organizers = await getCollection('organizers');
+    const org = organizers.find(o => o.id === data.organizer);
+    organizerName = org?.data.name || data.organizer;
+  } else if (data.organizer?.name) {
+    organizerName = data.organizer.name;
+  }
 }
 
-const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
+const displayStartDate = occurrenceDate || data.start_date;
+const displayEndDate = occurrenceDate ? undefined : data.end_date;
+const dateDisplay = formatDateRange(displayStartDate, displayEndDate, locale);
 const href = paths.event(event.id, locale);
 
 const firstTag = data.tags?.[0];
@@ -48,6 +56,16 @@ const tagLabel = firstTag ? tTag(firstTag, locale) : null;
 
 const distanceDisplay = data.distance ? `${data.distance} km` : null;
 
+// For series occurrences, append the short date to the name so each card is distinguishable
+const isSeriesOccurrence = !!occurrenceDate;
+const shortDate = isSeriesOccurrence
+  ? (() => {
+      const d = parseLocalDate(occurrenceDate);
+      const mon = d.toLocaleString(locale || 'en-CA', { month: 'short' });
+      return `${mon} ${d.getDate()}`;
+    })()
+  : '';
+const displayName = isSeriesOccurrence ? `${data.name} — ${shortDate}` : data.name;
 const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(' · ');
 ---
 
@@ -56,7 +74,7 @@ const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(
     <div class="event-card-compact-thumb">
       <ResponsiveImage
         blobKey={data.poster_key}
-        alt={data.name}
+        alt={displayName}
         widths={[56, 112]}
         width={56}
         height={56}
@@ -66,7 +84,10 @@ const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(
   )}
   <div class="event-card-compact-body">
     <div class="event-card-compact-line1">
-      <a href={href} class="event-card-compact-name">{data.name}</a>
+      <a href={href} class="event-card-compact-name">{displayName}</a>
+      {seriesBadge && (
+        <span class="event-card-compact-series">{seriesBadge}</span>
+      )}
       {tagLabel && tagColor && (
         <span
           class="event-card-compact-tag"

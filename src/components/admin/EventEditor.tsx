@@ -1,6 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useCallback, useState, useRef, useEffect } from 'preact/hooks';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { useEditorState } from './useEditorState';
 import { useProgressiveDisclosure } from './useProgressiveDisclosure';
@@ -15,7 +15,8 @@ import WaypointEditor from './WaypointEditor';
 import type { Waypoint } from './WaypointEditor';
 import ResultsEditor from './ResultsEditor';
 import type { Result } from './ResultsEditor';
-import type { EventDetail } from '../../lib/models/event-model';
+import SeriesEditor from './SeriesEditor';
+import type { EventDetail, EventSeries } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
 import type { AdminOrganizer, RouteOption } from '../../types/admin';
@@ -79,8 +80,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
+  const [meetTime, setMeetTime] = useState(initialData.meet_time || '');
   const [endDate, setEndDate] = useState(initialData.end_date || '');
   const [endTime, setEndTime] = useState(initialData.end_time || '');
+  const [seriesMode, setSeriesMode] = useState<boolean>(!!initialData.series);
+  const [seriesData, setSeriesData] = useState<EventSeries | undefined>(initialData.series);
+  const [seriesValid, setSeriesValid] = useState<boolean>(!!initialData.series);
   const [registrationUrl, setRegistrationUrl] = useState(initialData.registration_url || '');
   const [distances, setDistances] = useState(initialData.distances || '');
   const [location, setLocation] = useState(initialData.location || '');
@@ -149,11 +154,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, startDate, startTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey]);
+  }, [name, startDate, startTime, meetTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey, seriesMode, seriesData]);
 
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
-    time: !!(initialData.start_time || initialData.end_time),
+    time: !!(initialData.start_time || initialData.end_time || initialData.meet_time),
+    meetTime: !!initialData.meet_time,
     endDate: !!initialData.end_date,
     endTime: !!initialData.end_time,
     location: !!initialData.location,
@@ -169,7 +175,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   const { validate } = useFormValidation([
     { field: 'event-name', check: () => !name.trim(), message: 'Name is required' },
-    { field: 'event-start-date', check: () => !startDate, message: 'Start date is required' },
+    { field: 'event-start-date', check: () => !seriesMode && !startDate, message: 'Start date is required' },
+    { field: 'series-season-start', check: () => seriesMode && !seriesValid, message: 'Series needs at least one active occurrence' },
   ]);
 
   // Save state
@@ -185,8 +192,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           name,
           start_date: startDate,
           ...(startTime && { start_time: startTime }),
+          ...(meetTime && { meet_time: meetTime }),
           ...(endDate && { end_date: endDate }),
           ...(endTime && { end_time: endTime }),
+          ...(seriesMode && seriesData && { series: seriesData }),
           ...(registrationUrl && { registration_url: registrationUrl }),
           ...(distances && { distances }),
           ...(location && { location }),
@@ -223,6 +232,15 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       }
     },
   });
+
+  const handleSeriesChange = useCallback((series: EventSeries | undefined, firstDate: string, lastDate: string, isValid: boolean) => {
+    setSeriesData(series);
+    setSeriesValid(isValid);
+    if (isValid) {
+      setStartDate(firstDate);
+      setEndDate(lastDate);
+    }
+  }, []);
 
   function selectOrganizer(slug: string) {
     setOrgSlug(slug);
@@ -345,63 +363,144 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           </div>
 
+          {/* Normal / Series toggle */}
           <div class="form-field">
-            <label for="event-start-date">{disclosure.isOpen('endDate') ? 'Start date' : 'Date'}</label>
-            <input id="event-start-date" type="date" value={startDate}
-              onInput={(e) => setStartDate((e.target as HTMLInputElement).value)} />
+            <label>Event type</label>
+            <div class="series-toggle">
+              <button
+                type="button"
+                class={`series-toggle-btn${!seriesMode ? ' series-toggle-btn--active' : ''}`}
+                onClick={() => setSeriesMode(false)}
+              >
+                Normal event
+              </button>
+              <button
+                type="button"
+                class={`series-toggle-btn${seriesMode ? ' series-toggle-btn--active' : ''}`}
+                onClick={() => setSeriesMode(true)}
+              >
+                Series
+              </button>
+            </div>
           </div>
 
-          {disclosure.isOpen('time') && (
-            <div class="form-field">
-              <label for="event-start-time">{disclosure.isOpen('endDate') ? 'Start time' : 'Time'}</label>
-              <input id="event-start-time" type="time" value={startTime}
-                onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
-            </div>
-          )}
-
-          {disclosure.isOpen('endTime') && !disclosure.isOpen('endDate') && (
-            <div class="form-field">
-              <label for="event-end-time">End time</label>
-              <input id="event-end-time" type="time" value={endTime}
-                onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
-            </div>
-          )}
-
-          {disclosure.isOpen('endDate') && (
+          {/* Normal mode: date fields */}
+          {!seriesMode && (
             <>
               <div class="form-field">
-                <label for="event-end-date">End date</label>
-                <input id="event-end-date" type="date" value={endDate}
-                  onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
+                <label for="event-start-date">{disclosure.isOpen('endDate') ? 'Start date' : 'Date'}</label>
+                <input id="event-start-date" type="date" value={startDate}
+                  onInput={(e) => setStartDate((e.target as HTMLInputElement).value)} />
               </div>
-              {disclosure.isOpen('endTime') && (
+
+              {disclosure.isOpen('time') && (
+                <div class="form-field">
+                  <label for="event-start-time">{disclosure.isOpen('endDate') ? 'Start time' : 'Time'}</label>
+                  <input id="event-start-time" type="time" value={startTime}
+                    onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
+                </div>
+              )}
+
+              {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
+                <div class="form-field">
+                  <label for="event-meet-time">Meet time</label>
+                  <input id="event-meet-time" type="time" value={meetTime}
+                    onInput={(e) => setMeetTime((e.target as HTMLInputElement).value)} />
+                </div>
+              )}
+
+              {disclosure.isOpen('endTime') && !disclosure.isOpen('endDate') && (
                 <div class="form-field">
                   <label for="event-end-time">End time</label>
                   <input id="event-end-time" type="time" value={endTime}
                     onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
                 </div>
               )}
+
+              {disclosure.isOpen('endDate') && (
+                <>
+                  <div class="form-field">
+                    <label for="event-end-date">End date</label>
+                    <input id="event-end-date" type="date" value={endDate}
+                      onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
+                  </div>
+                  {disclosure.isOpen('endTime') && (
+                    <div class="form-field">
+                      <label for="event-end-time">End time</label>
+                      <input id="event-end-time" type="time" value={endTime}
+                        onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div class="disclosure-links">
+                {!disclosure.isOpen('time') && (
+                  <button type="button" class="btn-link" onClick={() => disclosure.open('time')}>Set time</button>
+                )}
+                {disclosure.isOpen('time') && !disclosure.isOpen('meetTime') && (
+                  <button type="button" class="btn-link" onClick={() => disclosure.open('meetTime')}>Set meet time</button>
+                )}
+                {disclosure.isOpen('time') && !disclosure.isOpen('endTime') && (
+                  <button type="button" class="btn-link" onClick={() => disclosure.open('endTime')}>Set end time</button>
+                )}
+                {!disclosure.isOpen('endDate') && (
+                  <button type="button" class="btn-link" onClick={() => {
+                    disclosure.open('endDate');
+                    if (!endDate) {
+                      const next = new Date(startDate);
+                      next.setDate(next.getDate() + 1);
+                      setEndDate(next.toISOString().split('T')[0]);
+                    }
+                  }}>Ends on a different day</button>
+                )}
+              </div>
             </>
           )}
 
-          <div class="disclosure-links">
-            {!disclosure.isOpen('time') && (
-              <button type="button" class="btn-link" onClick={() => disclosure.open('time')}>Set time</button>
-            )}
-            {disclosure.isOpen('time') && !disclosure.isOpen('endTime') && (
-              <button type="button" class="btn-link" onClick={() => disclosure.open('endTime')}>Set end time</button>
-            )}
-            {!disclosure.isOpen('endDate') && (
-              <button type="button" class="btn-link" onClick={() => {
-                disclosure.open('endDate');
-                if (!endDate) {
-                  const next = new Date(startDate);
-                  next.setDate(next.getDate() + 1);
-                  setEndDate(next.toISOString().split('T')[0]);
-                }
-              }}>Ends on a different day</button>
-            )}
-          </div>
+          {/* Series mode: time fields + series editor */}
+          {seriesMode && (
+            <>
+              <div class="disclosure-links">
+                {!disclosure.isOpen('time') && (
+                  <button type="button" class="btn-link" onClick={() => disclosure.open('time')}>Set time</button>
+                )}
+              </div>
+
+              {disclosure.isOpen('time') && (
+                <div class="form-field">
+                  <label for="event-start-time">Time</label>
+                  <input id="event-start-time" type="time" value={startTime}
+                    onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
+                </div>
+              )}
+
+              {disclosure.isOpen('time') && (
+                <div class="disclosure-links">
+                  {!disclosure.isOpen('meetTime') && (
+                    <button type="button" class="btn-link" onClick={() => disclosure.open('meetTime')}>Set meet time</button>
+                  )}
+                </div>
+              )}
+
+              {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
+                <div class="form-field">
+                  <label for="event-meet-time">Meet time</label>
+                  <input id="event-meet-time" type="time" value={meetTime}
+                    onInput={(e) => setMeetTime((e.target as HTMLInputElement).value)} />
+                </div>
+              )}
+
+              <SeriesEditor
+                initialSeries={initialData.series}
+                eventLocation={location}
+                eventStartTime={startTime}
+                eventMeetTime={meetTime}
+                locale={activeLocale}
+                onSeriesChange={handleSeriesChange}
+              />
+            </>
+          )}
 
           {disclosure.isOpen('location') && (
             <div class="form-field">

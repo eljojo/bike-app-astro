@@ -93,6 +93,21 @@
   }
 }
 
+.event-card-compact-series {
+  display: inline-block;
+  font-size: 0.7em;
+  padding: 0.15em 0.5em;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  white-space: nowrap;
+  opacity: 0.7;
+
+  @include dark-mode {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
 .event-card-compact-meta {
   font-size: 0.85em;
   @include muted-text;

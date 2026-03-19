@@ -3,7 +3,7 @@ import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';
 import { eventMediaItemSchema, eventDetailToCache } from './event-model';
-import type { EventDetail, EventGitFiles } from './event-model';
+import type { EventDetail, EventGitFiles, EventSeries } from './event-model';
 
 /** Compute content hash for event conflict detection. Hashes primary content + optional media.yml. */
 export function computeEventContentHash(content: string, mediaContent?: string): string {
@@ -101,6 +101,8 @@ export function eventDetailFromGit(
     edition: frontmatter.edition as string | undefined,
     event_url: frontmatter.event_url as string | undefined,
     map_url: frontmatter.map_url as string | undefined,
+    meet_time: frontmatter.meet_time as string | undefined,
+    series: frontmatter.series as EventSeries | undefined,
     body: body.trim(),
     media,
   };

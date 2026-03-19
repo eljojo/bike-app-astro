@@ -43,6 +43,37 @@ export const eventMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),
 });
 
+// Mirrors seriesOccurrenceOverrideSchema in src/schemas/index.ts — keep in sync
+const seriesOccurrenceOverrideSchema = z.object({
+  date: z.string(),
+  location: z.string().optional(),
+  start_time: z.string().optional(),
+  meet_time: z.string().optional(),
+  note: z.string().optional(),
+  cancelled: z.boolean().optional(),
+  rescheduled_from: z.string().optional(),
+});
+
+// Mirrors eventSeriesSchema in src/schemas/index.ts — keep in sync
+const eventSeriesSchema = z.object({
+  // Pattern 1: recurrence rule
+  recurrence: z.enum(['weekly', 'biweekly']).optional(),
+  recurrence_day: z.enum([
+    'monday', 'tuesday', 'wednesday', 'thursday',
+    'friday', 'saturday', 'sunday',
+  ]).optional(),
+  season_start: z.string().optional(),
+  season_end: z.string().optional(),
+  skip_dates: z.array(z.string()).optional(),
+  overrides: z.array(seriesOccurrenceOverrideSchema).optional(),
+
+  // Pattern 2: explicit schedule
+  schedule: z.array(seriesOccurrenceOverrideSchema).optional(),
+}).refine(
+  d => (d.recurrence && d.recurrence_day && d.season_start && d.season_end) || d.schedule?.length,
+  { message: 'Series needs either recurrence rule or explicit schedule' },
+);
+
 export const eventDetailSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -51,6 +82,7 @@ export const eventDetailSchema = z.object({
   start_date: z.string(),
   event_date: z.string().optional(),
   start_time: z.string().optional(),
+  meet_time: z.string().optional(),
   end_date: z.string().optional(),
   end_time: z.string().optional(),
   time_limit_hours: z.number().optional(),
@@ -82,6 +114,7 @@ export const eventDetailSchema = z.object({
   map_url: z.string().optional(),
   body: z.string(),
   media: z.array(eventMediaItemSchema).default([]),
+  series: eventSeriesSchema.optional(),
 });
 
 export type EventDetail = z.infer<typeof eventDetailSchema>;
@@ -89,6 +122,8 @@ export type EventWaypoint = z.infer<typeof waypointDetailSchema>;
 export type EventResult = z.infer<typeof resultDetailSchema>;
 export type EventRegistration = z.infer<typeof registrationDetailSchema>;
 export type EventOrganizerRef = z.infer<typeof organizerRefSchema>;
+export type SeriesOccurrenceOverride = z.infer<typeof seriesOccurrenceOverrideSchema>;
+export type EventSeries = z.infer<typeof eventSeriesSchema>;
 
 export type EventGitFiles = GitFiles;
 
