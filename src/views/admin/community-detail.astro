@@ -1,0 +1,32 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import CommunityEditor from '../../components/admin/CommunityEditor.tsx';
+import EditHistory from '../../components/admin/EditHistory.tsx';
+import { env } from '../../lib/env/env.service';
+import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
+import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
+import { organizerDetailFromCache } from '../../lib/models/organizer-model';
+import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+
+const result = await loadDetailFromJson({
+  contentType: 'organizers',
+  id: Astro.params.slug,
+  jsonUrl: new URL(`/admin/data/organizers/${Astro.params.slug}.json`, Astro.url),
+  fromCache: organizerDetailFromCache,
+});
+
+if (result.notFound) return new Response(null, { status: 404 });
+const data = result.data;
+const user = Astro.locals.user;
+const config = getCityConfig();
+const cdnUrl = env.R2_PUBLIC_URL || config.cdn_url;
+const videosCdnUrl = config.videos_cdn_url;
+const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
+---
+
+<AdminEditorLayout title={`Edit: ${data.name}`} hideTitle user={user} currentTab="organizers">
+  <CommunityEditor client:load initialData={data} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} />
+  <EditHistory client:load contentPath={`${CITY}/organizers/${data.slug}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
+</AdminEditorLayout>

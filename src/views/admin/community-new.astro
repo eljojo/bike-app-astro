@@ -1,0 +1,29 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import CommunityEditor from '../../components/admin/CommunityEditor.tsx';
+import { env } from '../../lib/env/env.service';
+import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
+import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+
+const config = getCityConfig();
+const cdnUrl = env.R2_PUBLIC_URL || config.cdn_url;
+const videosCdnUrl = config.videos_cdn_url;
+const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
+
+const initialData = {
+  slug: '',
+  name: '',
+  body: '',
+  tags: [],
+  featured: false,
+  social_links: [],
+  media: [],
+  isNew: true,
+};
+---
+
+<AdminEditorLayout title="New Community" user={Astro.locals.user} currentTab="organizers">
+  <CommunityEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} />
+</AdminEditorLayout>
