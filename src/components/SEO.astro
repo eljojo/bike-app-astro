@@ -13,13 +13,14 @@ interface Props {
   ogImage?: string;
   ogImageAlt?: string;
   ogType?: string;
+  ogVideo?: { url: string; type: string; width?: number; height?: number };
   jsonLd?: Record<string, any> | Record<string, any>[];
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
   cspNonce?: string;
 }
 
-const { title, description, canonical, ogImage, ogImageAlt, ogType, jsonLd, breadcrumbs, alternateUrls, cspNonce } = Astro.props;
+const { title, description, canonical, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadcrumbs, alternateUrls, cspNonce } = Astro.props;
 const jsonLdEntries = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 const siteUrl = config.url;
 const fullCanonical = canonical || new URL(Astro.url.pathname, siteUrl).toString();
@@ -79,6 +80,11 @@ const hreflangEntries = locales.map(locale => ({
 {ogImage && <meta property="og:image:secure_url" content={ogImage} />}
 {ogImageAlt && <meta property="og:image:alt" content={ogImageAlt} />}
 <meta property="og:type" content={ogType || 'website'} />
+{ogVideo && <meta property="og:video" content={ogVideo.url} />}
+{ogVideo && <meta property="og:video:secure_url" content={ogVideo.url} />}
+{ogVideo && <meta property="og:video:type" content={ogVideo.type} />}
+{ogVideo?.width && <meta property="og:video:width" content={String(ogVideo.width)} />}
+{ogVideo?.height && <meta property="og:video:height" content={String(ogVideo.height)} />}
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />

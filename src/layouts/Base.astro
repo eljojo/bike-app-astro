@@ -22,20 +22,21 @@ interface Props {
   ogImage?: string;
   ogImageAlt?: string;
   ogType?: string;
+  ogVideo?: { url: string; type: string; width?: number; height?: number };
   jsonLd?: Record<string, any> | Record<string, any>[];
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
   admin?: boolean;
 }
 
-const { title, description, ogImage, ogImageAlt, ogType, jsonLd, breadcrumbs, alternateUrls, admin } = Astro.props;
+const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadcrumbs, alternateUrls, admin } = Astro.props;
 ---
 <!DOCTYPE html>
 <html lang={htmlLang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} ogType={ogType} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls} cspNonce={cspNonce} />
+    <SEO title={title} description={description} ogImage={ogImage} ogImageAlt={ogImageAlt} ogType={ogType} ogVideo={ogVideo} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls} cspNonce={cspNonce} />
     {fontPreloads.map(href => (
       <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
     ))}

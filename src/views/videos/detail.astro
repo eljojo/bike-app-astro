@@ -4,8 +4,9 @@ import Base from '@/layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '@/lib/media/video-service';
 import { getCityConfig } from '@/lib/config/city-config';
-import { t } from '@/i18n';
+import { t, localePath } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
+import { videoJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -33,9 +34,40 @@ export async function getStaticPaths() {
 const { video, route, otherVideos } = Astro.props;
 const sources = videoPlaybackSources(video.key);
 const title = video.title || 'Video';
+const posterUrl = videoPosterUrl(video.key);
+const mp4Url = videoFallbackUrl(video.key);
+const description = video.caption || `${title} — ${t('route.bike_route', locale)} ${route.data.name}, ${config.display_name}`;
+
+const jsonLd = videoJsonLd({
+  title,
+  description,
+  handle: video.handle,
+  posterUrl,
+  contentUrl: mp4Url,
+  duration: video.duration,
+  width: video.width,
+  height: video.height,
+});
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: route.data.name, url: `${config.url}${paths.route(routeSlug(route, locale), locale)}` },
+  { name: title, url: `${config.url}${paths.video(video.handle, locale)}` },
+]);
+
+const ogVideo = { url: mp4Url, type: 'video/mp4', width: video.width, height: video.height };
 ---
 
-<Base title={`${title} | ${config.display_name}`}>
+<Base
+  title={`${title} | ${config.display_name}`}
+  description={description}
+  ogImage={posterUrl}
+  ogImageAlt={title}
+  ogType="video.other"
+  ogVideo={ogVideo}
+  jsonLd={jsonLd}
+  breadcrumbs={breadcrumbs}
+>
   <h1>{title}</h1>
   <div class="video-show main-video">
     <video

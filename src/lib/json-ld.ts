@@ -270,6 +270,46 @@ export function routeMapJsonLd(map: {
   };
 }
 
+/** Convert a duration string (seconds like "32", or "mm:ss" like "1:30") to ISO 8601 (PT…). */
+function formatIsoDuration(raw: string): string {
+  const totalSeconds = raw.includes(':')
+    ? raw.split(':').reduce((acc, part) => acc * 60 + Number(part), 0)
+    : Number(raw);
+  if (!totalSeconds || isNaN(totalSeconds)) return `PT0S`;
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.round(totalSeconds % 60);
+  return m > 0 ? `PT${m}M${s}S` : `PT${s}S`;
+}
+
+export function videoJsonLd(video: {
+  title: string;
+  description: string;
+  handle: string;
+  posterUrl: string;
+  contentUrl: string;
+  duration?: string;
+  width?: number;
+  height?: number;
+  uploadDate?: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: video.title,
+    description: video.description,
+    thumbnailUrl: video.posterUrl,
+    contentUrl: video.contentUrl,
+    url: `${config.url}/videos/${video.handle}`,
+    ...(video.duration && { duration: formatIsoDuration(video.duration) }),
+    ...(video.width && video.height && {
+      width: video.width,
+      height: video.height,
+    }),
+    ...(video.uploadDate && { uploadDate: video.uploadDate }),
+    author: AUTHOR,
+  };
+}
+
 export function webPageJsonLd(page: {
   name: string;
   description: string;
