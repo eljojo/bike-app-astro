@@ -59,7 +59,9 @@ test.describe('Series Editor — Recurring', () => {
     await loginAs(page, token);
     await page.goto('/admin/events/2099/event-series-recurring');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Wait for Preact island hydration — occurrence count is only rendered after mount
+    await expect(page.locator('.series-occurrence-count')).toBeVisible({ timeout: 15000 });
 
     // Change frequency to biweekly
     await page.locator('#series-frequency').selectOption('biweekly');
@@ -155,7 +157,9 @@ test.describe('Series Editor — Specific Dates', () => {
     await loginAs(page, token);
     await page.goto('/admin/events/2099/event-series-schedule');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Wait for Preact island hydration — occurrence count is only rendered after mount
+    await expect(page.locator('.series-occurrence-count')).toBeVisible({ timeout: 15000 });
 
     // Add a new date
     await page.locator('#series-new-date').fill('2099-07-10');
@@ -205,7 +209,9 @@ test.describe('Series Editor — Specific Dates', () => {
     await loginAs(page, token);
     await page.goto('/admin/events/2099/event-series-schedule');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+
+    // Wait for Preact island hydration — occurrence count is only rendered after mount
+    await expect(page.locator('.series-occurrence-count')).toBeVisible({ timeout: 15000 });
 
     // Remove the first date
     const firstRemoveBtn = page.locator('.series-schedule-item').first().locator('.btn-link', { hasText: 'remove' });
