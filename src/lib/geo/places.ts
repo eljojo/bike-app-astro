@@ -1,6 +1,40 @@
 import type { PlaceData, NearbyPlace } from './proximity';
+import { haversineM, PHOTO_NEAR_PLACE_M } from './proximity';
 import { categoryEmoji } from './place-categories';
 import { defaultLocale } from '../i18n/locale-utils';
+
+interface MediaLocation {
+  key: string;
+  lat: number;
+  lng: number;
+}
+
+/**
+ * For places without a photo_key, find the nearest route media within
+ * PHOTO_NEAR_PLACE_M and assign it as the place's photo_key.
+ * Mutates the placeData array in place.
+ */
+export function assignPlacePhotosFromMedia(
+  placeData: PlaceData[],
+  allMediaLocations: MediaLocation[],
+): void {
+  if (allMediaLocations.length === 0) return;
+  for (const place of placeData) {
+    if (place.photo_key) continue;
+    let bestKey: string | undefined;
+    let bestDist = PHOTO_NEAR_PLACE_M;
+    for (const media of allMediaLocations) {
+      const dist = haversineM(place.lat, place.lng, media.lat, media.lng);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestKey = media.key;
+      }
+    }
+    if (bestKey) {
+      place.photo_key = bestKey;
+    }
+  }
+}
 
 /**
  * Convert a collection of place entries (from `getCollection('places')`)
