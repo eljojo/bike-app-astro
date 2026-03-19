@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'preact/hooks';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'preact/hooks';
 import { expandSeriesOccurrences, type SeriesOccurrence } from '../../lib/series-utils';
 import { parseLocalDate, formatDateStr } from '../../lib/date-utils';
 import { fullLocale, defaultLocale as getDefaultLocale } from '../../lib/i18n/locale-utils';
@@ -81,6 +81,12 @@ function detectMode(series?: EventSeries): SeriesMode {
 }
 
 export default function SeriesEditor({ initialSeries, eventLocation, eventStartTime, eventMeetTime, locale, onSeriesChange }: Props) {
+  // Mark component as hydrated for E2E tests — useEffect only runs on the client
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    rootRef.current?.setAttribute('data-hydrated', 'true');
+  }, []);
+
   // Resolve full locale for Intl formatting (e.g. 'en' → 'en-CA')
   const intlLocale = useMemo(() => {
     const loc = locale || getDefaultLocale();
@@ -360,7 +366,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
   const month2 = new Date(calendarMonth.year, calendarMonth.month + 1, 1);
 
   return (
-    <div class="series-editor">
+    <div class="series-editor" ref={rootRef}>
       <div class="series-mode-tabs">
         <button
           type="button"
