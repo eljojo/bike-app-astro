@@ -686,9 +686,9 @@ a.go-back-button {
   display: list-item;
   font-size: 0.8em;
 }
-// Hide About on mobile when admin is visible to save space
+// Hide About on mobile — it's in the footer, saves nav space
 @media (max-width: $breakpoint-mobile) {
-  .admin-visible .nav-about {
+  .nav-about {
     display: none;
   }
 }
