@@ -109,6 +109,24 @@ export function getContentEdit(
   }
 }
 
+/** Seed a content_edits cache entry (e.g. to simulate a pending event). */
+export function seedContentEdit(
+  dbPath: string,
+  contentType: string,
+  slug: string,
+  data: string,
+) {
+  const db = openDb(dbPath);
+  try {
+    db.prepare(
+      `INSERT OR REPLACE INTO content_edits (city, content_type, content_slug, data, github_sha, updated_at)
+       VALUES ('demo', ?, ?, ?, 'test-sha', datetime('now'))`
+    ).run(contentType, slug, data);
+  } finally {
+    db.close();
+  }
+}
+
 // Staging origin used to proxy tile requests in E2E — CI has no Thunderforest
 // API key, so we intercept /api/tiles/* and forward to staging which has one.
 const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';

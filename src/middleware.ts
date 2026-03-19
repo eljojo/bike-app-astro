@@ -126,7 +126,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
         }
       }
     }
-    return finalize(await next(), context);
+    const response = await next();
+    // Pending event fallback: if a static event page doesn't exist,
+    // rewrite to the server-rendered preview that loads from D1 cache.
+    if (response.status === 404 && /^\/events\/\d{4}\//.test(pathname)) {
+      const previewPath = pathname.replace(/^\/events\//, '/_event-preview/');
+      return context.rewrite(previewPath);
+    }
+    return finalize(response, context);
   }
 
   // Browsable admin pages: optionally load user, but don't require auth
