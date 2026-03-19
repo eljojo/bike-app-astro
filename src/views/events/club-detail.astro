@@ -222,7 +222,6 @@ function seriesPatternLabel(): string | undefined {
   const series = data.series;
   if (!series) return undefined;
   if (series.recurrence && series.recurrence_day) {
-    const dayName = series.recurrence_day.charAt(0).toUpperCase() + series.recurrence_day.slice(1);
     const localizedDay = parseLocalDate(
       // Find first occurrence to get a real date for this day name
       seriesOccurrences[0]?.date || '2026-01-01'
@@ -566,7 +565,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
             <details class="event-series-past-dates">
               <summary>{t('events.series_past_dates', locale)} <span class="event-detail-count">({pastOccurrences.length})</span></summary>
               <ul class="event-series-dates event-series-dates--past">
-                {pastOccurrences.reverse().map((occ: SeriesOccurrence) => (
+                {pastOccurrences.toReversed().map((occ: SeriesOccurrence) => (
                   <li class={`event-series-date-item event-series-date-item--past ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                     <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
                     {occ.location && <span class="event-series-date-location">{occ.location}</span>}

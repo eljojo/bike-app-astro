@@ -56,23 +56,6 @@ export const GET: APIRoute = async () => {
     `X-WR-TIMEZONE:${config.timezone}`,
     `X-WR-CALDESC:${config.tagline}`,
     'X-PUBLISHED-TTL:PT1D',
-    'BEGIN:VTIMEZONE',
-    `TZID:${config.timezone}`,
-    'BEGIN:DAYLIGHT',
-    'TZOFFSETFROM:-0500',
-    'TZOFFSETTO:-0400',
-    'TZNAME:EDT',
-    'DTSTART:20070311T020000',
-    'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
-    'END:DAYLIGHT',
-    'BEGIN:STANDARD',
-    'TZOFFSETFROM:-0400',
-    'TZOFFSETTO:-0500',
-    'TZNAME:EST',
-    'DTSTART:20071104T020000',
-    'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
-    'END:STANDARD',
-    'END:VTIMEZONE',
   ];
 
   const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');

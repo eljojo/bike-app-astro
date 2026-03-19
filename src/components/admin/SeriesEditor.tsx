@@ -56,7 +56,7 @@ interface Props {
   eventStartTime?: string;
   eventMeetTime?: string;
   locale?: string;
-  onSeriesChange: (series: EventSeries | undefined, firstDate: string, lastDate: string) => void;
+  onSeriesChange: (series: EventSeries | undefined, firstDate: string, lastDate: string, isValid: boolean) => void;
 }
 
 interface OverrideEntry {
@@ -166,22 +166,22 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
     });
   }, [buildSeries, eventLocation, eventStartTime, eventMeetTime]);
 
-  // Stable ref for the parent callback — avoids re-render loop when parent
-  // creates a new handleSeriesChange on every render (not wrapped in useCallback)
-  const onSeriesChangeRef = useRef(onSeriesChange);
-  onSeriesChangeRef.current = onSeriesChange;
-
   // Notify parent whenever series data or occurrences change
+  const activeOccurrences = useMemo(
+    () => occurrences.filter(o => !o.cancelled),
+    [occurrences]
+  );
+
   useEffect(() => {
     const series = buildSeries();
-    if (!series || occurrences.length === 0) {
-      onSeriesChangeRef.current(series, '', '');
+    if (!series || activeOccurrences.length === 0) {
+      onSeriesChange(series, '', '', false);
       return;
     }
-    const firstDate = occurrences[0].date;
-    const lastDate = occurrences[occurrences.length - 1].date;
-    onSeriesChangeRef.current(series, firstDate, lastDate);
-  }, [buildSeries, occurrences]);
+    const firstDate = activeOccurrences[0].date;
+    const lastDate = activeOccurrences[activeOccurrences.length - 1].date;
+    onSeriesChange(series, firstDate, lastDate, true);
+  }, [buildSeries, activeOccurrences, onSeriesChange]);
 
   // Build sets for quick lookup in calendar
   const occurrenceDateSet = useMemo(() => new Set(occurrences.map(o => o.date)), [occurrences]);

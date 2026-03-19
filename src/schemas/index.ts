@@ -131,6 +131,7 @@ export const resultSchema = z.object({
   status: z.enum(['DNS', 'DNF', 'DQ']).optional(),
 });
 
+// Mirrors seriesOccurrenceOverrideSchema in src/lib/models/event-model.ts — keep in sync
 const seriesOccurrenceOverrideSchema = z.object({
   date: z.string(),
   location: z.string().optional(),
@@ -141,6 +142,7 @@ const seriesOccurrenceOverrideSchema = z.object({
   rescheduled_from: z.string().optional(),
 });
 
+// Mirrors eventSeriesSchema in src/lib/models/event-model.ts — keep in sync
 const eventSeriesSchema = z.object({
   recurrence: z.enum(['weekly', 'biweekly']).optional(),
   recurrence_day: z.enum([

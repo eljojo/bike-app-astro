@@ -1,4 +1,4 @@
-import { parseLocalDate, formatDateStr } from './date-utils';
+import { parseLocalDate, formatDateStr, endOfDay } from './date-utils';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -113,7 +113,7 @@ export function isSeriesEvent(event: { series?: unknown }): boolean {
 }
 
 export function getNextOccurrence(occurrences: SeriesOccurrence[], now: Date): SeriesOccurrence | undefined {
-  return occurrences.find(o => !o.cancelled && parseLocalDate(o.date) >= now);
+  return occurrences.find(o => !o.cancelled && endOfDay(o.date) >= now);
 }
 
 export function isSeriesActive(occurrences: SeriesOccurrence[], now: Date): boolean {

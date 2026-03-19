@@ -43,6 +43,7 @@ export const eventMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),
 });
 
+// Mirrors seriesOccurrenceOverrideSchema in src/schemas/index.ts — keep in sync
 const seriesOccurrenceOverrideSchema = z.object({
   date: z.string(),
   location: z.string().optional(),
@@ -53,6 +54,7 @@ const seriesOccurrenceOverrideSchema = z.object({
   rescheduled_from: z.string().optional(),
 });
 
+// Mirrors eventSeriesSchema in src/schemas/index.ts — keep in sync
 const eventSeriesSchema = z.object({
   // Pattern 1: recurrence rule
   recurrence: z.enum(['weekly', 'biweekly']).optional(),

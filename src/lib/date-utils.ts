@@ -90,6 +90,16 @@ export function formatIsoDuration(iso: string): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * Parse a date string to end-of-day (23:59:59.999).
+ * Use for "is upcoming" comparisons so today's events aren't treated as past.
+ */
+export function endOfDay(dateStr: string): Date {
+  const d = parseLocalDate(dateStr);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 /** Format an ISO date string for admin UI (no time). */
 export function formatAdminDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-CA', {

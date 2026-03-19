@@ -85,6 +85,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [endTime, setEndTime] = useState(initialData.end_time || '');
   const [seriesMode, setSeriesMode] = useState<boolean>(!!initialData.series);
   const [seriesData, setSeriesData] = useState<EventSeries | undefined>(initialData.series);
+  const [seriesValid, setSeriesValid] = useState<boolean>(!!initialData.series);
   const [registrationUrl, setRegistrationUrl] = useState(initialData.registration_url || '');
   const [distances, setDistances] = useState(initialData.distances || '');
   const [location, setLocation] = useState(initialData.location || '');
@@ -175,7 +176,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const { validate } = useFormValidation([
     { field: 'event-name', check: () => !name.trim(), message: 'Name is required' },
     { field: 'event-start-date', check: () => !seriesMode && !startDate, message: 'Start date is required' },
-    { field: 'series-season-start', check: () => seriesMode && !startDate, message: 'Series needs at least one occurrence' },
+    { field: 'series-season-start', check: () => seriesMode && !seriesValid, message: 'Series needs at least one active occurrence' },
   ]);
 
   // Save state
@@ -232,10 +233,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     },
   });
 
-  const handleSeriesChange = useCallback((series: EventSeries | undefined, firstDate: string, lastDate: string) => {
+  const handleSeriesChange = useCallback((series: EventSeries | undefined, firstDate: string, lastDate: string, isValid: boolean) => {
     setSeriesData(series);
-    if (firstDate) setStartDate(firstDate);
-    if (lastDate) setEndDate(lastDate);
+    setSeriesValid(isValid);
+    if (isValid) {
+      setStartDate(firstDate);
+      setEndDate(lastDate);
+    }
   }, []);
 
   function selectOrganizer(slug: string) {
