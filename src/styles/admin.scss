@@ -1864,6 +1864,24 @@
   }
 }
 
+.route-editor-map-details {
+  margin-bottom: 1rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+}
+
+.route-editor-map {
+  width: 100%;
+  height: 250px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 // Route preview styles
 .route-preview-hero img {
   width: 100%;
