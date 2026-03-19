@@ -3,6 +3,9 @@ import { authorize } from '../../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { parseRwgpsUrl, buildGpxFromTrackPoints } from './import-rwgps';
 import { parseGoogleMapsUrl, extractKmlRoute } from '../../../lib/external/google-maps';
+import { isGoogleDirectionsUrl, parseGoogleDirectionsUrl, normalizeStopName } from '../../../lib/external/google-directions';
+import { resolveUrl } from '../../../lib/external/url-resolve.server';
+import { createRoutingService } from '../../../lib/external/routing.server';
 import { enrichWithElevation, buildGpxFromPoints } from '../../../lib/geo/elevation-enrichment';
 import { unzipSync } from 'fflate';
 import { checkRateLimit, recordAttempt, cleanupOldAttempts } from '../../../lib/auth/rate-limit';
@@ -11,9 +14,10 @@ import { db } from '../../../lib/get-db';
 export const prerender = false;
 
 /** Detect the import source from a URL. Returns null for unsupported URLs. */
-export function detectUrlSource(url: string): 'rwgps' | 'google-maps' | null {
+export function detectUrlSource(url: string): 'rwgps' | 'google-maps' | 'google-directions' | null {
   if (parseRwgpsUrl(url)) return 'rwgps';
   if (parseGoogleMapsUrl(url)) return 'google-maps';
+  if (isGoogleDirectionsUrl(url)) return 'google-directions';
   return null;
 }
 
@@ -119,6 +123,35 @@ async function handleGoogleMaps(url: string): Promise<Response> {
   });
 }
 
+async function handleGoogleDirections(url: string): Promise<Response> {
+  const parsed = parseGoogleDirectionsUrl(url);
+  if (!parsed || parsed.waypoints.length < 2) {
+    return jsonError('Could not extract waypoints from this Google Directions URL.', 400);
+  }
+
+  const routingService = createRoutingService();
+  let result;
+  try {
+    result = await routingService.getRoute(parsed.waypoints);
+  } catch (err) {
+    console.error('Routing API error:', err);
+    const message = err instanceof Error ? err.message : 'Failed to get route from Google';
+    return jsonError(message, 502);
+  }
+
+  const enrichedPoints = await enrichWithElevation(result.points);
+
+  // Derive name from first and last named stops
+  const namedStops = parsed.waypoints.filter(w => w.type === 'stop' && w.name);
+  const firstName = namedStops[0] ? normalizeStopName(namedStops[0].name!) : '';
+  const lastName = namedStops.length > 1 ? normalizeStopName(namedStops[namedStops.length - 1].name!) : '';
+  const name = firstName && lastName ? `${firstName} to ${lastName}` : firstName || 'Imported route';
+
+  const gpxContent = buildGpxFromPoints(name, enrichedPoints);
+
+  return jsonResponse({ gpxContent, sourceUrl: url, name });
+}
+
 export async function POST({ request, locals }: APIContext) {
   const user = authorize(locals, 'import-gpx');
   if (user instanceof Response) return user;
@@ -137,18 +170,35 @@ export async function POST({ request, locals }: APIContext) {
     return jsonError('Missing url', 400);
   }
 
-  const source = detectUrlSource(url);
+  let workingUrl = url;
+  let source = detectUrlSource(workingUrl);
+
+  // Resolve shortened Google URLs
+  if (!source) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname === 'maps.app.goo.gl' || parsed.hostname === 'goo.gl') {
+        workingUrl = await resolveUrl(url);
+        source = detectUrlSource(workingUrl);
+      }
+    } catch {
+      // Invalid URL — fall through to error
+    }
+  }
+
   if (!source) {
     return jsonError(
-      'Unsupported URL. Supported sources: RideWithGPS (ridewithgps.com/routes/...), Google My Maps (google.com/maps/d/...)',
+      'Unsupported URL. Supported sources: RideWithGPS, Google My Maps, Google Directions',
       400,
     );
   }
 
   switch (source) {
     case 'rwgps':
-      return handleRwgps(url);
+      return handleRwgps(workingUrl);
     case 'google-maps':
-      return handleGoogleMaps(url);
+      return handleGoogleMaps(workingUrl);
+    case 'google-directions':
+      return handleGoogleDirections(workingUrl);
   }
 }
