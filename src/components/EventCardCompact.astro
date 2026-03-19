@@ -67,7 +67,16 @@ const shortDate = isSeriesOccurrence
     })()
   : '';
 const displayName = isSeriesOccurrence ? `${data.name} — ${shortDate}` : data.name;
-const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(' · ');
+const DISTANCE_FIRST_TAGS = new Set(['race', 'brevet', 'gravel', 'gran-fondo', 'triathlon', 'duathlon', 'criterium', 'charity-ride']);
+const ORGANIZER_FIRST_TAGS = new Set(['workshop', 'conference']);
+
+const metaParts = DISTANCE_FIRST_TAGS.has(firstTag)
+  ? [distanceDisplay, dateDisplay, organizerName]
+  : ORGANIZER_FIRST_TAGS.has(firstTag)
+  ? [organizerName, dateDisplay, distanceDisplay]
+  : [dateDisplay, organizerName, distanceDisplay];
+
+const meta = metaParts.filter(Boolean).join(' · ');
 ---
 
 <div class:list={['event-card-compact', { 'event-card-compact--muted': muted }]}>
