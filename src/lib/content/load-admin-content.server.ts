@@ -6,6 +6,8 @@ import type { AdminRide } from '../../loaders/admin-rides';
 import { routeDetailFromCache } from '../models/route-model';
 import { eventDetailFromCache } from '../models/event-model';
 import { rideDetailFromCache } from '../models/ride-model';
+import { organizerDetailFromCache } from '../models/organizer-model';
+import type { AdminOrganizer } from '../../types/admin';
 import { deserializeSharedKeys, type SharedKeysMap } from '../media/media-registry';
 import { CITY } from '../config/config';
 
@@ -278,6 +280,45 @@ export async function loadAdminRideList(buildTimeRides: AdminRide[]): Promise<{
     }),
   });
   return { rides: items, pendingSlugs: pendingIds };
+}
+
+/**
+ * Load admin organizer list with D1 cache overlay.
+ * Merges cached edits over build-time virtual module data and appends
+ * organizers that only exist in the cache (created since last deploy).
+ */
+export async function loadAdminOrganizerList(
+  buildTimeOrganizers: AdminOrganizer[],
+): Promise<{ items: AdminOrganizer[]; pendingIds: Set<string> }> {
+  return loadAdminContentList({
+    contentType: 'organizers',
+    buildTimeItems: buildTimeOrganizers,
+    getId: (item) => item.slug,
+    fromCache: organizerDetailFromCache,
+    overlay: (item, cached) => ({
+      ...item,
+      name: cached.name,
+      tagline: cached.tagline,
+      tags: cached.tags,
+      featured: cached.featured,
+      instagram: cached.instagram,
+      photo_key: cached.photo_key,
+      photo_content_type: cached.photo_content_type,
+      contentHash: cached.contentHash ?? item.contentHash,
+    }),
+    freshItemFromCache: (id, cached) => ({
+      slug: id,
+      name: cached.name,
+      tagline: cached.tagline,
+      tags: cached.tags,
+      featured: cached.featured,
+      website: cached.website,
+      instagram: cached.instagram,
+      photo_key: cached.photo_key,
+      photo_content_type: cached.photo_content_type,
+      contentHash: cached.contentHash ?? '',
+    }),
+  });
 }
 
 export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
