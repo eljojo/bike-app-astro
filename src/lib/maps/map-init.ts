@@ -49,6 +49,22 @@ function showPopup(map: maplibregl.Map, popup: maplibregl.Popup): void {
   activePopups.get(map)?.remove();
   activePopups.set(map, popup);
   popup.addTo(map);
+
+  // Pan the map so the popup is fully visible
+  requestAnimationFrame(() => {
+    const el = popup.getElement();
+    if (!el) return;
+    const mapRect = map.getContainer().getBoundingClientRect();
+    const popupRect = el.getBoundingClientRect();
+    const pad = 10;
+    let dx = 0;
+    let dy = 0;
+    if (popupRect.left < mapRect.left + pad) dx = popupRect.left - mapRect.left - pad;
+    if (popupRect.right > mapRect.right - pad) dx = popupRect.right - mapRect.right + pad;
+    if (popupRect.top < mapRect.top + pad) dy = popupRect.top - mapRect.top - pad;
+    if (popupRect.bottom > mapRect.bottom - pad) dy = popupRect.bottom - mapRect.bottom + pad;
+    if (dx || dy) map.panBy([dx, dy], { animate: true });
+  });
 }
 
 // --- Interfaces ---
@@ -273,9 +289,8 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
 
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          activePopups.get(map)?.remove();
-          activePopups.set(map, popup);
-          popup.setLngLat(coords).addTo(map);
+          popup.setLngLat(coords);
+          showPopup(map, popup);
         });
 
         const marker = new maplibregl.Marker({ element: el })
