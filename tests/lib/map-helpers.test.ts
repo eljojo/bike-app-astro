@@ -38,7 +38,7 @@ describe('buildPlacePopup', () => {
   it('includes photo when cdnUrl provided', () => {
     const popup = buildPlacePopup({ name: 'Cafe', photo_key: 'abc123' }, 'https://cdn.example.com');
     expect(popup).toContain('place-popup-photo');
-    expect(popup).toContain('https://cdn.example.com/cdn-cgi/image/width=280,height=160,fit=cover/abc123');
+    expect(popup).toContain('https://cdn.example.com/cdn-cgi/image/width=280%2Cheight=160%2Cfit=cover/abc123');
   });
 
   it('escapes XSS in place fields', () => {
@@ -124,7 +124,7 @@ describe('buildWaypointPopup', () => {
       'https://cdn.example.com',
     );
     expect(popup).toContain('waypoint-popup-photo');
-    expect(popup).toContain('cdn-cgi/image/width=280,height=160,fit=cover/abc123');
+    expect(popup).toContain('cdn-cgi/image/width=280%2Cheight=160%2Cfit=cover/abc123');
   });
 
   it('renders address and links', () => {
