@@ -23,6 +23,14 @@
       background: lighten($color-card-bg-dark, 5%);
     }
   }
+
+  // Compact sizing when inside month grid cards
+  .calendar-month-card & {
+    @media (min-width: $breakpoint-tablet) {
+      padding: 0.4em 0.5em;
+      gap: 0.5em;
+    }
+  }
 }
 
 .event-card-compact-thumb {
@@ -42,6 +50,13 @@
   @media (max-width: 480px) {
     width: 44px;
     height: 44px;
+  }
+
+  .calendar-month-card & {
+    @media (min-width: $breakpoint-tablet) {
+      width: 40px;
+      height: 40px;
+    }
   }
 }
 
@@ -85,6 +100,12 @@
     inset: 0;
     z-index: 0;
   }
+
+  .calendar-month-card & {
+    @media (min-width: $breakpoint-tablet) {
+      font-size: 0.9em;
+    }
+  }
 }
 
 .event-card-compact-tag {
@@ -120,11 +141,19 @@
 }
 
 .event-card-compact--muted {
-  // Indent to align with text on cards that have a thumbnail (56px + 0.75em gap)
+  // Indent to align with text on cards that have a thumbnail
+  // Base: 0.8em padding + 56px thumb + 0.75em gap
   padding-left: calc(0.8em + 56px + 0.75em);
 
   @media (max-width: 480px) {
     padding-left: calc(0.8em + 44px + 0.75em);
+  }
+
+  .calendar-month-card & {
+    @media (min-width: $breakpoint-tablet) {
+      // Match smaller month-card thumb (40px) + gap (0.5em) + padding (0.5em)
+      padding-left: calc(0.5em + 40px + 0.5em);
+    }
   }
 }
 
@@ -134,4 +163,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  .calendar-month-card & {
+    @media (min-width: $breakpoint-tablet) {
+      font-size: 0.75em;
+    }
+  }
 }
