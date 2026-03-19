@@ -18,7 +18,7 @@ test.describe('Route Creation', () => {
   });
 
   test.beforeEach(() => {
-    cleanupCreatedFiles(['demo/routes/test-trail']);
+    cleanupCreatedFiles(['demo/routes/test-trail', 'demo/routes/the-royal-oak-centrepointe-to-whiprsnapr-brewing-co']);
   });
 
   test('URL import input is visible and shows Import button on input', async ({ page }) => {
@@ -45,6 +45,43 @@ test.describe('Route Creation', () => {
     // Clear input — button should disappear
     await urlInput.fill('');
     await expect(importButton).not.toBeVisible();
+  });
+
+  test('Google Directions URL import shows preview with route name', async ({ page }) => {
+    await loginAs(page, token);
+
+    await page.goto('/admin/routes/new');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Paste a full Google Directions URL
+    const urlInput = page.locator('.url-import-input');
+    await urlInput.fill(
+      'https://www.google.com/maps/dir/The+Royal+Oak+-+Centrepointe,+117+Centrepointe+Dr+Unit+105,+Ottawa,+ON+K2G+5X3,+Canada/45.3268492,-75.8054197/Eaton+St,+Ottawa,+ON,+Canada/Whiprsnapr+Brewing+Co.,+14+Bexley+Pl+%23106,+Nepean,+ON+K2H+8W2,+Canada/@45.3347906,-75.8121228,14z/data=!3m1!4b1!4m21!4m20!1m5!1m1!1s0x4cce073d66aaaaab:0xd95fe42b230f3abd!2m2!1d-75.7625!2d45.3430556!1m0!1m5!1m1!1s0x4cce00a16d004239:0x528e8d2b0373771f!2m2!1d-75.8173974!2d45.3264109!1m5!1m1!1s0x4cce00a2800ba81d:0xdadad1e1f95c4a96!2m2!1d-75.819541!2d45.3301965!3e1',
+    );
+
+    // Click Import
+    const importButton = page.locator('.url-import button.btn-secondary');
+    await expect(importButton).toBeVisible();
+    await importButton.click();
+
+    // Wait for the route preview to appear (server calls mock Directions API)
+    const nameInput = page.locator('#new-route-name');
+    await expect(nameInput).toBeVisible({ timeout: 15000 });
+
+    // Route name should be auto-derived from waypoint names
+    const nameValue = await nameInput.inputValue();
+    expect(nameValue).toContain('Royal Oak');
+    expect(nameValue).toContain('Whiprsnapr');
+
+    // Preview map should be visible
+    const previewMap = page.locator('.route-preview-map');
+    await expect(previewMap).toBeVisible({ timeout: 10000 });
+
+    // Stats should show distance
+    const stats = page.locator('.route-preview-stats');
+    await expect(stats).toBeVisible();
+    await expect(stats).toContainText('km');
   });
 
   test('route preview shows map and stats after GPX upload', async ({ page }) => {
