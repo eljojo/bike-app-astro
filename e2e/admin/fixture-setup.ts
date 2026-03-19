@@ -339,6 +339,48 @@ An event for testing edits.
 `
   );
 
+  // event-series-recurring: owned by event-series.spec.ts (recurring series test)
+  fs.writeFileSync(
+    path.join(eventDir, 'event-series-recurring.md'),
+    `---
+name: Weekly Ride Series
+start_date: "2099-03-04"
+end_date: "2099-05-27"
+start_time: "18:00"
+location: City Hall
+organizer: cycling-club
+series:
+  recurrence: weekly
+  recurrence_day: tuesday
+  season_start: "2099-03-04"
+  season_end: "2099-05-27"
+---
+
+A weekly ride through the city.
+`
+  );
+
+  // event-series-schedule: owned by event-series.spec.ts (specific dates test)
+  fs.writeFileSync(
+    path.join(eventDir, 'event-series-schedule.md'),
+    `---
+name: Monthly Social
+start_date: "2099-04-10"
+end_date: "2099-06-12"
+start_time: "19:00"
+location: Brew Pub
+organizer: cycling-club
+series:
+  schedule:
+    - date: "2099-04-10"
+    - date: "2099-05-08"
+    - date: "2099-06-12"
+---
+
+A monthly social gathering for cyclists.
+`
+  );
+
   // --- Event organizer test fixtures (owned by event-organizer.spec.ts) ---
 
   // event-org-existing: uses slug ref to cycling-club
