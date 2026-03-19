@@ -63,6 +63,19 @@ test.describe('Series Editor — Recurring', () => {
     // Wait for Preact island hydration — data-hydrated is set by useEffect (client-only)
     await expect(page.locator('.series-editor[data-hydrated]')).toBeAttached({ timeout: 15000 });
 
+    // Debug: capture page state before interaction
+    await page.screenshot({ path: 'e2e/test-results/debug-before-select.png', fullPage: true });
+    const freqSelect = page.locator('#series-frequency');
+    const isVisible = await freqSelect.isVisible();
+    const isEnabled = await freqSelect.isEnabled();
+    const isDisabled = await freqSelect.evaluate((el: HTMLSelectElement) => el.disabled);
+    const fieldsetDisabled = await freqSelect.evaluate((el: HTMLSelectElement) => {
+      const fs = el.closest('fieldset');
+      return fs ? fs.disabled : 'no fieldset';
+    });
+    const bbox = await freqSelect.boundingBox();
+    console.log(`DEBUG select: visible=${isVisible} enabled=${isEnabled} disabled=${isDisabled} fieldsetDisabled=${fieldsetDisabled} bbox=${JSON.stringify(bbox)}`);
+
     // Change frequency to biweekly
     await page.locator('#series-frequency').selectOption('biweekly');
 
