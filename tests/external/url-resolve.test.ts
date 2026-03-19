@@ -9,31 +9,29 @@ beforeEach(() => {
 });
 
 describe('resolveUrl', () => {
-  it('follows a single redirect', async () => {
+  it('resolves via redirect: follow when res.url differs', async () => {
     mockFetch.mockResolvedValueOnce({
-      status: 302,
-      headers: new Headers({ location: 'https://example.com/final' }),
-    });
-    mockFetch.mockResolvedValueOnce({
-      status: 200,
       url: 'https://example.com/final',
     });
     const result = await resolveUrl('https://short.link/abc');
     expect(result).toBe('https://example.com/final');
+    // Only one fetch call — no manual fallback needed
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith('https://short.link/abc', { redirect: 'follow' });
   });
 
-  it('follows a chain of redirects', async () => {
+  it('falls back to manual redirect following when res.url matches input', async () => {
+    // First call (redirect: follow) returns same URL — no resolution
     mockFetch.mockResolvedValueOnce({
-      status: 301,
-      headers: new Headers({ location: 'https://mid.link/step' }),
+      url: 'https://short.link/abc',
     });
+    // Manual fallback calls
     mockFetch.mockResolvedValueOnce({
       status: 302,
       headers: new Headers({ location: 'https://example.com/final' }),
     });
     mockFetch.mockResolvedValueOnce({
       status: 200,
-      url: 'https://example.com/final',
     });
     const result = await resolveUrl('https://short.link/abc');
     expect(result).toBe('https://example.com/final');
@@ -41,14 +39,18 @@ describe('resolveUrl', () => {
 
   it('returns original URL when no redirect', async () => {
     mockFetch.mockResolvedValueOnce({
-      status: 200,
       url: 'https://example.com/page',
     });
     const result = await resolveUrl('https://example.com/page');
     expect(result).toBe('https://example.com/page');
   });
 
-  it('stops after 3 redirects to prevent infinite loops', async () => {
+  it('manual fallback stops after 3 redirects to prevent infinite loops', async () => {
+    // First call (redirect: follow) returns same URL
+    mockFetch.mockResolvedValueOnce({
+      url: 'https://loop.link/start',
+    });
+    // Manual fallback: 3 redirects then stops
     for (let i = 0; i < 5; i++) {
       mockFetch.mockResolvedValueOnce({
         status: 302,
@@ -56,7 +58,8 @@ describe('resolveUrl', () => {
       });
     }
     const result = await resolveUrl('https://loop.link/start');
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    // 1 follow call + 3 manual calls = 4 total
+    expect(mockFetch).toHaveBeenCalledTimes(4);
     expect(result).toBe('https://loop.link/2');
   });
 

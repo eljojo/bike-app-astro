@@ -7,20 +7,38 @@ const MOCK_REDIRECTS: Record<string, string> = {
 /**
  * Follow redirects to resolve a shortened URL to its final destination.
  * Returns the original URL if no redirect or on error.
- * Follows up to 3 redirects to prevent infinite loops.
+ *
+ * Strategy: first try redirect: 'follow' (lets the runtime follow redirects
+ * natively and returns the final URL via res.url). Falls back to manual
+ * redirect following for environments where res.url isn't populated.
  */
-export async function resolveUrl(url: string, limit = 3): Promise<string> {
+export async function resolveUrl(url: string): Promise<string> {
   if (process.env.MOCK_DIRECTIONS_API && MOCK_REDIRECTS[url]) {
     return MOCK_REDIRECTS[url];
   }
-  if (limit === 0 || !url.startsWith('http')) return url;
+  if (!url.startsWith('http')) return url;
+  try {
+    // Let the runtime follow redirects — res.url is the final destination
+    const res = await fetch(url, { redirect: 'follow' });
+    if (res.url && res.url !== url) return res.url;
+
+    // Fallback: manual redirect following (up to 3 hops)
+    return await resolveManual(url, 3);
+  } catch (err) {
+    console.error('resolveUrl error:', err);
+    return url;
+  }
+}
+
+async function resolveManual(url: string, limit: number): Promise<string> {
+  if (limit === 0) return url;
   try {
     const res = await fetch(url, { redirect: 'manual' });
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
-      if (location) return resolveUrl(location, limit - 1);
+      if (location) return resolveManual(location, limit - 1);
     }
-    return res.url || url;
+    return url;
   } catch {
     return url;
   }
