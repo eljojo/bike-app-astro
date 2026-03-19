@@ -1,0 +1,19 @@
+{
+  "geocoded_waypoints": [],
+  "routes": [
+    {
+      "legs": [
+        {
+          "distance": { "value": 5000 },
+          "steps": [
+            {
+              "polyline": { "points": "gf~xGdq|lMcBqC" }
+            }
+          ]
+        }
+      ],
+      "overview_polyline": { "points": "gf~xGdq|lMcBqC" }
+    }
+  ],
+  "status": "OK"
+}
