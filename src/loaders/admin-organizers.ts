@@ -6,21 +6,27 @@
 // Data flow:
 //   content files → admin-organizers.ts → build-data-plugin.ts
 //     → virtual:bike-app/admin-organizers (list)
+//     → virtual:bike-app/admin-organizer-detail (detail)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config/config.server';
-import { computeOrganizerContentHash } from '../lib/models/organizer-model.server';
+import { computeOrganizerContentHash, parseOrganizerFile } from '../lib/models/organizer-model.server';
+import type { OrganizerDetail } from '../lib/models/organizer-model';
 import type { AdminOrganizer } from '../types/admin';
 
 const CITY_DIR = cityDir;
 
-export async function loadAdminOrganizers(): Promise<AdminOrganizer[]> {
+export async function loadAdminOrganizers(): Promise<{
+  list: AdminOrganizer[];
+  details: Record<string, OrganizerDetail>;
+}> {
   const orgDir = path.join(CITY_DIR, 'organizers');
-  if (!fs.existsSync(orgDir)) return [];
+  if (!fs.existsSync(orgDir)) return { list: [], details: {} };
 
   const organizers: AdminOrganizer[] = [];
+  const details: Record<string, OrganizerDetail> = {};
 
   for (const file of fs.readdirSync(orgDir)) {
     if (!file.endsWith('.md')) continue;
@@ -46,8 +52,11 @@ export async function loadAdminOrganizers(): Promise<AdminOrganizer[]> {
       photo_height: fm.photo_height as number | undefined,
       contentHash,
     });
+
+    const detail = parseOrganizerFile(slug, raw);
+    details[slug] = { ...detail, contentHash };
   }
 
   organizers.sort((a, b) => a.name.localeCompare(b.name));
-  return organizers;
+  return { list: organizers, details };
 }

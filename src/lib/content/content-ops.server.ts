@@ -12,6 +12,7 @@ import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../models/route-model.server';
 import { buildFreshEventData, computeEventContentHashFromFiles } from '../models/event-model.server';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../models/place-model.server';
+import { buildFreshOrganizerData, computeOrganizerContentHashFromFiles } from '../models/organizer-model.server';
 import type { ContentOps } from './content-types.server';
 
 export const routeOps: ContentOps = {
@@ -49,4 +50,12 @@ export const placeOps: ContentOps = {
   },
   computeContentHash: computePlaceContentHashFromFiles,
   buildFreshData: buildFreshPlaceData,
+};
+
+export const organizerOps: ContentOps = {
+  getFilePaths(slug: string) {
+    return { primary: `${CITY}/organizers/${slug}.md` };
+  },
+  computeContentHash: computeOrganizerContentHashFromFiles,
+  buildFreshData: buildFreshOrganizerData,
 };

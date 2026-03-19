@@ -1,6 +1,6 @@
 import { getInstanceFeatures } from '../config/instance-features';
 import type { CurrentFiles } from './content-save';
-import { routeOps, eventOps, placeOps } from './content-ops.server';
+import { routeOps, eventOps, placeOps, organizerOps } from './content-ops.server';
 
 export interface ContentTypeRoute {
   pattern: string;
@@ -85,6 +85,21 @@ export const contentTypes: ContentTypeConfig[] = [
     apiRoutes: [
       { pattern: '/api/places/prefill', entrypoint: 'api/places-prefill.ts' },
       { pattern: '/api/places/[id]', entrypoint: 'api/place-save.ts' },
+    ],
+  },
+  {
+    name: 'organizers',
+    singular: 'organizer',
+    label: 'Communities',
+    featureGate: 'hasEvents',
+    ops: organizerOps,
+    adminListRoute: { pattern: '/admin/communities', entrypoint: 'admin/community-list.astro' },
+    adminDetailRoutes: [
+      { pattern: '/admin/communities/new', entrypoint: 'admin/community-new.astro' },
+      { pattern: '/admin/communities/[slug]', entrypoint: 'admin/community-detail.astro' },
+    ],
+    apiRoutes: [
+      { pattern: '/api/organizers/[slug]', entrypoint: 'api/organizer-save.ts' },
     ],
   },
   {
