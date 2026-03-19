@@ -167,6 +167,30 @@ if (typeof data.organizer === 'string') {
 }
 const regUrl = data.registration?.url || data.registration_url;
 
+// Format a 24h time string (e.g. "18:00") to locale-friendly display (e.g. "6:00 pm")
+function formatTime(time: string, loc?: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m);
+  return d.toLocaleTimeString(loc || 'en-CA', { hour: 'numeric', minute: '2-digit' });
+}
+
+// Build date display with optional time — meet time shown when available
+const hasMeetTime = !!data.meet_time && !!data.start_time;
+const timeDisplay = hasMeetTime
+  ? t('events.meet_time', locale, { meet: formatTime(data.meet_time!, locale), roll: formatTime(data.start_time!, locale) })
+  : data.start_time
+    ? formatTime(data.start_time, locale)
+    : undefined;
+const dateWithTime = timeDisplay ? `${dateDisplay} \u2014 ${timeDisplay}` : dateDisplay;
+
+// Series data — must be declared before isPastEvent which depends on them
+const isSeries = isSeriesEvent(data);
+const seriesOccurrences = isSeries ? expandSeriesOccurrences(data) : [];
+const now = new Date();
+const nextOccurrence = isSeries ? getNextOccurrence(seriesOccurrences, now) : undefined;
+const seriesActive = isSeries && isSeriesActive(seriesOccurrences, now);
+const seriesEnded = isSeries && !seriesActive;
+
 // Past event detection — for series, use whether the series is still active
 const eventEndDate = data.end_date || data.start_date;
 const isPastEvent = isSeries ? seriesEnded : parseLocalDate(eventEndDate) < new Date();
@@ -188,30 +212,6 @@ if (organizerInstagram) {
   followUrl = organizerWebsite;
   followName = organizerName;
 }
-
-// Format a 24h time string (e.g. "18:00") to locale-friendly display (e.g. "6:00 pm")
-function formatTime(time: string, loc?: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const d = new Date(2000, 0, 1, h, m);
-  return d.toLocaleTimeString(loc || 'en-CA', { hour: 'numeric', minute: '2-digit' });
-}
-
-// Build date display with optional time — meet time shown when available
-const hasMeetTime = !!data.meet_time && !!data.start_time;
-const timeDisplay = hasMeetTime
-  ? t('events.meet_time', locale, { meet: formatTime(data.meet_time!, locale), roll: formatTime(data.start_time!, locale) })
-  : data.start_time
-    ? formatTime(data.start_time, locale)
-    : undefined;
-const dateWithTime = timeDisplay ? `${dateDisplay} \u2014 ${timeDisplay}` : dateDisplay;
-
-// Series data
-const isSeries = isSeriesEvent(data);
-const seriesOccurrences = isSeries ? expandSeriesOccurrences(data) : [];
-const now = new Date();
-const nextOccurrence = isSeries ? getNextOccurrence(seriesOccurrences, now) : undefined;
-const seriesActive = isSeries && isSeriesActive(seriesOccurrences, now);
-const seriesEnded = isSeries && !seriesActive;
 
 // Split occurrences into upcoming and past
 const upcomingOccurrences = seriesOccurrences.filter(o => parseLocalDate(o.date) >= now);

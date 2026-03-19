@@ -91,11 +91,18 @@ function getSeriesBadge(entry: CalendarEntry): string | undefined {
   const series = entry.event.data.series;
   if (!series) return undefined;
   if (series.recurrence && series.recurrence_day) {
-    const dayName = series.recurrence_day.charAt(0).toUpperCase() + series.recurrence_day.slice(1);
-    return series.recurrence === 'biweekly' ? `Every other ${dayName}` : `Every ${dayName}`;
+    const occurrences = expandSeriesOccurrences(entry.event.data);
+    const localizedDay = parseLocalDate(
+      occurrences[0]?.date || '2026-01-01'
+    ).toLocaleString(fmtLocale, { weekday: 'long' });
+    const timeStr = entry.event.data.start_time
+      ? new Date(2000, 0, 1, ...entry.event.data.start_time.split(':').map(Number)).toLocaleTimeString(fmtLocale, { hour: 'numeric', minute: '2-digit' })
+      : '';
+    const key = series.recurrence === 'biweekly' ? 'events.series_every_two_weeks' : 'events.series_every_week';
+    return t(key, locale, { day: localizedDay, time: timeStr });
   }
   if (series.schedule?.length) {
-    return `${series.schedule.length} dates`;
+    return t('events.series_dates_count', locale, { count: series.schedule.filter((s: { cancelled?: boolean }) => !s.cancelled).length });
   }
   return undefined;
 }

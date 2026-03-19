@@ -52,7 +52,7 @@ export function expandSeriesOccurrences(event: EventLike): SeriesOccurrence[] {
       note: s.note,
       cancelled: s.cancelled,
       rescheduled_from: s.rescheduled_from,
-    }));
+    })).sort((a, b) => a.date.localeCompare(b.date));
   }
 
   if (series.recurrence && series.recurrence_day && series.season_start && series.season_end) {

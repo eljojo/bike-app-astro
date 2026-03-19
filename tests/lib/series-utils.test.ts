@@ -138,6 +138,21 @@ describe('expandSeriesOccurrences — explicit schedule', () => {
     expect(result[1].location).toBe('Hintonburg CC');
   });
 
+  it('sorts explicit schedule by date', () => {
+    const event = {
+      name: 'Social',
+      series: {
+        schedule: [
+          { date: '2026-02-05' },
+          { date: '2026-01-08' },
+          { date: '2026-01-22' },
+        ],
+      },
+    };
+    const result = expandSeriesOccurrences(event as any);
+    expect(result.map(r => r.date)).toEqual(['2026-01-08', '2026-01-22', '2026-02-05']);
+  });
+
   it('falls back to event location when schedule entry omits it', () => {
     const event = {
       name: 'Social',

@@ -408,8 +408,12 @@
   font-size: 0.75em;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #e74c3c;
+  color: $color-error;
   font-weight: 600;
+
+  @include dark-mode {
+    color: $color-error-dark;
+  }
 }
 
 .event-series-date-note {

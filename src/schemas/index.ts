@@ -152,7 +152,10 @@ const eventSeriesSchema = z.object({
   skip_dates: z.array(z.string()).optional(),
   overrides: z.array(seriesOccurrenceOverrideSchema).optional(),
   schedule: z.array(seriesOccurrenceOverrideSchema).optional(),
-});
+}).refine(
+  d => (d.recurrence && d.recurrence_day && d.season_start && d.season_end) || d.schedule?.length,
+  { message: 'Series needs either recurrence rule or explicit schedule' },
+);
 
 export const eventSchema = z.object({
   name: z.string(),

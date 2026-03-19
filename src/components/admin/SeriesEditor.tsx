@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'preact/hooks';
+import { useState, useMemo, useCallback, useEffect } from 'preact/hooks';
 import { expandSeriesOccurrences, type SeriesOccurrence } from '../../lib/series-utils';
 import { parseLocalDate, formatDateStr } from '../../lib/date-utils';
 import type { EventSeries, SeriesOccurrenceOverride } from '../../lib/models/event-model';
@@ -128,8 +128,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
   }, [buildSeries, occurrences, onSeriesChange]);
 
   // Trigger parent notification after state changes settle
-  // We use useMemo to detect changes and notify
-  useMemo(() => {
+  useEffect(() => {
     notifyParent();
   }, [notifyParent]);
 
