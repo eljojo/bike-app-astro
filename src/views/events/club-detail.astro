@@ -10,7 +10,7 @@ import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
 import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/date-utils';
-import { t, localePath, eventNoun, eventNextLabel } from '@/i18n';
+import { t, localePath, eventNoun, eventNextLabel, eventSignUpLabel, eventEditionsLabel, eventGoBackLabel } from '@/i18n';
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
@@ -449,7 +449,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
           {!isPastEvent && regUrl ? (
             <a class="event-detail-facts-cta" href={regUrl} target="_blank" rel="noopener noreferrer">
-              {isInstagramReg && followName ? followName : t('events.sign_up', locale)} &#x2192;
+              {isInstagramReg && followName ? followName : eventSignUpLabel(tags, locale)} &#x2192;
             </a>
           ) : !isPastEvent && data.event_url && (
             <a class="event-detail-facts-cta" href={data.event_url} target="_blank" rel="noopener noreferrer">
@@ -595,8 +595,8 @@ function editionDateLabel(startDate: string, loc?: string): string {
         <section class="event-detail-section">
           <a href={data.map_url} class="event-map-link" target="_blank" rel="noopener noreferrer">
             {mapServiceName(data.map_url)
-              ? `View route map on ${mapServiceName(data.map_url)}`
-              : 'View route map'} &#x2192;
+              ? t('events.view_route_map_on', locale, { service: mapServiceName(data.map_url)! })
+              : t('events.view_route_map', locale)} &#x2192;
           </a>
         </section>
       )}
@@ -604,8 +604,8 @@ function editionDateLabel(startDate: string, loc?: string): string {
         <p class="event-map-external">
           <a href={data.map_url} target="_blank" rel="noopener noreferrer">
             {mapServiceName(data.map_url)
-              ? `Also on ${mapServiceName(data.map_url)}`
-              : 'View route map'} &#x2192;
+              ? t('events.also_on', locale, { service: mapServiceName(data.map_url)! })
+              : t('events.view_route_map', locale)} &#x2192;
           </a>
         </p>
       )}
@@ -626,7 +626,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
       {otherEditions.length > 0 && (
         <section class="event-editions">
-          <h2>{t('events.editions', locale)}</h2>
+          <h2>{eventEditionsLabel(tags, locale)}</h2>
           <div class="edition-cards">
             {otherEditions.map((ed: { id: string; year: string; name: string; poster_key?: string; start_date: string; distances?: string }) => (
               <a href={paths.event(ed.id, locale)} class={`edition-card ${ed.id === event.id ? 'edition-card--current' : ''}`}>
@@ -653,7 +653,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
   </article>
 
   <p style="margin-top: 2em;">
-    <a href={localePath(getInstanceFeatures().hasEnrichedEvents ? '/events' : '/calendar', locale)} class="go-back-button">&#x21A9; {t('events.go_back', locale)}</a>
+    <a href={localePath(getInstanceFeatures().hasEnrichedEvents ? '/events' : '/calendar', locale)} class="go-back-button">&#x21A9; {eventGoBackLabel(tags, locale)}</a>
   </p>
 
   <script>

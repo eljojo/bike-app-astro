@@ -95,6 +95,58 @@ export function eventNextLabel(tags: string[], locale: string | undefined): stri
 }
 
 /**
+ * Derive the sign-up CTA label for an event from its tags.
+ * Returns a locale-aware verb like "Sign up", "RSVP", "Register",
+ * "S'inscrire", "Participer" — matching the event type.
+ */
+export function eventSignUpLabel(tags: string[], locale: string | undefined): string {
+  const short = shortLocale(locale || defaultLocale());
+  const strings = translations[short] || translations[defaultLocale()];
+  const fallback = translations[defaultLocale()];
+  for (const tag of tags) {
+    const key = `events.sign_up.${tag}`;
+    const value = strings[key] ?? fallback[key];
+    if (value) return value as string;
+  }
+  return (strings['events.sign_up.default'] ?? fallback['events.sign_up.default'] ?? 'Sign up') as string;
+}
+
+/**
+ * Derive the "Other ..." editions heading for an event from its tags.
+ * Returns a locale-aware phrase like "Other rides", "Autres parcours",
+ * "Otras carreras" — with correct grammatical gender per locale.
+ */
+export function eventEditionsLabel(tags: string[], locale: string | undefined): string {
+  const short = shortLocale(locale || defaultLocale());
+  const strings = translations[short] || translations[defaultLocale()];
+  const fallback = translations[defaultLocale()];
+  for (const tag of tags) {
+    const key = `events.editions.${tag}`;
+    const value = strings[key] ?? fallback[key];
+    if (value) return value as string;
+  }
+  return (strings['events.editions.default'] ?? fallback['events.editions.default'] ?? 'Other events') as string;
+}
+
+/**
+ * Derive the "go back to all ..." label for an event from its tags.
+ * Returns a locale-aware phrase like "go back to all rides",
+ * "retour à toutes les courses", "volver a todas las carreras"
+ * — with correct grammatical gender per locale.
+ */
+export function eventGoBackLabel(tags: string[], locale: string | undefined): string {
+  const short = shortLocale(locale || defaultLocale());
+  const strings = translations[short] || translations[defaultLocale()];
+  const fallback = translations[defaultLocale()];
+  for (const tag of tags) {
+    const key = `events.go_back.${tag}`;
+    const value = strings[key] ?? fallback[key];
+    if (value) return value as string;
+  }
+  return (strings['events.go_back.default'] ?? fallback['events.go_back.default'] ?? 'go back to all events') as string;
+}
+
+/**
  * Build a locale-prefixed path. Default locale gets no prefix.
  */
 export function localePath(path: string, locale: string | undefined): string {
