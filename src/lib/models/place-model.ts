@@ -1,5 +1,6 @@
 import { z } from 'astro/zod';
 import { type GitFiles } from './content-model';
+import { goodForEnum } from '../../schemas/index';
 
 export const placeDetailSchema = z.object({
   id: z.string(),
@@ -9,6 +10,8 @@ export const placeDetailSchema = z.object({
   lat: z.number(),
   lng: z.number(),
   status: z.string().default('published'),
+  vibe: z.string().optional(),
+  good_for: z.array(goodForEnum).default([]),
   address: z.string().optional(),
   website: z.string().optional(),
   phone: z.string().optional(),

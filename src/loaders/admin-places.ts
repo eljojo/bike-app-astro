@@ -58,6 +58,8 @@ export async function loadAdminPlaceData(): Promise<AdminPlaceData> {
       category: fm.category as string,
       lat: fm.lat as number,
       lng: fm.lng as number,
+      vibe: fm.vibe as string | undefined,
+      good_for: (fm.good_for as string[] | undefined) || [],
       contentHash,
     });
 

@@ -28,6 +28,8 @@ const placeUpdateSchema = z.object({
     lat: z.number(),
     lng: z.number(),
     status: z.string().optional(),
+    vibe: z.string().optional(),
+    good_for: z.array(z.string()).default([]),
     address: z.string().optional(),
     website: z.string().optional(),
     phone: z.string().optional(),
@@ -45,6 +47,8 @@ export interface PlaceUpdate {
     lat: number;
     lng: number;
     status?: string;
+    vibe?: string;
+    good_for: string[];
     address?: string;
     website?: string;
     phone?: string;
@@ -127,6 +131,8 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSl
     if (update.frontmatter.status && update.frontmatter.status !== 'published') {
       fm.status = update.frontmatter.status;
     }
+    if (update.frontmatter.vibe) fm.vibe = update.frontmatter.vibe;
+    if (update.frontmatter.good_for.length > 0) fm.good_for = update.frontmatter.good_for;
     if (update.frontmatter.address) fm.address = update.frontmatter.address;
     if (update.frontmatter.website) fm.website = update.frontmatter.website;
     if (update.frontmatter.phone) fm.phone = update.frontmatter.phone;

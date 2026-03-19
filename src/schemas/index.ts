@@ -65,6 +65,11 @@ export const routeSchema = z.object({
   homepage_featured: z.boolean().optional(),
 });
 
+export const goodForEnum = z.enum([
+  'refuel', 'destination', 'swimming', 'view',
+  'rest-stop', 'family', 'post-ride', 'supplies', 'photo-op',
+]);
+
 export const placeSchema = z.object({
   name: z.string(),
   name_fr: z.string().optional(),
@@ -73,11 +78,14 @@ export const placeSchema = z.object({
   lng: z.number(),
   status: z.literal('published').default('published'),
   description: z.string().optional(),
+  vibe: z.string().optional(),
+  good_for: z.array(goodForEnum).default([]),
   address: z.string().optional(),
   website: z.string().optional(),
   phone: z.string().optional(),
   google_maps_url: z.string().optional(),
   photo_key: z.string().optional(),
+  media: z.array(baseMediaItemSchema).default([]),
 });
 
 export const guideSchema = z.object({

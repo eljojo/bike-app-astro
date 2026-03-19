@@ -9,7 +9,7 @@ import { defaultLocale } from '../i18n/locale-utils';
  * Filters to published places only.
  */
 export function toPlaceData(
-  allPlaces: { id: string; data: { status: string; name: string; name_fr?: string; category: string; lat: number; lng: number; address?: string; website?: string; phone?: string; google_maps_url?: string; photo_key?: string } }[],
+  allPlaces: { id: string; data: { status: string; name: string; name_fr?: string; category: string; lat: number; lng: number; address?: string; website?: string; phone?: string; google_maps_url?: string; photo_key?: string; vibe?: string; good_for?: string[] } }[],
 ): PlaceData[] {
   return allPlaces
     .filter(p => p.data.status === 'published')
@@ -25,6 +25,8 @@ export function toPlaceData(
       phone: p.data.phone,
       google_maps_url: p.data.google_maps_url,
       photo_key: p.data.photo_key,
+      vibe: p.data.vibe,
+      good_for: p.data.good_for,
     }));
 }
 

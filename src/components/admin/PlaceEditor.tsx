@@ -7,6 +7,7 @@ import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
 import { categoryEmoji } from '../../lib/geo/place-categories';
+import { goodForEnum } from '../../schemas/index';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
@@ -92,6 +93,8 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [phone, setPhone] = useState(initialData.phone || '');
   const [googleMapsUrl, setGoogleMapsUrl] = useState(initialData.google_maps_url || '');
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
+  const [vibe, setVibe] = useState(initialData.vibe || '');
+  const [goodFor, setGoodFor] = useState<string[]>(initialData.good_for || []);
   const [prefilling, setPrefilling] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(!initialData.isNew);
 
@@ -99,7 +102,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey]);
+  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey, vibe, goodFor]);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
@@ -131,6 +134,8 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
               .filter(locale => translations[locale])
               .map(locale => [`name_${locale}`, translations[locale]])
           ),
+          ...(vibe && { vibe }),
+          good_for: goodFor,
           ...(address && { address }),
           ...(website && { website }),
           ...(phone && { phone }),
@@ -432,6 +437,34 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
               <label for="place-phone">Phone</label>
               <input id="place-phone" type="tel" value={phone}
                 onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
+            </div>
+
+            <div class="form-field">
+              <label for="place-vibe">Vibe <span class="field-hint">(one-sentence hook)</span></label>
+              <input id="place-vibe" type="text" value={vibe}
+                placeholder="What makes this place worth visiting"
+                onInput={(e) => setVibe((e.target as HTMLInputElement).value)} />
+            </div>
+
+            <div class="form-field">
+              <label>Good for</label>
+              <div class="good-for-options">
+                {goodForEnum.options.map((value) => (
+                  <label key={value} class="good-for-tag">
+                    <input
+                      type="checkbox"
+                      checked={goodFor.includes(value)}
+                      onChange={(e) => {
+                        const checked = (e.target as HTMLInputElement).checked;
+                        setGoodFor(prev =>
+                          checked ? [...prev, value] : prev.filter(v => v !== value)
+                        );
+                      }}
+                    />
+                    {value.replace(/-/g, ' ')}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {initialData.isNew && googleMapsField}

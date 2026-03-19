@@ -43,6 +43,8 @@ export interface AdminPlace {
   category: string;
   lat: number;
   lng: number;
+  vibe?: string;
+  good_for: string[];
   contentHash: string;
 }
 
