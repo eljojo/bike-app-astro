@@ -62,7 +62,7 @@ export function formatDateRange(startStr: string, endStr?: string, locale?: stri
 }
 
 export function formatMonthName(dateStr: string, locale?: string): string {
-  return parseLocalDate(dateStr).toLocaleString(locale || 'en-CA', { month: 'long' });
+  return parseLocalDate(dateStr).toLocaleString(locale || 'en-CA', { month: 'long', year: 'numeric' });
 }
 
 /** Format seconds into a compact duration string like "2h05m". */

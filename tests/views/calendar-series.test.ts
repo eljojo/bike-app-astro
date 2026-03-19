@@ -1,148 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { expandSeriesOccurrences, isSeriesEvent } from '../../src/lib/series-utils';
-import { formatMonthName } from '../../src/lib/date-utils';
-
-// --------------------------------------------------------------------------
-// Replicate the calendar expansion pattern from calendar.astro
-// --------------------------------------------------------------------------
-
-interface CalendarEntry {
-  event: { id: string; data: Record<string, unknown> };
-  occurrenceDate?: string;
-  occurrenceLocation?: string;
-}
-
-function effectiveDate(entry: CalendarEntry): string {
-  return entry.occurrenceDate || (entry.event.data.start_date as string);
-}
-
-function expandEvents(events: CalendarEntry['event'][]): CalendarEntry[] {
-  const expanded: CalendarEntry[] = [];
-  for (const event of events) {
-    if (isSeriesEvent(event.data)) {
-      const occurrences = expandSeriesOccurrences(event.data as any);
-      for (const occ of occurrences) {
-        if (!occ.cancelled) {
-          expanded.push({
-            event,
-            occurrenceDate: occ.date,
-            occurrenceLocation: occ.location,
-          });
-        }
-      }
-    } else {
-      expanded.push({ event });
-    }
-  }
-  return expanded;
-}
-
-function deduplicateSeries(entries: CalendarEntry[]): CalendarEntry[] {
-  const seen = new Set<string>();
-  const result: CalendarEntry[] = [];
-  for (const entry of entries) {
-    const id = entry.event.id;
-    if (isSeriesEvent(entry.event.data)) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-    }
-    result.push(entry);
-  }
-  return result;
-}
-
-function groupByMonth(entries: CalendarEntry[], locale = 'en-CA') {
-  const groups: Record<string, CalendarEntry[]> = {};
-  for (const entry of entries) {
-    const month = formatMonthName(effectiveDate(entry), locale);
-    if (!groups[month]) groups[month] = [];
-    groups[month].push(entry);
-  }
-  return groups;
-}
-
-// --------------------------------------------------------------------------
-// Replicate the iCal VEVENT generation pattern from calendar.ics.ts
-// --------------------------------------------------------------------------
-
-function escapeIcal(text: string): string {
-  return text.replace(/[\\;,\n]/g, (m) => {
-    if (m === '\n') return '\\n';
-    return `\\${m}`;
-  });
-}
-
-function formatIcalDate(dateStr: string): string {
-  return dateStr.replace(/-/g, '');
-}
-
-function formatIcalTime(timeStr: string): string {
-  return timeStr.replace(/:/g, '') + '00';
-}
-
-interface VEvent {
-  uid: string;
-  summary: string;
-  dtstart: string;
-  location?: string;
-  description?: string;
-}
-
-function buildVEventsForEvent(
-  event: { id: string; data: Record<string, unknown> },
-  domain: string,
-  timezone: string,
-): VEvent[] {
-  const e = event.data;
-  const vevents: VEvent[] = [];
-
-  if (isSeriesEvent(e)) {
-    const occurrences = expandSeriesOccurrences(e as any);
-    for (const occ of occurrences) {
-      if (occ.cancelled) continue;
-      const uid = `${event.id}-${occ.date}@${domain}`;
-      const time = occ.start_time;
-      let dtstart: string;
-      if (time) {
-        dtstart = `DTSTART;TZID=${timezone}:${formatIcalDate(occ.date)}T${formatIcalTime(time)}`;
-      } else {
-        dtstart = `DTSTART;VALUE=DATE:${formatIcalDate(occ.date)}`;
-      }
-
-      const descParts: string[] = [];
-      if (occ.meet_time && time) {
-        descParts.push(`Meet: ${occ.meet_time}, Roll: ${time}`);
-      }
-      if (e.distances) descParts.push(e.distances as string);
-
-      vevents.push({
-        uid,
-        summary: escapeIcal(e.name as string),
-        dtstart,
-        location: occ.location ? escapeIcal(occ.location) : undefined,
-        description: descParts.length ? escapeIcal(descParts.join('\\n')) : undefined,
-      });
-    }
-  } else {
-    const uid = `${event.id}@${domain}`;
-    const time = e.start_time as string | undefined;
-    let dtstart: string;
-    if (time) {
-      dtstart = `DTSTART;TZID=${timezone}:${formatIcalDate(e.start_date as string)}T${formatIcalTime(time)}`;
-    } else {
-      dtstart = `DTSTART;VALUE=DATE:${formatIcalDate(e.start_date as string)}`;
-    }
-    vevents.push({
-      uid,
-      summary: escapeIcal(e.name as string),
-      dtstart,
-      location: e.location ? escapeIcal(e.location as string) : undefined,
-      description: e.distances ? escapeIcal(e.distances as string) : undefined,
-    });
-  }
-
-  return vevents;
-}
+import { isSeriesEvent } from '../../src/lib/series-utils';
+import { expandEvents, deduplicateSeries, groupByMonth } from '../../src/lib/calendar-helpers';
+import { buildVEventLines } from '../../src/lib/ical-helpers';
 
 // --------------------------------------------------------------------------
 // Test fixtures
@@ -208,7 +67,7 @@ const oneOffAllDay = {
 };
 
 // --------------------------------------------------------------------------
-// Calendar expansion tests
+// Calendar expansion tests (using production expandEvents)
 // --------------------------------------------------------------------------
 
 describe('calendar expansion — series events', () => {
@@ -290,6 +149,14 @@ describe('calendar expansion — month grouping', () => {
     expect(monthNames).toHaveLength(1);
     expect(monthNames[0]).toMatch(/July/i);
   });
+
+  it('distinguishes same month in different years', () => {
+    const janEvent2026 = { id: '2026/jan-ride', data: { name: 'Jan 2026', start_date: '2026-01-15' } };
+    const janEvent2027 = { id: '2027/jan-ride', data: { name: 'Jan 2027', start_date: '2027-01-15' } };
+    const entries = expandEvents([janEvent2026, janEvent2027]);
+    const months = groupByMonth(entries);
+    expect(Object.keys(months)).toHaveLength(2);
+  });
 });
 
 describe('calendar expansion — deduplication', () => {
@@ -322,101 +189,109 @@ describe('calendar expansion — deduplication', () => {
 });
 
 // --------------------------------------------------------------------------
-// iCal generation tests
+// iCal generation tests (using production buildVEventLines)
 // --------------------------------------------------------------------------
 
 const DOMAIN = 'ottawabybike.ca'; // eslint-disable-line bike-app/no-hardcoded-city-locale -- test fixture
 const TIMEZONE = 'America/Toronto';
+const DTSTAMP = '20260101T000000Z';
+
+function findVEvent(vevents: ReturnType<typeof buildVEventLines>, uidPart: string) {
+  return vevents.find(v => v.uid.includes(uidPart));
+}
+
+function getLine(lines: string[], prefix: string): string | undefined {
+  return lines.find(l => l.startsWith(prefix));
+}
 
 describe('iCal generation — series events', () => {
   it('produces one VEVENT per non-cancelled occurrence', () => {
-    const vevents = buildVEventsForEvent(weeklySeries, DOMAIN, TIMEZONE);
-    // 5 Tuesdays (Jun 2, 9, 16, 23, 30), minus skip (16), cancelled (9) stays as occurrence but excluded
-    // Actually: cancelled Jun 9 is excluded by `if (occ.cancelled) continue`
-    // skip Jun 16 is excluded by skip_dates
-    // Result: Jun 2, Jun 23, Jun 30
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
     expect(vevents).toHaveLength(3);
-    const dates = vevents.map(v => v.uid);
-    expect(dates).not.toContainEqual(expect.stringContaining('2026-06-09'));
-    expect(dates).not.toContainEqual(expect.stringContaining('2026-06-16'));
+    const uids = vevents.map(v => v.uid);
+    expect(uids).not.toContainEqual(expect.stringContaining('2026-06-09'));
+    expect(uids).not.toContainEqual(expect.stringContaining('2026-06-16'));
   });
 
   it('generates unique UIDs per occurrence with {eventId}-{date}@domain pattern', () => {
-    const vevents = buildVEventsForEvent(weeklySeries, DOMAIN, TIMEZONE);
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
     const uids = vevents.map(v => v.uid);
-    // All unique
     expect(new Set(uids).size).toBe(uids.length);
-    // Pattern check
     for (const uid of uids) {
       expect(uid).toMatch(/^2026\/park-loops-2026-\d{2}-\d{2}@ottawabybike\.ca$/);
     }
   });
 
   it('includes overridden location in LOCATION field', () => {
-    const vevents = buildVEventsForEvent(weeklySeries, DOMAIN, TIMEZONE);
-    const jun23 = vevents.find(v => v.uid.includes('2026-06-23'));
-    expect(jun23?.location).toBe('Champlain Lookout');
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
+    const jun23 = findVEvent(vevents, '2026-06-23');
+    const locationLine = getLine(jun23!.lines, 'LOCATION:');
+    expect(locationLine).toBe('LOCATION:Champlain Lookout');
   });
 
   it('uses default location for non-overridden occurrences', () => {
-    const vevents = buildVEventsForEvent(weeklySeries, DOMAIN, TIMEZONE);
-    const jun2 = vevents.find(v => v.uid.includes('2026-06-02'));
-    expect(jun2?.location).toBe('Park P3');
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
+    const jun2 = findVEvent(vevents, '2026-06-02');
+    const locationLine = getLine(jun2!.lines, 'LOCATION:');
+    expect(locationLine).toBe('LOCATION:Park P3');
   });
 
   it('includes meet time in DESCRIPTION when set', () => {
-    const vevents = buildVEventsForEvent(weeklySeries, DOMAIN, TIMEZONE);
-    const jun2 = vevents.find(v => v.uid.includes('2026-06-02'));
-    expect(jun2?.description).toContain('Meet: 17:45');
-    expect(jun2?.description).toContain('Roll: 18:00');
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
+    const jun2 = findVEvent(vevents, '2026-06-02');
+    const descLine = getLine(jun2!.lines, 'DESCRIPTION:');
+    expect(descLine).toContain('Meet: 17:45');
+    expect(descLine).toContain('Roll: 18:00');
   });
 
   it('formats DTSTART with timezone for timed occurrences', () => {
-    const vevents = buildVEventsForEvent(weeklySeries, DOMAIN, TIMEZONE);
-    const jun2 = vevents.find(v => v.uid.includes('2026-06-02'));
-    expect(jun2?.dtstart).toBe('DTSTART;TZID=America/Toronto:20260602T180000');
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
+    const jun2 = findVEvent(vevents, '2026-06-02');
+    const dtstartLine = getLine(jun2!.lines, 'DTSTART');
+    expect(dtstartLine).toBe('DTSTART;TZID=America/Toronto:20260602T180000');
   });
 
   it('handles explicit schedule series', () => {
-    const vevents = buildVEventsForEvent(scheduleSeries, DOMAIN, TIMEZONE);
+    const vevents = buildVEventLines(scheduleSeries, DOMAIN, TIMEZONE, DTSTAMP);
     expect(vevents).toHaveLength(3);
     expect(vevents[0].uid).toBe('2026/ottbike-social-2026-01-08@ottawabybike.ca');
-    expect(vevents[0].location).toBe('Overbrook CC');
-    expect(vevents[1].location).toBe('Hintonburg CC');
-    expect(vevents[2].location).toBe('Default CC');
+    expect(getLine(vevents[0].lines, 'LOCATION:')).toBe('LOCATION:Overbrook CC');
+    expect(getLine(vevents[1].lines, 'LOCATION:')).toBe('LOCATION:Hintonburg CC');
+    expect(getLine(vevents[2].lines, 'LOCATION:')).toBe('LOCATION:Default CC');
   });
 
   it('includes meet time for schedule series', () => {
-    const vevents = buildVEventsForEvent(scheduleSeries, DOMAIN, TIMEZONE);
-    expect(vevents[0].description).toContain('Meet: 18:45');
-    expect(vevents[0].description).toContain('Roll: 19:00');
+    const vevents = buildVEventLines(scheduleSeries, DOMAIN, TIMEZONE, DTSTAMP);
+    const descLine = getLine(vevents[0].lines, 'DESCRIPTION:');
+    expect(descLine).toContain('Meet: 18:45');
+    expect(descLine).toContain('Roll: 19:00');
   });
 });
 
 describe('iCal generation — non-series events', () => {
   it('produces a single VEVENT for a one-off event', () => {
-    const vevents = buildVEventsForEvent(oneOffEvent, DOMAIN, TIMEZONE);
+    const vevents = buildVEventLines(oneOffEvent, DOMAIN, TIMEZONE, DTSTAMP);
     expect(vevents).toHaveLength(1);
     expect(vevents[0].uid).toBe('2026/bike-fest@ottawabybike.ca');
   });
 
   it('uses event location directly', () => {
-    const vevents = buildVEventsForEvent(oneOffEvent, DOMAIN, TIMEZONE);
-    expect(vevents[0].location).toBe('City Hall');
+    const vevents = buildVEventLines(oneOffEvent, DOMAIN, TIMEZONE, DTSTAMP);
+    expect(getLine(vevents[0].lines, 'LOCATION:')).toBe('LOCATION:City Hall');
   });
 
   it('includes distances in description', () => {
-    const vevents = buildVEventsForEvent(oneOffEvent, DOMAIN, TIMEZONE);
-    expect(vevents[0].description).toBe('50k');
+    const vevents = buildVEventLines(oneOffEvent, DOMAIN, TIMEZONE, DTSTAMP);
+    expect(getLine(vevents[0].lines, 'DESCRIPTION:')).toBe('DESCRIPTION:50k');
   });
 
   it('formats all-day event without time component', () => {
-    const vevents = buildVEventsForEvent(oneOffAllDay, DOMAIN, TIMEZONE);
-    expect(vevents[0].dtstart).toBe('DTSTART;VALUE=DATE:20260801');
+    const vevents = buildVEventLines(oneOffAllDay, DOMAIN, TIMEZONE, DTSTAMP);
+    expect(getLine(vevents[0].lines, 'DTSTART')).toBe('DTSTART;VALUE=DATE:20260801');
   });
 
   it('has no description when no meet_time or distances', () => {
-    const vevents = buildVEventsForEvent(oneOffAllDay, DOMAIN, TIMEZONE);
-    expect(vevents[0].description).toBeUndefined();
+    const vevents = buildVEventLines(oneOffAllDay, DOMAIN, TIMEZONE, DTSTAMP);
+    expect(getLine(vevents[0].lines, 'DESCRIPTION:')).toBeUndefined();
   });
 });

@@ -9,7 +9,7 @@ import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
-import { formatDateRange, formatDate, parseLocalDate } from '@/lib/date-utils';
+import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/date-utils';
 import { t, localePath, eventNoun } from '@/i18n';
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
@@ -193,7 +193,7 @@ const seriesEnded = isSeries && !seriesActive;
 
 // Past event detection — for series, use whether the series is still active
 const eventEndDate = data.end_date || data.start_date;
-const isPastEvent = isSeries ? seriesEnded : parseLocalDate(eventEndDate) < new Date();
+const isPastEvent = isSeries ? seriesEnded : endOfDay(eventEndDate) < new Date();
 
 // Find next edition (forward in chain) for past event messaging
 const currentIndex = editions.findIndex((ed: { id: string }) => ed.id === event.id);
@@ -214,8 +214,8 @@ if (organizerInstagram) {
 }
 
 // Split occurrences into upcoming and past
-const upcomingOccurrences = seriesOccurrences.filter(o => parseLocalDate(o.date) >= now);
-const pastOccurrences = seriesOccurrences.filter(o => parseLocalDate(o.date) < now);
+const upcomingOccurrences = seriesOccurrences.filter(o => endOfDay(o.date) >= now);
+const pastOccurrences = seriesOccurrences.filter(o => endOfDay(o.date) < now);
 
 // Series recurrence pattern description
 function seriesPatternLabel(): string | undefined {

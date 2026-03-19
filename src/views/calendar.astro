@@ -7,13 +7,14 @@ import EventCardFeatured from '@/components/EventCardFeatured.astro';
 import SeasonalBanner from '@/components/SeasonalBanner.astro';
 import OrganizerSpotlight from '@/components/OrganizerSpotlight.astro';
 import { getCollection } from 'astro:content';
-import { parseLocalDate, formatMonthName } from '@/lib/date-utils';
+import { parseLocalDate } from '@/lib/date-utils';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t, formatLocale } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { classifyEvent } from '@/lib/event-tags';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
+import { expandEvents, deduplicateSeries, splitUpcomingPast, groupByMonth, effectiveDate, type CalendarEntry } from '@/lib/calendar-helpers';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -29,64 +30,31 @@ const allOrganizers = await getCollection('organizers');
 const now = new Date();
 const currentYear = now.getFullYear();
 
-// CalendarEntry wraps events with optional occurrence overrides for series
-interface CalendarEntry {
-  event: typeof events[0];
-  occurrenceDate?: string;
-  occurrenceLocation?: string;
+const expanded = expandEvents(events as CalendarEntry['event'][]);
+const { upcoming, past } = splitUpcomingPast(expanded, now);
+
+// Pre-resolve organizer names: slug → display name
+const organizerNameMap = new Map<string, string>();
+for (const org of allOrganizers) {
+  organizerNameMap.set(org.id, org.data.name);
+}
+function resolveOrganizerName(entry: CalendarEntry): string {
+  const org = entry.event.data.organizer;
+  if (typeof org === 'string') return organizerNameMap.get(org) || org;
+  if (org && typeof org === 'object' && 'name' in org) return (org as { name: string }).name;
+  return '';
 }
 
-function effectiveDate(entry: CalendarEntry): string {
-  return entry.occurrenceDate || entry.event.data.start_date;
-}
-function effectiveEndDate(entry: CalendarEntry): string {
-  return entry.occurrenceDate || entry.event.data.end_date || entry.event.data.start_date;
-}
-
-// Expand series events into one CalendarEntry per occurrence
-const expanded: CalendarEntry[] = [];
-for (const event of events) {
-  if (isSeriesEvent(event.data)) {
-    const occurrences = expandSeriesOccurrences(event.data);
-    for (const occ of occurrences) {
-      if (!occ.cancelled) {
-        expanded.push({
-          event,
-          occurrenceDate: occ.date,
-          occurrenceLocation: occ.location,
-        });
-      }
-    }
-  } else {
-    expanded.push({ event });
-  }
-}
-
-const upcoming = expanded
-  .filter(e => parseLocalDate(effectiveEndDate(e)) >= now)
-  .sort((a, b) => parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime());
-
-const past = expanded
-  .filter(e => parseLocalDate(effectiveEndDate(e)) < now)
-  .sort((a, b) => parseLocalDate(effectiveDate(b)).getTime() - parseLocalDate(effectiveDate(a)).getTime());
-
-// Deduplicate series for section views: show each series once with its next occurrence date
-function deduplicateSeries(entries: CalendarEntry[]): CalendarEntry[] {
-  const seen = new Set<string>();
-  const result: CalendarEntry[] = [];
-  for (const entry of entries) {
-    const id = entry.event.id;
-    if (isSeriesEvent(entry.event.data)) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-    }
-    result.push(entry);
-  }
-  return result;
-}
-
-// Build a series badge label for display on cards
+// Cache series badges per event ID (all occurrences share the same badge)
+const seriesBadgeCache = new Map<string, string | undefined>();
 function getSeriesBadge(entry: CalendarEntry): string | undefined {
+  const id = entry.event.id;
+  if (seriesBadgeCache.has(id)) return seriesBadgeCache.get(id);
+  const badge = computeSeriesBadge(entry);
+  seriesBadgeCache.set(id, badge);
+  return badge;
+}
+function computeSeriesBadge(entry: CalendarEntry): string | undefined {
   if (!isSeriesEvent(entry.event.data)) return undefined;
   const series = entry.event.data.series;
   if (!series) return undefined;
@@ -154,17 +122,7 @@ function getTagLabel(entry: CalendarEntry): string | undefined {
 // Non-seasonal upcoming for full calendar section (expanded — shows all occurrences)
 const nonSeasonalUpcoming = upcoming.filter(e => classifyEvent(e.event.data.tags ?? []) !== 'seasonal');
 
-function groupByMonth(entries: CalendarEntry[]) {
-  const groups: Record<string, CalendarEntry[]> = {};
-  for (const entry of entries) {
-    const month = formatMonthName(effectiveDate(entry), fmtLocale);
-    if (!groups[month]) groups[month] = [];
-    groups[month].push(entry);
-  }
-  return groups;
-}
-
-const upcomingByMonth = groupByMonth(nonSeasonalUpcoming);
+const upcomingByMonth = groupByMonth(nonSeasonalUpcoming, fmtLocale);
 
 // Organizer spotlight: organizers with >=2 total events and instagram
 const totalOrganizerCounts = new Map<string, number>();
@@ -246,7 +204,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <h2>{t('calendar.coming_up', locale)}</h2>
       <div class="featured-cards">
         {comingUp.map(e => (
-          <EventCardFeatured event={e.event} tagLabel={getTagLabel(e)} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} locale={locale} />
+          <EventCardFeatured event={e.event} tagLabel={getTagLabel(e)} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
         ))}
       </div>
     </section>
@@ -257,7 +215,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <h2>{t('calendar.find_your_people', locale)}</h2>
       <div class="featured-cards">
         {community.slice(0, 3).map(e => (
-          <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} locale={locale} />
+          <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
         ))}
       </div>
     </section>
@@ -268,7 +226,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <h2>{t('calendar.learn_and_connect', locale)}</h2>
       <div class="featured-cards">
         {learnConnect.slice(0, 3).map(e => (
-          <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} locale={locale} />
+          <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
         ))}
       </div>
     </section>
@@ -290,7 +248,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
             <h3 class="month-header">{month}</h3>
             <div class="events-list">
               {evts.map(e => (
-                <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} seriesBadge={getSeriesBadge(e)} locale={locale} />
+                <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} seriesBadge={getSeriesBadge(e)} organizerName={resolveOrganizerName(e)} locale={locale} />
               ))}
             </div>
           </div>
@@ -310,7 +268,7 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <div class="past-events" style="display: none;">
         <div class="events-list">
           {past.map(e => (
-            <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} locale={locale} />
+            <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} organizerName={resolveOrganizerName(e)} locale={locale} />
           ))}
         </div>
       </div>

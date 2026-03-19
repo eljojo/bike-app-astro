@@ -27,19 +27,22 @@ interface Props {
   occurrenceDate?: string;
   occurrenceLocation?: string;
   seriesBadge?: string;
+  organizerName?: string;
   locale?: string;
 }
 
-const { event, occurrenceDate, occurrenceLocation, seriesBadge, locale } = Astro.props;
+const { event, occurrenceDate, occurrenceLocation, seriesBadge, organizerName: preResolvedOrg, locale } = Astro.props;
 const { data } = event;
 
-let organizerName = '';
-if (typeof data.organizer === 'string') {
-  const organizers = await getCollection('organizers');
-  const org = organizers.find(o => o.id === data.organizer);
-  organizerName = org?.data.name || data.organizer;
-} else if (data.organizer?.name) {
-  organizerName = data.organizer.name;
+let organizerName = preResolvedOrg || '';
+if (!organizerName) {
+  if (typeof data.organizer === 'string') {
+    const organizers = await getCollection('organizers');
+    const org = organizers.find(o => o.id === data.organizer);
+    organizerName = org?.data.name || data.organizer;
+  } else if (data.organizer?.name) {
+    organizerName = data.organizer.name;
+  }
 }
 
 const displayStartDate = occurrenceDate || data.start_date;
