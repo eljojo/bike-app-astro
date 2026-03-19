@@ -5,7 +5,8 @@ import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
 import { parseGpx } from '../../lib/gpx/parse';
-import { computeElevationProfile, CHART } from '../../lib/geo/elevation-profile';
+import { computeElevationPoints } from '../../lib/geo/elevation-profile';
+import InteractiveElevation from '../InteractiveElevation';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { findNearbyMedia } from '../../lib/geo/media-proximity';
@@ -32,8 +33,8 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
 
   const track = useMemo(() => gpxContent ? parseGpx(gpxContent) : null, [gpxContent]);
 
-  const elevation = useMemo(
-    () => track ? computeElevationProfile(track.points, track.distance_m) : null,
+  const elevationPoints = useMemo(
+    () => track ? computeElevationPoints(track.points, track.distance_m) : [],
     [track],
   );
 
@@ -216,33 +217,9 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
                 </div>
               )}
 
-              {elevation && (() => {
-                const plotBottom = CHART.height - CHART.bottom;
-                const plotLeft = CHART.left;
-                const plotRight = CHART.width - CHART.right;
-                return (
-                  <div class="route-preview-elevation">
-                    <svg viewBox={`0 0 ${CHART.width} ${CHART.height}`} class="route-preview-elevation-svg">
-                      {elevation.yTicks.map(tick => (
-                        <line x1={plotLeft} x2={plotRight} y1={tick.position} y2={tick.position}
-                              stroke="var(--elevation-grid)" stroke-width="0.5" />
-                      ))}
-                      <path d={elevation.svgArea} fill="var(--elevation-fill)" />
-                      <path d={elevation.svgPath} fill="none" stroke="var(--elevation-line)" stroke-width="2" />
-                      {elevation.yTicks.map(tick => (
-                        <text x={plotLeft - 5} y={tick.position + 4} text-anchor="end"
-                              font-size="11" fill="var(--elevation-text)">{tick.label}</text>
-                      ))}
-                      {elevation.xTicks.map(tick => (
-                        <text x={tick.position} y={plotBottom + 16} text-anchor="middle"
-                              font-size="11" fill="var(--elevation-text)">{tick.label}</text>
-                      ))}
-                      <text x={plotRight} y={plotBottom + 16} text-anchor="middle"
-                            font-size="11" fill="var(--elevation-text)">km</text>
-                    </svg>
-                  </div>
-                );
-              })()}
+              {elevationPoints.length > 0 && (
+                <InteractiveElevation points={elevationPoints} />
+              )}
 
               {nearbyPhotos.length > 0 && (() => {
                 const routeSlugs = [...new Set(nearbyPhotos.map(p => p.routeSlug))];
