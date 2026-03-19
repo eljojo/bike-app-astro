@@ -177,7 +177,7 @@ const spotlightOrganizers = rankedOrganizers.slice(0, 8).map(r => ({
 }));
 
 // Track which series occurrences should be muted in the full calendar.
-// Rule: if a series has >2 upcoming instances, the first is normal, the rest are muted.
+// Rule: if a series has >3 upcoming instances, the first is normal, the rest are muted.
 const seriesUpcomingCounts = new Map<string, number>();
 for (const entry of nonSeasonalUpcoming) {
   if (!isSeriesEvent(entry.event.data)) continue;
@@ -188,7 +188,7 @@ const mutedOccurrences = new Set<string>();
 for (const entry of nonSeasonalUpcoming) {
   if (!entry.occurrenceDate || !isSeriesEvent(entry.event.data)) continue;
   const id = entry.event.id;
-  if ((seriesUpcomingCounts.get(id) || 0) <= 2) continue;
+  if ((seriesUpcomingCounts.get(id) || 0) <= 3) continue;
   const seen = (seriesSeenSoFar.get(id) || 0) + 1;
   seriesSeenSoFar.set(id, seen);
   if (seen > 1) mutedOccurrences.add(`${id}:${entry.occurrenceDate}`);
