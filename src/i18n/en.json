@@ -387,5 +387,14 @@
   "communities.go_back": "go back to communities",
   "communities.past_events": "Past events",
   "communities.upcoming_events": "Upcoming events",
-  "communities.show_all_events": "Show all {count} events"
+  "communities.show_all_events": "Show all {count} events",
+
+  "home.subtitle": "Routes, events, and the people who ride here",
+  "home.discover": "Discover",
+  "home.browse_all": "Browse all routes",
+  "home.featured_ride": "Featured ride",
+  "home.routes_to_explore": "Routes to explore",
+  "home.local_communities": "Local communities",
+  "home.upcoming_events": "Upcoming events",
+  "home.did_you_know": "Did you know..."
 }

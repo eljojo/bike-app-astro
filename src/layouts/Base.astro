@@ -6,7 +6,8 @@ import SEO from '../components/SEO.astro';
 import { getCityConfig } from '../lib/config/city-config';
 import { getFontPreloads } from '../lib/fonts.server';
 import { fullLocale, defaultLocale } from '../lib/i18n/locale-utils';
-import { localePath } from '../i18n';
+import { t, localePath } from '../i18n';
+import { getInstanceFeatures } from '../lib/config/instance-features';
 import LocaleRedirect from '../components/LocaleRedirect.astro';
 import '../styles/global.scss';
 
@@ -15,6 +16,8 @@ const fontPreloads = getFontPreloads();
 const locale = Astro.currentLocale || defaultLocale();
 const htmlLang = fullLocale(locale);
 const cspNonce = Astro.locals.cspNonce;
+const features = getInstanceFeatures();
+const isWiki = features.hasRoutes && !features.hasRides && !features.hasEnrichedEvents;
 
 interface Props {
   title: string;
@@ -52,6 +55,7 @@ const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadc
   <body>
     <header class="site-header">
       <a href={localePath('/', locale)} class="site-title" set:html={config.site_title_html} />
+      {isWiki && <p class="site-subtitle">{t('home.subtitle', locale)}</p>}
     </header>
     {!admin && <Nav alternateUrls={alternateUrls} />}
     <main>

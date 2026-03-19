@@ -35,9 +35,10 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
       </>
     ) : (
       <>
-        <li class="nav-about"><a href={localePath('/about', locale)}>&#x1F44B; {t('nav.about', locale)}</a></li>
-        <li><a href={localePath('/calendar', locale)}>&#x1F4C5; {t('nav.calendar', locale)}</a></li>
-        <li><a href={localePath('/map', locale)}>&#x1F5FA;&#xFE0F; {t('nav.map', locale)}</a></li>
+        <li><a href={`${localePath('/', locale)}#browse`}>{t('nav.routes', locale)}</a></li>
+        <li><a href={localePath('/calendar', locale)}>{t('nav.calendar', locale)}</a></li>
+        <li><a href={localePath('/map', locale)}>{t('nav.map', locale)}</a></li>
+        <li><a href={localePath('/communities', locale)}>{t('nav.communities', locale)}</a></li>
       </>
     )}
     <li class="nav-admin"><a href="/admin">&#x1F527; Admin</a></li>

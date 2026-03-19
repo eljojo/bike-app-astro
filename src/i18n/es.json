@@ -387,5 +387,14 @@
   "communities.go_back": "volver a comunidades",
   "communities.past_events": "Eventos pasados",
   "communities.upcoming_events": "Próximos eventos",
-  "communities.show_all_events": "Mostrar los {count} eventos"
+  "communities.show_all_events": "Mostrar los {count} eventos",
+
+  "home.subtitle": "Rutas, eventos y las personas que pedalean aquí",
+  "home.discover": "Descubrir",
+  "home.browse_all": "Todas las rutas",
+  "home.featured_ride": "Ruta destacada",
+  "home.routes_to_explore": "Rutas para explorar",
+  "home.local_communities": "Comunidades locales",
+  "home.upcoming_events": "Próximos eventos",
+  "home.did_you_know": "¿Sabías que...?"
 }

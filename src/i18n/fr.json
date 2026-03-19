@@ -387,5 +387,14 @@
   "communities.go_back": "retour aux communautés",
   "communities.past_events": "Événements passés",
   "communities.upcoming_events": "Événements à venir",
-  "communities.show_all_events": "Afficher les {count} événements"
+  "communities.show_all_events": "Afficher les {count} événements",
+
+  "home.subtitle": "Parcours, événements et les gens qui roulent ici",
+  "home.discover": "Découvrir",
+  "home.browse_all": "Tous les parcours",
+  "home.featured_ride": "Parcours en vedette",
+  "home.routes_to_explore": "Parcours à explorer",
+  "home.local_communities": "Communautés locales",
+  "home.upcoming_events": "Événements à venir",
+  "home.did_you_know": "Le saviez-vous..."
 }

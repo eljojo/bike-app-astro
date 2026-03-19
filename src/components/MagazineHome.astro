@@ -1,0 +1,192 @@
+---
+import { t } from '@/i18n';
+import { imageUrl } from '@/lib/media/image-service';
+import { videoFallbackUrl, videoPosterUrl } from '@/lib/media/video-service';
+import { formatDistance } from '@/lib/geo/distance';
+import { formatDateRange } from '@/lib/date-utils';
+import { paths } from '@/lib/paths';
+import type {
+  FeaturedRoute,
+  UpcomingEvent,
+  FeaturedCommunity,
+  ExploreMiniCard,
+  ResolvedFact,
+  HomepageVideo,
+} from '@/lib/homepage-data.server';
+
+interface Props {
+  featuredRoutes: FeaturedRoute[];
+  upcomingEvents: UpcomingEvent[];
+  featuredCommunities: FeaturedCommunity[];
+  exploreRoutes: ExploreMiniCard[];
+  facts: ResolvedFact[];
+  video: HomepageVideo | null;
+}
+
+const { featuredRoutes, upcomingEvents, featuredCommunities, exploreRoutes, facts, video } = Astro.props;
+const locale = Astro.currentLocale;
+---
+
+<div class="magazine-home">
+  <div class="magazine-layout">
+    <div class="magazine-main">
+      {featuredRoutes.length > 0 && (
+        <section class="magazine-featured">
+          <h2>{t('home.featured_ride', locale)}</h2>
+          {featuredRoutes.map((route, i) => (
+            <a
+              href={paths.route(route.slug, locale)}
+              class="featured-route-card"
+              data-featured-index={i}
+              style={i === 0 ? undefined : 'display:none'}
+            >
+              {route.coverKey && (
+                <img
+                  src={imageUrl(route.coverKey, { width: 750, height: 420, fit: 'cover' })}
+                  srcset={`${imageUrl(route.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
+                  alt={route.name}
+                  width="750"
+                  height="420"
+                  loading="eager"
+                  class="featured-route-img"
+                />
+              )}
+              <div class="featured-route-info">
+                <span class="featured-route-name">{route.name}</span>
+                <span class="featured-route-meta">
+                  {formatDistance([route.distance_km])}
+                  {route.tagline && ` — ${route.tagline}`}
+                </span>
+              </div>
+            </a>
+          ))}
+        </section>
+      )}
+
+      {video && (
+        <section class="magazine-video">
+          <video
+            muted
+            autoplay
+            loop
+            playsinline
+            poster={videoPosterUrl(video.key)}
+            class="magazine-video-player"
+          >
+            <source src={videoFallbackUrl(video.key)} type="video/mp4" />
+          </video>
+          <a href={paths.route(video.routeSlug, locale)} class="magazine-video-caption">
+            {video.caption || video.routeName}
+          </a>
+        </section>
+      )}
+
+      {exploreRoutes.length > 0 && (
+        <section class="magazine-explore">
+          <h2>{t('home.routes_to_explore', locale)}</h2>
+          <div class="explore-cards">
+            {exploreRoutes.map(route => (
+              <a href={paths.route(route.slug, locale)} class="explore-card">
+                {route.coverKey && (
+                  <img
+                    src={imageUrl(route.coverKey, { width: 375, height: 250, fit: 'cover' })}
+                    srcset={`${imageUrl(route.coverKey, { width: 750, height: 500, fit: 'cover' })} 2x`}
+                    alt={route.name}
+                    width="375"
+                    height="250"
+                    loading="lazy"
+                    class="explore-card-img"
+                  />
+                )}
+                <div class="explore-card-info">
+                  <span class="explore-card-name">{route.name}</span>
+                  <span class="explore-card-distance">{formatDistance([route.distance_km])}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+
+    <aside class="magazine-sidebar">
+      {upcomingEvents.length > 0 && (
+        <section class="magazine-events">
+          <h2>{t('home.upcoming_events', locale)}</h2>
+          <ul class="upcoming-events-list">
+            {upcomingEvents.map(event => (
+              <li class="upcoming-event">
+                <a href={paths.event(event.slug, locale)}>
+                  <span class="upcoming-event-date">{formatDateRange(event.startDate, event.endDate)}</span>
+                  <span class="upcoming-event-name">{event.name}</span>
+                  {event.organizerName && (
+                    <span class="upcoming-event-org">{event.organizerName}</span>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {facts.length > 0 && (
+        <section class="magazine-facts">
+          <h2>{t('home.did_you_know', locale)}</h2>
+          <ul class="facts-list">
+            {facts.slice(0, 3).map(fact => (
+              <li class="fact-item">
+                {fact.link ? (
+                  <a href={fact.link}>{fact.text}</a>
+                ) : (
+                  <span>{fact.text}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {featuredCommunities.length > 0 && (
+        <section class="magazine-communities">
+          <h2>{t('home.local_communities', locale)}</h2>
+          <ul class="community-cards">
+            {featuredCommunities.map(community => (
+              <li class="community-card">
+                <a href={community.link}>
+                  {community.photoKey && (
+                    <img
+                      src={imageUrl(community.photoKey, { width: 80, height: 80, fit: 'cover' })}
+                      alt={community.name}
+                      width="40"
+                      height="40"
+                      loading="lazy"
+                      class="community-avatar"
+                    />
+                  )}
+                  <div class="community-card-info">
+                    <span class="community-card-name">{community.name}</span>
+                    {community.tagline && (
+                      <span class="community-card-tagline">{community.tagline}</span>
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </aside>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll<HTMLElement>('[data-featured-index]');
+    if (cards.length === 0) return;
+    const dayOfYear = Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+    );
+    cards.forEach(c => c.style.display = 'none');
+    cards[dayOfYear % cards.length].style.display = '';
+  });
+</script>
