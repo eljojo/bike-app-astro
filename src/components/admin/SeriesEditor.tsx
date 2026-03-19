@@ -135,6 +135,20 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [popoverNote, setPopoverNote] = useState('');
   const [popoverLocation, setPopoverLocation] = useState('');
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Reposition popover if it overflows the viewport
+  useEffect(() => {
+    const el = popoverRef.current;
+    if (!el || !popover) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight) {
+      el.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`;
+    }
+    if (rect.right > window.innerWidth) {
+      el.style.left = `${Math.max(4, window.innerWidth - rect.width - 4)}px`;
+    }
+  }, [popover]);
 
   // Build the series object from current state and compute occurrences
   const buildSeries = useCallback((): EventSeries | undefined => {
@@ -542,6 +556,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
       {popover && (
         <div class="series-popover-backdrop" onClick={() => setPopover(null)}>
           <div
+            ref={popoverRef}
             class="series-popover"
             style={{ position: 'fixed', left: `${popover.x}px`, top: `${popover.y}px` }}
             onClick={(e) => e.stopPropagation()}
