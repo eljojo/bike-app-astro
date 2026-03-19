@@ -1,7 +1,7 @@
 ---
 import EventCard from '@/components/EventCard.astro';
 import { getCityConfig } from '@/lib/config/city-config';
-import { t, localePath, eventNoun } from '@/i18n';
+import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { getCollection } from 'astro:content';
 import { parseLocalDate } from '@/lib/date-utils';
@@ -20,23 +20,6 @@ const recent = events
   .filter(e => parseLocalDate(e.data.end_date || e.data.start_date) < now)
   .sort((a, b) => parseLocalDate(b.data.start_date).getTime() - parseLocalDate(a.data.start_date).getTime())
   .slice(0, 5);
-
-// Compute dominant noun from upcoming events for the section heading
-const upcomingNouns = upcoming.map(e => eventNoun(e.data.tags ?? [], locale, true));
-const nounCounts = new Map<string, number>();
-for (const noun of upcomingNouns) {
-  nounCounts.set(noun, (nounCounts.get(noun) || 0) + 1);
-}
-const allSameNoun = nounCounts.size === 1;
-const dominantNoun = allSameNoun ? upcomingNouns[0] : undefined;
-
-// Total event count for "view all" link
-const totalEvents = events.length;
-const eventsNounPlural = eventNoun(
-  upcoming.length > 0 ? (upcoming[0].data.tags ?? []) : [],
-  locale,
-  true,
-);
 ---
 
 <div class="club-home">
@@ -46,7 +29,7 @@ const eventsNounPlural = eventNoun(
 
   {upcoming.length > 0 && (
     <section class="club-home--section">
-      <h2>{dominantNoun ? dominantNoun.charAt(0).toUpperCase() + dominantNoun.slice(1) : t('events.title', locale)}</h2>
+      <h2>{t('events.title', locale)}</h2>
       <div class="events-grid">
         {upcoming.map(e => (
           <EventCard
@@ -61,7 +44,7 @@ const eventsNounPlural = eventNoun(
         ))}
       </div>
       <p class="club-home--more">
-        <a href={localePath('/events', locale)}>{totalEvents > 0 ? t('events.view_all_count', locale, { count: totalEvents, noun: eventsNounPlural }) : t('events.title', locale)}</a>
+        <a href={localePath('/events', locale)}>{t('events.title', locale)}</a>
       </p>
     </section>
   )}
