@@ -1151,24 +1151,6 @@
   }
 }
 
-.route-preview-elevation {
-  --elevation-grid: #ddd;
-  --elevation-fill: rgba(0, 102, 204, 0.15);
-  --elevation-line: #0066cc;
-  --elevation-text: #666;
-
-  @include dark-mode {
-    --elevation-grid: #444;
-    --elevation-fill: rgba(80, 140, 220, 0.2);
-    --elevation-line: #5a9fd4;
-    --elevation-text: #999;
-  }
-}
-
-.route-preview-elevation-svg {
-  width: 100%;
-  height: auto;
-}
 
 .route-preview-photos {
   small {
@@ -2213,14 +2195,6 @@
   }
 }
 
-.ride-preview-elevation {
-  margin-bottom: 1rem;
-}
-
-.ride-preview-elevation-svg {
-  width: 100%;
-  height: auto;
-}
 
 .ride-preview-gallery,
 .route-preview-gallery {
