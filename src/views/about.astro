@@ -9,6 +9,7 @@ import { defaultLocale } from '@/lib/i18n/locale-utils';
 import { t, localePath } from '@/i18n';
 import contributors from 'virtual:bike-app/contributors';
 import { categoryEmoji } from '@/lib/geo/place-categories';
+import { imageUrl } from '@/lib/media/image-service';
 
 const config = getCityConfig();
 const features = getInstanceFeatures();
@@ -58,6 +59,8 @@ for (let i = 1; i < parts.length; i += 2) {
 // Places for emoji pins (random selection per category at build time)
 const allPlaces = await getCollection('places');
 const pinCategories = ['cafe', 'poutine', 'beach', 'park', 'ice-cream', 'lookout', 'beer', 'bike-shop', 'camping-spot'];
+const ogImage = config.page_posters?.about ? imageUrl(config.page_posters.about, { width: 1200, height: 630, fit: 'cover' }) : undefined;
+
 const selectedPlaces = pinCategories
   .map(cat => {
     const matches = allPlaces.filter(p => p.data.category === cat);
@@ -66,7 +69,7 @@ const selectedPlaces = pinCategories
   .filter(Boolean);
 ---
 
-<Base title={`${title} | ${config.display_name}`} description={t('about.hero_subtitle', locale)}>
+<Base title={`${title} | ${config.display_name}`} description={t('about.hero_subtitle', locale)} ogImage={ogImage}>
   <!-- Hero Map -->
   <div class="about-hero">
     <OttawaHeroMap />

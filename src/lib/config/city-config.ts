@@ -37,6 +37,7 @@ export interface CityConfig {
   };
   acp_club_code?: string;
   results_privacy?: 'full_name' | 'last_name_only' | 'initials';
+  page_posters?: Partial<Record<'home' | 'about' | 'calendar' | 'map', string>>;
 }
 
 let cached: CityConfig | null = null;

@@ -6,12 +6,15 @@ import BlogHome from '@/components/BlogHome.astro';
 import WikiHome from '@/components/WikiHome.astro';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
+import { imageUrl } from '@/lib/media/image-service';
 
 const config = getCityConfig();
 const features = getInstanceFeatures();
+
+const ogImage = config.page_posters?.home ? imageUrl(config.page_posters.home, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 ---
 
-<Base title={config.display_name} description={config.tagline}>
+<Base title={config.display_name} description={config.tagline} ogImage={ogImage}>
   {features.hasEnrichedEvents ? (
     <ClubHome />
   ) : features.hasRides ? (

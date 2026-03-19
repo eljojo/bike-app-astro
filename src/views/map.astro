@@ -9,6 +9,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { webPageJsonLd } from '@/lib/json-ld';
 import { t } from '@/i18n';
 import { paths, routeSlug } from '@/lib/paths';
+import { imageUrl } from '@/lib/media/image-service';
 import photoLocations from 'virtual:bike-app/media-locations';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '@/lib/geo/proximity';
 
@@ -97,6 +98,7 @@ const photoData = photoLocations
   });
 const mapTitle = `${t('nav.map', locale)} | ${config.display_name}`;
 const mapDescription = t('map.description', locale, { count: String(routeData.length), city: config.name });
+const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 const jsonLd = webPageJsonLd({
   name: mapTitle,
   description: mapDescription,
@@ -105,6 +107,6 @@ const jsonLd = webPageJsonLd({
 });
 ---
 
-<Base title={mapTitle} description={mapDescription} jsonLd={jsonLd}>
+<Base title={mapTitle} description={mapDescription} jsonLd={jsonLd} ogImage={ogImage}>
   <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} />
 </Base>

@@ -14,6 +14,7 @@ import { paths } from '@/lib/paths';
 import { classifyEvent } from '@/lib/event-tags';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
+import { imageUrl } from '@/lib/media/image-service';
 import { expandEvents, deduplicateSeries, splitUpcomingPast, groupByMonth, effectiveDate, type CalendarEntry } from '@/lib/calendar-helpers';
 
 const config = getCityConfig();
@@ -199,9 +200,11 @@ function isEntryMuted(entry: CalendarEntry): boolean {
 
 const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
 
+const ogImage = config.page_posters?.calendar ? imageUrl(config.page_posters.calendar, { width: 1200, height: 630, fit: 'cover' }) : undefined;
+const calendarDescription = t('calendar.description', locale, { city: config.name });
 ---
 
-<Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`}>
+<Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`} description={calendarDescription} ogImage={ogImage}>
   <h1 style="font-size: 1.7em;">{t('calendar.title', locale, { year: currentYear })}</h1>
   <a href="/admin/events/new" class="action-button">Add your event</a>
 
