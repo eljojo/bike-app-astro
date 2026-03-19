@@ -1,0 +1,746 @@
+{
+  "geocoded_waypoints": [
+    {
+      "geocoder_status": "OK",
+      "place_id": "ChIJq6qqZj0HzkwRvToPIyvkX9k",
+      "types": [
+        "bar",
+        "establishment",
+        "food",
+        "point_of_interest",
+        "restaurant"
+      ]
+    },
+    {
+      "geocoder_status": "OK",
+      "place_id": "ChIJaVIfzagAzkwRSXbLcif2KtQ",
+      "types": [
+        "street_address"
+      ]
+    },
+    {
+      "geocoder_status": "OK",
+      "place_id": "ChIJh53WcqEAzkwRGjmpq3I3YQ4",
+      "types": [
+        "establishment",
+        "point_of_interest",
+        "transit_station"
+      ]
+    },
+    {
+      "geocoder_status": "OK",
+      "place_id": "ChIJHagLgKIAzkwRlkpc-eHR2to",
+      "types": [
+        "bar",
+        "establishment",
+        "food",
+        "meal_delivery",
+        "meal_takeaway",
+        "point_of_interest",
+        "restaurant"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "bounds": {
+        "northeast": {
+          "lat": 45.3450649,
+          "lng": -75.7623449
+        },
+        "southwest": {
+          "lat": 45.3244597,
+          "lng": -75.82070159999999
+        }
+      },
+      "copyrights": "Powered by Google, ©2026 Google",
+      "legs": [
+        {
+          "distance": {
+            "text": "6.4 km",
+            "value": 6444
+          },
+          "duration": {
+            "text": "23 mins",
+            "value": 1366
+          },
+          "end_address": "Eaton / Lynhar, Ottawa, ON K2H 6M1, Canada",
+          "end_location": {
+            "lat": 45.3264109,
+            "lng": -75.81739739999999
+          },
+          "start_address": "117 Centrepointe Dr Unit 105, Ottawa, ON K2G 5X3, Canada",
+          "start_location": {
+            "lat": 45.3432356,
+            "lng": -75.7626703
+          },
+          "steps": [
+            {
+              "distance": {
+                "text": "33 m",
+                "value": 33
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 6
+              },
+              "end_location": {
+                "lat": 45.3430735,
+                "lng": -75.7630003
+              },
+              "html_instructions": "Head <b>southwest</b>",
+              "polyline": {
+                "points": "gbwsGtklmMBBBLBF@D@D?@@B@?B@@?@@?@DN"
+              },
+              "start_location": {
+                "lat": 45.3432356,
+                "lng": -75.7626703
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "71 m",
+                "value": 71
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 14
+              },
+              "end_location": {
+                "lat": 45.3436145,
+                "lng": -75.7626168
+              },
+              "html_instructions": "Turn <b>right</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "eawsGvmlmMGBA@C@A?C?AACACCCGCCEEGGKIOQOMCCCACA"
+              },
+              "start_location": {
+                "lat": 45.3430735,
+                "lng": -75.7630003
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "40 m",
+                "value": 40
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 6
+              },
+              "end_location": {
+                "lat": 45.3438485,
+                "lng": -75.7623449
+              },
+              "html_instructions": "Turn <b>left</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "qdwsGjklmMA?A?A?A@A@EBIKIUK]"
+              },
+              "start_location": {
+                "lat": 45.3436145,
+                "lng": -75.7626168
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.2 km",
+                "value": 173
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 30
+              },
+              "end_location": {
+                "lat": 45.34447249999999,
+                "lng": -75.76376379999999
+              },
+              "html_instructions": "Turn <b>left</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "afwsGrilmMMLE@E?G?E@E@EBCDAD?F?F@H?BB@BB@@@F?F@F@H@BDHDH@H?H?FAFAHCFCBCDEBKJIAG@G@EBC@CDCFAHAH?B?BABCDEDA@CB"
+              },
+              "start_location": {
+                "lat": 45.3438485,
+                "lng": -75.7623449
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "68 m",
+                "value": 68
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 11
+              },
+              "end_location": {
+                "lat": 45.3450649,
+                "lng": -75.7635756
+              },
+              "html_instructions": "Turn <b>right</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "}iwsGnrlmMMAg@Oo@QO?"
+              },
+              "start_location": {
+                "lat": 45.34447249999999,
+                "lng": -75.76376379999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "1.7 km",
+                "value": 1665
+              },
+              "duration": {
+                "text": "6 mins",
+                "value": 350
+              },
+              "end_location": {
+                "lat": 45.3336654,
+                "lng": -75.7750291
+              },
+              "html_instructions": "Turn <b>left</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "smwsGjqlmMz@bCNd@HTTbABPLv@D^Lj@Rj@p@dBpAjDLl@Hb@PxAH`@Pn@b@vATh@Vh@^h@`@`@JJXTf@^`Al@XRrAp@LFFDFDTVZXr@b@BDHPHPDBLFB?BAB?BADEJKVEL@LBLHTTPXFPHPHHVJd@P|@Zf@R\\P^Pb@XXR`@ZBBNPZV^Vb@Nd@JVHx@`@h@^\\Z`@\\j@^VJV@VAN?HBJJHHDDFBD?P?\\@l@Cb@?D@D@@@D@JHLLt@z@XZRLTDPA"
+              },
+              "start_location": {
+                "lat": 45.3450649,
+                "lng": -75.7635756
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.1 km",
+                "value": 114
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 21
+              },
+              "end_location": {
+                "lat": 45.3328804,
+                "lng": -75.7758401
+              },
+              "html_instructions": "Slight <b>right</b> toward <b>Craig Henry Dr</b>",
+              "maneuver": "turn-slight-right",
+              "polyline": {
+                "points": "mfusG|xnmMF?F?B@B@BBHPJZj@z@VXTT@@@@B?@?FC"
+              },
+              "start_location": {
+                "lat": 45.3336654,
+                "lng": -75.7750291
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.6 km",
+                "value": 579
+              },
+              "duration": {
+                "text": "2 mins",
+                "value": 126
+              },
+              "end_location": {
+                "lat": 45.33,
+                "lng": -75.78176289999999
+              },
+              "html_instructions": "Turn <b>right</b> onto <b>Craig Henry Dr</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "oausG~}nmM@FBJPj@J^ZfAV|@DL?@j@lBBJ@HZfAJXHTDHDJJPLNJLHHLFRNt@d@TPLJJJJLJLFJJTFNFNFXb@zB`@hBBNDP@DFXBJLj@H\\"
+              },
+              "start_location": {
+                "lat": 45.3328804,
+                "lng": -75.7758401
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.3 km",
+                "value": 330
+              },
+              "duration": {
+                "text": "2 mins",
+                "value": 91
+              },
+              "end_location": {
+                "lat": 45.3291306,
+                "lng": -75.7856779
+              },
+              "html_instructions": "<b>Craig Henry Dr</b> turns slightly <b>left</b> and becomes <b>Canfield Rd</b>",
+              "polyline": {
+                "points": "ootsG~bpmMNNTdANh@Nl@j@rBFTJ\\DPDRBPBPBR@P@T@b@DzA?JBdA@X?D?`@A^"
+              },
+              "start_location": {
+                "lat": 45.33,
+                "lng": -75.78176289999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "1.0 km",
+                "value": 1015
+              },
+              "duration": {
+                "text": "4 mins",
+                "value": 229
+              },
+              "end_location": {
+                "lat": 45.3244597,
+                "lng": -75.79390769999999
+              },
+              "html_instructions": "Turn <b>left</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "ajtsGn{pmMBBDF?@@D@BDJJP`@J@@`@J\\VPJNFB@RDJ?JAPCTGJGBA@ABCDKFKNITC^@L@l@@X?b@?b@AZ?N?H@HBDBFJJX@@BJF^FRDL@PAT?Z@RF^DLHFRLJFBBFLBP@N?JALCH?H?JDv@BXBn@?@@b@DjADfA?FBd@JnABVFXLf@BVBV@X@VANAV?LBNBNFRLh@L^DNNb@V~@Jd@DZDf@@R@PBLBNJf@Jb@"
+              },
+              "start_location": {
+                "lat": 45.3291306,
+                "lng": -75.7856779
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.3 km",
+                "value": 318
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 49
+              },
+              "end_location": {
+                "lat": 45.3267649,
+                "lng": -75.79616129999999
+              },
+              "html_instructions": "Turn <b>right</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "{lssG|nrmMCBGFKJMPEJO^C?OFo@\\}@n@MHQJ_@Vw@f@{@h@GDEFKJMVMTWl@KZ?B"
+              },
+              "start_location": {
+                "lat": 45.3244597,
+                "lng": -75.79390769999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.9 km",
+                "value": 890
+              },
+              "duration": {
+                "text": "3 mins",
+                "value": 177
+              },
+              "end_location": {
+                "lat": 45.3267575,
+                "lng": -75.8056656
+              },
+              "html_instructions": "Turn <b>right</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "g{ssG~|rmM[D]FIBUJMHKJMNMZ[lAMd@CJOd@UjAGVMj@EXMl@Ib@GTGTO^Qh@GLAJ?HAPB`@?NAFANEVAJAPAb@@^Bt@@jA?^?HA\\@H@J@FBFBFBHBDFFJFDDJDTL@?HFNL@BDFFLDHBDBFJd@FTDXPx@Jl@Rz@FVDRFR@BDPHZFTFVDRJj@H\\Ll@`@zA"
+              },
+              "start_location": {
+                "lat": 45.3267649,
+                "lng": -75.79616129999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "55 m",
+                "value": 55
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 10
+              },
+              "end_location": {
+                "lat": 45.32628649999999,
+                "lng": -75.80548999999999
+              },
+              "html_instructions": "Turn <b>left</b> toward <b>Cedarview Rd</b>/<wbr/><b>Ottawa Regional Rd 23</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "g{ssGlxtmM^GPAPGDCRM"
+              },
+              "start_location": {
+                "lat": 45.3267575,
+                "lng": -75.8056656
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "11 m",
+                "value": 11
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 2
+              },
+              "end_location": {
+                "lat": 45.3262422,
+                "lng": -75.8056134
+              },
+              "html_instructions": "Turn <b>right</b> toward <b>Cedarview Rd</b>/<wbr/><b>Ottawa Regional Rd 23</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "ixssGhwtmMHV"
+              },
+              "start_location": {
+                "lat": 45.32628649999999,
+                "lng": -75.80548999999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "7 m",
+                "value": 7
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 27
+              },
+              "end_location": {
+                "lat": 45.3262966,
+                "lng": -75.8056481
+              },
+              "html_instructions": "Turn <b>right</b> onto <b>Cedarview Rd</b>/<wbr/><b>Ottawa Regional Rd 23</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "_xssG`xtmMKF"
+              },
+              "start_location": {
+                "lat": 45.3262422,
+                "lng": -75.8056134
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.2 km",
+                "value": 161
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 69
+              },
+              "end_location": {
+                "lat": 45.325832,
+                "lng": -75.80759599999999
+              },
+              "html_instructions": "Turn <b>left</b> onto <b>Bruin Rd</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "kxssGhxtmMN`ABLJl@BPBNDT@HJn@Jp@DVF^BTBT"
+              },
+              "start_location": {
+                "lat": 45.3262966,
+                "lng": -75.8056481
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.4 km",
+                "value": 355
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 61
+              },
+              "end_location": {
+                "lat": 45.3261967,
+                "lng": -75.81090349999999
+              },
+              "html_instructions": "Continue onto <b>Bruin Ln</b>",
+              "polyline": {
+                "points": "mussGndumMBPBNDN\\hAXdA@Bh@jBBJRr@BJBNBP@L?F?N?HAFAHADENGJGLA@GLMNKHKFkAj@i@VEBMDK@"
+              },
+              "start_location": {
+                "lat": 45.325832,
+                "lng": -75.80759599999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "22 m",
+                "value": 22
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 3
+              },
+              "end_location": {
+                "lat": 45.32616220000001,
+                "lng": -75.8111835
+              },
+              "html_instructions": "Turn <b>left</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "wwssGbyumMFv@"
+              },
+              "start_location": {
+                "lat": 45.3261967,
+                "lng": -75.81090349999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.2 km",
+                "value": 207
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 26
+              },
+              "end_location": {
+                "lat": 45.326787,
+                "lng": -75.81360719999999
+              },
+              "html_instructions": "Slight <b>right</b>",
+              "maneuver": "turn-slight-right",
+              "polyline": {
+                "points": "owssGzzumMCN?L?ZAJ?FCFADCDEFCDADCH?HAD?LAJ@RALCZAJ?F?@?BADABCFEHA@ABEHCD?BABADAF?@ADAJAJ?@AHCPCHAHCFCHCF?BIRIV"
+              },
+              "start_location": {
+                "lat": 45.32616220000001,
+                "lng": -75.8111835
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.2 km",
+                "value": 234
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 41
+              },
+              "end_location": {
+                "lat": 45.3268824,
+                "lng": -75.8163641
+              },
+              "html_instructions": "Turn <b>left</b> onto <b>Larkspur Dr</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "m{ssG`jvmMDBFHFNDJBPDT@T@T@R@VB^@r@@R?R?P?RAPGl@EVYfAIVELEHGH"
+              },
+              "start_location": {
+                "lat": 45.326787,
+                "lng": -75.81360719999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.1 km",
+                "value": 96
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 17
+              },
+              "end_location": {
+                "lat": 45.3264109,
+                "lng": -75.81739739999999
+              },
+              "html_instructions": "Turn <b>left</b> onto <b>Eaton St</b>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "_|ssGf{vmMd@pA@DRj@`@jA"
+              },
+              "start_location": {
+                "lat": 45.3268824,
+                "lng": -75.8163641
+              },
+              "travel_mode": "BICYCLING"
+            }
+          ],
+          "traffic_speed_entry": [],
+          "via_waypoint": [
+            {
+              "location": {
+                "lat": 45.3268492,
+                "lng": -75.8054197
+              },
+              "step_index": 11,
+              "step_interpolation": 0.97553868090457
+            }
+          ]
+        },
+        {
+          "distance": {
+            "text": "0.7 km",
+            "value": 662
+          },
+          "duration": {
+            "text": "3 mins",
+            "value": 163
+          },
+          "end_address": "14 Bexley Pl #106, Nepean, ON K2H 8W2, Canada",
+          "end_location": {
+            "lat": 45.33018819999999,
+            "lng": -75.819676
+          },
+          "start_address": "Eaton / Lynhar, Ottawa, ON K2H 6M1, Canada",
+          "start_location": {
+            "lat": 45.3264109,
+            "lng": -75.81739739999999
+          },
+          "steps": [
+            {
+              "distance": {
+                "text": "82 m",
+                "value": 82
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 14
+              },
+              "end_location": {
+                "lat": 45.326029,
+                "lng": -75.81829379999999
+              },
+              "html_instructions": "Head <b>southwest</b> on <b>Eaton St</b> toward <b>Lynhar Rd</b>",
+              "polyline": {
+                "points": "ayssGvawmMN`@J\\DNh@`B"
+              },
+              "start_location": {
+                "lat": 45.3264109,
+                "lng": -75.81739739999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.2 km",
+                "value": 219
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 35
+              },
+              "end_location": {
+                "lat": 45.3277677,
+                "lng": -75.81959169999999
+              },
+              "html_instructions": "Turn <b>right</b> onto <b>Lynhar Rd</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "uvssGhgwmMu@v@a@`@g@`@CBKHMHk@ZEBa@ROFC@aAh@SF"
+              },
+              "start_location": {
+                "lat": 45.326029,
+                "lng": -75.81829379999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "0.2 km",
+                "value": 231
+              },
+              "duration": {
+                "text": "2 mins",
+                "value": 91
+              },
+              "end_location": {
+                "lat": 45.3296883,
+                "lng": -75.82070159999999
+              },
+              "html_instructions": "Continue onto <b>Stafford Rd</b>",
+              "polyline": {
+                "points": "qatsGlowmMo@b@EBUJKFaAd@e@TEBy@`@cA\\IBCBG@GFQHKD"
+              },
+              "start_location": {
+                "lat": 45.3277677,
+                "lng": -75.81959169999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "85 m",
+                "value": 85
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 16
+              },
+              "end_location": {
+                "lat": 45.3297874,
+                "lng": -75.81962609999999
+              },
+              "html_instructions": "Turn <b>right</b>",
+              "maneuver": "turn-right",
+              "polyline": {
+                "points": "qmtsGjvwmMCq@OcD"
+              },
+              "start_location": {
+                "lat": 45.3296883,
+                "lng": -75.82070159999999
+              },
+              "travel_mode": "BICYCLING"
+            },
+            {
+              "distance": {
+                "text": "45 m",
+                "value": 45
+              },
+              "duration": {
+                "text": "1 min",
+                "value": 7
+              },
+              "end_location": {
+                "lat": 45.33018819999999,
+                "lng": -75.819676
+              },
+              "html_instructions": "Turn <b>left</b><div style=\"font-size:0.9em\">Destination will be on the right</div>",
+              "maneuver": "turn-left",
+              "polyline": {
+                "points": "entsGtowmMaAFM@"
+              },
+              "start_location": {
+                "lat": 45.3297874,
+                "lng": -75.81962609999999
+              },
+              "travel_mode": "BICYCLING"
+            }
+          ],
+          "traffic_speed_entry": [],
+          "via_waypoint": []
+        }
+      ],
+      "overview_polyline": {
+        "points": "gbwsGtklmML^DJFBDPOFMGUYo@m@ICGBEBIKUs@SNM?KBIHAL@PHJD`@LV@RANEPGHQNIAOBIDGLCREPGFCBMAwAa@O?z@bCXz@XtARvA`@vAbCpGVpAZzBt@fCl@rA`AjAd@`@hBlAlBdATL\\\\nA|@\\l@PFFAHGJKVEZDb@^Xj@RZbDlA|@b@|@l@pAhA^Vb@N|@Tx@`@h@^~@x@j@^VJn@?XBTTLHV?jAAh@@XNbAhAl@h@TDPAN?FBLTJZj@z@l@n@HBFC@FTv@dArDp@dCv@`CP\\X\\`BfAb@\\VXRXRd@tAnGR`APv@H\\NNd@nBNl@dAxDPjAJfDDpBA`AHJHVJP`@Jb@LbAl@^D\\E`@ODCHOVUt@Az@B|BAX@NFRd@DLNr@F^Ap@Hr@NT^TJPD`@El@LlCLxDBl@NfBT`AFn@Bp@Cf@B\\Jb@p@|Bb@dBJbAJbAVjAKJY\\Uj@SFo@\\}@n@_@TwA~@cAn@QR[l@c@hA?B[Dg@Jo@`@[j@i@rBq@tCk@vCq@tBIXAZBp@CVGb@Ct@DtA@jB@|@L`@JLPLl@ZPPLTX|@j@vCh@zBXfAb@tBn@hCp@IVKRMHVKFN`ANz@N`Ad@xCNlAdCzIHv@Cj@Wn@c@h@gCnAYFFv@CN?h@AROZEJCRAr@KlAYn@Kx@Ml@Qh@IVDBNXH\\Fj@H`BBlBAd@MdAc@~AKVGHd@pATp@bAzCh@`Bu@v@iAbAiAr@{@`@uAp@u@f@iCnA_Ad@mA`@e@VKDCq@OcDaAFM@"
+      },
+      "summary": "Craig Henry Dr",
+      "warnings": [
+        "Bicycling directions are in beta. Use caution – This route may contain streets that aren't suited for bicycling."
+      ],
+      "waypoint_order": []
+    }
+  ],
+  "status": "OK"
+}

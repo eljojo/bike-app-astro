@@ -180,7 +180,7 @@ The setup script configures most of these automatically. This table is a referen
 | `STRAVA_CLIENT_SECRET` | Paired with Strava client ID | Same app page |
 | `RWGPS_API_KEY` | Import rides from RideWithGPS | [ridewithgps.com/api](https://ridewithgps.com/api) |
 | `RWGPS_AUTH_TOKEN` | Paired with RWGPS API key | Provided alongside API key |
-| `GOOGLE_PLACES_API_KEY` | Auto-populate place details | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Places API (New) |
+| `GOOGLE_PLACES_API_KEY` | Auto-populate place details and import routes from Google Maps URLs | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Places API (New) + Directions API |
 | `SES_ACCESS_KEY_ID` | Send login emails via Amazon SES | IAM user with AmazonSESFullAccess policy |
 | `SES_SECRET_ACCESS_KEY` | Paired with SES access key | Same IAM user |
 | `SES_REGION` | AWS region for SES (e.g., `us-east-1`) | SES console top-right corner |

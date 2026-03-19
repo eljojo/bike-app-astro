@@ -1107,6 +1107,28 @@
   gap: 0.5rem;
 }
 
+.route-editor-map-details {
+  margin-bottom: 1rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: $color-text-muted;
+    margin-bottom: 0.5rem;
+
+    @include dark-mode {
+      color: $color-text-muted-dark;
+    }
+  }
+}
+
+.route-editor-map {
+  width: 100%;
+  height: 250px;
+  border-radius: $border-radius;
+  overflow: hidden;
+}
+
 .route-preview-map {
   min-height: 280px;
   border-radius: $border-radius;
@@ -1129,24 +1151,6 @@
   }
 }
 
-.route-preview-elevation {
-  --elevation-grid: #ddd;
-  --elevation-fill: rgba(0, 102, 204, 0.15);
-  --elevation-line: #0066cc;
-  --elevation-text: #666;
-
-  @include dark-mode {
-    --elevation-grid: #444;
-    --elevation-fill: rgba(80, 140, 220, 0.2);
-    --elevation-line: #5a9fd4;
-    --elevation-text: #999;
-  }
-}
-
-.route-preview-elevation-svg {
-  width: 100%;
-  height: auto;
-}
 
 .route-preview-photos {
   small {
@@ -1864,6 +1868,24 @@
   }
 }
 
+.route-editor-map-details {
+  margin-bottom: 1rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+}
+
+.route-editor-map {
+  width: 100%;
+  height: 250px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 // Route preview styles
 .route-preview-hero img {
   width: 100%;
@@ -2173,14 +2195,6 @@
   }
 }
 
-.ride-preview-elevation {
-  margin-bottom: 1rem;
-}
-
-.ride-preview-elevation-svg {
-  width: 100%;
-  height: auto;
-}
 
 .ride-preview-gallery,
 .route-preview-gallery {

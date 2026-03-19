@@ -410,8 +410,8 @@ async function stepApiKeys() {
     },
     {
       name: 'GOOGLE_PLACES_API_KEY', kind: 'secret',
-      description: 'Auto-populating place details when adding places',
-      howTo: 'https://console.cloud.google.com/apis/credentials\n    → Create API Key → restrict to: Places API (New)',
+      description: 'Auto-populating place details and importing routes from Google Maps URLs',
+      howTo: 'https://console.cloud.google.com/apis/credentials\n    → Create API Key → enable: Places API (New) + Directions API',
     },
     {
       name: 'RWGPS_API_KEY', kind: 'secret',

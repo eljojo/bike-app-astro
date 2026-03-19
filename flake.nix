@@ -27,6 +27,7 @@
             noto-fonts-color-emoji
             corefonts  # Arial Black (site title)
             awscli2  # needed by scripts/setup-aws-video.js
+            hurl     # needed for recording API response fixtures
           ];
 
           shellHook = ''

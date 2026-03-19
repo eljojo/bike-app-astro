@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -87,6 +87,27 @@ setup-video: ## Run video pipeline setup (pass ARGS for subcommands)
 
 deploy-lambda: ## Deploy video Lambda code to AWS
 	cd aws/video-agent && zip -j /tmp/video-agent.zip handler.mjs && aws lambda update-function-code --function-name video-agent --zip-file fileb:///tmp/video-agent.zip --region us-east-1 && aws lambda wait function-updated --function-name video-agent --region us-east-1
+
+record-fixtures: ## Re-record Google Directions API fixtures (requires GOOGLE_PLACES_API_KEY in .env)
+	@if [ -z "$$GOOGLE_PLACES_API_KEY" ] && [ -f .env ]; then \
+		export $$(grep -v '^#' .env | xargs); \
+	fi; \
+	if [ -z "$$GOOGLE_PLACES_API_KEY" ]; then \
+		echo "Skipping: GOOGLE_PLACES_API_KEY not set (check .env)"; \
+		exit 0; \
+	fi; \
+	echo "Recording Fixture 2 (no shaping points)..."; \
+	hurl --variable google_api_key=$$GOOGLE_PLACES_API_KEY \
+		e2e/fixtures/google-directions/record-fixture2.hurl \
+		--output e2e/fixtures/google-directions/fixture2-directions.json; \
+	echo "Recording Fixture 3 (with shaping points)..."; \
+	hurl --variable google_api_key=$$GOOGLE_PLACES_API_KEY \
+		e2e/fixtures/google-directions/record-fixture3.hurl \
+		--output e2e/fixtures/google-directions/fixture3-directions.json; \
+	echo "Canonicalizing JSON..."; \
+	jq -S . e2e/fixtures/google-directions/fixture2-directions.json > /tmp/f2.json && mv /tmp/f2.json e2e/fixtures/google-directions/fixture2-directions.json; \
+	jq -S . e2e/fixtures/google-directions/fixture3-directions.json > /tmp/f3.json && mv /tmp/f3.json e2e/fixtures/google-directions/fixture3-directions.json; \
+	echo "Done. Review the JSON files before committing."
 
 clean: ## Remove build artifacts
 	rm -rf dist/ .astro/

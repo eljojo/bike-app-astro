@@ -67,6 +67,36 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
             'line-opacity': 0.9,
           },
         });
+
+        // Elevation cursor sync — show dot on map when hovering elevation chart
+        let cursorMarker: import('maplibre-gl').Marker | null = null;
+
+        const onHover = ((e: CustomEvent) => {
+          const { lat, lng } = e.detail;
+          if (!cursorMarker) {
+            const el = document.createElement('div');
+            el.className = 'elevation-cursor-dot';
+            cursorMarker = new maplibregl.Marker({ element: el })
+              .setLngLat([lng, lat])
+              .addTo(map);
+          } else {
+            cursorMarker.setLngLat([lng, lat]);
+          }
+        }) as EventListener;
+
+        const onLeave = () => {
+          cursorMarker?.remove();
+          cursorMarker = null;
+        };
+
+        window.addEventListener('elevation:hover', onHover);
+        window.addEventListener('elevation:leave', onLeave);
+
+        map.on('remove', () => {
+          window.removeEventListener('elevation:hover', onHover);
+          window.removeEventListener('elevation:leave', onLeave);
+          onLeave();
+        });
       });
 
       mapRef.current = map;

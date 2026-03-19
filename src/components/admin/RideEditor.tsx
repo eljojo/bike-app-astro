@@ -19,8 +19,8 @@ import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx/parse';
 import { rideGpxFilename } from '../../lib/gpx/filenames';
-import { computeElevationProfile } from '../../lib/geo/elevation-profile';
-import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
+import { computeElevationPoints } from '../../lib/geo/elevation-profile';
+import type { ElevationPoint } from '../../lib/geo/elevation-profile';
 import TourPicker from './TourPicker';
 import type { RideDetail } from '../../lib/models/ride-model';
 import type { TourSummary } from '../../types/admin';
@@ -186,8 +186,8 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
   // Parse GPX for map preview + elevation
   const gpxContent = gpxVariant?.gpxContent;
   const track = useMemo(() => gpxContent ? parseGpx(gpxContent) : null, [gpxContent]);
-  const elevation: ElevationProfileData | null = useMemo(
-    () => track ? computeElevationProfile(track.points, track.distance_m) : null,
+  const elevationPoints: ElevationPoint[] = useMemo(
+    () => track ? computeElevationPoints(track.points, track.distance_m) : [],
     [track],
   );
   const coordinates = useMemo(
@@ -442,13 +442,13 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
             rideDate={rideDate}
             country={country}
             distanceKm={distanceKm}
-            elevationM={elevation ? elevation.elevGain : undefined}
+            elevationM={track ? track.elevation_gain_m : undefined}
             movingTimeS={track?.moving_time_s}
             averageSpeedKmh={track?.average_speed_kmh}
             mapThumbnail={mapThumbnail}
             labels={rideLabels}
             coordinates={coordinates}
-            elevation={elevation}
+            elevationPoints={elevationPoints}
           />
         </div>
       </div>

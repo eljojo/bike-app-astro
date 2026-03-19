@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
+import { resolveUrl } from '../../lib/external/url-resolve.server';
 
 export const prerender = false;
 
@@ -28,16 +29,6 @@ export function extractCoordinates(url: string): { lat: number; lng: number } | 
   return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
 }
 
-/** Follow redirects to get the final URL (for short goo.gl / maps.app.goo.gl links). */
-async function fetchFinalUrl(url: string, limit = 3): Promise<string | null> {
-  if (limit === 0 || !url.startsWith('http')) return null;
-  const res = await fetch(url, { redirect: 'manual' });
-  if (res.status >= 300 && res.status < 400) {
-    const location = res.headers.get('location');
-    if (location) return fetchFinalUrl(location, limit - 1);
-  }
-  return res.url || url;
-}
 
 const GOOGLE_TYPE_TO_CATEGORY: Record<string, string> = {
   cafe: 'cafe',
@@ -135,8 +126,8 @@ async function searchPlace(query: string, apiKey: string): Promise<PlaceResult |
 
     // Try following redirects for short URLs
     if (!query.includes('@') && !cid) {
-      const finalUrl = await fetchFinalUrl(query);
-      if (finalUrl && finalUrl !== query) {
+      const finalUrl = await resolveUrl(query);
+      if (finalUrl !== query) {
         const cidFromFinal = extractCid(finalUrl);
         if (cidFromFinal) {
           const details = await fetchPlaceDetails(cidFromFinal, apiKey, true);

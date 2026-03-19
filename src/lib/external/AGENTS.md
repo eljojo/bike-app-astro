@@ -11,6 +11,11 @@ Vendor-isolated wrappers for third-party service integrations. Each file encapsu
 | `email.ts` | Email service: `createEmailService()` returns local (console.log) or SES adapter. SES uses AWS SigV4 signing via Web Crypto API (no SDK dependency) |
 | `google-maps.ts` | Google My Maps KML import: parses My Maps URLs, fetches KML, extracts route points |
 | `analytics.ts` | Client-side Plausible analytics: tracks pageviews, link clicks, video plays, social referrals, repeat visits. Runs in the browser |
+| `google-directions.ts` | Google Directions URL parser: extracts waypoints, shaping points, and travel mode from `/maps/dir/` URLs. Browser-safe (no API calls) |
+| `url-resolve.server.ts` | Shortened URL resolver: follows redirects (up to 3 hops) for `maps.app.goo.gl` and similar shorteners. Server-only |
+| `routing.ts` | `RoutingWaypoint`, `RoutingService`, `RoutingResult` types — browser-safe interface for vendor-isolated routing |
+| `routing.server.ts` | `createRoutingService()` factory — currently returns Google adapter. Server-only |
+| `routing.adapter-google.server.ts` | Google Directions API adapter: calls `directions/json`, decodes step-level polylines, converts `lng` → `lon`. Server-only |
 
 ## Gotchas
 

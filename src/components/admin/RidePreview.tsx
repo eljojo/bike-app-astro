@@ -4,10 +4,10 @@ import { formatDuration } from '../../lib/date-utils';
 import { formatDistance, formatSpeed } from '../../lib/format';
 import type { MediaItem } from './MediaManager';
 import StaticRouteMap from './StaticRouteMap';
-import { CHART } from '../../lib/geo/elevation-profile';
+import InteractiveElevation from '../InteractiveElevation';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
-import type { ElevationProfileData } from '../../lib/geo/elevation-profile';
+import type { ElevationPoint } from '../../lib/geo/elevation-profile';
 
 interface Props {
   name: string;
@@ -25,13 +25,13 @@ interface Props {
   mapThumbnail?: string;
   labels?: Record<string, string>;
   coordinates?: [number, number][];
-  elevation?: ElevationProfileData | null;
+  elevationPoints?: ElevationPoint[];
 }
 
 export default function RidePreview({
   name, body, media, cdnUrl, videosCdnUrl, videoPrefix, rideDate, country,
   distanceKm, elevationM, movingTimeS, averageSpeedKmh, mapThumbnail, labels,
-  coordinates, elevation,
+  coordinates, elevationPoints,
 }: Props) {
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const renderedBody = useMemo(() => {
@@ -116,33 +116,9 @@ export default function RidePreview({
           </div>
         ) : null}
 
-        {elevation && (() => {
-          const plotBottom = CHART.height - CHART.bottom;
-          const plotLeft = CHART.left;
-          const plotRight = CHART.width - CHART.right;
-          return (
-            <div class="ride-preview-elevation">
-              <svg viewBox={`0 0 ${CHART.width} ${CHART.height}`} class="ride-preview-elevation-svg">
-                {elevation.yTicks.map(tick => (
-                  <line x1={plotLeft} x2={plotRight} y1={tick.position} y2={tick.position}
-                        stroke="var(--elevation-grid)" stroke-width="0.5" />
-                ))}
-                <path d={elevation.svgArea} fill="var(--elevation-fill)" />
-                <path d={elevation.svgPath} fill="none" stroke="var(--elevation-line)" stroke-width="2" />
-                {elevation.yTicks.map(tick => (
-                  <text x={plotLeft - 5} y={tick.position + 4} text-anchor="end"
-                        font-size="11" fill="var(--elevation-text)">{tick.label}</text>
-                ))}
-                {elevation.xTicks.map(tick => (
-                  <text x={tick.position} y={plotBottom + 16} text-anchor="middle"
-                        font-size="11" fill="var(--elevation-text)">{tick.label}</text>
-                ))}
-                <text x={plotRight} y={plotBottom + 16} text-anchor="middle"
-                      font-size="11" fill="var(--elevation-text)">km</text>
-              </svg>
-            </div>
-          );
-        })()}
+        {elevationPoints && elevationPoints.length > 0 && (
+          <InteractiveElevation points={elevationPoints} />
+        )}
 
         {media.length > 0 && (
           <div class="ride-preview-gallery">

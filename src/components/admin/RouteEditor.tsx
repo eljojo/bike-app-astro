@@ -1,6 +1,6 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import MediaManager from './MediaManager';
 import type { MediaItem } from './MediaManager';
@@ -17,6 +17,8 @@ import { useFormValidation } from './useFormValidation';
 import { useDragDrop } from '../../lib/hooks';
 import type { RouteDetail } from '../../lib/models/route-model';
 import type { RouteUpdate } from '../../views/api/route-save'; // type-only import: compile-time check, no runtime bundle impact
+import StaticRouteMap from './StaticRouteMap';
+import { parseGpx } from '../../lib/gpx/parse';
 import SlugEditor from './SlugEditor';
 import { toParkedEntry } from '../../lib/media/media-merge';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
@@ -62,6 +64,17 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       ])
     )
   );
+
+  const routeCoordinates = useMemo(() => {
+    const firstVariant = variants.find(v => v.gpxContent);
+    if (!firstVariant?.gpxContent) return [];
+    try {
+      const track = parseGpx(firstVariant.gpxContent);
+      return track.points.map(p => [p.lon, p.lat] as [number, number]);
+    } catch {
+      return [];
+    }
+  }, [variants]);
 
   const [focusExpanded, setFocusExpanded] = useState(false);
   const effectiveFocus = focusExpanded ? null : (focusMode || null);
@@ -234,6 +247,12 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           </button>
         ))}
       </div>
+      {routeCoordinates.length > 0 && (
+        <details class="route-editor-map-details" open>
+          <summary>Route map</summary>
+          <StaticRouteMap coordinates={routeCoordinates} class="route-editor-map" />
+        </details>
+      )}
       <div class="auth-form">
           <div class="form-field">
             <label for="route-name">Name</label>
