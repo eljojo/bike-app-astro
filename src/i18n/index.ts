@@ -78,6 +78,23 @@ export function eventNoun(tags: string[], locale: string | undefined, plural = f
 }
 
 /**
+ * Derive the "Next ..." label for an event from its tags.
+ * Returns a locale-aware phrase like "Next ride", "Prochain atelier",
+ * "Próxima carrera" — with correct grammatical gender per locale.
+ */
+export function eventNextLabel(tags: string[], locale: string | undefined): string {
+  const short = shortLocale(locale || defaultLocale());
+  const strings = translations[short] || translations[defaultLocale()];
+  const fallback = translations[defaultLocale()];
+  for (const tag of tags) {
+    const key = `events.next.${tag}`;
+    const value = strings[key] ?? fallback[key];
+    if (value) return value as string;
+  }
+  return (strings['events.next.default'] ?? fallback['events.next.default'] ?? 'Next event') as string;
+}
+
+/**
  * Build a locale-prefixed path. Default locale gets no prefix.
  */
 export function localePath(path: string, locale: string | undefined): string {

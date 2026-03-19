@@ -10,7 +10,7 @@ import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
 import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/date-utils';
-import { t, localePath, eventNoun } from '@/i18n';
+import { t, localePath, eventNoun, eventNextLabel } from '@/i18n';
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
@@ -381,7 +381,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
         {nextOccurrence && (
           <div class="event-series-next-ride">
-            <strong>{t('events.next_ride', locale)}:</strong>{' '}
+            <strong>{eventNextLabel(tags, locale)}:</strong>{' '}
             {formatOccurrenceDateLong(nextOccurrence.date)}
             {nextOccurrence.start_time && ` \u00b7 ${formatTime(nextOccurrence.start_time, locale)}`}
             {nextOccurrence.location && ` \u00b7 ${nextOccurrence.location}`}
