@@ -105,7 +105,7 @@ test.describe('Route Creation', () => {
     await expect(stats).toContainText('gain');
 
     // Elevation chart should be visible
-    const elevationSvg = page.locator('.route-preview-elevation-svg');
+    const elevationSvg = page.locator('.elevation-svg');
     await expect(elevationSvg).toBeVisible();
 
     // Name field should still work
