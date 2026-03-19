@@ -166,22 +166,22 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
     });
   }, [buildSeries, eventLocation, eventStartTime, eventMeetTime]);
 
-  // Notify parent whenever occurrences change
-  const notifyParent = useCallback(() => {
+  // Stable ref for the parent callback — avoids re-render loop when parent
+  // creates a new handleSeriesChange on every render (not wrapped in useCallback)
+  const onSeriesChangeRef = useRef(onSeriesChange);
+  onSeriesChangeRef.current = onSeriesChange;
+
+  // Notify parent whenever series data or occurrences change
+  useEffect(() => {
     const series = buildSeries();
     if (!series || occurrences.length === 0) {
-      onSeriesChange(series, '', '');
+      onSeriesChangeRef.current(series, '', '');
       return;
     }
     const firstDate = occurrences[0].date;
     const lastDate = occurrences[occurrences.length - 1].date;
-    onSeriesChange(series, firstDate, lastDate);
-  }, [buildSeries, occurrences, onSeriesChange]);
-
-  // Trigger parent notification after state changes settle
-  useEffect(() => {
-    notifyParent();
-  }, [notifyParent]);
+    onSeriesChangeRef.current(series, firstDate, lastDate);
+  }, [buildSeries, occurrences]);
 
   // Build sets for quick lookup in calendar
   const occurrenceDateSet = useMemo(() => new Set(occurrences.map(o => o.date)), [occurrences]);
@@ -224,7 +224,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
       <div class="series-month">
         <div class="series-month-name">{monthName}</div>
         <div class="series-month-grid">
-          {dayHeaders.map(h => <div key={h} class="series-day-header">{h}</div>)}
+          {dayHeaders.map((h, i) => <div key={i} class="series-day-header">{h}</div>)}
           {cells.map((cell, i) => {
             if (!cell) return <div key={`empty-${i}`} class="series-day-cell" />;
             const { day, dateStr } = cell;
