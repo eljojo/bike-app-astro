@@ -667,6 +667,10 @@ a.go-back-button {
   display: inline;
 }
 
+// Admin-only elements (hidden unless logged in)
+.admin-only { display: none; }
+.admin-visible .admin-only { display: inline; }
+
 // Admin nav link (hidden unless logged in)
 .nav-admin {
   display: none;
@@ -1744,4 +1748,11 @@ a.go-back-button {
 .event-distances {
   font-size: 0.9em;
   @include muted-text;
+}
+
+// Community card handle — subtle link-like color
+.community-card-handle {
+  font-size: 0.85em;
+  color: #4a7cac;
+  @include dark-mode { color: #6ba3d6; }
 }
