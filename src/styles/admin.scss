@@ -1107,6 +1107,28 @@
   gap: 0.5rem;
 }
 
+.route-editor-map-details {
+  margin-bottom: 1rem;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: $color-text-muted;
+    margin-bottom: 0.5rem;
+
+    @include dark-mode {
+      color: $color-text-muted-dark;
+    }
+  }
+}
+
+.route-editor-map {
+  width: 100%;
+  height: 250px;
+  border-radius: $border-radius;
+  overflow: hidden;
+}
+
 .route-preview-map {
   min-height: 280px;
   border-radius: $border-radius;
