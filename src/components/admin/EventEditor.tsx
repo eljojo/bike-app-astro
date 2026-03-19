@@ -492,6 +492,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 eventLocation={location}
                 eventStartTime={startTime}
                 eventMeetTime={meetTime}
+                locale={activeLocale}
                 onSeriesChange={handleSeriesChange}
               />
             </>

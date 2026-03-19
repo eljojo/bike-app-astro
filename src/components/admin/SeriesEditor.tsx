@@ -1,27 +1,61 @@
 import { useState, useMemo, useCallback, useEffect } from 'preact/hooks';
 import { expandSeriesOccurrences, type SeriesOccurrence } from '../../lib/series-utils';
 import { parseLocalDate, formatDateStr } from '../../lib/date-utils';
+import { fullLocale, defaultLocale as getDefaultLocale } from '../../lib/i18n/locale-utils';
 import type { EventSeries, SeriesOccurrenceOverride } from '../../lib/models/event-model';
 
 type SeriesMode = 'recurring' | 'schedule';
 type RecurrenceFrequency = 'weekly' | 'biweekly';
 type DayName = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
-const DAY_OPTIONS: { value: DayName; label: string }[] = [
-  { value: 'monday', label: 'Monday' },
-  { value: 'tuesday', label: 'Tuesday' },
-  { value: 'wednesday', label: 'Wednesday' },
-  { value: 'thursday', label: 'Thursday' },
-  { value: 'friday', label: 'Friday' },
-  { value: 'saturday', label: 'Saturday' },
-  { value: 'sunday', label: 'Sunday' },
-];
+const DAY_NAMES: DayName[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/** Build localized day option labels using Intl */
+function buildDayOptions(intlLocale: string): { value: DayName; label: string }[] {
+  return DAY_NAMES.map((name, i) => {
+    // Jan 4 2026 is a Sunday — offset by day index to get each weekday
+    const d = new Date(2026, 0, 4 + i);
+    const label = d.toLocaleString(intlLocale, { weekday: 'long' });
+    return { value: name, label: label.charAt(0).toUpperCase() + label.slice(1) };
+  });
+}
+
+/**
+ * Get the first day of the week for a locale.
+ * Uses Intl.Locale.getWeekInfo() where available, falls back to Monday.
+ */
+function getWeekStart(intlLocale: string): number {
+  try {
+    const loc = new Intl.Locale(intlLocale);
+    // getWeekInfo() returns { firstDay: 1-7 } where 1=Mon, 7=Sun
+    // Intl.Locale weekInfo API — not yet in all TS libs
+    type WeekInfo = { firstDay: number };
+    const info = ((loc as Intl.Locale & { getWeekInfo?: () => WeekInfo }).getWeekInfo?.()
+      ?? (loc as Intl.Locale & { weekInfo?: WeekInfo }).weekInfo);
+    if (info?.firstDay) {
+      return info.firstDay === 7 ? 0 : info.firstDay; // convert to JS 0=Sun
+    }
+  } catch { /* fallback */ }
+  return 1; // Monday default — most of the world
+}
+
+/** Build localized short day headers starting from the locale's first day of week */
+function buildDayHeaders(intlLocale: string, weekStart: number): string[] {
+  const headers: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const dayIndex = (weekStart + i) % 7;
+    const d = new Date(2026, 0, 4 + dayIndex); // Jan 4 2026 = Sunday
+    headers.push(d.toLocaleString(intlLocale, { weekday: 'narrow' }));
+  }
+  return headers;
+}
 
 interface Props {
   initialSeries?: EventSeries;
   eventLocation?: string;
   eventStartTime?: string;
   eventMeetTime?: string;
+  locale?: string;
   onSeriesChange: (series: EventSeries | undefined, firstDate: string, lastDate: string) => void;
 }
 
@@ -46,7 +80,18 @@ function detectMode(series?: EventSeries): SeriesMode {
   return 'recurring';
 }
 
-export default function SeriesEditor({ initialSeries, eventLocation, eventStartTime, eventMeetTime, onSeriesChange }: Props) {
+export default function SeriesEditor({ initialSeries, eventLocation, eventStartTime, eventMeetTime, locale, onSeriesChange }: Props) {
+  // Resolve full locale for Intl formatting (e.g. 'en' → 'en-CA')
+  const intlLocale = useMemo(() => {
+    const loc = locale || getDefaultLocale();
+    if (loc.includes('-')) return loc;
+    return fullLocale(loc);
+  }, [locale]);
+
+  const weekStart = useMemo(() => getWeekStart(intlLocale), [intlLocale]);
+  const dayOptions = useMemo(() => buildDayOptions(intlLocale), [intlLocale]);
+  const dayHeaders = useMemo(() => buildDayHeaders(intlLocale, weekStart), [intlLocale, weekStart]);
+
   const [mode, setMode] = useState<SeriesMode>(detectMode(initialSeries));
 
   // Recurring state
@@ -157,12 +202,13 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
     const startDow = firstDay.getDay(); // 0=Sun
     const totalDays = lastDay.getDate();
 
-    const monthName = firstDay.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
-    // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- day abbreviation, not locale
-    const dayHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const monthName = firstDay.toLocaleString(intlLocale, { month: 'long', year: 'numeric' });
+
+    // Offset from week start: how many empty cells before day 1
+    const emptyBefore = (startDow - weekStart + 7) % 7;
 
     const cells: Array<{ day: number; dateStr: string } | null> = [];
-    for (let i = 0; i < startDow; i++) cells.push(null);
+    for (let i = 0; i < emptyBefore; i++) cells.push(null);
     for (let d = 1; d <= totalDays; d++) {
       const dateStr = formatDateStr(new Date(year, month, d));
       cells.push({ day: d, dateStr });
@@ -354,7 +400,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                   value={recurrenceDay}
                   onChange={(e) => setRecurrenceDay((e.target as HTMLSelectElement).value as DayName)}
                 >
-                  {DAY_OPTIONS.map(d => (
+                  {dayOptions.map(d => (
                     <option key={d.value} value={d.value}>{d.label}</option>
                   ))}
                 </select>
