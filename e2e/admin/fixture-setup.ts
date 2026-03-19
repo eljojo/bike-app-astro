@@ -467,6 +467,23 @@ website: https://solo.example.com
 `
   );
 
+  // community-admin-test: owned by community-admin.spec.ts (rich organizer for edit tests)
+  fs.writeFileSync(
+    path.join(orgDir, 'community-admin-test.md'),
+    `---
+name: Community Admin Test Org
+tagline: A tagline for testing
+tags:
+  - gravel
+  - touring
+featured: true
+website: https://community-admin-test.example.com
+---
+
+A bio for testing community admin editing.
+`
+  );
+
   // shared-org: used by two events, should never be inlined
   fs.writeFileSync(
     path.join(orgDir, 'shared-org.md'),

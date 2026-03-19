@@ -74,12 +74,27 @@ export interface HomepageVideo {
 }
 
 export interface MagazineData {
-  featuredRoutes: FeaturedRoute[];
+  featuredRoute: FeaturedRoute | null;
   upcomingEvents: UpcomingEvent[];
   featuredCommunities: FeaturedCommunity[];
   exploreRoutes: ExploreMiniCard[];
   facts: ResolvedFact[];
   video: HomepageVideo | null;
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic daily pick — same day always returns same index
+// ---------------------------------------------------------------------------
+
+function dayOfYear(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  return Math.floor((now.getTime() - start.getTime()) / 86400000);
+}
+
+function pickByDay<T>(items: T[]): T | null {
+  if (items.length === 0) return null;
+  return items[dayOfYear() % items.length];
 }
 
 // ---------------------------------------------------------------------------
@@ -104,10 +119,10 @@ function getTrackPoints(route: RouteEntry) {
 }
 
 // ---------------------------------------------------------------------------
-// Featured routes (all — client rotates daily)
+// Featured route — pick one per day at build time
 // ---------------------------------------------------------------------------
 
-function getFeaturedRoutes(routes: RouteEntry[]): FeaturedRoute[] {
+function getAllFeaturedRoutes(routes: RouteEntry[]): FeaturedRoute[] {
   return routes
     .filter(r => r.data.homepage_featured)
     .sort((a, b) => a.id.localeCompare(b.id))
@@ -127,6 +142,7 @@ function getFeaturedRoutes(routes: RouteEntry[]): FeaturedRoute[] {
       };
     });
 }
+
 
 // ---------------------------------------------------------------------------
 // Upcoming events (next 3)
@@ -231,38 +247,45 @@ function getExploreRoutes(
 }
 
 // ---------------------------------------------------------------------------
-// Video: find one from featured routes, or any route
+// Video: weighted daily rotation — featured route videos appear 2x
 // ---------------------------------------------------------------------------
 
 function findHomepageVideo(
   routes: RouteEntry[],
   featuredRoutes: FeaturedRoute[],
 ): HomepageVideo | null {
-  // Prefer video from featured route
+  const featuredSlugs = new Set(featuredRoutes.filter(r => r.videoKey).map(r => r.slug));
+  const pool: HomepageVideo[] = [];
+
+  // Add featured route videos (2x weight = add twice)
   for (const fr of featuredRoutes) {
     if (fr.videoKey) {
-      return {
+      const entry: HomepageVideo = {
         key: fr.videoKey,
         duration: fr.videoDuration,
         routeSlug: fr.slug,
         routeName: fr.name,
       };
+      pool.push(entry, entry);
     }
   }
-  // Fall back to any route with a video
-  for (const route of routes) {
+
+  // Add non-featured route videos (1x weight)
+  for (const route of routes.sort((a, b) => a.id.localeCompare(b.id))) {
+    if (featuredSlugs.has(route.id)) continue;
     const video = getVideo(route);
     if (video) {
-      return {
+      pool.push({
         key: video.key,
         duration: video.duration,
         routeSlug: route.id,
         routeName: route.data.name,
         caption: video.caption,
-      };
+      });
     }
   }
-  return null;
+
+  return pickByDay(pool);
 }
 
 // ---------------------------------------------------------------------------
@@ -527,18 +550,19 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
   const allPlaces = features.hasPlaces ? await getCollection('places') : [];
   const placeData = toPlaceData(allPlaces);
 
-  const featuredRoutes = getFeaturedRoutes(routes);
+  const allFeatured = getAllFeaturedRoutes(routes);
+  const featuredRoute = pickByDay(allFeatured);
   const upcomingEvents = getUpcomingEvents(events, organizers);
   const featuredCommunities = getFeaturedCommunities(organizers, events, locale);
 
-  const featuredSlugs = new Set(featuredRoutes.map(r => r.slug));
+  const featuredSlugs = new Set(allFeatured.map(r => r.slug));
   const exploreRoutes = getExploreRoutes(routes, featuredSlugs);
 
   const facts = resolveHomepageFacts(routes, placeData, organizers, events);
-  const video = findHomepageVideo(routes, featuredRoutes);
+  const video = findHomepageVideo(routes, allFeatured);
 
   return {
-    featuredRoutes,
+    featuredRoute,
     upcomingEvents,
     featuredCommunities,
     exploreRoutes,

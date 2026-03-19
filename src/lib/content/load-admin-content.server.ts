@@ -344,20 +344,24 @@ export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promi
 /**
  * Fetch a prerendered JSON file from the app's own static assets.
  * Three execution paths:
- * - Local dev: global fetch() works fine (Astro dev server handles concurrency)
- * - Node.js production: reads from dist/client/ on disk (avoids self-fetch deadlock)
+ * - Local (disk available): reads from dist/client/ on disk (avoids self-fetch deadlock)
+ * - Local (dev server): global fetch() works (Astro dev server handles concurrency)
  * - Cloudflare Workers: uses ASSETS binding (avoids self-fetch deadlock / 522)
+ *
+ * NOTE: The disk-read vs fetch decision uses a runtime existsSync check, NOT
+ * import.meta.env.PROD. Astro's SSR build treats import.meta.env.PROD as falsy
+ * in server chunks, so Rollup dead-code-eliminates the readFileSync branch when
+ * combined with Vite define constants. See detailed_plan.md § Build-Time Constants.
  */
 export async function fetchJson<T>(url: URL): Promise<T> {
-  if (__RUNTIME_LOCAL__ && import.meta.env.PROD) {
-    // Node.js production/preview: read prerendered JSON from disk.
-    const { readFileSync } = await import('node:fs');
+  if (__RUNTIME_LOCAL__) {
+    const { existsSync, readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const filePath = join(process.cwd(), 'dist', 'client', url.pathname);
-    return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
-  }
-  if (__RUNTIME_LOCAL__) {
-    // Local dev: Astro dev server handles concurrent requests, no deadlock.
+    if (existsSync(filePath)) {
+      return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
+    }
+    // Dev server: dist/client/ doesn't exist yet, fetch from Astro dev server.
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
     return res.json() as Promise<T>;

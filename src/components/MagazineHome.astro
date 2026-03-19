@@ -16,7 +16,7 @@ import type {
 } from '@/lib/homepage-data.server';
 
 interface Props {
-  featuredRoutes: FeaturedRoute[];
+  featuredRoute: FeaturedRoute | null;
   upcomingEvents: UpcomingEvent[];
   featuredCommunities: FeaturedCommunity[];
   exploreRoutes: ExploreMiniCard[];
@@ -24,43 +24,36 @@ interface Props {
   video: HomepageVideo | null;
 }
 
-const { featuredRoutes, upcomingEvents, featuredCommunities, exploreRoutes, facts, video } = Astro.props;
+const { featuredRoute, upcomingEvents, featuredCommunities, exploreRoutes, facts, video } = Astro.props;
 const locale = Astro.currentLocale;
 ---
 
 <div class="magazine-home">
   <div class="magazine-layout">
     <div class="magazine-main">
-      {featuredRoutes.length > 0 && (
+      {featuredRoute && (
         <section class="magazine-featured">
           <h2>{t('home.featured_ride', locale)}</h2>
-          {featuredRoutes.map((route, i) => (
-            <a
-              href={paths.route(route.slug, locale)}
-              class="featured-route-card"
-              data-featured-index={i}
-              style={i === 0 ? undefined : 'display:none'}
-            >
-              {route.coverKey && (
-                <img
-                  src={imageUrl(route.coverKey, { width: 750, height: 420, fit: 'cover' })}
-                  srcset={`${imageUrl(route.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
-                  alt={route.name}
-                  width="750"
-                  height="420"
-                  loading="eager"
-                  class="featured-route-img"
-                />
-              )}
-              <div class="featured-route-info">
-                <span class="featured-route-name">{route.name}</span>
-                <span class="featured-route-meta">
-                  {formatDistance([route.distance_km])}
-                  {route.tagline && ` — ${route.tagline}`}
-                </span>
-              </div>
-            </a>
-          ))}
+          <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-card">
+            {featuredRoute.coverKey && (
+              <img
+                src={imageUrl(featuredRoute.coverKey, { width: 750, height: 420, fit: 'cover' })}
+                srcset={`${imageUrl(featuredRoute.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
+                alt={featuredRoute.name}
+                width="750"
+                height="420"
+                loading="eager"
+                class="featured-route-img"
+              />
+            )}
+            <div class="featured-route-info">
+              <span class="featured-route-name">{featuredRoute.name}</span>
+              <span class="featured-route-meta">
+                {formatDistance([featuredRoute.distance_km])}
+                {featuredRoute.tagline && ` — ${featuredRoute.tagline}`}
+              </span>
+            </div>
+          </a>
         </section>
       )}
 
@@ -179,15 +172,3 @@ const locale = Astro.currentLocale;
     </aside>
   </div>
 </div>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const cards = document.querySelectorAll<HTMLElement>('[data-featured-index]');
-    if (cards.length === 0) return;
-    const dayOfYear = Math.floor(
-      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
-    );
-    cards.forEach(c => c.style.display = 'none');
-    cards[dayOfYear % cards.length].style.display = '';
-  });
-</script>
