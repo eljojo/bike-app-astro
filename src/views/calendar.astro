@@ -9,7 +9,7 @@ import OrganizerSpotlight from '@/components/OrganizerSpotlight.astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate } from '@/lib/date-utils';
 import { getCityConfig } from '@/lib/config/city-config';
-import { t, formatLocale } from '@/i18n';
+import { t, formatLocale, eventNoun, calendarUpcomingLabel } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { classifyEvent } from '@/lib/event-tags';
 import { tTag } from '@/lib/i18n/tag-translations.server';
@@ -105,6 +105,19 @@ if (!showCommunity) comingUpPool.push(...community);
 if (!showLearnConnect) comingUpPool.push(...learnConnect);
 comingUpPool.sort((a, b) => parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime());
 const comingUp = comingUpPool.slice(0, 3);
+
+// Compute adaptive heading: if all comingUp events share the same noun, use type-specific heading
+const comingUpHeading = (() => {
+  if (comingUp.length === 0) return t('calendar.coming_up', locale);
+  const nouns = comingUp
+    .filter(e => e.event.data.tags?.length)
+    .map(e => eventNoun(e.event.data.tags!, locale));
+  if (nouns.length === comingUp.length && new Set(nouns).size === 1) {
+    const representative = comingUp.find(e => e.event.data.tags?.length);
+    return calendarUpcomingLabel(representative!.event.data.tags!, locale);
+  }
+  return t('calendar.coming_up', locale);
+})();
 
 // For folded events, determine if they need a tag pill
 function getTagLabel(entry: CalendarEntry): string | undefined {
@@ -247,7 +260,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
 
   {comingUp.length > 0 && (
     <section class="calendar-section">
-      <h2>{t('calendar.coming_up', locale)}</h2>
+      <h2>{comingUpHeading}</h2>
       <div class="featured-cards">
         {comingUp.map(e => (
           <EventCardFeatured event={e.event} tagLabel={getTagLabel(e)} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />

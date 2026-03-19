@@ -9,6 +9,12 @@ import { loadHomepageData } from '@/lib/route-data';
 const locale = Astro.currentLocale;
 const config = getCityConfig();
 const { published, filterTags, routeTagsMap } = await loadHomepageData();
+
+const suggestKey = published.length < 5
+  ? 'home.suggest_route_few'
+  : published.length >= 50
+  ? 'home.suggest_route_many'
+  : 'home.suggest_route';
 ---
 
 <p class="site-identity-line">{t('home.identity', locale, { name: config.name })}</p>
@@ -35,7 +41,7 @@ const { published, filterTags, routeTagsMap } = await loadHomepageData();
 </ul>
 <div class="suggest-route-cta">
   <a href="/admin/routes/new" class="suggest-route-link">
-    {t('home.suggest_route', locale)}
+    {t(suggestKey, locale)}
   </a>
 </div>
 <script>

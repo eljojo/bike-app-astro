@@ -147,6 +147,23 @@ export function eventGoBackLabel(tags: string[], locale: string | undefined): st
 }
 
 /**
+ * Derive the "Upcoming ..." heading for the calendar from event tags.
+ * Returns a locale-aware phrase like "Upcoming rides", "Prochaines sorties",
+ * "Próximas carreras" — with correct grammatical gender per locale.
+ */
+export function calendarUpcomingLabel(tags: string[], locale: string | undefined): string {
+  const short = shortLocale(locale || defaultLocale());
+  const strings = translations[short] || translations[defaultLocale()];
+  const fallback = translations[defaultLocale()];
+  for (const tag of tags) {
+    const key = `calendar.upcoming.${tag}`;
+    const value = strings[key] ?? fallback[key];
+    if (value) return value as string;
+  }
+  return (strings['calendar.upcoming.default'] ?? fallback['calendar.upcoming.default'] ?? 'Upcoming events') as string;
+}
+
+/**
  * Build a locale-prefixed path. Default locale gets no prefix.
  */
 export function localePath(path: string, locale: string | undefined): string {
