@@ -262,11 +262,15 @@ const jsonLd = [
     </div>
 
     <MediaGallery media={media} name={localeName} />
-    <EditEntryPoint text={t('route.add_photo', locale)} href={`/admin/routes/${route.id}?focus=media`} />
+    {(() => {
+      const hasPhotos = media.some(m => m.type !== 'video');
+      const photoCtaKey = hasPhotos ? 'route.add_photo' : 'route.add_first_photo';
+      return <EditEntryPoint text={t(photoCtaKey, locale)} href={`/admin/routes/${route.id}?focus=media`} />;
+    })()}
 
     {similarRoutes.length > 0 && (
       <div class="route-similar">
-        <h3>{t('route.similar', locale)}</h3>
+        <h3>{t(similarRoutes.length === 1 ? 'route.similar_one' : 'route.similar', locale)}</h3>
         <ul class="route-similar--cards">
           {similarRoutes.map(s => {
             const card = routeCardData[s.id];
