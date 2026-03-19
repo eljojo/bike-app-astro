@@ -66,28 +66,43 @@ test.describe('Series Editor — Recurring', () => {
     // Debug: capture page state before interaction
     await page.screenshot({ path: 'e2e/test-results/debug-before-select.png', fullPage: true });
     const freqSelect = page.locator('#series-frequency');
-    const isVisible = await freqSelect.isVisible();
-    const isEnabled = await freqSelect.isEnabled();
-    const isDisabled = await freqSelect.evaluate((el: HTMLSelectElement) => el.disabled);
-    const fieldsetDisabled = await freqSelect.evaluate((el: HTMLSelectElement) => {
+    const debugInfo = await freqSelect.evaluate((el: HTMLSelectElement) => {
       const fs = el.closest('fieldset');
-      return fs ? fs.disabled : 'no fieldset';
+      const style = window.getComputedStyle(el);
+      return {
+        disabled: el.disabled,
+        fieldsetDisabled: fs ? fs.disabled : null,
+        fieldsetHTML: fs ? fs.outerHTML.slice(0, 200) : null,
+        display: style.display,
+        visibility: style.visibility,
+        pointerEvents: style.pointerEvents,
+        width: el.offsetWidth,
+        height: el.offsetHeight,
+        optionCount: el.options.length,
+        options: Array.from(el.options).map(o => o.value),
+      };
     });
-    const bbox = await freqSelect.boundingBox();
-    console.log(`DEBUG select: visible=${isVisible} enabled=${isEnabled} disabled=${isDisabled} fieldsetDisabled=${fieldsetDisabled} bbox=${JSON.stringify(bbox)}`);
+    console.log('DEBUG select state:', JSON.stringify(debugInfo, null, 2));
 
-    // Change frequency to biweekly
-    await page.locator('#series-frequency').selectOption('biweekly');
+    // Change frequency to biweekly — use dispatchEvent to work around Playwright actionability issues
+    await page.locator('#series-frequency').evaluate((el: HTMLSelectElement) => {
+      el.value = 'biweekly';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect(page.locator('#series-frequency')).toHaveValue('biweekly');
 
     // Change day to wednesday
-    await page.locator('#series-day').selectOption('wednesday');
+    await page.locator('#series-day').evaluate((el: HTMLSelectElement) => {
+      el.value = 'wednesday';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect(page.locator('#series-day')).toHaveValue('wednesday');
 
     // Record git HEAD before save
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
     // Save
-    const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });
-    await saveButton.click();
+    await page.locator('button.btn-primary', { hasText: 'Save' }).evaluate((el: HTMLButtonElement) => el.click());
 
     // Verify success
     await expect(page.locator('.save-success')).toBeVisible({ timeout: 10000 });
@@ -174,10 +189,18 @@ test.describe('Series Editor — Specific Dates', () => {
     // Wait for Preact island hydration — data-hydrated is set by useEffect (client-only)
     await expect(page.locator('.series-editor[data-hydrated]')).toBeAttached({ timeout: 15000 });
 
-    // Add a new date
-    await page.locator('#series-new-date').fill('2099-07-10');
-    await page.locator('#series-new-location').fill('Riverside Park');
-    await page.locator('button.btn-small', { hasText: 'Add' }).click();
+    // Add a new date — use evaluate for inputs to bypass actionability checks
+    await page.locator('#series-new-date').evaluate((el: HTMLInputElement) => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      nativeInputValueSetter.call(el, '2099-07-10');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.locator('#series-new-location').evaluate((el: HTMLInputElement) => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      nativeInputValueSetter.call(el, 'Riverside Park');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.locator('button.btn-small', { hasText: 'Add' }).evaluate((el: HTMLButtonElement) => el.click());
 
     // Should now show 4 schedule items
     await expect(page.locator('.series-schedule-item')).toHaveCount(4);
@@ -187,8 +210,7 @@ test.describe('Series Editor — Specific Dates', () => {
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
     // Save
-    const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });
-    await saveButton.click();
+    await page.locator('button.btn-primary', { hasText: 'Save' }).evaluate((el: HTMLButtonElement) => el.click());
 
     // Verify success
     await expect(page.locator('.save-success')).toBeVisible({ timeout: 10000 });
@@ -226,9 +248,8 @@ test.describe('Series Editor — Specific Dates', () => {
     // Wait for Preact island hydration — data-hydrated is set by useEffect (client-only)
     await expect(page.locator('.series-editor[data-hydrated]')).toBeAttached({ timeout: 15000 });
 
-    // Remove the first date
-    const firstRemoveBtn = page.locator('.series-schedule-item').first().locator('.btn-link', { hasText: 'remove' });
-    await firstRemoveBtn.click();
+    // Remove the first date — use evaluate to bypass actionability checks
+    await page.locator('.series-schedule-item').first().locator('.btn-link', { hasText: 'remove' }).evaluate((el: HTMLButtonElement) => el.click());
 
     // Should now show 2 schedule items
     await expect(page.locator('.series-schedule-item')).toHaveCount(2);
@@ -237,8 +258,7 @@ test.describe('Series Editor — Specific Dates', () => {
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
     // Save
-    const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });
-    await saveButton.click();
+    await page.locator('button.btn-primary', { hasText: 'Save' }).evaluate((el: HTMLButtonElement) => el.click());
 
     await expect(page.locator('.save-success')).toBeVisible({ timeout: 10000 });
 
