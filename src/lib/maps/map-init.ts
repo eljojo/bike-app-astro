@@ -39,8 +39,9 @@ function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
   }
 }
 
-/** Track the syncPhotoBubbles handler per map so it can be removed on replay. */
+/** Track photo bubble handlers per map so they can be removed on replay. */
 const photoBubbleSyncHandlers = new WeakMap<maplibregl.Map, () => void>();
+const photoBubbleZoomHandlers = new WeakMap<maplibregl.Map, () => void>();
 
 /** Single shared popup per map — opening one closes the previous. */
 const activePopups = new WeakMap<maplibregl.Map, maplibregl.Popup>();
@@ -408,6 +409,11 @@ export function addPhotoMarkers(
     map.off('idle', previousSync);
     photoBubbleSyncHandlers.delete(map);
   }
+  const previousZoom = photoBubbleZoomHandlers.get(map);
+  if (previousZoom) {
+    map.off('zoom', previousZoom);
+    photoBubbleZoomHandlers.delete(map);
+  }
 
   const sourceId = 'photo-markers';
 
@@ -497,14 +503,6 @@ export function addPhotoMarkers(
       }
     }
 
-    // Scale bubble size with zoom
-    const bubbleSize = Math.round(Math.min(48, Math.max(30, (map.getZoom() - 11) * 4.5 + 30)));
-    for (const [, marker] of bubbleMarkers) {
-      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
-      (el as HTMLElement).style.width = `${bubbleSize}px`;
-      (el as HTMLElement).style.height = `${bubbleSize}px`;
-    }
-
     // Preload popup images for visible photos
     if (photosVisible.get(map) !== false) {
       for (const key of seenKeys) {
@@ -577,14 +575,6 @@ export function addPhotoMarkers(
       }
     }
 
-    // Scale cluster markers with zoom
-    const clusterSize = Math.round(Math.min(52, Math.max(34, (map.getZoom() - 8) * 3 + 34)));
-    for (const [, marker] of clusterMarkers) {
-      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
-      (el as HTMLElement).style.width = `${clusterSize}px`;
-      (el as HTMLElement).style.height = `${clusterSize}px`;
-    }
-
     // Remove cluster markers no longer visible
     for (const [id, marker] of clusterMarkers) {
       if (!seenClusterIds.has(id)) {
@@ -593,6 +583,24 @@ export function addPhotoMarkers(
       }
     }
   }
+
+  // Resize bubbles on zoom so they track smoothly during interaction
+  function resizeBubbles() {
+    const bubbleSize = Math.round(Math.min(48, Math.max(30, (map.getZoom() - 11) * 4.5 + 30)));
+    for (const [, marker] of bubbleMarkers) {
+      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
+      (el as HTMLElement).style.width = `${bubbleSize}px`;
+      (el as HTMLElement).style.height = `${bubbleSize}px`;
+    }
+    const clusterSize = Math.round(Math.min(52, Math.max(34, (map.getZoom() - 8) * 3 + 34)));
+    for (const [, marker] of clusterMarkers) {
+      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
+      (el as HTMLElement).style.width = `${clusterSize}px`;
+      (el as HTMLElement).style.height = `${clusterSize}px`;
+    }
+  }
+  map.on('zoom', resizeBubbles);
+  photoBubbleZoomHandlers.set(map, resizeBubbles);
 
   map.on('idle', syncPhotoBubbles);
   photoBubbleSyncHandlers.set(map, syncPhotoBubbles);

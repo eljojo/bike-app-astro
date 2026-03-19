@@ -95,6 +95,8 @@ const routes = [
   { pattern: '/api/dev/upload', entrypoint: view('dev/upload.ts') },
   { pattern: '/api/tiles/[...path]', entrypoint: view('api/tile-proxy.ts') },
   { pattern: '/dev-uploads/[...path]', entrypoint: view('dev/dev-uploads.ts') },
+  // Event preview (server-rendered fallback for pending events — middleware rewrites here)
+  { pattern: '/_event-preview/[...id]', entrypoint: view('events/preview.astro') },
   // Public feeds and meta
   { pattern: '/404', entrypoint: view('404.astro') },
   { pattern: '/sitemap', entrypoint: view('sitemap.astro') },

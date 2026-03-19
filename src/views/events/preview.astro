@@ -1,0 +1,148 @@
+---
+export const prerender = false;
+
+import Base from '@/layouts/Base.astro';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { getCityConfig } from '@/lib/config/city-config';
+import { imageUrl } from '@/lib/media/image-service';
+import { formatDateRange } from '@/lib/date-utils';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
+import { tTag } from '@/lib/i18n/tag-translations.server';
+import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import { loadDetailFromJson } from '@/lib/content/load-admin-content.server';
+import { eventDetailFromCache } from '@/lib/models/event-model';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+const id = Astro.params.id;
+
+if (!id || !/^\d{4}\/[\da-z][\da-z-]*[\da-z]$/.test(id)) {
+  return new Response(null, { status: 404 });
+}
+
+const result = await loadDetailFromJson({
+  contentType: 'events',
+  id,
+  jsonUrl: new URL(`/admin/data/events/${id}.json`, Astro.url),
+  fromCache: eventDetailFromCache,
+});
+
+if (result.notFound) return new Response(null, { status: 404 });
+const data = result.data;
+
+const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
+
+function formatTime(time: string, loc?: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date(2000, 0, 1, h, m);
+  return d.toLocaleTimeString(loc || 'en-CA', { hour: 'numeric', minute: '2-digit' });
+}
+
+const hasMeetTime = !!data.meet_time && !!data.start_time;
+const timeDisplay = hasMeetTime
+  ? t('events.meet_time', locale, { meet: formatTime(data.meet_time!, locale), roll: formatTime(data.start_time!, locale) })
+  : data.start_time
+    ? formatTime(data.start_time, locale)
+    : undefined;
+const dateWithTime = timeDisplay ? `${dateDisplay} \u2014 ${timeDisplay}` : dateDisplay;
+
+const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 800 }) : undefined;
+
+let organizerName = '';
+if (typeof data.organizer === 'string') {
+  organizerName = data.organizer;
+} else if (data.organizer?.name) {
+  organizerName = data.organizer.name;
+}
+
+const tags = data.tags ?? [];
+const regUrl = data.registration?.url || data.registration_url;
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<Base title={`${data.name} | ${config.display_name}`} description={dateDisplay} ogImage={coverUrl} ogImageAlt={data.name} ogType="event">
+  <div class="event-preview-banner">Preview — this event has not been published yet</div>
+  <article class="event-detail">
+    <div class={`event-detail-hero ${data.poster_key ? '' : 'event-detail-hero--no-poster'}`}>
+      {data.poster_key && (
+        <div class="event-detail-hero-poster">
+          <ResponsiveImage
+            blobKey={data.poster_key}
+            alt={data.name}
+            widths={[400, 800]}
+            fit="contain"
+            loading="eager"
+          />
+        </div>
+      )}
+
+      <div class="event-detail-hero-info">
+        <h1>{data.name}</h1>
+        {data.edition && <p class="event-detail-edition">{data.edition}</p>}
+
+        {tags.length > 0 && (
+          <ul class="event-detail-tags">
+            {tags.map((tag: string) => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+          </ul>
+        )}
+
+        <div class="event-detail-facts">
+          <dl class="event-detail-facts-grid">
+            <dt>{t('events.date', locale)}</dt>
+            <dd>{dateWithTime}</dd>
+
+            {data.distances && (
+              <Fragment>
+                <dt>{t('events.distance', locale)}</dt>
+                <dd>{data.distances}</dd>
+              </Fragment>
+            )}
+
+            {data.location && (
+              <Fragment>
+                <dt>{t('events.location', locale)}</dt>
+                <dd>{data.location}</dd>
+              </Fragment>
+            )}
+          </dl>
+
+          {regUrl && (
+            <a class="event-detail-facts-cta" href={regUrl} target="_blank" rel="noopener noreferrer">
+              {t('events.sign_up', locale)} &#x2192;
+            </a>
+          )}
+
+          {organizerName && (
+            <div class="event-detail-facts-links">
+              <span>{organizerName}</span>
+            </div>
+          )}
+        </div>
+
+        {data.body?.trim() && (
+          <div class="event-detail-body">
+            <div class="event-description" set:html={await renderMarkdownHtml(data.body)} />
+          </div>
+        )}
+      </div>
+    </div>
+  </article>
+
+  <p style="margin-top: 2em;">
+    <a href={localePath(getInstanceFeatures().hasEnrichedEvents ? '/events' : '/calendar', locale)} class="go-back-button">&#x21A9; {t('events.go_back', locale)}</a>
+  </p>
+</Base>
+
+<style lang="scss">
+  .event-preview-banner {
+    background: #f0ad4e;
+    color: #333;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+</style>
