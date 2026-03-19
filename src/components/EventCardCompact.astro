@@ -28,10 +28,11 @@ interface Props {
   occurrenceLocation?: string;
   seriesBadge?: string;
   organizerName?: string;
+  muted?: boolean;
   locale?: string;
 }
 
-const { event, occurrenceDate, occurrenceLocation, seriesBadge, organizerName: preResolvedOrg, locale } = Astro.props;
+const { event, occurrenceDate, occurrenceLocation, seriesBadge, organizerName: preResolvedOrg, muted = false, locale } = Astro.props;
 const { data } = event;
 
 let organizerName = preResolvedOrg || '';
@@ -69,17 +70,21 @@ const displayName = isSeriesOccurrence ? `${data.name} — ${shortDate}` : data.
 const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(' · ');
 ---
 
-<div class="event-card-compact">
-  {data.poster_key && (
+<div class:list={['event-card-compact', { 'event-card-compact--muted': muted }]}>
+  {!muted && (
     <div class="event-card-compact-thumb">
-      <ResponsiveImage
-        blobKey={data.poster_key}
-        alt={displayName}
-        widths={[56, 112]}
-        width={56}
-        height={56}
-        fit="cover"
-      />
+      {data.poster_key ? (
+        <ResponsiveImage
+          blobKey={data.poster_key}
+          alt={displayName}
+          widths={[56, 112]}
+          width={56}
+          height={56}
+          fit="cover"
+        />
+      ) : (
+        <div class="event-card-compact-placeholder" />
+      )}
     </div>
   )}
   <div class="event-card-compact-body">
@@ -88,7 +93,7 @@ const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(
       {seriesBadge && (
         <span class="event-card-compact-series">{seriesBadge}</span>
       )}
-      {tagLabel && tagColor && (
+      {!muted && tagLabel && tagColor && (
         <span
           class="event-card-compact-tag"
           style={`--pill-bg: ${tagColor.lightBg}; --pill-text: ${tagColor.lightText}; --pill-bg-dark: ${tagColor.darkBg}; --pill-text-dark: ${tagColor.darkText}`}
@@ -97,6 +102,6 @@ const meta = [dateDisplay, organizerName, distanceDisplay].filter(Boolean).join(
         </span>
       )}
     </div>
-    <span class="event-card-compact-meta">{meta}</span>
+    {!muted && <span class="event-card-compact-meta">{meta}</span>}
   </div>
 </div>

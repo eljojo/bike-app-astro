@@ -45,6 +45,17 @@
   }
 }
 
+.event-card-compact-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+
+  @include dark-mode {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 .event-card-compact-body {
   display: flex;
   flex-direction: column;
