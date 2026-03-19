@@ -102,6 +102,59 @@ test.describe('Series Editor — Recurring', () => {
     await expect(page.locator('#series-frequency')).toHaveValue('biweekly');
     await expect(page.locator('#series-day')).toHaveValue('wednesday');
   });
+
+  test('add override with note on a recurring date', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/events/2099/event-series-recurring');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.series-editor[data-hydrated]')).toBeAttached({ timeout: 15000 });
+
+    // Click the first occurrence date (2099-03-04, a Tuesday) on the calendar
+    const occurrenceBtn = page.locator('button.series-day--active').first();
+    await occurrenceBtn.click();
+
+    // Popover should appear
+    const popover = page.locator('.series-popover');
+    await expect(popover).toBeVisible({ timeout: 5000 });
+
+    // Fill in note and location
+    await popover.locator('input[placeholder="Override location"]').fill('Riverside Park');
+    await popover.locator('input[placeholder*="Special"]').fill('Bring lights');
+
+    // Save override
+    await popover.locator('button', { hasText: 'Save override' }).click();
+
+    // Popover should close
+    await expect(popover).not.toBeVisible();
+
+    // Override should appear in the override list
+    const overrideItem = page.locator('.series-override-item');
+    await expect(overrideItem).toHaveCount(1);
+    await expect(overrideItem.first()).toContainText('Bring lights');
+    await expect(overrideItem.first()).toContainText('Riverside Park');
+
+    // Record git HEAD before save
+    const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
+
+    // Save the event
+    const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });
+    await saveButton.click();
+    await expect(page.locator('.save-success')).toBeVisible({ timeout: 10000 });
+
+    // Verify git commit happened
+    const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
+    expect(headAfter).not.toBe(headBefore);
+
+    // Verify file on disk
+    const eventMd = fs.readFileSync(
+      path.join(FIXTURE_DIR, 'demo/events/2099/event-series-recurring.md'),
+      'utf-8'
+    );
+    const { data: fm } = matter(eventMd);
+    expect(fm.series.overrides).toHaveLength(1);
+    expect(fm.series.overrides[0].note).toBe('Bring lights');
+    expect(fm.series.overrides[0].location).toBe('Riverside Park');
+  });
 });
 
 test.describe('Series Editor — Specific Dates', () => {
@@ -246,5 +299,54 @@ test.describe('Series Editor — Specific Dates', () => {
     expect(dates).not.toContain('2099-04-10');
     expect(dates).toContain('2099-05-08');
     expect(dates).toContain('2099-06-12');
+  });
+
+  test('add note to an existing schedule date via popover', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/admin/events/2099/event-series-schedule');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.series-editor[data-hydrated]')).toBeAttached({ timeout: 15000 });
+
+    // Click the first occurrence date (2099-04-10) on the calendar
+    const occurrenceBtn = page.locator('button.series-day--active').first();
+    await occurrenceBtn.click();
+
+    // Popover should appear
+    const popover = page.locator('.series-popover');
+    await expect(popover).toBeVisible({ timeout: 5000 });
+
+    // Fill in note
+    await popover.locator('input[placeholder*="Special"]').fill('Pizza night');
+
+    // Save override
+    await popover.locator('button', { hasText: 'Save override' }).click();
+
+    // Popover should close
+    await expect(popover).not.toBeVisible();
+
+    // The note badge should appear on the schedule item
+    const firstItem = page.locator('.series-schedule-item').first();
+    await expect(firstItem).toContainText('Pizza night');
+
+    // Record git HEAD before save
+    const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
+
+    // Save the event
+    const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });
+    await saveButton.click();
+    await expect(page.locator('.save-success')).toBeVisible({ timeout: 10000 });
+
+    // Verify git commit happened
+    const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
+    expect(headAfter).not.toBe(headBefore);
+
+    // Verify file on disk
+    const eventMd = fs.readFileSync(
+      path.join(FIXTURE_DIR, 'demo/events/2099/event-series-schedule.md'),
+      'utf-8'
+    );
+    const { data: fm } = matter(eventMd);
+    const entry = fm.series.schedule.find((s: { date: string }) => s.date === '2099-04-10');
+    expect(entry.note).toBe('Pizza night');
   });
 });
