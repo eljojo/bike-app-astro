@@ -23,6 +23,7 @@ import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { slugify } from '@/lib/slug';
+import { findSimilarEvents, type EventSimilarityInput } from '@/lib/event-similarity';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -116,16 +117,42 @@ export async function getStaticPaths() {
     });
   }
 
+  // Build similarity inputs for all events
+  const allEventInputs: EventSimilarityInput[] = events.map(ev => ({
+    id: ev.id,
+    organizer: typeof ev.data.organizer === 'string' ? ev.data.organizer : '',
+    tags: ev.data.tags ?? [],
+    distances: ev.data.distances ?? '',
+    linkedRoutes: ev.data.routes ?? [],
+  }));
+
+  // Build lightweight card data for rendering similar event cards
+  const eventCardData: Record<string, { name: string; start_date: string; poster_key?: string; distances?: string; organizer?: string }> = {};
+  for (const ev of events) {
+    const orgName = typeof ev.data.organizer === 'string'
+      ? organizers.find(o => o.id === ev.data.organizer)?.data.name || ev.data.organizer
+      : ev.data.organizer?.name || '';
+    eventCardData[ev.id] = {
+      name: ev.data.name,
+      start_date: ev.data.start_date,
+      poster_key: ev.data.poster_key,
+      distances: ev.data.distances,
+      organizer: orgName,
+    };
+  }
+
   return events.map(event => {
     const editions = resolveEditions(event.id);
+    const editionIds = new Set(editions.map(ed => ed.id));
+    const similarEvents = findSimilarEvents(event.id, allEventInputs, editionIds);
     return {
       params: { slug: event.id },
-      props: { event, organizers, allRoutes, allPlaces, editions },
+      props: { event, organizers, allRoutes, allPlaces, editions, similarEvents, eventCardData },
     };
   });
 }
 
-const { event, organizers, allRoutes, allPlaces, editions } = Astro.props;
+const { event, organizers, allRoutes, allPlaces, editions, similarEvents, eventCardData } = Astro.props;
 const data = event.data;
 
 // Resolve organizer name and URL
@@ -646,6 +673,35 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 </div>
               </a>
             ))}
+          </div>
+        </section>
+      )}
+      {similarEvents.length > 0 && (
+        <section class="event-similar">
+          <h2>{similarEvents.length === 1 ? t('events.similar_one', locale) : t('events.similar', locale)}</h2>
+          <div class="event-similar-cards">
+            {similarEvents.map((s: { id: string; score: number }) => {
+              const card = eventCardData[s.id];
+              if (!card) return null;
+              return (
+                <a href={paths.event(s.id, locale)} class="event-similar-card">
+                  {card.poster_key && (
+                    <img
+                      src={imageUrl(card.poster_key, { width: 300, height: 200, fit: 'cover' })}
+                      srcset={`${imageUrl(card.poster_key, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                      alt={card.name}
+                      width="300"
+                      height="200"
+                      loading="lazy"
+                    />
+                  )}
+                  <span class="event-similar-card-name">{card.name}</span>
+                  <span class="event-similar-card-meta">
+                    {[card.organizer, card.distances].filter(Boolean).join(' \u00b7 ')}
+                  </span>
+                </a>
+              );
+            })}
           </div>
         </section>
       )}

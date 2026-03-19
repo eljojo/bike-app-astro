@@ -797,3 +797,55 @@
 .event-elevation-profile {
   margin-top: 1rem;
 }
+
+// Similar events section (mirrors route-similar pattern)
+.event-similar {
+  margin-top: 2rem;
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+.event-similar-cards {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em;
+  padding: 0;
+  margin: 0;
+}
+
+.event-similar-card {
+  width: calc(50% - 0.375em);
+  text-decoration: none;
+  color: inherit;
+  display: block;
+
+  @media (min-width: $breakpoint-desktop) {
+    width: calc(33.333% - 0.5em);
+  }
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: $border-radius;
+    object-fit: cover;
+    aspect-ratio: 3 / 2;
+  }
+}
+
+.event-similar-card-name {
+  display: block;
+  font-weight: 600;
+  margin-top: 0.3em;
+  font-size: 0.95em;
+}
+
+.event-similar-card-meta {
+  display: block;
+  font-size: 0.85em;
+  @include muted-text;
+}

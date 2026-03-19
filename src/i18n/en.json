@@ -272,6 +272,8 @@
   "events.series_rescheduled_from": "Rescheduled from {date}",
   "events.series_dates_count": "{count} dates",
   "events.series_past_dates": "Past dates",
+  "events.similar": "Similar events",
+  "events.similar_one": "Similar event",
 
   "calendar.upcoming.default": "Upcoming events",
   "calendar.upcoming.brevet": "Upcoming rides",

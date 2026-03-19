@@ -266,6 +266,8 @@
   "events.series_rescheduled_from": "Reprogramado del {date}",
   "events.series_dates_count": "{count} fechas",
   "events.series_past_dates": "Fechas pasadas",
+  "events.similar": "Eventos similares",
+  "events.similar_one": "Evento similar",
 
   "calendar.upcoming.default": "Próximos eventos",
   "calendar.upcoming.brevet": "Próximos recorridos",
