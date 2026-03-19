@@ -3,7 +3,7 @@
 import './EventCardFeatured.scss';
 import { getCollection } from 'astro:content';
 import ResponsiveImage from './ResponsiveImage.astro';
-import { formatDateRange } from '../lib/date-utils';
+import { formatDateRange, parseLocalDate } from '../lib/date-utils';
 import { tagPillColor } from '../lib/event-tags';
 import { paths } from '../lib/paths';
 
@@ -45,6 +45,18 @@ const displayEndDate = occurrenceDate ? undefined : data.end_date;
 const dateDisplay = formatDateRange(displayStartDate, displayEndDate, locale);
 const href = paths.event(event.id, locale);
 
+// For series occurrences, append the short date to the name so each card is distinguishable
+const isSeriesOccurrence = !!occurrenceDate;
+const shortDate = isSeriesOccurrence
+  ? (() => {
+      const d = parseLocalDate(occurrenceDate);
+      const mon = d.toLocaleString(locale || 'en-CA', { month: 'short' });
+      return `${mon} ${d.getDate()}`;
+    })()
+  : '';
+const displayName = isSeriesOccurrence ? `${data.name} — ${shortDate}` : data.name;
+const displayDate = dateDisplay;
+
 const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
 ---
 
@@ -53,7 +65,7 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
     <div class="event-card-featured-poster">
       <ResponsiveImage
         blobKey={data.poster_key}
-        alt={data.name}
+        alt={displayName}
         widths={[400, 800]}
         fit="cover"
       />
@@ -61,7 +73,7 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
   )}
   <div class="event-card-featured-body">
     {organizerName && <span class="event-card-featured-organizer">{organizerName}</span>}
-    <a href={href} class="event-card-featured-name">{data.name}</a>
+    <a href={href} class="event-card-featured-name">{displayName}</a>
     {tagLabel && tagColor && (
       <span
         class="event-card-featured-tag"
@@ -73,6 +85,6 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
     {seriesBadge && (
       <span class="event-card-featured-series">{seriesBadge}</span>
     )}
-    <span class="event-card-featured-date">{dateDisplay}</span>
+    <span class="event-card-featured-date">{displayDate}</span>
   </div>
 </div>
