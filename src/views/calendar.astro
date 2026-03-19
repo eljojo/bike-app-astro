@@ -220,17 +220,6 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
     <p><strong>{t('calendar.wrap', locale)}</strong></p>
   )}
 
-  {comingUp.length > 0 && (
-    <section class="calendar-section">
-      <h2>{t('calendar.coming_up', locale)}</h2>
-      <div class="featured-cards">
-        {comingUp.map(e => (
-          <EventCardFeatured event={e.event} tagLabel={getTagLabel(e)} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
-        ))}
-      </div>
-    </section>
-  )}
-
   {showCommunity && (
     <section class="calendar-section">
       <h2>{t('calendar.find_your_people', locale)}</h2>
@@ -248,6 +237,17 @@ const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
       <div class="featured-cards">
         {learnConnect.slice(0, 3).map(e => (
           <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
+        ))}
+      </div>
+    </section>
+  )}
+
+  {comingUp.length > 0 && (
+    <section class="calendar-section">
+      <h2>{t('calendar.coming_up', locale)}</h2>
+      <div class="featured-cards">
+        {comingUp.map(e => (
+          <EventCardFeatured event={e.event} tagLabel={getTagLabel(e)} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
         ))}
       </div>
     </section>
