@@ -529,6 +529,21 @@ export function addPhotoMarkers(
       if (seenClusterIds.has(clusterId)) continue;
       seenClusterIds.add(clusterId);
 
+      // Skip cluster if all its leaves are already visible as individual bubbles
+      try {
+        const count = f.properties?.point_count as number;
+        const allLeaves = await source.getClusterLeaves(clusterId, count, 0);
+        if (allLeaves.length > 0 && allLeaves.every(l => seenKeys.has(l.properties?.key as string))) {
+          // All children already shown individually — remove stale cluster marker if it exists
+          clusterMarkers.get(clusterId)?.remove();
+          clusterMarkers.delete(clusterId);
+          continue;
+        }
+      } catch {
+        // Cluster may have been removed between query and leaf fetch
+        continue;
+      }
+
       if (!clusterMarkers.has(clusterId)) {
         const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
         const count = f.properties?.point_count as number;
