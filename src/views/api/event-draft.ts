@@ -36,7 +36,18 @@ Rules:
   - The "name" field should be the SERIES name (e.g. "#OttBike Social"), not include specific dates
   - Each schedule entry needs at minimum: date (YYYY-MM-DD)
   - If different locations per date, include "location" in each entry
-- Return ONLY valid JSON. No markdown, no explanation, no code fences.`;
+- Return ONLY valid JSON. No markdown, no explanation, no code fences.
+
+Examples:
+
+1) Simple one-off event:
+{"name":{"value":"Spring Bike Day","c":9},"start_date":{"value":"2026-05-23","c":9},"start_time":{"value":"10:00","c":8},"end_time":{"value":"15:00","c":7},"location":{"value":"City Hall Plaza","c":9},"organizer":{"value":"City Cycling Coalition","c":8},"tags":["family-friendly"]}
+
+2) Recurring weekly event with a season range (no individual dates listed):
+{"name":{"value":"BMX Gate Practice","c":9},"start_date":{"value":"2026-05-05","c":9},"end_date":{"value":"2026-08-25","c":8},"start_time":{"value":"18:15","c":8},"meet_time":{"value":"18:30","c":7},"location":{"value":"BMX Track, 93 Houlahan St","c":9},"organizer":{"value":"Nepean BMX","c":8},"tags":["bmx","family-friendly"],"series":{"recurrence":"weekly","recurrence_day":"tuesday","season_start":"2026-05-05","season_end":"2026-08-25"}}
+
+3) Event series with specific dates and varying locations (no recurrence rule):
+{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}`;
 
 const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
 
