@@ -1,0 +1,38 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.good-for-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.good-for-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  cursor: pointer;
+  user-select: none;
+
+  input[type="checkbox"] {
+    margin: 0;
+  }
+
+  &:has(input:checked) {
+    background: $color-tag-bg;
+    border-color: $color-tag-bg;
+  }
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+
+    &:has(input:checked) {
+      background: $color-tag-bg;
+      border-color: $color-tag-bg;
+    }
+  }
+}

@@ -8,17 +8,17 @@ Every color change MUST have both light and dark variants using the `dark-mode` 
 
 Don't use deprecated Sass functions (`darken()`, `lighten()`, `adjust-hue()`, etc.). The project uses `api: 'modern-compiler'`. Use `color.scale()` or `color.adjust()` from `sass:color` if needed.
 
-## Three Style Layers
+## Style Colocation
 
-- `global.scss` — public page styles, imported via `Base.astro`
-- `admin.scss` — ALL admin + auth styles including Preact islands (scoped styles don't reach islands)
-- `_variables.scss` / `_mixins.scss` — design tokens and shared mixins
+Styles live close to their components. Only reusable or truly global styles belong in shared files.
+
+- **Astro components**: Create a `.scss` file next to the component (e.g., `MagazineHome.scss` next to `MagazineHome.astro`) and import it in the frontmatter with `import './MagazineHome.scss'`. Use `@use '../styles/variables' as *` and `@use '../styles/mixins' as *` at the top.
+- **Preact islands**: Scoped CSS does NOT reach Preact islands. Create an underscore-prefixed partial in `src/styles/` (e.g., `_community-editor.scss`) and `@use` it from `admin.scss`. This keeps the styles colocated conceptually while ensuring they reach the island.
+- **`global.scss`**: Only for styles shared across many public pages (nav, footer, layout, `.admin-only` visibility toggle). Not for component-specific styles.
+- **`admin.scss`**: Only for shared admin styles (auth, editor layout, modals). Component-specific admin styles go in partials `@use`'d from admin.scss.
+- **`_variables.scss` / `_mixins.scss`**: Design tokens and shared mixins.
 
 Use SCSS variables from `_variables.scss` — never hardcode colors or breakpoints. Key variables: `$color-card-bg`, `$color-tag-bg`, `$color-btn-*`, `$border-radius`, `$breakpoint-*`, `$font-*`.
-
-## admin.scss Is Canonical for Preact Islands
-
-This is the ONLY stylesheet that reaches Preact components in `src/components/admin/`. If styles "work in Astro but not in the component", the cause is almost always scoped CSS. Move to admin.scss.
 
 ## Admin Visibility Toggle — `logged_in` Cookie Pattern
 

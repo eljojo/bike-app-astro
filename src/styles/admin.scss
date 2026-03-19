@@ -4,6 +4,8 @@
 @use 'events';
 @use 'forms';
 @use 'modals';
+@use 'community-editor';
+@use 'place-editor-extras';
 
 .auth-page {
   max-width: 420px;
@@ -1623,41 +1625,6 @@
   text-align: left;
 }
 
-.good-for-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-.good-for-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.8125rem;
-  padding: 0.25rem 0.5rem;
-  border: 1px solid $color-border;
-  border-radius: $border-radius;
-  cursor: pointer;
-  user-select: none;
-
-  input[type="checkbox"] {
-    margin: 0;
-  }
-
-  &:has(input:checked) {
-    background: $color-tag-bg;
-    border-color: $color-tag-bg;
-  }
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-
-    &:has(input:checked) {
-      background: $color-tag-bg;
-      border-color: $color-tag-bg;
-    }
-  }
-}
 
 // Photo field (shared upload/preview component)
 .photo-field {
@@ -2662,49 +2629,4 @@
   }
 }
 
-// CommunityEditor (Preact island — styles must be here, not scoped)
-.community-editor {
-  max-width: 600px;
-}
-
-.social-link-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.5rem;
-
-  select {
-    flex: 0 0 auto;
-    width: 130px;
-  }
-
-  input {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.btn-remove-social {
-  flex-shrink: 0;
-  background: none;
-  border: 1px solid $color-border;
-  border-radius: $border-radius;
-  padding: 0.375rem 0.625rem;
-  font-size: 0.75rem;
-  cursor: pointer;
-  color: $color-error;
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-    color: $color-error-dark;
-  }
-
-  &:hover {
-    background: $color-error-bg;
-
-    @include dark-mode {
-      background: $color-error-bg-dark;
-    }
-  }
-}
 
