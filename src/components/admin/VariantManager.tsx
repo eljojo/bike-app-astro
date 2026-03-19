@@ -106,7 +106,7 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
       const { gpxContent, sourceUrl, name: routeName } = await res.json();
 
       const isRwgps = sourceUrl.includes('ridewithgps.com');
-      const isGoogleMaps = sourceUrl.includes('google.com/maps/d/');
+      const isGoogleMaps = sourceUrl.includes('google.com/maps/d/') || sourceUrl.includes('google.com/maps/dir/');
 
       const gpxFileName = routeVariantGpxPath(routeName, variants.length === 0);
 

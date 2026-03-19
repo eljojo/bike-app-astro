@@ -290,7 +290,7 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
       isNew: true,
       gpxContent,
       ...(sourceUrl.includes('ridewithgps.com') && { rwgps_url: sourceUrl }),
-      ...(sourceUrl.includes('google.com/maps/d/') && { google_maps_url: sourceUrl }),
+      ...((sourceUrl.includes('google.com/maps/d/') || sourceUrl.includes('google.com/maps/dir/')) && { google_maps_url: sourceUrl }),
     }] as VariantItem[],
     translations: {} as Record<string, { name?: string; tagline?: string; body?: string }>,
     isNew: true,
