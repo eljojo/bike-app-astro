@@ -119,6 +119,15 @@
   }
 }
 
+.event-card-compact--muted {
+  // Indent to align with text on cards that have a thumbnail (56px + 0.75em gap)
+  padding-left: calc(0.8em + 56px + 0.75em);
+
+  @media (max-width: 480px) {
+    padding-left: calc(0.8em + 44px + 0.75em);
+  }
+}
+
 .event-card-compact-meta {
   font-size: 0.85em;
   @include muted-text;
