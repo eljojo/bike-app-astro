@@ -12,6 +12,7 @@ import {
   cleanupSession as _cleanupSession,
   clearContentEdits as _clearContentEdits,
   getContentEdit as _getContentEdit,
+  seedContentEdit as _seedContentEdit,
   proxyTiles,
   type SeedOptions,
 } from '../shared-helpers.ts';
@@ -20,6 +21,7 @@ export const seedSession = (opts?: SeedOptions) => _seedSession(DB_PATH, opts);
 export const cleanupSession = (token: string) => _cleanupSession(DB_PATH, token);
 export const clearContentEdits = (contentType: string, slug: string) => _clearContentEdits(DB_PATH, contentType, slug);
 export const getContentEdit = (contentType: string, slug: string) => _getContentEdit(DB_PATH, contentType, slug);
+export const seedContentEdit = (contentType: string, slug: string, data: string) => _seedContentEdit(DB_PATH, contentType, slug, data);
 export { loginAs, proxyTiles };
 
 // --- Admin-only helpers below ---
