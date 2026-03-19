@@ -132,10 +132,23 @@ test.describe('Admin Screenshots — Admin-Only Pages', () => {
 });
 
 test.describe('Admin Screenshots — Unauthenticated', () => {
-  test('auth gate', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.install({ time: FIXED_DATE });
+    await proxyTiles(page);
+  });
+
+  test('anonymous dashboard', async ({ page }) => {
+    // /admin is browsable without auth — renders anonymous dashboard
     await page.goto('/admin');
     await page.waitForLoadState('networkidle');
-    // Should redirect to gate page
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot('admin-anonymous-dashboard.png', screenshotOpts);
+  });
+
+  test('auth gate', async ({ page }) => {
+    // Non-browsable paths redirect to gate
+    await page.goto('/admin/routes/carp');
+    await page.waitForLoadState('networkidle');
     expect(page.url()).toContain('/gate');
     await expect(page).toHaveScreenshot('admin-auth-gate.png', screenshotOpts);
   });
