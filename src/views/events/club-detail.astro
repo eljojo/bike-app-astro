@@ -24,6 +24,7 @@ import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { slugify } from '@/lib/slug';
 import { findSimilarEvents, type EventSimilarityInput } from '@/lib/event-similarity';
+import { organizerLink, type OrganizerEntry } from '@/lib/models/organizer-model';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -155,13 +156,15 @@ export async function getStaticPaths() {
 const { event, organizers, allRoutes, allPlaces, editions, similarEvents, eventCardData } = Astro.props;
 const data = event.data;
 
-// Resolve organizer name and URL
+// Resolve organizer name, URL, and entry
 let organizerName = '';
 let organizerUrl: string | undefined;
+let organizerEntry: OrganizerEntry | undefined;
 if (typeof data.organizer === 'string') {
   const org = organizers.find((o: { id: string }) => o.id === data.organizer);
   organizerName = org?.data.name || data.organizer;
-  organizerUrl = org?.data.website;
+  organizerEntry = org;
+  organizerUrl = org ? organizerLink(org, locale) : undefined;
 } else if (data.organizer?.name) {
   organizerName = data.organizer.name;
   organizerUrl = data.organizer.website;
@@ -231,7 +234,10 @@ const nextEdition = currentIndex >= 0 && currentIndex < editions.length - 1
 // Build organizer follow link for past events
 let followUrl: string | undefined;
 let followName: string | undefined;
-if (organizerInstagram) {
+if (organizerEntry) {
+  followUrl = organizerLink(organizerEntry, locale);
+  followName = organizerName;
+} else if (organizerInstagram) {
   const handle = organizerInstagram.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
   followUrl = `https://instagram.com/${handle}`;
   followName = `@${handle}`;
@@ -484,16 +490,11 @@ function editionDateLabel(startDate: string, loc?: string): string {
           )}
 
           <div class="event-detail-facts-links">
-            {organizerName && (
-              organizerWebsite
-                ? <a href={organizerWebsite} target="_blank" rel="noopener noreferrer">{organizerName}</a>
-                : <span>{organizerName}</span>
-            )}
-            {organizerInstagram && (
-              <a href={`https://instagram.com/${organizerInstagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer">
-                @{organizerInstagram.replace(/^@/, '')}
-              </a>
-            )}
+            {organizerName && organizerUrl && organizerUrl !== '#' ? (
+              <a href={organizerUrl} {...(organizerUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{organizerName}</a>
+            ) : organizerName ? (
+              <span>{organizerName}</span>
+            ) : null}
             {data.event_url && regUrl && (
               <a href={data.event_url} target="_blank" rel="noopener noreferrer">
                 {t('events.event_website', locale)}

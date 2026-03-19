@@ -376,5 +376,16 @@
 
   "place_editor.details_toggle": "Agregar detalles (dirección, sitio web, teléfono)",
 
-  "map.description": "{count} rutas ciclistas en {city}"
+  "map.description": "{count} rutas ciclistas en {city}",
+
+  "nav.communities": "Comunidades",
+  "communities.title": "Comunidades",
+  "communities.intro": "Las personas y grupos que organizan eventos y salidas ciclistas.",
+  "communities.event_count": "{count} eventos",
+  "communities.one_event": "1 evento",
+  "communities.featured": "Destacada",
+  "communities.go_back": "volver a comunidades",
+  "communities.past_events": "Eventos pasados",
+  "communities.upcoming_events": "Próximos eventos",
+  "communities.show_all_events": "Mostrar los {count} eventos"
 }

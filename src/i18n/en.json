@@ -376,5 +376,16 @@
 
   "place_editor.details_toggle": "Add details (address, website, phone)",
 
-  "map.description": "{count} cycling routes in {city}"
+  "map.description": "{count} cycling routes in {city}",
+
+  "nav.communities": "Communities",
+  "communities.title": "Communities",
+  "communities.intro": "The people and groups who organize cycling events and rides.",
+  "communities.event_count": "{count} events",
+  "communities.one_event": "1 event",
+  "communities.featured": "Featured",
+  "communities.go_back": "go back to communities",
+  "communities.past_events": "Past events",
+  "communities.upcoming_events": "Upcoming events",
+  "communities.show_all_events": "Show all {count} events"
 }

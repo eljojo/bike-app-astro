@@ -1,0 +1,205 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import MediaGallery from '@/components/MediaGallery.astro';
+import { getCollection, render } from 'astro:content';
+import { getCityConfig } from '@/lib/config/city-config';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+import { hasDetailPage, organizerInitials } from '@/lib/models/organizer-model';
+import { tTag } from '@/lib/i18n/tag-translations.server';
+import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
+import { imageUrl } from '@/lib/media/image-service';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+export async function getStaticPaths() {
+  const organizers = await getCollection('organizers');
+  return organizers
+    .filter(org => hasDetailPage(org))
+    .map(org => ({
+      params: { slug: org.id },
+      props: { organizer: org },
+    }));
+}
+
+const { organizer } = Astro.props;
+const data = organizer.data;
+const { Content } = await render(organizer);
+
+// Load events by this organizer
+const allEvents = await getCollection('events');
+const now = new Date();
+const orgEvents = allEvents
+  .filter(e => {
+    const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
+    return orgId === organizer.id;
+  })
+  .sort((a, b) => {
+    const da = parseLocalDate(a.data.start_date);
+    const db = parseLocalDate(b.data.start_date);
+    return db.getTime() - da.getTime();
+  });
+
+const upcomingEvents = orgEvents.filter(e => endOfDay(e.data.end_date || e.data.start_date) >= now);
+const pastEvents = orgEvents.filter(e => endOfDay(e.data.end_date || e.data.start_date) < now);
+
+// Social link pills — skip Twitter/X
+const socialLinks = (data.social_links ?? []).filter(
+  link => !['twitter', 'x'].includes(link.platform.toLowerCase())
+);
+
+function platformLabel(platform: string): string {
+  const labels: Record<string, string> = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    strava: 'Strava',
+    youtube: 'YouTube',
+    meetup: 'Meetup',
+    tiktok: 'TikTok',
+    bluesky: 'Bluesky',
+    threads: 'Threads',
+    website: 'Website',
+  };
+  return labels[platform] || platform;
+}
+
+// Media gallery
+const mediaItems = (data.media ?? []).map(m => ({
+  type: m.type || 'photo',
+  key: m.key,
+  caption: m.caption,
+  width: m.width,
+  height: m.height,
+}));
+
+const PAST_EVENTS_INITIAL = 4;
+---
+
+<Base title={`${data.name} | ${config.display_name}`} description={data.tagline}>
+  <article class="community-detail">
+    <header class="community-detail-header">
+      <div class="community-detail-avatar">
+        {data.photo_key ? (
+          <ResponsiveImage
+            blobKey={data.photo_key}
+            alt={data.name}
+            widths={[128, 256]}
+            width={96}
+            height={96}
+            class="community-detail-photo"
+          />
+        ) : (
+          <div class="community-detail-initials">{organizerInitials(data.name)}</div>
+        )}
+      </div>
+      <div class="community-detail-header-info">
+        <h1>{data.name}</h1>
+        {data.featured && (
+          <span class="community-card-featured admin-only">{t('communities.featured', locale)}</span>
+        )}
+        {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
+        <div class="community-detail-links">
+          {data.instagram && (
+            <a href={`https://instagram.com/${data.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+              Instagram
+            </a>
+          )}
+          {data.website && (
+            <a href={data.website} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+              Website
+            </a>
+          )}
+          {socialLinks.map(link => (
+            <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+              {platformLabel(link.platform)}
+            </a>
+          ))}
+        </div>
+      </div>
+    </header>
+
+    {data.tags && data.tags.length > 0 && (
+      <ul class="community-detail-tags">
+        {data.tags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+      </ul>
+    )}
+
+    {organizer.body?.trim() && (
+      <div class="community-detail-body">
+        <Content />
+      </div>
+    )}
+
+    {mediaItems.length > 0 && (
+      <section class="community-detail-section">
+        <MediaGallery media={mediaItems} name={data.name} />
+      </section>
+    )}
+
+    {upcomingEvents.length > 0 && (
+      <section class="community-detail-section">
+        <h2>{t('communities.upcoming_events', locale)}</h2>
+        <ul class="community-events-list">
+          {upcomingEvents.map(event => (
+            <li>
+              <a href={paths.event(event.id, locale)}>
+                <span class="community-event-name">{event.data.name}</span>
+                <span class="community-event-date">{formatDateRange(event.data.start_date, event.data.end_date, locale)}</span>
+                {event.data.distances && <span class="community-event-distance">{event.data.distances}</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {pastEvents.length > 0 && (
+      <section class="community-detail-section">
+        <h2>{t('communities.past_events', locale)}</h2>
+        <ul class="community-events-list" id="past-events-list">
+          {pastEvents.map((event, i) => (
+            <li class={i >= PAST_EVENTS_INITIAL ? 'community-event-hidden' : ''}>
+              <a href={paths.event(event.id, locale)}>
+                <span class="community-event-name">{event.data.name}</span>
+                <span class="community-event-date">{formatDateRange(event.data.start_date, event.data.end_date, locale)}</span>
+                {event.data.distances && <span class="community-event-distance">{event.data.distances}</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+        {pastEvents.length > PAST_EVENTS_INITIAL && (
+          <button class="community-show-all-btn" id="show-all-past-events" type="button">
+            {t('communities.show_all_events', locale, { count: pastEvents.length })}
+          </button>
+        )}
+      </section>
+    )}
+  </article>
+
+  <p style="margin-top: 2em;">
+    <a href={paths.communities(locale)} class="go-back-button">&#x21A9; {t('communities.go_back', locale)}</a>
+  </p>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('show-all-past-events');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const list = document.getElementById('past-events-list');
+        if (!list) return;
+        const hidden = list.querySelectorAll('.community-event-hidden');
+        hidden.forEach(el => el.classList.remove('community-event-hidden'));
+        btn.remove();
+      });
+    });
+  </script>
+
+  <style>
+    .community-event-hidden {
+      display: none;
+    }
+  </style>
+</Base>

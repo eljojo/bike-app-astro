@@ -15,6 +15,8 @@ const sharedPages: LocalePageWithSegments[] = [
 /** Wiki-only pages. */
 const wikiPages: LocalePageWithSegments[] = [
   { pattern: '/calendar', entrypoint: view('calendar.astro'), segments: { calendar: { fr: 'calendrier', es: 'calendario' } } },
+  { pattern: '/communities', entrypoint: view('communities-index.astro'), segments: { communities: { fr: 'communautes', es: 'comunidades' } } },
+  { pattern: '/communities/[slug]', entrypoint: view('community-detail.astro') },
   { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro'), segments: { events: { fr: 'evenements', es: 'eventos' } } },
   { pattern: '/map', entrypoint: view('map.astro'), segments: { map: { fr: 'carte', es: 'mapa' } } },
   { pattern: '/routes', entrypoint: view('routes/index.astro'), segments: { routes: { fr: 'parcours', es: 'rutas' } } },
@@ -52,6 +54,8 @@ const blogStaticRoutes = [
 
 /** Club-only pages (randonneuring clubs, cycling organizations). */
 const clubPages: LocalePageWithSegments[] = [
+  { pattern: '/communities', entrypoint: view('communities-index.astro'), segments: { communities: { fr: 'communautes', es: 'comunidades' } } },
+  { pattern: '/communities/[slug]', entrypoint: view('community-detail.astro') },
   { pattern: '/events', entrypoint: view('events/index.astro'), segments: { events: { fr: 'evenements', es: 'eventos' } } },
   { pattern: '/events/[...slug]', entrypoint: view('events/club-detail.astro') },
   { pattern: '/routes/[slug]', entrypoint: view('routes/detail.astro'), segments: { routes: { fr: 'parcours', es: 'rutas' } } },
