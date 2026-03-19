@@ -145,8 +145,16 @@ interface _AdminEventDetail {
 interface _AdminOrganizer {
   slug: string;
   name: string;
+  tagline?: string;
+  tags: string[];
+  featured: boolean;
   website?: string;
   instagram?: string;
+  photo_key?: string;
+  photo_content_type?: string;
+  photo_width?: number;
+  photo_height?: number;
+  contentHash: string;
 }
 
 declare module 'virtual:bike-app/admin-routes' {
@@ -208,6 +216,11 @@ declare module 'virtual:bike-app/admin-place-detail' {
 declare module 'virtual:bike-app/admin-organizers' {
   const organizers: _AdminOrganizer[];
   export default organizers;
+}
+
+declare module 'virtual:bike-app/admin-organizer-detail' {
+  const data: Record<string, import('./lib/models/organizer-model').OrganizerDetail>;
+  export default data;
 }
 
 interface _Contributor {
