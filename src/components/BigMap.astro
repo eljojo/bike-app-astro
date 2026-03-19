@@ -97,11 +97,17 @@ const { routes, places, photos = [], center } = Astro.props;
     map.on('load', () => {
       setupWebGLLayers(styleKey);
 
+      // Hide photos by default on the big map (unless user previously enabled them)
+      if (!loadToggleState('map-photos', false)) {
+        setPhotoLayersVisible(map, false);
+      }
+
       // Render MapControls island
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
           hasPlaces: places.length > 0,
+          defaultPhotos: false,
           onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
           onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
           onToggleGps: (v: boolean) => {
@@ -110,7 +116,7 @@ const { routes, places, photos = [], center } = Astro.props;
           },
           onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
             setupWebGLLayers(key);
-            setPhotoLayersVisible(map, loadToggleState('map-photos', true));
+            setPhotoLayersVisible(map, loadToggleState('map-photos', false));
             setPlaceMarkersVisible(map, loadToggleState('map-places', true));
           }),
         }), controlsEl);

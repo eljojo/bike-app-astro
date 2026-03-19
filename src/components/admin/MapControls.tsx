@@ -8,6 +8,7 @@ interface Props {
   onToggleStyle?: (key: MapStyleKey) => void;
   hasPhotos?: boolean;
   hasPlaces?: boolean;
+  defaultPhotos?: boolean;
 }
 
 export function loadToggleState(key: string, defaultValue: boolean): boolean {
@@ -22,14 +23,14 @@ export function saveToggleState(key: string, value: boolean): void {
   localStorage.setItem(key, String(value));
 }
 
-export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGps, onToggleStyle, hasPhotos = true, hasPlaces = true }: Props) {
-  const [photos, setPhotos] = useState(true);
+export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGps, onToggleStyle, hasPhotos = true, hasPlaces = true, defaultPhotos = true }: Props) {
+  const [photos, setPhotos] = useState(defaultPhotos);
   const [places, setPlaces] = useState(true);
   const [gps, setGps] = useState(false);
   const [styleKey, setStyleKey] = useState<MapStyleKey>('default');
 
   useEffect(() => {
-    const p = loadToggleState('map-photos', true);
+    const p = loadToggleState('map-photos', defaultPhotos);
     const pl = loadToggleState('map-places', true);
     setPhotos(p);
     setPlaces(pl);
