@@ -1,13 +1,14 @@
 {
   "name": "whereto-bike",
-  "compatibility_date": "2025-03-25",
+  "compatibility_date": "2026-03-19",
   "compatibility_flags": ["nodejs_compat"],
   "no_bundle": true,
   "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",
-    "not_found_handling": "404-page"
+    "not_found_handling": "none",
+    "run_worker_first": ["/events/*"]
   },
   "env": {
     "staging": {
