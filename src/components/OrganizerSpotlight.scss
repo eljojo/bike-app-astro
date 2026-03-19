@@ -24,8 +24,14 @@
   text-decoration: none;
   color: inherit;
 
-  &:hover .organizer-spotlight-name {
-    text-decoration: underline;
+  @media (min-width: $breakpoint-desktop) {
+    &:hover .organizer-spotlight-item {
+      background: darken($color-card-bg, 3%);
+
+      @include dark-mode {
+        background: lighten($color-card-bg-dark, 5%);
+      }
+    }
   }
 }
 
