@@ -577,9 +577,15 @@ a.go-back-button {
   gap: 1em;
 }
 .video-title { font-size: 0.9em; margin-top: 0.3em; }
-.route-video video {
-  max-width: 100%;
-  height: auto;
+.route-videos {
+  max-width: 800px;
+}
+.route-video {
+  video {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
 }
 .video-show.main-video {
   video {
