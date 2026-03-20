@@ -236,7 +236,7 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
             <span class="card-count">{communityCount}</span>
             <a href="/admin/communities" class="card-viewall">View all →</a>
           </div>
-          <div class="card-items">
+          <div class="card-items card-items--communities">
             {communityItems.map((org) => (
               <a href={`/admin/communities/${org.slug}`} class="card-item">
                 {org.photo_key ? (
@@ -571,7 +571,8 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
     }
   }
 
-  .dashboard-card--routes {
+  .dashboard-card--routes,
+  .dashboard-card--communities {
     grid-column: 1 / -1;
   }
 
@@ -617,6 +618,16 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
   .card-items--routes {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card-items--communities {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
 
     @media (max-width: $breakpoint-tablet) {
