@@ -10,7 +10,7 @@ import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { CITY } from '../../lib/config/config';
-import { toRecentCommits, groupConsecutiveByAuthor, type RecentCommit } from '../../lib/history-data.server';
+import { toRecentCommits, type RecentCommit } from '../../lib/history-data.server';
 import { formatAdminDateTime } from '../../lib/date-utils';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 
@@ -78,7 +78,7 @@ if (features.hasRoutes) {
 
 const contentLabel = features.hasRides ? 'rides' : 'routes';
 
-// Recent changes — last 5 commits from history API
+// Recent changes — last 10 commits from history API
 const git = createGitService({
   token: env.GITHUB_TOKEN,
   owner: env.GIT_OWNER,
@@ -88,12 +88,11 @@ const git = createGitService({
 
 let recentCommits: RecentCommit[] = [];
 try {
-  const commits = await git.listCommits({ perPage: 5, page: 1 });
+  const commits = await git.listCommits({ perPage: 10, page: 1 });
   recentCommits = toRecentCommits(commits, CITY);
 } catch {
   // GitHub API unavailable (local dev without token) — show empty
 }
-const commitGroups = groupConsecutiveByAuthor(recentCommits);
 ---
 
 <Base title="Admin" admin>
@@ -271,24 +270,20 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
           <a href="/admin/history" class="card-viewall">View full history &rarr;</a>
         </div>
         <div class="card-items">
-          {commitGroups.map((group) => (
-            <div class="change-group">
-              <div class="change-group-author"><strong>{group.username}</strong></div>
-              {group.commits.map((c) => (
-                <div class="change-item">
-                  <div class="change-info">
-                    <span class="change-headline">
-                      {c.editorUrl
-                        ? <a href={c.editorUrl}>{c.headline}</a>
-                        : c.headline
-                      }
-                      {c.detail && ` \u2014 ${c.detail}`}
-                    </span>
-                    {c.contentType && <span class={`change-badge change-badge--${c.contentType}`}>{c.contentType.replace(/s$/, '')}</span>}
-                  </div>
-                  <time class="change-time">{formatAdminDateTime(c.date)}</time>
-                </div>
-              ))}
+          {recentCommits.map((c) => (
+            <div class="change-item">
+              <div class="change-info">
+                <strong class="change-author">{c.username}</strong>
+                <span class="change-headline">
+                  {c.editorUrl
+                    ? <a href={c.editorUrl}>{c.headline}</a>
+                    : c.headline
+                  }
+                  {c.detail && ` \u2014 ${c.detail}`}
+                </span>
+                {c.contentType && <span class={`change-badge change-badge--${c.contentType}`}>{c.contentType.replace(/s$/, '')}</span>}
+              </div>
+              <time class="change-time">{formatAdminDateTime(c.date)}</time>
             </div>
           ))}
           {recentCommits.length === 0 && <p class="card-empty">No recent changes.</p>}
@@ -747,29 +742,18 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
     }
   }
 
-  .change-group {
-    &:not(:last-child) {
-      border-bottom: 1px solid $color-border;
-      @include dark-mode { border-color: $color-border-subtle-dark; }
-    }
-  }
-
-  .change-group-author {
-    padding: 0.5rem 0.5rem 0;
-    font-size: 0.875rem;
-  }
-
   .change-item {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    padding: 0.25rem 0.5rem 0.25rem 1rem;
+    padding: 0.5rem;
     font-size: 0.875rem;
     gap: 1rem;
+  }
 
-    &:last-child {
-      padding-bottom: 0.5rem;
-    }
+  .change-author {
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .change-info {
