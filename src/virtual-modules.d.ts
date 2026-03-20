@@ -327,3 +327,26 @@ declare module 'virtual:bike-app/ride-redirects' {
   const redirects: Record<string, string>;
   export default redirects;
 }
+
+interface _HomepageFact {
+  template?: string;
+  text?: string;
+  link?: string;
+  link_from?: string;
+  query?: {
+    type: string;
+    filter?: Record<string, string>;
+    count_as?: string;
+    sort?: string;
+    order?: string;
+    direction?: string;
+    pick?: string;
+    fields?: string[];
+    vibe?: string;
+  };
+}
+
+declare module 'virtual:bike-app/homepage-facts' {
+  const facts: _HomepageFact[];
+  export default facts;
+}

@@ -1,15 +1,12 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import yaml from 'js-yaml';
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
+import homepageFactEntries from 'virtual:bike-app/homepage-facts';
 import { isPublished } from './content/content-filters';
 import { endOfDay, parseLocalDate } from './date-utils';
 import { organizerLink } from './models/organizer-model';
 import { toPlaceData } from './geo/places';
 import { findNearbyPlaces } from './geo/proximity';
 import type { PlaceData } from './geo/proximity';
-import { cityDir } from './config/config.server';
 import { getInstanceFeatures } from './config/instance-features';
 import { paths } from './paths';
 
@@ -292,14 +289,6 @@ function findHomepageVideo(
 // DYK fact resolver
 // ---------------------------------------------------------------------------
 
-interface FactEntry {
-  template?: string;
-  text?: string;
-  link?: string;
-  link_from?: string;
-  query?: FactQuery;
-}
-
 interface FactQuery {
   type: string;
   filter?: Record<string, string>;
@@ -310,10 +299,6 @@ interface FactQuery {
   pick?: string;
   fields?: string[];
   vibe?: string;
-}
-
-interface FactsFile {
-  facts: FactEntry[];
 }
 
 function resolveTemplate(template: string, values: Record<string, string | number>): string {
@@ -498,16 +483,11 @@ export function resolveHomepageFacts(
   organizers: OrganizerEntry[],
   events: EventEntry[],
 ): ResolvedFact[] {
-  const factsPath = path.join(cityDir, 'homepage-facts.yml');
-  if (!fs.existsSync(factsPath)) return [];
-
-  const raw = fs.readFileSync(factsPath, 'utf-8');
-  const parsed = yaml.load(raw) as FactsFile | null;
-  if (!parsed?.facts) return [];
+  if (homepageFactEntries.length === 0) return [];
 
   const resolved: ResolvedFact[] = [];
 
-  for (const fact of parsed.facts) {
+  for (const fact of homepageFactEntries) {
     // Pre-resolved text — always valid
     if (fact.text) {
       resolved.push({ text: fact.text, link: fact.link });

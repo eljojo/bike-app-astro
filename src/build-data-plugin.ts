@@ -88,6 +88,13 @@ function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
 }
 
+function loadHomepageFacts(): unknown[] {
+  const filePath = path.join(CITY_DIR, 'homepage-facts.yml');
+  if (!fs.existsSync(filePath)) return [];
+  const parsed = yaml.load(fs.readFileSync(filePath, 'utf-8')) as { facts?: unknown[] } | null;
+  return parsed?.facts || [];
+}
+
 function loadTagTranslations() {
   const filePath = path.join(CITY_DIR, 'tag-translations.yml');
   if (!fs.existsSync(filePath)) return {};
@@ -233,6 +240,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
   const fontPreloads = loadFontPreloads();
+  const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
   const contributors = loadContributors(CONSUMER_ROOT);
 
@@ -328,6 +336,9 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     },
 
     'ride-redirects': async () => buildRideRedirectsModule(),
+
+    'homepage-facts': async () =>
+      `export default ${JSON.stringify(homepageFacts)};`,
   };
 
   return {
