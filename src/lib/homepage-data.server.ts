@@ -65,6 +65,7 @@ export interface ExploreMiniCard {
 export interface ResolvedFact {
   text: string;
   link?: string;
+  link_text?: string;
 }
 
 export interface HomepageVideo {
@@ -507,13 +508,13 @@ export function resolveHomepageFacts(
   for (const fact of homepageFactEntries) {
     // Pre-resolved text — always valid
     if (fact.text) {
-      resolved.push({ text: fact.text, link: fact.link });
+      resolved.push({ text: fact.text, link: fact.link, link_text: fact.link_text });
       continue;
     }
 
     // Hand-written template without query — always valid
     if (fact.template && !fact.query) {
-      resolved.push({ text: fact.template, link: fact.link });
+      resolved.push({ text: fact.template, link: fact.link, link_text: fact.link_text });
       continue;
     }
 
@@ -527,7 +528,8 @@ export function resolveHomepageFacts(
       if (fact.link_from && values[fact.link_from]) {
         link = paths.route(String(values[fact.link_from]));
       }
-      resolved.push({ text, link });
+      const link_text = fact.link_text ? resolveTemplate(fact.link_text, values) : undefined;
+      resolved.push({ text, link, link_text });
     }
   }
 

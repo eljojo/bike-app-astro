@@ -332,6 +332,7 @@ interface _HomepageFact {
   template?: string;
   text?: string;
   link?: string;
+  link_text?: string;
   link_from?: string;
   query?: {
     type: string;

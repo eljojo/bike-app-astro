@@ -167,16 +167,32 @@ const locale = Astro.currentLocale;
         <section class="magazine-facts">
           <h2>{t('home.did_you_know', locale)}</h2>
           <ul class="facts-list">
-            {facts.slice(0, 3).map(fact => (
-              <li class="fact-item">
-                <span class="fact-prefix">...</span>{' '}
-                {fact.link ? (
-                  <a href={fact.link}>{fact.text}</a>
-                ) : (
-                  <span>{fact.text}</span>
-                )}
-              </li>
-            ))}
+            {facts.slice(0, 3).map(fact => {
+              // If link_text is set, only that substring becomes the link
+              if (fact.link && fact.link_text) {
+                const idx = fact.text.indexOf(fact.link_text);
+                if (idx !== -1) {
+                  const before = fact.text.slice(0, idx);
+                  const after = fact.text.slice(idx + fact.link_text.length);
+                  return (
+                    <li class="fact-item">
+                      <span class="fact-prefix">...</span>{' '}
+                      {before}<a href={fact.link}>{fact.link_text}</a>{after}
+                    </li>
+                  );
+                }
+              }
+              return (
+                <li class="fact-item">
+                  <span class="fact-prefix">...</span>{' '}
+                  {fact.link ? (
+                    <a href={fact.link}>{fact.text}</a>
+                  ) : (
+                    <span>{fact.text}</span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
