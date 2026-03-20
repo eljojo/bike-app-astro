@@ -161,6 +161,7 @@ async function authenticateAndParse<T, R extends BuildResult>(
     if (u.frontmatter && typeof u.frontmatter === 'object') {
       delete (u.frontmatter as Record<string, unknown>).status;
       delete (u.frontmatter as Record<string, unknown>).featured;
+      delete (u.frontmatter as Record<string, unknown>).hidden;
     }
   }
 

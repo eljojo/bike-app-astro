@@ -109,6 +109,7 @@ export const organizerSchema = z.object({
   tagline: z.string().optional(),
   tags: z.array(z.string()).default([]),
   featured: z.boolean().default(false),
+  hidden: z.boolean().default(false),
   website: z.string().optional(),
   instagram: z.string().optional(),
   social_links: z.array(socialLinkSchema).default([]),

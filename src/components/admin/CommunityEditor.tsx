@@ -12,6 +12,7 @@ import type { OrganizerUpdate } from '../../views/api/organizer-save';
 const SOCIAL_PLATFORMS = [
   'instagram', 'facebook', 'strava', 'youtube',
   'meetup', 'tiktok', 'bluesky', 'threads', 'website',
+  'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter',
 ] as const;
 
 interface SocialLink {
@@ -36,6 +37,7 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
   const [body, setBody] = useState(initialData.body || '');
   const [tags, setTags] = useState((initialData.tags || []).join(', '));
   const [featured, setFeatured] = useState(initialData.featured || false);
+  const [hidden, setHidden] = useState(initialData.hidden || false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
   const [photoContentType, setPhotoContentType] = useState(initialData.photo_content_type || '');
   const [photoWidth, setPhotoWidth] = useState(initialData.photo_width || 0);
@@ -56,7 +58,7 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, tagline, body, tags, featured, photoKey, socialLinks]);
+  }, [name, tagline, body, tags, featured, hidden, photoKey, socialLinks]);
 
   const { validate } = useFormValidation([
     { field: 'community-name', check: () => !name.trim(), message: 'Name is required' },
@@ -75,7 +77,7 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
           name,
           ...(tagline && { tagline }),
           ...(parsedTags.length && { tags: parsedTags }),
-          ...(userRole === 'admin' && { featured }),
+          ...(userRole === 'admin' && { featured, hidden }),
           ...(photoKey && {
             photo_key: photoKey,
             ...(photoContentType && { photo_content_type: photoContentType }),
@@ -151,6 +153,11 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
               <input type="checkbox" checked={featured}
                 onChange={(e) => setFeatured((e.target as HTMLInputElement).checked)} />
               Featured community
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" checked={hidden}
+                onChange={(e) => setHidden((e.target as HTMLInputElement).checked)} />
+              Hide from public pages
             </label>
           </div>
         )}

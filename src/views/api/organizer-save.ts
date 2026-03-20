@@ -31,6 +31,7 @@ const organizerUpdateSchema = z.object({
     tagline: z.string().optional(),
     tags: z.array(z.string()).optional(),
     featured: z.boolean().optional(),
+    hidden: z.boolean().optional(),
     website: z.string().optional(),
     instagram: z.string().optional(),
     social_links: z.array(socialLinkSchema).optional(),
@@ -50,6 +51,7 @@ export interface OrganizerUpdate {
     tagline?: string;
     tags?: string[];
     featured?: boolean;
+    hidden?: boolean;
     website?: string;
     instagram?: string;
     social_links?: Array<{ platform: string; url: string }>;
@@ -132,6 +134,7 @@ export const organizerHandlers: SaveHandlers<OrganizerUpdate, OrganizerBuildResu
     if (update.frontmatter.tagline) fm.tagline = update.frontmatter.tagline;
     if (update.frontmatter.tags?.length) fm.tags = update.frontmatter.tags;
     if (update.frontmatter.featured !== undefined) fm.featured = update.frontmatter.featured;
+    if (update.frontmatter.hidden !== undefined) fm.hidden = update.frontmatter.hidden;
     if (update.frontmatter.website) fm.website = update.frontmatter.website;
     if (update.frontmatter.instagram) fm.instagram = update.frontmatter.instagram;
     if (update.frontmatter.social_links?.length) fm.social_links = update.frontmatter.social_links;

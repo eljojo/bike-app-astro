@@ -12,6 +12,7 @@ export const organizerDetailSchema = z.object({
   tagline: z.string().optional(),
   tags: z.array(z.string()).default([]),
   featured: z.boolean().default(false),
+  hidden: z.boolean().default(false),
   website: z.string().optional(),
   instagram: z.string().optional(),
   social_links: z.array(socialLinkSchema).default([]),
@@ -27,13 +28,15 @@ export const organizerDetailSchema = z.object({
 export type OrganizerDetail = z.infer<typeof organizerDetailSchema>;
 
 /**
- * A community qualifies for a detail page if it has at least one of:
+ * A community qualifies for a detail page if it's not explicitly hidden
+ * and has at least one of:
  * - A markdown body (bio/description)
  * - A tagline
  * - Media attached
  * - The featured flag set to true
  */
 export function hasDetailPage(org: OrganizerEntry): boolean {
+  if (org.data.hidden) return false;
   return !!(
     org.body?.trim() ||
     org.data.tagline ||
