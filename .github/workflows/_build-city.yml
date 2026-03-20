@@ -46,6 +46,11 @@ on:
         type: string
         required: false
         default: ''
+      build-trigger:
+        description: 'What triggered the build (push, schedule, workflow_dispatch, repository_dispatch)'
+        type: string
+        required: false
+        default: ''
     secrets:
       DATA_REPO_DEPLOY_KEY:
         required: true
@@ -162,6 +167,7 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: ${{ inputs.city }}
+          BUILD_TRIGGER: ${{ inputs.build-trigger }}
 
       - name: Resolve VIDEO_PREFIX from wrangler config
         id: video-prefix

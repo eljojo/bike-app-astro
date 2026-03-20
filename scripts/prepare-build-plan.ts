@@ -5,7 +5,7 @@
 // hashes, and writes a build plan to .astro/cache/build-plan.json.
 //
 // Usage: npx tsx scripts/prepare-build-plan.ts
-// Env: CONTENT_DIR, CITY, FORCE_FULL_BUILD
+// Env: CONTENT_DIR, CITY, FORCE_FULL_BUILD, BUILD_TRIGGER
 
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -162,6 +162,7 @@ const previousManifest = loadBuildManifest();
 const currentCodeHash = computeCodeHash();
 const { hashes: currentContentHashes, tourMembership: currentTourMembership } = computeContentHashes();
 const forceFullBuild = process.env.FORCE_FULL_BUILD === '1';
+const buildTrigger = process.env.BUILD_TRIGGER || '';
 
 let plan: BuildPlan;
 
@@ -203,8 +204,13 @@ if (forceFullBuild) {
     console.log(`Build plan: FULL (${Math.round(changeRatio * 100)}% of content changed)`);
     plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
   } else if (changedSlugs.length === 0 && deletedSlugs.length === 0) {
-    console.log('Build plan: FULL (no content changes detected — rebuild anyway)');
-    plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
+    if (buildTrigger === 'schedule') {
+      console.log('Build plan: INCREMENTAL (scheduled rebuild — date-sensitive pages only)');
+      plan = { mode: 'incremental', changedSlugs: [], deletedSlugs: [] };
+    } else {
+      console.log('Build plan: FULL (no content changes detected — rebuild anyway)');
+      plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
+    }
   } else {
     console.log(`Build plan: INCREMENTAL (${changedSlugs.length} changed, ${deletedSlugs.length} deleted)`);
     for (const slug of changedSlugs) console.log(`  + ${slug}`);

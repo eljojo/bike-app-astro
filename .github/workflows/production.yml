@@ -62,6 +62,7 @@ jobs:
       deploy: true
       run-migrations: ${{ matrix.run-migrations }}
       cities-to-build: ${{ needs.detect-cities.outputs.cities }}
+      build-trigger: ${{ github.event_name }}
     secrets:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
