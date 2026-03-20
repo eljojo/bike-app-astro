@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
-import { loadRouteFacts, loadUpcomingEvents, formatCategory } from './llms-shared';
+import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadHomepageFacts, factToStatement, formatCategory } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 
 export const prerender = true;
@@ -70,6 +70,8 @@ export const GET: APIRoute = async () => {
   const features = getInstanceFeatures();
   const routeFacts = await loadRouteFacts();
   const events = await loadUpcomingEvents();
+  const communities = await loadCommunities();
+  const facts = await loadHomepageFacts();
 
   const sections: string[] = [];
 
@@ -79,7 +81,7 @@ export const GET: APIRoute = async () => {
 
   if (features.hasRoutes && features.showsContributeLink) {
     sections.push(
-      `Community-maintained cycling route database. ` +
+      `A community-maintained cycling guide with curated local routes, a cycling event calendar, and connections to local riding communities. ` +
       `Each route has been ridden by a real person. ` +
       `All routes include GPS tracks you can download and ride.\n`
     );
@@ -88,6 +90,12 @@ export const GET: APIRoute = async () => {
   }
 
   sections.push(`Summary version: ${config.url}/llms.txt\n`);
+
+  // Highlights
+  if (facts.length > 0) {
+    const factLines = facts.map(f => `- ${factToStatement(f.text)}`);
+    sections.push(`## Highlights\n\n${factLines.join('\n')}\n`);
+  }
 
   // Routes
   if (routeFacts.length > 0) {
@@ -137,6 +145,20 @@ export const GET: APIRoute = async () => {
 
       sections.push(`## Places\n\n${categoryBlocks.join('\n\n')}\n`);
     }
+  }
+
+  // Local communities
+  if (communities.length > 0) {
+    const communityBlocks = communities.map(c => {
+      const lines: string[] = [];
+      lines.push(`### ${c.name}\n`);
+      if (c.tagline) lines.push(`- **About:** ${c.tagline}`);
+      if (c.eventCount > 0) lines.push(`- **Events:** ${c.eventCount}`);
+      lines.push(`- **More info:** ${c.url}`);
+      return lines.join('\n');
+    });
+
+    sections.push(`## Local Communities\n\n${communityBlocks.join('\n\n---\n\n')}\n`);
   }
 
   const text = sections.join('\n');
