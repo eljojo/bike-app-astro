@@ -742,12 +742,6 @@ a.go-back-button {
   opacity: 0.4;
   &:hover { opacity: 1; }
 }
-// Hide About on mobile — it's in the footer, saves nav space
-@media (max-width: $breakpoint-mobile) {
-  .nav-about {
-    display: none;
-  }
-}
 
 .edit-entry-point {
   @include muted-text;
