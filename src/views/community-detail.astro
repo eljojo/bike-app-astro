@@ -9,7 +9,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasDetailPage, organizerInitials, normalizeSocialLinks } from '@/lib/models/organizer-model';
+import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramUsername } from '@/lib/models/organizer-model';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
@@ -54,9 +54,12 @@ const socialLinks = normalizeSocialLinks(
   { instagram: data.instagram, website: data.website },
 ).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
 
-function platformLabel(platform: string): string {
+function socialLinkLabel(link: { platform: string; url: string }): string {
+  if (link.platform === 'instagram') {
+    const username = parseInstagramUsername(link.url);
+    return username ? `@${username} on Instagram` : 'Instagram';
+  }
   const labels: Record<string, string> = {
-    instagram: 'Instagram',
     facebook: 'Facebook',
     strava: 'Strava',
     youtube: 'YouTube',
@@ -72,7 +75,7 @@ function platformLabel(platform: string): string {
     komoot: 'Komoot',
     newsletter: 'Newsletter',
   };
-  return labels[platform] || platform;
+  return labels[link.platform] || link.platform;
 }
 
 // Media gallery
@@ -110,7 +113,7 @@ const PAST_EVENTS_INITIAL = 4;
         <div class="community-detail-links">
           {socialLinks.map(link => (
             <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
-              {platformLabel(link.platform)}
+              {socialLinkLabel(link)}
             </a>
           ))}
         </div>
