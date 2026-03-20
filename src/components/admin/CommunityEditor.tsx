@@ -13,7 +13,7 @@ import type { OrganizerUpdate } from '../../views/api/organizer-save';
 const SOCIAL_PLATFORMS = [
   'instagram', 'facebook', 'strava', 'youtube',
   'meetup', 'tiktok', 'bluesky', 'threads', 'website',
-  'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter',
+  'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
 ] as const;
 
 interface SocialLink {

@@ -99,7 +99,7 @@ export const socialLinkSchema = z.object({
     'instagram', 'facebook', 'strava', 'youtube',
     'meetup', 'tiktok', 'bluesky', 'threads', 'website',
     'discord', 'google_form', 'linktree',
-    'rwgps', 'komoot', 'newsletter',
+    'rwgps', 'komoot', 'newsletter', 'mastodon',
   ]),
   url: z.string(),
 });

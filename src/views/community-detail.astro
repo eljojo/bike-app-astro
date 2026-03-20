@@ -75,6 +75,7 @@ function socialLinkLabel(link: { platform: string; url: string }): string {
     rwgps: 'Ride with GPS',
     komoot: 'Komoot',
     newsletter: t('social.newsletter', locale),
+    mastodon: 'Mastodon',
   };
   return labels[link.platform] || link.platform;
 }
