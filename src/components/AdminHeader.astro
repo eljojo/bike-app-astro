@@ -40,7 +40,7 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
 )}
 
 <nav class="admin-nav">
-  <a href="/admin" class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
+  <a href={currentTab === 'home' ? '/' : '/admin'} class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
   {contentNav.map(({ href, label, tab }) => (
     <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
   ))}

@@ -107,8 +107,8 @@ const locale = Astro.currentLocale;
         )
       );
 
-      // Show/hide/dim tag buttons
-      tagList!.querySelectorAll('.tag-filter--btn').forEach(btn => {
+      // Show/hide/dim tag buttons (skip "All" — it's always visible)
+      tagList!.querySelectorAll('.tag-filter--btn:not(.tag-filter--all)').forEach(btn => {
         const tag = btn.getAttribute('data-tag')!;
         const el = btn as HTMLElement;
         if (activeTags.length === 0) {
