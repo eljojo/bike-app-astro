@@ -2,7 +2,7 @@
 import './MagazineHome.scss';
 import { t, localePath } from '@/i18n';
 import { imageUrl } from '@/lib/media/image-service';
-import { videoFallbackUrl, videoPosterUrl } from '@/lib/media/video-service';
+import { videoPlaybackSources, videoPosterUrl } from '@/lib/media/video-service';
 import { formatDistance } from '@/lib/geo/distance';
 import { formatDateRange } from '@/lib/date-utils';
 import { paths } from '@/lib/paths';
@@ -81,7 +81,9 @@ const locale = Astro.currentLocale;
               poster={videoPosterUrl(video.key)}
               class="magazine-video-player"
             >
-              <source src={videoFallbackUrl(video.key)} type="video/mp4" />
+              {videoPlaybackSources(video.key).map(source => (
+                <source src={source.src} type={source.type} />
+              ))}
             </video>
             <span class="magazine-video-caption">
               {video.caption || video.routeName}

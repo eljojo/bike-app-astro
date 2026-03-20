@@ -2,18 +2,16 @@
  * HLS player — progressively enhances <video> elements with hls.js.
  *
  * Safari handles HLS natively (and decodes HEVC), so we leave it alone.
- * On other desktop browsers, hls.js takes over and forces the highest
- * quality level from the first segment. Ride videos are short, and
- * spending half the video on 480p while ABR ramps up looks bad.
+ * On other browsers, hls.js takes over and forces the highest quality
+ * level from the first segment. Ride videos are short, and spending
+ * half the video on 480p while ABR ramps up looks bad.
  *
- * On mobile, hls.js is not loaded — Safari plays HLS natively, and
- * Chrome/Firefox fall through to the H.264 MP4 source.
+ * Browsers with native HLS support (Safari, recent Chrome) will report
+ * Hls.isSupported() === false, so hls.js no-ops there.
  *
  * Import this file from any page that renders <video> with HLS sources.
  * It self-initializes on DOMContentLoaded.
  */
-
-const DESKTOP_MIN_WIDTH = 768;
 
 function isSafari(): boolean {
   const ua = navigator.userAgent;
@@ -21,7 +19,6 @@ function isSafari(): boolean {
 }
 
 async function initHlsPlayers() {
-  if (window.innerWidth < DESKTOP_MIN_WIDTH) return;
   if (isSafari()) return; // Safari handles HLS natively with HEVC support
 
   const videos = document.querySelectorAll<HTMLVideoElement>('video');

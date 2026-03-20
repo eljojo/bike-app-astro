@@ -58,6 +58,7 @@ if (isWiki) {
 
 {isWiki && (
   <script>
+    import '@/lib/media/hls-player';
     document.addEventListener('DOMContentLoaded', () => {
       const discoverView = document.querySelector<HTMLElement>('.home-view-discover');
       const browseView = document.querySelector<HTMLElement>('.home-view-browse');
