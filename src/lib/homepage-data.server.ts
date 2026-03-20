@@ -240,7 +240,8 @@ function getExploreRoutes(
   routes: RouteEntry[],
   featuredSlugs: Set<string>,
 ): ExploreMiniCard[] {
-  const candidates = routes.filter(r => !featuredSlugs.has(r.id));
+  // Cap at 100 km — longer routes are for explorers who venture deeper into the site
+  const candidates = routes.filter(r => !featuredSlugs.has(r.id) && r.data.distance_km <= 100);
   // Pick 3 spread across the difficulty range (easiest → hardest)
   const sorted = [...candidates].sort((a, b) => {
     const aMin = Math.min(...(scoreRoute(a).length ? scoreRoute(a) : [0]));
@@ -561,8 +562,8 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
   const upcomingEvents = getUpcomingEvents(events, organizers);
   const featuredCommunities = getFeaturedCommunities(organizers, events, locale);
 
-  const featuredSlugs = new Set(allFeatured.map(r => r.slug));
-  const exploreRoutes = getExploreRoutes(routes, featuredSlugs);
+  const todayFeaturedSlug = new Set(featuredRoute ? [featuredRoute.slug] : []);
+  const exploreRoutes = getExploreRoutes(routes, todayFeaturedSlug);
 
   const facts = resolveHomepageFacts(routes, placeData, organizers, events);
   const video = findHomepageVideo(routes, allFeatured);
