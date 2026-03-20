@@ -1,13 +1,13 @@
 ---
 title: Editing content
-description: How to edit routes and events, work with translations, and use version history.
+description: How to edit routes, events, and communities, work with translations, and use version history.
 ---
 
 Every page on the site can be improved. Fix a typo, update a description, add missing details — the site gets better with every edit.
 
 ## The editor
 
-Route and event editors work the same way. You'll see a form with the page's current content. Make your changes, tap **Save**, and your edits go live after the next site rebuild.
+Route, event, community, and place editors work the same way. You'll see a form with the page's current content. Make your changes, tap **Save**, and your edits go live after the next site rebuild.
 
 Descriptions support Markdown formatting — headings, bold, italic, links, and lists. A **formatting help** link in the editor points to a quick reference.
 

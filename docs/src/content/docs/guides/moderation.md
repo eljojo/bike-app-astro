@@ -9,7 +9,7 @@ Moderation on whereto.bike follows the Wikipedia model: anyone can edit, and adm
 
 ## Edit history
 
-The [site-wide edit history](/admin/history) shows every change across all routes and events, newest first. This is your primary moderation tool.
+The [site-wide edit history](/admin/history) shows every change across all routes, events, and communities, newest first. This is your primary moderation tool.
 
 Each entry shows the change description, the author, and when it happened. Use the **Diff** button to see exactly what changed.
 
