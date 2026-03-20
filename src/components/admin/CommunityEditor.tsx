@@ -25,17 +25,22 @@ interface Props {
   cdnUrl: string;
   videosCdnUrl?: string;
   videoPrefix?: string;
+  tagTranslations?: Record<string, Record<string, string>>;
+  knownTags?: string[];
+  defaultLocale?: string;
   userRole?: string;
 }
 
-export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props) {
+// eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
+export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
   const [name, setName] = useState(initialData.name || '');
   const [tagline, setTagline] = useState(initialData.tagline || '');
   const [body, setBody] = useState(initialData.body || '');
-  const [tags, setTags] = useState((initialData.tags || []).join(', '));
+  const [tags, setTags] = useState<string[]>(initialData.tags || []);
+  const [tagInput, setTagInput] = useState('');
   const [featured, setFeatured] = useState(initialData.featured || false);
   const [hidden, setHidden] = useState(initialData.hidden || false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
@@ -71,12 +76,11 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
     userRole,
     validate,
     buildPayload: () => {
-      const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
       const payload: OrganizerUpdate = {
         frontmatter: {
           name,
           ...(tagline && { tagline }),
-          ...(parsedTags.length && { tags: parsedTags }),
+          ...(tags.length && { tags }),
           ...(userRole === 'admin' && { featured, hidden }),
           ...(photoKey && {
             photo_key: photoKey,
@@ -99,6 +103,41 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
       }
     },
   });
+
+  function displayTag(tag: string): string {
+    return tagTranslations[tag]?.[defaultLocale] ?? tag;
+  }
+
+  function resolveTag(input: string): string {
+    if (knownTags.includes(input)) return input;
+    for (const [key, locales] of Object.entries(tagTranslations)) {
+      for (const translated of Object.values(locales)) {
+        if (translated.toLowerCase() === input) return key;
+      }
+    }
+    return input;
+  }
+
+  function addTag() {
+    const raw = tagInput.trim().toLowerCase();
+    if (!raw) { setTagInput(''); return; }
+    const tag = resolveTag(raw);
+    if (!tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+    setTagInput('');
+  }
+
+  function removeTag(tag: string) {
+    setTags(tags.filter((t) => t !== tag));
+  }
+
+  function handleTagKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+  }
 
   function addSocialLink() {
     setSocialLinks(prev => [...prev, { platform: 'instagram', url: '' }]);
@@ -141,10 +180,39 @@ export default function CommunityEditor({ initialData, cdnUrl, userRole }: Props
         </div>
 
         <div class="form-field">
-          <label for="community-tags">Tags <span class="field-hint">(comma-separated)</span></label>
-          <input id="community-tags" type="text" value={tags}
-            placeholder="cycling, gravel, touring"
-            onInput={(e) => setTags((e.target as HTMLInputElement).value)} />
+          <label>Tags</label>
+          <div class="tag-editor">
+            {tags.map((tag) => (
+              <span key={tag} class="tag-pill">
+                {displayTag(tag)}
+                <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
+              </span>
+            ))}
+            <input
+              type="text"
+              class="tag-input"
+              list="community-tag-suggestions"
+              value={tagInput}
+              onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
+              onKeyDown={handleTagKeyDown}
+              onBlur={addTag}
+              placeholder="Add tag..."
+            />
+            <datalist id="community-tag-suggestions">
+              {knownTags
+                .filter(t => !tags.includes(t))
+                .flatMap(tag => {
+                  const options = [<option key={tag} value={tag} />];
+                  const locales = tagTranslations[tag];
+                  if (locales) {
+                    for (const [locale, translated] of Object.entries(locales)) {
+                      options.push(<option key={`${tag}-${locale}`} value={translated} />);
+                    }
+                  }
+                  return options;
+                })}
+            </datalist>
+          </div>
         </div>
 
         {userRole === 'admin' && (

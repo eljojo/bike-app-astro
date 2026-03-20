@@ -68,7 +68,12 @@ test.describe('Community Admin — Detail', () => {
     // Verify fields
     await expect(page.locator('#community-name')).toHaveValue('Community Admin Test Org');
     await expect(page.locator('#community-tagline')).toHaveValue('A tagline for testing');
-    await expect(page.locator('#community-tags')).toHaveValue('gravel, touring');
+
+    // Tags render as pills in the tag editor
+    const tagPills = page.locator('.tag-editor .tag-pill');
+    await expect(tagPills).toHaveCount(2);
+    await expect(tagPills.nth(0)).toContainText('gravel');
+    await expect(tagPills.nth(1)).toContainText('touring');
   });
 });
 
@@ -93,31 +98,27 @@ test.describe('Community Admin — Edit', () => {
     restoreFixtureFiles(['demo/organizers/community-admin-test.md']);
   });
 
-  test('edit community name and tagline via API and verify file updated', async ({ page }) => {
+  test('edit community name and tagline via UI and verify file updated', async ({ page }) => {
     await loginAs(page, token);
     await page.goto('/admin/communities/community-admin-test');
     await page.waitForLoadState('networkidle');
 
+    // Wait for Preact hydration
+    await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
+
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
-    const res = await page.evaluate(async () => {
-      const response = await fetch('/api/organizers/community-admin-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frontmatter: {
-            name: 'Updated Community Name',
-            tagline: 'Updated tagline',
-            tags: ['gravel', 'touring'],
-            featured: true,
-          },
-          body: 'A bio for testing community admin editing.',
-        }),
-      });
-      return { status: response.status, body: await response.json() };
-    });
+    // Edit fields via UI
+    await page.locator('#community-name').fill('Updated Community Name');
+    await page.locator('#community-tagline').fill('Updated tagline');
 
-    expect(res.status).toBe(200);
+    // Click save
+    const saveButton = page.getByRole('button', { name: /save/i });
+    await saveButton.click();
+
+    // Wait for success message
+    await expect(page.getByText('Saved! Your edit will be live in a few minutes.')).toBeVisible({ timeout: 15000 });
 
     // Verify git commit happened
     const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
@@ -153,29 +154,27 @@ test.describe('Community Admin — Create', () => {
     cleanupCreatedFiles(['demo/organizers/new-test-community.md']);
   });
 
-  test('create new community via API and verify file created', async ({ page }) => {
+  test('create new community via UI and verify file created', async ({ page }) => {
     await loginAs(page, token);
     await page.goto('/admin/communities/new');
     await page.waitForLoadState('networkidle');
 
+    // Wait for Preact hydration
+    await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
+
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
-    const res = await page.evaluate(async () => {
-      const response = await fetch('/api/organizers/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frontmatter: {
-            name: 'New Test Community',
-            tagline: 'A brand new community',
-          },
-        }),
-      });
-      return { status: response.status, body: await response.json() };
-    });
+    // Fill in the form
+    await page.locator('#community-name').fill('New Test Community');
+    await page.locator('#community-tagline').fill('A brand new community');
 
-    expect(res.status).toBe(200);
-    expect(res.body.id).toBe('new-test-community');
+    // Click save
+    const saveButton = page.getByRole('button', { name: /save/i });
+    await saveButton.click();
+
+    // After create, the editor redirects to the new community's edit page
+    await page.waitForURL(url => url.pathname === '/admin/communities/new-test-community', { timeout: 15000 });
 
     // Verify git commit happened
     const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
@@ -251,28 +250,23 @@ test.describe('Community Admin — Guest Role', () => {
     await expect(page.getByText('Featured community')).not.toBeVisible();
   });
 
-  test('guest can save community edits', async ({ page }) => {
+  test('guest can save community edits via UI', async ({ page }) => {
     await loginAs(page, guestToken);
     await page.goto('/admin/communities/community-admin-test');
     await page.waitForLoadState('networkidle');
 
+    // Wait for Preact hydration
     await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
 
-    const res = await page.evaluate(async () => {
-      const response = await fetch('/api/organizers/community-admin-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frontmatter: {
-            name: 'Guest Edited Community',
-            tagline: 'Edited by guest',
-          },
-          body: 'A bio for testing community admin editing.',
-        }),
-      });
-      return { status: response.status, body: await response.json() };
-    });
+    // Edit fields via UI
+    await page.locator('#community-name').fill('Guest Edited Community');
+    await page.locator('#community-tagline').fill('Edited by guest');
 
-    expect(res.status).toBe(200);
+    // Click save — guests see a success modal
+    const saveButton = page.getByRole('button', { name: /save/i });
+    await saveButton.click();
+
+    await expect(page.getByText('Thanks for your contribution!')).toBeVisible({ timeout: 15000 });
   });
 });

@@ -5,12 +5,17 @@ import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import CommunityEditor from '../../components/admin/CommunityEditor.tsx';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
+import { defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 
 const config = getCityConfig();
 const cdnUrl = env.R2_PUBLIC_URL || config.cdn_url;
 const videosCdnUrl = config.videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
+const tagTranslations = loadTagTranslations();
+const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
 
 const initialData = {
   slug: '',
@@ -25,5 +30,5 @@ const initialData = {
 ---
 
 <AdminEditorLayout title="New Community" user={Astro.locals.user} currentTab="organizers">
-  <CommunityEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} />
+  <CommunityEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>
