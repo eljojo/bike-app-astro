@@ -23,12 +23,15 @@ for (const event of events) {
   }
 }
 
+// Only show organizers that qualify for a detail page
 // Sort: featured first, then by event count descending
-const sorted = [...organizers].sort((a, b) => {
-  if (a.data.featured && !b.data.featured) return -1;
-  if (!a.data.featured && b.data.featured) return 1;
-  return (eventCounts.get(b.id) || 0) - (eventCounts.get(a.id) || 0);
-});
+const sorted = organizers
+  .filter(org => hasDetailPage(org))
+  .sort((a, b) => {
+    if (a.data.featured && !b.data.featured) return -1;
+    if (!a.data.featured && b.data.featured) return 1;
+    return (eventCounts.get(b.id) || 0) - (eventCounts.get(a.id) || 0);
+  });
 ---
 
 <Base title={`${t('communities.title', locale)} | ${config.display_name}`}>
@@ -38,14 +41,9 @@ const sorted = [...organizers].sort((a, b) => {
   <div class="communities-grid">
     {sorted.map(org => {
       const count = eventCounts.get(org.id) || 0;
-      const link = organizerLink(org, locale);
-      const isInternal = hasDetailPage(org);
-      const linkProps = isInternal
-        ? {}
-        : { target: '_blank', rel: 'noopener noreferrer' };
 
       return (
-        <a href={link} class="community-card" {...linkProps}>
+        <a href={organizerLink(org, locale)} class="community-card">
           <div class="community-card-avatar">
             {org.data.photo_key ? (
               <ResponsiveImage
