@@ -39,15 +39,17 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
   <div class="staging-banner">Staging Environment</div>
 )}
 
-<nav class="admin-nav">
-  <a href={currentTab === 'home' ? '/' : '/admin'} class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
-  {contentNav.map(({ href, label, tab }) => (
-    <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
-  ))}
-  <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
-  {user.role === 'admin' && features.allowsRegistration && (
-    <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
-  )}
+<div class="admin-nav-bar">
+  <nav class="admin-nav">
+    <a href={currentTab === 'home' ? '/' : '/admin'} class:list={['admin-nav-link', { active: currentTab === 'home' }]}>Home</a>
+    {contentNav.map(({ href, label, tab }) => (
+      <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
+    ))}
+    <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
+    {user.role === 'admin' && features.allowsRegistration && (
+      <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
+    )}
+  </nav>
   {user.id && <div class="admin-user">
     <button type="button" class="admin-user-toggle" id="user-menu-toggle" aria-expanded="false" aria-controls="user-menu-dropdown">
       <img src={avatarUrl} alt="" class="admin-user-avatar" width={24} height={24} />
@@ -64,7 +66,7 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
       </form>
     </div>
   </div>}
-</nav>
+</div>
 {currentTab !== 'home' && (
   <div class="admin-header">
     <div class="admin-header-row">
@@ -155,23 +157,29 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
     @include muted-text;
   }
 
-  .admin-nav {
+  .admin-nav-bar {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     margin-bottom: 1rem;
     border-bottom: 1px solid $color-border;
     padding-bottom: 0.5rem;
+
+    @include dark-mode {
+      border-color: $color-border-subtle-dark;
+    }
+  }
+
+  .admin-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
 
     &::-webkit-scrollbar {
       display: none;
-    }
-
-    @include dark-mode {
-      border-color: $color-border-subtle-dark;
     }
   }
 
