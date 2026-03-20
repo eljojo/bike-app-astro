@@ -9,6 +9,7 @@ import { findNearbyPlaces } from './geo/proximity';
 import type { PlaceData } from './geo/proximity';
 import { getInstanceFeatures } from './config/instance-features';
 import { paths } from './paths';
+import { scoreRoute } from './difficulty';
 
 type RouteEntry = CollectionEntry<'routes'>;
 type EventEntry = CollectionEntry<'events'>;
@@ -238,8 +239,12 @@ function getExploreRoutes(
   featuredSlugs: Set<string>,
 ): ExploreMiniCard[] {
   const candidates = routes.filter(r => !featuredSlugs.has(r.id));
-  // Pick 3 spread across the distance range
-  const sorted = [...candidates].sort((a, b) => a.data.distance_km - b.data.distance_km);
+  // Pick 3 spread across the difficulty range (easiest → hardest)
+  const sorted = [...candidates].sort((a, b) => {
+    const aMin = Math.min(...(scoreRoute(a).length ? scoreRoute(a) : [0]));
+    const bMin = Math.min(...(scoreRoute(b).length ? scoreRoute(b) : [0]));
+    return aMin - bMin;
+  });
   const picked: RouteEntry[] = [];
   if (sorted.length <= 3) {
     picked.push(...sorted);

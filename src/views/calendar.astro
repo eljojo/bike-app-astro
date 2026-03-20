@@ -214,8 +214,10 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
 ---
 
 <Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`} description={calendarDescription} ogImage={ogImage}>
-  <h1 style="font-size: 1.7em;">{t('calendar.title', locale, { year: currentYear })}</h1>
-  <a href="/admin/events/new" class="action-button">Add your event</a>
+  <div class="calendar-header">
+    <h1>{t('calendar.title', locale, { year: currentYear })}</h1>
+    <a href="/admin/events/new" class="action-button">Add your event</a>
+  </div>
 
   {seasonal.map(e => (
     <SeasonalBanner

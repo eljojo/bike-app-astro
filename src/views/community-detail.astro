@@ -102,7 +102,7 @@ const PAST_EVENTS_INITIAL = 4;
         <div class="community-detail-links">
           {data.instagram && (
             <a href={`https://instagram.com/${data.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" class="community-social-pill">
-              Instagram
+              @{data.instagram.replace(/^@/, '')} on Instagram
             </a>
           )}
           {data.website && (

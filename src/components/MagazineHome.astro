@@ -198,7 +198,7 @@ const locale = Astro.currentLocale;
       {featuredCommunities.length > 0 && (
         <section class="magazine-communities">
           <h2>{t('home.local_communities', locale)}</h2>
-          <ul class="community-cards" data-show-random="3" data-show-random-desktop="5">
+          <ul class="community-cards" data-show-random="5">
             {featuredCommunities.map(community => (
               <li class="community-card">
                 <a href={community.link}>

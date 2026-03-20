@@ -175,9 +175,15 @@ a.go-back-button {
       border: 1px solid $color-border;
       border-radius: 4px;
       padding: 0.15em 0.5em;
+      transition: border-color 0.15s;
 
       @include dark-mode {
         border-color: $color-border-dark;
+      }
+
+      &:hover {
+        text-decoration: none;
+        border-color: $color-accent;
       }
     }
   }
@@ -520,6 +526,17 @@ a.go-back-button {
 }
 
 // Calendar
+.calendar-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  h1 {
+    font-size: 1.7em;
+  }
+}
+
 .calendar-section {
   margin: 2em 0;
 }

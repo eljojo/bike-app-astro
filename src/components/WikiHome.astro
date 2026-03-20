@@ -17,7 +17,6 @@ const suggestKey = published.length < 5
   : 'home.suggest_route';
 ---
 
-<p class="site-identity-line">{t('home.identity', locale, { name: config.name })}</p>
 <TagFilter tags={filterTags} />
 <ul class="routes-grid">
   {published.map((route, i) => {
