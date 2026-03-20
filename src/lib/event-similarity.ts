@@ -4,6 +4,7 @@ export interface EventSimilarityInput {
   tags: string[];
   distances: string;
   linkedRoutes: string[];
+  startDate: string; // YYYY-MM-DD
 }
 
 export function scorePair(a: EventSimilarityInput, b: EventSimilarityInput): number {
@@ -56,11 +57,15 @@ export function findSimilarEvents(
   const self = events.find(e => e.id === eventId);
   if (!self) return [];
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const scores: { id: string; score: number }[] = [];
   for (const other of events) {
     if (other.id === eventId) continue;
     if (editionIds.has(other.id)) continue;
-    const score = scorePair(self, other);
+    let score = scorePair(self, other);
+    // Boost upcoming/current-year events so they appear before past ones
+    if (other.startDate >= today) score += 30;
     if (score >= minScore) {
       scores.push({ id: other.id, score });
     }

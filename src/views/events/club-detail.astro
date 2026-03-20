@@ -125,10 +125,11 @@ export async function getStaticPaths() {
     tags: ev.data.tags ?? [],
     distances: ev.data.distances ?? '',
     linkedRoutes: ev.data.routes ?? [],
+    startDate: ev.data.start_date,
   }));
 
   // Build lightweight card data for rendering similar event cards
-  const eventCardData: Record<string, { name: string; start_date: string; poster_key?: string; distances?: string; organizer?: string }> = {};
+  const eventCardData: Record<string, { name: string; start_date: string; poster_key?: string; distances?: string; organizer?: string; edition?: string }> = {};
   for (const ev of events) {
     const orgName = typeof ev.data.organizer === 'string'
       ? organizers.find(o => o.id === ev.data.organizer)?.data.name || ev.data.organizer
@@ -139,6 +140,7 @@ export async function getStaticPaths() {
       poster_key: ev.data.poster_key,
       distances: ev.data.distances,
       organizer: orgName,
+      edition: ev.data.edition,
     };
   }
 
@@ -683,8 +685,14 @@ function editionDateLabel(startDate: string, loc?: string): string {
             {similarEvents.map((s: { id: string; score: number }) => {
               const card = eventCardData[s.id];
               if (!card) return null;
+              const currentYear = new Date().getFullYear();
+              const eventYear = parseInt(card.start_date.slice(0, 4), 10);
+              const isPast = eventYear < currentYear;
+              const secondaryMeta = isPast
+                ? (card.edition || String(eventYear))
+                : card.distances;
               return (
-                <a href={paths.event(s.id, locale)} class="event-similar-card">
+                <a href={paths.event(s.id, locale)} class={`event-similar-card${isPast ? ' is-past' : ''}`}>
                   {card.poster_key && (
                     <img
                       src={imageUrl(card.poster_key, { width: 300, height: 200, fit: 'cover' })}
@@ -697,7 +705,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                   )}
                   <span class="event-similar-card-name">{card.name}</span>
                   <span class="event-similar-card-meta">
-                    {[card.organizer, card.distances].filter(Boolean).join(' \u00b7 ')}
+                    {[card.organizer, secondaryMeta].filter(Boolean).join(' \u00b7 ')}
                   </span>
                 </a>
               );
