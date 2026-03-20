@@ -155,13 +155,13 @@
 }
 
 .featured-route-readmore {
-  color: $color-primary;
+  color: $color-link;
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
 
   @include dark-mode {
-    color: #64b5f6;
+    color: $color-link-dark;
   }
 
   &:hover {
@@ -268,13 +268,13 @@
 .magazine-view-all {
   display: inline-block;
   margin-top: 0.5rem;
-  color: $color-primary;
+  color: $color-link;
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
 
   @include dark-mode {
-    color: #64b5f6;
+    color: $color-link-dark;
   }
 
   &:hover {
@@ -380,10 +380,10 @@
   }
 
   a {
-    color: $color-primary;
+    color: $color-link;
 
     @include dark-mode {
-      color: #64b5f6;
+      color: $color-link-dark;
     }
   }
 }

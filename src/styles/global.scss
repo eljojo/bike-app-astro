@@ -22,7 +22,14 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
 }
 
-a { color: inherit; }
+a {
+  color: $color-link;
+  text-decoration: none;
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+}
 
 img { max-width: 100%; height: auto; }
 
@@ -176,6 +183,7 @@ a.go-back-button {
   }
 }
 .top-nav a {
+  color: inherit;
   text-decoration: none;
   padding: 0.25em 0.5em;
 
@@ -192,8 +200,14 @@ a.go-back-button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  a { padding: 4px; text-decoration: none; }
-  .powered-by { opacity: 0.5; font-size: 0.85em; &:hover { opacity: 1; } }
+  a { color: inherit; padding: 4px; text-decoration: none; }
+  .powered-by {
+    margin-left: auto;
+    font-size: 0.85em;
+    background: none !important;
+    @include muted-text;
+    &:hover { text-decoration: underline; }
+  }
   @media (max-width: $breakpoint-mobile) {
     .powered-by { display: none; }
   }
