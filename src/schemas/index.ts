@@ -67,7 +67,7 @@ export const routeSchema = z.object({
 
 export const goodForEnum = z.enum([
   'refuel', 'destination', 'swimming', 'view',
-  'rest-stop', 'family', 'post-ride', 'supplies', 'photo-op',
+  'rest-stop', 'family', 'post-ride', 'supplies', 'photo-op', 'picnic',
 ]);
 
 export const placeSchema = z.object({
