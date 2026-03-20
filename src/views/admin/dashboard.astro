@@ -25,12 +25,14 @@ const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
 let routeCount = 0;
 let placeCount = 0;
 let eventCount = 0;
+let communityCount = 0;
 let routesWithoutPhotos = 0;
 let draftRouteCount = 0;
 let totalPhotos = 0;
 let routeItems: _AdminRoute[] = [];
 let placeItems: _AdminPlace[] = [];
 let eventItems: _AdminEvent[] = [];
+let communityItems: _AdminOrganizer[] = [];
 
 if (features.hasRoutes || features.hasRides) {
   const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
@@ -58,6 +60,10 @@ if (features.hasEvents) {
     .filter((e: _AdminEvent) => e.start_date >= now)
     .sort((a: _AdminEvent, b: _AdminEvent) => a.start_date.localeCompare(b.start_date))
     .slice(0, 4);
+
+  const adminOrganizers = await fetchJson<_AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url));
+  communityCount = adminOrganizers.length;
+  communityItems = adminOrganizers.slice(0, 4);
 }
 
 // Contextual nudge — first applicable wins
@@ -222,6 +228,39 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
           </div>
         </section>
       )}
+
+      {features.hasEvents && communityItems.length > 0 && (
+        <section class="dashboard-card dashboard-card--communities">
+          <div class="card-header">
+            <span class="card-label">COMMUNITIES</span>
+            <span class="card-count">{communityCount}</span>
+            <a href="/admin/communities" class="card-viewall">View all →</a>
+          </div>
+          <div class="card-items">
+            {communityItems.map((org) => (
+              <a href={`/admin/communities/${org.slug}`} class="card-item">
+                {org.photo_key ? (
+                  <img
+                    src={buildImageUrl(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+                    srcset={buildImageSrcSet2x(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+                    alt="" loading="lazy" class="card-item-thumb card-item-thumb--round"
+                  />
+                ) : (
+                  <div class="card-item-initials">{org.name.split(/\s+/).slice(0, 3).map(w => w[0]).join('').toUpperCase()}</div>
+                )}
+                <div class="card-item-info">
+                  <span class="card-item-name">{org.name}</span>
+                  {org.tagline && <span class="card-item-meta">{org.tagline}</span>}
+                </div>
+              </a>
+            ))}
+          </div>
+          <div class="card-footer">
+            <a href="/admin/communities/new">+ Add new community</a>
+            <a href="/admin/communities">View all {communityCount} →</a>
+          </div>
+        </section>
+      )}
     </div>
 
     <!-- Bottom Row -->
@@ -301,6 +340,12 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
             <div class="glance-row">
               <span>Upcoming events</span>
               <strong>{eventCount}</strong>
+            </div>
+          )}
+          {features.hasEvents && communityCount > 0 && (
+            <div class="glance-row">
+              <span>Communities</span>
+              <strong>{communityCount}</strong>
             </div>
           )}
           {features.hasPlaces && (
@@ -609,6 +654,29 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
   .card-item-thumb--portrait {
     width: 32px;
     height: 44px;
+  }
+
+  .card-item-thumb--round {
+    border-radius: 50%;
+  }
+
+  .card-item-initials {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $color-tag-bg;
+    color: $color-tag-text;
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    @include dark-mode {
+      background: $color-border-dark;
+      color: $color-text-dark;
+    }
   }
 
   .card-item-info {
