@@ -26,11 +26,13 @@ const routeData = published
     const firstVariant = r.data.variants[0];
     const track = firstVariant ? r.data.gpxTracks[firstVariant.gpx] : null;
     const trans = r.data.translations?.[locale!];
+    const mediaCover = r.data.media?.find(m => m.cover)?.key || r.data.media?.[0]?.key;
     return {
       url: paths.route(routeSlug(r, locale), locale),
       name: trans?.name || r.data.name,
       polyline: track?.polyline || '',
       distance_km: r.data.distance_km,
+      photo_key: mediaCover,
     };
   })
   .filter(r => r.polyline);
