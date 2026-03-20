@@ -13,6 +13,7 @@ import { FIXTURE_DIR } from './fixture-setup.ts';
 import {
   seedSession, cleanupSession, loginAs,
   clearContentEdits, cleanupCreatedFiles, restoreFixtureFiles,
+  waitForHydration,
 } from './helpers.ts';
 
 // ---------------------------------------------------------------------------
@@ -103,9 +104,8 @@ test.describe('Community Admin — Edit', () => {
     await page.goto('/admin/communities/community-admin-test');
     await page.waitForLoadState('networkidle');
 
-    // Wait for Preact hydration
     await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
@@ -159,9 +159,8 @@ test.describe('Community Admin — Create', () => {
     await page.goto('/admin/communities/new');
     await page.waitForLoadState('networkidle');
 
-    // Wait for Preact hydration
     await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
@@ -255,9 +254,8 @@ test.describe('Community Admin — Guest Role', () => {
     await page.goto('/admin/communities/community-admin-test');
     await page.waitForLoadState('networkidle');
 
-    // Wait for Preact hydration
     await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Edit fields via UI
     await page.locator('#community-name').fill('Guest Edited Community');

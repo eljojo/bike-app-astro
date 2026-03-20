@@ -93,6 +93,22 @@ jobs:
       - name: Lint
         run: npx eslint src/
 
+      - name: Check migration numbering
+        run: |
+          dupes=$(ls drizzle/migrations/*.sql | sed 's/.*\///' | cut -d_ -f1 | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::warning::Duplicate migration sequence numbers: $dupes"
+          fi
+
+      - name: Check for debug commits
+        if: github.event_name == 'pull_request'
+        run: |
+          debug_commits=$(git log --oneline origin/${{ github.base_ref }}..HEAD | grep -i '^[a-f0-9]* debug:' || true)
+          if [ -n "$debug_commits" ]; then
+            echo "::warning::PR contains debug commits that should be squashed before merge:"
+            echo "$debug_commits"
+          fi
+
       - name: Restore Astro content cache
         uses: actions/cache@v5
         with:

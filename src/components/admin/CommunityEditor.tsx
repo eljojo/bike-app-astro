@@ -1,6 +1,7 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { useHydrated } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
@@ -33,6 +34,7 @@ interface Props {
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
 export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
@@ -154,7 +156,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
   }
 
   return (
-    <div class="community-editor">
+    <div ref={hydratedRef} class="community-editor">
       <div class="auth-form">
         <div class="form-field">
           <label for="community-name">Name</label>

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, waitForHydration } from './helpers.ts';
 
 test.describe('Admin Route Editor', () => {
   let token: string;
@@ -33,8 +33,7 @@ test.describe('Admin Route Editor', () => {
     const textarea = page.locator('#route-body');
     await expect(textarea).toBeVisible({ timeout: 10000 });
 
-    // Wait for Preact hydration to complete
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     const value = await textarea.inputValue();
     expect(value).toContain('Carp is a rural community');

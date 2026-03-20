@@ -58,6 +58,10 @@ Some routes have variations — a short loop and a long loop, or different direc
 - Each option has its own name, distance, and optional links to Strava or RideWithGPS.
 - Drag to reorder.
 
+## Nearby places
+
+Once your route is published, the wiki automatically finds places near the route — cafes, parks, lookouts, bike shops — and lists them on the route page. No linking needed. If someone adds a new place near your route later, it appears automatically.
+
 ## Save and publish
 
 New routes start as **drafts** — visible in the editor but not on the public site. When you're happy with it, an admin can change the status to **Published**.

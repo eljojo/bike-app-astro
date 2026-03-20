@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, waitForHydration } from './helpers.ts';
 
 test.describe('Settings page', () => {
   let token: string;
@@ -16,7 +16,7 @@ test.describe('Settings page', () => {
     await loginAs(page, token);
     await page.goto('/admin/settings');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000); // Preact hydration
+    await waitForHydration(page);
   });
 
   test('settings page loads with current username', async ({ page }) => {

@@ -2,6 +2,7 @@
  * Admin test helpers — thin wrapper around shared helpers bound to admin DB,
  * plus admin-specific fixture restoration functions.
  */
+import type { Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
@@ -23,6 +24,17 @@ export const clearContentEdits = (contentType: string, slug: string) => _clearCo
 export const getContentEdit = (contentType: string, slug: string) => _getContentEdit(DB_PATH, contentType, slug);
 export const seedContentEdit = (contentType: string, slug: string, data: string) => _seedContentEdit(DB_PATH, contentType, slug, data);
 export { loginAs, proxyTiles };
+
+/**
+ * Wait for Preact island hydration instead of using waitForTimeout().
+ *
+ * Components using `useHydrated()` from `src/lib/hooks.ts` set
+ * `data-hydrated="true"` on their root element after mount.
+ * This is faster and more reliable than fixed timeouts.
+ */
+export async function waitForHydration(page: Page, timeout = 10_000) {
+  await page.waitForSelector('[data-hydrated="true"]', { timeout });
+}
 
 // --- Admin-only helpers below ---
 

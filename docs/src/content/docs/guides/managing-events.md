@@ -34,14 +34,14 @@ If the event has a poster or flyer image:
 - Click the **Upload Photo** button in the poster section, or drag the image onto the page.
 - A preview appears immediately. Tap **Remove** if you need to swap it.
 
-## Link an organizer
+## Link a community
 
-Events can be linked to an organizer — a cycling club, shop, or community group.
+Events can be linked to a community — a cycling club, shop, or community group.
 
-- Choose from the dropdown of known organizers.
-- Or tap **or create new** to add an organizer inline with their name, website, and Instagram.
+- Choose from the dropdown of known communities.
+- Or tap **or create new** to add a community inline with their name, website, and Instagram.
 
-When an organizer is linked, their info appears on the event page and connects to their other events.
+When a community is linked, their info appears on the event page. They also get their own community page at `/communities/{name}` where riders can find all their upcoming events, social links, and a description of who they are.
 
 ## Write a description
 

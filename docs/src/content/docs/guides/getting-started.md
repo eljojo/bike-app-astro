@@ -7,9 +7,9 @@ You can start contributing in under a minute. No account required.
 
 ## Open the editor
 
-On any route or event page, look for the **Edit** link. It takes you straight to the editor for that page.
+On any route, event, or community page, look for the **Edit** link. It takes you straight to the editor for that page.
 
-You can also go directly to the admin area to see all routes and events.
+You can also go directly to the admin area to see all routes, events, and communities.
 
 <a href="/admin" class="city-link">Open the admin panel &rarr;</a>
 
@@ -34,6 +34,7 @@ Once you're in, you'll see the editor for the route or event you chose. Try some
 - Fix a typo in a description
 - Add a tag to a route
 - Update an event date
+- Add a place — a cafe, a park, a lookout — no GPS track needed
 
 When you're done, hit **Save**. Your changes will be live on the site within a few minutes.
 
@@ -43,7 +44,7 @@ There are three levels of access:
 
 | Role | What you can do |
 |------|----------------|
-| **Guest** | Edit content, upload photos, add routes and events |
+| **Guest** | Edit content, upload photos, add routes, events, and communities |
 | **Editor** | Everything a guest can do, plus change route URLs |
 | **Admin** | Everything, plus revert edits, manage users, and moderate content |
 

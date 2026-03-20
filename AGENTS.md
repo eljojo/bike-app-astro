@@ -168,6 +168,16 @@ NEVER write string literals like `'ottawa'` or `'fr'` in application code. Alway
 - **Content model layer**: all code that reads or writes content data must go through model files in `src/lib/models/`. Never hand-roll `JSON.stringify`/`JSON.parse` for content types.
 - **Zod v4**: import from `astro/zod`, not `zod`.
 
+### Platform Integration — AI Gets These Wrong
+
+AI is confidently wrong about platform behavior. These areas require extra verification — never trust that code works until you see it run in the target environment:
+
+- **Cloudflare Workers fetch()**: `fetch()` to your own Worker's origin deadlocks. Use `env.ASSETS.fetch()` for static files or `readFileSync` for Node.js. See `load-admin-content.server.ts`.
+- **Rollup dead-code elimination**: Never combine Vite `define` constants with `import.meta.env.*` in the same condition. Rollup evaluates them at different times and will eliminate branches you need. See `detailed_plan.md` § Build-Time Constants.
+- **Preact hydration timing**: Islands don't hydrate synchronously. Always use `useHydrated()` hook from `src/lib/hooks.ts`. E2E tests must use `waitForHydration()` from E2E helpers, never `waitForTimeout()`.
+- **CSP updates**: When adding any external resource (CDN, API, embed), update `src/lib/csp.ts`. Check: new image origins → `img-src`, new API endpoints → `connect-src`, new embeds → `frame-src`.
+- **GitHub API**: Always include `User-Agent` header. Always handle rate limiting. Always parse error response bodies for diagnostics.
+
 Deeper gotchas live in directory-level AGENTS.md files, next to the code they apply to:
 
 - **Save pipeline** (frontmatter merge, content hash, blob SHA): `src/views/api/AGENTS.md`
@@ -226,6 +236,16 @@ make full          # build + validate + unit + all E2E
 **Run `make lint` and `make typecheck` before committing.** CI enforces both.
 
 Screenshot tests build against `CITY=demo` (a fixture city). See `e2e/AGENTS.md`.
+
+### Test Quality — What AI Gets Wrong
+
+AI-generated tests routinely mock everything and test nothing. The `solid-refactor` branch deleted 186 lines of tautological tests and rewrote 7 more. Follow these rules:
+
+- **Use real SQLite.** Import `createTestDb()` from `tests/test-db.ts`. Never mock database calls with `vi.fn()` chains — this hides real SQL bugs and tests mock behavior instead of application behavior.
+- **Assert against known values.** Not "is truthy", not "is a string", not "has length > 0". Use exact expected values or verified reference outputs (e.g., `git hash-object` output for SHA tests).
+- **Break the code to verify the test.** Before committing a test, introduce a deliberate bug in the code under test. If the test still passes, the test is worthless — delete it and write one that fails.
+- **Don't test TypeScript's job.** Never write `expect(typeof x).toBe('function')` — the compiler already guarantees this.
+- **Don't test mock behavior.** If your test mocks a function and then asserts the mock was called, you're testing the mock, not the code. Test observable outcomes (database state, file contents, response bodies).
 
 ## Build
 

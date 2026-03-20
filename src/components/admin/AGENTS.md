@@ -21,6 +21,21 @@ useEffect(() => {
 
 After a successful save, the component MUST update its local `contentHash` from the server response. Using the initial hash for subsequent saves causes false 409 conflicts. The `useEditorState` hook handles this — make sure `onSuccess` doesn't discard the returned hash.
 
+## Hydration Signaling
+
+Every admin Preact island MUST use the `useHydrated()` hook from `src/lib/hooks.ts`. This sets `data-hydrated="true"` on the root element after mount, which E2E tests use to wait for hydration.
+
+```tsx
+import { useHydrated } from '../../lib/hooks';
+
+export default function MyEditor(props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
+  return <div ref={hydratedRef}>...</div>;
+}
+```
+
+**Never use `waitForTimeout()` in E2E tests.** Use `waitForHydration(page)` instead. See `e2e/AGENTS.md`.
+
 ## Editor Pattern
 
 All editors use `useEditorState()` from `./useEditorState.ts` which provides: `saving`, `saved`, `error`, `githubUrl`, `save`, `setError`. The `validate` callback runs before save; `buildPayload` constructs the POST body. `onSuccess` receives the server response for redirect/state-update logic.

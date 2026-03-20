@@ -16,7 +16,7 @@ import Database from 'better-sqlite3';
 import yaml from 'js-yaml';
 import { initSchema } from '../../src/db/init-schema.ts';
 import { FIXTURE_DIR, DB_PATH } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, waitForHydration } from './helpers.ts';
 
 const VIDEO_KEY = 'e2evid01';
 
@@ -70,7 +70,7 @@ test.describe('Video Save — Key Annotation', () => {
     // Navigate to route editor
     await page.goto('/admin/routes/route-video');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Record git HEAD before save
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
@@ -175,7 +175,7 @@ test.describe('Video Save — Key Annotation', () => {
     await loginAs(page, token);
     await page.goto('/admin/routes/route-video');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 

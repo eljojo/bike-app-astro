@@ -20,13 +20,15 @@ You don't need to be a developer. You need to be a cyclist who knows your city.
 - A cycling wiki at `{yourcity}.whereto.bike`
 - Interactive maps with your GPS tracks
 - Photo galleries for every route
-- Community editing so local riders can contribute
+- Pages for local riding communities — clubs, shops, and groups
+- A places directory — cafes, parks, lookouts, bike shops, and other stops along the way
 - An event calendar for local cycling events
+- Community editing so local riders can contribute
 - Support for two languages
 
 ## See it in action
 
-**[ottawabybike.ca](https://ottawabybike.ca)** is the first city running on whereto.bike — a live cycling wiki with 25+ routes, photos, GPS tracks, community editing, and an event calendar. Everything you'd get for your city.
+**[ottawabybike.ca](https://ottawabybike.ca)** is the first city running on whereto.bike — a live cycling wiki with 25+ routes, photos, GPS tracks, community pages, an event calendar, and community editing. Everything you'd get for your city.
 
 ## How to get started
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'preact/hooks';
+import { useHydrated } from '../../lib/hooks';
 import RouteEditor from './RouteEditor';
 import StaticRouteMap from './StaticRouteMap';
 import type { MediaItem } from './MediaManager';
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaLocations = [] }: Props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [phase, setPhase] = useState<'upload' | 'edit'>('upload');
   const [gpxContent, setGpxContent] = useState('');
@@ -135,7 +137,7 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
 
   if (phase === 'upload') {
     return (
-      <div class="route-creator">
+      <div ref={hydratedRef} class="route-creator">
         {!gpxContent ? (
           <div class="route-creator-prompt">
             <div

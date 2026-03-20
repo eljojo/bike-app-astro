@@ -1,6 +1,7 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useCallback, useState, useRef, useEffect } from 'preact/hooks';
+import { useHydrated } from '../../lib/hooks';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { useEditorState } from './useEditorState';
 import { useProgressiveDisclosure } from './useProgressiveDisclosure';
@@ -74,6 +75,7 @@ function resolveOrganizer(
 }
 
 export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '' }: Props) {
+  const hydratedRef = useHydrated<HTMLFieldSetElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
@@ -319,7 +321,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   }
 
   return (
-    <fieldset class="event-editor" disabled={readOnly}>
+    <fieldset class="event-editor" disabled={readOnly} ref={hydratedRef}>
         <div class="auth-form">
           <div class="form-field">
             <label for="event-name">Name</label>

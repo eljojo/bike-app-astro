@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, waitForHydration } from './helpers.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,8 +51,7 @@ test.describe('Admin Save Flow', () => {
     await page.goto('/admin/routes/route-save');
     await page.waitForLoadState('networkidle');
 
-    // Wait for Preact hydration
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Record initial state
     const photoCards = page.locator('.photo-card');
@@ -125,7 +124,7 @@ test.describe('Admin Save Flow', () => {
     // --- Reload and verify persistence ---
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Tagline should persist (from D1 scratchpad cache)
     await expect(taglineInput).toHaveValue(testTagline);

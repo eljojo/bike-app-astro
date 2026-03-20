@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession, loginAs } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, waitForHydration } from './helpers.ts';
 
 test.describe('Tag Autocomplete', () => {
   let token: string;
@@ -16,7 +16,7 @@ test.describe('Tag Autocomplete', () => {
     await loginAs(page, token);
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000); // Preact hydration
+    await waitForHydration(page);
   });
 
   test('datalist contains unselected known tags', async ({ page }) => {
