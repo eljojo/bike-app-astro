@@ -1,6 +1,7 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
+import { useHydrated } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
@@ -65,6 +66,7 @@ function isGoogleMapsUrl(text: string): boolean {
 }
 
 export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [] }: Props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -373,7 +375,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   );
 
   return (
-    <div class="place-editor">
+    <div class="place-editor" ref={hydratedRef}>
       <div class="auth-form">
         {initialData.isNew && googleMapsField}
 

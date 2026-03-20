@@ -12,7 +12,7 @@ import StravaActivityBrowser from './StravaActivityBrowser';
 import type { StravaImportResult } from './StravaActivityBrowser';
 import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
-import { useDragDrop } from '../../lib/hooks';
+import { useDragDrop, useHydrated } from '../../lib/hooks';
 import { paths } from '../../lib/paths';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
@@ -38,6 +38,7 @@ interface Props {
 }
 
 export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -239,7 +240,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
   const gpxInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div class="ride-editor">
+    <div class="ride-editor" ref={hydratedRef}>
       {dragging && (
         <div class="drop-overlay">
           <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>

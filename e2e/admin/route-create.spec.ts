@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, cleanupCreatedFiles } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, cleanupCreatedFiles, waitForHydration } from './helpers.ts';
 
 test.describe('Route Creation', () => {
   let token: string;
@@ -26,7 +26,7 @@ test.describe('Route Creation', () => {
 
     await page.goto('/admin/routes/new');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // The unified URL import input should be visible
     const urlInput = page.locator('.url-import-input');
@@ -52,7 +52,7 @@ test.describe('Route Creation', () => {
 
     await page.goto('/admin/routes/new');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Paste a full Google Directions URL
     const urlInput = page.locator('.url-import-input');
@@ -118,7 +118,7 @@ test.describe('Route Creation', () => {
 
     await page.goto('/admin/routes/new');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Upload a GPX file
     const gpxInput = page.locator('input[type="file"][accept=".gpx"]');
@@ -139,7 +139,7 @@ test.describe('Route Creation', () => {
     await page.locator('button.btn-primary', { hasText: 'Continue' }).click();
 
     // Wait for route editor to load
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Verify we're now in the editor phase (has Save button)
     const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });

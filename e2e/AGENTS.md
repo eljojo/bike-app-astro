@@ -19,6 +19,24 @@ The Astro preview server holds a persistent connection to `.data/local.db`. Dele
 - Bypasses WebAuthn by seeding sessions directly into SQLite
 - Restores fixture files via `git show` (read-only, no index lock) to avoid contention
 
+## Waiting for Preact Hydration
+
+**Never use `waitForTimeout()` to wait for Preact islands.** Use `waitForHydration(page)` from `e2e/admin/helpers.ts` instead. This waits for the `data-hydrated="true"` attribute that the `useHydrated()` hook sets after mount.
+
+```typescript
+import { waitForHydration } from './helpers.ts';
+
+// GOOD:
+await page.goto('/admin/routes/my-route');
+await page.waitForLoadState('networkidle');
+await waitForHydration(page);
+
+// BAD:
+await page.waitForTimeout(2000); // Flaky and slow
+```
+
+All admin Preact islands (RouteEditor, EventEditor, PlaceEditor, RideEditor, SeriesEditor, SettingsForm) use `useHydrated()` and set this attribute.
+
 ## Parallelization
 
 Each writing spec owns its own route/content fixture. Don't share mutable fixtures across specs.

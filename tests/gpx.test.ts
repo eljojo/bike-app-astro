@@ -249,6 +249,44 @@ describe('parseGpx time fields', () => {
   });
 });
 
+describe('edge cases', () => {
+  it('handles GPX with no elevation data', () => {
+    const gpx = `<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="45.0" lon="-75.0"></trkpt>
+        <trkpt lat="45.01" lon="-75.01"></trkpt>
+        <trkpt lat="45.02" lon="-75.02"></trkpt>
+      </trkseg></trk></gpx>`;
+    const track = parseGpx(gpx);
+    expect(track.distance_m).toBeGreaterThan(0);
+    expect(track.elevation_gain_m).toBe(0);
+    expect(track.points.length).toBe(3);
+  });
+
+  it('handles single-point GPX (zero distance)', () => {
+    const gpx = `<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="45.0" lon="-75.0"><ele>100</ele></trkpt>
+      </trkseg></trk></gpx>`;
+    const track = parseGpx(gpx);
+    expect(track.distance_m).toBe(0);
+    expect(track.points.length).toBe(1);
+  });
+
+  it('computes distance with out-of-order timestamps', () => {
+    const gpx = `<?xml version="1.0"?>
+      <gpx><trk><trkseg>
+        <trkpt lat="45.0" lon="-75.0"><time>2026-01-01T12:00:00Z</time></trkpt>
+        <trkpt lat="45.01" lon="-75.01"><time>2026-01-01T11:50:00Z</time></trkpt>
+        <trkpt lat="45.02" lon="-75.02"><time>2026-01-01T12:10:00Z</time></trkpt>
+      </trkseg></trk></gpx>`;
+    const track = parseGpx(gpx);
+    // Distance should be computed from point order, not time order
+    expect(track.distance_m).toBeGreaterThan(0);
+    expect(track.points.length).toBe(3);
+  });
+});
+
 describe('extractRideDate', () => {
   it('extracts date from first trackpoint time element', () => {
     const gpx = `<?xml version="1.0"?>

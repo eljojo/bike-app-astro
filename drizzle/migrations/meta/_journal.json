@@ -57,6 +57,27 @@
       "when": 1773374998188,
       "tag": "0006_broken_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1773036000000,
+      "tag": "0004_user_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1773208800000,
+      "tag": "0006_reactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1773900000000,
+      "tag": "0008_drop_video_poster_key",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,25 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 
 /**
+ * Signal to E2E tests that this Preact island has hydrated.
+ *
+ * Sets `data-hydrated="true"` on the root element after mount.
+ * E2E tests should use `waitForHydration(page)` from `e2e/admin/helpers.ts`
+ * instead of `waitForTimeout()`.
+ *
+ * Usage:
+ *   const rootRef = useHydrated<HTMLDivElement>();
+ *   return <div ref={rootRef}>...</div>;
+ */
+export function useHydrated<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    ref.current?.setAttribute('data-hydrated', 'true');
+  }, []);
+  return ref;
+}
+
+/**
  * Workaround for Preact hydration bug: textarea value prop
  * is not applied during hydrate(), leaving textarea empty.
  * Re-applies value after mount if textarea is empty.

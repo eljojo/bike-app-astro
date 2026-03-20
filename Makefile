@@ -9,7 +9,7 @@ install: ## Install npm dependencies
 dev: map-style ## Start dev server
 	RUNTIME=local npx astro dev
 
-build: map-style ## Build static site to dist/
+build: map-style contributors maps ## Build static site to dist/
 	npx astro build
 
 preview: map-style ## Preview built site locally

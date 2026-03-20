@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, deleteFixtureFile } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, deleteFixtureFile, waitForHydration } from './helpers.ts';
 
 test.describe('Photo Parking', () => {
   let token: string;
@@ -32,7 +32,7 @@ test.describe('Photo Parking', () => {
     await loginAs(page, token);
     await page.goto('/admin/routes/route-park-a');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Verify the route has 2 photos initially
     const photoCards = page.locator('.photo-card');
@@ -92,7 +92,7 @@ test.describe('Photo Parking', () => {
     // First, park a photo from route-park-b
     await page.goto('/admin/routes/route-park-b');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     await page.evaluate(async () => {
       await fetch('/api/routes/route-park-b', {
@@ -124,7 +124,7 @@ test.describe('Photo Parking', () => {
     // Now reload and add the parked photo back
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     const res = await page.evaluate(async () => {
       const response = await fetch('/api/routes/route-park-b', {

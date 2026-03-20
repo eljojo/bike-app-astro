@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
-import { seedSession, cleanupSession, loginAs, clearContentEdits, cleanupCreatedFiles, restoreFixtureFiles } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, cleanupCreatedFiles, restoreFixtureFiles, waitForHydration } from './helpers.ts';
 
 test.describe('Event Editing', () => {
   let token: string;
@@ -28,7 +28,7 @@ test.describe('Event Editing', () => {
 
     await page.goto('/admin/events/2099/event-edit');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Verify the form loaded with fixture data
     const nameInput = page.locator('#event-name');
@@ -71,7 +71,7 @@ test.describe('Event Editing', () => {
     // Reload and verify persistence
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
     await expect(nameInput).toHaveValue(testName);
   });
 });
@@ -100,7 +100,7 @@ test.describe('Event Creation', () => {
 
     // Skip the poster upload phase (EventCreator → EventEditor)
     await page.locator('button.btn-link', { hasText: 'Skip' }).click();
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Screenshot the empty event creation form
     await expect(page.locator('#event-name')).toBeVisible();

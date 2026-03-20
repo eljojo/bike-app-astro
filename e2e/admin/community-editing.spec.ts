@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession, loginAs, clearContentEdits } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, waitForHydration } from './helpers.ts';
 
 test.describe('Community Editing — Auth Gate', () => {
   test('unauthenticated user sees auth gate on admin pages', async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe('Community Editing — Guest Direct Commit', () => {
 
     // Verify we landed on the editor (not redirected to gate)
     await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
+    await waitForHydration(page);
 
     // Make an edit
     const taglineInput = page.locator('#route-tagline');

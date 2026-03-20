@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useHydrated } from '../../lib/hooks';
 import { startRegistration } from '@simplewebauthn/browser';
 
 interface Passkey {
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
   const isGuest = role === 'guest';
   const isAdmin = role === 'admin';
   const [username, setUsername] = useState(initialUsername);
@@ -170,7 +172,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
   }
 
   return (
-    <div class="settings-form">
+    <div class="settings-form" ref={hydratedRef}>
       {/* Profile card */}
       <div class="settings-card">
         <div class="settings-card-header">Profile</div>
