@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { html, raw, buildPlacePopup, buildWaypointPopup } from '../../src/lib/maps/map-helpers';
+import { html, raw, buildPlacePopup, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
+import polylineCodec from '@mapbox/polyline';
 
 describe('html tagged template', () => {
   it('escapes interpolated strings', () => {
@@ -171,5 +172,72 @@ describe('buildWaypointPopup', () => {
     expect(popup).toContain('Pottery village with good food');
     expect(popup).toContain('Plaza de Armas, Pomaire');
     expect(popup).toContain('Website');
+  });
+});
+
+// --- filterMapByCategory ---
+
+// East-west track along 45.4215°N in Ottawa (~3 km)
+const trackPoints: [number, number][] = [];
+for (let i = 0; i <= 30; i++) {
+  trackPoints.push([45.4215, -75.7100 + i * 0.001]);
+}
+const encodedTrack = polylineCodec.encode(trackPoints);
+
+// A second track far away (46°N)
+const farTrackPoints: [number, number][] = [];
+for (let i = 0; i <= 10; i++) {
+  farTrackPoints.push([46.0, -75.7100 + i * 0.001]);
+}
+const encodedFarTrack = polylineCodec.encode(farTrackPoints);
+
+const places = [
+  { category: 'cafe', lat: 45.4220, lng: -75.7000, name: 'Cafe A' },   // ~56m from track
+  { category: 'cafe', lat: 45.4215, lng: -75.6900, name: 'Cafe B' },   // on track
+  { category: 'beach', lat: 45.4230, lng: -75.6950, name: 'Beach X' }, // ~167m from track
+  { category: 'beach', lat: 46.5, lng: -75.7, name: 'Beach Far' },     // far from both tracks
+];
+
+const routes = [
+  { polyline: encodedTrack, name: 'Near route' },
+  { polyline: encodedFarTrack, name: 'Far route' },
+];
+
+describe('filterMapByCategory', () => {
+  it('filters places to only the matching category', () => {
+    const result = filterMapByCategory(places, routes, 'cafe');
+    expect(result.places).toHaveLength(2);
+    expect(result.places.every(p => p.category === 'cafe')).toBe(true);
+  });
+
+  it('keeps routes that pass near a matching place', () => {
+    const result = filterMapByCategory(places, routes, 'cafe');
+    expect(result.routes).toHaveLength(1);
+    expect(result.routes[0].name).toBe('Near route');
+  });
+
+  it('excludes routes far from any matching place', () => {
+    const result = filterMapByCategory(places, routes, 'cafe');
+    expect(result.routes.find(r => r.name === 'Far route')).toBeUndefined();
+  });
+
+  it('works for a different category', () => {
+    const result = filterMapByCategory(places, routes, 'beach');
+    expect(result.places).toHaveLength(2);
+    // Beach X is near the track, Beach Far is not near either
+    expect(result.routes).toHaveLength(1);
+    expect(result.routes[0].name).toBe('Near route');
+  });
+
+  it('returns empty when no places match the category', () => {
+    const result = filterMapByCategory(places, routes, 'ice-cream');
+    expect(result.places).toHaveLength(0);
+    expect(result.routes).toHaveLength(0);
+  });
+
+  it('preserves extra properties on places and routes', () => {
+    const result = filterMapByCategory(places, routes, 'cafe');
+    expect(result.places[0].name).toBe('Cafe A');
+    expect(result.routes[0].name).toBe('Near route');
   });
 });

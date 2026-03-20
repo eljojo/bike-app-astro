@@ -1,4 +1,42 @@
 import { buildImageUrl } from '../media/image-service';
+import polylineCodec from '@mapbox/polyline';
+import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
+
+// --- Category filtering for ?category= query param on /map ---
+
+interface FilterablePlace {
+  category: string;
+  lat: number;
+  lng: number;
+}
+
+interface FilterableRoute {
+  polyline: string;
+}
+
+/**
+ * Filter map data to only show places of a given category and routes
+ * that pass within PLACE_NEAR_ROUTE_M of those places.
+ */
+export function filterMapByCategory<P extends FilterablePlace, R extends FilterableRoute>(
+  places: P[],
+  routes: R[],
+  category: string,
+): { places: P[]; routes: R[] } {
+  const filteredPlaces = places.filter(p => p.category === category);
+
+  const filteredRoutes = routes.filter(r => {
+    const points = polylineCodec.decode(r.polyline);
+    for (const place of filteredPlaces) {
+      for (const [lat, lng] of points) {
+        if (haversineM(lat, lng, place.lat, place.lng) <= PLACE_NEAR_ROUTE_M) return true;
+      }
+    }
+    return false;
+  });
+
+  return { places: filteredPlaces, routes: filteredRoutes };
+}
 
 interface PlacePopupData {
   name: string;
