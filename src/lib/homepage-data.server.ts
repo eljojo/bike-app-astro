@@ -3,7 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 import homepageFactEntries from 'virtual:bike-app/homepage-facts';
 import { isPublished } from './content/content-filters';
 import { endOfDay, parseLocalDate } from './date-utils';
-import { organizerLink } from './models/organizer-model';
+import { organizerLink, organizerInitials } from './models/organizer-model';
 import { toPlaceData } from './geo/places';
 import { findNearbyPlaces } from './geo/proximity';
 import type { PlaceData } from './geo/proximity';
@@ -23,6 +23,8 @@ export interface FeaturedRoute {
   name: string;
   distance_km: number;
   tagline?: string;
+  description?: string;
+  tags: string[];
   coverKey?: string;
   coverWidth?: number;
   coverHeight?: number;
@@ -37,11 +39,13 @@ export interface UpcomingEvent {
   endDate?: string;
   organizerName?: string;
   organizerSlug?: string;
+  organizerPhotoKey?: string;
 }
 
 export interface FeaturedCommunity {
   slug: string;
   name: string;
+  initials: string;
   tagline?: string;
   photoKey?: string;
   link: string;
@@ -52,6 +56,7 @@ export interface ExploreMiniCard {
   slug: string;
   name: string;
   distance_km: number;
+  tagline?: string;
   coverKey?: string;
   coverWidth?: number;
   coverHeight?: number;
@@ -77,6 +82,7 @@ export interface MagazineData {
   exploreRoutes: ExploreMiniCard[];
   facts: ResolvedFact[];
   video: HomepageVideo | null;
+  routeCount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +125,10 @@ function getTrackPoints(route: RouteEntry) {
 // Featured route — pick one per day at build time
 // ---------------------------------------------------------------------------
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
 function getAllFeaturedRoutes(routes: RouteEntry[]): FeaturedRoute[] {
   return routes
     .filter(r => r.data.homepage_featured)
@@ -126,11 +136,15 @@ function getAllFeaturedRoutes(routes: RouteEntry[]): FeaturedRoute[] {
     .map(r => {
       const cover = getCover(r);
       const video = getVideo(r);
+      const plainBody = stripHtml(r.data.renderedBody || '');
+      const description = plainBody.length > 200 ? plainBody.slice(0, 200).replace(/\s\S*$/, '') + '\u2026' : plainBody || undefined;
       return {
         slug: r.id,
         name: r.data.name,
         distance_km: r.data.distance_km,
         tagline: r.data.tagline,
+        description,
+        tags: r.data.tags ?? [],
         coverKey: cover?.key,
         coverWidth: cover?.width,
         coverHeight: cover?.height,
@@ -174,6 +188,7 @@ function getUpcomingEvents(
         endDate: e.data.end_date,
         organizerName: org?.data.name,
         organizerSlug: org?.id,
+        organizerPhotoKey: org?.data.photo_key,
       };
     });
 }
@@ -205,6 +220,7 @@ function getFeaturedCommunities(
     .map(org => ({
       slug: org.id,
       name: org.data.name,
+      initials: organizerInitials(org.data.name),
       tagline: org.data.tagline,
       photoKey: org.data.photo_key,
       link: organizerLink(org, locale),
@@ -236,6 +252,7 @@ function getExploreRoutes(
       slug: r.id,
       name: r.data.name,
       distance_km: r.data.distance_km,
+      tagline: r.data.tagline,
       coverKey: cover?.key,
       coverWidth: cover?.width,
       coverHeight: cover?.height,
@@ -548,5 +565,6 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
     exploreRoutes,
     facts,
     video,
+    routeCount: routes.length,
   };
 }

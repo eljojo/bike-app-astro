@@ -124,7 +124,8 @@ a.go-back-button {
 // ============================================================
 
 .site-header {
-  margin-bottom: 10px;
+  text-align: center;
+  padding: 0.8rem 0 0.2rem;
   font-size: 2em;
 }
 .site-title {
@@ -141,27 +142,47 @@ a.go-back-button {
 .top-nav ul {
   font-size: 1.3em;
   font-family: $font-heading;
-  margin: 0 0 10px 0;
-  padding: 0;
+  margin: 0;
+  padding: 0 0 0.4rem;
   list-style: none;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: baseline;
+  gap: 0.3em;
+  border-bottom: 1px solid $color-border;
+  margin-bottom: 1.2rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
 
   li {
-    margin: 0 0.5em 0 0;
+    margin: 0;
   }
 
   .nav-lang {
-    margin-left: auto;
-    margin-right: 0;
     font-size: 0.75em;
-    opacity: 0.6;
-    &:hover { opacity: 1; }
+
+    a {
+      border: 1px solid $color-border;
+      border-radius: 4px;
+      padding: 0.15em 0.5em;
+
+      @include dark-mode {
+        border-color: $color-border-dark;
+      }
+    }
   }
 }
 .top-nav a {
   text-decoration: none;
+  padding: 0.25em 0.5em;
+
+  &.nav-active {
+    color: $color-accent;
+  }
+
   &:hover { text-decoration: underline; }
 }
 
@@ -465,8 +486,9 @@ a.go-back-button {
 // Site subtitle
 .site-subtitle {
   @include muted-text;
-  font-size: 0.9rem;
-  margin: -0.25rem 0 0.5rem 0;
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0;
+  text-align: center;
 }
 
 .site-identity-line {
@@ -685,6 +707,8 @@ a.go-back-button {
 .admin-visible .nav-admin {
   display: list-item;
   font-size: 0.8em;
+  opacity: 0.4;
+  &:hover { opacity: 1; }
 }
 // Hide About on mobile — it's in the footer, saves nav space
 @media (max-width: $breakpoint-mobile) {

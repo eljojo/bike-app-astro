@@ -1,5 +1,6 @@
 ---
 export const prerender = true;
+import './CommunityDetail.scss';
 import Base from '@/layouts/Base.astro';
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
@@ -7,6 +8,7 @@ import { getCollection, render } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
+import { imageUrl } from '@/lib/media/image-service';
 import { hasDetailPage, organizerInitials } from '@/lib/models/organizer-model';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
@@ -86,8 +88,8 @@ const PAST_EVENTS_INITIAL = 4;
             blobKey={data.photo_key}
             alt={data.name}
             widths={[128, 256]}
-            width={96}
-            height={96}
+            width={80}
+            height={80}
             class="community-detail-photo"
           />
         ) : (
@@ -96,9 +98,6 @@ const PAST_EVENTS_INITIAL = 4;
       </div>
       <div class="community-detail-header-info">
         <h1>{data.name}</h1>
-        {data.featured && (
-          <span class="community-card-featured admin-only">{t('communities.featured', locale)}</span>
-        )}
         {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
         <div class="community-detail-links">
           {data.instagram && (
@@ -141,34 +140,55 @@ const PAST_EVENTS_INITIAL = 4;
     {upcomingEvents.length > 0 && (
       <section class="community-detail-section">
         <h2>{t('communities.upcoming_events', locale)}</h2>
-        <ul class="community-events-list">
+        <div class="community-events-grid">
           {upcomingEvents.map(event => (
-            <li>
-              <a href={paths.event(event.id, locale)}>
+            <a href={paths.event(event.id, locale)} class="community-event-compact">
+              <div class="community-event-thumb">
+                {event.data.poster_key ? (
+                  <img src={imageUrl(event.data.poster_key, { width: 80, height: 80, fit: 'cover' })} alt="" />
+                ) : (
+                  <span>🚲</span>
+                )}
+              </div>
+              <div class="community-event-body">
                 <span class="community-event-name">{event.data.name}</span>
-                <span class="community-event-date">{formatDateRange(event.data.start_date, event.data.end_date, locale)}</span>
-                {event.data.distances && <span class="community-event-distance">{event.data.distances}</span>}
-              </a>
-            </li>
+                <span class="community-event-meta">
+                  {formatDateRange(event.data.start_date, event.data.end_date, locale)}
+                  {event.data.distances && ` · ${event.data.distances}`}
+                </span>
+              </div>
+            </a>
           ))}
-        </ul>
+        </div>
       </section>
     )}
 
     {pastEvents.length > 0 && (
       <section class="community-detail-section">
         <h2>{t('communities.past_events', locale)}</h2>
-        <ul class="community-events-list" id="past-events-list">
+        <div class="community-events-grid" id="past-events-grid">
           {pastEvents.map((event, i) => (
-            <li class={i >= PAST_EVENTS_INITIAL ? 'community-event-hidden' : ''}>
-              <a href={paths.event(event.id, locale)}>
+            <a
+              href={paths.event(event.id, locale)}
+              class={`community-event-compact past${i >= PAST_EVENTS_INITIAL ? ' community-event-hidden' : ''}`}
+            >
+              <div class="community-event-thumb">
+                {event.data.poster_key ? (
+                  <img src={imageUrl(event.data.poster_key, { width: 80, height: 80, fit: 'cover' })} alt="" />
+                ) : (
+                  <span>🚲</span>
+                )}
+              </div>
+              <div class="community-event-body">
                 <span class="community-event-name">{event.data.name}</span>
-                <span class="community-event-date">{formatDateRange(event.data.start_date, event.data.end_date, locale)}</span>
-                {event.data.distances && <span class="community-event-distance">{event.data.distances}</span>}
-              </a>
-            </li>
+                <span class="community-event-meta">
+                  {formatDateRange(event.data.start_date, event.data.end_date, locale)}
+                  {event.data.distances && ` · ${event.data.distances}`}
+                </span>
+              </div>
+            </a>
           ))}
-        </ul>
+        </div>
         {pastEvents.length > PAST_EVENTS_INITIAL && (
           <button class="community-show-all-btn" id="show-all-past-events" type="button">
             {t('communities.show_all_events', locale, { count: pastEvents.length })}
@@ -178,7 +198,7 @@ const PAST_EVENTS_INITIAL = 4;
     )}
   </article>
 
-  <p style="margin-top: 2em;">
+  <p class="community-go-back">
     <a href={paths.communities(locale)} class="go-back-button">&#x21A9; {t('communities.go_back', locale)}</a>
   </p>
 
@@ -187,18 +207,12 @@ const PAST_EVENTS_INITIAL = 4;
       const btn = document.getElementById('show-all-past-events');
       if (!btn) return;
       btn.addEventListener('click', () => {
-        const list = document.getElementById('past-events-list');
-        if (!list) return;
-        const hidden = list.querySelectorAll('.community-event-hidden');
+        const grid = document.getElementById('past-events-grid');
+        if (!grid) return;
+        const hidden = grid.querySelectorAll('.community-event-hidden');
         hidden.forEach(el => el.classList.remove('community-event-hidden'));
         btn.remove();
       });
     });
   </script>
-
-  <style>
-    .community-event-hidden {
-      display: none;
-    }
-  </style>
 </Base>

@@ -397,5 +397,9 @@
   "home.routes_to_explore": "Parcours à explorer",
   "home.local_communities": "Communautés locales",
   "home.upcoming_events": "Événements à venir",
-  "home.did_you_know": "Le saviez-vous..."
+  "home.did_you_know": "Le saviez-vous...",
+  "home.read_more": "En savoir plus",
+  "home.full_calendar": "Calendrier complet",
+  "home.all_communities": "Toutes les communautés",
+  "home.view_all_routes": "Voir les {count} parcours"
 }

@@ -17,29 +17,38 @@ const features = getInstanceFeatures();
 
 const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
+
+// Determine active nav item from current URL path
+const pathname = Astro.url.pathname;
+function isActive(path: string): boolean {
+  if (path === '/' || path.endsWith('#browse')) {
+    return pathname === '/' || pathname === `/${locale}` || pathname === `/${locale}/`;
+  }
+  const resolved = localePath(path, locale);
+  return pathname.startsWith(resolved);
+}
 ---
 <nav class="top-nav">
   <ul>
     {features.hasRides ? (
       <>
-        <li><a href="/rides">{t('nav.rides', locale)}</a></li>
-        <li><a href="/tours">{t('nav.tours', locale)}</a></li>
-        <li><a href="/stats">{t('nav.stats', locale)}</a></li>
-        <li class="nav-about"><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
+        <li><a href="/rides" class={isActive('/rides') ? 'nav-active' : ''}>{t('nav.rides', locale)}</a></li>
+        <li><a href="/tours" class={isActive('/tours') ? 'nav-active' : ''}>{t('nav.tours', locale)}</a></li>
+        <li><a href="/stats" class={isActive('/stats') ? 'nav-active' : ''}>{t('nav.stats', locale)}</a></li>
+        <li class="nav-about"><a href={localePath('/about', locale)} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
       </>
     ) : features.hasEnrichedEvents ? (
       <>
-        <li><a href={localePath('/events', locale)}>{t('nav.events', locale)}</a></li>
-        <li><a href={localePath('/places', locale)}>{t('nav.places', locale)}</a></li>
-        <li class="nav-about"><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
+        <li><a href={localePath('/events', locale)} class={isActive('/events') ? 'nav-active' : ''}>{t('nav.events', locale)}</a></li>
+        <li><a href={localePath('/places', locale)} class={isActive('/places') ? 'nav-active' : ''}>{t('nav.places', locale)}</a></li>
+        <li class="nav-about"><a href={localePath('/about', locale)} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
       </>
     ) : (
       <>
-        <li><a href={`${localePath('/', locale)}#browse`}>{t('nav.routes', locale)}</a></li>
-        <li><a href={localePath('/calendar', locale)}>{t('nav.calendar', locale)}</a></li>
-        <li><a href={localePath('/map', locale)}>{t('nav.map', locale)}</a></li>
-        <li><a href={localePath('/communities', locale)}>{t('nav.communities', locale)}</a></li>
-        <li class="nav-about"><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
+        <li><a href={`${localePath('/', locale)}#browse`} class={isActive('/') ? 'nav-active' : ''}>{t('nav.routes', locale)}</a></li>
+        <li><a href={localePath('/calendar', locale)} class={isActive('/calendar') ? 'nav-active' : ''}>{t('nav.calendar', locale)}</a></li>
+        <li><a href={localePath('/map', locale)} class={isActive('/map') ? 'nav-active' : ''}>{t('nav.map', locale)}</a></li>
+        <li><a href={localePath('/communities', locale)} class={isActive('/communities') ? 'nav-active' : ''}>{t('nav.communities', locale)}</a></li>
       </>
     )}
     <li class="nav-admin"><a href="/admin">&#x1F527; Admin</a></li>

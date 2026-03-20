@@ -1,0 +1,254 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.community-detail {
+  max-width: 900px;
+}
+
+// Header: avatar + info side by side
+.community-detail-header {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+
+  @media (max-width: $breakpoint-mobile) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.community-detail-avatar {
+  flex-shrink: 0;
+}
+
+.community-detail-photo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.community-detail-initials {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: $color-accent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.community-detail-header-info {
+  flex: 1;
+
+  h1 {
+    font-family: $font-heading;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+}
+
+.community-detail-tagline {
+  font-family: $font-heading;
+  font-size: 1.1rem;
+  @include muted-text;
+  margin-bottom: 0.6rem;
+}
+
+.community-detail-links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  @media (max-width: $breakpoint-mobile) {
+    justify-content: center;
+  }
+}
+
+.community-social-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  background: $color-card-bg;
+  color: $color-text;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.15s;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+// Tags
+.community-detail-tags {
+  margin-bottom: 2rem;
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.community-detail-tags .tag-pill {
+  display: inline-block;
+  padding: 0.25rem 0.8rem;
+  border-radius: 99px;
+  background: $color-card-bg;
+  font-size: 0.85rem;
+  font-weight: 600;
+  @include muted-text;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+// Bio
+.community-detail-body {
+  font-size: 1rem;
+  line-height: 1.7;
+  margin-bottom: 2rem;
+  max-width: 700px;
+
+  p {
+    margin-bottom: 0.8rem;
+  }
+}
+
+// Section titles with accent underline
+.community-detail-section {
+  margin-bottom: 2.5rem;
+
+  h2 {
+    font-family: $font-heading;
+    font-size: 1.25rem;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid $color-accent;
+    display: inline-block;
+  }
+}
+
+// Events grid — 2 columns on desktop
+.community-events-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Compact event cards
+.community-event-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+
+  &.past {
+    opacity: 0.7;
+  }
+}
+
+.community-event-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.community-event-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.community-event-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.community-event-meta {
+  @include muted-text;
+  font-size: 0.8rem;
+}
+
+// Show all button
+.community-show-all-btn {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: $color-primary;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  @include dark-mode {
+    color: #64b5f6;
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Hidden past events
+.community-event-hidden {
+  display: none;
+}
+
+// Go back link
+.community-go-back {
+  margin-top: 2rem;
+}

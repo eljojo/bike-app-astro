@@ -1,11 +1,12 @@
 ---
 import './MagazineHome.scss';
-import { t } from '@/i18n';
+import { t, localePath } from '@/i18n';
 import { imageUrl } from '@/lib/media/image-service';
 import { videoFallbackUrl, videoPosterUrl } from '@/lib/media/video-service';
 import { formatDistance } from '@/lib/geo/distance';
 import { formatDateRange } from '@/lib/date-utils';
 import { paths } from '@/lib/paths';
+import { tTag } from '@/lib/i18n/tag-translations.server';
 import type {
   FeaturedRoute,
   UpcomingEvent,
@@ -22,9 +23,10 @@ interface Props {
   exploreRoutes: ExploreMiniCard[];
   facts: ResolvedFact[];
   video: HomepageVideo | null;
+  routeCount: number;
 }
 
-const { featuredRoute, upcomingEvents, featuredCommunities, exploreRoutes, facts, video } = Astro.props;
+const { featuredRoute, upcomingEvents, featuredCommunities, exploreRoutes, facts, video, routeCount } = Astro.props;
 const locale = Astro.currentLocale;
 ---
 
@@ -34,43 +36,58 @@ const locale = Astro.currentLocale;
       {featuredRoute && (
         <section class="magazine-featured">
           <h2>{t('home.featured_ride', locale)}</h2>
-          <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-card">
-            {featuredRoute.coverKey && (
-              <img
-                src={imageUrl(featuredRoute.coverKey, { width: 750, height: 420, fit: 'cover' })}
-                srcset={`${imageUrl(featuredRoute.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
-                alt={featuredRoute.name}
-                width="750"
-                height="420"
-                loading="eager"
-                class="featured-route-img"
-              />
-            )}
+          <div class="featured-route-card">
+            <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-link">
+              {featuredRoute.coverKey && (
+                <img
+                  src={imageUrl(featuredRoute.coverKey, { width: 750, height: 420, fit: 'cover' })}
+                  srcset={`${imageUrl(featuredRoute.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
+                  alt={featuredRoute.name}
+                  width="750"
+                  height="420"
+                  loading="eager"
+                  class="featured-route-img"
+                />
+              )}
+            </a>
             <div class="featured-route-info">
-              <span class="featured-route-name">{featuredRoute.name}</span>
-              <span class="featured-route-meta">
-                {formatDistance([featuredRoute.distance_km])}
-                {featuredRoute.tagline && ` — ${featuredRoute.tagline}`}
-              </span>
+              <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-name">{featuredRoute.name}</a>
+              {featuredRoute.tagline && (
+                <span class="featured-route-meta">{featuredRoute.tagline}</span>
+              )}
+              <div class="featured-route-tags">
+                <span class="featured-route-tag distance">{formatDistance([featuredRoute.distance_km])}</span>
+                {featuredRoute.tags.map(tag => (
+                  <span class="featured-route-tag">{tTag(tag, locale)}</span>
+                ))}
+              </div>
+              {featuredRoute.description && (
+                <p class="featured-route-description">{featuredRoute.description}</p>
+              )}
+              <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-readmore">
+                {t('home.read_more', locale)} &rarr;
+              </a>
             </div>
-          </a>
+          </div>
         </section>
       )}
 
       {video && (
         <section class="magazine-video">
-          <video
-            muted
-            autoplay
-            loop
-            playsinline
-            poster={videoPosterUrl(video.key)}
-            class="magazine-video-player"
-          >
-            <source src={videoFallbackUrl(video.key)} type="video/mp4" />
-          </video>
-          <a href={paths.route(video.routeSlug, locale)} class="magazine-video-caption">
-            {video.caption || video.routeName}
+          <a href={paths.route(video.routeSlug, locale)} class="magazine-video-link">
+            <video
+              muted
+              autoplay
+              loop
+              playsinline
+              poster={videoPosterUrl(video.key)}
+              class="magazine-video-player"
+            >
+              <source src={videoFallbackUrl(video.key)} type="video/mp4" />
+            </video>
+            <span class="magazine-video-caption">
+              {video.caption || video.routeName}
+            </span>
           </a>
         </section>
       )}
@@ -81,24 +98,30 @@ const locale = Astro.currentLocale;
           <div class="explore-cards">
             {exploreRoutes.map(route => (
               <a href={paths.route(route.slug, locale)} class="explore-card">
-                {route.coverKey && (
-                  <img
-                    src={imageUrl(route.coverKey, { width: 375, height: 250, fit: 'cover' })}
-                    srcset={`${imageUrl(route.coverKey, { width: 750, height: 500, fit: 'cover' })} 2x`}
-                    alt={route.name}
-                    width="375"
-                    height="250"
-                    loading="lazy"
-                    class="explore-card-img"
-                  />
-                )}
+                <div class="explore-card-img-wrap">
+                  {route.coverKey && (
+                    <img
+                      src={imageUrl(route.coverKey, { width: 375, height: 250, fit: 'cover' })}
+                      srcset={`${imageUrl(route.coverKey, { width: 750, height: 500, fit: 'cover' })} 2x`}
+                      alt={route.name}
+                      width="375"
+                      height="250"
+                      loading="lazy"
+                      class="explore-card-img"
+                    />
+                  )}
+                  <span class="explore-card-badge">{formatDistance([route.distance_km])}</span>
+                </div>
                 <div class="explore-card-info">
                   <span class="explore-card-name">{route.name}</span>
-                  <span class="explore-card-distance">{formatDistance([route.distance_km])}</span>
+                  {route.tagline && <span class="explore-card-tagline">{route.tagline}</span>}
                 </div>
               </a>
             ))}
           </div>
+          <a href="#browse" class="magazine-view-all">
+            {t('home.view_all_routes', locale, { count: routeCount })} &rarr;
+          </a>
         </section>
       )}
     </div>
@@ -111,15 +134,32 @@ const locale = Astro.currentLocale;
             {upcomingEvents.map(event => (
               <li class="upcoming-event">
                 <a href={paths.event(event.slug, locale)}>
-                  <span class="upcoming-event-date">{formatDateRange(event.startDate, event.endDate)}</span>
-                  <span class="upcoming-event-name">{event.name}</span>
-                  {event.organizerName && (
-                    <span class="upcoming-event-org">{event.organizerName}</span>
-                  )}
+                  <div class="upcoming-event-thumb">
+                    {event.organizerPhotoKey ? (
+                      <img
+                        src={imageUrl(event.organizerPhotoKey, { width: 80, height: 80, fit: 'cover' })}
+                        alt=""
+                        width="40"
+                        height="40"
+                      />
+                    ) : (
+                      <span class="upcoming-event-emoji">🚲</span>
+                    )}
+                  </div>
+                  <div class="upcoming-event-info">
+                    <span class="upcoming-event-name">{event.name}</span>
+                    <span class="upcoming-event-meta">
+                      {formatDateRange(event.startDate, event.endDate)}
+                      {event.organizerName && ` · ${event.organizerName}`}
+                    </span>
+                  </div>
                 </a>
               </li>
             ))}
           </ul>
+          <a href={localePath('/calendar', locale)} class="magazine-view-all">
+            {t('home.full_calendar', locale)} &rarr;
+          </a>
         </section>
       )}
 
@@ -129,6 +169,7 @@ const locale = Astro.currentLocale;
           <ul class="facts-list">
             {facts.slice(0, 3).map(fact => (
               <li class="fact-item">
+                <span class="fact-prefix">...</span>{' '}
                 {fact.link ? (
                   <a href={fact.link}>{fact.text}</a>
                 ) : (
@@ -147,7 +188,7 @@ const locale = Astro.currentLocale;
             {featuredCommunities.map(community => (
               <li class="community-card">
                 <a href={community.link}>
-                  {community.photoKey && (
+                  {community.photoKey ? (
                     <img
                       src={imageUrl(community.photoKey, { width: 80, height: 80, fit: 'cover' })}
                       alt={community.name}
@@ -156,6 +197,8 @@ const locale = Astro.currentLocale;
                       loading="lazy"
                       class="community-avatar"
                     />
+                  ) : (
+                    <span class="community-initials">{community.initials}</span>
                   )}
                   <div class="community-card-info">
                     <span class="community-card-name">{community.name}</span>
@@ -167,6 +210,9 @@ const locale = Astro.currentLocale;
               </li>
             ))}
           </ul>
+          <a href={paths.communities(locale)} class="magazine-view-all">
+            {t('home.all_communities', locale)} &rarr;
+          </a>
         </section>
       )}
     </aside>
