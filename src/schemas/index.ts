@@ -98,6 +98,8 @@ export const socialLinkSchema = z.object({
   platform: z.enum([
     'instagram', 'facebook', 'strava', 'youtube',
     'meetup', 'tiktok', 'bluesky', 'threads', 'website',
+    'discord', 'google_form', 'linktree',
+    'rwgps', 'komoot', 'newsletter',
   ]),
   url: z.string(),
 });
