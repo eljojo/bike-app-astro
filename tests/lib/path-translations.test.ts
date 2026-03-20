@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { translatePath, reverseTranslatePath, getSegmentTranslations } from '../../src/lib/i18n/path-translations';
+import { defaultLocale } from '../../src/lib/i18n/locale-utils';
 
 describe('getSegmentTranslations', () => {
   it('contains expected segments', () => {
@@ -13,19 +14,34 @@ describe('getSegmentTranslations', () => {
 
 describe('translatePath', () => {
   it('translates known segments', () => {
-    expect(translatePath('/routes', 'fr')).toBe('/parcours');
-    expect(translatePath('/calendar', 'fr')).toBe('/calendrier');
-    expect(translatePath('/map', 'es')).toBe('/mapa');
+    // Use a non-default locale — demo city defaults to 'es', ottawa to 'en'
+    const nonDefault = defaultLocale() === 'fr' ? 'es' : 'fr';
+    const expected = nonDefault === 'fr'
+      ? { routes: '/parcours', calendar: '/calendrier', map: '/carte' }
+      : { routes: '/rutas', calendar: '/calendario', map: '/mapa' };
+    expect(translatePath('/routes', nonDefault)).toBe(expected.routes);
+    expect(translatePath('/calendar', nonDefault)).toBe(expected.calendar);
+    expect(translatePath('/map', nonDefault)).toBe(expected.map);
   });
 
   it('preserves unknown segments (slugs)', () => {
-    expect(translatePath('/routes/britannia/map', 'fr')).toBe('/parcours/britannia/carte');
+    const nonDefault = defaultLocale() === 'fr' ? 'es' : 'fr';
+    const expected = nonDefault === 'fr'
+      ? '/parcours/britannia/carte'
+      : '/rutas/britannia/mapa';
+    expect(translatePath('/routes/britannia/map', nonDefault)).toBe(expected);
   });
 });
 
 describe('reverseTranslatePath', () => {
   it('reverses translated segments', () => {
-    expect(reverseTranslatePath('/parcours/britannia/carte', 'fr')).toBe('/routes/britannia/map');
-    expect(reverseTranslatePath('/calendrier', 'fr')).toBe('/calendar');
+    const nonDefault = defaultLocale() === 'fr' ? 'es' : 'fr';
+    if (nonDefault === 'fr') {
+      expect(reverseTranslatePath('/parcours/britannia/carte', 'fr')).toBe('/routes/britannia/map');
+      expect(reverseTranslatePath('/calendrier', 'fr')).toBe('/calendar');
+    } else {
+      expect(reverseTranslatePath('/rutas/britannia/mapa', 'es')).toBe('/routes/britannia/map');
+      expect(reverseTranslatePath('/calendario', 'es')).toBe('/calendar');
+    }
   });
 });
