@@ -10,7 +10,9 @@ const locale = Astro.currentLocale;
 ---
 
 <ul class="tag-filter">
-  <span class="tag-filter--label">{t('filter.choose_tag', locale)}</span>
+  <li>
+    <button class="tag-filter--btn tag-filter--all active" data-tag="all">{t('filter.all', locale)}</button>
+  </li>
   {tags.map(tag => (
     <li>
       <button class="tag-filter--btn" data-tag={tag}>{tTag(tag, locale)}</button>
@@ -24,6 +26,8 @@ const locale = Astro.currentLocale;
     const routeCards = document.querySelectorAll('.route-card');
     if (!tagList || !routeCards.length) return;
 
+    const allBtn = tagList.querySelector('.tag-filter--all') as HTMLElement;
+
     // Restore filters from URL
     const params = new URL(window.location.href).searchParams;
     const initialTags = params.get('tags')?.split(',').filter(Boolean) || [];
@@ -31,14 +35,30 @@ const locale = Astro.currentLocale;
       const btn = tagList.querySelector(`[data-tag="${tagName}"]`);
       if (btn) btn.classList.add('active');
     });
-    if (initialTags.length) filterRoutes();
+    if (initialTags.length) {
+      allBtn?.classList.remove('active');
+      filterRoutes();
+    }
 
     tagList.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest('.tag-filter--btn') as HTMLElement;
       if (!btn) return;
 
-      btn.classList.toggle('active');
-      if (btn.classList.contains('active')) {
+      if (btn.classList.contains('tag-filter--all')) {
+        // "All" clears every other filter
+        tagList!.querySelectorAll('.tag-filter--btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      } else {
+        btn.classList.toggle('active');
+        // Deactivate "All" when a tag is selected
+        allBtn?.classList.remove('active');
+        // If nothing is active, reactivate "All"
+        if (getActiveTags().length === 0) {
+          allBtn?.classList.add('active');
+        }
+      }
+
+      if (btn.classList.contains('active') && !btn.classList.contains('tag-filter--all')) {
         window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: btn.getAttribute('data-tag') || '' } });
       }
       filterRoutes();
@@ -54,7 +74,7 @@ const locale = Astro.currentLocale;
     });
 
     function getActiveTags(): string[] {
-      return Array.from(tagList!.querySelectorAll('.tag-filter--btn.active'))
+      return Array.from(tagList!.querySelectorAll('.tag-filter--btn.active:not(.tag-filter--all)'))
         .map(b => b.getAttribute('data-tag')!);
     }
 

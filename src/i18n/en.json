@@ -12,6 +12,7 @@
   "home.suggest_route_few": "Help build the route library — add a ride you love",
   "home.suggest_route_many": "Know another great route? Add it",
   "filter.choose_tag": "choose a tag to filter:",
+  "filter.all": "all",
   "route.elevation_gain": "Elevation Gain",
   "route.meters": "meters",
   "route.this_is": "this is",

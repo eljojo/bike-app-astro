@@ -12,6 +12,7 @@
   "home.suggest_route_few": "Ayuda a construir la biblioteca de rutas — agrega un recorrido que te guste",
   "home.suggest_route_many": "¿Conoces otra buena ruta? Agrégala",
   "filter.choose_tag": "elige una etiqueta para filtrar:",
+  "filter.all": "todas",
   "route.elevation_gain": "Desnivel positivo",
   "route.meters": "metros",
   "route.this_is": "es",

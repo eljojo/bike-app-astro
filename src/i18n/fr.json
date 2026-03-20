@@ -12,6 +12,7 @@
   "home.suggest_route_few": "Aidez à construire la bibliothèque de parcours — ajoutez un trajet que vous aimez",
   "home.suggest_route_many": "Vous connaissez un autre beau parcours\u00a0? Ajoutez-le",
   "filter.choose_tag": "choisir un tag pour filtrer :",
+  "filter.all": "tout",
   "route.elevation_gain": "Dénivelé positif",
   "route.meters": "mètres",
   "route.this_is": "c'est",
