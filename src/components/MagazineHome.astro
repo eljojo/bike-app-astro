@@ -135,9 +135,9 @@ const locale = Astro.currentLocale;
               <li class="upcoming-event">
                 <a href={paths.event(event.slug, locale)}>
                   <div class="upcoming-event-thumb">
-                    {event.organizerPhotoKey ? (
+                    {event.posterKey ? (
                       <img
-                        src={imageUrl(event.organizerPhotoKey, { width: 80, height: 80, fit: 'cover' })}
+                        src={imageUrl(event.posterKey, { width: 80, height: 80, fit: 'cover' })}
                         alt=""
                         width="40"
                         height="40"
@@ -166,8 +166,8 @@ const locale = Astro.currentLocale;
       {facts.length > 0 && (
         <section class="magazine-facts">
           <h2>{t('home.did_you_know', locale)}</h2>
-          <ul class="facts-list">
-            {facts.slice(0, 3).map(fact => {
+          <ul class="facts-list" data-show-random="3">
+            {facts.map(fact => {
               // If link_text is set, only that substring becomes the link
               if (fact.link && fact.link_text) {
                 const idx = fact.text.indexOf(fact.link_text);

@@ -52,20 +52,20 @@
 .magazine-layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: 2.5rem;
 
   @media (min-width: $breakpoint-tablet) {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 3fr 2fr;
   }
 }
 
 // Section spacing
 .magazine-main > section + section {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
 }
 
 .magazine-sidebar > section + section {
-  margin-top: 1.5rem;
+  margin-top: 2rem;
 }
 
 // Section headings with accent underline
@@ -321,7 +321,7 @@
 .upcoming-event-thumb {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 6px;
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
@@ -332,7 +332,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
   }
 }
 
@@ -363,6 +362,10 @@
   list-style: none;
   padding: 0;
   margin: 0;
+
+  &[data-show-random] {
+    visibility: hidden; // hidden until JS picks random items
+  }
 }
 
 .fact-item {

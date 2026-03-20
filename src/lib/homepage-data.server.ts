@@ -39,7 +39,7 @@ export interface UpcomingEvent {
   endDate?: string;
   organizerName?: string;
   organizerSlug?: string;
-  organizerPhotoKey?: string;
+  posterKey?: string;
 }
 
 export interface FeaturedCommunity {
@@ -189,7 +189,7 @@ function getUpcomingEvents(
         endDate: e.data.end_date,
         organizerName: org?.data.name,
         organizerSlug: org?.id,
-        organizerPhotoKey: org?.data.photo_key,
+        posterKey: e.data.poster_key,
       };
     });
 }

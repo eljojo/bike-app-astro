@@ -51,11 +51,11 @@ function isActive(path: string): boolean {
         <li><a href={localePath('/communities', locale)} class={isActive('/communities') ? 'nav-active' : ''}>{t('nav.communities', locale)}</a></li>
       </>
     )}
-    <li class="nav-admin"><a href="/admin">&#x1F527; Admin</a></li>
+    <li class="nav-admin"><a href="/admin">Admin</a></li>
     {showSwitcher && (
       <li class="nav-lang">
         <a href={switchPath} data-locale={otherLocale}>
-          {t('lang.switch', locale)}
+          {otherLocale.toUpperCase()}
         </a>
       </li>
     )}

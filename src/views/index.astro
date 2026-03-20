@@ -95,6 +95,23 @@ if (isWiki) {
       window.addEventListener('hashchange', () => {
         showView(location.hash === '#browse' ? 'browse' : 'discover');
       });
+
+      // Show random facts from the full static list
+      const factsList = document.querySelector<HTMLElement>('[data-show-random]');
+      if (factsList) {
+        const count = parseInt(factsList.dataset.showRandom || '3', 10);
+        const items = Array.from(factsList.children) as HTMLElement[];
+        // Shuffle and pick `count` items to show
+        for (let i = items.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [items[i], items[j]] = [items[j], items[i]];
+        }
+        const visible = new Set(items.slice(0, count));
+        for (const item of items) {
+          item.hidden = !visible.has(item);
+        }
+        factsList.style.visibility = 'visible';
+      }
     });
   </script>
 )}
