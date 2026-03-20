@@ -4,7 +4,7 @@ import './CommunityDetail.scss';
 import Base from '@/layouts/Base.astro';
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
-import { getCollection, render } from 'astro:content';
+import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
@@ -13,6 +13,9 @@ import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramU
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
+import { extractYouTubeUrls } from '@/lib/youtube-extract';
+import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
+import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -29,7 +32,7 @@ export async function getStaticPaths() {
 
 const { organizer } = Astro.props;
 const data = organizer.data;
-const { Content } = await render(organizer);
+const { videoIds: youtubeIds, cleanedMarkdown: cleanBody } = extractYouTubeUrls(organizer.body || '');
 
 // Load events by this organizer
 const allEvents = await getCollection('events');
@@ -130,9 +133,15 @@ const PAST_EVENTS_INITIAL = 4;
 
     {organizer.body?.trim() && (
       <div class="community-detail-body">
-        <Content />
+        <div set:html={await renderMarkdownHtml(cleanBody)} />
       </div>
     )}
+
+    {youtubeIds.map(id => (
+      <div class="community-detail-video">
+        <YouTubeEmbed videoId={id} title={data.name} />
+      </div>
+    ))}
 
     <EditEntryPoint text={t('communities.edit_description', locale)} href={`/admin/communities/${organizer.id}`} />
 
