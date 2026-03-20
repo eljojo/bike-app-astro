@@ -4,6 +4,8 @@
 @use 'events';
 @use 'forms';
 @use 'modals';
+@use 'community-editor';
+@use 'place-editor-extras';
 
 .auth-page {
   max-width: 420px;
@@ -1623,6 +1625,7 @@
   text-align: left;
 }
 
+
 // Photo field (shared upload/preview component)
 .photo-field {
   display: flex;
@@ -2625,4 +2628,5 @@
     border-color: $color-border-dark;
   }
 }
+
 

@@ -6,6 +6,7 @@ interface RouteOnMap {
   name: string;
   polyline: string;
   distance_km: number;
+  photo_key?: string;
 }
 
 interface PlaceOnMap {
@@ -59,7 +60,8 @@ const { routes, places, photos = [], center } = Astro.props;
 
 <script>
   import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
-  import { buildPlacePopup, html } from '../lib/maps/map-helpers';
+  import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
+  import { buildImageUrl } from '../lib/media/image-service';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
@@ -67,11 +69,25 @@ const { routes, places, photos = [], center } = Astro.props;
   const el = document.getElementById('big-map');
   const controlsEl = document.getElementById('big-map-controls');
   if (el) {
-    const routes = JSON.parse(el.dataset.routes || '[]');
-    const places = JSON.parse(el.dataset.places || '[]');
-    const photos = JSON.parse(el.dataset.photos || '[]');
+    const allRoutes = JSON.parse(el.dataset.routes || '[]');
+    const allPlaces = JSON.parse(el.dataset.places || '[]');
+    const allPhotos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
+
+    // --- Category filter from URL query param ---
+    const categoryFilter = new URLSearchParams(location.search).get('category');
+
+    let places = allPlaces;
+    let routes = allRoutes;
+    let photos = allPhotos;
+
+    if (categoryFilter) {
+      const filtered = filterMapByCategory(allPlaces, allRoutes, categoryFilter);
+      places = filtered.places;
+      routes = filtered.routes;
+      photos = [];
+    }
 
     const styleKey = loadStylePreference();
     const map = initMap({ el, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
@@ -82,10 +98,15 @@ const { routes, places, photos = [], center } = Astro.props;
     }));
 
     function setupWebGLLayers(sk: MapStyleKey) {
-      addPolylines(map, routes.map((r: any) => ({
-        encoded: r.polyline,
-        popup: html`<a href="${r.url}">${r.name}</a><br>${r.distance_km} km`,
-      })), sk);
+      addPolylines(map, routes.map((r: any) => {
+        const photoHtml = r.photo_key && cdnUrl
+          ? html`<a href="${r.url}"><img class="place-popup-photo" src="${raw(buildImageUrl(cdnUrl, r.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" /></a>`
+          : '';
+        return {
+          encoded: r.polyline,
+          popup: html`<div class="place-popup">${raw(photoHtml)}<a href="${r.url}">${r.name}</a><br>${r.distance_km} km</div>`,
+        };
+      }), sk);
 
       if (photos.length > 0) {
         addPhotoMarkers(map, photos, cdnUrl, sk);

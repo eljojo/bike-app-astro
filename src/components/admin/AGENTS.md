@@ -2,7 +2,7 @@
 
 ## Scoped CSS Does Not Work Here
 
-Astro's scoped `<style>` blocks do NOT reach Preact islands (they hydrate independently). ALL styling for components in this directory goes in `src/styles/admin.scss` as global rules.
+Astro's scoped `<style>` blocks do NOT reach Preact islands (they hydrate independently). Create an underscore-prefixed SCSS partial in `src/styles/` (e.g., `_community-editor.scss`) and `@use` it from `admin.scss`. This keeps styles colocated while ensuring they reach the island. See `src/styles/AGENTS.md` for the full pattern.
 
 ## Textarea Hydration Bug
 

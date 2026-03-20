@@ -12,6 +12,7 @@
   "home.suggest_route_few": "Ayuda a construir la biblioteca de rutas — agrega un recorrido que te guste",
   "home.suggest_route_many": "¿Conoces otra buena ruta? Agrégala",
   "filter.choose_tag": "elige una etiqueta para filtrar:",
+  "filter.all": "todas",
   "route.elevation_gain": "Desnivel positivo",
   "route.meters": "metros",
   "route.this_is": "es",
@@ -376,5 +377,29 @@
 
   "place_editor.details_toggle": "Agregar detalles (dirección, sitio web, teléfono)",
 
-  "map.description": "{count} rutas ciclistas en {city}"
+  "map.description": "{count} rutas ciclistas en {city}",
+
+  "nav.communities": "Comunidades",
+  "communities.title": "Comunidades",
+  "communities.intro": "Las personas y grupos que organizan eventos y salidas ciclistas.",
+  "communities.event_count": "{count} eventos",
+  "communities.one_event": "1 evento",
+  "communities.featured": "Destacada",
+  "communities.go_back": "volver a comunidades",
+  "communities.past_events": "Eventos pasados",
+  "communities.upcoming_events": "Próximos eventos",
+  "communities.show_all_events": "Mostrar los {count} eventos",
+
+  "home.subtitle": "Rutas, eventos y las personas que pedalean aquí",
+  "home.discover": "Descubrir",
+  "home.browse_all": "Todas las rutas",
+  "home.featured_ride": "Ruta destacada",
+  "home.routes_to_explore": "Rutas para explorar",
+  "home.local_communities": "Comunidades locales",
+  "home.upcoming_events": "Próximos eventos",
+  "home.did_you_know": "¿Sabías que...?",
+  "home.read_more": "Leer más",
+  "home.full_calendar": "Calendario completo",
+  "home.all_communities": "Todas las comunidades",
+  "home.view_all_routes": "Ver los {count} recorridos"
 }

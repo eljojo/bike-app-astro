@@ -12,6 +12,7 @@
   "home.suggest_route_few": "Help build the route library — add a ride you love",
   "home.suggest_route_many": "Know another great route? Add it",
   "filter.choose_tag": "choose a tag to filter:",
+  "filter.all": "all",
   "route.elevation_gain": "Elevation Gain",
   "route.meters": "meters",
   "route.this_is": "this is",
@@ -376,5 +377,30 @@
 
   "place_editor.details_toggle": "Add details (address, website, phone)",
 
-  "map.description": "{count} cycling routes in {city}"
+  "map.description": "{count} cycling routes in {city}",
+
+  "nav.communities": "Communities",
+  "communities.title": "Communities",
+  "communities.intro": "The people and groups who organize cycling events and rides.",
+  "communities.event_count": "{count} events",
+  "communities.one_event": "1 event",
+  "communities.featured": "Featured",
+  "communities.go_back": "go back to communities",
+  "communities.past_events": "Past events",
+  "communities.upcoming_events": "Upcoming events",
+  "communities.show_all_events": "Show all {count} events",
+  "communities.edit_description": "See something wrong? You can fix it — every edit can be undone.",
+
+  "home.subtitle": "Routes, events, and the people who ride here",
+  "home.discover": "Discover",
+  "home.browse_all": "Browse all routes",
+  "home.featured_ride": "Featured ride",
+  "home.routes_to_explore": "Routes to explore",
+  "home.local_communities": "Local communities",
+  "home.upcoming_events": "Upcoming events",
+  "home.did_you_know": "Did you know...",
+  "home.read_more": "Read more",
+  "home.full_calendar": "Full calendar",
+  "home.all_communities": "All communities",
+  "home.view_all_routes": "View all {count} routes"
 }

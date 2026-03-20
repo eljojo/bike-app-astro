@@ -99,6 +99,33 @@ test.describe('Screenshots', () => {
     await expect(page).toHaveScreenshot('videos.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
   });
 
+  test('homepage magazine view', async ({ page }) => {
+    await page.goto('/');
+    await waitForImages(page);
+    await expect(page.locator('.home-view-discover')).toBeVisible();
+    await expect(page).toHaveScreenshot('homepage-magazine.png', { clip: { x: 0, y: 0, width: 1280, height: 4000 } });
+  });
+
+  test('homepage browse toggle', async ({ page }) => {
+    // Navigate to #browse — browse view should be visible, magazine hidden
+    await page.goto('/#browse');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('.home-view-browse')).toBeVisible();
+    await expect(page.locator('.home-view-discover')).toBeHidden();
+
+    // Navigate to / — magazine should be default
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('.home-view-discover')).toBeVisible();
+    await expect(page.locator('.home-view-browse')).toBeHidden();
+  });
+
+  test('communities index', async ({ page }) => {
+    await page.goto('/communities');
+    await waitForImages(page);
+    await expect(page).toHaveScreenshot('communities-index.png', { fullPage: true });
+  });
+
   test('big map', async ({ page }) => {
     await proxyTiles(page);
     await page.goto('/map');

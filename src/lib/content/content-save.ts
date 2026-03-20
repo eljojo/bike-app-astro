@@ -160,6 +160,8 @@ async function authenticateAndParse<T, R extends BuildResult>(
     const u = update as Record<string, unknown>;
     if (u.frontmatter && typeof u.frontmatter === 'object') {
       delete (u.frontmatter as Record<string, unknown>).status;
+      delete (u.frontmatter as Record<string, unknown>).featured;
+      delete (u.frontmatter as Record<string, unknown>).hidden;
     }
   }
 

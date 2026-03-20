@@ -10,7 +10,7 @@ import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { CITY } from '../../lib/config/config';
-import { toRecentCommits, groupConsecutiveByAuthor, type RecentCommit } from '../../lib/history-data.server';
+import { toRecentCommits, type RecentCommit } from '../../lib/history-data.server';
 import { formatAdminDateTime } from '../../lib/date-utils';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 
@@ -25,12 +25,14 @@ const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
 let routeCount = 0;
 let placeCount = 0;
 let eventCount = 0;
+let communityCount = 0;
 let routesWithoutPhotos = 0;
 let draftRouteCount = 0;
 let totalPhotos = 0;
 let routeItems: _AdminRoute[] = [];
 let placeItems: _AdminPlace[] = [];
 let eventItems: _AdminEvent[] = [];
+let communityItems: _AdminOrganizer[] = [];
 
 if (features.hasRoutes || features.hasRides) {
   const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
@@ -58,6 +60,10 @@ if (features.hasEvents) {
     .filter((e: _AdminEvent) => e.start_date >= now)
     .sort((a: _AdminEvent, b: _AdminEvent) => a.start_date.localeCompare(b.start_date))
     .slice(0, 4);
+
+  const adminOrganizers = await fetchJson<_AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url));
+  communityCount = adminOrganizers.length;
+  communityItems = adminOrganizers.slice(0, 4);
 }
 
 // Contextual nudge — first applicable wins
@@ -72,7 +78,7 @@ if (features.hasRoutes) {
 
 const contentLabel = features.hasRides ? 'rides' : 'routes';
 
-// Recent changes — last 5 commits from history API
+// Recent changes — last 10 commits from history API
 const git = createGitService({
   token: env.GITHUB_TOKEN,
   owner: env.GIT_OWNER,
@@ -82,12 +88,11 @@ const git = createGitService({
 
 let recentCommits: RecentCommit[] = [];
 try {
-  const commits = await git.listCommits({ perPage: 5, page: 1 });
+  const commits = await git.listCommits({ perPage: 10, page: 1 });
   recentCommits = toRecentCommits(commits, CITY);
 } catch {
   // GitHub API unavailable (local dev without token) — show empty
 }
-const commitGroups = groupConsecutiveByAuthor(recentCommits);
 ---
 
 <Base title="Admin" admin>
@@ -222,6 +227,39 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
           </div>
         </section>
       )}
+
+      {features.hasEvents && communityItems.length > 0 && (
+        <section class="dashboard-card dashboard-card--communities">
+          <div class="card-header">
+            <span class="card-label">COMMUNITIES</span>
+            <span class="card-count">{communityCount}</span>
+            <a href="/admin/communities" class="card-viewall">View all →</a>
+          </div>
+          <div class="card-items card-items--communities">
+            {communityItems.map((org) => (
+              <a href={`/admin/communities/${org.slug}`} class="card-item">
+                {org.photo_key ? (
+                  <img
+                    src={buildImageUrl(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+                    srcset={buildImageSrcSet2x(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+                    alt="" loading="lazy" class="card-item-thumb card-item-thumb--round"
+                  />
+                ) : (
+                  <div class="card-item-initials">{org.name.split(/\s+/).slice(0, 3).map(w => w[0]).join('').toUpperCase()}</div>
+                )}
+                <div class="card-item-info">
+                  <span class="card-item-name">{org.name}</span>
+                  {org.tagline && <span class="card-item-meta">{org.tagline}</span>}
+                </div>
+              </a>
+            ))}
+          </div>
+          <div class="card-footer">
+            <a href="/admin/communities/new">+ Add new community</a>
+            <a href="/admin/communities">View all {communityCount} →</a>
+          </div>
+        </section>
+      )}
     </div>
 
     <!-- Bottom Row -->
@@ -232,24 +270,20 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
           <a href="/admin/history" class="card-viewall">View full history &rarr;</a>
         </div>
         <div class="card-items">
-          {commitGroups.map((group) => (
-            <div class="change-group">
-              <div class="change-group-author"><strong>{group.username}</strong></div>
-              {group.commits.map((c) => (
-                <div class="change-item">
-                  <div class="change-info">
-                    <span class="change-headline">
-                      {c.editorUrl
-                        ? <a href={c.editorUrl}>{c.headline}</a>
-                        : c.headline
-                      }
-                      {c.detail && ` \u2014 ${c.detail}`}
-                    </span>
-                    {c.contentType && <span class={`change-badge change-badge--${c.contentType}`}>{c.contentType.replace(/s$/, '')}</span>}
-                  </div>
-                  <time class="change-time">{formatAdminDateTime(c.date)}</time>
-                </div>
-              ))}
+          {recentCommits.map((c) => (
+            <div class="change-item">
+              <div class="change-info">
+                <strong class="change-author">{c.username}</strong>
+                <span class="change-headline">
+                  {c.editorUrl
+                    ? <a href={c.editorUrl}>{c.headline}</a>
+                    : c.headline
+                  }
+                  {c.detail && ` \u2014 ${c.detail}`}
+                </span>
+                {c.contentType && <span class={`change-badge change-badge--${c.contentType}`}>{c.contentType.replace(/s$/, '')}</span>}
+              </div>
+              <time class="change-time">{formatAdminDateTime(c.date)}</time>
             </div>
           ))}
           {recentCommits.length === 0 && <p class="card-empty">No recent changes.</p>}
@@ -301,6 +335,12 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
             <div class="glance-row">
               <span>Upcoming events</span>
               <strong>{eventCount}</strong>
+            </div>
+          )}
+          {features.hasEvents && communityCount > 0 && (
+            <div class="glance-row">
+              <span>Communities</span>
+              <strong>{communityCount}</strong>
             </div>
           )}
           {features.hasPlaces && (
@@ -526,7 +566,8 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
     }
   }
 
-  .dashboard-card--routes {
+  .dashboard-card--routes,
+  .dashboard-card--communities {
     grid-column: 1 / -1;
   }
 
@@ -579,6 +620,16 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
     }
   }
 
+  .card-items--communities {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .card-item {
     display: flex;
     align-items: center;
@@ -609,6 +660,29 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
   .card-item-thumb--portrait {
     width: 32px;
     height: 44px;
+  }
+
+  .card-item-thumb--round {
+    border-radius: 50%;
+  }
+
+  .card-item-initials {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $color-tag-bg;
+    color: $color-tag-text;
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    @include dark-mode {
+      background: $color-border-dark;
+      color: $color-text-dark;
+    }
   }
 
   .card-item-info {
@@ -668,29 +742,18 @@ const commitGroups = groupConsecutiveByAuthor(recentCommits);
     }
   }
 
-  .change-group {
-    &:not(:last-child) {
-      border-bottom: 1px solid $color-border;
-      @include dark-mode { border-color: $color-border-subtle-dark; }
-    }
-  }
-
-  .change-group-author {
-    padding: 0.5rem 0.5rem 0;
-    font-size: 0.875rem;
-  }
-
   .change-item {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    padding: 0.25rem 0.5rem 0.25rem 1rem;
+    padding: 0.5rem;
     font-size: 0.875rem;
     gap: 1rem;
+  }
 
-    &:last-child {
-      padding-bottom: 0.5rem;
-    }
+  .change-author {
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .change-info {

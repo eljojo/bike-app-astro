@@ -1,4 +1,5 @@
 import { z } from 'astro/zod';
+import { baseMediaItemSchema } from '../lib/models/content-model';
 
 export const variantSchema = z.object({
   name: z.string(),
@@ -61,7 +62,13 @@ export const routeSchema = z.object({
   elapsed_time_s: z.number().optional(),
   moving_time_s: z.number().optional(),
   average_speed_kmh: z.number().optional(),
+  homepage_featured: z.boolean().optional(),
 });
+
+export const goodForEnum = z.enum([
+  'refuel', 'destination', 'swimming', 'view',
+  'rest-stop', 'family', 'post-ride', 'supplies', 'photo-op', 'picnic',
+]);
 
 export const placeSchema = z.object({
   name: z.string(),
@@ -71,11 +78,14 @@ export const placeSchema = z.object({
   lng: z.number(),
   status: z.literal('published').default('published'),
   description: z.string().optional(),
+  vibe: z.string().optional(),
+  good_for: z.array(goodForEnum).default([]),
   address: z.string().optional(),
   website: z.string().optional(),
   phone: z.string().optional(),
   google_maps_url: z.string().optional(),
   photo_key: z.string().optional(),
+  media: z.array(baseMediaItemSchema).default([]),
 });
 
 export const guideSchema = z.object({
@@ -84,14 +94,30 @@ export const guideSchema = z.object({
   tagline: z.string().optional(),
 });
 
+export const socialLinkSchema = z.object({
+  platform: z.enum([
+    'instagram', 'facebook', 'strava', 'youtube',
+    'meetup', 'tiktok', 'bluesky', 'threads', 'website',
+    'discord', 'google_form', 'linktree',
+    'rwgps', 'komoot', 'newsletter',
+  ]),
+  url: z.string(),
+});
+
 export const organizerSchema = z.object({
   name: z.string(),
+  tagline: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  featured: z.boolean().default(false),
+  hidden: z.boolean().default(false),
   website: z.string().optional(),
   instagram: z.string().optional(),
+  social_links: z.array(socialLinkSchema).default([]),
   photo_key: z.string().optional(),
   photo_width: z.number().optional(),
   photo_height: z.number().optional(),
   photo_content_type: z.string().optional(),
+  media: z.array(baseMediaItemSchema).default([]),
 });
 
 export const pageSchema = z.object({

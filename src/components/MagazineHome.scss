@@ -1,0 +1,460 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+// Toggle buttons (discover / browse) — connected pill
+.home-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.home-toggle-btn {
+  font-family: $font-body;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+  border: 1px solid $color-border;
+  background: $color-bg;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:first-child {
+    border-radius: 6px 0 0 6px;
+  }
+
+  &:last-child {
+    border-radius: 0 6px 6px 0;
+    border-left: none;
+  }
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+    border-color: $color-border-dark;
+    background: $color-bg-dark;
+  }
+
+  &.active {
+    background: $color-text;
+    color: $color-bg;
+    border-color: $color-text;
+
+    @include dark-mode {
+      background: $color-text-dark;
+      color: $color-bg-dark;
+      border-color: $color-text-dark;
+    }
+  }
+}
+
+// Magazine layout
+.magazine-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+
+  @media (min-width: $breakpoint-tablet) {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+// Section spacing
+.magazine-main > section + section {
+  margin-top: 2.5rem;
+}
+
+.magazine-sidebar > section + section {
+  margin-top: 2rem;
+}
+
+// Section headings with accent underline
+.magazine-home h2 {
+  font-family: $font-heading;
+  font-size: 1.25rem;
+  margin: 0 0 0.7rem 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid $color-accent;
+  display: inline-block;
+}
+
+// Featured route card
+.featured-route-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  overflow: hidden;
+  background: $color-card-bg;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  &:hover .featured-route-img {
+    opacity: 0.9;
+  }
+}
+
+.featured-route-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: opacity 0.15s;
+}
+
+.featured-route-info {
+  padding: 0.75rem;
+}
+
+.featured-route-name {
+  display: block;
+  font-family: $font-heading;
+  font-size: 1.3rem;
+  margin-bottom: 0.25rem;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.featured-route-meta {
+  @include muted-text;
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.featured-route-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.featured-route-tag {
+  @include tag-base;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  margin: 0;
+
+  &.distance {
+    background: $color-accent;
+    color: #000;
+  }
+}
+
+.featured-route-description {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  @include muted-text;
+  margin-bottom: 0.5rem;
+}
+
+.featured-route-readmore {
+  color: $color-link;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Video
+.magazine-video-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover .magazine-video-caption {
+    text-decoration: underline;
+  }
+}
+
+.magazine-video-player {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  pointer-events: none; // let the wrapping link handle clicks
+}
+
+.magazine-video-caption {
+  @include muted-text;
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+// Explore cards
+.explore-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.explore-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  overflow: hidden;
+  background: $color-card-bg;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.explore-card-img-wrap {
+  position: relative;
+}
+
+.explore-card-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.explore-card-badge {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  background: $color-accent;
+  color: #000;
+  font-family: $font-mono;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.explore-card-info {
+  padding: 0.5rem;
+}
+
+.explore-card-name {
+  display: block;
+  font-family: $font-heading;
+  font-size: 0.95rem;
+}
+
+.explore-card-tagline {
+  @include muted-text;
+  display: block;
+  font-size: 0.85rem;
+}
+
+// View-all links (shared style)
+.magazine-view-all {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: $color-link;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Sidebar
+.magazine-sidebar section {
+  margin-bottom: 1.5rem;
+}
+
+// Upcoming events — with organizer thumbnails
+.upcoming-events-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  // Show only 3 events on mobile, 5 on desktop (sidebar visible)
+  .upcoming-event:nth-child(n+4) {
+    display: none;
+
+    @media (min-width: $breakpoint-tablet) {
+      display: list-item;
+    }
+  }
+}
+
+.upcoming-event a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.5rem 0.4rem;
+  border-radius: 8px;
+  background: $color-card-bg;
+  margin-bottom: 0.4rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.upcoming-event-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.upcoming-event-emoji {
+  font-size: 1.2rem;
+}
+
+.upcoming-event-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.upcoming-event-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.upcoming-event-meta {
+  @include muted-text;
+  display: block;
+  font-size: 0.8rem;
+}
+
+// Facts — with ... prefix and separator lines
+.facts-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  &[data-show-random] {
+    visibility: hidden; // hidden until JS picks random items
+  }
+}
+
+.fact-item {
+  padding: 0.6rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  border-bottom: 1px solid $color-border;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  a {
+    color: $color-link;
+
+    @include dark-mode {
+      color: $color-link-dark;
+    }
+  }
+}
+
+.fact-prefix {
+  font-weight: 700;
+}
+
+// Community cards (magazine sidebar)
+.community-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  &[data-show-random] {
+    visibility: hidden;
+  }
+}
+
+.community-card a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.4rem 0;
+
+  &:hover {
+    .community-card-name {
+      text-decoration: underline;
+    }
+  }
+}
+
+.community-avatar {
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.community-initials {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: $color-accent;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.community-card-name {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.community-card-tagline {
+  @include muted-text;
+  display: block;
+  font-size: 0.8rem;
+}

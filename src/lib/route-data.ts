@@ -1,7 +1,7 @@
 import { getCollection } from 'astro:content';
 import { isPublished } from './content/content-filters';
 import { elevationTags, getAllElevations } from './geo/elevation';
-import { toPlaceData } from './geo/places';
+import { toPlaceData, assignPlacePhotosFromMedia } from './geo/places';
 import { scoreRoute } from './difficulty';
 import { routeShape } from './route-insights';
 import { buildSimilarityMatrix } from './route-similarity';
@@ -74,6 +74,17 @@ export async function loadRouteData() {
   const allElevations = getAllElevations(routes);
   const allPlaces = await getCollection('places');
   const placeData = toPlaceData(allPlaces);
+
+  // Auto-assign place photos from nearby route media
+  const allMediaLocations: { key: string; lat: number; lng: number }[] = [];
+  for (const route of routes.filter(isPublished)) {
+    for (const item of route.data.media) {
+      if (item.lat != null && item.lng != null) {
+        allMediaLocations.push({ key: item.key, lat: item.lat, lng: item.lng });
+      }
+    }
+  }
+  assignPlacePhotosFromMedia(placeData, allMediaLocations);
 
   const routeDifficultyScores = new Map<string, number[]>();
   for (const r of routes.filter(isPublished)) {

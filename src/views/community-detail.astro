@@ -1,0 +1,218 @@
+---
+export const prerender = true;
+import './CommunityDetail.scss';
+import Base from '@/layouts/Base.astro';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import MediaGallery from '@/components/MediaGallery.astro';
+import { getCollection, render } from 'astro:content';
+import { getCityConfig } from '@/lib/config/city-config';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+import { imageUrl } from '@/lib/media/image-service';
+import { hasDetailPage, organizerInitials, normalizeSocialLinks } from '@/lib/models/organizer-model';
+import { tTag } from '@/lib/i18n/tag-translations.server';
+import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+export async function getStaticPaths() {
+  const organizers = await getCollection('organizers');
+  return organizers
+    .filter(org => hasDetailPage(org))
+    .map(org => ({
+      params: { slug: org.id },
+      props: { organizer: org },
+    }));
+}
+
+const { organizer } = Astro.props;
+const data = organizer.data;
+const { Content } = await render(organizer);
+
+// Load events by this organizer
+const allEvents = await getCollection('events');
+const now = new Date();
+const orgEvents = allEvents
+  .filter(e => {
+    const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
+    return orgId === organizer.id;
+  })
+  .sort((a, b) => {
+    const da = parseLocalDate(a.data.start_date);
+    const db = parseLocalDate(b.data.start_date);
+    return db.getTime() - da.getTime();
+  });
+
+const upcomingEvents = orgEvents.filter(e => endOfDay(e.data.end_date || e.data.start_date) >= now);
+const pastEvents = orgEvents.filter(e => endOfDay(e.data.end_date || e.data.start_date) < now);
+
+// Unify legacy instagram/website fields with social_links, then filter out Twitter/X
+const socialLinks = normalizeSocialLinks(
+  data.social_links ?? [],
+  { instagram: data.instagram, website: data.website },
+).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
+
+function platformLabel(platform: string): string {
+  const labels: Record<string, string> = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    strava: 'Strava',
+    youtube: 'YouTube',
+    meetup: 'Meetup',
+    tiktok: 'TikTok',
+    bluesky: 'Bluesky',
+    threads: 'Threads',
+    website: 'Website',
+    discord: 'Discord',
+    google_form: 'Sign up form',
+    linktree: 'Linktree',
+    rwgps: 'Ride with GPS',
+    komoot: 'Komoot',
+    newsletter: 'Newsletter',
+  };
+  return labels[platform] || platform;
+}
+
+// Media gallery
+const mediaItems = (data.media ?? []).map(m => ({
+  type: m.type || 'photo',
+  key: m.key,
+  caption: m.caption,
+  width: m.width,
+  height: m.height,
+}));
+
+const PAST_EVENTS_INITIAL = 4;
+---
+
+<Base title={`${data.name} | ${config.display_name}`} description={data.tagline}>
+  <article class="community-detail">
+    <header class="community-detail-header">
+      <div class="community-detail-avatar">
+        {data.photo_key ? (
+          <ResponsiveImage
+            blobKey={data.photo_key}
+            alt={data.name}
+            widths={[128, 256]}
+            width={80}
+            height={80}
+            class="community-detail-photo"
+          />
+        ) : (
+          <div class="community-detail-initials">{organizerInitials(data.name)}</div>
+        )}
+      </div>
+      <div class="community-detail-header-info">
+        <h1>{data.name}</h1>
+        {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
+        <div class="community-detail-links">
+          {socialLinks.map(link => (
+            <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+              {platformLabel(link.platform)}
+            </a>
+          ))}
+        </div>
+      </div>
+    </header>
+
+    {data.tags && data.tags.length > 0 && (
+      <ul class="community-detail-tags">
+        {data.tags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+      </ul>
+    )}
+
+    {organizer.body?.trim() && (
+      <div class="community-detail-body">
+        <Content />
+      </div>
+    )}
+
+    <EditEntryPoint text={t('communities.edit_description', locale)} href={`/admin/communities/${organizer.id}`} />
+
+    {mediaItems.length > 0 && (
+      <section class="community-detail-section">
+        <MediaGallery media={mediaItems} name={data.name} />
+      </section>
+    )}
+
+    {upcomingEvents.length > 0 && (
+      <section class="community-detail-section">
+        <h2>{t('communities.upcoming_events', locale)}</h2>
+        <div class="community-events-grid">
+          {upcomingEvents.map(event => (
+            <a href={paths.event(event.id, locale)} class="community-event-compact">
+              <div class="community-event-thumb">
+                {event.data.poster_key ? (
+                  <img src={imageUrl(event.data.poster_key, { width: 80, height: 80, fit: 'cover' })} alt="" />
+                ) : (
+                  <span>🚲</span>
+                )}
+              </div>
+              <div class="community-event-body">
+                <span class="community-event-name">{event.data.name}</span>
+                <span class="community-event-meta">
+                  {formatDateRange(event.data.start_date, event.data.end_date, locale)}
+                  {event.data.distances && ` · ${event.data.distances}`}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {pastEvents.length > 0 && (
+      <section class="community-detail-section">
+        <h2>{t('communities.past_events', locale)}</h2>
+        <div class="community-events-grid" id="past-events-grid">
+          {pastEvents.map((event, i) => (
+            <a
+              href={paths.event(event.id, locale)}
+              class={`community-event-compact past${i >= PAST_EVENTS_INITIAL ? ' community-event-hidden' : ''}`}
+            >
+              <div class="community-event-thumb">
+                {event.data.poster_key ? (
+                  <img src={imageUrl(event.data.poster_key, { width: 80, height: 80, fit: 'cover' })} alt="" />
+                ) : (
+                  <span>🚲</span>
+                )}
+              </div>
+              <div class="community-event-body">
+                <span class="community-event-name">{event.data.name}</span>
+                <span class="community-event-meta">
+                  {formatDateRange(event.data.start_date, event.data.end_date, locale)}
+                  {event.data.distances && ` · ${event.data.distances}`}
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+        {pastEvents.length > PAST_EVENTS_INITIAL && (
+          <button class="community-show-all-btn" id="show-all-past-events" type="button">
+            {t('communities.show_all_events', locale, { count: pastEvents.length })}
+          </button>
+        )}
+      </section>
+    )}
+  </article>
+
+  <p class="community-go-back">
+    <a href={paths.communities(locale)} class="go-back-button">&#x21A9; {t('communities.go_back', locale)}</a>
+  </p>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('show-all-past-events');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const grid = document.getElementById('past-events-grid');
+        if (!grid) return;
+        const hidden = grid.querySelectorAll('.community-event-hidden');
+        hidden.forEach(el => el.classList.remove('community-event-hidden'));
+        btn.remove();
+      });
+    });
+  </script>
+</Base>

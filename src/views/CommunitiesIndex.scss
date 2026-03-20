@@ -1,0 +1,95 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.communities-intro {
+  @include muted-text;
+  margin-bottom: 1.5rem;
+}
+
+.communities-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+
+  @media (min-width: $breakpoint-tablet) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: $breakpoint-desktop) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+a.community-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.75rem;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+
+    @include dark-mode {
+      background: $color-card-hover-dark;
+    }
+  }
+}
+
+.community-card-avatar {
+  flex-shrink: 0;
+}
+
+.community-card-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.community-card-initials {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: $color-border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  @include muted-text;
+
+  @include dark-mode {
+    background: $color-border-dark;
+  }
+}
+
+.community-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.community-card-handle {
+  font-size: 0.85em;
+  color: #4a7cac;
+  @include dark-mode { color: #6ba3d6; }
+}
+
+.community-card-featured {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $color-tag-bg;
+}
+
+.community-card-events {
+  @include muted-text;
+  font-size: 0.8rem;
+}

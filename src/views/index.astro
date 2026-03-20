@@ -4,14 +4,24 @@ import Base from '@/layouts/Base.astro';
 import ClubHome from '@/components/ClubHome.astro';
 import BlogHome from '@/components/BlogHome.astro';
 import WikiHome from '@/components/WikiHome.astro';
+import MagazineHome from '@/components/MagazineHome.astro';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { imageUrl } from '@/lib/media/image-service';
+import { t } from '@/i18n';
 
 const config = getCityConfig();
 const features = getInstanceFeatures();
+const locale = Astro.currentLocale;
 
 const ogImage = config.page_posters?.home ? imageUrl(config.page_posters.home, { width: 1200, height: 630, fit: 'cover' }) : undefined;
+
+const isWiki = features.hasRoutes && !features.hasRides && !features.hasEnrichedEvents;
+let magazineData = null;
+if (isWiki) {
+  const { loadMagazineData } = await import('@/lib/homepage-data.server');
+  magazineData = await loadMagazineData(locale);
+}
 ---
 
 <Base title={config.display_name} description={config.tagline} ogImage={ogImage}>
@@ -19,7 +29,111 @@ const ogImage = config.page_posters?.home ? imageUrl(config.page_posters.home, {
     <ClubHome />
   ) : features.hasRides ? (
     <BlogHome />
+  ) : magazineData ? (
+    <>
+      <div class="home-toggle">
+        <button type="button" class="home-toggle-btn active" data-view="discover">{t('home.discover', locale)}</button>
+        <button type="button" class="home-toggle-btn" data-view="browse">{t('home.browse_all', locale)}</button>
+      </div>
+
+      <div class="home-view-discover">
+        <MagazineHome
+          featuredRoute={magazineData.featuredRoute}
+          upcomingEvents={magazineData.upcomingEvents}
+          featuredCommunities={magazineData.featuredCommunities}
+          exploreRoutes={magazineData.exploreRoutes}
+          facts={magazineData.facts}
+          video={magazineData.video}
+          routeCount={magazineData.routeCount}
+        />
+      </div>
+      <div class="home-view-browse" style="display:none">
+        <WikiHome />
+      </div>
+    </>
   ) : (
     <WikiHome />
   )}
 </Base>
+
+{isWiki && (
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const discoverView = document.querySelector<HTMLElement>('.home-view-discover');
+      const browseView = document.querySelector<HTMLElement>('.home-view-browse');
+      const buttons = document.querySelectorAll<HTMLButtonElement>('.home-toggle-btn');
+      if (!discoverView || !browseView || buttons.length === 0) return;
+
+      function showView(view: string) {
+        if (view === 'browse') {
+          discoverView!.style.display = 'none';
+          browseView!.style.display = '';
+        } else {
+          discoverView!.style.display = '';
+          browseView!.style.display = 'none';
+        }
+        buttons.forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.view === view);
+        });
+      }
+
+      // Check hash on load
+      if (location.hash === '#browse') {
+        showView('browse');
+      }
+
+      // Button clicks
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const view = btn.dataset.view || 'discover';
+          showView(view);
+          history.replaceState(null, '', view === 'browse' ? '#browse' : location.pathname);
+        });
+      });
+
+      // Hash changes
+      window.addEventListener('hashchange', () => {
+        showView(location.hash === '#browse' ? 'browse' : 'discover');
+      });
+
+      // Show random items from statically rendered lists
+      // Items with data-weight="N" are N times more likely to be picked
+      const isDesktop = window.matchMedia('(min-width: 800px)').matches;
+      for (const list of document.querySelectorAll<HTMLElement>('[data-show-random]')) {
+        const mobileCount = parseInt(list.dataset.showRandom || '3', 10);
+        const desktopCount = list.dataset.showRandomDesktop ? parseInt(list.dataset.showRandomDesktop, 10) : mobileCount;
+        const count = isDesktop ? desktopCount : mobileCount;
+        const items = Array.from(list.children) as HTMLElement[];
+
+        // Weighted random selection without replacement
+        const picked = new Set<HTMLElement>();
+        const weights = items.map(el => parseInt((el as HTMLElement).dataset.weight || '1', 10));
+        for (let n = 0; n < Math.min(count, items.length); n++) {
+          let total = 0;
+          for (let i = 0; i < items.length; i++) {
+            if (!picked.has(items[i])) total += weights[i];
+          }
+          let r = Math.random() * total;
+          for (let i = 0; i < items.length; i++) {
+            if (picked.has(items[i])) continue;
+            r -= weights[i];
+            if (r <= 0) { picked.add(items[i]); break; }
+          }
+        }
+
+        // Shuffle picked items in DOM for visual variety
+        const pickedArr = Array.from(picked);
+        for (let i = pickedArr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pickedArr[i], pickedArr[j]] = [pickedArr[j], pickedArr[i]];
+        }
+        for (const el of pickedArr) list.appendChild(el);
+
+        for (const item of items) {
+          item.hidden = !picked.has(item);
+        }
+        list.style.visibility = 'visible';
+      }
+    });
+  </script>
+)}

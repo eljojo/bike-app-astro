@@ -12,6 +12,7 @@
   "home.suggest_route_few": "Aidez à construire la bibliothèque de parcours — ajoutez un trajet que vous aimez",
   "home.suggest_route_many": "Vous connaissez un autre beau parcours\u00a0? Ajoutez-le",
   "filter.choose_tag": "choisir un tag pour filtrer :",
+  "filter.all": "tout",
   "route.elevation_gain": "Dénivelé positif",
   "route.meters": "mètres",
   "route.this_is": "c'est",
@@ -376,5 +377,30 @@
 
   "place_editor.details_toggle": "Ajouter des détails (adresse, site web, téléphone)",
 
-  "map.description": "{count} itinéraires cyclables à {city}"
+  "map.description": "{count} itinéraires cyclables à {city}",
+
+  "nav.communities": "Communautés",
+  "communities.title": "Communautés",
+  "communities.intro": "Les personnes et groupes qui organisent des événements et sorties cyclistes.",
+  "communities.event_count": "{count} événements",
+  "communities.one_event": "1 événement",
+  "communities.featured": "En vedette",
+  "communities.go_back": "retour aux communautés",
+  "communities.past_events": "Événements passés",
+  "communities.upcoming_events": "Événements à venir",
+  "communities.show_all_events": "Afficher les {count} événements",
+  "communities.edit_description": "Quelque chose à corriger\u00a0? Vous pouvez le faire — chaque modification peut être annulée.",
+
+  "home.subtitle": "Parcours, événements et les gens qui roulent ici",
+  "home.discover": "Découvrir",
+  "home.browse_all": "Tous les parcours",
+  "home.featured_ride": "Parcours en vedette",
+  "home.routes_to_explore": "Parcours à explorer",
+  "home.local_communities": "Communautés locales",
+  "home.upcoming_events": "Événements à venir",
+  "home.did_you_know": "Le saviez-vous...",
+  "home.read_more": "En savoir plus",
+  "home.full_calendar": "Calendrier complet",
+  "home.all_communities": "Toutes les communautés",
+  "home.view_all_routes": "Voir les {count} parcours"
 }

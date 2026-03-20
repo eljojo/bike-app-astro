@@ -29,6 +29,8 @@ export function placeDetailFromGit(
     lat: frontmatter.lat as number,
     lng: frontmatter.lng as number,
     status: (frontmatter.status as string) || 'published',
+    vibe: frontmatter.vibe as string | undefined,
+    good_for: (frontmatter.good_for as PlaceDetail['good_for']) || [],
     address: frontmatter.address as string | undefined,
     website: frontmatter.website as string | undefined,
     phone: frontmatter.phone as string | undefined,

@@ -1,0 +1,82 @@
+---
+export const prerender = true;
+import './CommunitiesIndex.scss';
+import Base from '@/layouts/Base.astro';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '@/lib/config/city-config';
+import { t } from '@/i18n';
+import { organizerLink, organizerInitials, organizerInstagram, hasDetailPage } from '@/lib/models/organizer-model';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+const organizers = await getCollection('organizers');
+const events = await getCollection('events');
+
+// Count events per organizer
+const eventCounts = new Map<string, number>();
+for (const event of events) {
+  const orgId = typeof event.data.organizer === 'string' ? event.data.organizer : undefined;
+  if (orgId) {
+    eventCounts.set(orgId, (eventCounts.get(orgId) || 0) + 1);
+  }
+}
+
+// Only show organizers that qualify for a detail page
+// Sort: featured first, then by event count descending
+const sorted = organizers
+  .filter(org => hasDetailPage(org))
+  .sort((a, b) => {
+    if (a.data.featured && !b.data.featured) return -1;
+    if (!a.data.featured && b.data.featured) return 1;
+    return (eventCounts.get(b.id) || 0) - (eventCounts.get(a.id) || 0);
+  });
+---
+
+<Base title={`${t('communities.title', locale)} | ${config.display_name}`}>
+  <h1>{t('communities.title', locale)}</h1>
+  <p class="communities-intro">{t('communities.intro', locale)}</p>
+
+  <div class="communities-grid">
+    {sorted.map(org => {
+      const count = eventCounts.get(org.id) || 0;
+
+      return (
+        <a href={organizerLink(org, locale)} class="community-card">
+          <div class="community-card-avatar">
+            {org.data.photo_key ? (
+              <ResponsiveImage
+                blobKey={org.data.photo_key}
+                alt={org.data.name}
+                widths={[128]}
+                width={64}
+                height={64}
+                class="community-card-photo"
+              />
+            ) : (
+              <div class="community-card-initials">{organizerInitials(org.data.name)}</div>
+            )}
+          </div>
+          <div class="community-card-info">
+            <span class="community-card-name">{org.data.name}</span>
+            {org.data.featured && (
+              <span class="community-card-featured admin-only">{t('communities.featured', locale)}</span>
+            )}
+            {organizerInstagram(org.data) && (
+              <span class="community-card-handle">@{organizerInstagram(org.data)}</span>
+            )}
+            {org.data.tagline && (
+              <span class="community-card-tagline">{org.data.tagline}</span>
+            )}
+            {count > 0 && (
+              <span class="community-card-events">
+                {count === 1 ? t('communities.one_event', locale) : t('communities.event_count', locale, { count })}
+              </span>
+            )}
+          </div>
+        </a>
+      );
+    })}
+  </div>
+</Base>

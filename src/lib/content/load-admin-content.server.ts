@@ -6,6 +6,8 @@ import type { AdminRide } from '../../loaders/admin-rides';
 import { routeDetailFromCache } from '../models/route-model';
 import { eventDetailFromCache } from '../models/event-model';
 import { rideDetailFromCache } from '../models/ride-model';
+import { organizerDetailFromCache } from '../models/organizer-model';
+import type { AdminOrganizer } from '../../types/admin';
 import { deserializeSharedKeys, type SharedKeysMap } from '../media/media-registry';
 import { CITY } from '../config/config';
 
@@ -280,6 +282,45 @@ export async function loadAdminRideList(buildTimeRides: AdminRide[]): Promise<{
   return { rides: items, pendingSlugs: pendingIds };
 }
 
+/**
+ * Load admin organizer list with D1 cache overlay.
+ * Merges cached edits over build-time virtual module data and appends
+ * organizers that only exist in the cache (created since last deploy).
+ */
+export async function loadAdminOrganizerList(
+  buildTimeOrganizers: AdminOrganizer[],
+): Promise<{ items: AdminOrganizer[]; pendingIds: Set<string> }> {
+  return loadAdminContentList({
+    contentType: 'organizers',
+    buildTimeItems: buildTimeOrganizers,
+    getId: (item) => item.slug,
+    fromCache: organizerDetailFromCache,
+    overlay: (item, cached) => ({
+      ...item,
+      name: cached.name,
+      tagline: cached.tagline,
+      tags: cached.tags,
+      featured: cached.featured,
+      instagram: cached.instagram,
+      photo_key: cached.photo_key,
+      photo_content_type: cached.photo_content_type,
+      contentHash: cached.contentHash ?? item.contentHash,
+    }),
+    freshItemFromCache: (id, cached) => ({
+      slug: id,
+      name: cached.name,
+      tagline: cached.tagline,
+      tags: cached.tags,
+      featured: cached.featured,
+      website: cached.website,
+      instagram: cached.instagram,
+      photo_key: cached.photo_key,
+      photo_content_type: cached.photo_content_type,
+      contentHash: cached.contentHash ?? '',
+    }),
+  });
+}
+
 export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promise<T[]> {
   const database = getDb();
   const cached = await database.select().from(contentEdits)
@@ -303,20 +344,24 @@ export async function loadParkedMediaWithOverlay<T>(buildTimeParked: T[]): Promi
 /**
  * Fetch a prerendered JSON file from the app's own static assets.
  * Three execution paths:
- * - Local dev: global fetch() works fine (Astro dev server handles concurrency)
- * - Node.js production: reads from dist/client/ on disk (avoids self-fetch deadlock)
+ * - Local (disk available): reads from dist/client/ on disk (avoids self-fetch deadlock)
+ * - Local (dev server): global fetch() works (Astro dev server handles concurrency)
  * - Cloudflare Workers: uses ASSETS binding (avoids self-fetch deadlock / 522)
+ *
+ * NOTE: The disk-read vs fetch decision uses a runtime existsSync check, NOT
+ * import.meta.env.PROD. Astro's SSR build treats import.meta.env.PROD as falsy
+ * in server chunks, so Rollup dead-code-eliminates the readFileSync branch when
+ * combined with Vite define constants. See detailed_plan.md § Build-Time Constants.
  */
 export async function fetchJson<T>(url: URL): Promise<T> {
-  if (__RUNTIME_LOCAL__ && import.meta.env.PROD) {
-    // Node.js production/preview: read prerendered JSON from disk.
-    const { readFileSync } = await import('node:fs');
+  if (__RUNTIME_LOCAL__) {
+    const { existsSync, readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const filePath = join(process.cwd(), 'dist', 'client', url.pathname);
-    return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
-  }
-  if (__RUNTIME_LOCAL__) {
-    // Local dev: Astro dev server handles concurrent requests, no deadlock.
+    if (existsSync(filePath)) {
+      return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
+    }
+    // Dev server: dist/client/ doesn't exist yet, fetch from Astro dev server.
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to fetch ${url.pathname}: ${res.status}`);
     return res.json() as Promise<T>;

@@ -13,6 +13,7 @@ body {
 
   @media (min-width: $breakpoint-mobile) {
     width: $content-width; // route card image placeholder height (calc(85vw/2 - 8px)) depends on this value
+    max-width: 1500px;
     margin: 1em auto;
   }
 }
@@ -22,7 +23,14 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
 }
 
-a { color: inherit; }
+a {
+  color: $color-link;
+  text-decoration: none;
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+}
 
 img { max-width: 100%; height: auto; }
 
@@ -124,7 +132,8 @@ a.go-back-button {
 // ============================================================
 
 .site-header {
-  margin-bottom: 10px;
+  text-align: center;
+  padding: 0.8rem 0 0.2rem;
   font-size: 2em;
 }
 .site-title {
@@ -141,27 +150,54 @@ a.go-back-button {
 .top-nav ul {
   font-size: 1.3em;
   font-family: $font-heading;
-  margin: 0 0 10px 0;
-  padding: 0;
+  margin: 0;
+  padding: 0 0 0.4rem;
   list-style: none;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: baseline;
+  gap: 0.3em;
+  border-bottom: 1px solid $color-border;
+  margin-bottom: 1.2rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
 
   li {
-    margin: 0 0.5em 0 0;
+    margin: 0;
   }
 
   .nav-lang {
-    margin-left: auto;
-    margin-right: 0;
     font-size: 0.75em;
-    opacity: 0.6;
-    &:hover { opacity: 1; }
+
+    a {
+      border: 1px solid $color-border;
+      border-radius: 4px;
+      padding: 0.15em 0.5em;
+      transition: border-color 0.15s;
+
+      @include dark-mode {
+        border-color: $color-border-dark;
+      }
+
+      &:hover {
+        text-decoration: none;
+        border-color: $color-accent;
+      }
+    }
   }
 }
 .top-nav a {
+  color: inherit;
   text-decoration: none;
+  padding: 0.25em 0.5em;
+
+  &.nav-active {
+    color: $color-accent;
+  }
+
   &:hover { text-decoration: underline; }
 }
 
@@ -171,8 +207,14 @@ a.go-back-button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  a { padding: 4px; text-decoration: none; }
-  .powered-by { opacity: 0.5; font-size: 0.85em; &:hover { opacity: 1; } }
+  a { color: inherit; padding: 4px; text-decoration: none; }
+  .powered-by {
+    margin-left: auto;
+    font-size: 0.85em;
+    background: none !important;
+    @include muted-text;
+    &:hover { text-decoration: underline; }
+  }
   @media (max-width: $breakpoint-mobile) {
     .powered-by { display: none; }
   }
@@ -462,6 +504,14 @@ a.go-back-button {
 // ============================================================
 
 // Home
+// Site subtitle
+.site-subtitle {
+  @include muted-text;
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0;
+  text-align: center;
+}
+
 .site-identity-line {
   @include muted-text;
   font-size: 0.95rem;
@@ -477,6 +527,17 @@ a.go-back-button {
 }
 
 // Calendar
+.calendar-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  h1 {
+    font-size: 1.7em;
+  }
+}
+
 .calendar-section {
   margin: 2em 0;
 }
@@ -667,19 +728,19 @@ a.go-back-button {
   display: inline;
 }
 
+// Admin-only elements (hidden unless logged in)
+.admin-only { display: none; }
+.admin-visible .admin-only { display: inline; }
+
 // Admin nav link (hidden unless logged in)
 .nav-admin {
   display: none;
 }
 .admin-visible .nav-admin {
   display: list-item;
-  font-size: 0.8em;
-}
-// Hide About on mobile when admin is visible to save space
-@media (max-width: $breakpoint-mobile) {
-  .admin-visible .nav-about {
-    display: none;
-  }
+  font-size: 0.7em;
+  opacity: 0.4;
+  &:hover { opacity: 1; }
 }
 
 .edit-entry-point {
@@ -1745,3 +1806,4 @@ a.go-back-button {
   font-size: 0.9em;
   @include muted-text;
 }
+

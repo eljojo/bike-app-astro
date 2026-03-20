@@ -849,3 +849,7 @@
   font-size: 0.85em;
   @include muted-text;
 }
+
+.event-similar-card.is-past {
+  opacity: 0.65;
+}

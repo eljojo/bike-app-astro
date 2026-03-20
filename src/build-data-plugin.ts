@@ -88,6 +88,13 @@ function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
 }
 
+function loadHomepageFacts(): unknown[] {
+  const filePath = path.join(CITY_DIR, 'homepage-facts.yml');
+  if (!fs.existsSync(filePath)) return [];
+  const parsed = yaml.load(fs.readFileSync(filePath, 'utf-8')) as { facts?: unknown[] } | null;
+  return parsed?.facts || [];
+}
+
 function loadTagTranslations() {
   const filePath = path.join(CITY_DIR, 'tag-translations.yml');
   if (!fs.existsSync(filePath)) return {};
@@ -157,7 +164,7 @@ interface AdminModuleConfig {
 // All admin module names that any view might dynamically import.
 // Inactive modules (e.g. admin-events on a blog instance) get empty stubs
 // so Rollup can resolve them even when the content type isn't registered.
-const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places'];
+const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places', 'organizers'];
 
 function registerAdminModules(configs: AdminModuleConfig[]) {
   const promises = new Map<string, Promise<{ list: unknown; details: unknown }>>();
@@ -233,6 +240,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
   const fontPreloads = loadFontPreloads();
+  const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
   const contributors = loadContributors(CONSUMER_ROOT);
 
@@ -262,6 +270,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       : async () => { const d = await adminRouteDataPromise!; return { list: d.routes, details: d.details }; },
     events: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; },
     places: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; },
+    organizers: async () => { const d = await adminOrganizersPromise; return { list: d.list, details: d.details }; },
   };
 
   // Build admin modules from the content type registry, using the loader map
@@ -281,9 +290,6 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const virtualModules: Record<string, () => Promise<string>> = {
     'cached-maps': async () =>
       `export default new Set(${JSON.stringify(cachedMaps)});`,
-
-    'admin-organizers': async () =>
-      `export default ${JSON.stringify(await adminOrganizersPromise)};`,
 
     'contributors': async () =>
       `export default ${JSON.stringify(contributors)};`,
@@ -330,6 +336,9 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     },
 
     'ride-redirects': async () => buildRideRedirectsModule(),
+
+    'homepage-facts': async () =>
+      `export default ${JSON.stringify(homepageFacts)};`,
   };
 
   return {

@@ -145,8 +145,16 @@ interface _AdminEventDetail {
 interface _AdminOrganizer {
   slug: string;
   name: string;
+  tagline?: string;
+  tags: string[];
+  featured: boolean;
   website?: string;
   instagram?: string;
+  photo_key?: string;
+  photo_content_type?: string;
+  photo_width?: number;
+  photo_height?: number;
+  contentHash: string;
 }
 
 declare module 'virtual:bike-app/admin-routes' {
@@ -208,6 +216,11 @@ declare module 'virtual:bike-app/admin-place-detail' {
 declare module 'virtual:bike-app/admin-organizers' {
   const organizers: _AdminOrganizer[];
   export default organizers;
+}
+
+declare module 'virtual:bike-app/admin-organizer-detail' {
+  const data: Record<string, import('./lib/models/organizer-model').OrganizerDetail>;
+  export default data;
 }
 
 interface _Contributor {
@@ -313,4 +326,28 @@ declare module 'virtual:bike-app/ride-redirects' {
   /** Map of source path → target path for ride 301 redirects */
   const redirects: Record<string, string>;
   export default redirects;
+}
+
+interface _HomepageFact {
+  template?: string;
+  text?: string;
+  link?: string;
+  link_text?: string;
+  link_from?: string;
+  query?: {
+    type: string;
+    filter?: Record<string, string>;
+    count_as?: string;
+    sort?: string;
+    order?: string;
+    direction?: string;
+    pick?: string;
+    fields?: string[];
+    vibe?: string;
+  };
+}
+
+declare module 'virtual:bike-app/homepage-facts' {
+  const facts: _HomepageFact[];
+  export default facts;
 }

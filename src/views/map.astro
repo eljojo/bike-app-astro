@@ -26,11 +26,13 @@ const routeData = published
     const firstVariant = r.data.variants[0];
     const track = firstVariant ? r.data.gpxTracks[firstVariant.gpx] : null;
     const trans = r.data.translations?.[locale!];
+    const mediaCover = r.data.media?.find(m => m.cover)?.key || r.data.media?.[0]?.key;
     return {
       url: paths.route(routeSlug(r, locale), locale),
       name: trans?.name || r.data.name,
       polyline: track?.polyline || '',
       distance_km: r.data.distance_km,
+      photo_key: mediaCover,
     };
   })
   .filter(r => r.polyline);
@@ -46,18 +48,32 @@ const routeInfo = new Map(published.map(r => {
 
 const placeData = places
   .filter(p => p.data.status === 'published')
-  .map(p => ({
-    name: p.data.name,
-    category: p.data.category,
-    emoji: categoryEmoji[p.data.category] || '📍',
-    lat: p.data.lat,
-    lng: p.data.lng,
-    google_maps_url: p.data.google_maps_url || `https://www.google.com/maps/?q=${p.data.lat},${p.data.lng}`,
-    link: p.data.website,
-    address: p.data.address,
-    phone: p.data.phone,
-    photo_key: p.data.photo_key,
-  }));
+  .map(p => {
+    const mediaCover = p.data.media?.find(m => m.cover)?.key || p.data.media?.[0]?.key;
+    return {
+      name: p.data.name,
+      category: p.data.category,
+      emoji: categoryEmoji[p.data.category] || '📍',
+      lat: p.data.lat,
+      lng: p.data.lng,
+      google_maps_url: p.data.google_maps_url || `https://www.google.com/maps/?q=${p.data.lat},${p.data.lng}`,
+      link: p.data.website,
+      address: p.data.address,
+      phone: p.data.phone,
+      photo_key: mediaCover || p.data.photo_key,
+    };
+  });
+// Auto-assign nearby route photos to places without a photo
+for (const place of placeData) {
+  if (place.photo_key) continue;
+  let bestKey: string | undefined;
+  let bestDist = PHOTO_NEAR_PLACE_M;
+  for (const p of photoLocations) {
+    const dist = haversineM(p.lat, p.lng, place.lat, place.lng);
+    if (dist < bestDist) { bestDist = dist; bestKey = p.key; }
+  }
+  if (bestKey) place.photo_key = bestKey;
+}
 // Select photos for the big map:
 // 1. First geolocated photo per route (cover/top photo)
 // 2. Any photo within PHOTO_NEAR_PLACE_M of a place marker

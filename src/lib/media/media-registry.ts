@@ -1,5 +1,5 @@
 export interface MediaUsage {
-  type: 'route' | 'place' | 'event' | 'parked';
+  type: 'route' | 'place' | 'event' | 'organizer' | 'parked';
   slug: string;
 }
 

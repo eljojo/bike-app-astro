@@ -43,18 +43,24 @@ export interface AdminPlace {
   category: string;
   lat: number;
   lng: number;
+  vibe?: string;
+  good_for: string[];
   contentHash: string;
 }
 
 export interface AdminOrganizer {
   slug: string;
   name: string;
+  tagline?: string;
+  tags: string[];
+  featured: boolean;
   website?: string;
   instagram?: string;
   photo_key?: string;
   photo_content_type?: string;
   photo_width?: number;
   photo_height?: number;
+  contentHash: string;
 }
 
 /** Minimal route reference used by event editors. */

@@ -38,10 +38,4 @@ const config = (features.hasRides || features.hasEnrichedEvents) ? getCityConfig
   <a href="https://whereto.bike" class="powered-by" target="_blank" rel="noopener">
     {t('footer.powered_by', locale)}
   </a>
-  {showSwitcher && (
-    <a href={switchPath} class="lang-switcher"
-       data-locale={otherLocale}>
-      {t('lang.switch', locale)}
-    </a>
-  )}
 </footer>

@@ -38,13 +38,13 @@ describe('placeHandlers.parseRequest', () => {
 
 describe('placeHandlers.resolveContentId', () => {
   it('returns the id param for existing places', () => {
-    const update = { frontmatter: { name: 'Test', category: 'cafe', lat: 45, lng: -75 } };
+    const update = { frontmatter: { name: 'Test', category: 'cafe', lat: 45, lng: -75, good_for: [] as string[] } };
     const id = placeHandlers.resolveContentId({ id: 'test-place' }, update);
     expect(id).toBe('test-place');
   });
 
   it('generates slug from name for new places', () => {
-    const update = { frontmatter: { name: 'My New Place', category: 'cafe', lat: 45, lng: -75 } };
+    const update = { frontmatter: { name: 'My New Place', category: 'cafe', lat: 45, lng: -75, good_for: [] as string[] } };
     const id = placeHandlers.resolveContentId({ id: 'new' }, update);
     expect(id).toBe('my-new-place');
   });
@@ -59,13 +59,13 @@ describe('placeHandlers.getFilePaths', () => {
 
 describe('placeHandlers.buildCommitMessage', () => {
   it('new place includes title and Changes trailer', () => {
-    const update = { frontmatter: { name: 'Test Cafe', category: 'cafe', lat: 45, lng: -75 } };
+    const update = { frontmatter: { name: 'Test Cafe', category: 'cafe', lat: 45, lng: -75, good_for: [] as string[] } };
     const msg = placeHandlers.buildCommitMessage(update, 'test-cafe', true, { primaryFile: null });
     expect(msg).toBe(`Create Test Cafe\n\nChanges: ${CITY}/places/test-cafe`);
   });
 
   it('update place includes title and Changes trailer', () => {
-    const update = { frontmatter: { name: 'Test Cafe', category: 'cafe', lat: 45, lng: -75 } };
+    const update = { frontmatter: { name: 'Test Cafe', category: 'cafe', lat: 45, lng: -75, good_for: [] as string[] } };
     const msg = placeHandlers.buildCommitMessage(update, 'test-cafe', false, { primaryFile: null });
     expect(msg).toBe(`Update Test Cafe\n\nChanges: ${CITY}/places/test-cafe`);
   });
@@ -110,6 +110,7 @@ describe('placeHandlers.buildFileChanges', () => {
         category: 'cafe',
         lat: 45.42,
         lng: -75.69,
+        good_for: [] as string[],
         address: '',    // empty → should be omitted
         website: '',    // empty → should be omitted
         phone: '',      // empty → should be omitted
@@ -135,6 +136,7 @@ describe('placeHandlers.buildFileChanges', () => {
         category: 'cafe',
         lat: 45.42,
         lng: -75.69,
+        good_for: [] as string[],
         address: '123 Main St',
         website: 'https://cafe.example.com',
         photo_key: 'abc123',
@@ -157,6 +159,7 @@ describe('placeHandlers.buildFileChanges', () => {
         category: 'cafe',
         lat: 45,
         lng: -75,
+        good_for: [] as string[],
         status: 'published',
       },
     };
@@ -175,6 +178,7 @@ describe('placeHandlers.buildFileChanges', () => {
         category: 'cafe',
         lat: 45,
         lng: -75,
+        good_for: [] as string[],
         status: 'draft',
       },
     };
@@ -194,6 +198,7 @@ describe('placeHandlers.buildFileChanges', () => {
         category: 'cafe',
         lat: 45,
         lng: -75,
+        good_for: [] as string[],
       },
     };
     const mockGit = { readFile: vi.fn().mockResolvedValue(null) };

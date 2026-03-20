@@ -180,6 +180,11 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
     });
   }, [buildSeries, eventLocation, eventStartTime, eventMeetTime]);
 
+  // Stable ref for the parent callback — avoids re-render loop when parent
+  // creates a new handleSeriesChange on every render (not wrapped in useCallback)
+  const onSeriesChangeRef = useRef(onSeriesChange);
+  onSeriesChangeRef.current = onSeriesChange;
+
   // Notify parent whenever series data or occurrences change
   const activeOccurrences = useMemo(
     () => occurrences.filter(o => !o.cancelled),
@@ -189,13 +194,13 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
   useEffect(() => {
     const series = buildSeries();
     if (!series || activeOccurrences.length === 0) {
-      onSeriesChange(series, '', '', false);
+      onSeriesChangeRef.current(series, '', '', false);
       return;
     }
     const firstDate = activeOccurrences[0].date;
     const lastDate = activeOccurrences[activeOccurrences.length - 1].date;
-    onSeriesChange(series, firstDate, lastDate, true);
-  }, [buildSeries, activeOccurrences, onSeriesChange]);
+    onSeriesChangeRef.current(series, firstDate, lastDate, true);
+  }, [buildSeries, activeOccurrences]);
 
   // Build sets for quick lookup in calendar
   const occurrenceDateSet = useMemo(() => new Set(occurrences.map(o => o.date)), [occurrences]);
