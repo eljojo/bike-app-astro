@@ -51,6 +51,7 @@ export interface FeaturedCommunity {
   photoKey?: string;
   link: string;
   eventCount: number;
+  featured: boolean;
 }
 
 export interface ExploreMiniCard {
@@ -227,6 +228,7 @@ function getFeaturedCommunities(
       photoKey: org.data.photo_key,
       link: organizerLink(org, locale),
       eventCount: eventCounts.get(org.id) || 0,
+      featured: !!org.data.featured,
     }));
 }
 

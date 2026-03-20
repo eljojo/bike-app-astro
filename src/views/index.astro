@@ -97,16 +97,40 @@ if (isWiki) {
       });
 
       // Show random items from statically rendered lists
+      // Items with data-weight="N" are N times more likely to be picked
+      const isDesktop = window.matchMedia('(min-width: 800px)').matches;
       for (const list of document.querySelectorAll<HTMLElement>('[data-show-random]')) {
-        const count = parseInt(list.dataset.showRandom || '3', 10);
+        const mobileCount = parseInt(list.dataset.showRandom || '3', 10);
+        const desktopCount = list.dataset.showRandomDesktop ? parseInt(list.dataset.showRandomDesktop, 10) : mobileCount;
+        const count = isDesktop ? desktopCount : mobileCount;
         const items = Array.from(list.children) as HTMLElement[];
-        for (let i = items.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [items[i], items[j]] = [items[j], items[i]];
+
+        // Weighted random selection without replacement
+        const picked = new Set<HTMLElement>();
+        const weights = items.map(el => parseInt((el as HTMLElement).dataset.weight || '1', 10));
+        for (let n = 0; n < Math.min(count, items.length); n++) {
+          let total = 0;
+          for (let i = 0; i < items.length; i++) {
+            if (!picked.has(items[i])) total += weights[i];
+          }
+          let r = Math.random() * total;
+          for (let i = 0; i < items.length; i++) {
+            if (picked.has(items[i])) continue;
+            r -= weights[i];
+            if (r <= 0) { picked.add(items[i]); break; }
+          }
         }
-        const visible = new Set(items.slice(0, count));
+
+        // Shuffle picked items in DOM for visual variety
+        const pickedArr = Array.from(picked);
+        for (let i = pickedArr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pickedArr[i], pickedArr[j]] = [pickedArr[j], pickedArr[i]];
+        }
+        for (const el of pickedArr) list.appendChild(el);
+
         for (const item of items) {
-          item.hidden = !visible.has(item);
+          item.hidden = !picked.has(item);
         }
         list.style.visibility = 'visible';
       }

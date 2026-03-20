@@ -412,15 +412,6 @@
   &[data-show-random] {
     visibility: hidden;
   }
-
-  // Show only 3 on mobile, 5 on desktop
-  .community-card:nth-child(n+4) {
-    display: none;
-
-    @media (min-width: $breakpoint-tablet) {
-      display: list-item;
-    }
-  }
 }
 
 .community-card a {
