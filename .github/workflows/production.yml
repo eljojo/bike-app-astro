@@ -22,30 +22,6 @@ jobs:
     outputs:
       cities: ${{ steps.detect.outputs.cities }}
     steps:
-      - name: Checkout app repo (scheduled — calendar check script)
-        if: github.event_name == 'schedule'
-        uses: actions/checkout@v6
-        with:
-          sparse-checkout: scripts/should-rebuild-calendar.mjs
-          sparse-checkout-cone-mode: false
-
-      - name: Checkout data repo (scheduled — event dates)
-        if: github.event_name == 'schedule'
-        uses: actions/checkout@v6
-        with:
-          repository: eljojo/bike-routes
-          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
-          sparse-checkout: ottawa/events
-          path: bike-routes
-
-      - name: Check if any event ended yesterday
-        if: github.event_name == 'schedule'
-        id: calendar
-        continue-on-error: true
-        run: node scripts/should-rebuild-calendar.mjs
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-
       - id: detect
         run: |
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
@@ -53,13 +29,9 @@ jobs:
             CITY="${{ github.event.client_payload.city || 'ottawa' }}"
             echo "cities=[\"${CITY}\"]" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
-            # Rebuild only if an event ended yesterday (calendar transition).
-            # Default to rebuilding if the check script failed.
-            if [ "${{ steps.calendar.outputs.needed }}" = "false" ]; then
-              echo 'cities=[]' >> "$GITHUB_OUTPUT"
-            else
-              echo 'cities=["ottawa"]' >> "$GITHUB_OUTPUT"
-            fi
+            # Daily rebuild — keeps calendar, events, and date-sensitive
+            # content current without needing to check specific dates.
+            echo 'cities=["ottawa"]' >> "$GITHUB_OUTPUT"
           else
             # Code change or manual dispatch — rebuild all cities
             echo 'cities=["ottawa","demo","brevet"]' >> "$GITHUB_OUTPUT"
