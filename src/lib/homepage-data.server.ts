@@ -178,7 +178,7 @@ function getUpcomingEvents(
       const bDate = parseLocalDate(b.data.start_date).getTime();
       return aDate - bDate;
     })
-    .slice(0, 3)
+    .slice(0, 5)
     .map(e => {
       const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
       const org = orgId ? orgMap.get(orgId) : undefined;

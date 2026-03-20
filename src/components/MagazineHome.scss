@@ -291,6 +291,15 @@
   list-style: none;
   padding: 0;
   margin: 0;
+
+  // Show only 3 events on mobile, 5 on desktop (sidebar visible)
+  .upcoming-event:nth-child(n+4) {
+    display: none;
+
+    @media (min-width: $breakpoint-tablet) {
+      display: list-item;
+    }
+  }
 }
 
 .upcoming-event a {
