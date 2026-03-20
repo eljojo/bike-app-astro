@@ -12,6 +12,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { hasDetailPage, organizerInitials } from '@/lib/models/organizer-model';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -136,6 +137,8 @@ const PAST_EVENTS_INITIAL = 4;
         <Content />
       </div>
     )}
+
+    <EditEntryPoint text={t('communities.edit_description', locale)} href={`/admin/communities/${organizer.id}`} />
 
     {mediaItems.length > 0 && (
       <section class="community-detail-section">

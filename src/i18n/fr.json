@@ -389,6 +389,7 @@
   "communities.past_events": "Événements passés",
   "communities.upcoming_events": "Événements à venir",
   "communities.show_all_events": "Afficher les {count} événements",
+  "communities.edit_description": "Quelque chose à corriger\u00a0? Vous pouvez le faire — chaque modification peut être annulée.",
 
   "home.subtitle": "Parcours, événements et les gens qui roulent ici",
   "home.discover": "Découvrir",
