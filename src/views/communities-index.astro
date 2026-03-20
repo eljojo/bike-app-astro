@@ -6,7 +6,7 @@ import ResponsiveImage from '@/components/ResponsiveImage.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t } from '@/i18n';
-import { organizerLink, organizerInitials, hasDetailPage } from '@/lib/models/organizer-model';
+import { organizerLink, organizerInitials, organizerInstagram, hasDetailPage } from '@/lib/models/organizer-model';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -63,8 +63,8 @@ const sorted = organizers
             {org.data.featured && (
               <span class="community-card-featured admin-only">{t('communities.featured', locale)}</span>
             )}
-            {org.data.instagram && (
-              <span class="community-card-handle">@{org.data.instagram.replace(/^@/, '')}</span>
+            {organizerInstagram(org.data) && (
+              <span class="community-card-handle">@{organizerInstagram(org.data)}</span>
             )}
             {org.data.tagline && (
               <span class="community-card-tagline">{org.data.tagline}</span>

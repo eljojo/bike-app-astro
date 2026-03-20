@@ -9,7 +9,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasDetailPage, organizerInitials } from '@/lib/models/organizer-model';
+import { hasDetailPage, organizerInitials, normalizeSocialLinks } from '@/lib/models/organizer-model';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
@@ -48,10 +48,11 @@ const orgEvents = allEvents
 const upcomingEvents = orgEvents.filter(e => endOfDay(e.data.end_date || e.data.start_date) >= now);
 const pastEvents = orgEvents.filter(e => endOfDay(e.data.end_date || e.data.start_date) < now);
 
-// Social link pills — skip Twitter/X
-const socialLinks = (data.social_links ?? []).filter(
-  link => !['twitter', 'x'].includes(link.platform.toLowerCase())
-);
+// Unify legacy instagram/website fields with social_links, then filter out Twitter/X
+const socialLinks = normalizeSocialLinks(
+  data.social_links ?? [],
+  { instagram: data.instagram, website: data.website },
+).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
 
 function platformLabel(platform: string): string {
   const labels: Record<string, string> = {
@@ -107,16 +108,6 @@ const PAST_EVENTS_INITIAL = 4;
         <h1>{data.name}</h1>
         {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
         <div class="community-detail-links">
-          {data.instagram && (
-            <a href={`https://instagram.com/${data.instagram.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" class="community-social-pill">
-              @{data.instagram.replace(/^@/, '')} on Instagram
-            </a>
-          )}
-          {data.website && (
-            <a href={data.website} target="_blank" rel="noopener noreferrer" class="community-social-pill">
-              Website
-            </a>
-          )}
           {socialLinks.map(link => (
             <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
               {platformLabel(link.platform)}

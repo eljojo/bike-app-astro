@@ -2,7 +2,7 @@
 import './OrganizerSpotlight.scss';
 import ResponsiveImage from './ResponsiveImage.astro';
 import { t } from '../i18n';
-import { organizerLink, organizerInitials, type OrganizerEntry } from '../lib/models/organizer-model';
+import { organizerLink, organizerInitials, organizerInstagram, type OrganizerEntry } from '../lib/models/organizer-model';
 
 interface Props {
   organizers: OrganizerEntry[];
@@ -36,8 +36,8 @@ const { organizers, locale } = Astro.props;
             )}
             <div class="organizer-spotlight-info">
               <span class="organizer-spotlight-name">{org.data.name}</span>
-              {org.data.instagram && (
-                <span class="organizer-spotlight-handle">@{org.data.instagram}</span>
+              {organizerInstagram(org.data) && (
+                <span class="organizer-spotlight-handle">@{organizerInstagram(org.data)}</span>
               )}
             </div>
           </div>

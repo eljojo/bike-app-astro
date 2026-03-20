@@ -10,6 +10,7 @@ import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { organizerOps } from '../../lib/content/content-ops.server';
+import { normalizeSocialLinks } from '../../lib/models/organizer-model';
 import { slugify } from '../../lib/slug';
 import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup, mergeFrontmatter } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
@@ -135,9 +136,16 @@ export const organizerHandlers: SaveHandlers<OrganizerUpdate, OrganizerBuildResu
     if (update.frontmatter.tags?.length) fm.tags = update.frontmatter.tags;
     if (update.frontmatter.featured !== undefined) fm.featured = update.frontmatter.featured;
     if (update.frontmatter.hidden !== undefined) fm.hidden = update.frontmatter.hidden;
-    if (update.frontmatter.website) fm.website = update.frontmatter.website;
-    if (update.frontmatter.instagram) fm.instagram = update.frontmatter.instagram;
-    if (update.frontmatter.social_links?.length) fm.social_links = update.frontmatter.social_links;
+    // Normalize social links: expand bare handles to full URLs,
+    // migrate legacy instagram/website fields into social_links
+    const existingContent = currentFiles.primaryFile?.content ?? '';
+    const legacyInstagram = extractFrontmatterField(existingContent, 'instagram');
+    const legacyWebsite = extractFrontmatterField(existingContent, 'website');
+    const normalized = normalizeSocialLinks(
+      update.frontmatter.social_links ?? [],
+      { instagram: legacyInstagram, website: legacyWebsite },
+    );
+    if (normalized.length) fm.social_links = normalized;
     if (update.frontmatter.photo_key) {
       fm.photo_key = update.frontmatter.photo_key;
       if (update.frontmatter.photo_width) fm.photo_width = update.frontmatter.photo_width;
