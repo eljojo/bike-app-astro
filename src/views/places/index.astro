@@ -16,8 +16,8 @@ const sorted = places
   .sort((a, b) => a.data.name.localeCompare(b.data.name));
 ---
 
-<Base title={`Places | ${config.display_name}`}>
-  <h1>Places</h1>
+<Base title={`${t('places.title', locale)} | ${config.display_name}`}>
+  <h1>{t('places.title', locale)}</h1>
   <ul class="guides-list">
     {sorted.map(place => (
       <li class="guides-list--guide">

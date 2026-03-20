@@ -1,45 +1,35 @@
-export interface LocalePageWithSegments {
-  pattern: string;
-  entrypoint: string;
-  segments?: Record<string, Record<string, string>>;
-}
-
-/**
- * Collect segment translations from route definitions into a single map.
- * This is the bridge between colocated route+translation definitions
- * and the translatePath/reverseTranslatePath functions.
- */
-export function buildSegmentTranslations(
-  pages: LocalePageWithSegments[],
-): Record<string, Record<string, string>> {
-  const result: Record<string, Record<string, string>> = {};
-  for (const page of pages) {
-    if (!page.segments) continue;
-    for (const [segment, locales] of Object.entries(page.segments)) {
-      if (!result[segment]) result[segment] = {};
-      Object.assign(result[segment], locales);
-    }
-  }
-  return result;
-}
-
 /**
  * URL path segment translations by locale.
  * Only segments that differ from the default (English) need an entry.
- * Initialized by setSegmentTranslations() during astro:config:setup.
+ *
+ * This is a static constant — NOT a mutable variable set at runtime.
+ * Vite's SSR bundle runs in a separate module graph from the Astro
+ * integration hooks, so module-level mutable state set during
+ * astro:config:setup is not available at render time.
+ *
+ * When adding a new public route with translated segments, add the
+ * segment here AND in the route definition in
+ * src/integrations/i18n-routes.ts.
  */
-let segmentTranslations: Record<string, Record<string, string>> = {};
+const segmentTranslations: Record<string, Record<string, string>> = {
+  // shared
+  about: { fr: 'a-propos', es: 'acerca-de' },
+  // wiki
+  calendar: { fr: 'calendrier', es: 'calendario' },
+  communities: { fr: 'communautes', es: 'comunidades' },
+  events: { fr: 'evenements', es: 'eventos' },
+  map: { fr: 'carte', es: 'mapa' },
+  routes: { fr: 'parcours', es: 'rutas' },
+  guides: { fr: 'guides', es: 'guias' },
+  // club
+  places: { fr: 'lieux', es: 'lugares' },
+  // blog
+  rides: { fr: 'sorties', es: 'recorridos' },
+  tours: { fr: 'voyages', es: 'viajes' },
+  stats: { fr: 'statistiques', es: 'estadisticas' },
+};
 
-/**
- * Initialize segment translations. Called once by the i18n-routes integration
- * during astro:config:setup. After this call, translatePath and
- * reverseTranslatePath use the provided translations.
- */
-export function setSegmentTranslations(translations: Record<string, Record<string, string>>): void {
-  segmentTranslations = translations;
-}
-
-/** Read current segment translations. */
+/** Read segment translations. */
 export function getSegmentTranslations(): Record<string, Record<string, string>> {
   return segmentTranslations;
 }

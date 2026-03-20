@@ -8,10 +8,21 @@ import { routeShape } from '../lib/route-insights';
 import { findNearbyPlaces } from '../lib/geo/proximity';
 import { isPublished } from '../lib/content/content-filters';
 import { parseLocalDate, formatDateRange } from '../lib/date-utils';
+import { toPlaceData } from '../lib/geo/places';
+import { resolveHomepageFacts } from '../lib/homepage-data.server';
+import type { ResolvedFact } from '../lib/homepage-data.server';
+import { hasDetailPage } from '../lib/models/organizer-model';
 import { paths } from '../lib/paths';
 
 export function stripEmoji(text: string): string {
   return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]\uFE0F?/gu, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+/** Convert "did you know" style fact into a standalone statement. */
+export function factToStatement(text: string): string {
+  let s = stripEmoji(text).replace(/\?$/, '.').trim();
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s;
 }
 
 /** Primary surface type from route tags */
@@ -60,6 +71,14 @@ export interface EventFacts {
   location: string;
   distances: string;
   body: string;
+}
+
+export interface CommunityFacts {
+  name: string;
+  slug: string;
+  url: string;
+  tagline: string;
+  eventCount: number;
 }
 
 export async function loadRouteFacts(): Promise<RouteFacts[]> {
@@ -143,4 +162,52 @@ export async function loadUpcomingEvents(): Promise<EventFacts[]> {
     distances: e.data.distances || '',
     body: e.body || '',
   }));
+}
+
+export async function loadCommunities(): Promise<CommunityFacts[]> {
+  const features = getInstanceFeatures();
+  if (!features.hasEvents) return [];
+
+  const config = getCityConfig();
+  const organizers = await getCollection('organizers');
+  const events = await getCollection('events');
+
+  // Count events per organizer
+  const eventCounts = new Map<string, number>();
+  for (const event of events) {
+    const orgId = typeof event.data.organizer === 'string' ? event.data.organizer : undefined;
+    if (orgId) {
+      eventCounts.set(orgId, (eventCounts.get(orgId) || 0) + 1);
+    }
+  }
+
+  return organizers
+    .filter(org => hasDetailPage(org))
+    .sort((a, b) => {
+      if (a.data.featured && !b.data.featured) return -1;
+      if (!a.data.featured && b.data.featured) return 1;
+      return (eventCounts.get(b.id) || 0) - (eventCounts.get(a.id) || 0);
+    })
+    .map(org => ({
+      name: org.data.name,
+      slug: org.id,
+      url: `${config.url}${paths.community(org.id)}`,
+      tagline: org.data.tagline || '',
+      eventCount: eventCounts.get(org.id) || 0,
+    }));
+}
+
+export { type ResolvedFact };
+
+export async function loadHomepageFacts(): Promise<ResolvedFact[]> {
+  const features = getInstanceFeatures();
+  if (!features.hasRoutes || !features.showsContributeLink) return [];
+
+  const routes = (await getCollection('routes')).filter(isPublished);
+  const places = await getCollection('places');
+  const placeData = toPlaceData(places as unknown as Parameters<typeof toPlaceData>[0]);
+  const organizers = features.hasEvents ? await getCollection('organizers') : [];
+  const events = features.hasEvents ? await getCollection('events') : [];
+
+  return resolveHomepageFacts(routes, placeData, organizers, events);
 }

@@ -401,5 +401,23 @@
   "home.read_more": "Leer más",
   "home.full_calendar": "Calendario completo",
   "home.all_communities": "Todas las comunidades",
-  "home.view_all_routes": "Ver los {count} recorridos"
+  "home.view_all_routes": "Ver los {count} recorridos",
+
+  "places.add_near_route": "¿Conoces un lugar cerca de esta ruta? Agrégalo.",
+  "communities.edit_description": "¿Ves algo incorrecto? Puedes corregirlo — cada edición se puede deshacer.",
+  "calendar.add_event": "Agrega tu evento",
+  "events.organizer_website": "Sitio del organizador",
+  "photos.title": "Fotos",
+  "places.title": "Lugares",
+  "social.on_instagram": "@{username} en Instagram",
+  "social.website": "Sitio web",
+  "social.sign_up_form": "Formulario de inscripción",
+  "social.newsletter": "Boletín",
+  "404.title": "Página no encontrada",
+  "404.heading": "¡Giro equivocado!",
+  "404.message": "Parece que esta página no existe. Quizás fue movida.",
+  "404.help": "Aquí hay algunos lugares para retomar el camino:",
+  "404.home": "Inicio — explorar todas las rutas",
+  "404.map": "Mapa — explorar la ciudad",
+  "404.calendar": "Calendario — próximos eventos"
 }

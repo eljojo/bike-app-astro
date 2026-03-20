@@ -402,5 +402,21 @@
   "home.read_more": "Read more",
   "home.full_calendar": "Full calendar",
   "home.all_communities": "All communities",
-  "home.view_all_routes": "View all {count} routes"
+  "home.view_all_routes": "View all {count} routes",
+
+  "calendar.add_event": "Add your event",
+  "events.organizer_website": "Organizer website",
+  "photos.title": "Photos",
+  "places.title": "Places",
+  "social.on_instagram": "@{username} on Instagram",
+  "social.website": "Website",
+  "social.sign_up_form": "Sign up form",
+  "social.newsletter": "Newsletter",
+  "404.title": "Page Not Found",
+  "404.heading": "Wrong Turn!",
+  "404.message": "Looks like this route doesn't exist. Maybe it was moved, or perhaps you pedaled past it.",
+  "404.help": "Here are some places to get back on track:",
+  "404.home": "Home — browse all routes",
+  "404.map": "Map — explore the city",
+  "404.calendar": "Calendar — upcoming rides"
 }

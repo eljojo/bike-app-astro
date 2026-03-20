@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
-import { loadRouteFacts, loadUpcomingEvents } from './llms-shared';
+import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadHomepageFacts, factToStatement } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 
 export const prerender = true;
@@ -23,6 +23,8 @@ export const GET: APIRoute = async () => {
   const features = getInstanceFeatures();
   const routeFacts = await loadRouteFacts();
   const events = await loadUpcomingEvents();
+  const communities = await loadCommunities();
+  const facts = await loadHomepageFacts();
 
   const sections: string[] = [];
 
@@ -32,17 +34,23 @@ export const GET: APIRoute = async () => {
 
   // Content summary
   if (features.hasRoutes && features.showsContributeLink) {
-    const content = [
-      'Community-maintained cycling route database.',
+    const parts = [
+      'A community-maintained cycling guide with curated local routes, a cycling event calendar, and connections to local riding communities.',
       'Each route includes distance, elevation, difficulty, surface type, GPS tracks, photos, and local tips.',
       'Open-source and community-edited.',
     ];
-    sections.push(`${content.join(' ')}\n`);
+    sections.push(`${parts.join(' ')}\n`);
   } else if (features.hasRides) {
     sections.push(`Personal cycling journal with ride logs, photos, and GPS tracks.\n`);
   }
 
   sections.push(`Detailed route data with full descriptions and GPX downloads: ${config.url}/llms-full.txt\n`);
+
+  // Highlights
+  if (facts.length > 0) {
+    const factLines = facts.map(f => `- ${factToStatement(f.text)}`);
+    sections.push(`## Highlights\n\n${factLines.join('\n')}\n`);
+  }
 
   // Key sections
   const pageLines = [
@@ -50,7 +58,10 @@ export const GET: APIRoute = async () => {
     `- Map: ${config.url}/map`,
   ];
   if (features.hasEvents) {
-    pageLines.push(`- Calendar: ${config.url}/calendar`);
+    pageLines.push(`- Event calendar: ${config.url}/calendar`);
+  }
+  if (communities.length > 0) {
+    pageLines.push(`- Communities: ${config.url}/communities`);
   }
   pageLines.push(`- About: ${config.url}/about`);
   sections.push(`## Sections\n\n${pageLines.join('\n')}\n`);
@@ -70,6 +81,18 @@ export const GET: APIRoute = async () => {
       return `- ${e.name}: ${parts.join(', ')}`;
     });
     sections.push(`## Upcoming Events\n\n${eventLines.join('\n')}\n`);
+  }
+
+  // Local communities
+  if (communities.length > 0) {
+    const communityLines = communities.map(c => {
+      const parts: string[] = [];
+      if (c.tagline) parts.push(c.tagline);
+      if (c.eventCount > 0) parts.push(`${c.eventCount} events`);
+      const suffix = parts.length > 0 ? `: ${parts.join(', ')}` : '';
+      return `- [${c.name}](${c.url})${suffix}`;
+    });
+    sections.push(`## Local Communities\n\n${communityLines.join('\n')}\n`);
   }
 
   const text = sections.join('\n');

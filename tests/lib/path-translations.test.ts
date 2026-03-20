@@ -1,42 +1,47 @@
 import { describe, it, expect } from 'vitest';
-import { buildSegmentTranslations } from '../../src/lib/i18n/path-translations';
-import type { LocalePageWithSegments } from '../../src/lib/i18n/path-translations';
+import { translatePath, reverseTranslatePath, getSegmentTranslations } from '../../src/lib/i18n/path-translations';
+import { defaultLocale } from '../../src/lib/i18n/locale-utils';
 
-describe('buildSegmentTranslations', () => {
-  it('collects segments from route definitions', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/routes', entrypoint: 'routes.astro', segments: { routes: { fr: 'parcours' } } },
-      { pattern: '/about', entrypoint: 'about.astro', segments: { about: { fr: 'a-propos' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(result.routes).toEqual({ fr: 'parcours' });
-    expect(result.about).toEqual({ fr: 'a-propos' });
+describe('getSegmentTranslations', () => {
+  it('contains expected segments', () => {
+    const translations = getSegmentTranslations();
+    expect(translations.routes).toEqual({ fr: 'parcours', es: 'rutas' });
+    expect(translations.calendar).toEqual({ fr: 'calendrier', es: 'calendario' });
+    expect(translations.about).toEqual({ fr: 'a-propos', es: 'acerca-de' });
+    expect(translations.map).toEqual({ fr: 'carte', es: 'mapa' });
+  });
+});
+
+describe('translatePath', () => {
+  it('translates known segments', () => {
+    // Use a non-default locale — demo city defaults to 'es', ottawa to 'en'
+    const nonDefault = defaultLocale() === 'fr' ? 'es' : 'fr';
+    const expected = nonDefault === 'fr'
+      ? { routes: '/parcours', calendar: '/calendrier', map: '/carte' }
+      : { routes: '/rutas', calendar: '/calendario', map: '/mapa' };
+    expect(translatePath('/routes', nonDefault)).toBe(expected.routes);
+    expect(translatePath('/calendar', nonDefault)).toBe(expected.calendar);
+    expect(translatePath('/map', nonDefault)).toBe(expected.map);
   });
 
-  it('deduplicates shared segments across routes', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/routes/[slug]/map', entrypoint: 'map.astro', segments: { map: { fr: 'carte' } } },
-      { pattern: '/map', entrypoint: 'map-index.astro', segments: { map: { fr: 'carte' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(result.map).toEqual({ fr: 'carte' });
+  it('preserves unknown segments (slugs)', () => {
+    const nonDefault = defaultLocale() === 'fr' ? 'es' : 'fr';
+    const expected = nonDefault === 'fr'
+      ? '/parcours/britannia/carte'
+      : '/rutas/britannia/mapa';
+    expect(translatePath('/routes/britannia/map', nonDefault)).toBe(expected);
   });
+});
 
-  it('skips routes without segments', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/', entrypoint: 'index.astro' },
-      { pattern: '/about', entrypoint: 'about.astro', segments: { about: { es: 'acerca-de' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(Object.keys(result)).toEqual(['about']);
-  });
-
-  it('merges locale entries for the same segment', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/routes', entrypoint: 'r.astro', segments: { routes: { fr: 'parcours' } } },
-      { pattern: '/routes/[slug]', entrypoint: 'rd.astro', segments: { routes: { es: 'rutas' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(result.routes).toEqual({ fr: 'parcours', es: 'rutas' });
+describe('reverseTranslatePath', () => {
+  it('reverses translated segments', () => {
+    const nonDefault = defaultLocale() === 'fr' ? 'es' : 'fr';
+    if (nonDefault === 'fr') {
+      expect(reverseTranslatePath('/parcours/britannia/carte', 'fr')).toBe('/routes/britannia/map');
+      expect(reverseTranslatePath('/calendrier', 'fr')).toBe('/calendar');
+    } else {
+      expect(reverseTranslatePath('/rutas/britannia/mapa', 'es')).toBe('/routes/britannia/map');
+      expect(reverseTranslatePath('/calendario', 'es')).toBe('/calendar');
+    }
   });
 });
