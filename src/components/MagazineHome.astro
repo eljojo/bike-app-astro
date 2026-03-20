@@ -36,22 +36,20 @@ const locale = Astro.currentLocale;
       {featuredRoute && (
         <section class="magazine-featured">
           <h2>{t('home.featured_ride', locale)}</h2>
-          <div class="featured-route-card">
-            <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-link">
-              {featuredRoute.coverKey && (
-                <img
-                  src={imageUrl(featuredRoute.coverKey, { width: 750, height: 420, fit: 'cover' })}
-                  srcset={`${imageUrl(featuredRoute.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
-                  alt={featuredRoute.name}
-                  width="750"
-                  height="420"
-                  loading="eager"
-                  class="featured-route-img"
-                />
-              )}
-            </a>
+          <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-card">
+            {featuredRoute.coverKey && (
+              <img
+                src={imageUrl(featuredRoute.coverKey, { width: 750, height: 420, fit: 'cover' })}
+                srcset={`${imageUrl(featuredRoute.coverKey, { width: 1500, height: 840, fit: 'cover' })} 2x`}
+                alt={featuredRoute.name}
+                width="750"
+                height="420"
+                loading="eager"
+                class="featured-route-img"
+              />
+            )}
             <div class="featured-route-info">
-              <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-name">{featuredRoute.name}</a>
+              <span class="featured-route-name">{featuredRoute.name}</span>
               {featuredRoute.tagline && (
                 <span class="featured-route-meta">{featuredRoute.tagline}</span>
               )}
@@ -64,11 +62,11 @@ const locale = Astro.currentLocale;
               {featuredRoute.description && (
                 <p class="featured-route-description">{featuredRoute.description}</p>
               )}
-              <a href={paths.route(featuredRoute.slug, locale)} class="featured-route-readmore">
+              <span class="featured-route-readmore">
                 {t('home.read_more', locale)} &rarr;
-              </a>
+              </span>
             </div>
-          </div>
+          </a>
         </section>
       )}
 
@@ -200,7 +198,7 @@ const locale = Astro.currentLocale;
       {featuredCommunities.length > 0 && (
         <section class="magazine-communities">
           <h2>{t('home.local_communities', locale)}</h2>
-          <ul class="community-cards">
+          <ul class="community-cards" data-show-random="3">
             {featuredCommunities.map(community => (
               <li class="community-card">
                 <a href={community.link}>

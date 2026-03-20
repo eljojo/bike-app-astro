@@ -3,7 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 import homepageFactEntries from 'virtual:bike-app/homepage-facts';
 import { isPublished } from './content/content-filters';
 import { endOfDay, parseLocalDate } from './date-utils';
-import { organizerLink, organizerInitials } from './models/organizer-model';
+import { organizerLink, organizerInitials, hasDetailPage } from './models/organizer-model';
 import { toPlaceData } from './geo/places';
 import { findNearbyPlaces } from './geo/proximity';
 import type { PlaceData } from './geo/proximity';
@@ -211,13 +211,13 @@ function getFeaturedCommunities(
     }
   }
 
-  return [...organizers]
+  return organizers
+    .filter(org => hasDetailPage(org))
     .sort((a, b) => {
       if (a.data.featured && !b.data.featured) return -1;
       if (!a.data.featured && b.data.featured) return 1;
       return (eventCounts.get(b.id) || 0) - (eventCounts.get(a.id) || 0);
     })
-    .slice(0, 3)
     .map(org => ({
       slug: org.id,
       name: org.data.name,
