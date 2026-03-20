@@ -1,10 +1,7 @@
 import { defaultLocale } from './locale-utils';
 import { getSegmentTranslations } from './segment-registry';
 
-// Re-export for backward compatibility — consumers that import these
-// from path-translations.ts continue to work without changes.
-export { buildSegmentTranslations, setSegmentTranslations } from './segment-registry';
-export type { LocalePageWithSegments } from './segment-registry';
+export { getSegmentTranslations } from './segment-registry';
 
 /**
  * Translate a URL path's segments for a given locale.

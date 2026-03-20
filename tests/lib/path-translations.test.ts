@@ -1,42 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import { buildSegmentTranslations } from '../../src/lib/i18n/path-translations';
-import type { LocalePageWithSegments } from '../../src/lib/i18n/path-translations';
+import { translatePath, reverseTranslatePath, getSegmentTranslations } from '../../src/lib/i18n/path-translations';
 
-describe('buildSegmentTranslations', () => {
-  it('collects segments from route definitions', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/routes', entrypoint: 'routes.astro', segments: { routes: { fr: 'parcours' } } },
-      { pattern: '/about', entrypoint: 'about.astro', segments: { about: { fr: 'a-propos' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(result.routes).toEqual({ fr: 'parcours' });
-    expect(result.about).toEqual({ fr: 'a-propos' });
+describe('getSegmentTranslations', () => {
+  it('contains expected segments', () => {
+    const translations = getSegmentTranslations();
+    expect(translations.routes).toEqual({ fr: 'parcours', es: 'rutas' });
+    expect(translations.calendar).toEqual({ fr: 'calendrier', es: 'calendario' });
+    expect(translations.about).toEqual({ fr: 'a-propos', es: 'acerca-de' });
+    expect(translations.map).toEqual({ fr: 'carte', es: 'mapa' });
+  });
+});
+
+describe('translatePath', () => {
+  it('translates known segments', () => {
+    expect(translatePath('/routes', 'fr')).toBe('/parcours');
+    expect(translatePath('/calendar', 'fr')).toBe('/calendrier');
+    expect(translatePath('/map', 'es')).toBe('/mapa');
   });
 
-  it('deduplicates shared segments across routes', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/routes/[slug]/map', entrypoint: 'map.astro', segments: { map: { fr: 'carte' } } },
-      { pattern: '/map', entrypoint: 'map-index.astro', segments: { map: { fr: 'carte' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(result.map).toEqual({ fr: 'carte' });
+  it('preserves unknown segments (slugs)', () => {
+    expect(translatePath('/routes/britannia/map', 'fr')).toBe('/parcours/britannia/carte');
   });
+});
 
-  it('skips routes without segments', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/', entrypoint: 'index.astro' },
-      { pattern: '/about', entrypoint: 'about.astro', segments: { about: { es: 'acerca-de' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(Object.keys(result)).toEqual(['about']);
-  });
-
-  it('merges locale entries for the same segment', () => {
-    const pages: LocalePageWithSegments[] = [
-      { pattern: '/routes', entrypoint: 'r.astro', segments: { routes: { fr: 'parcours' } } },
-      { pattern: '/routes/[slug]', entrypoint: 'rd.astro', segments: { routes: { es: 'rutas' } } },
-    ];
-    const result = buildSegmentTranslations(pages);
-    expect(result.routes).toEqual({ fr: 'parcours', es: 'rutas' });
+describe('reverseTranslatePath', () => {
+  it('reverses translated segments', () => {
+    expect(reverseTranslatePath('/parcours/britannia/carte', 'fr')).toBe('/routes/britannia/map');
+    expect(reverseTranslatePath('/calendrier', 'fr')).toBe('/calendar');
   });
 });

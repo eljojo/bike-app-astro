@@ -86,7 +86,7 @@ const regUrl = registration?.url || registrationUrl;
   )}
   {organizerWebsite && (
     <a href={organizerWebsite} class="event-organizer-link" target="_blank" rel="noopener noreferrer">
-      Organizer website
+      {t('events.organizer_website', locale)}
     </a>
   )}
   {organizerInstagram && (

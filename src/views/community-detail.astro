@@ -57,8 +57,9 @@ const socialLinks = normalizeSocialLinks(
 function socialLinkLabel(link: { platform: string; url: string }): string {
   if (link.platform === 'instagram') {
     const username = parseInstagramUsername(link.url);
-    return username ? `@${username} on Instagram` : 'Instagram';
+    return username ? t('social.on_instagram', locale, { username }) : 'Instagram';
   }
+  // Brand names stay untranslated; generic labels use t()
   const labels: Record<string, string> = {
     facebook: 'Facebook',
     strava: 'Strava',
@@ -67,13 +68,13 @@ function socialLinkLabel(link: { platform: string; url: string }): string {
     tiktok: 'TikTok',
     bluesky: 'Bluesky',
     threads: 'Threads',
-    website: 'Website',
+    website: t('social.website', locale),
     discord: 'Discord',
-    google_form: 'Sign up form',
+    google_form: t('social.sign_up_form', locale),
     linktree: 'Linktree',
     rwgps: 'Ride with GPS',
     komoot: 'Komoot',
-    newsletter: 'Newsletter',
+    newsletter: t('social.newsletter', locale),
   };
   return labels[link.platform] || link.platform;
 }

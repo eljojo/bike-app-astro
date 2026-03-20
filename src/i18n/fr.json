@@ -402,5 +402,21 @@
   "home.read_more": "En savoir plus",
   "home.full_calendar": "Calendrier complet",
   "home.all_communities": "Toutes les communautés",
-  "home.view_all_routes": "Voir les {count} parcours"
+  "home.view_all_routes": "Voir les {count} parcours",
+
+  "calendar.add_event": "Ajoutez votre événement",
+  "events.organizer_website": "Site de l'organisateur",
+  "photos.title": "Photos",
+  "places.title": "Lieux",
+  "social.on_instagram": "@{username} sur Instagram",
+  "social.website": "Site web",
+  "social.sign_up_form": "Formulaire d'inscription",
+  "social.newsletter": "Infolettre",
+  "404.title": "Page introuvable",
+  "404.heading": "Mauvais tournant\u00a0!",
+  "404.message": "On dirait que cette page n'existe pas. Elle a peut-être été déplacée.",
+  "404.help": "Voici quelques pistes pour retrouver votre chemin\u00a0:",
+  "404.home": "Accueil — parcourir les parcours",
+  "404.map": "Carte — explorer la ville",
+  "404.calendar": "Calendrier — événements à venir"
 }

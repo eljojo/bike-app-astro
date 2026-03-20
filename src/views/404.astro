@@ -2,20 +2,22 @@
 export const prerender = false;
 import Base from '@/layouts/Base.astro';
 import { getCityConfig } from '@/lib/config/city-config';
+import { t } from '@/i18n';
 
 const config = getCityConfig();
+const locale = Astro.currentLocale;
 ---
 
-<Base title={`Page Not Found | ${config.display_name}`} description="The page you're looking for doesn't exist.">
+<Base title={`${t('404.title', locale)} | ${config.display_name}`}>
   <div class="not-found">
     <p class="not-found--emoji">🚴‍♂️💨</p>
-    <h1>Wrong Turn!</h1>
-    <p>Looks like this route doesn't exist. Maybe it was moved, or perhaps you pedaled past it.</p>
-    <p>Here are some places to get back on track:</p>
+    <h1>{t('404.heading', locale)}</h1>
+    <p>{t('404.message', locale)}</p>
+    <p>{t('404.help', locale)}</p>
     <ul>
-      <li><a href="/">🏠 Home — browse all routes</a></li>
-      <li><a href="/map">🗺️ Map — explore the city</a></li>
-      <li><a href="/calendar">📅 Calendar — upcoming rides</a></li>
+      <li><a href="/">🏠 {t('404.home', locale)}</a></li>
+      <li><a href="/map">🗺️ {t('404.map', locale)}</a></li>
+      <li><a href="/calendar">📅 {t('404.calendar', locale)}</a></li>
     </ul>
   </div>
 </Base>
