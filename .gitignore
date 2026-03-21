@@ -37,6 +37,9 @@ public/maps/
 # map style (generated from scripts/build-map-style.ts)
 public/map-style-*
 
+# icon paths (generated from scripts/build-icon-paths.ts)
+src/components/icon-paths.ts
+
 # playwright test artifacts
 test-results/
 e2e/test-results/

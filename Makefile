@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -6,16 +6,16 @@ help: ## Show available targets
 install: ## Install npm dependencies
 	npm install
 
-dev: map-style ## Start dev server
+dev: map-style icon-paths ## Start dev server
 	RUNTIME=local npx astro dev
 
-build: map-style contributors maps ## Build static site to dist/
+build: map-style icon-paths contributors maps ## Build static site to dist/
 	npx astro build
 
-preview: map-style ## Preview built site locally
+preview: map-style icon-paths ## Preview built site locally
 	npx astro preview
 
-test: map-style ## Run unit tests
+test: map-style icon-paths ## Run unit tests
 	npx vitest run
 
 test-lambda: ## Run Lambda unit tests (aws/video-agent)
@@ -27,7 +27,7 @@ typecheck: ## Run TypeScript type checking
 lint: ## Run ESLint checks
 	npx eslint src/
 
-test-e2e: map-style ## Build with CITY=demo, validate, then run Playwright screenshot tests
+test-e2e: map-style icon-paths ## Build with CITY=demo, validate, then run Playwright screenshot tests
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
 	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots)
@@ -54,6 +54,9 @@ screenshots: map-style ## Update all screenshot baselines (public + admin)
 
 map-style: ## Generate cycling map style JSON
 	npx tsx scripts/build-map-style.ts
+
+icon-paths: ## Generate Phosphor icon path registry for Preact islands
+	npx tsx scripts/build-icon-paths.ts
 
 maps: ## Generate map thumbnails
 	npx tsx scripts/generate-maps.ts
