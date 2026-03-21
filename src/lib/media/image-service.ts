@@ -63,6 +63,10 @@ export function imageUrl(blobKey: string, options: ImageOptions = {}): string {
   return buildImageUrl(R2_PUBLIC_URL, blobKey, opts);
 }
 
+export function imageSrcSet2x(blobKey: string, options: ImageOptions = {}): string {
+  return buildImageSrcSet2x(R2_PUBLIC_URL, blobKey, options);
+}
+
 export function originalUrl(blobKey: string): string {
   return `${R2_PUBLIC_URL}/${blobKey}`;
 }

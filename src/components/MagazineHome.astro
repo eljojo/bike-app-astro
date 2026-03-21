@@ -2,7 +2,7 @@
 import './MagazineHome.scss';
 import Icon from './Icon.astro';
 import { t, localePath } from '@/i18n';
-import { imageUrl } from '@/lib/media/image-service';
+import { imageUrl, imageSrcSet2x } from '@/lib/media/image-service';
 import { videoPlaybackSources, videoPosterUrl } from '@/lib/media/video-service';
 import { formatDistance } from '@/lib/geo/distance';
 import { formatDateRange } from '@/lib/date-utils';
@@ -208,6 +208,7 @@ const locale = Astro.currentLocale;
                   {community.photoKey ? (
                     <img
                       src={imageUrl(community.photoKey, { width: 80, height: 80, fit: 'cover' })}
+                      srcset={imageSrcSet2x(community.photoKey, { width: 80, height: 80, fit: 'cover' })}
                       alt={community.name}
                       width="40"
                       height="40"

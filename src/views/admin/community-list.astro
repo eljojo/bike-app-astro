@@ -4,7 +4,7 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import { fetchJson, loadAdminOrganizerList } from '../../lib/content/load-admin-content.server';
-import { buildImageUrl } from '../../lib/media/image-service';
+import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { organizerInitials } from '../../lib/models/organizer-model';
 import '../../styles/admin.scss';
@@ -31,6 +31,7 @@ const cdnUrl = (await import('../../lib/env/env.service')).env.R2_PUBLIC_URL || 
           {org.photo_key ? (
             <img
               src={buildImageUrl(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+              srcset={buildImageSrcSet2x(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
               alt=""
               class="community-avatar"
             />
