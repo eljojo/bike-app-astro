@@ -1,5 +1,6 @@
 // Public Preact island. Styles in global.scss.
 import { useState, useRef } from 'preact/hooks';
+import Icon from './Icon';
 
 export interface ElevationPoint {
   km: number;
@@ -141,9 +142,9 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
   return (
     <div class="interactive-elevation">
       <div class="elevation-stats">
-        <span>&#x2197; {Math.round(elevGain)}m gain</span>
-        <span>&#x2195; {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
-        <span>&#x1F4CF; {maxKm.toFixed(1)} km</span>
+        <span><Icon name="trend-up" size={16} /> {Math.round(elevGain)}m gain</span>
+        <span><Icon name="arrows-down-up" size={16} /> {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
+        <span><Icon name="ruler" size={16} /> {maxKm.toFixed(1)} km</span>
         {label && <span class="elevation-label" style={`color: ${color}`}>{label}</span>}
         <button
           type="button"
@@ -151,7 +152,7 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
           onClick={() => setCollapsed(c => !c)}
           aria-label={isCollapsed ? 'Show elevation' : 'Hide elevation'}
         >
-          {isCollapsed ? '▶' : '▼'}
+          {isCollapsed ? <Icon name="caret-right" size={16} /> : <Icon name="caret-down" size={16} />}
         </button>
       </div>
       {!isCollapsed && (

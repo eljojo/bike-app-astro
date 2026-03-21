@@ -16,6 +16,7 @@ import { tTag } from '@/lib/i18n/tag-translations.server';
 import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
 import { imageUrl } from '@/lib/media/image-service';
 import { expandEvents, deduplicateSeries, splitUpcomingPast, groupByMonth, effectiveDate, type CalendarEntry } from '@/lib/calendar-helpers';
+import Icon from '@/components/Icon.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -277,7 +278,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     <OrganizerSpotlight organizers={spotlightOrganizers} locale={locale} />
   )}
 
-  <a href={webcalUrl} class="action-button">&#x1F4C5; {t('calendar.subscribe', locale)}</a>
+  <a href={webcalUrl} class="action-button"><Icon name="calendar-blank" size={18} /> {t('calendar.subscribe', locale)}</a>
   <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">{t('calendar.google', locale)}</a>
 
   {Object.keys(upcomingByMonth).length > 0 && (
