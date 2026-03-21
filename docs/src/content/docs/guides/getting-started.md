@@ -25,6 +25,10 @@ When you open the editor for the first time, you'll see three options:
 Not sure yet? Start as a guest. You can create an account later and your contributions will be linked to your new account.
 :::
 
+:::tip
+You can also bookmark routes and events without signing in — just tap the bookmark button on any page. No account needed.
+:::
+
 ## Make your first edit
 
 <img src="/admin-screenshot.webp" alt="The route editor showing fields for name, tagline, tags, status, and markdown body" width="906" height="1016" style="max-width:100%;height:auto;border-radius:8px;" />

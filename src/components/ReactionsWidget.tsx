@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import TrustReceipt from './TrustReceipt';
+import Icon from './Icon';
 
 interface ReactionButton {
   type: string;
@@ -126,7 +127,12 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
               onClick={() => toggleReaction(type)}
               title={title || label}
             >
-              <span class={`reaction-icon ${isAnimating ? 'pop' : ''}`}>{icon}</span>
+              <Icon
+                name={icon}
+                weight={active ? 'fill' : 'regular'}
+                size={20}
+                class={`reaction-icon ${isAnimating ? 'pop' : ''}`}
+              />
               <span class="reaction-label">{label}</span>
               {count > 0 && <span class="reaction-count">{count}</span>}
             </button>

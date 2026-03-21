@@ -14,6 +14,7 @@ import { t, localePath, eventNoun, eventNextLabel, eventSignUpLabel, eventEditio
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
+import ReactionsWidget from '@/components/ReactionsWidget.tsx';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
@@ -504,6 +505,18 @@ function editionDateLabel(startDate: string, loc?: string): string {
             )}
           </div>
         </div>
+
+        {!isPastEvent && getInstanceFeatures().allowsReactions && (
+          <div class="event-reactions-zone">
+            <ReactionsWidget client:idle contentType="event" contentSlug={event.id}
+              bookmarkHint={t('reaction.bookmark_hint_event', locale)}
+              trustReceiptMessage={t('reaction.trust_receipt', locale)}
+              labels={[
+                { type: 'thumbs-up', icon: 'calendar-check', label: t('reaction.want_to_go', locale), title: t('reaction.want_to_go_title', locale) },
+                { type: 'star', icon: 'bookmark-simple', label: t('reaction.bookmark', locale), title: t('reaction.bookmark_title', locale) },
+              ]} />
+          </div>
+        )}
 
         {isPastEvent && (
           <div class="event-detail-past-state">

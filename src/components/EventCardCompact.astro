@@ -79,7 +79,7 @@ const metaParts = DISTANCE_FIRST_TAGS.has(firstTag)
 const meta = metaParts.filter(Boolean).join(' · ');
 ---
 
-<div class:list={['event-card-compact', { 'event-card-compact--muted': muted }]}>
+<div class:list={['event-card-compact', { 'event-card-compact--muted': muted }]} data-event-slug={event.id} data-start-date={displayStartDate}>
   {!muted && (
     <div class="event-card-compact-thumb">
       {data.poster_key ? (

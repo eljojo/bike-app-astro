@@ -28,20 +28,26 @@ export async function GET({ params, locals }: APIContext) {
 
   const database = db();
 
-  const counts = await database
-    .select({
-      reactionType: reactions.reactionType,
-      total: count(reactions.id),
-    })
-    .from(reactions)
-    .where(
-      and(
-        eq(reactions.city, CITY),
-        eq(reactions.contentType, contentType),
-        eq(reactions.contentSlug, contentSlug),
+  let counts: { reactionType: string; total: number }[];
+  try {
+    counts = await database
+      .select({
+        reactionType: reactions.reactionType,
+        total: count(reactions.id),
+      })
+      .from(reactions)
+      .where(
+        and(
+          eq(reactions.city, CITY),
+          eq(reactions.contentType, contentType),
+          eq(reactions.contentSlug, contentSlug),
+        )
       )
-    )
-    .groupBy(reactions.reactionType);
+      .groupBy(reactions.reactionType);
+  } catch {
+    // Table may not exist yet (migrations pending)
+    return jsonResponse({ counts: {}, userReactions: [] });
+  }
 
   const user = getOptionalUser(locals);
   let userReactions: string[] = [];

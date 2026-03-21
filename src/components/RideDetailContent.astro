@@ -6,6 +6,7 @@ import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
 import { paths, assets } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
+import Icon from './Icon.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
 import ContentDetail from '@/components/patterns/ContentDetail.astro';
 import StatBar from '@/components/StatBar.astro';
@@ -74,7 +75,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
     <div class="route-actions">
       <p>
         <a href={paths.rideMap(route.id, route.data.tour_slug)} class="action-button --primary --wider">
-          &#x1F5FA;&#xFE0F; {t('ride.view_map', locale)}
+          <Icon name="map-trifold" size={18} /> {t('ride.view_map', locale)}
         </a>
         {route.data.variants[0]?.strava_url && (
           <Fragment>
@@ -161,7 +162,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
 
   <Fragment slot="after">
     <p class="route-similar">
-      <a href={backLink} class="go-back-button">&larr; {backLabel}</a>
+      <a href={backLink} class="go-back-button"><Icon name="arrow-left" size={16} /> {backLabel}</a>
     </p>
   </Fragment>
 </ContentDetail>

@@ -16,6 +16,7 @@ import { tTag } from '@/lib/i18n/tag-translations.server';
 import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
 import { imageUrl } from '@/lib/media/image-service';
 import { expandEvents, deduplicateSeries, splitUpcomingPast, groupByMonth, effectiveDate, type CalendarEntry } from '@/lib/calendar-helpers';
+import Icon from '@/components/Icon.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -230,6 +231,12 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     />
   ))}
 
+  <section class="calendar-bookmarks" style="display: none;">
+    <h2>{t('calendar.your_events', locale)}</h2>
+    <div class="calendar-bookmarks-cards featured-cards">
+    </div>
+  </section>
+
   {!hasUpcoming && (
     <p><strong>{t('calendar.wrap', locale)}</strong></p>
   )}
@@ -271,7 +278,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     <OrganizerSpotlight organizers={spotlightOrganizers} locale={locale} />
   )}
 
-  <a href={webcalUrl} class="action-button">&#x1F4C5; {t('calendar.subscribe', locale)}</a>
+  <a href={webcalUrl} class="action-button"><Icon name="calendar-blank" size={18} /> {t('calendar.subscribe', locale)}</a>
   <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">{t('calendar.google', locale)}</a>
 
   {Object.keys(upcomingByMonth).length > 0 && (
@@ -309,6 +316,56 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
       </div>
     </div>
   )}
+
+  <script>
+    // Show bookmarked events at top of calendar
+    (async () => {
+      try {
+        const res = await fetch('/api/reactions/event/_starred');
+        if (!res.ok) return;
+        const data = await res.json();
+        const starred: string[] = data.starredSlugs || [];
+        if (starred.length === 0) return;
+
+        const section = document.querySelector('.calendar-bookmarks');
+        const container = section?.querySelector('.calendar-bookmarks-cards');
+        if (!section || !container) return;
+
+        const starredSet = new Set(starred);
+        const today = new Date().toISOString().slice(0, 10);
+
+        // Find slugs already in featured sections (dedup)
+        const featuredSlugs = new Set<string>();
+        document.querySelectorAll('.calendar-section .event-card-featured[data-event-slug]').forEach(el => {
+          const slug = (el as HTMLElement).dataset.eventSlug;
+          if (slug) featuredSlugs.add(slug);
+        });
+
+        // Find matching compact cards in the full calendar grid
+        const compactCards = document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-card-compact[data-event-slug]');
+        let shown = 0;
+
+        for (const card of compactCards) {
+          const slug = card.dataset.eventSlug || '';
+          const startDate = card.dataset.startDate || '';
+          if (!starredSet.has(slug)) continue;
+          if (startDate < today) continue;
+          if (featuredSlugs.has(slug)) continue;
+
+          const clone = card.cloneNode(true) as HTMLElement;
+          clone.classList.add('event-card-compact--bookmarked');
+          container.appendChild(clone);
+          shown++;
+        }
+
+        if (shown > 0) {
+          (section as HTMLElement).style.display = '';
+        }
+      } catch {
+        // Silently fail — bookmarking is progressive enhancement
+      }
+    })();
+  </script>
 
   <script>
     document.getElementById('show-past-events')?.addEventListener('click', (e) => {

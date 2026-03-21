@@ -159,8 +159,8 @@ jobs:
         if: inputs.deploy
         run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
-      - name: Build map style
-        run: npx tsx scripts/build-map-style.ts
+      - name: Run prebuild (map style, icon paths)
+        run: npx tsx scripts/prebuild.ts
 
       - name: Prepare build plan
         run: npx tsx scripts/prepare-build-plan.ts

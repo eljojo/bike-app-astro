@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full map-style maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -6,33 +6,35 @@ help: ## Show available targets
 install: ## Install npm dependencies
 	npm install
 
-dev: map-style ## Start dev server
+dev: prebuild ## Start dev server
 	RUNTIME=local npx astro dev
 
-build: map-style contributors maps ## Build static site to dist/
+build: prebuild contributors maps ## Build static site to dist/
 	npx astro build
 
-preview: map-style ## Preview built site locally
+preview: prebuild ## Preview built site locally
 	npx astro preview
 
-test: map-style ## Run unit tests
+test: prebuild ## Run unit tests
+	npx astro sync
 	npx vitest run
 
 test-lambda: ## Run Lambda unit tests (aws/video-agent)
 	node --test aws/video-agent/handler.test.mjs
 
-typecheck: ## Run TypeScript type checking
+typecheck: prebuild ## Run TypeScript type checking
+	npx astro sync
 	npx tsc --noEmit
 
 lint: ## Run ESLint checks
 	npx eslint src/
 
-test-e2e: map-style ## Build with CITY=demo, validate, then run Playwright screenshot tests
+test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright screenshot tests
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
 	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots)
 
-test-update: map-style ## Update screenshot baselines
+test-update: prebuild ## Update screenshot baselines
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
@@ -47,13 +49,19 @@ test-blog: ## Run blog E2E tests (ride editor)
 test-club: ## Run club E2E tests (events, results, waypoints)
 	npx playwright test --config e2e/club/fixture.ts $(if $(CI),,--ignore-snapshots)
 
-screenshots: map-style ## Update all screenshot baselines (public + admin)
+screenshots: prebuild ## Update all screenshot baselines (public + admin)
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
 
+prebuild: ## Run all code generators (map style, icon paths)
+	npx tsx scripts/prebuild.ts
+
 map-style: ## Generate cycling map style JSON
 	npx tsx scripts/build-map-style.ts
+
+icon-paths: ## Generate Phosphor icon path registry for Preact islands
+	npx tsx scripts/build-icon-paths.ts
 
 maps: ## Generate map thumbnails
 	npx tsx scripts/generate-maps.ts

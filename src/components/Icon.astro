@@ -1,0 +1,26 @@
+---
+import { iconPaths } from './icon-paths';
+
+interface Props {
+  name: string;
+  weight?: 'regular' | 'fill';
+  size?: number;
+  class?: string;
+}
+
+const { name, weight = 'regular', size = 24, class: className } = Astro.props;
+
+const key = `${name}/${weight}`;
+const innerContent = iconPaths[key] ?? '';
+---
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width={size}
+  height={size}
+  viewBox="0 0 256 256"
+  fill="currentColor"
+  aria-hidden="true"
+  class={className}
+  set:html={innerContent}
+/>

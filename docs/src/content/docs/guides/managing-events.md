@@ -84,6 +84,15 @@ Each occurrence shows as its own entry on the calendar, with the date appended t
 
 Past events stay in the system as a record of the cycling community's history. Guests and editors can view them but can't make changes. Admins can edit past events if corrections are needed.
 
+## React to events
+
+On any upcoming event page, you'll see two buttons:
+
+- **I want to go** — a public counter. Other riders can see how many people are interested. Useful for gauging turnout.
+- **Bookmark** — private to you. Bookmarked events appear at the top of the calendar page and get priority in the "Upcoming events" section on the homepage. A quick way to keep track of events you care about.
+
+Neither requires an account. The first time you tap a button, the site creates a guest session — no email, no signup. Your reactions are saved on that device.
+
 ## Save
 
 Tap **Save** when you're done. New events are visible on the calendar after the next site rebuild, usually within a few minutes.

@@ -66,8 +66,8 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Build map style
-        run: npx tsx scripts/build-map-style.ts
+      - name: Run prebuild (map style, icon paths)
+        run: npx tsx scripts/prebuild.ts
 
       - name: Run unit tests
         run: npx vitest run
@@ -195,6 +195,12 @@ jobs:
       - name: Refresh font cache
         run: sudo fc-cache -f
 
+      - name: Restore tile cache
+        uses: actions/cache@v5
+        with:
+          path: e2e/.tile-cache
+          key: e2e-tile-cache-v1
+
       - name: Add test bindings to generated wrangler config
         run: |
           node -e "
@@ -205,6 +211,12 @@ jobs:
             c.d1_databases = [{ binding: 'DB', database_name: 'test', database_id: 'local' }];
             fs.writeFileSync(f, JSON.stringify(c));
           "
+
+      - name: Apply D1 migrations to local test database
+        run: |
+          for f in drizzle/migrations/*.sql; do
+            npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$f"
+          done
 
       - name: Run E2E tests
         run: >-

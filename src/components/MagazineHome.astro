@@ -1,5 +1,6 @@
 ---
 import './MagazineHome.scss';
+import Icon from './Icon.astro';
 import { t, localePath } from '@/i18n';
 import { imageUrl } from '@/lib/media/image-service';
 import { videoPlaybackSources, videoPosterUrl } from '@/lib/media/video-service';
@@ -63,7 +64,7 @@ const locale = Astro.currentLocale;
                 <p class="featured-route-description">{featuredRoute.description}</p>
               )}
               <span class="featured-route-readmore">
-                {t('home.read_more', locale)} &rarr;
+                {t('home.read_more', locale)} <Icon name="arrow-right" size={14} />
               </span>
             </div>
           </a>
@@ -120,7 +121,7 @@ const locale = Astro.currentLocale;
             ))}
           </div>
           <a href="#browse" class="magazine-view-all">
-            {t('home.view_all_routes', locale, { count: routeCount })} &rarr;
+            {t('home.view_all_routes', locale, { count: routeCount })} <Icon name="arrow-right" size={14} />
           </a>
         </section>
       )}
@@ -132,7 +133,7 @@ const locale = Astro.currentLocale;
           <h2>{t('home.upcoming_events', locale)}</h2>
           <ul class="upcoming-events-list">
             {upcomingEvents.map(event => (
-              <li class="upcoming-event">
+              <li class="upcoming-event" data-event-slug={event.slug}>
                 <a href={paths.event(event.slug, locale)}>
                   <div class="upcoming-event-thumb">
                     {event.posterKey ? (
@@ -158,7 +159,7 @@ const locale = Astro.currentLocale;
             ))}
           </ul>
           <a href={localePath('/calendar', locale)} class="magazine-view-all">
-            {t('home.full_calendar', locale)} &rarr;
+            {t('home.full_calendar', locale)} <Icon name="arrow-right" size={14} />
           </a>
         </section>
       )}
@@ -227,10 +228,36 @@ const locale = Astro.currentLocale;
             ))}
           </ul>
           <a href={paths.communities(locale)} class="magazine-view-all">
-            {t('home.all_communities', locale)} &rarr;
+            {t('home.all_communities', locale)} <Icon name="arrow-right" size={14} />
           </a>
         </section>
       )}
     </aside>
   </div>
 </div>
+
+<script>
+  // Reorder starred events to top of upcoming events list
+  (async () => {
+    try {
+      const res = await fetch('/api/reactions/event/_starred');
+      if (!res.ok) return;
+      const data = await res.json();
+      const starred: string[] = data.starredSlugs || [];
+      if (starred.length === 0) return;
+
+      const list = document.querySelector('.upcoming-events-list');
+      if (!list) return;
+
+      const starredSet = new Set(starred);
+      const items = [...list.querySelectorAll<HTMLElement>('.upcoming-event[data-event-slug]')];
+      const starredItems = items.filter(el => starredSet.has(el.dataset.eventSlug || ''));
+
+      for (const item of starredItems.reverse()) {
+        list.prepend(item);
+      }
+    } catch {
+      // Silently fail — starred reordering is progressive enhancement
+    }
+  })();
+</script>

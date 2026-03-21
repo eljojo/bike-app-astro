@@ -7,6 +7,7 @@ import { variantKey as variantKeyFromGpx } from '../lib/gpx/filenames';
 import { getCityConfig } from '../lib/config/city-config';
 import { t } from '../i18n';
 import { paths, assets } from '../lib/paths';
+import Icon from './Icon.astro';
 
 interface Variant {
   name: string;
@@ -81,15 +82,15 @@ const variantMapLang = cachedMapLocale(routeSlug, variantKey, locale);
 const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 ---
 
-<h1>&#x1F5FA;&#xFE0F; {title}</h1>
+<h1><Icon name="map-trifold" size={18} /> {title}</h1>
 
 <p>
   <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
-    &#x1F5FA;&#xFE0F; {t('map.explore_gpx', locale)}
+    <Icon name="map-trifold" size={18} /> {t('map.explore_gpx', locale)}
   </a>
   {' '}
   <a href={gpxUrl} class="action-button" target="_blank" rel="nofollow" download>
-    &#x1F4E1; {t('map.download_gpx', locale)}
+    <Icon name="download-simple" size={18} /> {t('map.download_gpx', locale)}
   </a>
   {variant.strava_url && (
     <Fragment>
@@ -119,7 +120,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
     <Fragment>
       {' '}
       <a href={assets.mapPng(routeSlug, variantKey, variantMapLang)} class="action-button" target="_blank" rel="noopener">
-        &#x1F5FA;&#xFE0F; PNG
+        <Icon name="map-trifold" size={18} /> PNG
       </a>
     </Fragment>
   )}
@@ -130,7 +131,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 {trackPoints && trackPoints.length > 0 && trackDistanceM && (
   <div id="elevation-profile" style="margin-top: 1.5em;">
     <h3>
-      <span style="font-size: 1.2em;">&#x1F6B5; </span>
+      <Icon name="bicycle" size={20} />{' '}
       {elevationGain && (
         <Fragment>
           {t('route.elevation_gain', locale)}: {elevationGain} {t('route.meters', locale)}{elevationConclusion && `, ${t('route.this_is', locale)} ${t('elevation.' + elevationConclusion, locale)}`}
@@ -145,5 +146,5 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 )}
 
 <p style="margin-top: 1em;">
-  <a href={backPath || paths.route(linkSlug, locale)} class="go-back-button">&#x21A9; {t('map.back_to', locale, { name: routeName })}</a>
+  <a href={backPath || paths.route(linkSlug, locale)} class="go-back-button"><Icon name="arrow-left" size={16} /> {t('map.back_to', locale, { name: routeName })}</a>
 </p>
