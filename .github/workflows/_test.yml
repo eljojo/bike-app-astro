@@ -66,8 +66,8 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Build map style
-        run: npx tsx scripts/build-map-style.ts
+      - name: Run prebuild (map style, icon paths)
+        run: npx tsx scripts/prebuild.ts
 
       - name: Run unit tests
         run: npx vitest run

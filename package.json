@@ -35,9 +35,10 @@
   ],
   "scripts": {
     "postinstall": "node scripts/patch-astro-renderers.js",
-    "dev": "astro dev",
-    "build": "tsx scripts/build-map-style.ts && astro build",
-    "preview": "astro preview",
+    "prebuild": "tsx scripts/prebuild.ts",
+    "dev": "npm run prebuild && astro dev",
+    "build": "npm run prebuild && astro build",
+    "preview": "npm run prebuild && astro preview",
     "astro": "astro",
     "maps:generate": "npx tsx scripts/generate-maps.ts",
     "maps:rebuild": "npx tsx scripts/generate-maps.ts --force",
