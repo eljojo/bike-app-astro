@@ -132,7 +132,7 @@ const locale = Astro.currentLocale;
           <h2>{t('home.upcoming_events', locale)}</h2>
           <ul class="upcoming-events-list">
             {upcomingEvents.map(event => (
-              <li class="upcoming-event">
+              <li class="upcoming-event" data-event-slug={event.slug}>
                 <a href={paths.event(event.slug, locale)}>
                   <div class="upcoming-event-thumb">
                     {event.posterKey ? (
@@ -234,3 +234,29 @@ const locale = Astro.currentLocale;
     </aside>
   </div>
 </div>
+
+<script>
+  // Reorder starred events to top of upcoming events list
+  (async () => {
+    try {
+      const res = await fetch('/api/reactions/event/_starred');
+      if (!res.ok) return;
+      const data = await res.json();
+      const starred: string[] = data.starredSlugs || [];
+      if (starred.length === 0) return;
+
+      const list = document.querySelector('.upcoming-events-list');
+      if (!list) return;
+
+      const starredSet = new Set(starred);
+      const items = [...list.querySelectorAll<HTMLElement>('.upcoming-event[data-event-slug]')];
+      const starredItems = items.filter(el => starredSet.has(el.dataset.eventSlug || ''));
+
+      for (const item of starredItems.reverse()) {
+        list.prepend(item);
+      }
+    } catch {
+      // Silently fail — starred reordering is progressive enhancement
+    }
+  })();
+</script>

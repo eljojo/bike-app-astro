@@ -63,7 +63,7 @@ const displayDate = dateDisplay;
 const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
 ---
 
-<div class="event-card-featured">
+<div class="event-card-featured" data-event-slug={event.id}>
   {data.poster_key && (
     <div class="event-card-featured-poster">
       <ResponsiveImage

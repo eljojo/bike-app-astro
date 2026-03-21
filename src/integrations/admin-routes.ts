@@ -91,6 +91,7 @@ const routes = [
   // Reactions (static _starred must precede parameterized to avoid matching as params)
   { pattern: '/api/reactions', entrypoint: view('api/reactions.ts') },
   { pattern: '/api/reactions/route/_starred', entrypoint: view('api/reactions-starred.ts') },
+  { pattern: '/api/reactions/event/_starred', entrypoint: view('api/reactions-starred.ts') },
   { pattern: '/api/reactions/[contentType]/[contentSlug]', entrypoint: view('api/reactions-get.ts') },
   // Other API
   { pattern: '/api/event', entrypoint: view('api/event.ts') },
