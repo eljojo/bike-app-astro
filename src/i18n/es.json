@@ -74,6 +74,8 @@
   "reaction.trust_receipt": "Guardado en este dispositivo. Sin correo, sin cuenta.",
   "reaction.want_to_go": "Quiero ir",
   "reaction.want_to_go_title": "Hazle saber a otros que te interesa",
+  "reaction.attended": "Asistí",
+  "reaction.attended_title": "Hazle saber a otros que estuviste ahí",
   "reaction.bookmark": "Guardar",
   "reaction.bookmark_title": "Los eventos guardados aparecen primero en el calendario",
   "reaction.bookmark_hint_event": "Los eventos guardados aparecen primero en el calendario.",

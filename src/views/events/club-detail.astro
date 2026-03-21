@@ -506,7 +506,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
           </div>
         </div>
 
-        {!isPastEvent && getInstanceFeatures().allowsReactions && (
+        {getInstanceFeatures().allowsReactions && !isPastEvent && (
           <div class="event-reactions-zone">
             <ReactionsWidget client:idle contentType="event" contentSlug={event.id}
               bookmarkHint={t('reaction.bookmark_hint_event', locale)}
@@ -514,6 +514,15 @@ function editionDateLabel(startDate: string, loc?: string): string {
               labels={[
                 { type: 'thumbs-up', icon: 'calendar-check', label: t('reaction.want_to_go', locale), title: t('reaction.want_to_go_title', locale) },
                 { type: 'star', icon: 'bookmark-simple', label: t('reaction.bookmark', locale), title: t('reaction.bookmark_title', locale) },
+              ]} />
+          </div>
+        )}
+        {getInstanceFeatures().allowsReactions && isPastEvent && (
+          <div class="event-reactions-zone">
+            <ReactionsWidget client:idle contentType="event" contentSlug={event.id}
+              trustReceiptMessage={t('reaction.trust_receipt', locale)}
+              labels={[
+                { type: 'attended', icon: 'calendar-check', label: t('reaction.attended', locale), title: t('reaction.attended_title', locale) },
               ]} />
           </div>
         )}

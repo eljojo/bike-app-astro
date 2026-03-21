@@ -78,6 +78,8 @@
   "reaction.trust_receipt": "Enregistré sur cet appareil. Pas de courriel, pas de compte.",
   "reaction.want_to_go": "J'y vais",
   "reaction.want_to_go_title": "Faites savoir aux autres que vous êtes intéressé",
+  "reaction.attended": "J'y étais",
+  "reaction.attended_title": "Faites savoir aux autres que vous y étiez",
   "reaction.bookmark": "Favori",
   "reaction.bookmark_title": "Les événements favoris apparaissent en premier sur le calendrier",
   "reaction.bookmark_hint_event": "Les événements favoris apparaissent en premier sur le calendrier.",

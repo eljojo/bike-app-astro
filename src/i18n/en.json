@@ -78,6 +78,8 @@
   "reaction.trust_receipt": "Saved on this device. No email, no account.",
   "reaction.want_to_go": "I want to go",
   "reaction.want_to_go_title": "Let others know you're interested",
+  "reaction.attended": "I attended",
+  "reaction.attended_title": "Let others know you were there",
   "reaction.bookmark": "Bookmark",
   "reaction.bookmark_title": "Bookmarked events appear first on the calendar",
   "reaction.bookmark_hint_event": "Bookmarked events appear first on the calendar.",
