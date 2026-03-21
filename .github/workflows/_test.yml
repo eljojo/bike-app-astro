@@ -195,6 +195,12 @@ jobs:
       - name: Refresh font cache
         run: sudo fc-cache -f
 
+      - name: Restore tile cache
+        uses: actions/cache@v5
+        with:
+          path: e2e/.tile-cache
+          key: e2e-tile-cache-v1
+
       - name: Add test bindings to generated wrangler config
         run: |
           node -e "

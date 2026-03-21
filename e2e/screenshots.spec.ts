@@ -1,16 +1,37 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
 
-// Staging origin used to proxy tile requests — CI has no Thunderforest API key.
+// Tile responses are cached to e2e/.tile-cache/ to avoid hitting staging on every run.
+// On cache miss, tiles are fetched from staging and saved for future runs.
 const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';
+const TILE_CACHE_DIR = path.join(import.meta.dirname, '.tile-cache');
+
+function tileCachePath(urlPath: string): string {
+  return path.join(TILE_CACHE_DIR, urlPath.replace(/^\/api\/tiles\//, ''));
+}
 
 async function proxyTiles(page: Page) {
   await page.route('**/api/tiles/**', async (route) => {
     const url = new URL(route.request().url());
+    const cached = tileCachePath(url.pathname);
+
+    if (fs.existsSync(cached)) {
+      const body = fs.readFileSync(cached);
+      const contentType = cached.endsWith('.pbf') ? 'application/x-protobuf' : 'application/octet-stream';
+      await route.fulfill({ status: 200, headers: { 'Content-Type': contentType }, body });
+      return;
+    }
+
     const upstream = `${TILE_PROXY_ORIGIN}${url.pathname}`;
     try {
       const res = await fetch(upstream);
       const body = Buffer.from(await res.arrayBuffer());
+      if (res.ok) {
+        fs.mkdirSync(path.dirname(cached), { recursive: true });
+        fs.writeFileSync(cached, body);
+      }
       await route.fulfill({
         status: res.status,
         headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream' },
