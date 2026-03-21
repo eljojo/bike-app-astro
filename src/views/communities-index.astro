@@ -2,7 +2,7 @@
 export const prerender = true;
 import './CommunitiesIndex.scss';
 import Base from '@/layouts/Base.astro';
-import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { imageUrl, imageSrcSet2x } from '@/lib/media/image-service';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t } from '@/i18n';
@@ -46,12 +46,13 @@ const sorted = organizers
         <a href={organizerLink(org, locale)} class="community-card">
           <div class="community-card-avatar">
             {org.data.photo_key ? (
-              <ResponsiveImage
-                blobKey={org.data.photo_key}
+              <img
+                src={imageUrl(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
+                srcset={imageSrcSet2x(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
                 alt={org.data.name}
-                widths={[128]}
-                width={64}
-                height={64}
+                width="64"
+                height="64"
+                loading="lazy"
                 class="community-card-photo"
               />
             ) : (
