@@ -206,6 +206,12 @@ jobs:
             fs.writeFileSync(f, JSON.stringify(c));
           "
 
+      - name: Apply D1 migrations to local test database
+        run: |
+          for f in drizzle/migrations/*.sql; do
+            npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$f"
+          done
+
       - name: Run E2E tests
         run: >-
           npx playwright test --config e2e/playwright.config.ts

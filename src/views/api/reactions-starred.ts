@@ -29,17 +29,23 @@ export async function GET({ locals, url }: APIContext) {
   }
 
   const database = db();
-  const rows = await database
-    .select({ contentSlug: reactions.contentSlug })
-    .from(reactions)
-    .where(
-      and(
-        eq(reactions.city, CITY),
-        eq(reactions.userId, user.id),
-        eq(reactions.contentType, contentType),
-        eq(reactions.reactionType, 'star'),
-      )
-    );
+  let rows: { contentSlug: string }[];
+  try {
+    rows = await database
+      .select({ contentSlug: reactions.contentSlug })
+      .from(reactions)
+      .where(
+        and(
+          eq(reactions.city, CITY),
+          eq(reactions.userId, user.id),
+          eq(reactions.contentType, contentType),
+          eq(reactions.reactionType, 'star'),
+        )
+      );
+  } catch {
+    // Table may not exist yet (migrations pending)
+    return jsonResponse({ starredSlugs: [] });
+  }
 
   return jsonResponse({ starredSlugs: rows.map(r => r.contentSlug) });
 }
