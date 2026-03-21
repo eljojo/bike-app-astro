@@ -10,7 +10,7 @@
  * Run: npx tsx scripts/build-icon-paths.ts
  *
  * How it finds icons:
- *   1. Grep .tsx files for <Icon name="..." — direct usage
+ *   1. Grep .tsx/.astro files for <Icon name="..." — direct usage
  *   2. Grep .astro/.tsx files for icon: '...' — props passed to islands
  *   3. Include both regular and fill weights for every icon found
  *      (fill is needed for active/toggle states)
@@ -46,13 +46,13 @@ function findUsedIcons(): Set<string> {
   const tsxFiles = collectFiles(SRC_DIR, ['.tsx']);
   const astroFiles = collectFiles(SRC_DIR, ['.astro']);
 
-  // Pattern 1: <Icon name="icon-name" — component usage in TSX (must be preceded by <Icon)
+  // Pattern 1: <Icon name="icon-name" — component usage in TSX and Astro files
   const iconJsxRe = /<Icon\b[^>]*\bname="([a-z][a-z0-9-]*)"/g;
 
   // Pattern 2: icon: 'icon-name' or icon: "icon-name" — props passed to Preact islands
   const iconPropRe = /\bicon:\s*['"]([a-z][a-z0-9-]*)['"]/g;
 
-  for (const file of tsxFiles) {
+  for (const file of [...tsxFiles, ...astroFiles]) {
     if (file === OUTPUT_FILE) continue;
     const content = fs.readFileSync(file, 'utf-8');
     for (const match of content.matchAll(iconJsxRe)) {

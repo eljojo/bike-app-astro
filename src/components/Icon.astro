@@ -1,29 +1,17 @@
 ---
-import fs from 'node:fs';
-import path from 'node:path';
+import { iconPaths } from './icon-paths';
 
 interface Props {
   name: string;
-  weight?: 'regular' | 'fill' | 'bold' | 'duotone' | 'light' | 'thin';
+  weight?: 'regular' | 'fill';
   size?: number;
   class?: string;
 }
 
 const { name, weight = 'regular', size = 24, class: className } = Astro.props;
 
-const filename = weight === 'regular' ? `${name}.svg` : `${name}-${weight}.svg`;
-const svgPath = path.join(
-  process.cwd(),
-  'node_modules',
-  '@phosphor-icons',
-  'core',
-  'assets',
-  weight,
-  filename,
-);
-
-const svgContent = fs.readFileSync(svgPath, 'utf-8');
-const innerContent = svgContent.replace(/.*<svg[^>]*>(.*)<\/svg>.*/s, '$1');
+const key = `${name}/${weight}`;
+const innerContent = iconPaths[key] ?? '';
 ---
 
 <svg
