@@ -399,6 +399,117 @@ describe('eventHandlers.buildFileChanges', () => {
     );
   });
 
+  it('preserves existing organizer fields not managed by event editor (isExistingRef)', async () => {
+    // Reproduces data loss from commit 81d773f: editing an event with an existing
+    // organizer reference stripped fields like featured, tags, social_links, and body
+    // from the organizer file because buildOrgFields() didn't merge with existing data.
+    const existingOrgContent = [
+      '---',
+      'name: Step Thru Community Cycling',
+      'featured: true',
+      'website: https://stepthrucc.com/',
+      'instagram: step.thruu',
+      'social_links:',
+      '  - platform: youtube',
+      '    url: https://www.youtube.com/@bike.breath',
+      'photo_key: hkkj8x4w',
+      'photo_content_type: image/jpeg',
+      'photo_width: 320',
+      'photo_height: 320',
+      'tags:',
+      '  - social',
+      '  - group-rides',
+      '---',
+      '',
+      'Step Thru started in 2025 with a simple idea.',
+    ].join('\n');
+
+    const update = {
+      frontmatter: { name: 'Step Thru Train Ride', start_date: '2025-07-06' },
+      body: 'A group ride description.',
+      media: [{ key: 'grhb3fio', width: 1080, height: 1350 }],
+      organizer: {
+        slug: 'step-thru',
+        name: 'Step Thru Community Cycling',
+        website: 'https://stepthrucc.com/',
+        instagram: 'step.thruu',
+        photo_key: 'hkkj8x4w',
+        photo_content_type: 'image/jpeg',
+        photo_width: 320,
+        photo_height: 320,
+        isExistingRef: true,
+      },
+    };
+    const mockGit = {
+      readFile: vi.fn().mockImplementation((path: string) => {
+        if (path.includes('organizers/step-thru.md')) {
+          return { content: existingOrgContent, sha: 'sha-org' };
+        }
+        return null;
+      }),
+    };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2025/step-thru-train-ride', { primaryFile: null }, mockGit as any,
+    );
+    const orgFile = result.files.find(f => f.path.includes('organizers/step-thru.md'));
+    expect(orgFile).toBeDefined();
+    // Fields sent by the event editor should be present
+    expect(orgFile!.content).toContain('name: Step Thru Community Cycling');
+    expect(orgFile!.content).toContain('photo_key: hkkj8x4w');
+    // Fields NOT managed by event editor must be preserved from existing file
+    expect(orgFile!.content).toContain('featured: true');
+    expect(orgFile!.content).toContain('social_links');
+    expect(orgFile!.content).toContain('youtube');
+    expect(orgFile!.content).toContain('tags');
+    expect(orgFile!.content).toContain('social');
+    expect(orgFile!.content).toContain('group-rides');
+    // Body content must be preserved
+    expect(orgFile!.content).toContain('Step Thru started in 2025');
+  });
+
+  it('does not delete existing organizer file when inlining (stale adminEvents)', async () => {
+    // When adminEvents is stale (empty or outdated), countOrganizerReferences returns 0
+    // even if other events reference this organizer. The code should not delete an
+    // existing organizer file that has rich content (body, tags, etc) based on stale data.
+    const existingOrgContent = [
+      '---',
+      'name: Bike Club',
+      'featured: true',
+      'tags:',
+      '  - racing',
+      '---',
+      '',
+      'A great cycling club.',
+    ].join('\n');
+
+    const update = {
+      frontmatter: { name: 'Club Ride', start_date: '2099-06-01' },
+      body: '',
+      organizer: {
+        slug: 'bike-club',
+        name: 'Bike Club',
+        website: 'https://bikeclub.ca/',
+        // isExistingRef is NOT set — hits the reference-count branch
+        // adminEvents is empty so otherRefs=0, code will try to inline + delete
+      },
+    };
+    const mockGit = {
+      readFile: vi.fn().mockImplementation((path: string) => {
+        if (path.includes('organizers/bike-club.md')) {
+          return { content: existingOrgContent, sha: 'sha-org' };
+        }
+        return null;
+      }),
+    };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2099/club-ride', { primaryFile: null }, mockGit as any,
+    );
+    // BUG: with stale/empty adminEvents, the code inlines the organizer and
+    // deletes the file, losing featured, tags, body, etc.
+    // The organizer file should NOT be in deletePaths when it has content the editor can't represent.
+    expect(result.deletePaths).not.toContain(`${CITY}/organizers/bike-club.md`);
+  });
+
   it('omits photo fields from organizer when not provided', async () => {
     const update = {
       frontmatter: { name: 'No Photo Event', start_date: '2099-06-01' },

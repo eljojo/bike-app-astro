@@ -2,6 +2,7 @@
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
 import { z } from 'astro/zod';
+import matter from 'gray-matter';
 import { serializeMdFile, serializeYamlFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
@@ -16,7 +17,7 @@ import { eventMediaItemSchema } from '../../lib/models/event-model';
 import { eventOps } from '../../lib/content/content-ops.server';
 import { expandSeriesOccurrences } from '../../lib/series-utils';
 import { slugify } from '../../lib/slug';
-import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, loadExistingMedia, afterCommitMediaCleanup, mergeFrontmatter } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { fetchSharedKeysData, fetchJson } from '../../lib/content/load-admin-content.server';
@@ -58,13 +59,6 @@ interface EventBuildResult extends BuildResult {
   mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
-}
-
-function countOrganizerReferences(orgSlug: string, excludeEventId: string): number {
-  return adminEvents.filter((e: AdminEvent) => {
-    if (e.id === excludeEventId) return false;
-    return typeof e.organizer === 'string' && e.organizer === orgSlug;
-  }).length;
 }
 
 /** Resolve the primary file path for an event. Directory-based events use index.md. */
@@ -194,7 +188,7 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
         oldOrgPhotoKey = extractFrontmatterField(existingOrgFile.content, 'photo_key');
       }
 
-      // Build common organizer fields
+      // Build organizer fields from the event editor form
       function buildOrgFields(): Record<string, unknown> {
         const fields: Record<string, unknown> = { name: update.organizer!.name };
         if (update.organizer!.website) fields.website = update.organizer!.website;
@@ -208,26 +202,29 @@ export const eventHandlers: SaveHandlers<EventUpdate, EventBuildResult> & WithSl
         return fields;
       }
 
-      if (update.organizer.isExistingRef) {
-        // User selected an existing organizer — always write/update the organizer file
+      // Write organizer file, merging with existing frontmatter and body
+      // to preserve fields the event editor doesn't manage (tags, featured,
+      // social_links, body text, etc).
+      function buildOrgFileChange(): FileChange {
+        const orgFields = buildOrgFields();
+        const merged = existingOrgFile
+          ? mergeFrontmatter(false, existingOrgFile.content, orgFields)
+          : orgFields;
+        const existingBody = existingOrgFile
+          ? matter(existingOrgFile.content).content.trim() || undefined
+          : undefined;
+        return { path: orgFilePath, content: serializeMdFile(merged, existingBody) };
+      }
+
+      if (update.organizer.isExistingRef || existingOrgFile) {
+        // Existing organizer file — always write/update as external reference.
+        // Never inline+delete an existing file: adminEvents may be stale (prerendered),
+        // and the file may contain fields the inline format can't represent.
         fm.organizer = orgSlug;
-        const orgContent = serializeMdFile(buildOrgFields());
-        files.push({ path: orgFilePath, content: orgContent });
+        files.push(buildOrgFileChange());
       } else {
-        // New/inline organizer — use reference count to decide
-        const otherRefs = countOrganizerReferences(orgSlug, eventId);
-
-        if (otherRefs === 0) {
-          fm.organizer = buildOrgFields();
-
-          if (existingOrgFile) {
-            deletePaths.push(orgFilePath);
-          }
-        } else {
-          fm.organizer = orgSlug;
-          const orgContent = serializeMdFile(buildOrgFields());
-          files.push({ path: orgFilePath, content: orgContent });
-        }
+        // No existing file — new organizer, safe to inline into the event
+        fm.organizer = buildOrgFields();
       }
 
       // Park orphaned organizer photo if key changed
