@@ -1,10 +1,14 @@
 /**
  * E2E tests for event organizer save logic.
  *
- * Tests the three branches in event-save.ts buildFileChanges():
+ * Tests the two branches in event-save.ts buildFileChanges():
  * 1. isExistingRef=true — selecting an existing organizer writes the org file + uses slug reference
- * 2. isExistingRef=false with 0 other refs — new organizer is inlined + orphaned org file deleted
+ * 2. isExistingRef=false with existing org file — always keeps as slug ref + updates org file
  * 3. isExistingRef=false with >0 other refs — organizer stays as slug ref + org file updated
+ *
+ * Note: inlining + deletion of org files was removed — existing org files are never
+ * inlined because adminEvents may be stale (prerendered) and the file may contain
+ * fields the inline format can't represent.
  */
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
@@ -96,10 +100,10 @@ test.describe('Organizer — isExistingRef=true', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. isExistingRef=false with 0 other refs — inline organizer
+// 2. isExistingRef=false with existing org file — keeps as slug reference
 // ---------------------------------------------------------------------------
 
-test.describe('Organizer — isExistingRef=false, no other refs', () => {
+test.describe('Organizer — isExistingRef=false, existing org file', () => {
   let token: string;
 
   test.beforeAll(() => { token = seedSession(); });
@@ -113,15 +117,15 @@ test.describe('Organizer — isExistingRef=false, no other refs', () => {
     ]);
   });
 
-  test('new organizer with 0 refs is inlined and orphaned org file is deleted', async ({ page }) => {
+  test('existing org file is always kept as slug reference and updated', async ({ page }) => {
     await loginAs(page, token);
     await page.goto('/admin/events/2099/event-org-inline');
     await page.waitForLoadState('networkidle');
 
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
-    // Save with isExistingRef=false — simulates creating/editing a new organizer
-    // This event is the only one referencing solo-organizer, so otherRefs=0
+    // Save with isExistingRef=false — even though only this event uses solo-organizer,
+    // the org file exists so it's always kept as an external reference
     const response = await saveEvent(page, '2099/event-org-inline', {
       frontmatter: {
         name: 'Org Inline Test',
@@ -129,7 +133,7 @@ test.describe('Organizer — isExistingRef=false, no other refs', () => {
         start_time: '09:00',
         location: 'Riverside',
       },
-      body: 'Event for testing isExistingRef=false with 0 other refs.',
+      body: 'Event for testing isExistingRef=false with existing org file.',
       organizer: {
         slug: 'solo-organizer',
         name: 'Solo Organizer',
@@ -143,17 +147,20 @@ test.describe('Organizer — isExistingRef=false, no other refs', () => {
     const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
     expect(headAfter).not.toBe(headBefore);
 
-    // Event frontmatter should have organizer INLINE (as an object, not a slug string)
+    // Event frontmatter should have organizer as slug string (not inlined)
+    // because the org file exists — existing files are never inlined
     const eventPath = path.join(FIXTURE_DIR, 'demo/events/2099/event-org-inline.md');
     const eventMd = fs.readFileSync(eventPath, 'utf-8');
     const { data: fm } = matter(eventMd);
-    expect(typeof fm.organizer).toBe('object');
-    expect(fm.organizer.name).toBe('Solo Organizer');
-    expect(fm.organizer.website).toBe('https://solo-updated.example.com');
+    expect(fm.organizer).toBe('solo-organizer');
 
-    // The separate organizer file should be deleted (orphaned)
+    // The organizer file should still exist and be updated
     const orgPath = path.join(FIXTURE_DIR, 'demo/organizers/solo-organizer.md');
-    expect(fs.existsSync(orgPath)).toBe(false);
+    expect(fs.existsSync(orgPath)).toBe(true);
+    const orgMd = fs.readFileSync(orgPath, 'utf-8');
+    const { data: orgFm } = matter(orgMd);
+    expect(orgFm.name).toBe('Solo Organizer');
+    expect(orgFm.website).toBe('https://solo-updated.example.com');
   });
 });
 

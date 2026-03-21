@@ -188,8 +188,9 @@ test.describe('Calendar Bookmarked Events', () => {
   });
 
   test('bookmarks section shows bookmarked events', async ({ page }) => {
-    // Seed a bookmark for bike-fest
-    seedReaction(token, 'event', '2099/bike-fest', 'star');
+    // Seed a bookmark for event-edit (not bike-fest — bike-fest is in the top 3
+    // featured events and the bookmarks script de-duplicates featured events)
+    seedReaction(token, 'event', '2099/event-edit', 'star');
 
     await loginAs(page, token);
     await page.goto('/calendar');
