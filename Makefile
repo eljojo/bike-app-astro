@@ -16,12 +16,14 @@ preview: prebuild ## Preview built site locally
 	npx astro preview
 
 test: prebuild ## Run unit tests
+	npx astro sync
 	npx vitest run
 
 test-lambda: ## Run Lambda unit tests (aws/video-agent)
 	node --test aws/video-agent/handler.test.mjs
 
-typecheck: ## Run TypeScript type checking
+typecheck: prebuild ## Run TypeScript type checking
+	npx astro sync
 	npx tsc --noEmit
 
 lint: ## Run ESLint checks
