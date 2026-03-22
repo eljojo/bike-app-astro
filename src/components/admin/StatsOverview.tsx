@@ -156,8 +156,9 @@ export default function StatsOverview(props: StatsOverviewProps) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         scales: { y: { beginAtZero: true } },
-        plugins: { legend: { position: 'bottom' } },
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
       },
     });
 
