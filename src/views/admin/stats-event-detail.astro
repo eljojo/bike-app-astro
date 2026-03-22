@@ -21,7 +21,7 @@ if (!features.hasRoutes) {
 const user = authorize(Astro.locals, 'view-stats');
 if (user instanceof Response) return user;
 
-const slug = Astro.url.pathname.split('/admin/stats/event/')[1];
+const slug = Astro.params.slug;
 if (!slug) return Astro.redirect('/admin/stats');
 
 const range = (Astro.url.searchParams.get('range') || '30d') as TimeRange;

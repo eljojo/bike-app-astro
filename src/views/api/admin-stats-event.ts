@@ -10,7 +10,7 @@ import { granularityForRange, type TimeRange, type TimeSeriesPoint } from '../..
 
 export const prerender = false;
 
-export async function GET({ locals, url }: APIContext) {
+export async function GET({ locals, url, params }: APIContext) {
   if (!getInstanceFeatures().hasRoutes) {
     return new Response(null, { status: 404 });
   }
@@ -18,7 +18,7 @@ export async function GET({ locals, url }: APIContext) {
   const user = authorize(locals, 'view-stats');
   if (user instanceof Response) return user;
 
-  const slug = url.pathname.split('/api/admin/stats/event/')[1];
+  const slug = params.slug;
   if (!slug) return jsonError('Missing slug', 400);
 
   const range = (url.searchParams.get('range') || '30d') as TimeRange;
