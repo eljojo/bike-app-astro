@@ -1,8 +1,10 @@
 import type { PlausibleRow } from '../external/plausible-api.server';
+import { queryPlausible } from '../external/plausible-api.server';
 import type { Database } from '../../db';
 import { resolveUrl, detectLocale } from './url-resolver.server';
+import { rebuildEngagement } from './engagement.server';
 import { contentPageMetrics, siteDailyMetrics } from '../../db/schema';
-import { sql } from 'drizzle-orm';
+import { sql, eq, desc } from 'drizzle-orm';
 
 /**
  * A content page metric row ready for DB upsert.
@@ -164,4 +166,88 @@ export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Pro
       })
       .run();
   }
+}
+
+/**
+ * Check whether analytics data needs syncing.
+ * Returns true if no data exists or the most recent synced day is older than maxAgeMs.
+ */
+export async function needsSync(db: Database, city: string, maxAgeMs = 24 * 60 * 60 * 1000): Promise<boolean> {
+  const lastRow = await db.select({ date: siteDailyMetrics.date })
+    .from(siteDailyMetrics)
+    .where(eq(siteDailyMetrics.city, city))
+    .orderBy(desc(siteDailyMetrics.date))
+    .limit(1);
+
+  if (lastRow.length === 0) return true;
+
+  const lastDate = new Date(lastRow[0].date + 'T00:00:00Z');
+  return (Date.now() - lastDate.getTime()) > maxAgeMs;
+}
+
+interface SyncOptions {
+  apiKey: string;
+  siteId: string;
+  city: string;
+  locales: string[];
+  defaultLocale: string;
+  full?: boolean;
+}
+
+/**
+ * Run the full Plausible → D1 sync pipeline.
+ * Used by both the sync API endpoint and auto-sync on page visit.
+ */
+export async function runSync(db: Database, opts: SyncOptions): Promise<{ contentPages: number; skippedPaths: number; dailyRows: number }> {
+  let fromDate: string;
+  if (opts.full) {
+    fromDate = '2020-01-01';
+  } else {
+    const lastRow = await db.select({ date: siteDailyMetrics.date })
+      .from(siteDailyMetrics)
+      .where(eq(siteDailyMetrics.city, opts.city))
+      .orderBy(desc(siteDailyMetrics.date))
+      .limit(1);
+    fromDate = lastRow.length > 0 ? lastRow[0].date : '2020-01-01';
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // 1. Fetch page breakdown
+  const pageRows = await queryPlausible(opts.apiKey, {
+    siteId: opts.siteId,
+    metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+    dateRange: [fromDate, today],
+    dimensions: ['event:page'],
+    pagination: { limit: 10000 },
+  });
+
+  // 2. Process through URL resolver
+  const { contentRows, skippedPaths } = processPlausibleData(
+    pageRows, opts.city, {}, {}, today, opts.locales, opts.defaultLocale,
+  );
+
+  // 3. Upsert content metrics
+  if (contentRows.length > 0) {
+    await upsertContentRows(db, contentRows);
+  }
+
+  // 4. Fetch daily aggregates
+  const dailyRows = await queryPlausible(opts.apiKey, {
+    siteId: opts.siteId,
+    metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+    dateRange: [fromDate, today],
+    dimensions: ['time:day'],
+  });
+
+  // 5. Process and upsert daily metrics
+  const dailyMetrics = processDailyAggregate(dailyRows, opts.city);
+  if (dailyMetrics.length > 0) {
+    await upsertDailyRows(db, dailyMetrics);
+  }
+
+  // 6. Rebuild engagement scores
+  await rebuildEngagement(db, opts.city);
+
+  return { contentPages: contentRows.length, skippedPaths: skippedPaths.length, dailyRows: dailyMetrics.length };
 }

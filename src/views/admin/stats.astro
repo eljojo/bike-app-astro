@@ -7,11 +7,14 @@ import '../../styles/admin.scss';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { authorize } from '../../lib/auth/authorize';
 import { db } from '../../lib/get-db';
+import { env } from '../../lib/env/env.service';
 import { CITY } from '../../lib/config/config';
+import { getCityConfig } from '../../lib/config/city-config';
 import { contentEngagement, siteDailyMetrics } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
+import { needsSync, runSync } from '../../lib/stats/sync.server';
 import StatsOverview from '../../components/admin/StatsOverview';
 
 const features = getInstanceFeatures();
@@ -24,6 +27,29 @@ if (user instanceof Response) return user;
 
 const range = (Astro.url.searchParams.get('range') || '30d') as TimeRange;
 const database = db();
+const cspNonce = Astro.locals.cspNonce;
+
+// Auto-sync: if data is stale (>24h) and API key is available, sync before rendering
+const apiKey = env.PLAUSIBLE_API_KEY;
+let syncError = '';
+if (apiKey) {
+  try {
+    const stale = await needsSync(database, CITY);
+    if (stale) {
+      const cityConfig = getCityConfig();
+      await runSync(database, {
+        apiKey,
+        siteId: cityConfig.plausible_domain,
+        city: CITY,
+        locales: cityConfig.locales ?? [cityConfig.locale],
+        defaultLocale: cityConfig.locale,
+      });
+    }
+  } catch (err) {
+    console.error('stats auto-sync error:', err);
+    syncError = err instanceof Error ? err.message : 'Sync failed';
+  }
+}
 
 let statsData: Record<string, unknown> | null = null;
 
@@ -162,6 +188,14 @@ try {
   const medians = computeMedians(insightInput);
   const insights = computeInsights(insightInput, medians);
 
+  // Last synced date
+  const lastSyncRow = await database.select({ date: siteDailyMetrics.date })
+    .from(siteDailyMetrics)
+    .where(eq(siteDailyMetrics.city, CITY))
+    .orderBy(desc(siteDailyMetrics.date))
+    .limit(1);
+  const lastSynced = lastSyncRow.length > 0 ? lastSyncRow[0].date : null;
+
   statsData = {
     summaryCards,
     timeSeries,
@@ -170,6 +204,7 @@ try {
     engagementLeaderboard,
     insights,
     range,
+    lastSynced,
   };
 } catch (err) {
   console.error('stats page error:', err);
@@ -191,25 +226,70 @@ function getStartDate(now: Date, r: TimeRange): Date {
   <div class="admin-stats">
     <AdminHeader user={user} currentTab="stats" />
 
+    {syncError && (
+      <div class="stats-sync-error">Sync error: {syncError}</div>
+    )}
+
     {statsData ? (
-      <StatsOverview
-        client:load
-        summaryCards={statsData.summaryCards}
-        timeSeries={statsData.timeSeries}
-        granularity={statsData.granularity}
-        viewsLeaderboard={statsData.viewsLeaderboard}
-        engagementLeaderboard={statsData.engagementLeaderboard}
-        insights={statsData.insights}
-        range={statsData.range}
-      />
+      <>
+        <div class="stats-toolbar">
+          {statsData.lastSynced && <span class="stats-last-synced">Data through {statsData.lastSynced}</span>}
+          <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>
+        </div>
+        <StatsOverview
+          client:load
+          summaryCards={statsData.summaryCards}
+          timeSeries={statsData.timeSeries}
+          granularity={statsData.granularity}
+          viewsLeaderboard={statsData.viewsLeaderboard}
+          engagementLeaderboard={statsData.engagementLeaderboard}
+          insights={statsData.insights}
+          range={statsData.range}
+        />
+      </>
     ) : (
       <div class="stats-empty">
         <h2>No analytics data yet</h2>
-        <p>Stats will appear here after the first analytics sync.</p>
+        <p>
+          {apiKey
+            ? 'The first sync will run automatically. You can also trigger it manually.'
+            : 'Set PLAUSIBLE_API_KEY to enable analytics sync.'
+          }
+        </p>
+        {apiKey && <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>}
       </div>
     )}
   </div>
 </Base>
+
+<script is:inline nonce={cspNonce}>
+  const syncBtn = document.getElementById('sync-btn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async function() {
+      syncBtn.disabled = true;
+      syncBtn.textContent = 'Syncing\u2026';
+      try {
+        const res = await fetch('/api/admin/stats/sync', { method: 'POST' });
+        if (res.ok) {
+          location.reload();
+        } else {
+          const data = await res.json();
+          syncBtn.textContent = data.error || 'Sync failed';
+          setTimeout(function() {
+            syncBtn.textContent = 'Sync now';
+            syncBtn.disabled = false;
+          }, 3000);
+        }
+      } catch {
+        syncBtn.textContent = 'Sync failed';
+        setTimeout(function() {
+          syncBtn.textContent = 'Sync now';
+          syncBtn.disabled = false;
+        }, 3000);
+      }
+    });
+  }
+</script>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
@@ -219,6 +299,61 @@ function getStartDate(now: Date, r: TimeRange): Date {
     max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
+  }
+
+  .stats-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .stats-last-synced {
+    font-size: 0.8125rem;
+    @include muted-text;
+  }
+
+  .stats-sync-btn {
+    padding: 0.375rem 0.875rem;
+    border: 1px solid $color-border;
+    border-radius: $border-radius;
+    background: $color-card-bg;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    color: $color-text;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover:not(:disabled) {
+      background: $color-card-hover;
+      @include dark-mode { background: $color-card-hover-dark; }
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+
+  .stats-sync-error {
+    background: $color-error-bg;
+    border: 1px solid $color-error;
+    border-radius: $border-radius;
+    padding: 0.625rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: $color-error;
+
+    @include dark-mode {
+      background: $color-error-bg-dark;
+      border-color: $color-error-dark;
+      color: $color-error-dark;
+    }
   }
 
   .stats-empty {
@@ -234,6 +369,7 @@ function getStartDate(now: Date, r: TimeRange): Date {
     p {
       font-size: 0.9375rem;
       @include muted-text;
+      margin: 0 0 1rem;
     }
   }
 </style>
