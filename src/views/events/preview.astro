@@ -11,7 +11,7 @@ import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { loadDetailFromJson } from '@/lib/content/load-admin-content.server';
-import { eventDetailFromCache } from '@/lib/models/event-model';
+import { eventDetailFromCache, eventCoverKey } from '@/lib/models/event-model';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -47,7 +47,8 @@ const timeDisplay = hasMeetTime
     : undefined;
 const dateWithTime = timeDisplay ? `${dateDisplay} \u2014 ${timeDisplay}` : dateDisplay;
 
-const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 800 }) : undefined;
+const coverKey = eventCoverKey(data);
+const coverUrl = coverKey ? imageUrl(coverKey, { width: 800 }) : undefined;
 
 let organizerName = '';
 if (typeof data.organizer === 'string') {
@@ -65,11 +66,11 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 <Base title={`${data.name} | ${config.display_name}`} description={dateDisplay} ogImage={coverUrl} ogImageAlt={data.name} ogType="event">
   <div class="event-preview-banner">Preview — this event has not been published yet</div>
   <article class="event-detail">
-    <div class={`event-detail-hero ${data.poster_key ? '' : 'event-detail-hero--no-poster'}`}>
-      {data.poster_key && (
+    <div class={`event-detail-hero ${coverKey ? '' : 'event-detail-hero--no-poster'}`}>
+      {coverKey && (
         <div class="event-detail-hero-poster">
           <ResponsiveImage
-            blobKey={data.poster_key}
+            blobKey={coverKey}
             alt={data.name}
             widths={[400, 800]}
             fit="contain"

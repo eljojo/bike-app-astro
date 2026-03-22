@@ -118,6 +118,11 @@ export const eventDetailSchema = z.object({
 });
 
 export type EventDetail = z.infer<typeof eventDetailSchema>;
+
+/** Returns poster_key, falling back to the first photo in the media array. */
+export function eventCoverKey(data: { poster_key?: string; media?: Array<{ key: string }> }): string | undefined {
+  return data.poster_key || data.media?.[0]?.key;
+}
 export type EventWaypoint = z.infer<typeof waypointDetailSchema>;
 export type EventResult = z.infer<typeof resultDetailSchema>;
 export type EventRegistration = z.infer<typeof registrationDetailSchema>;

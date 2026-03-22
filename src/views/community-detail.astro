@@ -12,6 +12,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramUsername } from '@/lib/models/organizer-model';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
+import { eventCoverKey } from '@/lib/models/event-model';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
@@ -158,8 +159,8 @@ const PAST_EVENTS_INITIAL = 4;
           {upcomingEvents.map(event => (
             <a href={paths.event(event.id, locale)} class="community-event-compact">
               <div class="community-event-thumb">
-                {event.data.poster_key ? (
-                  <img src={imageUrl(event.data.poster_key, { width: 80, height: 80, fit: 'cover' })} alt="" />
+                {eventCoverKey(event.data) ? (
+                  <img src={imageUrl(eventCoverKey(event.data)!, { width: 80, height: 80, fit: 'cover' })} alt="" />
                 ) : (
                   <span>🚲</span>
                 )}
@@ -187,8 +188,8 @@ const PAST_EVENTS_INITIAL = 4;
               class={`community-event-compact past${i >= PAST_EVENTS_INITIAL ? ' community-event-hidden' : ''}`}
             >
               <div class="community-event-thumb">
-                {event.data.poster_key ? (
-                  <img src={imageUrl(event.data.poster_key, { width: 80, height: 80, fit: 'cover' })} alt="" />
+                {eventCoverKey(event.data) ? (
+                  <img src={imageUrl(eventCoverKey(event.data)!, { width: 80, height: 80, fit: 'cover' })} alt="" />
                 ) : (
                   <span>🚲</span>
                 )}

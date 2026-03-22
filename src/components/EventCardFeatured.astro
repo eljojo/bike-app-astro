@@ -6,6 +6,7 @@ import ResponsiveImage from './ResponsiveImage.astro';
 import { formatDateRange, parseLocalDate } from '../lib/date-utils';
 import { tagPillColor } from '../lib/event-tags';
 import { paths } from '../lib/paths';
+import { eventCoverKey } from '../lib/models/event-model';
 
 interface Props {
   event: {
@@ -20,6 +21,7 @@ interface Props {
       poster_content_type?: string;
       organizer?: string | { name: string };
       tags?: string[];
+      media?: Array<{ key: string; type?: string }>;
     };
   };
   tagLabel?: string;
@@ -31,6 +33,7 @@ interface Props {
 
 const { event, tagLabel, seriesBadge, occurrenceDate, organizerName: preResolvedOrg, locale } = Astro.props;
 const { data } = event;
+const coverKey = eventCoverKey(data);
 
 let organizerName = preResolvedOrg || '';
 if (!organizerName) {
@@ -64,10 +67,10 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
 ---
 
 <div class="event-card-featured" data-event-slug={event.id}>
-  {data.poster_key && (
+  {coverKey && (
     <div class="event-card-featured-poster">
       <ResponsiveImage
-        blobKey={data.poster_key}
+        blobKey={coverKey}
         alt={displayName}
         widths={[400, 800]}
         fit="cover"
