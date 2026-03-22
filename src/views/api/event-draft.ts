@@ -30,14 +30,15 @@ Rules:
 - "tags" is a plain array of tag slugs (not {value,c}). Only use tags from the provided list. Omit if none clearly apply.
 - URLs must have proper JSON escaping (escape backslashes and quotes)
 - "meet_time" is separate from "start_time" — e.g. "meet 6:45, roll 7:00" means meet_time=18:45, start_time=19:00
-- "series" — only include when the poster/page shows MULTIPLE dates for the SAME recurring event:
-  - If 2+ specific dates are listed, use "schedule" with an array of {date, location?} entries
+- "series" — IMPORTANT: include this whenever the page lists 2 or more dates for related events (race stages, weekly rides, a multi-day series, etc.):
+  - If 2+ specific dates are listed (e.g. "Stage 1: May 13", "Stage 2: May 27"), use "schedule" with an array of {date, location?} entries
   - If dates follow a weekly or biweekly pattern, ALSO set "recurrence", "recurrence_day", "season_start", "season_end"
   - The "name" field should be the SERIES name (e.g. "#OttBike Social"), not include specific dates
   - Each schedule entry needs at minimum: date (YYYY-MM-DD)
   - If different locations per date, include "location" in each entry
   - For multi-stage events (Stage 1, Stage 2, etc.), each stage is a schedule entry with its date and location
   - If the page has a "series registration" URL plus per-stage registration URLs, use the series URL as "registration_url"
+  - When in doubt about whether something is a series, include the "series" field — it is better to include it than to omit it
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.
 
 Examples:
@@ -51,8 +52,8 @@ Examples:
 3) Event series with specific dates and varying locations (no recurrence rule):
 {"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}
 
-4) Multi-stage race series with numbered stages at different venues:
-{"name":{"value":"Trek Twilight MTB Series","c":9},"start_date":{"value":"2026-05-13","c":9},"end_date":{"value":"2026-08-26","c":8},"start_time":{"value":"18:00","c":8},"meet_time":{"value":"18:00","c":7},"location":{"value":"Various locations","c":7},"organizer":{"value":"Bakker's Trailblazers","c":9},"registration_url":{"value":"https://ccnbikes.com/#!/series/trek-twilight-2026","c":8},"tags":["race"],"series":{"schedule":[{"date":"2026-05-13","location":"Domaine Kanawe"},{"date":"2026-05-27","location":"Domaine Kanawe"},{"date":"2026-06-10","location":"Vorlage"},{"date":"2026-06-24","location":"Vorlage"},{"date":"2026-07-29","location":"Wesley Clover"},{"date":"2026-08-26","location":"Wesley Clover"}],"recurrence":"biweekly","recurrence_day":"tuesday","season_start":"2026-05-13","season_end":"2026-08-26"}}`;
+4) Multi-stage race series with numbered stages at different venues (page lists "Stage 1: May 6 | Park A", "Stage 2: May 20 | Park B", etc.):
+{"name":{"value":"Sunset MTB Race Series","c":9},"start_date":{"value":"2026-05-06","c":9},"end_date":{"value":"2026-08-19","c":8},"start_time":{"value":"18:30","c":8},"meet_time":{"value":"18:00","c":7},"location":{"value":"Various locations","c":7},"organizer":{"value":"Valley Trail Runners","c":9},"registration_url":{"value":"https://example.com/series/sunset-mtb-2026","c":8},"tags":["race"],"series":{"schedule":[{"date":"2026-05-06","location":"Pine Ridge Park"},{"date":"2026-05-20","location":"Pine Ridge Park"},{"date":"2026-06-03","location":"Cedar Hills"},{"date":"2026-06-17","location":"Cedar Hills"},{"date":"2026-07-22","location":"Maple Grove"},{"date":"2026-08-19","location":"Maple Grove"}],"recurrence":"biweekly","recurrence_day":"wednesday","season_start":"2026-05-06","season_end":"2026-08-19"}}`;
 
 const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
 
