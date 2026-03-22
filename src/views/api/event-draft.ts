@@ -36,6 +36,8 @@ Rules:
   - The "name" field should be the SERIES name (e.g. "#OttBike Social"), not include specific dates
   - Each schedule entry needs at minimum: date (YYYY-MM-DD)
   - If different locations per date, include "location" in each entry
+  - For multi-stage events (Stage 1, Stage 2, etc.), each stage is a schedule entry with its date and location
+  - If the page has a "series registration" URL plus per-stage registration URLs, use the series URL as "registration_url"
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.
 
 Examples:
@@ -47,7 +49,10 @@ Examples:
 {"name":{"value":"BMX Gate Practice","c":9},"start_date":{"value":"2026-05-05","c":9},"end_date":{"value":"2026-08-25","c":8},"start_time":{"value":"18:15","c":8},"meet_time":{"value":"18:30","c":7},"location":{"value":"BMX Track, 93 Houlahan St","c":9},"organizer":{"value":"Nepean BMX","c":8},"tags":["bmx","family-friendly"],"series":{"recurrence":"weekly","recurrence_day":"tuesday","season_start":"2026-05-05","season_end":"2026-08-25"}}
 
 3) Event series with specific dates and varying locations (no recurrence rule):
-{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}`;
+{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}
+
+4) Multi-stage race series with numbered stages at different venues:
+{"name":{"value":"Trek Twilight MTB Series","c":9},"start_date":{"value":"2026-05-13","c":9},"end_date":{"value":"2026-08-26","c":8},"start_time":{"value":"18:00","c":8},"meet_time":{"value":"18:00","c":7},"location":{"value":"Various locations","c":7},"organizer":{"value":"Bakker's Trailblazers","c":9},"registration_url":{"value":"https://ccnbikes.com/#!/series/trek-twilight-2026","c":8},"tags":["race"],"series":{"schedule":[{"date":"2026-05-13","location":"Domaine Kanawe"},{"date":"2026-05-27","location":"Domaine Kanawe"},{"date":"2026-06-10","location":"Vorlage"},{"date":"2026-06-24","location":"Vorlage"},{"date":"2026-07-29","location":"Wesley Clover"},{"date":"2026-08-26","location":"Wesley Clover"}],"recurrence":"biweekly","recurrence_day":"tuesday","season_start":"2026-05-13","season_end":"2026-08-26"}}`;
 
 const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
 
@@ -230,8 +235,10 @@ function buildContextSuffix(): string {
 }
 
 /** Strip HTML to plain text for AI processing. */
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   let text = html;
+  // Remove JSON data blobs (Wix viewer model, warmup data, etc.) — before general script removal
+  text = text.replace(/<script[^>]*type="application\/json"[^>]*>[\s\S]*?<\/script>/gi, '');
   // Remove script and style blocks
   text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
   text = text.replace(/<style[\s\S]*?<\/style>/gi, '');

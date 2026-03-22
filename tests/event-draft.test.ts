@@ -8,7 +8,7 @@ vi.mock('../src/lib/auth/rate-limit', () => ({ checkRateLimit: vi.fn(), recordAt
 vi.mock('../src/lib/media/storage.adapter-r2', () => ({ generateMediaKey: vi.fn(), confirmUpload: vi.fn() }));
 vi.mock('../src/lib/content/load-admin-content.server', () => ({ fetchJson: vi.fn() }));
 
-import { buildDraft } from '../src/views/api/event-draft';
+import { buildDraft, htmlToText } from '../src/views/api/event-draft';
 
 const organizers = [
   { slug: 'ottawa-bicycle-club', name: 'Ottawa Bicycle Club', website: 'https://ottawabicycleclub.ca', instagram: 'ottawabicycleclub' },
@@ -124,5 +124,213 @@ describe('buildDraft tag extraction', () => {
     }, organizers);
 
     expect(draft.tags).toBeUndefined();
+  });
+});
+
+describe('htmlToText', () => {
+  it('preserves link text with URL', () => {
+    const html = '<a href="https://example.com/register">Stage 1 - Register</a>';
+    const text = htmlToText(html);
+    expect(text).toContain('Stage 1 - Register');
+    expect(text).toContain('https://example.com/register');
+  });
+
+  it('extracts button-link labels with URLs', () => {
+    const html = `
+      <div class="FubTgk" id="comp-1" aria-disabled="false">
+        <a href="https://ccnbikes.com/#!/events/stage-1" target="_blank" class="uDW_Qe wixui-button">
+          <span class="l7_2fn wixui-button__label">Stage 1 - Register</span>
+        </a>
+      </div>
+      <div class="FubTgk" id="comp-2" aria-disabled="false">
+        <a href="https://ccnbikes.com/#!/events/stage-2" target="_blank" class="uDW_Qe wixui-button">
+          <span class="l7_2fn wixui-button__label">Stage 2 - Register</span>
+        </a>
+      </div>`;
+    const text = htmlToText(html);
+    expect(text).toContain('Stage 1 - Register');
+    expect(text).toContain('https://ccnbikes.com/#!/events/stage-1');
+    expect(text).toContain('Stage 2 - Register');
+    expect(text).toContain('https://ccnbikes.com/#!/events/stage-2');
+  });
+
+  it('preserves date-location lines from rich text spans', () => {
+    const html = `
+      <span class="wixui-rich-text__text"><span style="font-weight:bold;">Stage 1: May 13</span>&nbsp;| Domaine Kanawe</span>
+      <br class="wixui-rich-text__text">
+      <span class="wixui-rich-text__text"><span style="font-weight:bold;">Stage 2: May 27</span>&nbsp;| Domaine Kanawe</span>`;
+    const text = htmlToText(html);
+    expect(text).toContain('Stage 1: May 13');
+    expect(text).toContain('Domaine Kanawe');
+    expect(text).toContain('Stage 2: May 27');
+  });
+
+  it('strips scripts and styles', () => {
+    const html = '<script>alert("x")</script><style>.x{}</style><p>Hello</p>';
+    const text = htmlToText(html);
+    expect(text).toBe('Hello');
+    expect(text).not.toContain('alert');
+    expect(text).not.toContain('.x');
+  });
+
+  it('collapses excessive whitespace', () => {
+    const html = '<p>One</p><p></p><p></p><p></p><p>Two</p>';
+    const text = htmlToText(html);
+    expect(text).not.toMatch(/\n{3,}/);
+  });
+
+  it('decodes HTML entities', () => {
+    const html = '<p>Rock &amp; Roll &lt;3</p>';
+    const text = htmlToText(html);
+    expect(text).toContain('Rock & Roll <3');
+  });
+
+  it('extracts series structure from a Wix-style event page', () => {
+    const html = `
+      <div id="comp-kz4u4zyn" class="wixui-rich-text" data-testid="richTextElement">
+        <h2 class="font_2 wixui-rich-text__text" style="font-size:20px;">
+          <span class="wixui-rich-text__text">
+            <span class="wixui-rich-text__text">
+              <span style="text-decoration:underline;" class="wixui-rich-text__text">
+                <span style="letter-spacing:0.25em;" class="wixui-rich-text__text">2026 Preliminary Dates:</span>
+              </span>
+            </span>
+            <br class="wixui-rich-text__text">
+            <span class="wixui-rich-text__text">
+              <span style="letter-spacing:0.25em;" class="wixui-rich-text__text">
+                <span style="font-weight:bold;" class="wixui-rich-text__text">Stage 1: May 13</span>&nbsp;| Domaine Kanawe
+              </span>
+            </span>
+            <br class="wixui-rich-text__text">
+            <span class="wixui-rich-text__text">
+              <span style="letter-spacing:0.25em;" class="wixui-rich-text__text">
+                <span style="font-weight:bold;" class="wixui-rich-text__text">Stage 2: May 27</span>&nbsp;| Domaine Kanawe
+              </span>
+            </span>
+          </span>
+        </h2>
+      </div>
+      <div class="comp-mlbaz30f FubTgk" id="comp-mlbaz30f" aria-disabled="false">
+        <a data-testid="linkElement" href="https://ccnbikes.com/#!/series/trek-twilight-mtb-series-2026" target="_blank" rel="noreferrer noopener" class="uDW_Qe wixui-button PlZyDq" aria-disabled="false" aria-label="Full Series Registration">
+          <span class="l7_2fn wixui-button__label">Full Series Registration</span>
+        </a>
+      </div>
+      <div class="comp-l2uzzbly FubTgk" id="comp-l2uzzbly" aria-disabled="false">
+        <a data-testid="linkElement" href="https://ccnbikes.com/#!/events/stage-1-domaine-kanawe" target="_blank" class="uDW_Qe wixui-button PlZyDq">
+          <span class="l7_2fn wixui-button__label">Stage 1 - Register</span>
+        </a>
+      </div>
+      <div class="comp-l2uzzck3 FubTgk" id="comp-l2uzzck3" aria-disabled="false">
+        <a data-testid="linkElement" href="https://ccnbikes.com/#!/events/stage-2-domaine-kanawe" target="_blank" class="uDW_Qe wixui-button PlZyDq">
+          <span class="l7_2fn wixui-button__label">Stage 2 - Register</span>
+        </a>
+      </div>`;
+    const text = htmlToText(html);
+    expect(text).toContain('Stage 1: May 13');
+    expect(text).toContain('Domaine Kanawe');
+    expect(text).toContain('Stage 2: May 27');
+    expect(text).toContain('Full Series Registration');
+    expect(text).toContain('ccnbikes.com');
+    expect(text).toContain('Stage 1 - Register');
+    expect(text).toContain('Stage 2 - Register');
+  });
+});
+
+describe('buildDraft series extraction', () => {
+  it('builds series with explicit schedule from AI output', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Trek Twilight MTB Series', c: 9 },
+      start_date: { value: '2026-05-13', c: 9 },
+      end_date: { value: '2026-08-26', c: 8 },
+      location: { value: 'Various locations', c: 7 },
+      organizer: { value: "Bakker's Trailblazers", c: 8 },
+      registration_url: { value: 'https://ccnbikes.com/#!/series/trek-twilight-mtb-series-2026', c: 8 },
+      tags: ['race'],
+      series: {
+        schedule: [
+          { date: '2026-05-13', location: 'Domaine Kanawe' },
+          { date: '2026-05-27', location: 'Domaine Kanawe' },
+          { date: '2026-06-10', location: 'Vorlage' },
+          { date: '2026-06-24', location: 'Vorlage' },
+          { date: '2026-07-29', location: 'Wesley Clover' },
+          { date: '2026-08-26', location: 'Wesley Clover' },
+        ],
+        recurrence: 'biweekly',
+        recurrence_day: 'tuesday',
+        season_start: '2026-05-13',
+        season_end: '2026-08-26',
+      },
+    }, organizers);
+
+    expect(draft.series).toBeDefined();
+    const series = draft.series as Record<string, unknown>;
+    const schedule = series.schedule as Array<{ date: string; location?: string }>;
+    expect(schedule).toHaveLength(6);
+    expect(schedule[0]).toEqual({ date: '2026-05-13', location: 'Domaine Kanawe' });
+    expect(schedule[2]).toEqual({ date: '2026-06-10', location: 'Vorlage' });
+    expect(series.recurrence).toBe('biweekly');
+    expect(series.recurrence_day).toBe('tuesday');
+  });
+
+  it('sets start_date from first schedule entry when AI omits start_date', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Stage Race', c: 9 },
+      series: {
+        schedule: [
+          { date: '2026-06-01', location: 'Park A' },
+          { date: '2026-06-15', location: 'Park B' },
+        ],
+      },
+    }, organizers);
+
+    expect(draft.start_date).toBe('2026-06-01');
+    expect(draft.year).toBe('2026');
+  });
+
+  it('rejects schedule with fewer than 2 entries', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Almost a Series', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      series: {
+        schedule: [{ date: '2026-05-01' }],
+      },
+    }, organizers);
+
+    expect(draft.series).toBeUndefined();
+  });
+
+  it('rejects schedule entries with invalid dates', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Bad Dates', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      series: {
+        schedule: [
+          { date: 'May 13' },
+          { date: 'May 27' },
+        ],
+      },
+    }, organizers);
+
+    expect(draft.series).toBeUndefined();
+  });
+
+  it('builds series with recurrence rule only (no schedule)', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Weekly Ride', c: 9 },
+      start_date: { value: '2026-05-05', c: 9 },
+      end_date: { value: '2026-08-25', c: 8 },
+      series: {
+        recurrence: 'weekly',
+        recurrence_day: 'tuesday',
+        season_start: '2026-05-05',
+        season_end: '2026-08-25',
+      },
+    }, organizers);
+
+    expect(draft.series).toBeDefined();
+    const series = draft.series as Record<string, unknown>;
+    expect(series.recurrence).toBe('weekly');
+    expect(series.recurrence_day).toBe('tuesday');
+    expect(series.schedule).toBeUndefined();
   });
 });
