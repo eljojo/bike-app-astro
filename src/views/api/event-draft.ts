@@ -30,12 +30,14 @@ Rules:
 - "tags" is a plain array of tag slugs (not {value,c}). Only use tags from the provided list. Omit if none clearly apply.
 - URLs must have proper JSON escaping (escape backslashes and quotes)
 - "meet_time" is separate from "start_time" — e.g. "meet 6:45, roll 7:00" means meet_time=18:45, start_time=19:00
-- "series" — only include when the poster/page shows MULTIPLE dates for the SAME recurring event:
-  - If 2+ specific dates are listed, use "schedule" with an array of {date, location?} entries
+- "series" — IMPORTANT: include this whenever the page lists 2 or more dates for related events (race stages, weekly rides, a multi-day series, etc.):
+  - If 2+ specific dates are listed (e.g. "Stage 1: May 13", "Stage 2: May 27"), use "schedule" with an array of {date, location?} entries
   - If dates follow a weekly or biweekly pattern, ALSO set "recurrence", "recurrence_day", "season_start", "season_end"
   - The "name" field should be the SERIES name (e.g. "#OttBike Social"), not include specific dates
   - Each schedule entry needs at minimum: date (YYYY-MM-DD)
   - If different locations per date, include "location" in each entry
+  - For multi-stage events (Stage 1, Stage 2, etc.), each stage is a schedule entry with its date and location
+  - If the page has a "series registration" URL plus per-stage registration URLs, use the series URL as "registration_url"
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.
 
 Examples:
@@ -47,7 +49,10 @@ Examples:
 {"name":{"value":"BMX Gate Practice","c":9},"start_date":{"value":"2026-05-05","c":9},"end_date":{"value":"2026-08-25","c":8},"start_time":{"value":"18:15","c":8},"meet_time":{"value":"18:30","c":7},"location":{"value":"BMX Track, 93 Houlahan St","c":9},"organizer":{"value":"Nepean BMX","c":8},"tags":["bmx","family-friendly"],"series":{"recurrence":"weekly","recurrence_day":"tuesday","season_start":"2026-05-05","season_end":"2026-08-25"}}
 
 3) Event series with specific dates and varying locations (no recurrence rule):
-{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}`;
+{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}
+
+4) Multi-stage race series with numbered stages at different venues (page lists "Stage 1: May 6 | Park A", "Stage 2: May 20 | Park B", etc.):
+{"name":{"value":"Sunset MTB Race Series","c":9},"start_date":{"value":"2026-05-06","c":9},"end_date":{"value":"2026-08-19","c":8},"start_time":{"value":"18:30","c":8},"meet_time":{"value":"18:00","c":7},"location":{"value":"Various locations","c":7},"organizer":{"value":"Valley Trail Runners","c":9},"registration_url":{"value":"https://example.com/series/sunset-mtb-2026","c":8},"tags":["race"],"series":{"schedule":[{"date":"2026-05-06","location":"Pine Ridge Park"},{"date":"2026-05-20","location":"Pine Ridge Park"},{"date":"2026-06-03","location":"Cedar Hills"},{"date":"2026-06-17","location":"Cedar Hills"},{"date":"2026-07-22","location":"Maple Grove"},{"date":"2026-08-19","location":"Maple Grove"}],"recurrence":"biweekly","recurrence_day":"wednesday","season_start":"2026-05-06","season_end":"2026-08-19"}}`;
 
 const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
 
@@ -58,7 +63,7 @@ const WEBPAGE_PROMPT = `Extract event information from this webpage. Return ONLY
 ${FIELD_SPEC}`;
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_TEXT_LENGTH = 15_000; // Characters of page text to send
+const MAX_TEXT_LENGTH = 24_000; // Characters of page text to send
 const HIGH_CONFIDENCE = 7; // 0-10 scale
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -201,6 +206,71 @@ export function buildDraft(
   return { draft, uncertain };
 }
 
+// Month name → number for date parsing
+const MONTH_MAP: Record<string, string> = {
+  january: '01', february: '02', march: '03', april: '04',
+  may: '05', june: '06', july: '07', august: '08',
+  september: '09', october: '10', november: '11', december: '12',
+  jan: '01', feb: '02', mar: '03', apr: '04',
+  jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/**
+ * Try to extract a series schedule from page text when the AI didn't detect one.
+ * Looks for patterns like "Stage 1: May 13 | Domaine Kanawe" or "Stage 1: May 13 — Park A".
+ * Returns a schedule array or null if no pattern found.
+ */
+export function extractSeriesFromText(
+  pageText: string,
+  referenceYear?: string,
+): Array<{ date: string; location?: string }> | null {
+  // Gate: only attempt extraction if the page contains a schedule-related heading.
+  // This prevents false positives from unrelated numbered content (archived results,
+  // other events, venue calendars) on pages that happen to contain stage-like text.
+  const hasScheduleContext = /(?:dates|schedule|series|stages|calendar|preliminary)\s*:/i.test(pageText);
+  if (!hasScheduleContext) return null;
+
+  // Match lines like "Stage 1: May 13 | Domaine Kanawe" or "Race 1 - June 5 | Place"
+  // Intentionally narrow: only triggers on stage/race/round/leg numbering patterns.
+  // "event" excluded — too generic, matches unrelated content on multi-event pages.
+  const stagePattern = /(?:stage|race|round|leg)\s*#?\s*(\d+)\s*[:.\-–—]\s*([A-Za-z]+)\s+(\d{1,2})(?:\s*[|,\-–—]\s*(.+))?/gi;
+  const matches: Array<{ num: number; month: string; day: string; location?: string }> = [];
+
+  let m;
+  while ((m = stagePattern.exec(pageText)) !== null) {
+    const num = parseInt(m[1], 10);
+    const monthName = m[2].toLowerCase();
+    const day = m[3];
+    const location = m[4]?.trim();
+
+    if (!MONTH_MAP[monthName]) continue;
+    matches.push({ num, month: MONTH_MAP[monthName], day: day.padStart(2, '0'), location });
+  }
+
+  if (matches.length < 2) return null;
+
+  // Sort by stage number and deduplicate
+  matches.sort((a, b) => a.num - b.num);
+  const seen = new Set<number>();
+  const unique = matches.filter(m => {
+    if (seen.has(m.num)) return false;
+    seen.add(m.num);
+    return true;
+  });
+
+  if (unique.length < 2) return null;
+
+  // Determine year: use reference year (from AI-extracted start_date) or current year
+  const year = referenceYear || new Date().getFullYear().toString();
+
+  return unique.map(entry => {
+    const dateStr = `${year}-${entry.month}-${entry.day}`;
+    const result: { date: string; location?: string } = { date: dateStr };
+    if (entry.location) result.location = entry.location;
+    return result;
+  });
+}
+
 /** Build context suffix for the AI prompt (date, city, locales, organizers). */
 function buildContextSuffix(): string {
   const cityConfig = getCityConfig();
@@ -230,8 +300,10 @@ function buildContextSuffix(): string {
 }
 
 /** Strip HTML to plain text for AI processing. */
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   let text = html;
+  // Remove JSON data blobs (Wix viewer model, warmup data, etc.) — before general script removal
+  text = text.replace(/<script[^>]*type="application\/json"[^>]*>[\s\S]*?<\/script>/gi, '');
   // Remove script and style blocks
   text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
   text = text.replace(/<style[\s\S]*?<\/style>/gi, '');
@@ -459,6 +531,22 @@ export async function POST({ request, locals }: APIContext) {
 
       const { extracted, durationMs } = await extractFromHtml(ai, TEXT_MODEL, pageText, body.url);
       const { draft, uncertain } = buildDraft(extracted);
+
+      // If the AI didn't detect a series, try extracting one from the page text
+      if (!draft.series) {
+        const schedule = extractSeriesFromText(pageText, draft.year as string | undefined);
+        if (schedule) {
+          draft.series = { schedule };
+          // Set start/end dates from the schedule
+          if (!draft.start_date || draft.start_date === new Date().toISOString().split('T')[0]) {
+            draft.start_date = schedule[0].date;
+            draft.year = schedule[0].date.substring(0, 4);
+          }
+          if (!draft.end_date) {
+            draft.end_date = schedule[schedule.length - 1].date;
+          }
+        }
+      }
 
       // If the page URL looks like a registration page, use it as the registration URL
       if (!draft.registration_url) {
