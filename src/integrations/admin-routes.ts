@@ -54,6 +54,8 @@ const routes = [
   { pattern: '/admin/data/parked-media.json', entrypoint: view('admin/data/parked-media.json.ts') },
   { pattern: '/admin/data/waypoint-suggestions/[slug].json', entrypoint: view('admin/data/waypoint-suggestions.json.ts') },
   ...contentTypeRoutes,
+  // Stats page (wiki-only, gated at page level)
+  { pattern: '/admin/stats', entrypoint: view('admin/stats.astro') },
   // Dashboard — all instance types land here
   { pattern: '/admin', entrypoint: view('admin/dashboard.astro') },
   // Non-content-type admin pages
