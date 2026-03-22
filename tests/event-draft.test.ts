@@ -353,7 +353,8 @@ Stage 6: August 26 | Wesley Clover`;
   });
 
   it('extracts stages with dash separator', () => {
-    const text = `Race 1 - June 5 | Park A
+    const text = `Race Schedule:
+Race 1 - June 5 | Park A
 Race 2 - June 19 | Park B
 Race 3 - July 3 | Park A`;
 
@@ -364,7 +365,8 @@ Race 3 - July 3 | Park A`;
   });
 
   it('extracts stages without locations', () => {
-    const text = `Stage 1: May 10
+    const text = `Series Dates:
+Stage 1: May 10
 Stage 2: May 24
 Stage 3: June 7`;
 
@@ -375,7 +377,7 @@ Stage 3: June 7`;
   });
 
   it('returns null for fewer than 2 stages', () => {
-    const text = 'Stage 1: May 13 | Some Park';
+    const text = 'Series Dates:\nStage 1: May 13 | Some Park';
     expect(extractSeriesFromText(text, '2026')).toBeNull();
   });
 
@@ -384,8 +386,28 @@ Stage 3: June 7`;
     expect(extractSeriesFromText(text, '2026')).toBeNull();
   });
 
+  it('returns null when stages exist but no schedule-context heading', () => {
+    // Stage-like text without a "dates:", "schedule:", "series:" heading
+    const text = `Results from last year
+Stage 1: May 13 | Domaine Kanawe
+Stage 2: May 27 | Domaine Kanawe
+Stage 3: June 10 | Vorlage`;
+
+    expect(extractSeriesFromText(text, '2026')).toBeNull();
+  });
+
+  it('returns null for generic "event" numbering (not a trigger word)', () => {
+    const text = `Calendar:
+Event 1: May 13 | City Hall
+Event 2: May 27 | Library
+Event 3: June 10 | Park`;
+
+    expect(extractSeriesFromText(text, '2026')).toBeNull();
+  });
+
   it('handles abbreviated month names', () => {
-    const text = `Stage 1: Jan 5 | Rink A
+    const text = `Stages:
+Stage 1: Jan 5 | Rink A
 Stage 2: Feb 2 | Rink B`;
 
     const schedule = extractSeriesFromText(text, '2026');
@@ -395,8 +417,8 @@ Stage 2: Feb 2 | Rink B`;
   });
 
   it('deduplicates stages by number', () => {
-    // Same stage mentioned twice (e.g. in dates section and registration section)
-    const text = `Stage 1: May 13 | Domaine Kanawe
+    const text = `Preliminary Dates:
+Stage 1: May 13 | Domaine Kanawe
 Stage 2: May 27 | Domaine Kanawe
 Stage 1: May 13
 Stage 2: May 27`;
@@ -406,7 +428,8 @@ Stage 2: May 27`;
   });
 
   it('uses current year when no reference year provided', () => {
-    const text = `Stage 1: May 10 | Park A
+    const text = `Series Dates:
+Stage 1: May 10 | Park A
 Stage 2: May 24 | Park B`;
 
     const schedule = extractSeriesFromText(text);
@@ -415,7 +438,8 @@ Stage 2: May 24 | Park B`;
   });
 
   it('works with em-dash and en-dash separators', () => {
-    const text = `Stage 1: May 10 \u2014 Park A
+    const text = `Schedule:
+Stage 1: May 10 \u2014 Park A
 Stage 2: May 24 \u2013 Park B`;
 
     const schedule = extractSeriesFromText(text, '2026');

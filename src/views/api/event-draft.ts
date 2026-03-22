@@ -38,7 +38,6 @@ Rules:
   - If different locations per date, include "location" in each entry
   - For multi-stage events (Stage 1, Stage 2, etc.), each stage is a schedule entry with its date and location
   - If the page has a "series registration" URL plus per-stage registration URLs, use the series URL as "registration_url"
-  - When in doubt about whether something is a series, include the "series" field — it is better to include it than to omit it
 - Return ONLY valid JSON. No markdown, no explanation, no code fences.
 
 Examples:
@@ -225,9 +224,16 @@ export function extractSeriesFromText(
   pageText: string,
   referenceYear?: string,
 ): Array<{ date: string; location?: string }> | null {
-  // Match lines like "Stage 1: May 13 | Domaine Kanawe" or "Stage 1: May 13 - Park Name"
-  // Also handles "Race 1: June 5 | Place" and similar numbered-event patterns
-  const stagePattern = /(?:stage|race|round|event|leg)\s*#?\s*(\d+)\s*[:.\-–—]\s*([A-Za-z]+)\s+(\d{1,2})(?:\s*[|,\-–—]\s*(.+))?/gi;
+  // Gate: only attempt extraction if the page contains a schedule-related heading.
+  // This prevents false positives from unrelated numbered content (archived results,
+  // other events, venue calendars) on pages that happen to contain stage-like text.
+  const hasScheduleContext = /(?:dates|schedule|series|stages|calendar|preliminary)\s*:/i.test(pageText);
+  if (!hasScheduleContext) return null;
+
+  // Match lines like "Stage 1: May 13 | Domaine Kanawe" or "Race 1 - June 5 | Place"
+  // Intentionally narrow: only triggers on stage/race/round/leg numbering patterns.
+  // "event" excluded — too generic, matches unrelated content on multi-event pages.
+  const stagePattern = /(?:stage|race|round|leg)\s*#?\s*(\d+)\s*[:.\-–—]\s*([A-Za-z]+)\s+(\d{1,2})(?:\s*[|,\-–—]\s*(.+))?/gi;
   const matches: Array<{ num: number; month: string; day: string; location?: string }> = [];
 
   let m;
@@ -254,7 +260,7 @@ export function extractSeriesFromText(
 
   if (unique.length < 2) return null;
 
-  // Determine year: use reference year or current year, bump to next year if first date is in the past
+  // Determine year: use reference year (from AI-extracted start_date) or current year
   const year = referenceYear || new Date().getFullYear().toString();
 
   return unique.map(entry => {
