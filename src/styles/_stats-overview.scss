@@ -260,3 +260,84 @@
   @include muted-text;
   line-height: 1.4;
 }
+
+// --- Stats Detail (drill-down pages) ---
+
+.stats-detail {
+  margin-top: 1rem;
+}
+
+.stats-back-link {
+  display: inline-block;
+  font-size: 0.875rem;
+  color: $color-link;
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.stats-detail-title {
+  font-family: $font-heading;
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.stats-funnel {
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.stats-funnel-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stats-funnel-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stats-funnel-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+  border-radius: $border-radius;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+
+.stats-funnel-label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stats-funnel-count {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stats-funnel-rate {
+  font-size: 0.8125rem;
+  @include muted-text;
+  white-space: nowrap;
+}

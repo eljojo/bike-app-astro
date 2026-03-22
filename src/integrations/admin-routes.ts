@@ -87,9 +87,16 @@ const routes = [
   { pattern: '/api/admin/event-draft', entrypoint: view('api/event-draft.ts') },
   { pattern: '/api/admin/fetch-image', entrypoint: view('api/fetch-image.ts') },
   { pattern: '/api/admin/deploy-status', entrypoint: view('api/admin-deploy-status.ts') },
+  // Stats page drill-downs (wiki-only, gated at page level)
+  { pattern: '/admin/stats/route/*', entrypoint: view('admin/stats-route-detail.astro') },
+  { pattern: '/admin/stats/event/*', entrypoint: view('admin/stats-event-detail.astro') },
+  { pattern: '/admin/stats/community/*', entrypoint: view('admin/stats-community-detail.astro') },
   // Stats API (wiki-only, gated at endpoint level)
   { pattern: '/api/admin/stats/sync', entrypoint: view('api/admin-stats-sync.ts') },
   { pattern: '/api/admin/stats/overview', entrypoint: view('api/admin-stats-overview.ts') },
+  { pattern: '/api/admin/stats/route/*', entrypoint: view('api/admin-stats-route.ts') },
+  { pattern: '/api/admin/stats/event/*', entrypoint: view('api/admin-stats-event.ts') },
+  { pattern: '/api/admin/stats/community/*', entrypoint: view('api/admin-stats-community.ts') },
   { pattern: '/api/settings', entrypoint: view('api/settings.ts') },
   { pattern: '/api/gpx/import', entrypoint: view('api/gpx/import.ts') },
   // Reactions (static _starred must precede parameterized to avoid matching as params)
