@@ -63,7 +63,7 @@ const WEBPAGE_PROMPT = `Extract event information from this webpage. Return ONLY
 ${FIELD_SPEC}`;
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_TEXT_LENGTH = 15_000; // Characters of page text to send
+const MAX_TEXT_LENGTH = 24_000; // Characters of page text to send
 const HIGH_CONFIDENCE = 7; // 0-10 scale
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
