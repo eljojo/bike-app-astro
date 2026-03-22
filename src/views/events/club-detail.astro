@@ -9,6 +9,7 @@ import { eventJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { makePreview } from '@/lib/markdown/markdown-preview';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
+import { eventCoverKey } from '@/lib/models/event-model';
 import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/date-utils';
 import { t, localePath, eventNoun, eventNextLabel, eventSignUpLabel, eventEditionsLabel, eventGoBackLabel } from '@/i18n';
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
@@ -112,7 +113,7 @@ export async function getStaticPaths() {
         id: ed.id,
         year: ed.year,
         name: ev?.data.name || '',
-        poster_key: ev?.data.poster_key,
+        poster_key: ev ? eventCoverKey(ev.data) : undefined,
         start_date: ev?.data.start_date || '',
         distances: ev?.data.distances,
       };
@@ -138,7 +139,7 @@ export async function getStaticPaths() {
     eventCardData[ev.id] = {
       name: ev.data.name,
       start_date: ev.data.start_date,
-      poster_key: ev.data.poster_key,
+      poster_key: eventCoverKey(ev.data),
       distances: ev.data.distances,
       organizer: orgName,
       edition: ev.data.edition,
@@ -174,7 +175,8 @@ if (typeof data.organizer === 'string') {
 }
 
 const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
-const coverUrl = data.poster_key ? imageUrl(data.poster_key, { width: 800 }) : undefined;
+const coverKey = eventCoverKey(data);
+const coverUrl = coverKey ? imageUrl(coverKey, { width: 800 }) : undefined;
 
 function mapServiceName(url: string): string | undefined {
   try {
@@ -317,7 +319,7 @@ const jsonLd = eventJsonLd({
   registration_url: regUrl,
   organizer_name: organizerName,
   organizer_url: organizerUrl,
-  poster_key: data.poster_key,
+  poster_key: coverKey,
   description: bodyPreview,
   tags,
   isPast: isPastEvent,
@@ -366,7 +368,7 @@ const hasHeroVideo = !!heroSelfHosted || !!heroYouTubeId;
 // Exclude hero video and poster from gallery (both are shown separately)
 const excludeKeys = new Set<string>();
 if (heroSelfHosted) excludeKeys.add(heroSelfHosted.key);
-if (data.poster_key) excludeKeys.add(data.poster_key);
+if (coverKey) excludeKeys.add(coverKey);
 const galleryMediaFiltered = galleryMedia.filter(m => !excludeKeys.has(m.key));
 
 // TODO: Render additional YouTube videos (youtubeIds.slice(1)) in gallery
@@ -384,11 +386,11 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
 <Base title={`${data.name} | ${config.display_name}`} description={seoDescription} ogImage={coverUrl} ogImageAlt={data.name} ogType="event" jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
   <article class="event-detail">
-    <div class={`event-detail-hero ${data.poster_key ? '' : 'event-detail-hero--no-poster'}`}>
-      {data.poster_key && (
+    <div class={`event-detail-hero ${coverKey ? '' : 'event-detail-hero--no-poster'}`}>
+      {coverKey && (
         <div class="event-detail-hero-poster">
           <ResponsiveImage
-            blobKey={data.poster_key}
+            blobKey={coverKey}
             alt={data.name}
             widths={[400, 800]}
             fit="contain"

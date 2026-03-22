@@ -9,6 +9,7 @@ import { findNearbyPlaces } from './geo/proximity';
 import type { PlaceData } from './geo/proximity';
 import { getInstanceFeatures } from './config/instance-features';
 import { paths } from './paths';
+import { eventCoverKey } from './models/event-model';
 
 type RouteEntry = CollectionEntry<'routes'>;
 type EventEntry = CollectionEntry<'events'>;
@@ -190,7 +191,7 @@ function getUpcomingEvents(
         endDate: e.data.end_date,
         organizerName: org?.data.name,
         organizerSlug: org?.id,
-        posterKey: e.data.poster_key,
+        posterKey: eventCoverKey(e.data),
       };
     });
 }

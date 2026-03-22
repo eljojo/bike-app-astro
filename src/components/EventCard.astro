@@ -4,6 +4,7 @@ import './EventCard.scss';
 import { getCollection } from 'astro:content';
 import ResponsiveImage from './ResponsiveImage.astro';
 import { formatDateRange } from '../lib/date-utils';
+import { eventCoverKey } from '../lib/models/event-model';
 
 interface Props {
   name: string;
@@ -16,11 +17,13 @@ interface Props {
   review_url?: string;
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
+  media?: Array<{ key: string; type?: string }>;
   edition?: string;
   eventId?: string;
 }
 
 const props = Astro.props;
+const coverKey = eventCoverKey(props);
 
 let organizerName = '';
 if (typeof props.organizer === 'string') {
@@ -44,10 +47,10 @@ const dateDisplay = formatDateRange(props.start_date, props.end_date);
   }
   <span class="event-dates">{dateDisplay}</span>
   {props.distances && <span class="event-distances">{props.distances}</span>}
-  {props.poster_key && (
+  {coverKey && (
     <div class="event-card-poster">
       <ResponsiveImage
-        blobKey={props.poster_key}
+        blobKey={coverKey}
         alt={props.name}
         widths={[400]}
       />

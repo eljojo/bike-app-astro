@@ -7,6 +7,7 @@ import { formatDateRange, parseLocalDate } from '../lib/date-utils';
 import { tagPillColor } from '../lib/event-tags';
 import { tTag } from '../lib/i18n/tag-translations.server';
 import { paths } from '../lib/paths';
+import { eventCoverKey } from '../lib/models/event-model';
 
 interface Props {
   event: {
@@ -22,6 +23,7 @@ interface Props {
       organizer?: string | { name: string };
       tags?: string[];
       distance?: number;
+      media?: Array<{ key: string; type?: string }>;
     };
   };
   occurrenceDate?: string;
@@ -34,6 +36,7 @@ interface Props {
 
 const { event, occurrenceDate, occurrenceLocation, seriesBadge, organizerName: preResolvedOrg, muted = false, locale } = Astro.props;
 const { data } = event;
+const coverKey = eventCoverKey(data);
 
 let organizerName = preResolvedOrg || '';
 if (!organizerName) {
@@ -82,9 +85,9 @@ const meta = metaParts.filter(Boolean).join(' · ');
 <div class:list={['event-card-compact', { 'event-card-compact--muted': muted }]} data-event-slug={event.id} data-start-date={displayStartDate}>
   {!muted && (
     <div class="event-card-compact-thumb">
-      {data.poster_key ? (
+      {coverKey ? (
         <ResponsiveImage
-          blobKey={data.poster_key}
+          blobKey={coverKey}
           alt={displayName}
           widths={[56, 112]}
           width={56}
