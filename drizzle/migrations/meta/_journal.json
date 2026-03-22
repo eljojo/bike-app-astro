@@ -78,6 +78,13 @@
       "when": 1773900000000,
       "tag": "0008_drop_video_poster_key",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1774252800000,
+      "tag": "0009_analytics_cache",
+      "breakpoints": true
     }
   ]
 }

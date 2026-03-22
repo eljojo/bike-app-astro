@@ -13,6 +13,7 @@ export const users = sqliteTable('users', {
   previousUsernames: text('previous_usernames'),
 }, (table) => [
   uniqueIndex('users_username_idx').on(table.username),
+  index('users_created_at_idx').on(table.createdAt),
 ]);
 
 export const credentials = sqliteTable('credentials', {
@@ -76,6 +77,8 @@ export const reactions = sqliteTable('reactions', {
   index('reactions_content_idx').on(table.city, table.contentType, table.contentSlug),
   index('reactions_user_idx').on(table.userId),
   uniqueIndex('reactions_unique_idx').on(table.city, table.userId, table.contentType, table.contentSlug, table.reactionType),
+  index('reactions_city_created_idx').on(table.city, table.createdAt),
+  index('reactions_city_type_created_idx').on(table.city, table.contentType, table.reactionType, table.createdAt),
 ]);
 
 export const emailTokens = sqliteTable('email_tokens', {
@@ -124,3 +127,56 @@ export const videoJobs = sqliteTable('video_jobs', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
+
+// --- Analytics Cache Tables (reconstructable from Plausible API + internal data) ---
+
+export const contentPageMetrics = sqliteTable('content_page_metrics', {
+  city: text('city').notNull(),
+  contentType: text('content_type').notNull(),
+  contentSlug: text('content_slug').notNull(),
+  pageType: text('page_type').notNull(),
+  date: text('date').notNull(),
+  pageviews: integer('pageviews').notNull().default(0),
+  visitorDays: integer('visitor_days').notNull().default(0),
+  visitDurationS: real('visit_duration_s').notNull().default(0),
+  bounceRate: real('bounce_rate').notNull().default(0),
+  videoPlays: integer('video_plays').notNull().default(0),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.contentType, table.contentSlug, table.pageType, table.date] }),
+  index('cpm_date_idx').on(table.city, table.date),
+  index('cpm_type_date_idx').on(table.city, table.contentType, table.date),
+]);
+
+export const contentEngagement = sqliteTable('content_engagement', {
+  city: text('city').notNull(),
+  contentType: text('content_type').notNull(),
+  contentSlug: text('content_slug').notNull(),
+  totalPageviews: integer('total_pageviews').notNull().default(0),
+  totalVisitorDays: integer('total_visitor_days').notNull().default(0),
+  avgVisitDuration: real('avg_visit_duration').notNull().default(0),
+  avgBounceRate: real('avg_bounce_rate').notNull().default(0),
+  stars: integer('stars').notNull().default(0),
+  videoPlayRate: real('video_play_rate').notNull().default(0),
+  mapConversionRate: real('map_conversion_rate').notNull().default(0),
+  wallTimeHours: real('wall_time_hours').notNull().default(0),
+  engagementScore: real('engagement_score').notNull().default(0),
+  lastSyncedAt: text('last_synced_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.contentType, table.contentSlug] }),
+  index('ce_type_pageviews_idx').on(table.city, table.contentType, table.totalPageviews),
+  index('ce_type_duration_idx').on(table.city, table.contentType, table.avgVisitDuration),
+  index('ce_type_engagement_idx').on(table.city, table.contentType, table.engagementScore),
+  index('ce_type_walltime_idx').on(table.city, table.contentType, table.wallTimeHours),
+]);
+
+export const siteDailyMetrics = sqliteTable('site_daily_metrics', {
+  city: text('city').notNull(),
+  date: text('date').notNull(),
+  totalPageviews: integer('total_pageviews').notNull().default(0),
+  uniqueVisitors: integer('unique_visitors').notNull().default(0),
+  newAccounts: integer('new_accounts').notNull().default(0),
+  reactionsCount: integer('reactions_count').notNull().default(0),
+  activeUsers: integer('active_users').notNull().default(0),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.date] }),
+]);
