@@ -38,11 +38,14 @@ describe('computeInsights', () => {
       makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgVisitDuration: 120 }),
       makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgVisitDuration: 100 }),
     ];
+    const names = { 'route:hidden': 'Hidden Trail' };
     const medians = computeMedians(rows);
-    const insights = computeInsights(rows, medians);
+    const insights = computeInsights(rows, medians, names);
     const hiddenGem = insights.find(i => i.type === 'hidden-gem');
     expect(hiddenGem).toBeDefined();
     expect(hiddenGem!.contentSlug).toBe('hidden');
+    expect(hiddenGem!.name).toBe('Hidden Trail');
+    expect(hiddenGem!.metrics).toBeDefined();
   });
 
   it('detects needs-work content', () => {

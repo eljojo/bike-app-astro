@@ -15,6 +15,7 @@ import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { needsSync, runSync } from '../../lib/stats/sync.server';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 import StatsOverview from '../../components/admin/StatsOverview';
 
 const features = getInstanceFeatures();
@@ -50,6 +51,19 @@ if (apiKey) {
     syncError = err instanceof Error ? err.message : 'Sync failed';
   }
 }
+
+// Build name lookup: "contentType:slug" → human-readable name
+const contentNames: Record<string, string> = {};
+try {
+  const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
+  for (const r of adminRoutes) contentNames[`route:${r.slug}`] = r.name;
+
+  if (features.hasEvents) {
+    const { events: adminEvents, organizers: adminOrganizers } = await fetchJson<{ events: _AdminEvent[]; organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
+    for (const e of adminEvents) contentNames[`event:${e.id}`] = e.name;
+    for (const o of adminOrganizers) contentNames[`organizer:${o.slug}`] = o.name;
+  }
+} catch { /* content data unavailable — slugs used as fallback */ }
 
 let statsData: Record<string, unknown> | null = null;
 
@@ -150,7 +164,7 @@ try {
   const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
     contentType: r.contentType as 'route' | 'event' | 'organizer',
     contentSlug: r.contentSlug,
-    name: r.contentSlug,
+    name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
     primaryValue: r.totalPageviews,
     primaryLabel: 'views',
     secondaryValue: Math.round(r.wallTimeHours * 10) / 10,
@@ -160,7 +174,7 @@ try {
   const engagementLeaderboard: LeaderboardEntry[] = topByEngagement.map(r => ({
     contentType: r.contentType as 'route' | 'event' | 'organizer',
     contentSlug: r.contentSlug,
-    name: r.contentSlug,
+    name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
     primaryValue: Math.round(r.engagementScore * 100),
     primaryLabel: 'score',
     secondaryValue: r.totalPageviews,
@@ -186,7 +200,7 @@ try {
   }));
 
   const medians = computeMedians(insightInput);
-  const insights = computeInsights(insightInput, medians);
+  const insights = computeInsights(insightInput, medians, contentNames);
 
   // Last synced date
   const lastSyncRow = await database.select({ date: siteDailyMetrics.date })

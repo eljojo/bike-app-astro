@@ -51,9 +51,12 @@ export interface InsightCard {
   type: 'hidden-gem' | 'needs-work' | 'trending' | 'declining' | 'strong-performer' | 'seasonal' | 'videos-working' | 'underused-variant';
   severity: 'positive' | 'warning' | 'neutral';
   title: string;
+  name: string;
   body: string;
   contentType?: string;
   contentSlug?: string;
+  /** Key metrics for this content item — shown on hover or in drill-down. */
+  metrics?: Record<string, string | number>;
 }
 
 /** Chart data passed from server to Preact island. */

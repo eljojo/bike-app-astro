@@ -8,10 +8,11 @@ import { contentEngagement, siteDailyMetrics } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 
 export const prerender = false;
 
-export async function GET({ locals, url }: APIContext) {
+export async function GET({ locals, url, request }: APIContext) {
   if (!getInstanceFeatures().hasRoutes) {
     return new Response(null, { status: 404 });
   }
@@ -97,6 +98,21 @@ export async function GET({ locals, url }: APIContext) {
       secondaryValue: d.visitors,
     }));
 
+    // Build content name lookup
+    const contentNames: Record<string, string> = {};
+    try {
+      const features = getInstanceFeatures();
+      const baseUrl = url.origin;
+      const adminRoutes = await fetchJson<Array<{ slug: string; name: string }>>(new URL('/admin/data/routes.json', baseUrl));
+      for (const r of adminRoutes) contentNames[`route:${r.slug}`] = r.name;
+
+      if (features.hasEvents) {
+        const { events: adminEvents, organizers: adminOrganizers } = await fetchJson<{ events: Array<{ id: string; name: string }>; organizers: Array<{ slug: string; name: string }> }>(new URL('/admin/data/events.json', baseUrl));
+        for (const e of adminEvents) contentNames[`event:${e.id}`] = e.name;
+        for (const o of adminOrganizers) contentNames[`organizer:${o.slug}`] = o.name;
+      }
+    } catch { /* fallback to slugs */ }
+
     // 3. Leaderboards (top content by pageviews and engagement)
     const topByViews = await database.select({
       contentType: contentEngagement.contentType,
@@ -121,7 +137,7 @@ export async function GET({ locals, url }: APIContext) {
     const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
       contentType: r.contentType as 'route' | 'event' | 'organizer',
       contentSlug: r.contentSlug,
-      name: r.contentSlug, // slug used as name for now
+      name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
       primaryValue: r.totalPageviews,
       primaryLabel: 'views',
       secondaryValue: Math.round(r.wallTimeHours * 10) / 10,
@@ -131,7 +147,7 @@ export async function GET({ locals, url }: APIContext) {
     const engagementLeaderboard: LeaderboardEntry[] = topByEngagement.map(r => ({
       contentType: r.contentType as 'route' | 'event' | 'organizer',
       contentSlug: r.contentSlug,
-      name: r.contentSlug,
+      name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
       primaryValue: Math.round(r.engagementScore * 100),
       primaryLabel: 'score',
       secondaryValue: r.totalPageviews,
@@ -157,7 +173,7 @@ export async function GET({ locals, url }: APIContext) {
     }));
 
     const medians = computeMedians(insightInput);
-    const insights = computeInsights(insightInput, medians);
+    const insights = computeInsights(insightInput, medians, contentNames);
 
     return jsonResponse({
       summaryCards,

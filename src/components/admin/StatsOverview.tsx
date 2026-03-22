@@ -34,16 +34,21 @@ function formatNumber(n: number | string): string {
   return String(n);
 }
 
-function drillDownUrl(entry: LeaderboardEntry): string {
-  switch (entry.contentType) {
-    case 'route':
-      return `/admin/stats/route/${entry.contentSlug}`;
-    case 'event':
-      return `/admin/stats/event/${entry.contentSlug}`;
-    case 'organizer':
-      return `/admin/stats/community/${entry.contentSlug}`;
-    default:
-      return '#';
+function drillDownUrl(contentType: string, contentSlug: string): string {
+  switch (contentType) {
+    case 'route': return `/admin/stats/route/${contentSlug}`;
+    case 'event': return `/admin/stats/event/${contentSlug}`;
+    case 'organizer': return `/admin/stats/community/${contentSlug}`;
+    default: return '#';
+  }
+}
+
+function liveUrl(contentType: string, contentSlug: string): string {
+  switch (contentType) {
+    case 'route': return `/routes/${contentSlug}`;
+    case 'event': return `/events/${contentSlug}`;
+    case 'organizer': return `/communities/${contentSlug}`;
+    default: return '#';
   }
 }
 
@@ -53,6 +58,51 @@ function severityColor(severity: string): string {
     case 'warning': return '#d97706';
     default: return '#6b7280';
   }
+}
+
+function InsightCardView({ insight }: { insight: InsightCard }) {
+  const [showMetrics, setShowMetrics] = useState(false);
+
+  return (
+    <div
+      class="stats-insight-card"
+      style={{ borderLeftColor: severityColor(insight.severity) }}
+    >
+      <div class="stats-insight-header">
+        <strong class="stats-insight-title">{insight.title}</strong>
+        {insight.metrics && (
+          <button
+            type="button"
+            class="stats-insight-metrics-toggle"
+            onClick={() => setShowMetrics(!showMetrics)}
+            title="Show metrics"
+          >
+            {showMetrics ? 'Hide numbers' : 'Show numbers'}
+          </button>
+        )}
+      </div>
+      <div class="stats-insight-content">
+        <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-name">
+          {insight.name}
+        </a>
+        <p class="stats-insight-body">{insight.body}</p>
+      </div>
+      <div class="stats-insight-links">
+        <a href={liveUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-link">View live</a>
+        <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-link">View stats</a>
+      </div>
+      {showMetrics && insight.metrics && (
+        <div class="stats-insight-metrics">
+          {Object.entries(insight.metrics).map(([label, value]) => (
+            <div class="stats-insight-metric" key={label}>
+              <span class="stats-insight-metric-label">{label}</span>
+              <span class="stats-insight-metric-value">{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function StatsOverview(props: StatsOverviewProps) {
@@ -173,7 +223,7 @@ export default function StatsOverview(props: StatsOverviewProps) {
                 {data.viewsLeaderboard.map(entry => (
                   <tr key={`${entry.contentType}-${entry.contentSlug}`}>
                     <td>
-                      <a href={drillDownUrl(entry)} class="stats-content-link">
+                      <a href={drillDownUrl(entry.contentType, entry.contentSlug)} class="stats-content-link">
                         <span class="stats-content-type">{entry.contentType}</span>
                         {entry.name}
                       </a>
@@ -204,7 +254,7 @@ export default function StatsOverview(props: StatsOverviewProps) {
                 {data.engagementLeaderboard.map(entry => (
                   <tr key={`${entry.contentType}-${entry.contentSlug}`}>
                     <td>
-                      <a href={drillDownUrl(entry)} class="stats-content-link">
+                      <a href={drillDownUrl(entry.contentType, entry.contentSlug)} class="stats-content-link">
                         <span class="stats-content-type">{entry.contentType}</span>
                         {entry.name}
                       </a>
@@ -225,14 +275,7 @@ export default function StatsOverview(props: StatsOverviewProps) {
           <h3 class="stats-section-title">Insights</h3>
           <div class="stats-insight-cards">
             {data.insights.map((insight, i) => (
-              <div
-                key={i}
-                class="stats-insight-card"
-                style={{ borderLeftColor: severityColor(insight.severity) }}
-              >
-                <strong class="stats-insight-title">{insight.title}</strong>
-                <p class="stats-insight-body">{insight.body}</p>
-              </div>
+              <InsightCardView key={i} insight={insight} />
             ))}
           </div>
         </div>

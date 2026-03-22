@@ -248,10 +248,50 @@
   }
 }
 
+.stats-insight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
+}
+
 .stats-insight-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  @include muted-text;
+}
+
+.stats-insight-metrics-toggle {
+  font-size: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  @include muted-text;
+  text-decoration: underline;
+
+  &:hover {
+    color: $color-text;
+    @include dark-mode { color: $color-text-dark; }
+  }
+}
+
+.stats-insight-content {
+  margin-bottom: 0.375rem;
+}
+
+.stats-insight-name {
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
   margin-bottom: 0.25rem;
+  text-decoration: none;
+  color: $color-text;
+
+  @include dark-mode { color: $color-text-dark; }
+
+  &:hover { text-decoration: underline; }
 }
 
 .stats-insight-body {
@@ -259,6 +299,50 @@
   margin: 0;
   @include muted-text;
   line-height: 1.4;
+}
+
+.stats-insight-links {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.375rem;
+}
+
+.stats-insight-link {
+  font-size: 0.75rem;
+  text-decoration: none;
+  @include muted-text;
+
+  &:hover {
+    text-decoration: underline;
+    color: $color-text;
+    @include dark-mode { color: $color-text-dark; }
+  }
+}
+
+.stats-insight-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid $color-border;
+
+  @include dark-mode { border-color: $color-border-subtle-dark; }
+}
+
+.stats-insight-metric {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-insight-metric-label {
+  font-size: 0.6875rem;
+  @include muted-text;
+}
+
+.stats-insight-metric-value {
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 // --- Stats Detail (drill-down pages) ---
