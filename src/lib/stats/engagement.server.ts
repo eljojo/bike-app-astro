@@ -1,0 +1,188 @@
+import type { Database } from '../../db';
+import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
+import { sql, eq, and } from 'drizzle-orm';
+
+/**
+ * Normalize values to 0–1 using percentile rank within an array.
+ * Ties get the same rank.
+ */
+function percentileRanks(values: number[]): number[] {
+  if (values.length === 0) return [];
+  if (values.length === 1) return [0.5];
+
+  const sorted = [...values].sort((a, b) => a - b);
+  return values.map((v) => {
+    const belowCount = sorted.filter((s) => s < v).length;
+    const equalCount = sorted.filter((s) => s === v).length;
+    // Average rank for ties: (belowCount + (belowCount + equalCount - 1)) / 2
+    return (belowCount + (belowCount + equalCount - 1)) / 2 / (values.length - 1);
+  });
+}
+
+interface AggregatedContent {
+  contentType: string;
+  contentSlug: string;
+  totalPageviews: number;
+  totalVisitorDays: number;
+  avgVisitDuration: number;
+  avgBounceRate: number;
+  wallTimeHours: number;
+  videoPlayRate: number;
+  mapConversionRate: number;
+}
+
+/**
+ * Rebuild all engagement scores for a city.
+ *
+ * 1. Delete existing engagement rows for this city
+ * 2. Query content_page_metrics grouped by (city, content_type, content_slug)
+ * 3. Query reactions for star counts
+ * 4. Compute engagement score using percentile normalization within content_type
+ * 5. Insert into content_engagement
+ */
+export async function rebuildEngagement(db: Database, city: string): Promise<void> {
+  // Step 1: Delete existing engagement rows for this city
+  await db.delete(contentEngagement)
+    .where(eq(contentEngagement.city, city))
+    .run();
+
+  // Step 2: Query content_page_metrics for aggregates
+  const metricsRows = await db
+    .select({
+      contentType: contentPageMetrics.contentType,
+      contentSlug: contentPageMetrics.contentSlug,
+      pageType: contentPageMetrics.pageType,
+      totalPageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
+      totalVisitorDays: sql<number>`SUM(${contentPageMetrics.visitorDays})`,
+      avgVisitDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
+      avgBounceRate: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.bounceRate}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
+      wallTimeHours: sql<number>`SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / 3600.0`,
+      totalVideoPlays: sql<number>`SUM(${contentPageMetrics.videoPlays})`,
+    })
+    .from(contentPageMetrics)
+    .where(eq(contentPageMetrics.city, city))
+    .groupBy(contentPageMetrics.contentType, contentPageMetrics.contentSlug, contentPageMetrics.pageType)
+    .all();
+
+  // Group by content item (type + slug), combining page types
+  const contentMap = new Map<string, AggregatedContent>();
+  const detailViews = new Map<string, number>();
+  const mapViews = new Map<string, number>();
+
+  for (const row of metricsRows) {
+    const key = `${row.contentType}:${row.contentSlug}`;
+
+    if (!contentMap.has(key)) {
+      contentMap.set(key, {
+        contentType: row.contentType,
+        contentSlug: row.contentSlug,
+        totalPageviews: 0,
+        totalVisitorDays: 0,
+        avgVisitDuration: 0,
+        avgBounceRate: 0,
+        wallTimeHours: 0,
+        videoPlayRate: 0,
+        mapConversionRate: 0,
+      });
+    }
+
+    const item = contentMap.get(key)!;
+    item.totalPageviews += row.totalPageviews;
+    item.totalVisitorDays += row.totalVisitorDays;
+    item.wallTimeHours += row.wallTimeHours;
+
+    if (row.pageType === 'detail') {
+      item.avgVisitDuration = row.avgVisitDuration;
+      item.avgBounceRate = row.avgBounceRate;
+      detailViews.set(key, (detailViews.get(key) || 0) + row.totalPageviews);
+    }
+
+    if (row.pageType === 'map' || (row.pageType as string).startsWith('map:')) {
+      mapViews.set(key, (mapViews.get(key) || 0) + row.totalPageviews);
+    }
+
+    // Video play rate: total plays / total detail pageviews
+    if (row.pageType === 'detail' && row.totalPageviews > 0) {
+      item.videoPlayRate = row.totalVideoPlays / row.totalPageviews;
+    }
+  }
+
+  // Compute map conversion rate
+  for (const [key, item] of contentMap) {
+    const detail = detailViews.get(key) || 0;
+    const map = mapViews.get(key) || 0;
+    if (detail > 0) {
+      item.mapConversionRate = map / detail;
+    }
+  }
+
+  // Step 3: Query reactions for star counts
+  const starRows = await db
+    .select({
+      contentType: reactions.contentType,
+      contentSlug: reactions.contentSlug,
+      stars: sql<number>`COUNT(*)`,
+    })
+    .from(reactions)
+    .where(and(eq(reactions.city, city), eq(reactions.reactionType, 'star')))
+    .groupBy(reactions.contentType, reactions.contentSlug)
+    .all();
+
+  const starMap = new Map<string, number>();
+  for (const row of starRows) {
+    starMap.set(`${row.contentType}:${row.contentSlug}`, row.stars);
+  }
+
+  // Step 4: Compute engagement score using percentile normalization by content_type
+  const byType = new Map<string, AggregatedContent[]>();
+  for (const item of contentMap.values()) {
+    const list = byType.get(item.contentType) || [];
+    list.push(item);
+    byType.set(item.contentType, list);
+  }
+
+  const now = new Date().toISOString();
+
+  for (const [, items] of byType) {
+    const wallTimes = items.map((i) => i.wallTimeHours);
+    const mapRates = items.map((i) => i.mapConversionRate);
+    const videoRates = items.map((i) => i.videoPlayRate);
+    const starValues = items.map((i) => {
+      const key = `${i.contentType}:${i.contentSlug}`;
+      return starMap.get(key) || 0;
+    });
+
+    const wallTimeRanks = percentileRanks(wallTimes);
+    const mapRateRanks = percentileRanks(mapRates);
+    const videoRateRanks = percentileRanks(videoRates);
+    const starRanks = percentileRanks(starValues);
+
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
+      const key = `${item.contentType}:${item.contentSlug}`;
+      const stars = starMap.get(key) || 0;
+
+      const engagementScore =
+        wallTimeRanks[idx] * 0.4 +
+        mapRateRanks[idx] * 0.25 +
+        starRanks[idx] * 0.2 +
+        videoRateRanks[idx] * 0.15;
+
+      await db.insert(contentEngagement).values({
+        city,
+        contentType: item.contentType,
+        contentSlug: item.contentSlug,
+        totalPageviews: item.totalPageviews,
+        totalVisitorDays: item.totalVisitorDays,
+        avgVisitDuration: item.avgVisitDuration,
+        avgBounceRate: item.avgBounceRate,
+        stars,
+        videoPlayRate: item.videoPlayRate,
+        mapConversionRate: item.mapConversionRate,
+        wallTimeHours: item.wallTimeHours,
+        engagementScore,
+        lastSyncedAt: now,
+      }).run();
+    }
+  }
+}
