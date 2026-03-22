@@ -8,7 +8,7 @@ vi.mock('../src/lib/auth/rate-limit', () => ({ checkRateLimit: vi.fn(), recordAt
 vi.mock('../src/lib/media/storage.adapter-r2', () => ({ generateMediaKey: vi.fn(), confirmUpload: vi.fn() }));
 vi.mock('../src/lib/content/load-admin-content.server', () => ({ fetchJson: vi.fn() }));
 
-import { buildDraft, htmlToText } from '../src/views/api/event-draft';
+import { buildDraft, htmlToText, extractSeriesFromText } from '../src/views/api/event-draft';
 
 const organizers = [
   { slug: 'ottawa-bicycle-club', name: 'Ottawa Bicycle Club', website: 'https://ottawabicycleclub.ca', instagram: 'ottawabicycleclub' },
@@ -332,5 +332,94 @@ describe('buildDraft series extraction', () => {
     expect(series.recurrence).toBe('weekly');
     expect(series.recurrence_day).toBe('tuesday');
     expect(series.schedule).toBeUndefined();
+  });
+});
+
+describe('extractSeriesFromText', () => {
+  it('extracts stages with dates and locations from Bakkers-style text', () => {
+    const text = `2026 Preliminary Dates:
+Stage 1: May 13 | Domaine Kanawe
+Stage 2: May 27 | Domaine Kanawe
+Stage 3: June 10 | Vorlage
+Stage 4: June 24 | Vorlage
+Stage 5: July 29 | Wesley Clover
+Stage 6: August 26 | Wesley Clover`;
+
+    const schedule = extractSeriesFromText(text, '2026');
+    expect(schedule).toHaveLength(6);
+    expect(schedule![0]).toEqual({ date: '2026-05-13', location: 'Domaine Kanawe' });
+    expect(schedule![2]).toEqual({ date: '2026-06-10', location: 'Vorlage' });
+    expect(schedule![5]).toEqual({ date: '2026-08-26', location: 'Wesley Clover' });
+  });
+
+  it('extracts stages with dash separator', () => {
+    const text = `Race 1 - June 5 | Park A
+Race 2 - June 19 | Park B
+Race 3 - July 3 | Park A`;
+
+    const schedule = extractSeriesFromText(text, '2026');
+    expect(schedule).toHaveLength(3);
+    expect(schedule![0]).toEqual({ date: '2026-06-05', location: 'Park A' });
+    expect(schedule![1]).toEqual({ date: '2026-06-19', location: 'Park B' });
+  });
+
+  it('extracts stages without locations', () => {
+    const text = `Stage 1: May 10
+Stage 2: May 24
+Stage 3: June 7`;
+
+    const schedule = extractSeriesFromText(text, '2026');
+    expect(schedule).toHaveLength(3);
+    expect(schedule![0]).toEqual({ date: '2026-05-10' });
+    expect(schedule![2]).toEqual({ date: '2026-06-07' });
+  });
+
+  it('returns null for fewer than 2 stages', () => {
+    const text = 'Stage 1: May 13 | Some Park';
+    expect(extractSeriesFromText(text, '2026')).toBeNull();
+  });
+
+  it('returns null for text with no stage pattern', () => {
+    const text = 'Join us for a fun ride on May 13 at the park!';
+    expect(extractSeriesFromText(text, '2026')).toBeNull();
+  });
+
+  it('handles abbreviated month names', () => {
+    const text = `Stage 1: Jan 5 | Rink A
+Stage 2: Feb 2 | Rink B`;
+
+    const schedule = extractSeriesFromText(text, '2026');
+    expect(schedule).toHaveLength(2);
+    expect(schedule![0]).toEqual({ date: '2026-01-05', location: 'Rink A' });
+    expect(schedule![1]).toEqual({ date: '2026-02-02', location: 'Rink B' });
+  });
+
+  it('deduplicates stages by number', () => {
+    // Same stage mentioned twice (e.g. in dates section and registration section)
+    const text = `Stage 1: May 13 | Domaine Kanawe
+Stage 2: May 27 | Domaine Kanawe
+Stage 1: May 13
+Stage 2: May 27`;
+
+    const schedule = extractSeriesFromText(text, '2026');
+    expect(schedule).toHaveLength(2);
+  });
+
+  it('uses current year when no reference year provided', () => {
+    const text = `Stage 1: May 10 | Park A
+Stage 2: May 24 | Park B`;
+
+    const schedule = extractSeriesFromText(text);
+    expect(schedule).toHaveLength(2);
+    expect(schedule![0].date).toMatch(/^\d{4}-05-10$/);
+  });
+
+  it('works with em-dash and en-dash separators', () => {
+    const text = `Stage 1: May 10 \u2014 Park A
+Stage 2: May 24 \u2013 Park B`;
+
+    const schedule = extractSeriesFromText(text, '2026');
+    expect(schedule).toHaveLength(2);
+    expect(schedule![0]).toEqual({ date: '2026-05-10', location: 'Park A' });
   });
 });

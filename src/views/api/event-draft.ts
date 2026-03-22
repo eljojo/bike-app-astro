@@ -207,6 +207,64 @@ export function buildDraft(
   return { draft, uncertain };
 }
 
+// Month name → number for date parsing
+const MONTH_MAP: Record<string, string> = {
+  january: '01', february: '02', march: '03', april: '04',
+  may: '05', june: '06', july: '07', august: '08',
+  september: '09', october: '10', november: '11', december: '12',
+  jan: '01', feb: '02', mar: '03', apr: '04',
+  jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/**
+ * Try to extract a series schedule from page text when the AI didn't detect one.
+ * Looks for patterns like "Stage 1: May 13 | Domaine Kanawe" or "Stage 1: May 13 — Park A".
+ * Returns a schedule array or null if no pattern found.
+ */
+export function extractSeriesFromText(
+  pageText: string,
+  referenceYear?: string,
+): Array<{ date: string; location?: string }> | null {
+  // Match lines like "Stage 1: May 13 | Domaine Kanawe" or "Stage 1: May 13 - Park Name"
+  // Also handles "Race 1: June 5 | Place" and similar numbered-event patterns
+  const stagePattern = /(?:stage|race|round|event|leg)\s*#?\s*(\d+)\s*[:.\-–—]\s*([A-Za-z]+)\s+(\d{1,2})(?:\s*[|,\-–—]\s*(.+))?/gi;
+  const matches: Array<{ num: number; month: string; day: string; location?: string }> = [];
+
+  let m;
+  while ((m = stagePattern.exec(pageText)) !== null) {
+    const num = parseInt(m[1], 10);
+    const monthName = m[2].toLowerCase();
+    const day = m[3];
+    const location = m[4]?.trim();
+
+    if (!MONTH_MAP[monthName]) continue;
+    matches.push({ num, month: MONTH_MAP[monthName], day: day.padStart(2, '0'), location });
+  }
+
+  if (matches.length < 2) return null;
+
+  // Sort by stage number and deduplicate
+  matches.sort((a, b) => a.num - b.num);
+  const seen = new Set<number>();
+  const unique = matches.filter(m => {
+    if (seen.has(m.num)) return false;
+    seen.add(m.num);
+    return true;
+  });
+
+  if (unique.length < 2) return null;
+
+  // Determine year: use reference year or current year, bump to next year if first date is in the past
+  const year = referenceYear || new Date().getFullYear().toString();
+
+  return unique.map(entry => {
+    const dateStr = `${year}-${entry.month}-${entry.day}`;
+    const result: { date: string; location?: string } = { date: dateStr };
+    if (entry.location) result.location = entry.location;
+    return result;
+  });
+}
+
 /** Build context suffix for the AI prompt (date, city, locales, organizers). */
 function buildContextSuffix(): string {
   const cityConfig = getCityConfig();
@@ -467,6 +525,22 @@ export async function POST({ request, locals }: APIContext) {
 
       const { extracted, durationMs } = await extractFromHtml(ai, TEXT_MODEL, pageText, body.url);
       const { draft, uncertain } = buildDraft(extracted);
+
+      // If the AI didn't detect a series, try extracting one from the page text
+      if (!draft.series) {
+        const schedule = extractSeriesFromText(pageText, draft.year as string | undefined);
+        if (schedule) {
+          draft.series = { schedule };
+          // Set start/end dates from the schedule
+          if (!draft.start_date || draft.start_date === new Date().toISOString().split('T')[0]) {
+            draft.start_date = schedule[0].date;
+            draft.year = schedule[0].date.substring(0, 4);
+          }
+          if (!draft.end_date) {
+            draft.end_date = schedule[schedule.length - 1].date;
+          }
+        }
+      }
 
       // If the page URL looks like a registration page, use it as the registration URL
       if (!draft.registration_url) {
