@@ -107,12 +107,12 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
     }
   }
 
-  // Compute map conversion rate
+  // Compute map conversion rate (capped at 1.0 — mixed aggregate/daily data can inflate)
   for (const [key, item] of contentMap) {
     const detail = detailViews.get(key) || 0;
     const map = mapViews.get(key) || 0;
     if (detail > 0) {
-      item.mapConversionRate = map / detail;
+      item.mapConversionRate = Math.min(map / detail, 1.0);
     }
   }
 

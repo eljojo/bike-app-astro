@@ -74,6 +74,8 @@ function resolveName(row: EngagementRow, names: Record<string, string>): string 
 }
 
 function detectHiddenGem(row: EngagementRow, medians: MedianValues, name: string): InsightCard | null {
+  // Need at least 10 views and 30s avg duration to be a meaningful hidden gem
+  if (row.totalPageviews < 10 || row.avgVisitDuration < 30) return null;
   const highDuration = row.avgVisitDuration > medians.avgVisitDuration * 1.5;
   const lowViews = row.totalPageviews < medians.totalPageviews;
   if (!highDuration || !lowViews) return null;
@@ -124,17 +126,28 @@ function detectNeedsWork(row: EngagementRow, medians: MedianValues, name: string
 }
 
 function detectStrongPerformer(row: EngagementRow, rows: EngagementRow[], name: string): InsightCard | null {
-  // Top 10% by engagement score
+  // Top 10% by engagement score, need meaningful data
+  if (row.totalPageviews < 10) return null;
   const sorted = [...rows].sort((a, b) => a.engagementScore - b.engagementScore);
   const threshold = sorted[Math.floor(sorted.length * 0.9)]?.engagementScore ?? Infinity;
   if (row.engagementScore < threshold) return null;
+
+  // Build a human-readable narrative of what makes it strong
+  const signals: string[] = [];
+  if (row.wallTimeHours > 1) signals.push(`${formatHours(row.wallTimeHours)} of reading time`);
+  if (row.mapConversionRate > 0.1) signals.push(`${Math.round(row.mapConversionRate * 100)}% open the map`);
+  if (row.stars > 0) signals.push(`${row.stars} star${row.stars > 1 ? 's' : ''}`);
+  if (row.videoPlayRate > 0.05) signals.push(`${Math.round(row.videoPlayRate * 100)}% play the video`);
+  const narrative = signals.length > 0
+    ? signals.join(', ') + '.'
+    : 'Performs well across engagement signals.';
 
   return {
     type: 'strong-performer',
     severity: 'positive',
     title: 'Strong performer',
     name,
-    body: `Top 10% by engagement score. Wall time, map conversion, stars, and video plays all signal high interest.`,
+    body: `Top 10% by engagement. ${narrative}`,
     contentType: row.contentType,
     contentSlug: row.contentSlug,
     metrics: {

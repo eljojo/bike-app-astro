@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentEngagement, siteDailyMetrics, reactions } from '../../db/schema';
+import { contentEngagement, siteDailyMetrics, reactions, users } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
@@ -74,6 +74,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       lastSyncRow,
       routeNames,
       eventNames,
+      signupsByDate,
     ] = await Promise.all([
       // 1. Current period summary
       database.select({
@@ -136,6 +137,18 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       features.hasEvents
         ? fetchJson<{ events: Array<{ id: string; name: string }>; organizers: Array<{ slug: string; name: string }> }>(new URL('/admin/data/events.json', baseUrl)).catch(() => ({ events: [], organizers: [] }))
         : Promise.resolve({ events: [] as Array<{ id: string; name: string }>, organizers: [] as Array<{ slug: string; name: string }> }),
+      // 12. Signups over time (guests + registered)
+      database.select({
+        date: sql<string>`DATE(${users.createdAt})`,
+        role: users.role,
+        count: sql<number>`COUNT(*)`,
+      }).from(users)
+        .where(and(
+          sql`DATE(${users.createdAt}) >= ${startStr}`,
+          sql`DATE(${users.createdAt}) <= ${endStr}`,
+        ))
+        .groupBy(sql`DATE(${users.createdAt})`, users.role)
+        .orderBy(sql`DATE(${users.createdAt})`),
     ]);
 
     // Build name lookup from parallel results
@@ -202,10 +215,24 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const insights = computeInsights(insightInput, medians, contentNames);
     const reactionBreakdown = Object.fromEntries(reactionsByType.map(r => [r.reactionType, r.count]));
 
+    // Signups over time — combine guest + registered into time series
+    const signups: Array<{ date: string; guests: number; registered: number }> = [];
+    const signupMap = new Map<string, { guests: number; registered: number }>();
+    for (const row of signupsByDate) {
+      const entry = signupMap.get(row.date) || { guests: 0, registered: 0 };
+      if (row.role === 'guest') entry.guests += row.count;
+      else entry.registered += row.count;
+      signupMap.set(row.date, entry);
+    }
+    for (const [date, counts] of signupMap) {
+      signups.push({ date, ...counts });
+    }
+    signups.sort((a, b) => a.date.localeCompare(b.date));
+
     return jsonResponse({
       summaryCards, timeSeries, granularity,
       viewsLeaderboard, engagementLeaderboard,
-      insights, reactionBreakdown, range,
+      insights, reactionBreakdown, signups, range,
       lastSynced: lastSyncRow[0]?.date ?? null,
     } as Record<string, unknown>);
   } catch (err: unknown) {

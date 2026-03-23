@@ -24,6 +24,7 @@ interface StatsData {
   insights: InsightCard[];
   range: string;
   reactionBreakdown?: Record<string, number>;
+  signups?: Array<{ date: string; guests: number; registered: number }>;
   lastSynced?: string;
 }
 
@@ -116,6 +117,44 @@ function InsightCardView({ insight }: { insight: InsightCard }) {
       )}
     </div>
   );
+}
+
+function SignupsChart({ signups }: { signups: Array<{ date: string; guests: number; registered: number }> }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const instance = useRef<Chart | null>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    instance.current?.destroy();
+    instance.current = new Chart(canvasRef.current, {
+      type: 'bar',
+      data: {
+        labels: signups.map(s => s.date),
+        datasets: [
+          {
+            label: 'Registered',
+            data: signups.map(s => s.registered),
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          },
+          {
+            label: 'Guests',
+            data: signups.map(s => s.guests),
+            backgroundColor: 'rgba(156, 163, 175, 0.5)',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+      },
+    });
+    return () => { instance.current?.destroy(); };
+  }, [signups]);
+
+  return <canvas ref={canvasRef} />;
 }
 
 export default function StatsOverview() {
@@ -363,6 +402,16 @@ export default function StatsOverview() {
           </div>
         );
       })()}
+
+      {/* Signups over time */}
+      {data.signups && data.signups.length > 0 && (
+        <div class="stats-chart-container">
+          <h3 class="stats-section-title">Signups</h3>
+          <div class="stats-chart-wrapper">
+            <SignupsChart signups={data.signups} />
+          </div>
+        </div>
+      )}
 
       {/* Insights */}
       {data.insights.length > 0 && (

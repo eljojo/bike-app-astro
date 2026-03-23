@@ -61,6 +61,57 @@ describe('computeInsights', () => {
     expect(needsWork!.contentSlug).toBe('bad');
   });
 
+  it('does not flag pages with very few views as hidden gems', () => {
+    const rows = [
+      makeRow({ contentSlug: 'tiny', totalPageviews: 3, avgVisitDuration: 300 }),
+      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgVisitDuration: 120 }),
+      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgVisitDuration: 100 }),
+    ];
+    const medians = computeMedians(rows);
+    const insights = computeInsights(rows, medians);
+    const gem = insights.find(i => i.type === 'hidden-gem' && i.contentSlug === 'tiny');
+    expect(gem).toBeUndefined();
+  });
+
+  it('does not flag pages with very short duration as hidden gems', () => {
+    const rows = [
+      makeRow({ contentSlug: 'short', totalPageviews: 50, avgVisitDuration: 7 }),
+      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgVisitDuration: 3 }),
+      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgVisitDuration: 2 }),
+    ];
+    const medians = computeMedians(rows);
+    const insights = computeInsights(rows, medians);
+    const gem = insights.find(i => i.type === 'hidden-gem' && i.contentSlug === 'short');
+    expect(gem).toBeUndefined();
+  });
+
+  it('does not flag pages with very few views as strong performers', () => {
+    const rows = [
+      makeRow({ contentSlug: 'tiny-strong', totalPageviews: 3, engagementScore: 0.99 }),
+      makeRow({ contentSlug: 'filler1', totalPageviews: 100, engagementScore: 0.3 }),
+      makeRow({ contentSlug: 'filler2', totalPageviews: 200, engagementScore: 0.2 }),
+    ];
+    const medians = computeMedians(rows);
+    const insights = computeInsights(rows, medians);
+    const strong = insights.find(i => i.type === 'strong-performer' && i.contentSlug === 'tiny-strong');
+    expect(strong).toBeUndefined();
+  });
+
+  it('strong performer narrative includes specific signals', () => {
+    const rows = [
+      makeRow({ contentSlug: 'star-route', totalPageviews: 500, engagementScore: 0.99, wallTimeHours: 30, mapConversionRate: 0.5, stars: 5 }),
+      makeRow({ contentSlug: 'filler1', totalPageviews: 100, engagementScore: 0.3 }),
+      makeRow({ contentSlug: 'filler2', totalPageviews: 200, engagementScore: 0.2 }),
+    ];
+    const medians = computeMedians(rows);
+    const insights = computeInsights(rows, medians);
+    const strong = insights.find(i => i.type === 'strong-performer');
+    expect(strong).toBeDefined();
+    expect(strong!.body).toContain('30h');
+    expect(strong!.body).toContain('50%');
+    expect(strong!.body).toContain('5 stars');
+  });
+
   it('returns at most one insight per content item (highest priority)', () => {
     const rows = [
       makeRow({ contentSlug: 'multi', totalPageviews: 20, avgVisitDuration: 300, engagementScore: 0.95 }),
