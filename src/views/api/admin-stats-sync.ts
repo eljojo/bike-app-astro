@@ -7,6 +7,7 @@ import { env } from '../../lib/env/env.service';
 import { CITY } from '../../lib/config/config';
 import { getCityConfig } from '../../lib/config/city-config';
 import { runSync } from '../../lib/stats/sync.server';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 
 export const prerender = false;
 
@@ -28,12 +29,15 @@ export async function POST({ locals, url }: APIContext) {
   const fullSync = url.searchParams.get('full') === 'true';
 
   try {
+    const redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin)).catch(() => ({}));
+
     const result = await runSync(database, {
       apiKey,
       siteId: cityConfig.plausible_domain,
       city: CITY,
       locales: cityConfig.locales ?? [cityConfig.locale],
       defaultLocale: cityConfig.locale,
+      redirects,
       full: fullSync,
     });
 

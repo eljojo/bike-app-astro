@@ -61,6 +61,77 @@ describe('sync pipeline', () => {
     }
   });
 
+  it('resolves numbered slugs to canonical slugs via redirects', () => {
+    // Bug: Plausible logs visits to old numbered URLs like /routes/16-the-big-loop-around-ottawa
+    // The URL resolver should map these to canonical slugs via redirects.yml
+    const redirects: Record<string, string> = {
+      '16-the-big-loop-around-ottawa': 'the-big-loop-around-ottawa',
+      '4-easy-loop-around-the-canal': 'easy-loop-around-the-canal',
+      '27-experimental-farm-and-carlington-woods': 'experimental-farm-and-carlington-woods',
+    };
+
+    const rows = [
+      { dimensions: ['/routes/16-the-big-loop-around-ottawa'], metrics: [100, 200, 120, 40] },
+      { dimensions: ['/routes/the-big-loop-around-ottawa'], metrics: [50, 100, 90, 35] },
+      { dimensions: ['/routes/4-easy-loop-around-the-canal'], metrics: [80, 160, 100, 45] },
+    ];
+
+    const result = processPageBreakdown(rows, 'test', {}, redirects, '2025-03-22', ['en'], 'en');
+
+    // The numbered slug should resolve to the canonical slug
+    const slugs = result.contentRows.map(r => r.contentSlug);
+    expect(slugs).not.toContain('16-the-big-loop-around-ottawa');
+    expect(slugs).not.toContain('4-easy-loop-around-the-canal');
+    expect(slugs).toContain('the-big-loop-around-ottawa');
+    expect(slugs).toContain('easy-loop-around-the-canal');
+  });
+
+  it('merges redirected and canonical slug pageviews after upsert', async () => {
+    // When both /routes/16-the-big-loop and /routes/the-big-loop are in Plausible,
+    // they should both resolve to the same canonical slug and upsert merges them
+    const testDb = createTestDb();
+    try {
+      const redirects: Record<string, string> = {
+        '16-the-big-loop': 'the-big-loop',
+      };
+
+      const rows = [
+        { dimensions: ['/routes/16-the-big-loop'], metrics: [100, 200, 120, 40] },
+        { dimensions: ['/routes/the-big-loop'], metrics: [50, 100, 90, 35] },
+      ];
+
+      const result = processPageBreakdown(rows, 'test', {}, redirects, '2025-03-22', ['en'], 'en');
+
+      // Both resolve to the same slug
+      expect(result.contentRows.every(r => r.contentSlug === 'the-big-loop')).toBe(true);
+
+      // After upsert, there should be exactly one row (second write overwrites first)
+      await upsertContentRows(testDb.db as unknown as Database, result.contentRows);
+      const dbRows = testDb.db.select().from(contentPageMetrics)
+        .where(eq(contentPageMetrics.contentSlug, 'the-big-loop'))
+        .all();
+      expect(dbRows.length).toBe(1);
+    } finally {
+      testDb.cleanup();
+    }
+  });
+
+  it('without redirects, numbered slugs are stored as-is (regression baseline)', () => {
+    // This test documents the bug: when redirects are empty, numbered slugs
+    // pass through unchanged. The sync pipeline must load redirects.yml.
+    const rows = [
+      { dimensions: ['/routes/16-the-big-loop-around-ottawa'], metrics: [100, 200, 120, 40] },
+    ];
+
+    const withoutRedirects = processPageBreakdown(rows, 'test', {}, {}, '2025-03-22', ['en'], 'en');
+    // BUG: slug stored with the number prefix
+    expect(withoutRedirects.contentRows[0].contentSlug).toBe('16-the-big-loop-around-ottawa');
+
+    const withRedirects = processPageBreakdown(rows, 'test', {}, { '16-the-big-loop-around-ottawa': 'the-big-loop-around-ottawa' }, '2025-03-22', ['en'], 'en');
+    // FIX: slug resolved to canonical
+    expect(withRedirects.contentRows[0].contentSlug).toBe('the-big-loop-around-ottawa');
+  });
+
   it('processes daily aggregate fixture and writes to DB', async () => {
     const testDb = createTestDb();
     try {

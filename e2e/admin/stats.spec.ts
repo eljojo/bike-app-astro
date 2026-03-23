@@ -60,7 +60,7 @@ test.describe('Stats page', () => {
     // Wait for the island to finish loading
     await page.waitForSelector('.stats-sync-btn, .stats-empty-state, .stats-error', { timeout: 15000 });
 
-    const syncBtn = page.locator('#sync-btn');
+    const syncBtn = page.locator('.stats-sync-btn').first();
     await expect(syncBtn).toBeVisible();
     await expect(syncBtn).toHaveText('Sync now');
   });

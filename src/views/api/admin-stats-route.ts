@@ -10,6 +10,7 @@ import { granularityForRange, type TimeRange, type TimeSeriesPoint, type FunnelS
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
 
 export const prerender = false;
 
@@ -37,12 +38,14 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const apiKey = env.PLAUSIBLE_API_KEY;
     if (apiKey) {
       const cityConfig = getCityConfig();
+      const redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin)).catch(() => ({}));
       const syncOpts = {
         apiKey,
         siteId: cityConfig.plausible_domain,
         city: CITY,
         locales: cityConfig.locales ?? [cityConfig.locale],
         defaultLocale: cityConfig.locale,
+        redirects,
       };
 
       if (forceSync) {

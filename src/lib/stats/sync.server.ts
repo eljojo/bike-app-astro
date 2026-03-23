@@ -225,6 +225,7 @@ interface SyncOptions {
   city: string;
   locales: string[];
   defaultLocale: string;
+  redirects?: Record<string, string>;
   full?: boolean;
 }
 
@@ -270,7 +271,7 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   });
 
   const { contentRows } = processPageBreakdown(
-    pageRows, opts.city, {}, {}, today, opts.locales, opts.defaultLocale,
+    pageRows, opts.city, {}, opts.redirects ?? {}, today, opts.locales, opts.defaultLocale,
   );
 
   if (contentRows.length > 0) {
@@ -463,7 +464,7 @@ export async function ensureSiteDailyData(
  */
 export async function ensurePageDailyData(
   db: Database,
-  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string },
+  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string; redirects?: Record<string, string> },
   contentType: string,
   contentSlug: string,
   fromDate: string,
@@ -502,7 +503,7 @@ export async function ensurePageDailyData(
     });
 
     const { contentRows } = processPageDaily(
-      rows, opts.city, {}, {}, opts.locales, opts.defaultLocale,
+      rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale,
     );
 
     if (contentRows.length > 0) {
