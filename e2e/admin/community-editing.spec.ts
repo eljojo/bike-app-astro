@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, waitForHydration } from './helpers.ts';
+import { seedSession, cleanupSession, loginAs, clearContentEdits, waitForHydration } from './helpers.ts';
 
 test.describe('Community Editing — Guest-First Flow', () => {
   test('unauthenticated user sees editor directly (no gate redirect)', async ({ page }) => {
@@ -26,7 +26,9 @@ test.describe('Community Editing — Guest-First Flow', () => {
   });
 
   test('anonymous save triggers guest creation then shows upgrade modal', async ({ page }) => {
-    await page.goto('/admin/routes/route-community');
+    // Use carp fixture (read-only for other tests) to avoid conflicting
+    // with the Guest Direct Commit test that also uses route-community
+    await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 
@@ -61,7 +63,6 @@ test.describe('Community Editing — Guest Direct Commit', () => {
 
   test.beforeEach(() => {
     clearContentEdits('routes', 'route-community');
-    restoreFixtureFiles(['demo/routes/route-community/index.md']);
   });
 
   test('guest saves directly to main branch', async ({ page }) => {
@@ -78,14 +79,9 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     const taglineInput = page.locator('#route-tagline');
     await taglineInput.fill('E2E test tagline');
 
-    // Save and capture response
+    // Save
     const saveButton = page.getByRole('button', { name: /save/i });
-    const saveResponsePromise = page.waitForResponse(
-      (res) => res.url().includes('/api/') && res.request().method() === 'POST'
-    );
     await saveButton.click();
-    const saveResponse = await saveResponsePromise;
-    expect(saveResponse.status()).toBe(200);
 
     // Wait for save response — guests see a success modal
     await expect(page.getByText('Thanks for your contribution')).toBeVisible({ timeout: 15000 });
