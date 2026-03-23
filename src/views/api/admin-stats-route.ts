@@ -67,7 +67,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         date: contentDailyMetrics.date,
         pageviews: sql<number>`SUM(${contentDailyMetrics.pageviews})`,
         visitors: sql<number>`SUM(${contentDailyMetrics.visitorDays})`,
-        avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.pageviews}) > 0 THEN SUM(${contentDailyMetrics.pageviews} * ${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.pageviews}) ELSE 0 END`,
+        // visitDurationS is TOTAL seconds — SUM gives total for the day, divide by pageviews for avg
+        avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.pageviews}) > 0 THEN SUM(${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.pageviews}) ELSE 0 END`,
         entryVisitors: sql<number>`COALESCE(SUM(${contentDailyMetrics.entryVisitors}), 0)`,
       }).from(contentDailyMetrics)
         .where(and(

@@ -239,13 +239,14 @@ export function aggregateContentRows(contentRows: ContentMetricRow[], syncedAt: 
     const key = `${r.contentType}:${r.contentSlug}:${r.pageType}`;
     const existing = totalsMap.get(key);
     if (existing) {
+      const prevPv = existing.pageviews;
       existing.pageviews += r.pageviews;
       existing.visitorDays += r.visitorDays;
-      // Weighted average for duration and bounce rate
-      const totalPv = existing.pageviews; // already includes r.pageviews
-      const prevPv = totalPv - r.pageviews;
+      // visitDurationS is TOTAL seconds — just sum them
+      existing.visitDurationS += r.visitDurationS;
+      // bounceRate IS an average — weighted merge
+      const totalPv = existing.pageviews;
       if (totalPv > 0) {
-        existing.visitDurationS = (existing.visitDurationS * prevPv + r.visitDurationS * r.pageviews) / totalPv;
         existing.bounceRate = (existing.bounceRate * prevPv + r.bounceRate * r.pageviews) / totalPv;
       }
       existing.videoPlays += r.videoPlays;

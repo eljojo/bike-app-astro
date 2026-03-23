@@ -35,6 +35,10 @@ Route redirects (`16-the-big-loop` → `the-big-loop`) are loaded from `virtual:
 
 The Plausible API returns metrics in the order you request them. All queries use `['pageviews', 'visitors', 'visit_duration', 'bounce_rate']`. If you change the order, update `processPageBreakdown`, `processPageDaily`, and `processDailyAggregate` — they index `row.metrics[0]` etc. positionally.
 
+### visit_duration Is TOTAL Seconds, Not Average
+
+Plausible's `visit_duration` metric returns **total seconds** spent on a page on a given day, NOT the average per visit. The field is stored as `visitDurationS` in `content_daily_metrics` and `content_totals`. To get average per visit, divide by pageviews. Wall time = `SUM(visitDurationS) / 3600`, NOT `SUM(pageviews * visitDurationS) / 3600`.
+
 ### Aggregate Before Writing Totals
 
 Multiple Plausible URL paths can resolve to the same content identity — e.g., `/routes/wakefield` and `/routes/wakefield/` both become `(route, wakefield, detail)`. The `syncSiteMetrics` function must aggregate `contentRows` by `(contentType, contentSlug, pageType)` BEFORE writing to `content_totals`. Without aggregation, the last row wins and earlier rows' pageviews are lost, causing wildly wrong ratios (map conversion showing 100% when the real ratio is 20%).
