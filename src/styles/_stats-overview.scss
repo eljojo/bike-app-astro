@@ -195,6 +195,32 @@
   margin-bottom: 1.5rem;
 }
 
+.stats-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+
+  .stats-section-title { margin-bottom: 0; }
+}
+
+.stats-toggle-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  background: none;
+  cursor: pointer;
+  @include muted-text;
+
+  @include dark-mode { border-color: $color-border-dark; }
+
+  &:hover {
+    background: $color-card-hover;
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+}
+
 .stats-chart-container {
   background: $color-card-bg;
   border: 1px solid $color-border;

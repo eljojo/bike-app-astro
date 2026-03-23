@@ -63,7 +63,7 @@ function liveUrl(contentType: string, contentSlug: string): string {
   }
 }
 
-function DurationChart({ series }: { series: TimeSeriesPoint[] }) {
+function DurationChart({ series, isHours }: { series: TimeSeriesPoint[]; isHours?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const instance = useRef<Chart | null>(null);
 
@@ -87,11 +87,12 @@ function DurationChart({ series }: { series: TimeSeriesPoint[] }) {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true, title: { display: true, text: 'minutes' } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: isHours ? 'hours' : 'minutes' } } },
         plugins: {
           legend: { display: false },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tooltip: { mode: 'index', intersect: false, callbacks: { label: (ctx: any) => {
+            if (isHours) return `${ctx.parsed.y}h`;
             const totalSeconds = ctx.parsed.y * 60;
             const m = Math.floor(totalSeconds / 60);
             const sec = Math.round(totalSeconds % 60);
@@ -113,6 +114,7 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
   const [error, setError] = useState('');
   const [currentRange, setCurrentRange] = useState<string>('30d');
   const [syncing, setSyncing] = useState(false);
+  const [cumulative, setCumulative] = useState(true);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
@@ -150,28 +152,40 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
   const hasVisitors = data?.timeSeries.some(p => (p.secondaryValue ?? 0) > 0) ?? false;
   const hasDuration = data?.durationSeries && data.durationSeries.some(p => p.value > 0);
 
+  // Build cumulative series
+  function cumulate(values: number[]): number[] {
+    let sum = 0;
+    return values.map(v => { sum += v; return sum; });
+  }
+
+  const cumPageviews = data ? cumulate(data.timeSeries.map(p => p.value)) : [];
+  const cumVisitors = data ? cumulate(data.timeSeries.map(p => p.secondaryValue ?? 0)) : [];
+
   useEffect(() => {
     if (!chartRef.current || !data) return;
 
     chartInstance.current?.destroy();
 
-    // Traffic chart: pageviews (bars) + visitors (line)
+    const pvData = cumulative ? cumPageviews : data.timeSeries.map(p => p.value);
+    const visData = cumulative ? cumVisitors : data.timeSeries.map(p => p.secondaryValue ?? 0);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datasets: any[] = [
       {
-        label: 'Page views',
-        data: data.timeSeries.map(p => p.value),
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+        label: cumulative ? 'Total page views' : 'Page views',
+        data: pvData,
+        backgroundColor: cumulative ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.5)',
         borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 1,
+        borderWidth: cumulative ? 2 : 1,
+        pointRadius: 0,
+        fill: cumulative,
       },
     ];
 
     if (hasVisitors) {
       datasets.push({
-        label: 'Visitors',
-        data: data.timeSeries.map(p => p.secondaryValue ?? 0),
-        type: 'line',
+        label: cumulative ? 'Total visitors' : 'Visitors',
+        data: visData,
         borderColor: 'rgb(234, 88, 12)',
         borderWidth: 2,
         pointRadius: 0,
@@ -180,7 +194,7 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
     }
 
     chartInstance.current = new Chart(chartRef.current, {
-      type: 'bar',
+      type: cumulative ? 'line' : 'bar',
       data: {
         labels: data.timeSeries.map(p => p.date),
         datasets,
@@ -198,7 +212,7 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
     });
 
     return () => { chartInstance.current?.destroy(); };
-  }, [data?.timeSeries]);
+  }, [data?.timeSeries, cumulative]);
 
   const totalReactions = data?.reactions
     ? Object.values(data.reactions).reduce((sum, n) => sum + n, 0)
@@ -279,7 +293,16 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
           {/* Time series chart */}
           {data.timeSeries.length > 0 && (
             <div class="stats-chart-container">
-              <h3 class="stats-section-title">Traffic over time</h3>
+              <div class="stats-chart-header">
+                <h3 class="stats-section-title">Traffic over time</h3>
+                <button
+                  type="button"
+                  class="stats-toggle-btn"
+                  onClick={() => setCumulative(!cumulative)}
+                >
+                  {cumulative ? 'Show daily' : 'Show cumulative'}
+                </button>
+              </div>
               <div class="stats-chart-wrapper">
                 <canvas ref={chartRef} />
               </div>
@@ -289,9 +312,24 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
           {/* Visit duration chart */}
           {hasDuration && (
             <div class="stats-chart-container">
-              <h3 class="stats-section-title">Visit duration</h3>
+              <h3 class="stats-section-title">{cumulative ? 'Wall time (cumulative)' : 'Visit duration'}</h3>
               <div class="stats-chart-wrapper">
-                <DurationChart series={data.durationSeries!.map(p => ({ ...p, value: Math.round(p.value / 6) / 10 }))} />
+                {cumulative ? (
+                  <DurationChart series={(() => {
+                    // Cumulative wall time in hours: sum of (pageviews × avg_duration_s / 3600)
+                    const wallTimePerDay = data.timeSeries.map((p, i) => {
+                      const durationS = data.durationSeries![i]?.value ?? 0;
+                      return p.value * durationS / 3600;
+                    });
+                    let sum = 0;
+                    return data.durationSeries!.map((p, i) => {
+                      sum += wallTimePerDay[i];
+                      return { ...p, value: Math.round(sum * 10) / 10 };
+                    });
+                  })()} isHours />
+                ) : (
+                  <DurationChart series={data.durationSeries!.map(p => ({ ...p, value: Math.round(p.value / 6) / 10 }))} />
+                )}
               </div>
             </div>
           )}
