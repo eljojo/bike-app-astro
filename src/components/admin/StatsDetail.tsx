@@ -8,6 +8,7 @@ Chart.register(...registerables);
 interface StatsDetailData {
   heroStats: SummaryCard[];
   timeSeries: TimeSeriesPoint[];
+  durationSeries?: TimeSeriesPoint[];
   granularity: string;
   funnel?: FunnelStep[];
   range: string;
@@ -61,6 +62,49 @@ function liveUrl(contentType: string, contentSlug: string): string {
   }
 }
 
+function DurationChart({ series }: { series: TimeSeriesPoint[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const instance = useRef<Chart | null>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    instance.current?.destroy();
+    instance.current = new Chart(canvasRef.current, {
+      type: 'line',
+      data: {
+        labels: series.map(p => p.date),
+        datasets: [{
+          data: series.map(p => p.value),
+          borderColor: 'rgb(234, 88, 12)',
+          backgroundColor: 'rgba(234, 88, 12, 0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: { y: { beginAtZero: true } },
+        plugins: {
+          legend: { display: false },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tooltip: { mode: 'index', intersect: false, callbacks: { label: (ctx: any) => {
+            const s = ctx.parsed.y;
+            const m = Math.floor(s / 60);
+            const sec = Math.round(s % 60);
+            return m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`;
+          }}},
+        },
+      },
+    });
+    return () => { instance.current?.destroy(); };
+  }, [series]);
+
+  return <canvas ref={canvasRef} />;
+}
+
 export default function StatsDetail({ contentType, contentSlug }: { contentType: string; contentSlug: string }) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [data, setData] = useState<StatsDetailData | null>(null);
@@ -102,13 +146,15 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
 
   useEffect(() => { loadRange('30d'); }, []);
 
-  const hasDuration = data?.timeSeries.some(p => (p.secondaryValue ?? 0) > 0) ?? false;
+  const hasVisitors = data?.timeSeries.some(p => (p.secondaryValue ?? 0) > 0) ?? false;
+  const hasDuration = data?.durationSeries && data.durationSeries.some(p => p.value > 0);
 
   useEffect(() => {
     if (!chartRef.current || !data) return;
 
     chartInstance.current?.destroy();
 
+    // Traffic chart: pageviews (bars) + visitors (line)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datasets: any[] = [
       {
@@ -117,20 +163,18 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
         backgroundColor: 'rgba(59, 130, 246, 0.5)',
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 1,
-        yAxisID: 'y',
       },
     ];
 
-    if (hasDuration) {
+    if (hasVisitors) {
       datasets.push({
-        label: 'Visit duration (avg)',
+        label: 'Visitors',
         data: data.timeSeries.map(p => p.secondaryValue ?? 0),
         type: 'line',
         borderColor: 'rgb(234, 88, 12)',
         borderWidth: 2,
         pointRadius: 0,
         fill: false,
-        yAxisID: 'y1',
       });
     }
 
@@ -144,28 +188,10 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: {
-          y: { beginAtZero: true, position: 'left' },
-          ...(hasDuration ? {
-            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
-          } : {}),
-        },
+        scales: { y: { beginAtZero: true } },
         plugins: {
           legend: { position: 'bottom' },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            callbacks: hasDuration ? { label: (ctx: any) => {
-              if (ctx.datasetIndex === 1) {
-                const s = ctx.parsed.y;
-                const m = Math.floor(s / 60);
-                const sec = Math.round(s % 60);
-                return `${ctx.dataset.label}: ${m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`}`;
-              }
-              return `${ctx.dataset.label}: ${ctx.parsed.y}`;
-            }} : undefined,
-          },
+          tooltip: { mode: 'index', intersect: false },
         },
       },
     });
@@ -246,6 +272,16 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
               <h3 class="stats-section-title">Traffic over time</h3>
               <div class="stats-chart-wrapper">
                 <canvas ref={chartRef} />
+              </div>
+            </div>
+          )}
+
+          {/* Visit duration chart */}
+          {hasDuration && (
+            <div class="stats-chart-container">
+              <h3 class="stats-section-title">Visit duration (seconds)</h3>
+              <div class="stats-chart-wrapper">
+                <DurationChart series={data.durationSeries!} />
               </div>
             </div>
           )}

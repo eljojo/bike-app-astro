@@ -84,10 +84,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
           eq(contentEngagement.contentSlug, slug),
         ))
         .limit(1),
-      // Time series with visit duration and entry visitors
+      // Time series with visitors, visit duration, and entry visitors
       database.select({
         date: contentPageMetrics.date,
         pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
+        visitors: sql<number>`SUM(${contentPageMetrics.visitorDays})`,
         avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
         entryVisitors: sql<number>`COALESCE(SUM(${contentPageMetrics.entryVisitors}), 0)`,
       }).from(contentPageMetrics)
@@ -126,22 +127,31 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const eng = engagement[0];
 
     const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
+    const totalVisitors = daily.reduce((sum, d) => sum + (d.visitors ?? 0), 0);
+    const viewsPerVisitor = totalVisitors > 0 ? Math.round((eng?.totalPageviews ?? 0) / totalVisitors * 10) / 10 : 0;
+    const wallTimePerVisitor = totalVisitors > 0 ? (eng?.wallTimeHours ?? 0) / totalVisitors * 60 : 0; // minutes
 
     const heroStats = eng ? [
       { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
-      { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page' },
+      { label: 'Visitors', value: totalVisitors, description: 'Unique visitor-days in this period' },
+      { label: 'Views/visitor', value: viewsPerVisitor, description: 'Average page views per visitor — higher means people come back (sticky content)' },
+      { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page (came from search or a direct link)' },
       { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
+      { label: 'Time/visitor', value: formatDuration(wallTimePerVisitor * 60), description: 'Wall time per visitor — how much attention each person gives' },
       { label: 'Visit duration', value: formatDuration(eng.avgVisitDuration), description: 'Average time spent per visit' },
-      { label: 'Bounce rate', value: `${Math.round(eng.avgBounceRate)}%`, description: 'Percentage who left without interacting' },
       { label: 'Map conversion', value: `${Math.round(eng.mapConversionRate * 100)}%`, description: 'Visitors who opened the map' },
       { label: 'Stars', value: eng.stars, description: 'Bookmarks by users' },
-      { label: 'Engagement', value: Math.round(eng.engagementScore * 100), description: 'Combined engagement score (0-100)' },
     ] : [];
 
     const timeSeries: TimeSeriesPoint[] = daily.map(d => ({
       date: d.date,
       value: d.pageviews,
-      secondaryValue: Math.round(d.avgDuration ?? 0),
+      secondaryValue: d.visitors ?? 0,
+    }));
+
+    const durationSeries: TimeSeriesPoint[] = daily.map(d => ({
+      date: d.date,
+      value: Math.round(d.avgDuration ?? 0),
     }));
 
     const detailViews = funnelData.find(f => f.pageType === 'detail')?.total ?? 0;
@@ -157,6 +167,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     return jsonResponse({
       heroStats,
       timeSeries,
+      durationSeries,
       granularity: granularityForRange(range),
       funnel,
       range,
