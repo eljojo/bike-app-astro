@@ -22,6 +22,7 @@ const routes = [
   // Auth pages
   { pattern: '/setup', entrypoint: view('auth/setup.astro') },
   { pattern: '/login', entrypoint: view('auth/login.astro') },
+  { pattern: '/register', entrypoint: view('auth/register.astro') },
 { pattern: '/auth/verify', entrypoint: view('auth/verify.astro') },
   // Auth API
   { pattern: '/api/auth/login-options', entrypoint: view('api/auth/login-options.ts') },
