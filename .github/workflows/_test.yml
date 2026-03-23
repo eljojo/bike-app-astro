@@ -210,20 +210,6 @@ jobs:
       - name: Run prebuild (map style, icon paths)
         run: npx tsx scripts/prebuild.ts
 
-      - name: Debug LFS state
-        if: matrix.suite == 'public'
-        run: |
-          echo "=== git lfs env ==="
-          git lfs env | head -20
-          echo "=== homepage.png first bytes ==="
-          head -c 20 e2e/snapshots/screenshots.spec.ts-snapshots/homepage.png | xxd
-          echo "=== homepage-magazine.png first bytes ==="
-          head -c 20 e2e/snapshots/screenshots.spec.ts-snapshots/homepage-magazine.png | xxd
-          echo "=== route-detail.png first bytes (control) ==="
-          head -c 20 e2e/snapshots/screenshots.spec.ts-snapshots/route-detail.png | xxd
-          echo "=== LFS objects count ==="
-          find .git/lfs/objects -type f 2>/dev/null | wc -l
-
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v5
