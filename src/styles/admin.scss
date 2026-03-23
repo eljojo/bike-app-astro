@@ -86,6 +86,26 @@
   }
 }
 
+.auth-avatar {
+  text-align: center;
+
+  img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+  }
+}
+
+.auth-field-hint {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin: 0.25rem 0 0;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
+  }
+}
+
 .admin-notice {
   font-size: 0.875rem;
   padding: 0.5rem 0.75rem;
