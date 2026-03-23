@@ -1,34 +1,50 @@
 import { test, expect } from '@playwright/test';
 import { seedSession, cleanupSession, loginAs, clearContentEdits, waitForHydration } from './helpers.ts';
 
-test.describe('Community Editing — Auth Gate', () => {
-  test('unauthenticated user sees auth gate on admin pages', async ({ page }) => {
+test.describe('Community Editing — Guest-First Flow', () => {
+  test('unauthenticated user sees editor directly (no gate redirect)', async ({ page }) => {
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
 
-    // Should redirect to gate page
-    expect(page.url()).toContain('/gate');
-    await expect(page.locator('.gate-options')).toBeVisible();
-    await expect(page.getByText('Continue as guest')).toBeVisible();
-    await expect(page.getByText('Sign in')).toBeVisible();
+    // Should stay on the editor page — NOT redirect to /gate or /login
+    expect(page.url()).not.toContain('/gate');
+    expect(page.url()).not.toContain('/login');
+    expect(page.url()).toContain('/admin/routes/carp');
+
+    // Editor should render
+    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
   });
 
-  test('guest account creation redirects to editor', async ({ page }) => {
-    await page.goto('/gate?returnTo=/admin/routes/carp');
+  test('unauthenticated user sees "Editing as guest" label', async ({ page }) => {
+    await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
+    await waitForHydration(page);
 
-    // Click continue as guest
-    const guestButton = page.getByText('Continue as guest');
-    const guestResponsePromise = page.waitForResponse(
-      (res) => res.url().includes('/api/auth/guest') && res.request().method() === 'POST'
-    );
-    await guestButton.click();
-    const guestResponse = await guestResponsePromise;
-    expect(guestResponse.status()).toBe(200);
+    // The guest label should be visible for anonymous/guest users
+    await expect(page.locator('.editor-guest-label')).toBeVisible();
+    await expect(page.locator('.editor-guest-label')).toContainText('Editing as guest');
+  });
 
-    // Should redirect to the editor
-    await page.waitForURL(url => url.pathname === '/admin/routes/carp', { timeout: 10000 });
-    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
+  test('anonymous save triggers guest creation then shows upgrade modal', async ({ page }) => {
+    await page.goto('/admin/routes/route-community');
+    await page.waitForLoadState('networkidle');
+    await waitForHydration(page);
+
+    // Make an edit
+    const taglineInput = page.locator('#route-tagline');
+    await taglineInput.fill('Anonymous guest edit');
+
+    // Save — the first save attempt gets 401 (no session), which triggers
+    // silent guest creation via /api/auth/guest, then retries the save
+    const saveButton = page.getByRole('button', { name: /save/i });
+    await saveButton.click();
+
+    // The success modal should appear with upgrade form
+    await expect(page.getByText('Thanks for your contribution')).toBeVisible({ timeout: 15000 });
+
+    // The upgrade form (email + username) should be present in the modal
+    await expect(page.locator('#upgrade-email')).toBeVisible();
+    await expect(page.locator('#upgrade-username')).toBeVisible();
   });
 });
 
@@ -53,7 +69,7 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     await page.goto('/admin/routes/route-community');
     await page.waitForLoadState('networkidle');
 
-    // Verify we landed on the editor (not redirected to gate)
+    // Verify we landed on the editor (not redirected)
     await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
     await waitForHydration(page);
 
@@ -66,7 +82,7 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     await saveButton.click();
 
     // Wait for save response — guests see a success modal
-    await expect(page.getByText('Thanks for your contribution!')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Thanks for your contribution')).toBeVisible({ timeout: 15000 });
   });
 });
 
