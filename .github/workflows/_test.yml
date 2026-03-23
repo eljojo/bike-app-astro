@@ -152,6 +152,50 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Upload build artifact for public E2E
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-demo
+          path: dist/
+          retention-days: 1
+
+  e2e:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [public, admin, blog, club]
+    steps:
+      - name: Checkout astro repo
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          lfs: true
+
+      - name: Checkout data repo
+        uses: actions/checkout@v6
+        with:
+          repository: eljojo/bike-routes
+          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+          ref: main
+          path: bike-routes
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Run prebuild (map style, icon paths)
+        run: npx tsx scripts/prebuild.ts
+
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v5
@@ -201,7 +245,16 @@ jobs:
           path: e2e/.tile-cache
           key: e2e-tile-cache-v1
 
+      # --- Public E2E only: download pre-built dist and set up D1 ---
+      - name: Download build artifact
+        if: matrix.suite == 'public'
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-demo
+          path: dist/
+
       - name: Add test bindings to generated wrangler config
+        if: matrix.suite == 'public'
         run: |
           node -e "
             const fs = require('fs');
@@ -213,12 +266,14 @@ jobs:
           "
 
       - name: Apply D1 migrations to local test database
+        if: matrix.suite == 'public'
         run: |
           for f in drizzle/migrations/*.sql; do
             npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$f"
           done
 
-      - name: Run E2E tests
+      - name: Run public E2E tests
+        if: matrix.suite == 'public'
         run: >-
           npx playwright test --config e2e/playwright.config.ts
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
@@ -226,27 +281,45 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
-      - name: Run admin E2E tests
+      # --- Admin/blog/club E2E: each builds its own fixture ---
+      - name: Run ${{ matrix.suite }} E2E tests
+        if: matrix.suite != 'public'
         run: >-
-          npx playwright test --config e2e/admin/fixture.ts
+          npx playwright test --config e2e/${{ matrix.suite }}/fixture.ts
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
-      - name: Run blog E2E tests
-        run: >-
-          npx playwright test --config e2e/blog/fixture.ts
-          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+      - name: Upload screenshot artifacts
+        if: ${{ inputs.update-screenshots && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.suite }}
+          path: |
+            e2e/snapshots/
+            e2e/${{ matrix.suite }}/*-snapshots/
+          if-no-files-found: ignore
 
-      - name: Run club E2E tests
-        run: >-
-          npx playwright test --config e2e/club/fixture.ts
-          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+  update-screenshots:
+    if: ${{ inputs.update-screenshots && always() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout astro repo
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
-      - name: Update screenshot baselines
+      - name: Download all screenshot artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-*
+          merge-multiple: true
+          path: e2e/
+
+      - name: Commit updated screenshots
         id: update-screenshots
-        if: ${{ inputs.update-screenshots }}
         run: |
           if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
             echo "Latest commit is already a screenshot update, skipping"
