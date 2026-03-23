@@ -44,7 +44,8 @@ test.describe('Community Editing — Guest-First Flow', () => {
     // The success modal should appear with upgrade form
     await expect(page.getByText('Your anonymous contribution has been saved')).toBeVisible({ timeout: 15000 });
 
-    // The upgrade form (email + username) should be present in the modal
+    // Click "Create an account" to reveal the upgrade form
+    await page.getByRole('button', { name: /create an account/i }).click();
     await expect(page.locator('#upgrade-email')).toBeVisible();
     await expect(page.locator('#upgrade-username')).toBeVisible();
   });
