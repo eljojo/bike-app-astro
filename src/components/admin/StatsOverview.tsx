@@ -121,7 +121,10 @@ function InsightCardView({ insight }: { insight: InsightCard }) {
   );
 }
 
-function MiniLineChart({ series, color }: { series: TimeSeriesPoint[]; color: string }) {
+function DualAxisChart({ labels, leftData, leftLabel, leftColor, rightData, rightLabel, rightColor }: {
+  labels: string[]; leftData: number[]; leftLabel: string; leftColor: string;
+  rightData: number[]; rightLabel: string; rightColor: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const instance = useRef<Chart | null>(null);
 
@@ -131,26 +134,42 @@ function MiniLineChart({ series, color }: { series: TimeSeriesPoint[]; color: st
     instance.current = new Chart(canvasRef.current, {
       type: 'line',
       data: {
-        labels: series.map(p => p.date),
-        datasets: [{
-          data: series.map(p => p.value),
-          borderColor: color,
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: true,
-          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-        }],
+        labels,
+        datasets: [
+          {
+            label: leftLabel,
+            data: leftData,
+            borderColor: leftColor,
+            backgroundColor: leftColor.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            yAxisID: 'y',
+          },
+          {
+            label: rightLabel,
+            data: rightData,
+            borderColor: rightColor,
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            yAxisID: 'y1',
+          },
+        ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true } },
-        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          y: { beginAtZero: true, position: 'left', title: { display: true, text: leftLabel } },
+          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: rightLabel } },
+        },
+        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
       },
     });
     return () => { instance.current?.destroy(); };
-  }, [series]);
+  }, [labels, leftData, rightData]);
 
   return <canvas ref={canvasRef} />;
 }
@@ -349,25 +368,23 @@ export default function StatsOverview() {
         </div>
       </div>
 
-      {/* Duration + Pages per visit side by side */}
-      <div class="stats-leaderboards">
-        {data.durationSeries && data.durationSeries.length > 0 && (
-          <div class="stats-chart-container">
-            <h3 class="stats-section-title">Avg visit duration (seconds)</h3>
-            <div class="stats-chart-wrapper">
-              <MiniLineChart series={data.durationSeries} color="rgb(234, 88, 12)" />
-            </div>
+      {/* Engagement depth: duration + pages per visit on dual axes */}
+      {data.durationSeries && data.durationSeries.length > 0 && (
+        <div class="stats-chart-container">
+          <h3 class="stats-section-title">Engagement depth</h3>
+          <div class="stats-chart-wrapper">
+            <DualAxisChart
+              labels={data.durationSeries.map(p => p.date)}
+              leftData={data.durationSeries.map(p => p.value)}
+              leftLabel="Avg duration (s)"
+              leftColor="rgb(234, 88, 12)"
+              rightData={data.pagesPerVisitSeries?.map(p => p.value) ?? []}
+              rightLabel="Pages per visit"
+              rightColor="rgb(16, 185, 129)"
+            />
           </div>
-        )}
-        {data.pagesPerVisitSeries && data.pagesPerVisitSeries.length > 0 && (
-          <div class="stats-chart-container">
-            <h3 class="stats-section-title">Pages per visit</h3>
-            <div class="stats-chart-wrapper">
-              <MiniLineChart series={data.pagesPerVisitSeries} color="rgb(16, 185, 129)" />
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Leaderboards */}
       <div class="stats-leaderboards">
