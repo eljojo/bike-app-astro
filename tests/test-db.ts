@@ -13,7 +13,8 @@ import fs from 'node:fs';
  *   afterAll(() => { testDb.cleanup(); });
  */
 export function createTestDb() {
-  const dbPath = `.test-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
+  const tmpDir = process.env.RUNNER_TEMP || process.env.TMPDIR || '/tmp';
+  const dbPath = `${tmpDir}/.test-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
   const database = createLocalDb(dbPath);
 
   return {
