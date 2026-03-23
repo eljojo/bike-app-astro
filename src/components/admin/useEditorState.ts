@@ -17,6 +17,29 @@ interface EditorStateOptions {
   validate?: () => string | null;
 }
 
+async function createGuestAndRetry(
+  url: string,
+  options: RequestInit,
+): Promise<Response | null> {
+  try {
+    const guestRes = await fetch('/api/auth/guest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!guestRes.ok) {
+      // Guest creation failed (e.g., blog mode returns 404)
+      // Redirect to login
+      const returnTo = encodeURIComponent(window.location.pathname);
+      window.location.href = `/login?returnTo=${returnTo}`;
+      return null;
+    }
+    // Retry the original save
+    return fetch(url, options);
+  } catch {
+    return null;
+  }
+}
+
 export function useEditorState(opts: EditorStateOptions) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -51,11 +74,20 @@ export function useEditorState(opts: EditorStateOptions) {
         ? `${apiBase}/${contentId}`
         : `${apiBase}/new`;
 
-      const res = await fetch(url, {
+      const fetchOptions: RequestInit = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
+      };
+
+      let res = await fetch(url, fetchOptions);
+
+      if (res.status === 401) {
+        const retryRes = await createGuestAndRetry(url, fetchOptions);
+        if (!retryRes) return; // redirected to login
+        res = retryRes;
+        // Fall through to normal response handling
+      }
 
       const data = await res.json();
 
