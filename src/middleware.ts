@@ -19,6 +19,14 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/history',
 ]);
 
+/** Admin path prefixes where any sub-path is browsable (editor pages). */
+const BROWSABLE_ADMIN_PREFIXES = [
+  '/admin/routes/',
+  '/admin/events/',
+  '/admin/places/',
+  '/admin/communities/',
+];
+
 /** API paths that support anonymous browsing (rate-limited in the endpoint). */
 const BROWSABLE_API_PATHS = new Set([
   '/api/admin/history',
@@ -27,7 +35,11 @@ const BROWSABLE_API_PATHS = new Set([
 
 function isBrowsableAdmin(pathname: string): boolean {
   const normalized = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-  return BROWSABLE_ADMIN_PATHS.has(normalized) || BROWSABLE_API_PATHS.has(normalized);
+  return (
+    BROWSABLE_ADMIN_PATHS.has(normalized) ||
+    BROWSABLE_API_PATHS.has(normalized) ||
+    BROWSABLE_ADMIN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
 }
 
 function needsNonceCsp(pathname: string): boolean {
