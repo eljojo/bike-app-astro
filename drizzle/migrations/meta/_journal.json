@@ -99,6 +99,13 @@
       "when": 1774425600000,
       "tag": "0011_site_daily_duration",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1774512000000,
+      "tag": "0012_reset_analytics_data",
+      "breakpoints": true
     }
   ]
 }
