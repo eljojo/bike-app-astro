@@ -152,13 +152,6 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
-      - name: Upload build artifact for public E2E
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-demo
-          path: dist/
-          retention-days: 1
-
   e2e:
     needs: test
     runs-on: ubuntu-latest
@@ -245,13 +238,30 @@ jobs:
           path: e2e/.tile-cache
           key: e2e-tile-cache-v1
 
-      # --- Public E2E only: download pre-built dist and set up D1 ---
-      - name: Download build artifact
+      # --- Public E2E only: build site and set up D1 ---
+      - name: Generate map thumbnails
         if: matrix.suite == 'public'
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-demo
-          path: dist/
+        run: npx tsx scripts/generate-maps.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+      - name: Build contributor stats
+        if: matrix.suite == 'public'
+        run: npx tsx scripts/build-contributors.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+
+      - name: Build site (demo)
+        if: matrix.suite == 'public'
+        run: npx astro build
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          DISABLE_ANALYTICS: 'true'
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Add test bindings to generated wrangler config
         if: matrix.suite == 'public'

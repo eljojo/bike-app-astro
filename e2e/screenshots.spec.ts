@@ -159,15 +159,15 @@ test.describe('Screenshots', () => {
 // These catch "NoMatchingRenderer" errors where the Preact renderer is missing
 // from the server bundle at runtime (the page 500s instead of rendering).
 test.describe('SSR Preact islands', () => {
-  test('gate page renders AuthGate', async ({ page }) => {
-    const response = await page.goto('/gate');
+  test('login page renders LoginForm', async ({ page }) => {
+    const response = await page.goto('/login');
     expect(response?.status()).toBe(200);
-    await expect(page.locator('.gate-options')).toBeVisible();
+    await expect(page.locator('#login-email')).toBeVisible();
   });
 
-  test('register page renders RegisterForm', async ({ page }) => {
-    const response = await page.goto('/register');
-    expect(response?.status()).toBe(200);
-    await expect(page.locator('.auth-form')).toBeVisible();
+  test('register redirects to login', async ({ page }) => {
+    await page.goto('/register');
+    // 301 redirect followed by Playwright — check final URL
+    expect(page.url()).toContain('/login');
   });
 });
