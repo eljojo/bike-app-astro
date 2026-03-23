@@ -332,25 +332,25 @@ function getStartDate(now: Date, r: TimeRange): Date {
       syncBtn.textContent = full ? 'Full rebuild\u2026' : 'Syncing\u2026';
       try {
         var url = '/api/admin/stats/sync' + (full ? '?full=true' : '');
-        const res = await fetch(url, { method: 'POST' });
+        var res = await fetch(url, { method: 'POST' });
         if (res.ok) {
           location.reload();
         } else {
-          const data = await res.json();
+          var data = await res.json();
           syncBtn.textContent = data.error || 'Sync failed';
           setTimeout(function() {
             syncBtn.textContent = 'Sync now';
             syncBtn.disabled = false;
           }, 3000);
         }
-      } catch {
+      } catch (e) {
         syncBtn.textContent = 'Sync failed';
         setTimeout(function() {
           syncBtn.textContent = 'Sync now';
           syncBtn.disabled = false;
         }, 3000);
       }
-    });
+    }
   }
 </script>
 
