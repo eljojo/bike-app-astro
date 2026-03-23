@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentEngagement, siteDailyMetrics } from '../../db/schema';
+import { contentEngagement, siteDailyMetrics, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
@@ -175,6 +175,23 @@ export async function GET({ locals, url, request }: APIContext) {
     const medians = computeMedians(insightInput);
     const insights = computeInsights(insightInput, medians, contentNames);
 
+    // Reaction breakdown
+    const reactionsByType = await database.select({
+      reactionType: reactions.reactionType,
+      count: sql<number>`COUNT(*)`,
+    }).from(reactions)
+      .where(eq(reactions.city, CITY))
+      .groupBy(reactions.reactionType);
+
+    const reactionBreakdown = Object.fromEntries(reactionsByType.map(r => [r.reactionType, r.count]));
+
+    // Last synced date
+    const lastSyncRow = await database.select({ date: siteDailyMetrics.date })
+      .from(siteDailyMetrics)
+      .where(eq(siteDailyMetrics.city, CITY))
+      .orderBy(desc(siteDailyMetrics.date))
+      .limit(1);
+
     return jsonResponse({
       summaryCards,
       timeSeries,
@@ -182,7 +199,9 @@ export async function GET({ locals, url, request }: APIContext) {
       viewsLeaderboard,
       engagementLeaderboard,
       insights,
+      reactionBreakdown,
       range,
+      lastSynced: lastSyncRow[0]?.date ?? null,
     } as Record<string, unknown>);
   } catch (err: unknown) {
     console.error('stats overview error:', err);

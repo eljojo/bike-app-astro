@@ -15,7 +15,7 @@ interface EngagementEntry extends LeaderboardEntry {
   breakdown?: { wallTime: string; mapConversion: string; stars: number; videoPlayRate: string };
 }
 
-interface StatsOverviewProps {
+interface StatsData {
   summaryCards: SummaryCard[];
   timeSeries: TimeSeriesPoint[];
   granularity: string;
@@ -24,6 +24,7 @@ interface StatsOverviewProps {
   insights: InsightCard[];
   range: string;
   reactionBreakdown?: Record<string, number>;
+  lastSynced?: string;
 }
 
 const REACTION_LABELS: Record<string, string> = {
@@ -117,28 +118,37 @@ function InsightCardView({ insight }: { insight: InsightCard }) {
   );
 }
 
-export default function StatsOverview(props: StatsOverviewProps) {
+export default function StatsOverview() {
   const hydratedRef = useHydrated<HTMLDivElement>();
-  const [data, setData] = useState<StatsOverviewProps>(props);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
   async function loadRange(range: string) {
     setLoading(true);
+    setError('');
     try {
       const res = await fetch(`/api/admin/stats/overview?range=${range}`);
       if (res.ok) {
-        const json = await res.json();
-        setData(json);
+        setData(await res.json());
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || `Failed to load (${res.status})`);
       }
+    } catch (e) {
+      setError('Network error');
     } finally {
       setLoading(false);
     }
   }
 
+  // Load default range on mount
+  useEffect(() => { loadRange('30d'); }, []);
+
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || !data) return;
 
     chartInstance.current?.destroy();
 
@@ -175,10 +185,44 @@ export default function StatsOverview(props: StatsOverviewProps) {
     });
 
     return () => { chartInstance.current?.destroy(); };
-  }, [data.timeSeries]);
+  }, [data?.timeSeries]);
+
+  if (!data && loading) {
+    return (
+      <div ref={hydratedRef} class="stats-overview">
+        <div class="stats-loading">Loading stats...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div ref={hydratedRef} class="stats-overview">
+        <div class="stats-error">{error}</div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div ref={hydratedRef} class="stats-overview">
+        <div class="stats-empty-state">
+          <h2>No analytics data yet</h2>
+          <p>Run a sync to pull data from Plausible.</p>
+          <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={hydratedRef} class="stats-overview">
+      {/* Toolbar */}
+      <div class="stats-toolbar">
+        {data.lastSynced && <span class="stats-last-synced">Data through {data.lastSynced}</span>}
+        <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>
+      </div>
+
       {/* Time range selector */}
       <div class="stats-range-selector">
         {RANGE_OPTIONS.map(opt => (

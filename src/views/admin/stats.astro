@@ -6,17 +6,6 @@ import AdminHeader from '../../components/AdminHeader.astro';
 import '../../styles/admin.scss';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { authorize } from '../../lib/auth/authorize';
-import { db } from '../../lib/get-db';
-import { env } from '../../lib/env/env.service';
-import { CITY } from '../../lib/config/config';
-import { getCityConfig } from '../../lib/config/city-config';
-import { contentEngagement, siteDailyMetrics, reactions } from '../../db/schema';
-import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
-import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
-import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
-import { needsSync, runSync } from '../../lib/stats/sync.server';
-import { readStatsCache, writeStatsCache } from '../../lib/stats/cache.server';
-import { fetchJson } from '../../lib/content/load-admin-content.server';
 import StatsOverview from '../../components/admin/StatsOverview';
 
 const features = getInstanceFeatures();
@@ -27,331 +16,52 @@ if (!features.hasRoutes) {
 const user = authorize(Astro.locals, 'view-stats');
 if (user instanceof Response) return user;
 
-const range = (Astro.url.searchParams.get('range') || '30d') as TimeRange;
-const database = db();
 const cspNonce = Astro.locals.cspNonce;
-
-// Auto-sync: if data is stale (>24h) and API key is available, sync before rendering
-const apiKey = env.PLAUSIBLE_API_KEY;
-let syncError = '';
-if (apiKey) {
-  try {
-    const stale = await needsSync(database, CITY);
-    if (stale) {
-      const cityConfig = getCityConfig();
-      await runSync(database, {
-        apiKey,
-        siteId: cityConfig.plausible_domain,
-        city: CITY,
-        locales: cityConfig.locales ?? [cityConfig.locale],
-        defaultLocale: cityConfig.locale,
-      });
-    }
-  } catch (err) {
-    console.error('stats auto-sync error:', err);
-    syncError = err instanceof Error ? err.message : 'Sync failed';
-  }
-}
-
-// Try cache first (1 D1 query instead of 8+)
-const cacheKey = `overview:${range}`;
-let statsData = await readStatsCache(database, CITY, cacheKey);
-
-if (!statsData) {
-  // Cache miss — compute from D1 and write back
-  try {
-    // Build name lookup: "contentType:slug" → human-readable name
-    const contentNames: Record<string, string> = {};
-    try {
-      const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
-      for (const r of adminRoutes) contentNames[`route:${r.slug}`] = r.name;
-
-      if (features.hasEvents) {
-        const { events: adminEvents, organizers: adminOrganizers } = await fetchJson<{ events: _AdminEvent[]; organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
-        for (const e of adminEvents) contentNames[`event:${e.id}`] = e.name;
-        for (const o of adminOrganizers) contentNames[`organizer:${o.slug}`] = o.name;
-      }
-    } catch { /* content data unavailable — slugs used as fallback */ }
-
-    const now = new Date();
-    const startDate = getStartDate(now, range);
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = now.toISOString().split('T')[0];
-
-    const prevDuration = now.getTime() - startDate.getTime();
-    const prevStart = new Date(startDate.getTime() - prevDuration);
-    const prevStartStr = prevStart.toISOString().split('T')[0];
-    const prevEndStr = startStr;
-
-    // 1. Summary cards
-    const currentMetrics = await database.select({
-      totalPageviews: sql<number>`COALESCE(SUM(${siteDailyMetrics.totalPageviews}), 0)`,
-      totalVisitors: sql<number>`COALESCE(SUM(${siteDailyMetrics.uniqueVisitors}), 0)`,
-      newAccounts: sql<number>`COALESCE(SUM(${siteDailyMetrics.newAccounts}), 0)`,
-      totalReactions: sql<number>`COALESCE(SUM(${siteDailyMetrics.reactionsCount}), 0)`,
-    }).from(siteDailyMetrics)
-      .where(and(
-        eq(siteDailyMetrics.city, CITY),
-        gte(siteDailyMetrics.date, startStr),
-        lte(siteDailyMetrics.date, endStr),
-      ));
-
-    const prevMetrics = await database.select({
-      totalPageviews: sql<number>`COALESCE(SUM(${siteDailyMetrics.totalPageviews}), 0)`,
-    }).from(siteDailyMetrics)
-      .where(and(
-        eq(siteDailyMetrics.city, CITY),
-        gte(siteDailyMetrics.date, prevStartStr),
-        lte(siteDailyMetrics.date, prevEndStr),
-      ));
-
-    const current = currentMetrics[0];
-    const prev = prevMetrics[0];
-    const pctChange = prev.totalPageviews > 0
-      ? Math.round(((current.totalPageviews - prev.totalPageviews) / prev.totalPageviews) * 100)
-      : null;
-
-    const contentCount = await database.select({
-      count: sql<number>`COUNT(DISTINCT ${contentEngagement.contentSlug})`,
-    }).from(contentEngagement)
-      .where(eq(contentEngagement.city, CITY));
-
-    const summaryCards: SummaryCard[] = [
-      { label: 'Page views', value: current.totalPageviews, change: pctChange ?? undefined, description: 'Total page views across the site' },
-      { label: 'Visitors', value: current.totalVisitors, description: 'Unique visitors (daily count, summed)' },
-      { label: 'New accounts', value: current.newAccounts, description: 'New registered users (non-guest)' },
-      { label: 'Reactions', value: current.totalReactions, description: 'Stars and other reactions' },
-      { label: 'Content tracked', value: contentCount[0]?.count ?? 0, description: 'Routes, events, and communities with analytics' },
-    ];
-
-    // 2. Time series
-    const granularity = granularityForRange(range);
-    const dailyData = await database.select({
-      date: siteDailyMetrics.date,
-      pageviews: siteDailyMetrics.totalPageviews,
-      visitors: siteDailyMetrics.uniqueVisitors,
-    }).from(siteDailyMetrics)
-      .where(and(
-        eq(siteDailyMetrics.city, CITY),
-        gte(siteDailyMetrics.date, startStr),
-        lte(siteDailyMetrics.date, endStr),
-      ))
-      .orderBy(siteDailyMetrics.date);
-
-    const timeSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date,
-      value: d.pageviews,
-      secondaryValue: d.visitors,
-    }));
-
-    // 3. Leaderboards
-    const topByViews = await database.select({
-      contentType: contentEngagement.contentType,
-      contentSlug: contentEngagement.contentSlug,
-      totalPageviews: contentEngagement.totalPageviews,
-      wallTimeHours: contentEngagement.wallTimeHours,
-    }).from(contentEngagement)
-      .where(eq(contentEngagement.city, CITY))
-      .orderBy(desc(contentEngagement.totalPageviews))
-      .limit(10);
-
-    const topByEngagement = await database.select({
-      contentType: contentEngagement.contentType,
-      contentSlug: contentEngagement.contentSlug,
-      engagementScore: contentEngagement.engagementScore,
-      totalPageviews: contentEngagement.totalPageviews,
-      wallTimeHours: contentEngagement.wallTimeHours,
-      mapConversionRate: contentEngagement.mapConversionRate,
-      stars: contentEngagement.stars,
-      videoPlayRate: contentEngagement.videoPlayRate,
-    }).from(contentEngagement)
-      .where(eq(contentEngagement.city, CITY))
-      .orderBy(desc(contentEngagement.engagementScore))
-      .limit(10);
-
-    const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
-      contentType: r.contentType as 'route' | 'event' | 'organizer',
-      contentSlug: r.contentSlug,
-      name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
-      primaryValue: r.totalPageviews,
-      primaryLabel: 'views',
-      secondaryValue: Math.round(r.wallTimeHours * 10) / 10,
-      secondaryLabel: 'hours',
-    }));
-
-    const engagementLeaderboard = topByEngagement.map(r => ({
-      contentType: r.contentType as 'route' | 'event' | 'organizer',
-      contentSlug: r.contentSlug,
-      name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
-      primaryValue: Math.round(r.engagementScore * 100),
-      primaryLabel: 'score',
-      secondaryValue: r.totalPageviews,
-      secondaryLabel: 'views',
-      breakdown: {
-        wallTime: `${Math.round(r.wallTimeHours * 10) / 10}h`,
-        mapConversion: `${Math.round(r.mapConversionRate * 100)}%`,
-        stars: r.stars,
-        videoPlayRate: `${Math.round(r.videoPlayRate * 100)}%`,
-      },
-    }));
-
-    // 4. Reactions breakdown
-    const reactionsByType = await database.select({
-      reactionType: reactions.reactionType,
-      count: sql<number>`COUNT(*)`,
-    }).from(reactions)
-      .where(eq(reactions.city, CITY))
-      .groupBy(reactions.reactionType);
-
-    const reactionBreakdown = Object.fromEntries(reactionsByType.map(r => [r.reactionType, r.count]));
-
-    // 5. Insights
-    const engagementRows = await database.select().from(contentEngagement)
-      .where(eq(contentEngagement.city, CITY));
-
-    const insightInput: EngagementRow[] = engagementRows.map(r => ({
-      contentType: r.contentType,
-      contentSlug: r.contentSlug,
-      totalPageviews: r.totalPageviews,
-      totalVisitorDays: r.totalVisitorDays,
-      avgVisitDuration: r.avgVisitDuration,
-      avgBounceRate: r.avgBounceRate,
-      stars: r.stars,
-      videoPlayRate: r.videoPlayRate,
-      mapConversionRate: r.mapConversionRate,
-      wallTimeHours: r.wallTimeHours,
-      engagementScore: r.engagementScore,
-    }));
-
-    const medians = computeMedians(insightInput);
-    const insights = computeInsights(insightInput, medians, contentNames);
-
-    // Last synced date
-    const lastSyncRow = await database.select({ date: siteDailyMetrics.date })
-      .from(siteDailyMetrics)
-      .where(eq(siteDailyMetrics.city, CITY))
-      .orderBy(desc(siteDailyMetrics.date))
-      .limit(1);
-    const lastSynced = lastSyncRow.length > 0 ? lastSyncRow[0].date : null;
-
-    statsData = {
-      summaryCards,
-      timeSeries,
-      granularity,
-      viewsLeaderboard,
-      engagementLeaderboard,
-      insights,
-      range,
-      lastSynced,
-      reactionBreakdown,
-    };
-
-    // Write to cache for next page load
-    await writeStatsCache(database, CITY, cacheKey, statsData).catch(() => {});
-  } catch (err) {
-    console.error('stats page error:', err);
-  }
-}
-
-function getStartDate(now: Date, r: TimeRange): Date {
-  const d = new Date(now);
-  switch (r) {
-    case '30d': d.setDate(d.getDate() - 30); break;
-    case '3mo': d.setMonth(d.getMonth() - 3); break;
-    case '1yr': d.setFullYear(d.getFullYear() - 1); break;
-    case 'all': d.setFullYear(2020); break;
-  }
-  return d;
-}
 ---
 
 <Base title="Stats" admin>
   <div class="admin-stats">
     <AdminHeader user={user} currentTab="stats" />
-
-    {syncError && (
-      <div class="stats-sync-error">Sync error: {syncError}</div>
-    )}
-
-    {statsData ? (
-      <>
-        <div class="stats-toolbar">
-          {statsData.lastSynced && <span class="stats-last-synced">Data through {statsData.lastSynced}</span>}
-          <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>
-        </div>
-        <StatsOverview
-          client:load
-          summaryCards={statsData.summaryCards}
-          timeSeries={statsData.timeSeries}
-          granularity={statsData.granularity}
-          viewsLeaderboard={statsData.viewsLeaderboard}
-          engagementLeaderboard={statsData.engagementLeaderboard}
-          insights={statsData.insights}
-          range={statsData.range}
-          reactionBreakdown={statsData.reactionBreakdown}
-        />
-      </>
-    ) : (
-      <div class="stats-empty">
-        <h2>No analytics data yet</h2>
-        <p>
-          {apiKey
-            ? 'The first sync will run automatically. You can also trigger it manually.'
-            : 'Set PLAUSIBLE_API_KEY to enable analytics sync.'
-          }
-        </p>
-        {apiKey && <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>}
-      </div>
-    )}
+    <StatsOverview client:load />
   </div>
 </Base>
 
 <script is:inline nonce={cspNonce}>
-  const syncBtn = document.getElementById('sync-btn');
+  var syncBtn = document.getElementById('sync-btn');
   if (syncBtn) {
     var shiftHeld = false;
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Shift' && !syncBtn.disabled) {
+      if (e.key === 'Shift' && syncBtn && !syncBtn.disabled) {
         shiftHeld = true;
         syncBtn.textContent = 'Full rebuild';
       }
     });
     document.addEventListener('keyup', function(e) {
-      if (e.key === 'Shift' && !syncBtn.disabled) {
+      if (e.key === 'Shift' && syncBtn && !syncBtn.disabled) {
         shiftHeld = false;
         syncBtn.textContent = 'Sync now';
       }
     });
-
-    syncBtn.addEventListener('click', function() {
-      doSync(shiftHeld);
-    });
-
-    async function doSync(full) {
-      syncBtn.disabled = true;
-      syncBtn.textContent = full ? 'Full rebuild\u2026' : 'Syncing\u2026';
-      try {
-        var url = '/api/admin/stats/sync' + (full ? '?full=true' : '');
-        var res = await fetch(url, { method: 'POST' });
-        if (res.ok) {
-          location.reload();
-        } else {
-          var data = await res.json();
-          syncBtn.textContent = data.error || 'Sync failed';
-          setTimeout(function() {
-            syncBtn.textContent = 'Sync now';
-            syncBtn.disabled = false;
-          }, 3000);
-        }
-      } catch (e) {
-        syncBtn.textContent = 'Sync failed';
-        setTimeout(function() {
-          syncBtn.textContent = 'Sync now';
-          syncBtn.disabled = false;
-        }, 3000);
-      }
-    }
   }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target;
+    if (!btn || btn.id !== 'sync-btn') return;
+    btn.disabled = true;
+    var full = shiftHeld;
+    btn.textContent = full ? 'Full rebuild\u2026' : 'Syncing\u2026';
+    var url = '/api/admin/stats/sync' + (full ? '?full=true' : '');
+    fetch(url, { method: 'POST' }).then(function(res) {
+      if (res.ok) { location.reload(); return; }
+      return res.json().then(function(data) {
+        btn.textContent = data.error || 'Sync failed';
+        setTimeout(function() { btn.textContent = 'Sync now'; btn.disabled = false; }, 3000);
+      });
+    }).catch(function() {
+      btn.textContent = 'Sync failed';
+      setTimeout(function() { btn.textContent = 'Sync now'; btn.disabled = false; }, 3000);
+    });
+  });
 </script>
 
 <style lang="scss">
@@ -362,77 +72,5 @@ function getStartDate(now: Date, r: TimeRange): Date {
     max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
-  }
-
-  .stats-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-  }
-
-  .stats-last-synced {
-    font-size: 0.8125rem;
-    @include muted-text;
-  }
-
-  .stats-sync-btn {
-    padding: 0.375rem 0.875rem;
-    border: 1px solid $color-border;
-    border-radius: $border-radius;
-    background: $color-card-bg;
-    font-size: 0.8125rem;
-    cursor: pointer;
-    color: $color-text;
-
-    @include dark-mode {
-      border-color: $color-border-dark;
-      background: $color-card-bg-dark;
-      color: $color-text-dark;
-    }
-
-    &:hover:not(:disabled) {
-      background: $color-card-hover;
-      @include dark-mode { background: $color-card-hover-dark; }
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-  }
-
-  .stats-sync-error {
-    background: $color-error-bg;
-    border: 1px solid $color-error;
-    border-radius: $border-radius;
-    padding: 0.625rem 1rem;
-    margin-bottom: 1rem;
-    font-size: 0.875rem;
-    color: $color-error;
-
-    @include dark-mode {
-      background: $color-error-bg-dark;
-      border-color: $color-error-dark;
-      color: $color-error-dark;
-    }
-  }
-
-  .stats-empty {
-    text-align: center;
-    padding: 3rem 1rem;
-
-    h2 {
-      font-family: $font-heading;
-      font-size: 1.25rem;
-      margin: 0 0 0.5rem;
-    }
-
-    p {
-      font-size: 0.9375rem;
-      @include muted-text;
-      margin: 0 0 1rem;
-    }
   }
 </style>
