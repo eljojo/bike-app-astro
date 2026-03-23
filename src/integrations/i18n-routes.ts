@@ -14,6 +14,7 @@ interface LocalePage {
 const sharedPages: LocalePage[] = [
   { pattern: '/', entrypoint: view('index.astro') },
   { pattern: '/about', entrypoint: view('about.astro') },
+  { pattern: '/about/passkeys', entrypoint: view('about/passkeys.astro') },
 ];
 
 /** Wiki-only pages. */
