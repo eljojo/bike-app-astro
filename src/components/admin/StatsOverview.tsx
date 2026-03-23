@@ -27,6 +27,14 @@ interface StatsData {
   durationSeries?: TimeSeriesPoint[];
   pagesPerVisitSeries?: TimeSeriesPoint[];
   signups?: Array<{ date: string; guests: number; registered: number }>;
+  visitorInsights?: {
+    repeatVisits: Record<string, number>;
+    returningVisitors: number;
+    returnRate: number;
+    avgReturns: number;
+    socialReferrals: Record<string, number>;
+    entryPages: Array<{ path: string; visitors: number }>;
+  };
   lastSynced?: string;
 }
 
@@ -530,6 +538,88 @@ export default function StatsOverview() {
           <div class="stats-chart-wrapper">
             <SignupsChart signups={data.signups} />
           </div>
+        </div>
+      )}
+
+      {/* Visitor behavior */}
+      {data.visitorInsights && (data.visitorInsights.returningVisitors > 0 || data.visitorInsights.entryPages.length > 0) && (
+        <div class="stats-visitor-insights">
+          <h3 class="stats-section-title">Visitor behavior</h3>
+          <div class="stats-leaderboards">
+            {/* Returning visitors */}
+            {data.visitorInsights.returningVisitors > 0 && (
+              <div class="stats-leaderboard">
+                <h4 class="stats-subsection-title">
+                  Returning visitors
+                  <span class="stats-subsection-detail">
+                    {data.visitorInsights.returningVisitors} visitors came back, averaging {data.visitorInsights.avgReturns} visits each
+                  </span>
+                </h4>
+                <div class="stats-reaction-bars">
+                  {Object.entries(data.visitorInsights.repeatVisits)
+                    .sort(([a], [b]) => (a === '5+' ? 99 : parseInt(a)) - (b === '5+' ? 99 : parseInt(b)))
+                    .map(([count, visitors]) => {
+                      const max = Math.max(...Object.values(data.visitorInsights!.repeatVisits));
+                      return (
+                        <div class="stats-reaction-row" key={count}>
+                          <span class="stats-reaction-label">{count === '5+' ? '5+ visits' : `${count} visits`}</span>
+                          <div class="stats-reaction-bar-track">
+                            <div class="stats-reaction-bar-fill" style={{ width: `${Math.max((visitors / max) * 100, 2)}%` }} />
+                          </div>
+                          <span class="stats-reaction-count">{visitors}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Social referrals */}
+            {Object.keys(data.visitorInsights.socialReferrals).length > 0 && (
+              <div class="stats-leaderboard">
+                <h4 class="stats-subsection-title">Social referrals</h4>
+                <div class="stats-reaction-bars">
+                  {Object.entries(data.visitorInsights.socialReferrals)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([network, count]) => {
+                      const max = Math.max(...Object.values(data.visitorInsights!.socialReferrals));
+                      return (
+                        <div class="stats-reaction-row" key={network}>
+                          <span class="stats-reaction-label">{network}</span>
+                          <div class="stats-reaction-bar-track">
+                            <div class="stats-reaction-bar-fill" style={{ width: `${Math.max((count / max) * 100, 2)}%` }} />
+                          </div>
+                          <span class="stats-reaction-count">{count}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Entry pages */}
+          {data.visitorInsights.entryPages.length > 0 && (
+            <div class="stats-leaderboard" style={{ marginTop: '1rem' }}>
+              <h4 class="stats-subsection-title">How people arrive</h4>
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>Entry page</th>
+                    <th class="stats-table-num">Visitors</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.visitorInsights.entryPages.map(e => (
+                    <tr key={e.path}>
+                      <td><a href={e.path} class="stats-content-link">{e.path}</a></td>
+                      <td class="stats-table-num">{formatNumber(e.visitors)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

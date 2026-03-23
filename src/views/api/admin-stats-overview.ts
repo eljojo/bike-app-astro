@@ -13,6 +13,7 @@ import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { ensureSiteDailyData, syncSiteMetrics } from '../../lib/stats/sync.server';
 import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
+import { getVisitorInsights, type VisitorInsights } from '../../lib/stats/visitor-insights.server';
 
 export const prerender = false;
 
@@ -89,8 +90,13 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       }
     }
 
-    // Fire all queries in parallel — each D1 round trip is ~30-50ms,
-    // running 11 sequentially would be 400ms+ just in latency
+    // Visitor insights (Plausible custom events) — fetched in parallel with D1 queries, cached separately
+    const plausibleKey = env.PLAUSIBLE_API_KEY;
+    // Fire all queries in parallel — each D1 round trip is ~30-50ms
+    const visitorInsightsPromise = plausibleKey
+      ? getVisitorInsights(database, { apiKey: plausibleKey, siteId: getCityConfig().plausible_domain, city: CITY }, [startStr, endStr])
+      : Promise.resolve(null as VisitorInsights | null);
+
     const [
       currentMetrics,
       prevMetrics,
@@ -267,10 +273,13 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }
     signups.sort((a, b) => a.date.localeCompare(b.date));
 
+    const visitorInsights = await visitorInsightsPromise;
+
     return jsonResponse({
       summaryCards, timeSeries, durationSeries, pagesPerVisitSeries,
       granularity, viewsLeaderboard, engagementLeaderboard,
       insights, reactionBreakdown, signups, range,
+      visitorInsights,
       lastSynced: lastSyncRow[0]?.date ?? null,
     } as Record<string, unknown>);
   } catch (err: unknown) {

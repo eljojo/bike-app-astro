@@ -178,6 +178,23 @@
   margin: 0 0 0.75rem;
 }
 
+.stats-subsection-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.stats-subsection-detail {
+  font-weight: 400;
+  font-size: 0.8125rem;
+  @include muted-text;
+  margin-left: 0.5rem;
+}
+
+.stats-visitor-insights {
+  margin-bottom: 1.5rem;
+}
+
 .stats-chart-container {
   background: $color-card-bg;
   border: 1px solid $color-border;
