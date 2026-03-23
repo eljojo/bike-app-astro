@@ -256,8 +256,12 @@ body.fullbleed {
     a { pointer-events: auto; }
   }
 
+  .site-subtitle {
+    display: none;
+  }
+
   .top-nav {
-    top: 2.6rem;
+    top: 3rem;
     background: none;
     pointer-events: none;
 
@@ -287,7 +291,7 @@ body.fullbleed {
   }
 
   .map-controls {
-    top: 5.5rem;
+    top: 5.9rem;
   }
 }
 
