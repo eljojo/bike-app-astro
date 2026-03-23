@@ -9,8 +9,7 @@ import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
-import { env } from '../../lib/env/env.service';
-import { getCityConfig } from '../../lib/config/city-config';
+import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { ensureSiteDailyData, ensureSiteEventData, syncSiteMetrics } from '../../lib/stats/sync.server';
 import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
 
@@ -42,17 +41,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const baseUrl = url.origin;
 
     // Incremental sync — backfill what's missing
-    const apiKey = env.PLAUSIBLE_API_KEY;
-    if (apiKey) {
-      const cityConfig = getCityConfig();
-      let redirects: Record<string, string> = {};
-      try {
-        redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl));
-        console.log(`stats: loaded ${Object.keys(redirects).length} redirects`);
-      } catch (err) {
-        console.error('stats: failed to load redirects.json:', err);
-      }
-
+    const ctx = await buildSyncContext(baseUrl);
+    if (ctx) {
       // Check if engagement data exists — if not, we need a full site sync
       // (page breakdown + engagement rebuild), not just daily aggregates
       const engagementCount = await database.select({
@@ -60,8 +50,6 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       }).from(contentEngagement).where(eq(contentEngagement.city, CITY));
 
       const needsFullSync = forceSync || (engagementCount[0]?.count ?? 0) === 0;
-
-      const syncOpts = { apiKey, siteId: cityConfig.plausible_domain, city: CITY };
 
       if (needsFullSync) {
         if (forceSync) {
@@ -75,19 +63,14 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
             .run();
         }
         // Full site sync: daily aggregates + page breakdown + engagement rebuild
-        await syncSiteMetrics(database, {
-          ...syncOpts,
-          locales: cityConfig.locales ?? [cityConfig.locale],
-          defaultLocale: cityConfig.locale,
-          redirects,
-        });
+        await syncSiteMetrics(database, ctx);
       } else {
         // Incremental: just backfill missing daily rows
-        await ensureSiteDailyData(database, syncOpts, startStr, endStr);
+        await ensureSiteDailyData(database, ctx, startStr, endStr);
       }
 
       // Ensure event metrics (repeat visits, social referrals) are synced
-      await ensureSiteEventData(database, syncOpts, startStr, endStr);
+      await ensureSiteEventData(database, ctx, startStr, endStr);
     }
 
     const [

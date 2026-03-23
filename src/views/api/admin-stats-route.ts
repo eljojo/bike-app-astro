@@ -7,10 +7,8 @@ import { CITY } from '../../lib/config/config';
 import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type TimeSeriesPoint, type FunnelStep } from '../../lib/stats/types';
-import { env } from '../../lib/env/env.service';
-import { getCityConfig } from '../../lib/config/city-config';
 import { ensurePageDailyData, ensureEntryPageData, syncPageMetrics } from '../../lib/stats/sync.server';
-import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
 
 export const prerender = false;
@@ -36,26 +34,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const endStr = now.toISOString().split('T')[0];
 
     // Incremental sync — backfill missing dates for this slug
-    const apiKey = env.PLAUSIBLE_API_KEY;
-    if (apiKey) {
-      const cityConfig = getCityConfig();
-      let redirects: Record<string, string> = {};
-      try {
-        redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin));
-      } catch (err) {
-        console.error('Failed to load redirects.json:', err);
-      }
-      const syncOpts = {
-        apiKey,
-        siteId: cityConfig.plausible_domain,
-        city: CITY,
-        locales: cityConfig.locales ?? [cityConfig.locale],
-        defaultLocale: cityConfig.locale,
-        redirects,
-      };
-
+    const ctx = await buildSyncContext(url.origin);
+    if (ctx) {
       if (forceSync) {
-        // Force re-sync: delete existing data for this slug in range, then re-fetch
         await database.delete(contentPageMetrics)
           .where(and(
             eq(contentPageMetrics.city, CITY),
@@ -65,18 +46,15 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
             lte(contentPageMetrics.date, endStr),
           ))
           .run();
-        await syncPageMetrics(database, { ...syncOpts, contentType: 'route', contentSlug: slug });
+        await syncPageMetrics(database, { ...ctx, contentType: 'route', contentSlug: slug });
       } else {
-        await ensurePageDailyData(database, syncOpts, 'route', slug, startStr, endStr);
+        await ensurePageDailyData(database, ctx, 'route', slug, startStr, endStr);
       }
-
-      // Ensure entry page data is synced
-      await ensureEntryPageData(database, syncOpts, 'route', slug, startStr, endStr);
+      await ensureEntryPageData(database, ctx, 'route', slug, startStr, endStr);
     }
 
     // All queries in parallel
     const [engagement, daily, funnelData, reactionData] = await Promise.all([
-      // Engagement summary
       database.select()
         .from(contentEngagement)
         .where(and(
@@ -85,7 +63,6 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
           eq(contentEngagement.contentSlug, slug),
         ))
         .limit(1),
-      // Time series with visitors, visit duration, and entry visitors
       database.select({
         date: contentPageMetrics.date,
         pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
@@ -101,7 +78,6 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         ))
         .groupBy(contentPageMetrics.date)
         .orderBy(contentPageMetrics.date),
-      // Funnel: detail views -> map views, with avg duration per page type
       database.select({
         pageType: contentPageMetrics.pageType,
         total: sql<number>`SUM(${contentPageMetrics.pageviews})`,
@@ -113,7 +89,6 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
           eq(contentPageMetrics.contentSlug, slug),
         ))
         .groupBy(contentPageMetrics.pageType),
-      // Reactions breakdown
       database.select({
         reactionType: reactions.reactionType,
         count: sql<number>`COUNT(*)`,
@@ -131,15 +106,15 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
     const totalVisitors = daily.reduce((sum, d) => sum + (d.visitors ?? 0), 0);
     const viewsPerVisitor = totalVisitors > 0 ? Math.round((eng?.totalPageviews ?? 0) / totalVisitors * 10) / 10 : 0;
-    const wallTimePerVisitor = totalVisitors > 0 ? (eng?.wallTimeHours ?? 0) / totalVisitors * 60 : 0; // minutes
+    const wallTimePerVisitor = totalVisitors > 0 ? (eng?.wallTimeHours ?? 0) / totalVisitors * 60 : 0;
 
     const heroStats = eng ? [
       { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
       { label: 'Visitors', value: totalVisitors, description: 'Unique visitor-days in this period' },
-      { label: 'Views/visitor', value: viewsPerVisitor, description: 'Average page views per visitor — higher means people come back (sticky content)' },
-      { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page (came from search or a direct link)' },
+      { label: 'Views/visitor', value: viewsPerVisitor, description: 'Average page views per visitor' },
+      { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page' },
       { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
-      { label: 'Time/visitor', value: formatDuration(wallTimePerVisitor * 60), description: 'Wall time per visitor — how much attention each person gives' },
+      { label: 'Time/visitor', value: formatDuration(wallTimePerVisitor * 60), description: 'Wall time per visitor' },
       { label: 'Visit duration', value: formatDuration(eng.avgVisitDuration), description: 'Average time spent per visit' },
       { label: 'Map conversion', value: `${Math.round(eng.mapConversionRate * 100)}%`, description: 'Visitors who opened the map' },
       { label: 'Stars', value: eng.stars, description: 'Bookmarks by users' },
@@ -164,7 +139,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       : 0;
 
     const funnel: FunnelStep[] = [
-      { label: 'Detail page', count: detailViews, rate: undefined, siteAvgRate: undefined },
+      { label: 'Detail page', count: detailViews },
       { label: 'Map page', count: mapViews, rate: detailViews > 0 ? Math.round((mapViews / detailViews) * 100) : 0 },
     ];
 
@@ -185,14 +160,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     }) : [];
 
     return jsonResponse({
-      heroStats,
-      narrative,
-      timeSeries,
-      durationSeries,
+      heroStats, narrative, timeSeries, durationSeries,
       granularity: granularityForRange(range),
-      funnel,
-      range,
-      reactions: reactionBreakdown,
+      funnel, range, reactions: reactionBreakdown,
     } as Record<string, unknown>);
   } catch (err: unknown) {
     console.error('stats route detail error:', err);

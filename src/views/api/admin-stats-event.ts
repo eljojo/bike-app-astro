@@ -7,10 +7,8 @@ import { CITY } from '../../lib/config/config';
 import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
-import { env } from '../../lib/env/env.service';
-import { getCityConfig } from '../../lib/config/city-config';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
-import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
 
 export const prerender = false;
@@ -36,24 +34,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const endStr = now.toISOString().split('T')[0];
 
     // Incremental sync — backfill missing dates for this slug
-    const apiKey = env.PLAUSIBLE_API_KEY;
-    if (apiKey) {
-      const cityConfig = getCityConfig();
-      let redirects: Record<string, string> = {};
-      try {
-        redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin));
-      } catch (err) {
-        console.error('Failed to load redirects.json:', err);
-      }
-      const syncOpts = {
-        apiKey,
-        siteId: cityConfig.plausible_domain,
-        city: CITY,
-        locales: cityConfig.locales ?? [cityConfig.locale],
-        defaultLocale: cityConfig.locale,
-        redirects,
-      };
-
+    const ctx = await buildSyncContext(url.origin);
+    if (ctx) {
       if (forceSync) {
         await database.delete(contentPageMetrics)
           .where(and(
@@ -64,9 +46,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
             lte(contentPageMetrics.date, endStr),
           ))
           .run();
-        await syncPageMetrics(database, { ...syncOpts, contentType: 'event', contentSlug: slug });
+        await syncPageMetrics(database, { ...ctx, contentType: 'event', contentSlug: slug });
       } else {
-        await ensurePageDailyData(database, syncOpts, 'event', slug, startStr, endStr);
+        await ensurePageDailyData(database, ctx, 'event', slug, startStr, endStr);
       }
     }
 

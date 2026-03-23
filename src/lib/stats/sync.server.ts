@@ -255,16 +255,9 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
 
   const dailyMetrics = processDailyAggregate(dailyRows, opts.city);
 
-  const redirectCount = Object.keys(opts.redirects ?? {}).length;
-  const { contentRows, skippedPaths } = processPageBreakdown(
+  const { contentRows } = processPageBreakdown(
     pageRows, opts.city, {}, opts.redirects ?? {}, today, opts.locales, opts.defaultLocale,
   );
-
-  const numberedSlugs = contentRows.filter(r => /^\d+-/.test(r.contentSlug));
-  console.log(`stats sync: ${pageRows.length} Plausible rows → ${contentRows.length} content rows, ${skippedPaths.length} skipped, ${redirectCount} redirects loaded, ${numberedSlugs.length} unresolved numbered slugs`);
-  if (numberedSlugs.length > 0) {
-    console.log('stats sync: unresolved numbered slugs:', numberedSlugs.slice(0, 5).map(r => r.contentSlug));
-  }
 
   // Batch upserts in parallel
   await Promise.all([
