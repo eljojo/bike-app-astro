@@ -6,7 +6,7 @@ import { buildNonceCspHeader, createCspNonce } from './lib/csp';
 import { getCspEnv } from './lib/csp-env';
 import rideRedirects from 'virtual:bike-app/ride-redirects';
 
-const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate', '/auth/verify']);
+const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/auth/verify']);
 
 /** Admin paths that can be browsed without authentication.
  * Exact match after stripping trailing slashes. */
@@ -181,7 +181,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return jsonError('Unauthorized', 401);
     }
     const returnTo = encodeURIComponent(pathname);
-    return context.redirect(`/gate?returnTo=${returnTo}`);
+    return context.redirect(`/login?returnTo=${returnTo}`);
   }
 
   const user = await validateSession(database, token);
@@ -194,7 +194,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return jsonError('Unauthorized', 401);
     }
     const returnTo = encodeURIComponent(pathname);
-    return context.redirect(`/gate?returnTo=${returnTo}`);
+    return context.redirect(`/login?returnTo=${returnTo}`);
   }
 
   // Ban enforcement
@@ -202,7 +202,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (pathname.startsWith('/api/')) {
       return jsonError('Forbidden', 403);
     }
-    return context.redirect('/gate');
+    return context.redirect('/login');
   }
 
   // Make user available to page/API handlers

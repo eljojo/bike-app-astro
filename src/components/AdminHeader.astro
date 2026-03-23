@@ -59,7 +59,7 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
     <div class="admin-user-dropdown" id="user-menu-dropdown" role="menu">
       <a href="/admin/settings" class="admin-user-dropdown-item">Settings</a>
       {user.role === 'guest' && features.allowsRegistration && (
-        <a href="/register?join=1" class="admin-user-dropdown-item">Create account</a>
+        <a href="/login" class="admin-user-dropdown-item">Create account</a>
       )}
       <form method="POST" action="/api/auth/logout" class="logout-form">
         <button type="submit" class="admin-user-dropdown-item">Sign out</button>

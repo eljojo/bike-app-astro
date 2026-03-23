@@ -180,7 +180,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
           {isGuest ? (
             <p class="settings-help" style={{ margin: 0 }}>
               You're browsing as <strong>{initialUsername}</strong>.{' '}
-              <a href="/register?join=1">Create an account</a> to choose a username, set an email, and get credit for your contributions.
+              <a href="/login">Create an account</a> to choose a username, set an email, and get credit for your contributions.
             </p>
           ) : (
             <div class="settings-profile-row">
