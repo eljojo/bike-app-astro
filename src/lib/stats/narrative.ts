@@ -1,6 +1,9 @@
 /**
- * Generate a human-readable narrative summary for a content item's stats.
- * Pure function, browser-safe. Connects the dots between metrics.
+ * Generate a factual narrative summary for a content item's stats.
+ * Pure function, browser-safe.
+ *
+ * States facts and provides context. Never interprets intent
+ * or projects motivation onto visitors.
  */
 
 interface NarrativeInput {
@@ -27,7 +30,7 @@ export function buildNarrative(input: NarrativeInput): string[] {
   const sentences: string[] = [];
   const {
     contentType, totalPageviews, totalVisitors, entryVisitors,
-    wallTimeHours, avgVisitDuration, mapConversionRate, stars, totalReactions,
+    wallTimeHours, avgVisitDuration, mapConversionRate, stars,
   } = input;
 
   if (totalPageviews === 0) return ['No analytics data for this period.'];
@@ -36,61 +39,53 @@ export function buildNarrative(input: NarrativeInput): string[] {
   const entryRate = totalVisitors > 0 ? entryVisitors / totalVisitors : 0;
   const wallTimePerVisitor = totalVisitors > 0 ? (wallTimeHours / totalVisitors) * 60 : 0; // minutes
 
-  // 1. Stickiness story
+  // 1. Reach and return rate
   if (viewsPerVisitor >= 2) {
-    sentences.push(`People come back — ${viewsPerVisitor.toFixed(1)} views per visitor means this is sticky content, not just a one-time visit.`);
+    sentences.push(`${viewsPerVisitor.toFixed(1)} views per visitor — more views than visitors, so some people are returning.`);
   } else if (viewsPerVisitor >= 1.3) {
-    sentences.push(`Some repeat visits (${viewsPerVisitor.toFixed(1)} views per visitor) — a mix of returning visitors and new arrivals.`);
+    sentences.push(`${viewsPerVisitor.toFixed(1)} views per visitor — a mix of new and returning visits.`);
   } else if (totalVisitors > 20) {
-    sentences.push(`Almost all visits are one-time (${viewsPerVisitor.toFixed(1)} views per visitor). This content gets reach but doesn't bring people back.`);
+    sentences.push(`${viewsPerVisitor.toFixed(1)} views per visitor — almost all visits are from new people.`);
   }
 
-  // 2. Discovery story
+  // 2. How people arrive
   if (entryRate > 0.5 && entryVisitors > 5) {
-    sentences.push(`${Math.round(entryRate * 100)}% of visitors land here directly — this is a front door to the site, likely from search or shared links.`);
+    sentences.push(`${Math.round(entryRate * 100)}% of visitors land here directly, likely from search or shared links.`);
   } else if (entryRate > 0.2 && entryVisitors > 5) {
-    sentences.push(`${Math.round(entryRate * 100)}% of visitors arrive here from outside the site — a meaningful discovery page.`);
+    sentences.push(`${Math.round(entryRate * 100)}% of visitors arrive here from outside the site.`);
   } else if (entryRate < 0.05 && totalVisitors > 20) {
-    sentences.push('Almost nobody lands here from search — visitors discover it by navigating within the site.');
+    sentences.push('Most visitors navigate here from other pages on the site rather than arriving directly.');
   }
 
-  // 3. Engagement depth story
+  // 3. Map engagement (routes only)
   if (contentType === 'route') {
     if (mapConversionRate > 0.3) {
-      sentences.push(`${Math.round(mapConversionRate * 100)}% of visitors open the map — strong intent to actually ride this route.`);
-    } else if (mapConversionRate > 0.1 && mapConversionRate <= 0.3) {
-      sentences.push(`${Math.round(mapConversionRate * 100)}% open the map. People are interested but may need more to commit — better photos or a clearer description could help.`);
+      sentences.push(`${Math.round(mapConversionRate * 100)}% of visitors open the map.`);
+    } else if (mapConversionRate > 0.1) {
+      sentences.push(`${Math.round(mapConversionRate * 100)}% of visitors open the map.`);
     } else if (totalPageviews > 50 && mapConversionRate < 0.05) {
-      sentences.push('Very few visitors open the map. They read the page but don\'t take the next step toward riding.');
+      sentences.push('Less than 5% of visitors open the map.');
     }
 
-    // Map time — people studying the map are seriously planning
     if (input.mapDurationS && input.mapDurationS > 90) {
-      sentences.push(`People spend ${formatDuration(input.mapDurationS)} on the map — they're studying the route, not just glancing. This is planning behavior.`);
-    } else if (input.mapDurationS && input.mapDurationS > 45 && mapConversionRate > 0.15) {
-      sentences.push(`Map visitors stay for ${formatDuration(input.mapDurationS)} — a good sign they're considering the ride.`);
+      sentences.push(`Visitors who open the map spend an average of ${formatDuration(input.mapDurationS)} on it.`);
     }
   }
 
-  // 4. Attention story
+  // 4. Time spent
   if (wallTimePerVisitor > 3) {
-    sentences.push(`Visitors spend ${formatDuration(wallTimePerVisitor * 60)} each on average — deep reading, not just skimming.`);
+    sentences.push(`Each visitor spends an average of ${formatDuration(wallTimePerVisitor * 60)} on this page.`);
   } else if (avgVisitDuration < 15 && totalPageviews > 30) {
-    sentences.push(`Average visit is just ${formatDuration(avgVisitDuration)}. People leave quickly — the first impression may not be landing.`);
+    sentences.push(`Average visit duration is ${formatDuration(avgVisitDuration)}.`);
   }
 
-  // 5. Endorsement story
-  if (stars > 0 && totalReactions > 0) {
-    const starRate = totalVisitors > 0 ? stars / totalVisitors : 0;
-    if (starRate > 0.05) {
-      sentences.push(`${stars} star${stars > 1 ? 's' : ''} from ${totalVisitors} visitors — an unusually high endorsement rate.`);
-    } else if (stars >= 3) {
-      sentences.push(`${stars} people have starred this — a quiet but real signal of value.`);
-    }
+  // 5. Stars
+  if (stars > 0) {
+    sentences.push(`Starred by ${stars} ${stars === 1 ? 'person' : 'people'}.`);
   }
 
   if (sentences.length === 0) {
-    sentences.push(`${totalPageviews} views from ${totalVisitors} visitors. Not enough signal yet to draw conclusions.`);
+    sentences.push(`${totalPageviews} views from ${totalVisitors} visitors.`);
   }
 
   return sentences;
