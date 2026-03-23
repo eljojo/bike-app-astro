@@ -25,28 +25,27 @@ export async function POST(context: APIContext): Promise<Response> {
 
   try {
     const body = await context.request.json().catch(() => null);
-    if (!body?.email || typeof body.email !== 'string') {
-      return jsonError('Email is required', 400);
+    const identifier = body?.email || body?.identifier;
+    if (!identifier || typeof identifier !== 'string') {
+      return jsonError('Email or username is required', 400);
     }
 
-    const email = normalizeEmail(body.email);
-    if (!email.includes('@')) {
-      return jsonError('Invalid email address', 400);
-    }
+    const isEmail = identifier.includes('@');
+    const normalizedIdentifier = isEmail ? normalizeEmail(identifier) : identifier.trim().toLowerCase();
 
     const database = db();
 
-    // Rate limit: max 5 signup attempts per email per hour
-    const rateLimited = await checkRateLimit(database, 'signup', [email], MAX_SIGNUP_PER_HOUR);
+    // Rate limit: max 5 signup attempts per identifier per hour
+    const rateLimited = await checkRateLimit(database, 'signup', [normalizedIdentifier], MAX_SIGNUP_PER_HOUR);
     if (rateLimited) {
       return jsonError('Too many attempts. Please try again later.', 429);
     }
 
     // Record the attempt for rate limiting
-    await recordAttempt(database, 'signup', [email]);
+    await recordAttempt(database, 'signup', [normalizedIdentifier]);
 
-    // Check if a user with this email already exists
-    const existingUser = await findUserByIdentifier(database, email);
+    // Check if a user with this email/username already exists
+    const existingUser = await findUserByIdentifier(database, normalizedIdentifier);
 
     if (existingUser) {
       // Existing user — check if they have passkeys
@@ -61,12 +60,22 @@ export async function POST(context: APIContext): Promise<Response> {
         return jsonResponse({ flow: 'passkey' });
       }
 
-      // No passkey — send magic link for login
-      await sendMagicLinkEmail(database, email, existingUser.id, context.url.origin);
+      // No passkey — send magic link for login (use user's actual email)
+      if (!existingUser.email) {
+        return jsonError('This account has no email. Please use a passkey.', 400);
+      }
+      await sendMagicLinkEmail(database, existingUser.email, existingUser.id, context.url.origin);
       return jsonResponse({ flow: 'magic-link' });
     }
 
-    // New user — validate optional username or generate one
+    // New user — only possible with email (can't create account with just username)
+    if (!isEmail) {
+      return jsonError('No account found with that username', 404);
+    }
+
+    const email = normalizedIdentifier;
+
+    // Validate optional username or generate one
     let username: string;
     if (body.username && typeof body.username === 'string') {
       username = sanitizeUsername(body.username);
@@ -90,8 +99,12 @@ export async function POST(context: APIContext): Promise<Response> {
       username = sanitizeUsername(`${username}-${hex}`);
     }
 
-    // Check if this is the first user (first user = admin)
+    // First user must use /setup (passkey-based admin creation).
+    // The signup endpoint always creates editors.
     const firstUser = await isFirstUser(database);
+    if (firstUser) {
+      return jsonError('Please use the setup page to create the first account', 400);
+    }
 
     const userId = generateId();
     const now = new Date().toISOString();
@@ -100,7 +113,7 @@ export async function POST(context: APIContext): Promise<Response> {
       id: userId,
       email,
       username,
-      role: firstUser ? 'admin' : 'editor',
+      role: 'editor',
       createdAt: now,
       emailVerified: 0,
     });

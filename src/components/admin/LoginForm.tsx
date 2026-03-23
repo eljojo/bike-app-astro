@@ -296,7 +296,7 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
         <label for="login-email">Email</label>
         <input
           id="login-email"
-          type="email"
+          type="text"
           value={email}
           onInput={(e) => {
             setEmail((e.target as HTMLInputElement).value);

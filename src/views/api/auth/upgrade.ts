@@ -1,12 +1,15 @@
 import type { APIContext } from 'astro';
 import { db } from '../../../lib/get-db';
 import { users } from '../../../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { normalizeEmail, validateSession } from '../../../lib/auth/auth';
 import { isValidUsername } from '../../../lib/username';
 import { sendMagicLinkEmail } from '../../../lib/auth/magic-link.server';
+import { checkRateLimit, recordAttempt } from '../../../lib/auth/rate-limit';
 import { getInstanceFeatures } from '../../../lib/config/instance-features';
+
+const MAX_UPGRADE_PER_HOUR = 3;
 
 export const prerender = false;
 
@@ -40,20 +43,26 @@ export async function POST({ request, cookies, url }: APIContext) {
   if (!username || !isValidUsername(username)) return jsonError('Invalid username', 400);
 
   const email = normalizeEmail(rawEmail);
+  if (!email.includes('@')) return jsonError('Invalid email address', 400);
 
-  // Check email uniqueness
+  // Rate limit: max 3 upgrade attempts per user per hour
+  const rateLimited = await checkRateLimit(database, 'upgrade', [`user:${user.id}`], MAX_UPGRADE_PER_HOUR);
+  if (rateLimited) return jsonError('Too many attempts. Please try again later.', 429);
+  await recordAttempt(database, 'upgrade', [`user:${user.id}`]);
+
+  // Check email uniqueness (exclude own row so retries work)
   const emailTaken = await database
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.email, email))
+    .where(and(eq(users.email, email), ne(users.id, user.id)))
     .limit(1);
   if (emailTaken.length > 0) return jsonError('Email is already registered', 409);
 
-  // Check username uniqueness
+  // Check username uniqueness (exclude own row so retries work)
   const usernameTaken = await database
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.username, username))
+    .where(and(eq(users.username, username), ne(users.id, user.id)))
     .limit(1);
   if (usernameTaken.length > 0) return jsonError('Username is already taken', 409);
 
