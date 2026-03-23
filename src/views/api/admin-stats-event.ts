@@ -38,7 +38,12 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const apiKey = env.PLAUSIBLE_API_KEY;
     if (apiKey) {
       const cityConfig = getCityConfig();
-      const redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin)).catch(() => ({}));
+      let redirects: Record<string, string> = {};
+      try {
+        redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin));
+      } catch (err) {
+        console.error('Failed to load redirects.json:', err);
+      }
       const syncOpts = {
         apiKey,
         siteId: cityConfig.plausible_domain,

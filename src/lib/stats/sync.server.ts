@@ -271,9 +271,17 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
     pagination: { limit: 10000 },
   });
 
-  const { contentRows } = processPageBreakdown(
+  const redirectCount = Object.keys(opts.redirects ?? {}).length;
+  const { contentRows, skippedPaths } = processPageBreakdown(
     pageRows, opts.city, {}, opts.redirects ?? {}, today, opts.locales, opts.defaultLocale,
   );
+
+  // Log for debugging redirect resolution
+  const numberedSlugs = contentRows.filter(r => /^\d+-/.test(r.contentSlug));
+  console.log(`stats sync: ${pageRows.length} Plausible rows → ${contentRows.length} content rows, ${skippedPaths.length} skipped, ${redirectCount} redirects loaded, ${numberedSlugs.length} unresolved numbered slugs`);
+  if (numberedSlugs.length > 0) {
+    console.log('stats sync: unresolved numbered slugs:', numberedSlugs.slice(0, 5).map(r => r.contentSlug));
+  }
 
   if (contentRows.length > 0) {
     await upsertContentRows(db, contentRows);

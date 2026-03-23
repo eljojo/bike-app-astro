@@ -45,7 +45,13 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const apiKey = env.PLAUSIBLE_API_KEY;
     if (apiKey) {
       const cityConfig = getCityConfig();
-      const redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl)).catch(() => ({}));
+      let redirects: Record<string, string> = {};
+      try {
+        redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl));
+        console.log(`stats: loaded ${Object.keys(redirects).length} redirects`);
+      } catch (err) {
+        console.error('stats: failed to load redirects.json:', err);
+      }
 
       // Check if engagement data exists — if not, we need a full site sync
       // (page breakdown + engagement rebuild), not just daily aggregates

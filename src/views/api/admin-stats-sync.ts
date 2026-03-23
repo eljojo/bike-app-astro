@@ -29,7 +29,12 @@ export async function POST({ locals, url }: APIContext) {
   const fullSync = url.searchParams.get('full') === 'true';
 
   try {
-    const redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin)).catch(() => ({}));
+    let redirects: Record<string, string> = {};
+    try {
+      redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', url.origin));
+    } catch (err) {
+      console.error('Failed to load redirects.json:', err);
+    }
 
     const result = await runSync(database, {
       apiKey,
