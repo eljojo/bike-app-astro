@@ -1,5 +1,5 @@
 import type { Database } from '../../db';
-import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
+import { contentTotals, contentEngagement, reactions } from '../../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 
 /**
@@ -35,7 +35,7 @@ interface AggregatedContent {
  * Rebuild all engagement scores for a city.
  *
  * 1. Delete existing engagement rows for this city
- * 2. Query content_page_metrics grouped by (city, content_type, content_slug)
+ * 2. Query content_totals for per-page-type aggregates
  * 3. Query reactions for star counts
  * 4. Compute engagement score using percentile normalization within content_type
  * 5. Insert into content_engagement
@@ -46,22 +46,21 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
     .where(eq(contentEngagement.city, city))
     .run();
 
-  // Step 2: Query content_page_metrics for aggregates
+  // Step 2: Query content_totals for aggregates (one row per content+pageType)
   const metricsRows = await db
     .select({
-      contentType: contentPageMetrics.contentType,
-      contentSlug: contentPageMetrics.contentSlug,
-      pageType: contentPageMetrics.pageType,
-      totalPageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
-      totalVisitorDays: sql<number>`SUM(${contentPageMetrics.visitorDays})`,
-      avgVisitDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
-      avgBounceRate: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.bounceRate}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
-      wallTimeHours: sql<number>`SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / 3600.0`,
-      totalVideoPlays: sql<number>`SUM(${contentPageMetrics.videoPlays})`,
+      contentType: contentTotals.contentType,
+      contentSlug: contentTotals.contentSlug,
+      pageType: contentTotals.pageType,
+      totalPageviews: contentTotals.pageviews,
+      totalVisitorDays: contentTotals.visitorDays,
+      avgVisitDuration: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.visitDurationS} ELSE 0 END`,
+      avgBounceRate: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.bounceRate} ELSE 0 END`,
+      wallTimeHours: sql<number>`${contentTotals.pageviews} * ${contentTotals.visitDurationS} / 3600.0`,
+      totalVideoPlays: contentTotals.videoPlays,
     })
-    .from(contentPageMetrics)
-    .where(eq(contentPageMetrics.city, city))
-    .groupBy(contentPageMetrics.contentType, contentPageMetrics.contentSlug, contentPageMetrics.pageType)
+    .from(contentTotals)
+    .where(eq(contentTotals.city, city))
     .all();
 
   // Group by content item (type + slug), combining page types
@@ -107,7 +106,7 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
     }
   }
 
-  // Compute map conversion rate (capped at 1.0 — mixed aggregate/daily data can inflate)
+  // Compute map conversion rate (capped at 1.0)
   for (const [key, item] of contentMap) {
     const detail = detailViews.get(key) || 0;
     const map = mapViews.get(key) || 0;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTestDb } from '../test-db';
 import { processPageBreakdown, processPageDaily, processDailyAggregate, upsertContentRows, upsertDailyRows } from '../../src/lib/stats/sync.server';
-import { contentPageMetrics, siteDailyMetrics } from '../../src/db/schema';
+import { contentDailyMetrics, siteDailyMetrics } from '../../src/db/schema';
 import type { Database } from '../../src/db';
 import { eq } from 'drizzle-orm';
 import fs from 'node:fs';
@@ -26,8 +26,8 @@ describe('sync pipeline', () => {
       expect(result.contentRows[0].date).toBe('2025-03-22');
 
       await upsertContentRows(testDb.db as unknown as Database, result.contentRows);
-      const rows = testDb.db.select().from(contentPageMetrics)
-        .where(eq(contentPageMetrics.city, FIXTURE_CITY))
+      const rows = testDb.db.select().from(contentDailyMetrics)
+        .where(eq(contentDailyMetrics.city, FIXTURE_CITY))
         .all();
       expect(rows.length).toBeGreaterThan(0);
       expect(rows[0]).toHaveProperty('contentType');
@@ -52,8 +52,8 @@ describe('sync pipeline', () => {
       expect(dates.size).toBeGreaterThan(1);
 
       await upsertContentRows(testDb.db as unknown as Database, result.contentRows);
-      const rows = testDb.db.select().from(contentPageMetrics)
-        .where(eq(contentPageMetrics.city, FIXTURE_CITY))
+      const rows = testDb.db.select().from(contentDailyMetrics)
+        .where(eq(contentDailyMetrics.city, FIXTURE_CITY))
         .all();
       expect(rows.length).toBeGreaterThan(0);
     } finally {
@@ -107,8 +107,8 @@ describe('sync pipeline', () => {
 
       // After upsert, there should be exactly one row (second write overwrites first)
       await upsertContentRows(testDb.db as unknown as Database, result.contentRows);
-      const dbRows = testDb.db.select().from(contentPageMetrics)
-        .where(eq(contentPageMetrics.contentSlug, 'the-big-loop'))
+      const dbRows = testDb.db.select().from(contentDailyMetrics)
+        .where(eq(contentDailyMetrics.contentSlug, 'the-big-loop'))
         .all();
       expect(dbRows.length).toBe(1);
     } finally {

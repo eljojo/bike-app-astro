@@ -4,7 +4,7 @@ import type { Database } from '../../db';
 import { resolveUrl, detectLocale } from './url-resolver.server';
 import { rebuildEngagement } from './engagement.server';
 import { invalidateStatsCache } from './cache.server';
-import { contentPageMetrics, siteDailyMetrics, siteEventMetrics } from '../../db/schema';
+import { contentDailyMetrics, contentTotals, siteDailyMetrics, siteEventMetrics } from '../../db/schema';
 import { sql, eq, and, desc } from 'drizzle-orm';
 
 /**
@@ -161,10 +161,45 @@ export async function upsertContentRows(db: Database, rows: ContentMetricRow[]):
       `('${r.city}','${r.contentType}','${esc(r.contentSlug)}','${r.pageType}','${r.date}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays})`
     ).join(',');
 
-    await db.run(sql.raw(`INSERT INTO content_page_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays)
+    await db.run(sql.raw(`INSERT INTO content_daily_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays)
       VALUES ${values}
       ON CONFLICT (city, content_type, content_slug, page_type, date)
       DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays`));
+  }
+}
+
+/**
+ * A content totals row ready for DB upsert (no date — all-time aggregate).
+ */
+export interface TotalsRow {
+  city: string;
+  contentType: string;
+  contentSlug: string;
+  pageType: string;
+  pageviews: number;
+  visitorDays: number;
+  visitDurationS: number;
+  bounceRate: number;
+  videoPlays: number;
+  syncedAt: string;
+}
+
+/**
+ * Upsert content totals rows in batches.
+ */
+export async function upsertTotalsRows(db: Database, rows: TotalsRow[]): Promise<void> {
+  if (rows.length === 0) return;
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const values = batch.map(r =>
+      `('${r.city}','${r.contentType}','${esc(r.contentSlug)}','${r.pageType}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},'${r.syncedAt}')`
+    ).join(',');
+
+    await db.run(sql.raw(`INSERT INTO content_totals (city, content_type, content_slug, page_type, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, synced_at)
+      VALUES ${values}
+      ON CONFLICT (city, content_type, content_slug, page_type)
+      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays, synced_at=excluded.synced_at`));
   }
 }
 
@@ -263,10 +298,27 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   const numberedAfter = contentRows.filter(r => /^\d+-/.test(r.contentSlug)).length;
   console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered`);
 
+  // Write totals (all-time aggregates per page type) to content_totals
+  const totalsRows: TotalsRow[] = contentRows.map(r => ({
+    city: r.city,
+    contentType: r.contentType,
+    contentSlug: r.contentSlug,
+    pageType: r.pageType,
+    pageviews: r.pageviews,
+    visitorDays: r.visitorDays,
+    visitDurationS: r.visitDurationS,
+    bounceRate: r.bounceRate,
+    videoPlays: r.videoPlays,
+    syncedAt: today,
+  }));
+
+  // Delete existing totals, then insert fresh
+  await db.delete(contentTotals).where(eq(contentTotals.city, opts.city)).run();
+
   // Batch upserts in parallel
   await Promise.all([
     dailyMetrics.length > 0 ? upsertDailyRows(db, dailyMetrics) : Promise.resolve(),
-    contentRows.length > 0 ? upsertContentRows(db, contentRows) : Promise.resolve(),
+    totalsRows.length > 0 ? upsertTotalsRows(db, totalsRows) : Promise.resolve(),
   ]);
 
   // Rebuild engagement scores from aggregate data
@@ -290,26 +342,26 @@ export async function needsPageSync(
   contentSlug: string,
   maxAgeMs = 24 * 60 * 60 * 1000,
 ): Promise<boolean> {
-  const lastRow = await db.select({ date: contentPageMetrics.date })
-    .from(contentPageMetrics)
+  const lastRow = await db.select({ date: contentDailyMetrics.date })
+    .from(contentDailyMetrics)
     .where(and(
-      eq(contentPageMetrics.city, city),
-      eq(contentPageMetrics.contentType, contentType),
-      eq(contentPageMetrics.contentSlug, contentSlug),
+      eq(contentDailyMetrics.city, city),
+      eq(contentDailyMetrics.contentType, contentType),
+      eq(contentDailyMetrics.contentSlug, contentSlug),
     ))
-    .orderBy(desc(contentPageMetrics.date))
+    .orderBy(desc(contentDailyMetrics.date))
     .limit(1);
 
   if (lastRow.length === 0) return true;
 
-  const dates = await db.select({ date: contentPageMetrics.date })
-    .from(contentPageMetrics)
+  const dates = await db.select({ date: contentDailyMetrics.date })
+    .from(contentDailyMetrics)
     .where(and(
-      eq(contentPageMetrics.city, city),
-      eq(contentPageMetrics.contentType, contentType),
-      eq(contentPageMetrics.contentSlug, contentSlug),
+      eq(contentDailyMetrics.city, city),
+      eq(contentDailyMetrics.contentType, contentType),
+      eq(contentDailyMetrics.contentSlug, contentSlug),
     ))
-    .groupBy(contentPageMetrics.date);
+    .groupBy(contentDailyMetrics.date);
 
   if (dates.length <= 1) return true;
 
@@ -440,7 +492,7 @@ export async function ensureSiteDailyData(
 }
 
 /**
- * Ensure content_page_metrics has daily data for a specific content item.
+ * Ensure content_daily_metrics has daily data for a specific content item.
  * Finds missing dates, fetches only those from Plausible.
  */
 export async function ensurePageDailyData(
@@ -454,14 +506,14 @@ export async function ensurePageDailyData(
   const paths = buildPagePaths(contentType, contentSlug);
   if (paths.length === 0) return 0;
 
-  const existing = await db.select({ date: contentPageMetrics.date })
-    .from(contentPageMetrics)
+  const existing = await db.select({ date: contentDailyMetrics.date })
+    .from(contentDailyMetrics)
     .where(and(
-      eq(contentPageMetrics.city, opts.city),
-      eq(contentPageMetrics.contentType, contentType),
-      eq(contentPageMetrics.contentSlug, contentSlug),
-      sql`${contentPageMetrics.date} >= ${fromDate}`,
-      sql`${contentPageMetrics.date} <= ${toDate}`,
+      eq(contentDailyMetrics.city, opts.city),
+      eq(contentDailyMetrics.contentType, contentType),
+      eq(contentDailyMetrics.contentSlug, contentSlug),
+      sql`${contentDailyMetrics.date} >= ${fromDate}`,
+      sql`${contentDailyMetrics.date} <= ${toDate}`,
     ));
 
   const existingDates = new Set(existing.map(r => r.date));
@@ -642,15 +694,15 @@ export async function ensureEntryPageData(
   if (paths.length === 0) return 0;
 
   // Check which dates already have entry_visitors > 0
-  const existing = await db.select({ date: contentPageMetrics.date })
-    .from(contentPageMetrics)
+  const existing = await db.select({ date: contentDailyMetrics.date })
+    .from(contentDailyMetrics)
     .where(and(
-      eq(contentPageMetrics.city, opts.city),
-      eq(contentPageMetrics.contentType, contentType),
-      eq(contentPageMetrics.contentSlug, contentSlug),
-      sql`${contentPageMetrics.date} >= ${fromDate}`,
-      sql`${contentPageMetrics.date} <= ${toDate}`,
-      sql`${contentPageMetrics.entryVisitors} > 0`,
+      eq(contentDailyMetrics.city, opts.city),
+      eq(contentDailyMetrics.contentType, contentType),
+      eq(contentDailyMetrics.contentSlug, contentSlug),
+      sql`${contentDailyMetrics.date} >= ${fromDate}`,
+      sql`${contentDailyMetrics.date} <= ${toDate}`,
+      sql`${contentDailyMetrics.entryVisitors} > 0`,
     ));
 
   const existingDates = new Set(existing.map(r => r.date));
@@ -688,8 +740,8 @@ export async function ensureEntryPageData(
       const date = row.dimensions[0];
       const entryVisitors = row.metrics[0];
 
-      // Update existing content_page_metrics rows for this date
-      await db.run(sql.raw(`UPDATE content_page_metrics
+      // Update existing content_daily_metrics rows for this date
+      await db.run(sql.raw(`UPDATE content_daily_metrics
         SET entry_visitors = ${entryVisitors}
         WHERE city = '${opts.city}'
           AND content_type = '${contentType}'

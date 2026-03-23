@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentEngagement, contentPageMetrics as contentPageMetricsTable, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
+import { contentEngagement, contentDailyMetrics, contentTotals, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
@@ -61,7 +61,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
           // Force re-sync: clear ALL analytics data for this city, then rebuild
           await Promise.all([
             database.delete(siteDailyTable).where(eq(siteDailyTable.city, CITY)).run(),
-            database.delete(contentPageMetricsTable).where(eq(contentPageMetricsTable.city, CITY)).run(),
+            database.delete(contentDailyMetrics).where(eq(contentDailyMetrics.city, CITY)).run(),
+            database.delete(contentTotals).where(eq(contentTotals.city, CITY)).run(),
             database.delete(contentEngagement).where(eq(contentEngagement.city, CITY)).run(),
             database.delete(siteEventMetrics).where(eq(siteEventMetrics.city, CITY)).run(),
           ]);

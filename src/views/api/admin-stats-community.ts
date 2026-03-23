@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
+import { contentDailyMetrics, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
@@ -37,13 +37,13 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const ctx = await buildSyncContext(url.origin);
     if (ctx) {
       if (forceSync) {
-        await database.delete(contentPageMetrics)
+        await database.delete(contentDailyMetrics)
           .where(and(
-            eq(contentPageMetrics.city, CITY),
-            eq(contentPageMetrics.contentType, 'organizer'),
-            eq(contentPageMetrics.contentSlug, slug),
-            gte(contentPageMetrics.date, startStr),
-            lte(contentPageMetrics.date, endStr),
+            eq(contentDailyMetrics.city, CITY),
+            eq(contentDailyMetrics.contentType, 'organizer'),
+            eq(contentDailyMetrics.contentSlug, slug),
+            gte(contentDailyMetrics.date, startStr),
+            lte(contentDailyMetrics.date, endStr),
           ))
           .run();
         await syncPageMetrics(database, { ...ctx, contentType: 'organizer', contentSlug: slug });
@@ -65,17 +65,17 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         .limit(1),
       // Time series
       database.select({
-        date: contentPageMetrics.date,
-        pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
-      }).from(contentPageMetrics)
+        date: contentDailyMetrics.date,
+        pageviews: sql<number>`SUM(${contentDailyMetrics.pageviews})`,
+      }).from(contentDailyMetrics)
         .where(and(
-          eq(contentPageMetrics.city, CITY),
-          eq(contentPageMetrics.contentType, 'organizer'),
-          eq(contentPageMetrics.contentSlug, slug),
-          gte(contentPageMetrics.date, startStr),
+          eq(contentDailyMetrics.city, CITY),
+          eq(contentDailyMetrics.contentType, 'organizer'),
+          eq(contentDailyMetrics.contentSlug, slug),
+          gte(contentDailyMetrics.date, startStr),
         ))
-        .groupBy(contentPageMetrics.date)
-        .orderBy(contentPageMetrics.date),
+        .groupBy(contentDailyMetrics.date)
+        .orderBy(contentDailyMetrics.date),
       // Reactions breakdown
       database.select({
         reactionType: reactions.reactionType,

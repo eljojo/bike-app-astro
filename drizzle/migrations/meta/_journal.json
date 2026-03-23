@@ -127,6 +127,13 @@
       "when": 1774771200000,
       "tag": "0015_reset_analytics_data_v3",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1774857600000,
+      "tag": "0016_split_content_tables",
+      "breakpoints": true
     }
   ]
 }

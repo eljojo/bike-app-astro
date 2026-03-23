@@ -6,13 +6,14 @@
  * pipeline as the real sync (processPageBreakdown, processDailyAggregate, etc).
  */
 import type { Database } from '../../db';
-import { siteDailyMetrics } from '../../db/schema';
+import { siteDailyMetrics, contentTotals } from '../../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import {
   processPageBreakdown,
   processPageDaily,
   processDailyAggregate,
   upsertContentRows,
+  upsertTotalsRows,
   upsertDailyRows,
 } from './sync.server';
 import { rebuildEngagement } from './engagement.server';
@@ -80,12 +81,25 @@ export async function seedFromFixtures(db: Database, city: string): Promise<bool
     await upsertDailyRows(db, dailyRows);
   }
 
-  // 2. Page breakdown (for engagement scores)
+  // 2. Page breakdown → content_totals (for engagement scores)
   const { contentRows } = processPageBreakdown(
     pageBreakdown.results, city, {}, redirects, today, locales, defaultLocale,
   );
   if (contentRows.length > 0) {
-    await upsertContentRows(db, contentRows);
+    await db.delete(contentTotals).where(eq(contentTotals.city, city)).run();
+    const totalsRows = contentRows.map(r => ({
+      city: r.city,
+      contentType: r.contentType,
+      contentSlug: r.contentSlug,
+      pageType: r.pageType,
+      pageviews: r.pageviews,
+      visitorDays: r.visitorDays,
+      visitDurationS: r.visitDurationS,
+      bounceRate: r.bounceRate,
+      videoPlays: r.videoPlays,
+      syncedAt: today,
+    }));
+    await upsertTotalsRows(db, totalsRows);
   }
 
   // 3. Per-page daily data (for drill-down time series)

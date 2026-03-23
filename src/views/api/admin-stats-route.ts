@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
+import { contentDailyMetrics, contentTotals, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type TimeSeriesPoint, type FunnelStep } from '../../lib/stats/types';
 import { ensurePageDailyData, ensureEntryPageData, syncPageMetrics } from '../../lib/stats/sync.server';
@@ -37,13 +37,13 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const ctx = await buildSyncContext(url.origin);
     if (ctx) {
       if (forceSync) {
-        await database.delete(contentPageMetrics)
+        await database.delete(contentDailyMetrics)
           .where(and(
-            eq(contentPageMetrics.city, CITY),
-            eq(contentPageMetrics.contentType, 'route'),
-            eq(contentPageMetrics.contentSlug, slug),
-            gte(contentPageMetrics.date, startStr),
-            lte(contentPageMetrics.date, endStr),
+            eq(contentDailyMetrics.city, CITY),
+            eq(contentDailyMetrics.contentType, 'route'),
+            eq(contentDailyMetrics.contentSlug, slug),
+            gte(contentDailyMetrics.date, startStr),
+            lte(contentDailyMetrics.date, endStr),
           ))
           .run();
         await syncPageMetrics(database, { ...ctx, contentType: 'route', contentSlug: slug });
@@ -64,31 +64,30 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         ))
         .limit(1),
       database.select({
-        date: contentPageMetrics.date,
-        pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
-        visitors: sql<number>`SUM(${contentPageMetrics.visitorDays})`,
-        avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
-        entryVisitors: sql<number>`COALESCE(SUM(${contentPageMetrics.entryVisitors}), 0)`,
-      }).from(contentPageMetrics)
+        date: contentDailyMetrics.date,
+        pageviews: sql<number>`SUM(${contentDailyMetrics.pageviews})`,
+        visitors: sql<number>`SUM(${contentDailyMetrics.visitorDays})`,
+        avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.pageviews}) > 0 THEN SUM(${contentDailyMetrics.pageviews} * ${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.pageviews}) ELSE 0 END`,
+        entryVisitors: sql<number>`COALESCE(SUM(${contentDailyMetrics.entryVisitors}), 0)`,
+      }).from(contentDailyMetrics)
         .where(and(
-          eq(contentPageMetrics.city, CITY),
-          eq(contentPageMetrics.contentType, 'route'),
-          eq(contentPageMetrics.contentSlug, slug),
-          gte(contentPageMetrics.date, startStr),
+          eq(contentDailyMetrics.city, CITY),
+          eq(contentDailyMetrics.contentType, 'route'),
+          eq(contentDailyMetrics.contentSlug, slug),
+          gte(contentDailyMetrics.date, startStr),
         ))
-        .groupBy(contentPageMetrics.date)
-        .orderBy(contentPageMetrics.date),
+        .groupBy(contentDailyMetrics.date)
+        .orderBy(contentDailyMetrics.date),
       database.select({
-        pageType: contentPageMetrics.pageType,
-        total: sql<number>`SUM(${contentPageMetrics.pageviews})`,
-        avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
-      }).from(contentPageMetrics)
+        pageType: contentTotals.pageType,
+        total: contentTotals.pageviews,
+        avgDuration: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.visitDurationS} ELSE 0 END`,
+      }).from(contentTotals)
         .where(and(
-          eq(contentPageMetrics.city, CITY),
-          eq(contentPageMetrics.contentType, 'route'),
-          eq(contentPageMetrics.contentSlug, slug),
-        ))
-        .groupBy(contentPageMetrics.pageType),
+          eq(contentTotals.city, CITY),
+          eq(contentTotals.contentType, 'route'),
+          eq(contentTotals.contentSlug, slug),
+        )),
       database.select({
         reactionType: reactions.reactionType,
         count: sql<number>`COUNT(*)`,
