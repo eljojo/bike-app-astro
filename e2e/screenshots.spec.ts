@@ -65,7 +65,7 @@ test.describe('Screenshots', () => {
   test('homepage', async ({ page }) => {
     await page.goto('/');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('homepage.png', { fullPage: true });
+    await expect(page).toHaveScreenshot('homepage.png', { clip: { x: 0, y: 0, width: 1280, height: 4000 } });
   });
 
   test('route detail', async ({ page }) => {
@@ -124,7 +124,7 @@ test.describe('Screenshots', () => {
     await page.goto('/');
     await waitForImages(page);
     await expect(page.locator('.home-view-discover')).toBeVisible();
-    await expect(page).toHaveScreenshot('homepage-magazine.png', { fullPage: true });
+    await expect(page).toHaveScreenshot('homepage-magazine.png', { clip: { x: 0, y: 0, width: 1280, height: 4000 } });
   });
 
   test('homepage browse toggle', async ({ page }) => {
