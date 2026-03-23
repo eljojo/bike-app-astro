@@ -122,11 +122,14 @@ export default function StatsOverview() {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
+  const currentRange = useRef<string>('30d');
 
   async function loadRange(range: string) {
+    currentRange.current = range;
     setLoading(true);
     setError('');
     try {
@@ -141,6 +144,16 @@ export default function StatsOverview() {
       setError('Network error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function triggerSync() {
+    setSyncing(true);
+    try {
+      await fetch(`/api/admin/stats/overview?range=${currentRange.current}`, { method: 'POST' });
+      await loadRange(currentRange.current);
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -209,7 +222,7 @@ export default function StatsOverview() {
         <div class="stats-empty-state">
           <h2>No analytics data yet</h2>
           <p>Run a sync to pull data from Plausible.</p>
-          <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>
+          <button type="button" class="stats-sync-btn" disabled={syncing} onClick={triggerSync}>{syncing ? 'Syncing\u2026' : 'Sync now'}</button>
         </div>
       </div>
     );

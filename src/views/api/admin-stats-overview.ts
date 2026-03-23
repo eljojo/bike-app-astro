@@ -12,15 +12,16 @@ import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { ensureSiteDailyData } from '../../lib/stats/sync.server';
+import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
 
 export const prerender = false;
 
-export async function GET({ locals, url, request }: APIContext) {
+async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: boolean) {
   if (!getInstanceFeatures().hasRoutes) {
     return new Response(null, { status: 404 });
   }
 
-  const user = authorize(locals, 'view-stats');
+  const user = authorize(locals, forceSync ? 'sync-stats' : 'view-stats');
   if (user instanceof Response) return user;
 
   const range = (url.searchParams.get('range') || '30d') as TimeRange;
@@ -44,6 +45,16 @@ export async function GET({ locals, url, request }: APIContext) {
     const apiKey = env.PLAUSIBLE_API_KEY;
     if (apiKey) {
       const cityConfig = getCityConfig();
+      if (forceSync) {
+        // Delete existing data for the range, then re-fetch
+        await database.delete(siteDailyTable)
+          .where(and(
+            eq(siteDailyTable.city, CITY),
+            sql`${siteDailyTable.date} >= ${startStr}`,
+            sql`${siteDailyTable.date} <= ${endStr}`,
+          ))
+          .run();
+      }
       await ensureSiteDailyData(database, {
         apiKey, siteId: cityConfig.plausible_domain, city: CITY,
       }, startStr, endStr);
@@ -202,6 +213,14 @@ export async function GET({ locals, url, request }: APIContext) {
     const message = err instanceof Error ? err.message : 'Failed to load stats';
     return jsonError(message, 500);
   }
+}
+
+export async function GET(ctx: APIContext) {
+  return handleRequest(ctx.locals, ctx.url, false);
+}
+
+export async function POST(ctx: APIContext) {
+  return handleRequest(ctx.locals, ctx.url, true);
 }
 
 function getStartDate(now: Date, range: TimeRange): Date {

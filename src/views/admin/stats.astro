@@ -15,8 +15,6 @@ if (!features.hasRoutes) {
 
 const user = authorize(Astro.locals, 'view-stats');
 if (user instanceof Response) return user;
-
-const cspNonce = Astro.locals.cspNonce;
 ---
 
 <Base title="Stats" admin>
@@ -26,47 +24,8 @@ const cspNonce = Astro.locals.cspNonce;
   </div>
 </Base>
 
-<script is:inline nonce={cspNonce}>
-  var syncBtn = document.getElementById('sync-btn');
-  if (syncBtn) {
-    var shiftHeld = false;
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Shift' && syncBtn && !syncBtn.disabled) {
-        shiftHeld = true;
-        syncBtn.textContent = 'Full rebuild';
-      }
-    });
-    document.addEventListener('keyup', function(e) {
-      if (e.key === 'Shift' && syncBtn && !syncBtn.disabled) {
-        shiftHeld = false;
-        syncBtn.textContent = 'Sync now';
-      }
-    });
-  }
-
-  document.addEventListener('click', function(e) {
-    var btn = e.target;
-    if (!btn || btn.id !== 'sync-btn') return;
-    btn.disabled = true;
-    var full = shiftHeld;
-    btn.textContent = full ? 'Full rebuild\u2026' : 'Syncing\u2026';
-    var url = '/api/admin/stats/sync' + (full ? '?full=true' : '');
-    fetch(url, { method: 'POST' }).then(function(res) {
-      if (res.ok) { location.reload(); return; }
-      return res.json().then(function(data) {
-        btn.textContent = data.error || 'Sync failed';
-        setTimeout(function() { btn.textContent = 'Sync now'; btn.disabled = false; }, 3000);
-      });
-    }).catch(function() {
-      btn.textContent = 'Sync failed';
-      setTimeout(function() { btn.textContent = 'Sync now'; btn.disabled = false; }, 3000);
-    });
-  });
-</script>
-
 <style lang="scss">
   @use '../../styles/variables' as *;
-  @use '../../styles/mixins' as *;
 
   .admin-stats {
     max-width: 1200px;
