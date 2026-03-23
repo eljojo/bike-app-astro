@@ -360,6 +360,20 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref }}
 
+      - name: LFS cache period
+        id: lfs-period
+        run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore app repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-app-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-app-
+
+      - name: Pull app repo LFS files
+        run: git lfs pull
+
       - name: Download all screenshot artifacts
         uses: actions/download-artifact@v4
         with:
