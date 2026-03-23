@@ -3,6 +3,7 @@ import { queryPlausible } from '../external/plausible-api.server';
 import type { Database } from '../../db';
 import { resolveUrl, detectLocale } from './url-resolver.server';
 import { rebuildEngagement } from './engagement.server';
+import { invalidateStatsCache } from './cache.server';
 import { contentPageMetrics, siteDailyMetrics } from '../../db/schema';
 import { sql, eq, desc } from 'drizzle-orm';
 
@@ -248,6 +249,9 @@ export async function runSync(db: Database, opts: SyncOptions): Promise<{ conten
 
   // 6. Rebuild engagement scores
   await rebuildEngagement(db, opts.city);
+
+  // Invalidate cached dashboard responses so next page load recomputes
+  await invalidateStatsCache(db, opts.city);
 
   return { contentPages: contentRows.length, skippedPaths: skippedPaths.length, dailyRows: dailyMetrics.length };
 }

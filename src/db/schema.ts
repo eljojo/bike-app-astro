@@ -180,3 +180,12 @@ export const siteDailyMetrics = sqliteTable('site_daily_metrics', {
 }, (table) => [
   primaryKey({ columns: [table.city, table.date] }),
 ]);
+
+export const statsCache = sqliteTable('stats_cache', {
+  city: text('city').notNull(),
+  cacheKey: text('cache_key').notNull(),
+  data: text('data').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.cacheKey] }),
+]);
