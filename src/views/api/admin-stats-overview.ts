@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentEngagement, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
+import { contentEngagement, contentPageMetrics as contentPageMetricsTable, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
@@ -57,17 +57,16 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
 
       if (needsFullSync) {
         if (forceSync) {
-          // Delete existing site daily data for the range
-          await database.delete(siteDailyTable)
-            .where(and(
-              eq(siteDailyTable.city, CITY),
-              sql`${siteDailyTable.date} >= ${startStr}`,
-              sql`${siteDailyTable.date} <= ${endStr}`,
-            ))
-            .run();
+          // Force re-sync: clear ALL analytics data for this city, then rebuild
+          await Promise.all([
+            database.delete(siteDailyTable).where(eq(siteDailyTable.city, CITY)).run(),
+            database.delete(contentPageMetricsTable).where(eq(contentPageMetricsTable.city, CITY)).run(),
+            database.delete(contentEngagement).where(eq(contentEngagement.city, CITY)).run(),
+            database.delete(siteEventMetrics).where(eq(siteEventMetrics.city, CITY)).run(),
+          ]);
         }
         // Full site sync: daily aggregates + page breakdown + engagement rebuild
-        await syncSiteMetrics(database, ctx);
+        await syncSiteMetrics(database, { ...ctx, full: forceSync });
       } else {
         // Incremental: just backfill missing daily rows
         await ensureSiteDailyData(database, ctx, startStr, endStr);
