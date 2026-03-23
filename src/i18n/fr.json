@@ -367,6 +367,8 @@
   "auth.check_email_verify": "V\u00e9rifiez vos courriels pour confirmer votre compte.",
   "auth.back_to_sign_in": "Retour \u00e0 la connexion",
   "auth.send_link_instead": "Envoyer un lien de connexion \u00e0 la place",
+  "settings.passkey_empty_description": "Les cl\u00e9s d'acc\u00e8s vous permettent de vous connecter sans courriel. Elles sont stock\u00e9es sur votre appareil et fonctionnent avec empreinte digitale, visage ou NIP.",
+  "settings.passkey_add": "Ajouter une cl\u00e9 d'acc\u00e8s",
   "auth.error_email_required": "Le courriel est requis",
   "auth.error_invalid_username": "Le nom d'utilisateur doit contenir 2 \u00e0 30 caract\u00e8res\u00a0: lettres, chiffres, tirets, underscores",
 

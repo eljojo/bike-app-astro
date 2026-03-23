@@ -367,6 +367,8 @@
   "auth.check_email_verify": "Revisa tu correo para verificar tu cuenta y terminar la configuraci\u00f3n.",
   "auth.back_to_sign_in": "Volver al inicio de sesi\u00f3n",
   "auth.send_link_instead": "Enviar un enlace de inicio de sesi\u00f3n",
+  "settings.passkey_empty_description": "Las llaves de acceso te permiten iniciar sesi\u00f3n sin correo. Se almacenan en tu dispositivo y funcionan con huella digital, rostro o PIN.",
+  "settings.passkey_add": "Agregar una llave de acceso",
   "auth.error_email_required": "El correo es obligatorio",
   "auth.error_invalid_username": "El nombre de usuario debe tener 2-30 caracteres: letras, n\u00fameros, guiones, guiones bajos",
 

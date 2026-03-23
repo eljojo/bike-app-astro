@@ -367,6 +367,8 @@
   "auth.check_email_verify": "Check your email to verify your account and finish setting up.",
   "auth.back_to_sign_in": "Back to sign in",
   "auth.send_link_instead": "Send a sign-in link instead",
+  "settings.passkey_empty_description": "Passkeys let you sign in without email. They're stored on your device and work with fingerprint, face, or PIN.",
+  "settings.passkey_add": "Add a passkey",
   "auth.error_email_required": "Email is required",
   "auth.error_invalid_username": "Username must be 2-30 characters: letters, numbers, hyphens, underscores",
 
