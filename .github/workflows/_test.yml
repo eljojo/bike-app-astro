@@ -341,7 +341,7 @@ jobs:
           CITY: demo
 
       - name: Upload screenshot artifacts
-        if: ${{ inputs.update-screenshots && always() }}
+        if: ${{ inputs.update-screenshots && !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-${{ matrix.suite }}
@@ -351,7 +351,7 @@ jobs:
           if-no-files-found: ignore
 
   update-screenshots:
-    if: ${{ inputs.update-screenshots && always() }}
+    if: ${{ inputs.update-screenshots && !cancelled() }}
     needs: e2e
     runs-on: ubuntu-latest
     steps:
