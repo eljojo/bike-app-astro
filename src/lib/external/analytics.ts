@@ -62,8 +62,13 @@ function trackSocialReferral() {
   for (const [key, value] of Object.entries(networks)) {
     if (params.get(key)) {
       track('Social Visit', { props: { network: value } });
-      break;
+      return;
     }
+  }
+  // utm_source-based referrals (ChatGPT, newsletters, etc.)
+  const utmSource = params.get('utm_source');
+  if (utmSource) {
+    track('Social Visit', { props: { network: utmSource.replace(/\.com$/, '') } });
   }
 }
 
