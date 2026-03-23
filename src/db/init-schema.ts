@@ -33,6 +33,8 @@ export function initSchema(db: InstanceType<typeof Database>) {
       .split('--> statement-breakpoint')
       .map(s => s.trim())
       .filter(Boolean)
+      .map(s => s.replace(/^--.*\n/gm, '').trim())
+      .filter(Boolean)
       .map(s => s.replace(/^CREATE TABLE\b/i, 'CREATE TABLE IF NOT EXISTS'))
       .map(s => s.replace(/^CREATE UNIQUE INDEX\b/i, 'CREATE UNIQUE INDEX IF NOT EXISTS'))
       .map(s => s.replace(/^CREATE INDEX\b/i, 'CREATE INDEX IF NOT EXISTS'));
