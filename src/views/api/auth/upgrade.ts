@@ -1,122 +1,79 @@
 import type { APIContext } from 'astro';
-import { env } from '../../../lib/env/env.service';
-import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
 import { users } from '../../../db/schema';
 import { eq } from 'drizzle-orm';
-import {
-  buildCredentialInsert,
-  buildSessionBatch,
-  normalizeEmail,
-  setSessionCookies,
-  retrieveChallenge,
-  getWebAuthnConfig,
-  validateSession,
-} from '../../../lib/auth/auth';
-import { sanitizeUsername } from '../../../lib/username';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
-import { withBatch } from '../../../db/transaction';
+import { normalizeEmail, validateSession } from '../../../lib/auth/auth';
+import { isValidUsername } from '../../../lib/username';
+import { sendMagicLinkEmail } from '../../../lib/auth/magic-link.server';
 import { getInstanceFeatures } from '../../../lib/config/instance-features';
 
 export const prerender = false;
 
-export async function POST({ request, cookies }: APIContext) {
+export async function POST({ request, cookies, url }: APIContext) {
   if (!getInstanceFeatures().allowsRegistration) {
     return new Response(null, { status: 404 });
   }
-  // Upgrade endpoints are under /api/auth/ which the middleware skips,
-  // so we must validate the session ourselves.
-  const token = cookies.get('session_token')?.value;
-  const user = token ? await validateSession(db(), token) : null;
-  if (!user || user.role !== 'guest') {
-    return jsonError('Only guests can upgrade', 401);
-  }
 
-  const { email: rawEmail, username: rawUsername, credential: credentialResponse } = await request.json();
-  if (!rawEmail) {
-    return jsonError('Email is required');
-  }
-  if (!credentialResponse) {
-    return jsonError('Passkey registration is required to upgrade');
-  }
+  // Manually validate session — middleware skips /api/auth/ routes
+  const token = cookies.get('session_token')?.value;
+  if (!token) return jsonError('Unauthorized', 401);
 
   const database = db();
-  const email = normalizeEmail(rawEmail);
-  const config = getWebAuthnConfig(request.url, env);
+  const user = await validateSession(database, token);
+  if (!user) return jsonError('Unauthorized', 401);
 
-  // Check email not already taken
-  const existing = await database.select().from(users).where(eq(users.email, email)).limit(1);
-  if (existing.length > 0) {
-    return jsonError('Email already registered', 409);
+  if (user.role !== 'guest') {
+    return jsonError('Only guest accounts can upgrade', 400);
   }
 
-  // Retrieve and consume the stored challenge
-  const expectedChallenge = retrieveChallenge(cookies);
-  if (!expectedChallenge) {
-    return jsonError('Challenge expired, please try again');
-  }
-
+  // Parse body
+  let body;
   try {
-    const verification = await verifyRegistrationResponse({
-      response: credentialResponse,
-      expectedChallenge,
-      expectedOrigin: config.origin,
-      expectedRPID: config.rpID,
-    });
-
-    if (!verification.verified || !verification.registrationInfo) {
-      return jsonError('Passkey verification failed');
-    }
-
-    const { credential } = verification.registrationInfo;
-
-    // Check username availability before entering transaction
-    const updates: Record<string, unknown> = { email, role: 'editor', ipAddress: null };
-    if (rawUsername) {
-      const newUsername = sanitizeUsername(rawUsername);
-      if (newUsername !== user.username) {
-        const existingUsername = await database
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.username, newUsername))
-          .limit(1);
-        if (existingUsername.length > 0) {
-          return jsonError('Username is already taken', 409);
-        }
-      }
-      updates.username = newUsername;
-      const prev = [user.username];
-      updates.previousUsernames = JSON.stringify(prev);
-    }
-
-    const oldToken = cookies.get('session_token')?.value;
-    const now = new Date().toISOString();
-    let token = '';
-
-    await withBatch(database, (tx) => {
-      const sessionPlan = buildSessionBatch(tx, user.id, {
-        revokeToken: oldToken,
-      });
-      token = sessionPlan.token;
-
-      return [
-        buildCredentialInsert(
-          tx,
-          user.id,
-          credential,
-          credentialResponse.response?.transports,
-          now,
-        ),
-        tx.update(users).set(updates).where(eq(users.id, user.id)),
-        ...sessionPlan.statements,
-      ];
-    });
-
-    setSessionCookies(cookies, token);
-
-    return jsonResponse({ success: true });
-  } catch (err) {
-    console.error('upgrade error:', err);
-    return jsonError('Internal server error', 500);
+    body = await request.json();
+  } catch {
+    return jsonError('Invalid request body', 400);
   }
+
+  const { email: rawEmail, username } = body;
+  if (!rawEmail) return jsonError('Email is required', 400);
+  if (!username || !isValidUsername(username)) return jsonError('Invalid username', 400);
+
+  const email = normalizeEmail(rawEmail);
+
+  // Check email uniqueness
+  const emailTaken = await database
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  if (emailTaken.length > 0) return jsonError('Email is already registered', 409);
+
+  // Check username uniqueness
+  const usernameTaken = await database
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+  if (usernameTaken.length > 0) return jsonError('Username is already taken', 409);
+
+  // Store previous username
+  const previousUsernames = user.username ? JSON.stringify([user.username]) : null;
+
+  // Update user — don't change role yet (verify.astro does that)
+  await database
+    .update(users)
+    .set({
+      email,
+      username,
+      previousUsernames,
+      emailVerified: 0,
+      ipAddress: null,
+    })
+    .where(eq(users.id, user.id));
+
+  // Send verification magic link
+  await sendMagicLinkEmail(database, email, user.id, url.origin);
+
+  return jsonResponse({ success: true });
 }

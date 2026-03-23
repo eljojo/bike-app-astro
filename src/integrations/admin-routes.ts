@@ -33,7 +33,6 @@ const routes = [
   { pattern: '/api/auth/register', entrypoint: view('api/auth/register.ts') },
   { pattern: '/api/auth/register-options', entrypoint: view('api/auth/register-options.ts') },
   { pattern: '/api/auth/upgrade', entrypoint: view('api/auth/upgrade.ts') },
-  { pattern: '/api/auth/upgrade-options', entrypoint: view('api/auth/upgrade-options.ts') },
   { pattern: '/api/auth/email-login', entrypoint: view('api/auth/email-login.ts') },
   { pattern: '/api/auth/signup', entrypoint: view('api/auth/signup.ts') },
   { pattern: '/api/auth/add-passkey', entrypoint: view('api/auth/add-passkey.ts') },
