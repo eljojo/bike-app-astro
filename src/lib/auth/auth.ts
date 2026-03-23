@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { eq, and, gt, lt } from 'drizzle-orm';
+import { eq, and, gt, lt, sql } from 'drizzle-orm';
 import { credentials, sessions, users, userSettings } from '../../db/schema';
 import type { Database, DbClient } from '../../db';
 import type { AppEnv } from '../config/app-env';
@@ -12,6 +12,8 @@ export interface SessionUser {
   bannedAt: string | null;
   emailInCommits: boolean;
   analyticsOptOut: boolean;
+  emailVerified: boolean;
+  hasPasskey: boolean;
 }
 
 export const ANONYMOUS_USER: SessionUser = Object.freeze({
@@ -22,6 +24,8 @@ export const ANONYMOUS_USER: SessionUser = Object.freeze({
   bannedAt: null,
   emailInCommits: false,
   analyticsOptOut: false,
+  emailVerified: false,
+  hasPasskey: false,
 });
 
 export interface WebAuthnConfig {
@@ -148,6 +152,7 @@ export async function validateSession(db: Database, token: string): Promise<Sess
       username: users.username,
       role: users.role,
       bannedAt: users.bannedAt,
+      emailVerified: users.emailVerified,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -173,6 +178,14 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     .where(eq(userSettings.userId, row.userId))
     .limit(1);
 
+  // Count credentials separately (same pattern as settings — avoids LEFT JOIN with WAL mode)
+  const credentialCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(credentials)
+    .where(eq(credentials.userId, row.userId));
+
+  const hasPasskey = (credentialCount[0]?.count ?? 0) > 0;
+
   const s = settings[0];
   return {
     id: row.userId,
@@ -182,6 +195,8 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     bannedAt: row.bannedAt,
     emailInCommits: s?.emailInCommits ?? false,
     analyticsOptOut: s?.analyticsOptOut ?? false,
+    emailVerified: Boolean(row.emailVerified),
+    hasPasskey,
   };
 }
 

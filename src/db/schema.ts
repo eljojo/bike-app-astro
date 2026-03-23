@@ -8,6 +8,7 @@ export const users = sqliteTable('users', {
   role: text('role', { enum: ['admin', 'editor', 'guest'] }).notNull().default('editor'),
   createdAt: text('created_at').notNull(),
   bannedAt: text('banned_at'),
+  emailVerified: integer('email_verified').notNull().default(1),
   ipAddress: text('ip_address'),
   previousUsernames: text('previous_usernames'),
 }, (table) => [
