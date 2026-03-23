@@ -5,7 +5,7 @@
 import { env } from '../env/env.service';
 import { CITY } from '../config/config';
 import { getCityConfig } from '../config/city-config';
-import { fetchJson } from '../content/load-admin-content.server';
+import routeRedirects from 'virtual:bike-app/route-redirects';
 
 export interface SyncContext {
   apiKey: string;
@@ -17,25 +17,14 @@ export interface SyncContext {
 }
 
 /**
- * Build the sync context from env + city config + prerendered redirects.
+ * Build the sync context from env + city config + build-time redirects.
  * Returns null if PLAUSIBLE_API_KEY is not set (local dev without API key).
- *
- * @param baseUrl - The request URL origin, used for ASSETS.fetch of redirects.json
  */
-export async function buildSyncContext(baseUrl: string): Promise<SyncContext | null> {
+export async function buildSyncContext(_baseUrl: string): Promise<SyncContext | null> {
   const apiKey = env.PLAUSIBLE_API_KEY;
   if (!apiKey) return null;
 
   const cityConfig = getCityConfig();
-
-  let redirects: Record<string, string> = {};
-  try {
-    const raw = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl));
-    redirects = raw;
-    console.log(`buildSyncContext: loaded ${Object.keys(redirects).length} redirects, sample: ${JSON.stringify(Object.entries(redirects).slice(0, 2))}`);
-  } catch (err) {
-    console.error('buildSyncContext: FAILED to load redirects.json:', err);
-  }
 
   return {
     apiKey,
@@ -43,6 +32,6 @@ export async function buildSyncContext(baseUrl: string): Promise<SyncContext | n
     city: CITY,
     locales: cityConfig.locales ?? [cityConfig.locale],
     defaultLocale: cityConfig.locale,
-    redirects,
+    redirects: routeRedirects,
   };
 }

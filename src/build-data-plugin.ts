@@ -220,14 +220,27 @@ function buildMediaSharedKeysModule(
   return `export default ${serializeSharedKeys(map)};`;
 }
 
-function buildRideRedirectsModule(): string {
+function loadRedirectsYaml(): Record<string, unknown> {
   const redirectsPath = path.join(CITY_DIR, 'redirects.yml');
-  const data = fs.existsSync(redirectsPath)
+  return fs.existsSync(redirectsPath)
     ? (yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, unknown>) || {}
     : {};
+}
+
+function buildRideRedirectsModule(): string {
+  const data = loadRedirectsYaml();
   const rideEntries = (data.rides as Array<{ from: string; to: string }>) || [];
 
   const map = buildRideRedirectMap(rideEntries);
+  return `export default ${JSON.stringify(map)};`;
+}
+
+function buildRouteRedirectsModule(): string {
+  const data = loadRedirectsYaml();
+  const routeEntries = (data.routes as Array<{ from: string; to: string }>) || [];
+
+  const map: Record<string, string> = {};
+  for (const r of routeEntries) map[r.from] = r.to;
   return `export default ${JSON.stringify(map)};`;
 }
 
@@ -336,6 +349,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     },
 
     'ride-redirects': async () => buildRideRedirectsModule(),
+    'route-redirects': async () => buildRouteRedirectsModule(),
 
     'homepage-facts': async () =>
       `export default ${JSON.stringify(homepageFacts)};`,

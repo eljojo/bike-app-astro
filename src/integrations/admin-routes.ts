@@ -39,7 +39,6 @@ const routes = [
   { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },
   // Content-type admin pages and API endpoints (from registry)
   // Admin data endpoints (prerendered static JSON)
-  { pattern: '/admin/data/redirects.json', entrypoint: view('admin/data/redirects.json.ts') },
   { pattern: '/admin/data/routes.json', entrypoint: view('admin/data/routes.json.ts') },
   { pattern: '/admin/data/routes/[slug].json', entrypoint: view('admin/data/route-detail.json.ts') },
   { pattern: '/admin/data/known-tags.json', entrypoint: view('admin/data/known-tags.json.ts') },

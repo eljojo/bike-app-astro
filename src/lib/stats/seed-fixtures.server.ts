@@ -50,19 +50,25 @@ export async function seedFromFixtures(db: Database, city: string): Promise<bool
     return false;
   }
 
-  // Load redirects from data repo if available
+  // Load redirects from virtual module (build-time baked from redirects.yml)
   let redirects: Record<string, string> = {};
   try {
-    const yaml = await import('js-yaml');
-    const { cityDir } = await import('../config/config.server');
-    const redirectsPath = path.join(cityDir, 'redirects.yml');
-    if (fs.existsSync(redirectsPath)) {
-      const data = yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, Array<{ from: string; to: string }>> | null;
-      if (data?.routes) {
-        for (const r of data.routes) redirects[r.from] = r.to;
+    const mod = await import('virtual:bike-app/route-redirects');
+    redirects = mod.default;
+  } catch {
+    // Virtual module not available (tests, scripts) — try filesystem
+    try {
+      const yaml = await import('js-yaml');
+      const { cityDir } = await import('../config/config.server');
+      const redirectsPath = path.join(cityDir, 'redirects.yml');
+      if (fs.existsSync(redirectsPath)) {
+        const data = yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, Array<{ from: string; to: string }>> | null;
+        if (data?.routes) {
+          for (const r of data.routes) redirects[r.from] = r.to;
+        }
       }
-    }
-  } catch { /* no redirects available */ }
+    } catch { /* no redirects available */ }
+  }
 
   const locales = ['en', 'fr']; // eslint-disable-line bike-app/no-hardcoded-city-locale
   const defaultLocale = 'en'; // eslint-disable-line bike-app/no-hardcoded-city-locale
