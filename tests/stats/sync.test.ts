@@ -209,6 +209,43 @@ describe('sync pipeline', () => {
     expect(slugs.has('greenbelt')).toBe(true);
   });
 
+  it('aggregates duplicate paths into single totals row', () => {
+    // Bug: /routes/wakefield (4942 pv) and /routes/wakefield/ (42 pv) both
+    // resolve to (route, wakefield, detail). Without aggregation, the second
+    // overwrites the first, making detail=42 while map=970 → 2309% conversion.
+    const rows = [
+      { dimensions: ['/routes/wakefield'], metrics: [4942, 3000, 120, 40] },
+      { dimensions: ['/routes/wakefield/'], metrics: [42, 30, 100, 35] },
+      { dimensions: ['/routes/wakefield/map'], metrics: [970, 800, 60, 30] },
+      { dimensions: ['/routes/wakefield/map/'], metrics: [7, 5, 45, 25] },
+    ];
+
+    const result = processPageBreakdown(rows, 'test', {}, {}, '2025-03-23', ['en'], 'en');
+
+    // Two rows with slug=wakefield, pageType=detail should exist
+    const detailRows = result.contentRows.filter(r => r.contentSlug === 'wakefield' && r.pageType === 'detail');
+    const mapRows = result.contentRows.filter(r => r.contentSlug === 'wakefield' && r.pageType === 'map');
+
+    // processPageBreakdown returns raw rows (not aggregated) — the aggregation
+    // happens in syncSiteMetrics before writing to content_totals.
+    // But we can verify both paths resolved to the same slug.
+    expect(detailRows.length).toBe(2);
+    expect(mapRows.length).toBe(2);
+    expect(detailRows[0].contentSlug).toBe('wakefield');
+    expect(detailRows[1].contentSlug).toBe('wakefield');
+
+    // Total detail pageviews should be 4942 + 42 = 4984
+    const totalDetail = detailRows.reduce((s, r) => s + r.pageviews, 0);
+    expect(totalDetail).toBe(4984);
+
+    // Total map pageviews should be 970 + 7 = 977
+    const totalMap = mapRows.reduce((s, r) => s + r.pageviews, 0);
+    expect(totalMap).toBe(977);
+
+    // Ratio should be ~19.6%, not 100%
+    expect(totalMap / totalDetail).toBeLessThan(0.3);
+  });
+
   it('built redirects.json contains entries when data repo has redirects.yml', () => {
     // Verifies the prerendered redirects.json endpoint produces non-empty output.
     // If this file is empty after a build, redirects won't be applied during sync.

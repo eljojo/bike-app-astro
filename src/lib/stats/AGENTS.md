@@ -35,9 +35,13 @@ Route redirects (`16-the-big-loop` → `the-big-loop`) are loaded from `virtual:
 
 The Plausible API returns metrics in the order you request them. All queries use `['pageviews', 'visitors', 'visit_duration', 'bounce_rate']`. If you change the order, update `processPageBreakdown`, `processPageDaily`, and `processDailyAggregate` — they index `row.metrics[0]` etc. positionally.
 
+### Aggregate Before Writing Totals
+
+Multiple Plausible URL paths can resolve to the same content identity — e.g., `/routes/wakefield` and `/routes/wakefield/` both become `(route, wakefield, detail)`. The `syncSiteMetrics` function must aggregate `contentRows` by `(contentType, contentSlug, pageType)` BEFORE writing to `content_totals`. Without aggregation, the last row wins and earlier rows' pageviews are lost, causing wildly wrong ratios (map conversion showing 100% when the real ratio is 20%).
+
 ### Map Conversion Rate Must Be Capped
 
-The engagement rebuild computes `mapConversionRate = mapViews / detailViews` from `content_totals`. Always cap at `Math.min(ratio, 1.0)`.
+The engagement rebuild computes `mapConversionRate = mapViews / detailViews` from `content_totals`. Always cap at `Math.min(ratio, 1.0)` as a safety net.
 
 ### Batch All D1 Inserts
 

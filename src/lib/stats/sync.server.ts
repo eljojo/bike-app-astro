@@ -298,19 +298,40 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   const numberedAfter = contentRows.filter(r => /^\d+-/.test(r.contentSlug)).length;
   console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered`);
 
-  // Write totals (all-time aggregates per page type) to content_totals
-  const totalsRows: TotalsRow[] = contentRows.map(r => ({
-    city: r.city,
-    contentType: r.contentType,
-    contentSlug: r.contentSlug,
-    pageType: r.pageType,
-    pageviews: r.pageviews,
-    visitorDays: r.visitorDays,
-    visitDurationS: r.visitDurationS,
-    bounceRate: r.bounceRate,
-    videoPlays: r.videoPlays,
-    syncedAt: today,
-  }));
+  // Aggregate contentRows by (contentType, contentSlug, pageType) before writing totals.
+  // Multiple Plausible paths map to the same content identity — e.g. /routes/wakefield
+  // and /routes/wakefield/ both resolve to (route, wakefield, detail). Sum their metrics.
+  const totalsMap = new Map<string, TotalsRow>();
+  for (const r of contentRows) {
+    const key = `${r.contentType}:${r.contentSlug}:${r.pageType}`;
+    const existing = totalsMap.get(key);
+    if (existing) {
+      existing.pageviews += r.pageviews;
+      existing.visitorDays += r.visitorDays;
+      // Weighted average for duration and bounce rate
+      const totalPv = existing.pageviews; // already includes r.pageviews
+      const prevPv = totalPv - r.pageviews;
+      if (totalPv > 0) {
+        existing.visitDurationS = (existing.visitDurationS * prevPv + r.visitDurationS * r.pageviews) / totalPv;
+        existing.bounceRate = (existing.bounceRate * prevPv + r.bounceRate * r.pageviews) / totalPv;
+      }
+      existing.videoPlays += r.videoPlays;
+    } else {
+      totalsMap.set(key, {
+        city: r.city,
+        contentType: r.contentType,
+        contentSlug: r.contentSlug,
+        pageType: r.pageType,
+        pageviews: r.pageviews,
+        visitorDays: r.visitorDays,
+        visitDurationS: r.visitDurationS,
+        bounceRate: r.bounceRate,
+        videoPlays: r.videoPlays,
+        syncedAt: today,
+      });
+    }
+  }
+  const totalsRows = [...totalsMap.values()];
 
   // Delete existing totals, then insert fresh
   await db.delete(contentTotals).where(eq(contentTotals.city, opts.city)).run();

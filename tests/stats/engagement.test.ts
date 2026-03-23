@@ -41,6 +41,38 @@ describe('rebuildEngagement', () => {
     }
   });
 
+  it('computes correct map conversion when detail has more views than map', async () => {
+    const testDb = createTestDb();
+    try {
+      const db = testDb.db as unknown as Database;
+
+      // Real scenario: detail page has 4984 views, map has 970
+      await db.insert(contentTotals).values({
+        city: CITY, contentType: 'route', contentSlug: 'wakefield',
+        pageType: 'detail',
+        pageviews: 4984, visitorDays: 3000, visitDurationS: 120, bounceRate: 40, videoPlays: 0,
+        syncedAt: '2025-03-23',
+      }).run();
+
+      await db.insert(contentTotals).values({
+        city: CITY, contentType: 'route', contentSlug: 'wakefield',
+        pageType: 'map',
+        pageviews: 970, visitorDays: 800, visitDurationS: 60, bounceRate: 30, videoPlays: 0,
+        syncedAt: '2025-03-23',
+      }).run();
+
+      await rebuildEngagement(db, CITY);
+
+      const rows = testDb.db.select().from(contentEngagement).all();
+      expect(rows.length).toBe(1);
+      // Map conversion should be ~19%, definitely not 100%
+      expect(rows[0].mapConversionRate).toBeGreaterThan(0.1);
+      expect(rows[0].mapConversionRate).toBeLessThan(0.3);
+    } finally {
+      testDb.cleanup();
+    }
+  });
+
   it('clears stale engagement rows on rebuild', async () => {
     const testDb = createTestDb();
     try {
