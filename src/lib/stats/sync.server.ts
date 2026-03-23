@@ -397,21 +397,42 @@ export async function needsPageSync(
   return (Date.now() - lastDate.getTime()) > maxAgeMs;
 }
 
-function buildPagePaths(contentType: string, contentSlug: string, locales?: string[], defaultLocale?: string): string[] {
-  let basePath: string;
+function buildPagePaths(
+  contentType: string,
+  contentSlug: string,
+  locales?: string[],
+  defaultLocale?: string,
+  redirects?: Record<string, string>,
+): string[] {
+  let prefix: string;
   switch (contentType) {
-    case 'route': basePath = `/routes/${contentSlug}`; break;
-    case 'event': basePath = `/events/${contentSlug}`; break;
-    case 'organizer': basePath = `/communities/${contentSlug}`; break;
+    case 'route': prefix = '/routes'; break;
+    case 'event': prefix = '/events'; break;
+    case 'organizer': prefix = '/communities'; break;
     default: return [];
   }
 
-  const paths = [basePath];
-  if (locales && defaultLocale) {
-    for (const locale of locales) {
-      if (locale !== defaultLocale) {
-        const translated = translatePath(basePath, locale);
-        paths.push(`/${locale}${translated}`);
+  // Start with the canonical slug
+  const slugs = [contentSlug];
+
+  // Add old slugs that redirect to this canonical slug (reverse lookup)
+  if (redirects) {
+    for (const [oldSlug, target] of Object.entries(redirects)) {
+      if (target === contentSlug) slugs.push(oldSlug);
+    }
+  }
+
+  // Build paths for all slugs × all locales
+  const paths: string[] = [];
+  for (const slug of slugs) {
+    const basePath = `${prefix}/${slug}`;
+    paths.push(basePath);
+    if (locales && defaultLocale) {
+      for (const locale of locales) {
+        if (locale !== defaultLocale) {
+          const translated = translatePath(basePath, locale);
+          paths.push(`/${locale}${translated}`);
+        }
       }
     }
   }
@@ -425,7 +446,7 @@ export async function syncPageMetrics(
   db: Database,
   opts: SyncOptions & { contentType: string; contentSlug: string },
 ): Promise<number> {
-  const paths = buildPagePaths(opts.contentType, opts.contentSlug, opts.locales, opts.defaultLocale);
+  const paths = buildPagePaths(opts.contentType, opts.contentSlug, opts.locales, opts.defaultLocale, opts.redirects);
   if (paths.length === 0) return 0;
 
   const today = new Date().toISOString().split('T')[0];
@@ -543,7 +564,7 @@ export async function ensurePageDailyData(
   fromDate: string,
   toDate: string,
 ): Promise<number> {
-  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale);
+  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale, opts.redirects);
   if (paths.length === 0) return 0;
 
   const existing = await db.select({ date: contentDailyMetrics.date })
@@ -730,7 +751,7 @@ export async function ensureEntryPageData(
   fromDate: string,
   toDate: string,
 ): Promise<number> {
-  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale);
+  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale, opts.redirects);
   if (paths.length === 0) return 0;
 
   // Check if entry data has already been synced for this slug up to this date

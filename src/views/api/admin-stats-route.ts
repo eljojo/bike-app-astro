@@ -103,21 +103,29 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
 
     const eng = engagement[0];
 
-    const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
+    // Compute hero stats from the time-range-filtered daily data, not all-time engagement
+    const totalPageviews = daily.reduce((sum, d) => sum + d.pageviews, 0);
     const totalVisitors = daily.reduce((sum, d) => sum + (d.visitors ?? 0), 0);
-    const viewsPerVisitor = totalVisitors > 0 ? Math.round((eng?.totalPageviews ?? 0) / totalVisitors * 10) / 10 : 0;
-    const wallTimePerVisitor = totalVisitors > 0 ? (eng?.wallTimeHours ?? 0) / totalVisitors * 60 : 0;
+    const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
+    // Wall time = sum of (daily pageviews × daily avg duration) / 3600
+    const wallTimeHours = daily.reduce((sum, d) => sum + d.pageviews * (d.avgDuration ?? 0) / 3600, 0);
+    // Weighted avg visit duration across the period
+    const avgVisitDuration = totalPageviews > 0
+      ? daily.reduce((sum, d) => sum + d.pageviews * (d.avgDuration ?? 0), 0) / totalPageviews
+      : 0;
+    const viewsPerVisitor = totalVisitors > 0 ? Math.round(totalPageviews / totalVisitors * 10) / 10 : 0;
+    const wallTimePerVisitor = totalVisitors > 0 ? wallTimeHours / totalVisitors * 60 : 0;
 
-    const heroStats = eng ? [
-      { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
+    const heroStats = totalPageviews > 0 ? [
+      { label: 'Page views', value: totalPageviews, description: 'Total page views in this period' },
       { label: 'Visitors', value: totalVisitors, description: 'Unique visitor-days in this period' },
       { label: 'Views/visitor', value: viewsPerVisitor, description: 'Average page views per visitor' },
       { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page' },
-      { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
+      { label: 'Wall time', value: `${Math.round(wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading in this period' },
       { label: 'Time/visitor', value: formatDuration(wallTimePerVisitor * 60), description: 'Wall time per visitor' },
-      { label: 'Visit duration', value: formatDuration(eng.avgVisitDuration), description: 'Average time spent per visit' },
-      { label: 'Map conversion', value: `${Math.round(eng.mapConversionRate * 100)}%`, description: 'Visitors who opened the map' },
-      { label: 'Stars', value: eng.stars, description: 'Bookmarks by users' },
+      { label: 'Visit duration', value: formatDuration(avgVisitDuration), description: 'Average time spent per visit' },
+      { label: 'Map conversion', value: eng ? `${Math.round(eng.mapConversionRate * 100)}%` : '—', description: 'Visitors who opened the map (all time)' },
+      { label: 'Stars', value: eng?.stars ?? 0, description: 'Bookmarks by users' },
     ] : [];
 
     const timeSeries: TimeSeriesPoint[] = daily.map(d => ({
