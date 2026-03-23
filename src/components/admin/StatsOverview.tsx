@@ -1,13 +1,15 @@
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { Chart, registerables } from 'chart.js';
 import { useHydrated } from '../../lib/hooks';
-import type {
-  SummaryCard,
-  TimeSeriesPoint,
-  LeaderboardEntry,
-  InsightCard,
-  TimeRange,
+import {
+  formatDuration,
+  type SummaryCard,
+  type TimeSeriesPoint,
+  type LeaderboardEntry,
+  type InsightCard,
+  type TimeRange,
 } from '../../lib/stats/types';
+import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
 
 Chart.register(...registerables);
 
@@ -57,9 +59,21 @@ function formatNumber(n: number | string): string {
   return String(n);
 }
 
-function thumbUrl(cdnUrl: string | undefined, key: string | undefined): string | null {
-  if (!cdnUrl || !key) return null;
-  return `${cdnUrl}/cdn-cgi/image/width=64,height=64,fit=cover/${key}`;
+const THUMB_OPTS = { width: 32, height: 32, fit: 'cover' as const };
+const THUMB_INSIGHT_OPTS = { width: 40, height: 40, fit: 'cover' as const };
+
+function Thumb({ cdnUrl, thumbKey, size }: { cdnUrl?: string; thumbKey?: string; size?: 'insight' }) {
+  if (!cdnUrl || !thumbKey) return null;
+  const opts = size === 'insight' ? THUMB_INSIGHT_OPTS : THUMB_OPTS;
+  return (
+    <img
+      src={buildImageUrl(cdnUrl, thumbKey, opts)}
+      srcset={buildImageSrcSet2x(cdnUrl, thumbKey, opts)}
+      alt="" loading="lazy"
+      class={`stats-thumb${size === 'insight' ? ' stats-thumb--insight' : ''}`}
+      width={opts.width} height={opts.height}
+    />
+  );
 }
 
 function drillDownUrl(contentType: string, contentSlug: string): string {
@@ -111,9 +125,7 @@ function InsightCardView({ insight, cdnUrl }: { insight: InsightCard; cdnUrl?: s
       </div>
       <div class="stats-insight-content">
         <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-name">
-          {thumbUrl(cdnUrl, insight.thumbKey) && (
-            <img src={thumbUrl(cdnUrl, insight.thumbKey)!} alt="" class="stats-thumb stats-thumb--insight" loading="lazy" />
-          )}
+          <Thumb cdnUrl={cdnUrl} thumbKey={insight.thumbKey} size="insight" />
           {insight.name}
         </a>
         <p class="stats-insight-body">{insight.body}</p>
@@ -134,12 +146,6 @@ function InsightCardView({ insight, cdnUrl }: { insight: InsightCard; cdnUrl?: s
       )}
     </div>
   );
-}
-
-function formatSeconds(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = Math.round(s % 60);
-  return m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`;
 }
 
 function DualAxisChart({ labels, leftData, leftLabel, leftColor, rightData, rightLabel, rightColor, formatLeftTooltip }: {
@@ -439,7 +445,7 @@ export default function StatsOverview() {
               leftData={data.durationSeries.map(p => Math.round(p.value / 6) / 10)}
               leftLabel="Visit duration (min)"
               leftColor="rgb(234, 88, 12)"
-              formatLeftTooltip={(min) => formatSeconds(min * 60)}
+              formatLeftTooltip={(min) => formatDuration(min * 60)}
               rightData={data.pagesPerVisitSeries?.map(p => p.value) ?? []}
               rightLabel="Pages per visit"
               rightColor="rgb(16, 185, 129)"
@@ -468,9 +474,7 @@ export default function StatsOverview() {
                   <tr key={`${entry.contentType}-${entry.contentSlug}`}>
                     <td>
                       <a href={drillDownUrl(entry.contentType, entry.contentSlug)} class="stats-content-link">
-                        {thumbUrl(data.cdnUrl, entry.thumbKey) && (
-                          <img src={thumbUrl(data.cdnUrl, entry.thumbKey)!} alt="" class="stats-thumb" loading="lazy" />
-                        )}
+                        <Thumb cdnUrl={data.cdnUrl} thumbKey={entry.thumbKey} />
                         <span>
                           <span class="stats-content-type">{entry.contentType}</span>
                           {entry.name}
@@ -506,9 +510,7 @@ export default function StatsOverview() {
                   <tr key={`${entry.contentType}-${entry.contentSlug}`}>
                     <td>
                       <a href={drillDownUrl(entry.contentType, entry.contentSlug)} class="stats-content-link">
-                        {thumbUrl(data.cdnUrl, entry.thumbKey) && (
-                          <img src={thumbUrl(data.cdnUrl, entry.thumbKey)!} alt="" class="stats-thumb" loading="lazy" />
-                        )}
+                        <Thumb cdnUrl={data.cdnUrl} thumbKey={entry.thumbKey} />
                         <span>
                           <span class="stats-content-type">{entry.contentType}</span>
                           {entry.name}
