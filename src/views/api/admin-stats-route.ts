@@ -124,7 +124,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const heroStats = eng ? [
       { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
       { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
-      { label: 'Avg duration', value: `${Math.round(eng.avgVisitDuration)}s`, description: 'Average visit duration' },
+      { label: 'Visit duration', value: formatDuration(eng.avgVisitDuration), description: 'Average time spent per visit' },
       { label: 'Bounce rate', value: `${Math.round(eng.avgBounceRate)}%`, description: 'Percentage who left without interacting' },
       { label: 'Map conversion', value: `${Math.round(eng.mapConversionRate * 100)}%`, description: 'Visitors who opened the map' },
       { label: 'Stars', value: eng.stars, description: 'Bookmarks by users' },
@@ -168,6 +168,13 @@ export async function GET(ctx: APIContext) {
 
 export async function POST(ctx: APIContext) {
   return handleRequest(ctx.locals, ctx.url, ctx.params, true);
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  if (m === 0) return `${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 function getStartDate(now: Date, range: TimeRange): Date {
