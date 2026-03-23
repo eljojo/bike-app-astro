@@ -174,6 +174,7 @@ export const siteDailyMetrics = sqliteTable('site_daily_metrics', {
   date: text('date').notNull(),
   totalPageviews: integer('total_pageviews').notNull().default(0),
   uniqueVisitors: integer('unique_visitors').notNull().default(0),
+  avgVisitDuration: real('avg_visit_duration').notNull().default(0),
   newAccounts: integer('new_accounts').notNull().default(0),
   reactionsCount: integer('reactions_count').notNull().default(0),
   activeUsers: integer('active_users').notNull().default(0),

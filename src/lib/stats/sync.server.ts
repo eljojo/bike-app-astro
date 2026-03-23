@@ -31,6 +31,7 @@ export interface DailyMetricRow {
   date: string;
   totalPageviews: number;
   uniqueVisitors: number;
+  avgVisitDuration: number;
   newAccounts: number;
   reactionsCount: number;
   activeUsers: number;
@@ -138,6 +139,7 @@ export function processDailyAggregate(
     date: row.dimensions[0],
     totalPageviews: row.metrics[0],
     uniqueVisitors: row.metrics[1],
+    avgVisitDuration: row.metrics[2] ?? 0,
     newAccounts: 0,
     reactionsCount: 0,
     activeUsers: 0,
@@ -190,6 +192,7 @@ export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Pro
         set: {
           totalPageviews: sql`excluded.total_pageviews`,
           uniqueVisitors: sql`excluded.unique_visitors`,
+          avgVisitDuration: sql`excluded.avg_visit_duration`,
           newAccounts: sql`excluded.new_accounts`,
           reactionsCount: sql`excluded.reactions_count`,
           activeUsers: sql`excluded.active_users`,

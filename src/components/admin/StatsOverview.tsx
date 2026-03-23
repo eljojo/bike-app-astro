@@ -24,6 +24,8 @@ interface StatsData {
   insights: InsightCard[];
   range: string;
   reactionBreakdown?: Record<string, number>;
+  durationSeries?: TimeSeriesPoint[];
+  pagesPerVisitSeries?: TimeSeriesPoint[];
   signups?: Array<{ date: string; guests: number; registered: number }>;
   lastSynced?: string;
 }
@@ -117,6 +119,40 @@ function InsightCardView({ insight }: { insight: InsightCard }) {
       )}
     </div>
   );
+}
+
+function MiniLineChart({ series, color }: { series: TimeSeriesPoint[]; color: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const instance = useRef<Chart | null>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    instance.current?.destroy();
+    instance.current = new Chart(canvasRef.current, {
+      type: 'line',
+      data: {
+        labels: series.map(p => p.date),
+        datasets: [{
+          data: series.map(p => p.value),
+          borderColor: color,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      },
+    });
+    return () => { instance.current?.destroy(); };
+  }, [series]);
+
+  return <canvas ref={canvasRef} />;
 }
 
 function SignupsChart({ signups }: { signups: Array<{ date: string; guests: number; registered: number }> }) {
@@ -311,6 +347,26 @@ export default function StatsOverview() {
         <div class="stats-chart-wrapper">
           <canvas ref={chartRef} />
         </div>
+      </div>
+
+      {/* Duration + Pages per visit side by side */}
+      <div class="stats-leaderboards">
+        {data.durationSeries && data.durationSeries.length > 0 && (
+          <div class="stats-chart-container">
+            <h3 class="stats-section-title">Avg visit duration (seconds)</h3>
+            <div class="stats-chart-wrapper">
+              <MiniLineChart series={data.durationSeries} color="rgb(234, 88, 12)" />
+            </div>
+          </div>
+        )}
+        {data.pagesPerVisitSeries && data.pagesPerVisitSeries.length > 0 && (
+          <div class="stats-chart-container">
+            <h3 class="stats-section-title">Pages per visit</h3>
+            <div class="stats-chart-wrapper">
+              <MiniLineChart series={data.pagesPerVisitSeries} color="rgb(16, 185, 129)" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Leaderboards */}

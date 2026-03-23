@@ -98,6 +98,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         date: siteDailyMetrics.date,
         pageviews: siteDailyMetrics.totalPageviews,
         visitors: siteDailyMetrics.uniqueVisitors,
+        avgVisitDuration: siteDailyMetrics.avgVisitDuration,
       }).from(siteDailyMetrics)
         .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, startStr), lte(siteDailyMetrics.date, endStr)))
         .orderBy(siteDailyMetrics.date),
@@ -176,6 +177,14 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       date: d.date, value: d.pageviews, secondaryValue: d.visitors,
     }));
 
+    const durationSeries: TimeSeriesPoint[] = dailyData.map(d => ({
+      date: d.date, value: Math.round(d.avgVisitDuration),
+    }));
+
+    const pagesPerVisitSeries: TimeSeriesPoint[] = dailyData.map(d => ({
+      date: d.date, value: d.visitors > 0 ? Math.round((d.pageviews / d.visitors) * 10) / 10 : 0,
+    }));
+
     const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
       contentType: r.contentType as 'route' | 'event' | 'organizer',
       contentSlug: r.contentSlug,
@@ -230,8 +239,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     signups.sort((a, b) => a.date.localeCompare(b.date));
 
     return jsonResponse({
-      summaryCards, timeSeries, granularity,
-      viewsLeaderboard, engagementLeaderboard,
+      summaryCards, timeSeries, durationSeries, pagesPerVisitSeries,
+      granularity, viewsLeaderboard, engagementLeaderboard,
       insights, reactionBreakdown, signups, range,
       lastSynced: lastSyncRow[0]?.date ?? null,
     } as Record<string, unknown>);
