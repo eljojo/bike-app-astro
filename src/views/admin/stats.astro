@@ -309,11 +309,30 @@ function getStartDate(now: Date, r: TimeRange): Date {
 <script is:inline nonce={cspNonce}>
   const syncBtn = document.getElementById('sync-btn');
   if (syncBtn) {
-    syncBtn.addEventListener('click', async function() {
+    var shiftHeld = false;
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Shift' && !syncBtn.disabled) {
+        shiftHeld = true;
+        syncBtn.textContent = 'Full rebuild';
+      }
+    });
+    document.addEventListener('keyup', function(e) {
+      if (e.key === 'Shift' && !syncBtn.disabled) {
+        shiftHeld = false;
+        syncBtn.textContent = 'Sync now';
+      }
+    });
+
+    syncBtn.addEventListener('click', function() {
+      doSync(shiftHeld);
+    });
+
+    async function doSync(full) {
       syncBtn.disabled = true;
-      syncBtn.textContent = 'Syncing\u2026';
+      syncBtn.textContent = full ? 'Full rebuild\u2026' : 'Syncing\u2026';
       try {
-        const res = await fetch('/api/admin/stats/sync', { method: 'POST' });
+        var url = '/api/admin/stats/sync' + (full ? '?full=true' : '');
+        const res = await fetch(url, { method: 'POST' });
         if (res.ok) {
           location.reload();
         } else {
