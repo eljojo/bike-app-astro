@@ -1,6 +1,6 @@
 # Record Plausible per-page daily breakdown (page + day dimensions)
 # Last 90 days for ottawabybike.ca
-# Run: hurl --variable plausible_api_key=$PLAUSIBLE_API_KEY --report-json /dev/null e2e/fixtures/plausible/record-page-daily.hurl
+# Run: make record-plausible
 POST https://plausible.io/api/v2/query
 Authorization: Bearer {{plausible_api_key}}
 Content-Type: application/json

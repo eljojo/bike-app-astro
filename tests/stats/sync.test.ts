@@ -132,6 +132,28 @@ describe('sync pipeline', () => {
     expect(withRedirects.contentRows[0].contentSlug).toBe('the-big-loop-around-ottawa');
   });
 
+  it('resolves numbered slugs from full-history fixture via redirects', () => {
+    // Uses the full-history page breakdown fixture (recorded with make record-plausible)
+    // This fixture captures old numbered URLs like /routes/16-the-big-loop-around-ottawa
+    const fullFixturePath = 'e2e/fixtures/plausible/page-breakdown-full.json';
+    if (!fs.existsSync(fullFixturePath)) return; // skip if not recorded yet
+
+    const fixture = JSON.parse(fs.readFileSync(fullFixturePath, 'utf-8'));
+    const yaml = require('js-yaml');
+    const redirectsPath = '../bike-routes/ottawa/redirects.yml';
+    if (!fs.existsSync(redirectsPath)) return;
+
+    const data = yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, Array<{ from: string; to: string }>>;
+    const redirects: Record<string, string> = {};
+    for (const r of data.routes || []) redirects[r.from] = r.to;
+
+    const result = processPageBreakdown(fixture.results, 'ottawa', {}, redirects, '2025-03-23', ['en', 'fr'], 'en'); // eslint-disable-line bike-app/no-hardcoded-city-locale
+
+    // No numbered slugs should survive after redirect resolution
+    const numberedSlugs = result.contentRows.filter(r => /^\d+-/.test(r.contentSlug));
+    expect(numberedSlugs).toEqual([]);
+  });
+
   it('resolves all numbered slugs from real redirects.yml', () => {
     // Load the actual redirects.yml from the Ottawa data repo
     const fs = require('node:fs');
