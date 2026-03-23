@@ -76,6 +76,31 @@ export interface ChartData {
   description: string;
 }
 
+/** Compute the start date for a given time range relative to `now`. */
+export function getStartDate(now: Date, range: TimeRange): Date {
+  const d = new Date(now);
+  switch (range) {
+    case '30d': d.setDate(d.getDate() - 30); break;
+    case '3mo': d.setMonth(d.getMonth() - 3); break;
+    case '1yr': d.setFullYear(d.getFullYear() - 1); break;
+    case 'all': d.setFullYear(2020); break;
+  }
+  return d;
+}
+
+/** Format seconds as a compact duration string (e.g. "2m 30s", "5m", "1h 15m"). */
+export function formatDuration(seconds: number): string {
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.round((seconds % 3600) / 60);
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  if (m === 0) return `${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
 /** Funnel step for route drill-down. */
 export interface FunnelStep {
   label: string;

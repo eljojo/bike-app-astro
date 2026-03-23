@@ -6,7 +6,7 @@ import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
 import { contentEngagement, contentDailyMetrics, contentTotals, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
-import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
@@ -93,6 +93,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       signupsByDate,
       repeatVisitRows,
       socialReferralRows,
+      currentPeriodByContent,
+      prevPeriodByContent,
     ] = await Promise.all([
       // 1. Current period summary
       database.select({
@@ -190,6 +192,30 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
           lte(siteEventMetrics.date, endStr),
         ))
         .groupBy(siteEventMetrics.dimensionValue),
+      // 15. Per-content pageviews in current period (for trending/declining)
+      database.select({
+        contentType: contentDailyMetrics.contentType,
+        contentSlug: contentDailyMetrics.contentSlug,
+        pageviews: sql<number>`COALESCE(SUM(${contentDailyMetrics.pageviews}), 0)`,
+      }).from(contentDailyMetrics)
+        .where(and(
+          eq(contentDailyMetrics.city, CITY),
+          gte(contentDailyMetrics.date, startStr),
+          lte(contentDailyMetrics.date, endStr),
+        ))
+        .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug),
+      // 16. Per-content pageviews in previous period (for trending/declining)
+      database.select({
+        contentType: contentDailyMetrics.contentType,
+        contentSlug: contentDailyMetrics.contentSlug,
+        pageviews: sql<number>`COALESCE(SUM(${contentDailyMetrics.pageviews}), 0)`,
+      }).from(contentDailyMetrics)
+        .where(and(
+          eq(contentDailyMetrics.city, CITY),
+          gte(contentDailyMetrics.date, prevStartStr),
+          lte(contentDailyMetrics.date, prevEndStr),
+        ))
+        .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug),
     ]);
 
     // Build name + thumbnail lookups from parallel results
@@ -271,14 +297,29 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       },
     }));
 
-    const insightInput: EngagementRow[] = engagementRows.map(r => ({
-      contentType: r.contentType, contentSlug: r.contentSlug,
-      totalPageviews: r.totalPageviews, totalVisitorDays: r.totalVisitorDays,
-      avgVisitDuration: r.avgVisitDuration, avgBounceRate: r.avgBounceRate,
-      stars: r.stars, videoPlayRate: r.videoPlayRate,
-      mapConversionRate: r.mapConversionRate, wallTimeHours: r.wallTimeHours,
-      engagementScore: r.engagementScore,
-    }));
+    // Build per-content period lookup maps for trending/declining
+    const currentPeriodMap = new Map<string, number>();
+    for (const row of currentPeriodByContent) {
+      currentPeriodMap.set(`${row.contentType}:${row.contentSlug}`, row.pageviews);
+    }
+    const prevPeriodMap = new Map<string, number>();
+    for (const row of prevPeriodByContent) {
+      prevPeriodMap.set(`${row.contentType}:${row.contentSlug}`, row.pageviews);
+    }
+
+    const insightInput: EngagementRow[] = engagementRows.map(r => {
+      const key = `${r.contentType}:${r.contentSlug}`;
+      return {
+        contentType: r.contentType, contentSlug: r.contentSlug,
+        totalPageviews: r.totalPageviews, totalVisitorDays: r.totalVisitorDays,
+        avgVisitDuration: r.avgVisitDuration, avgBounceRate: r.avgBounceRate,
+        stars: r.stars, videoPlayRate: r.videoPlayRate,
+        mapConversionRate: r.mapConversionRate, wallTimeHours: r.wallTimeHours,
+        engagementScore: r.engagementScore,
+        currentPeriodPageviews: currentPeriodMap.get(key),
+        previousPeriodPageviews: prevPeriodMap.get(key),
+      };
+    });
 
     const medians = computeMedians(insightInput);
     const insights = computeInsights(insightInput, medians, contentNames).map(i => ({
@@ -350,15 +391,4 @@ export async function GET(ctx: APIContext) {
 
 export async function POST(ctx: APIContext) {
   return handleRequest(ctx.locals, ctx.url, true);
-}
-
-function getStartDate(now: Date, range: TimeRange): Date {
-  const d = new Date(now);
-  switch (range) {
-    case '30d': d.setDate(d.getDate() - 30); break;
-    case '3mo': d.setMonth(d.getMonth() - 3); break;
-    case '1yr': d.setFullYear(d.getFullYear() - 1); break;
-    case 'all': d.setFullYear(2020); break;
-  }
-  return d;
 }

@@ -6,7 +6,7 @@ import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
 import { contentDailyMetrics, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
-import { granularityForRange, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
@@ -134,15 +134,4 @@ export async function GET(ctx: APIContext) {
 
 export async function POST(ctx: APIContext) {
   return handleRequest(ctx.locals, ctx.url, ctx.params, true);
-}
-
-function getStartDate(now: Date, range: TimeRange): Date {
-  const d = new Date(now);
-  switch (range) {
-    case '30d': d.setDate(d.getDate() - 30); break;
-    case '3mo': d.setMonth(d.getMonth() - 3); break;
-    case '1yr': d.setFullYear(d.getFullYear() - 1); break;
-    case 'all': d.setFullYear(2020); break;
-  }
-  return d;
 }

@@ -170,6 +170,22 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
       const key = `${item.contentType}:${item.contentSlug}`;
       const stars = starMap.get(key) || 0;
 
+      // Engagement score: weighted sum of percentile ranks within content type.
+      //
+      // Weight rationale:
+      //   Wall time (0.4)      — Total attention is the strongest signal of content value.
+      //                          A page that holds people for minutes is doing something right.
+      //   Map conversion (0.25) — Opening the map signals intent to ride, which is specific
+      //                          to cycling and a stronger action than just reading. Note:
+      //                          events and communities always score 0 here (25% of their
+      //                          formula is zeroed out). Percentile normalization within
+      //                          content types mitigates this — they're only compared to
+      //                          each other, not to routes.
+      //   Stars (0.2)          — A deliberate endorsement (bookmarking), but rare — most
+      //                          content has zero stars, so fewer data points to work with.
+      //   Video plays (0.15)   — Video is optional and not all content has it. When present,
+      //                          play rate is meaningful, but the low weight avoids penalizing
+      //                          content without video.
       const engagementScore =
         wallTimeRanks[idx] * 0.4 +
         mapRateRanks[idx] * 0.25 +

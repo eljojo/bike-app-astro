@@ -1,4 +1,5 @@
 import type { InsightCard } from './types';
+import { formatDuration } from './types';
 
 /** Shape of a content_engagement table row, as consumed by the insights engine. */
 export interface EngagementRow {
@@ -13,6 +14,13 @@ export interface EngagementRow {
   mapConversionRate: number; // 0–1
   wallTimeHours: number;
   engagementScore: number;   // 0–1
+  // Optional period comparison (for trending/declining detection)
+  currentPeriodPageviews?: number;
+  previousPeriodPageviews?: number;
+  // Optional monthly distribution (for seasonal detection)
+  monthlyPageviews?: number[];
+  // Optional variant breakdown (for underused-variant detection)
+  variantViews?: Record<string, number>;
 }
 
 /** Median values for numeric fields across all rows. */
@@ -50,17 +58,6 @@ export function computeMedians(rows: EngagementRow[]): MedianValues {
     wallTimeHours: median(rows.map(r => r.wallTimeHours)),
     engagementScore: median(rows.map(r => r.engagementScore)),
   };
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds >= 3600) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.round((seconds % 3600) / 60);
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 function formatHours(h: number): string {
@@ -171,7 +168,7 @@ function detectVideosWorking(row: EngagementRow, medians: MedianValues, name: st
     severity: 'positive',
     title: 'Video is working',
     name,
-    body: `${pct}% of visitors play the video — well above average. The thumbnail is compelling.`,
+    body: `${pct}% of visitors play the video — well above average.`,
     contentType: row.contentType,
     contentSlug: row.contentSlug,
     metrics: {
@@ -179,6 +176,121 @@ function detectVideosWorking(row: EngagementRow, medians: MedianValues, name: st
       'Page views': row.totalPageviews,
     },
   };
+}
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+function detectTrending(row: EngagementRow, name: string): InsightCard | null {
+  const curr = row.currentPeriodPageviews;
+  const prev = row.previousPeriodPageviews;
+  if (curr == null || prev == null) return null;
+  if (curr < 20 || prev < 20) return null;
+  const ratio = curr / prev;
+  if (ratio <= 1.3) return null;
+
+  const pctChange = Math.round((ratio - 1) * 100);
+  return {
+    type: 'trending',
+    severity: 'positive',
+    title: 'Trending up',
+    name,
+    body: `${pctChange}% more views than the previous period.`,
+    contentType: row.contentType,
+    contentSlug: row.contentSlug,
+    metrics: {
+      'Current period': curr,
+      'Previous period': prev,
+      'Change': `+${pctChange}%`,
+    },
+  };
+}
+
+function detectDeclining(row: EngagementRow, name: string): InsightCard | null {
+  const curr = row.currentPeriodPageviews;
+  const prev = row.previousPeriodPageviews;
+  if (curr == null || prev == null) return null;
+  if (curr < 20 || prev < 20) return null;
+  const ratio = curr / prev;
+  if (ratio >= 0.7) return null;
+
+  const pctChange = Math.round((1 - ratio) * 100);
+  return {
+    type: 'declining',
+    severity: 'warning',
+    title: 'Declining',
+    name,
+    body: `${pctChange}% fewer views than the previous period.`,
+    contentType: row.contentType,
+    contentSlug: row.contentSlug,
+    metrics: {
+      'Current period': curr,
+      'Previous period': prev,
+      'Change': `-${pctChange}%`,
+    },
+  };
+}
+
+function detectSeasonal(row: EngagementRow, name: string): InsightCard | null {
+  const monthly = row.monthlyPageviews;
+  if (!monthly || monthly.length < 12) return null;
+
+  const nonZero = monthly.filter(v => v > 0);
+  if (nonZero.length === 0) return null;
+
+  const maxVal = Math.max(...monthly);
+  const minVal = Math.min(...nonZero);
+  if (maxVal / minVal <= 3) return null;
+
+  const peakIdx = monthly.indexOf(maxVal);
+  const troughIdx = monthly.indexOf(minVal);
+
+  return {
+    type: 'seasonal',
+    severity: 'neutral',
+    title: 'Seasonal pattern',
+    name,
+    body: `Views peak in ${MONTH_NAMES[peakIdx]} and drop in ${MONTH_NAMES[troughIdx]}.`,
+    contentType: row.contentType,
+    contentSlug: row.contentSlug,
+    metrics: {
+      'Peak month': `${MONTH_NAMES[peakIdx]} (${maxVal})`,
+      'Trough month': `${MONTH_NAMES[troughIdx]} (${minVal})`,
+      'Ratio': `${Math.round(maxVal / minVal)}x`,
+    },
+  };
+}
+
+function detectUnderusedVariant(row: EngagementRow, name: string): InsightCard | null {
+  const variants = row.variantViews;
+  if (!variants) return null;
+
+  const totalMapViews = Object.values(variants).reduce((sum, v) => sum + v, 0);
+  if (totalMapViews < 20) return null;
+
+  for (const [variant, views] of Object.entries(variants)) {
+    // Skip the main map — only flag variants
+    if (variant === 'map') continue;
+    const pct = Math.round((views / totalMapViews) * 100);
+    if (views / totalMapViews < 0.1) {
+      return {
+        type: 'underused-variant',
+        severity: 'neutral',
+        title: 'Underused variant',
+        name,
+        body: `The ${variant} map variant gets ${pct}% of map traffic.`,
+        contentType: row.contentType,
+        contentSlug: row.contentSlug,
+        metrics: {
+          'Variant': variant,
+          'Variant views': views,
+          'Total map views': totalMapViews,
+          'Share': `${pct}%`,
+        },
+      };
+    }
+  }
+  return null;
 }
 
 /**
@@ -189,8 +301,12 @@ function detectVideosWorking(row: EngagementRow, medians: MedianValues, name: st
  * Priority order (first match wins per content item):
  *   1. hidden-gem
  *   2. needs-work
- *   3. strong-performer
- *   4. videos-working
+ *   3. trending
+ *   4. declining
+ *   5. strong-performer
+ *   6. seasonal
+ *   7. videos-working
+ *   8. underused-variant
  */
 export function computeInsights(
   rows: EngagementRow[],
@@ -204,8 +320,12 @@ export function computeInsights(
     const insight =
       detectHiddenGem(row, medians, name) ??
       detectNeedsWork(row, medians, name) ??
+      detectTrending(row, name) ??
+      detectDeclining(row, name) ??
       detectStrongPerformer(row, rows, name) ??
-      detectVideosWorking(row, medians, name);
+      detectSeasonal(row, name) ??
+      detectVideosWorking(row, medians, name) ??
+      detectUnderusedVariant(row, name);
 
     if (insight) {
       results.push(insight);
