@@ -143,6 +143,15 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
 
   const now = new Date().toISOString();
 
+  // Collect all rows, then batch insert
+  const allRows: Array<{
+    city: string; contentType: string; contentSlug: string;
+    totalPageviews: number; totalVisitorDays: number; avgVisitDuration: number;
+    avgBounceRate: number; stars: number; videoPlayRate: number;
+    mapConversionRate: number; wallTimeHours: number; engagementScore: number;
+    lastSyncedAt: string;
+  }> = [];
+
   for (const [, items] of byType) {
     const wallTimes = items.map((i) => i.wallTimeHours);
     const mapRates = items.map((i) => i.mapConversionRate);
@@ -168,7 +177,7 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
         starRanks[idx] * 0.2 +
         videoRateRanks[idx] * 0.15;
 
-      await db.insert(contentEngagement).values({
+      allRows.push({
         city,
         contentType: item.contentType,
         contentSlug: item.contentSlug,
@@ -182,7 +191,20 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
         wallTimeHours: item.wallTimeHours,
         engagementScore,
         lastSyncedAt: now,
-      }).run();
+      });
     }
+  }
+
+  // Batch insert — 50 rows per query instead of 1
+  const BATCH = 50;
+  for (let i = 0; i < allRows.length; i += BATCH) {
+    const batch = allRows.slice(i, i + BATCH);
+    const esc = (s: string) => s.replace(/'/g, "''");
+    const values = batch.map(r =>
+      `('${r.city}','${r.contentType}','${esc(r.contentSlug)}',${r.totalPageviews},${r.totalVisitorDays},${r.avgVisitDuration},${r.avgBounceRate},${r.stars},${r.videoPlayRate},${r.mapConversionRate},${r.wallTimeHours},${r.engagementScore},'${r.lastSyncedAt}')`
+    ).join(',');
+
+    await db.run(sql.raw(`INSERT INTO content_engagement (city, content_type, content_slug, total_pageviews, total_visitor_days, avg_visit_duration, avg_bounce_rate, stars, video_play_rate, map_conversion_rate, wall_time_hours, engagement_score, last_synced_at)
+      VALUES ${values}`));
   }
 }

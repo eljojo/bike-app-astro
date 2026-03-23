@@ -69,6 +69,7 @@ export function processPageBreakdown(
       contentSlug: identity.contentSlug,
       pageType: identity.pageType,
       date,
+      // Metrics order: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate']
       pageviews: row.metrics[0],
       visitorDays: row.metrics[1],
       visitDurationS: row.metrics[2],
@@ -128,13 +129,13 @@ export function processPageDaily(
 
 /**
  * Process Plausible daily aggregate results into site daily metric rows.
+ * Metrics order: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate']
  * Dimensions: [date]
  */
 export function processDailyAggregate(
   rows: PlausibleRow[],
   city: string,
 ): DailyMetricRow[] {
-  // Metrics order matches the query: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate']
   return rows.map((row) => ({
     city,
     date: row.dimensions[0],
@@ -147,65 +148,58 @@ export function processDailyAggregate(
   }));
 }
 
+// ── Batch upsert helpers ────────────────────────────────────────────
+// D1 has ~30-50ms latency per query. Row-by-row inserts of 300 rows
+// would take 9-15 seconds. Batching into chunks of 50 rows brings
+// that down to ~6 queries = ~200ms.
+
+const BATCH_SIZE = 50;
+
 /**
- * Upsert content page metric rows into the database.
+ * Upsert content page metric rows in batches.
  */
 export async function upsertContentRows(db: Database, rows: ContentMetricRow[]): Promise<void> {
   if (rows.length === 0) return;
 
-  for (const row of rows) {
-    await db.insert(contentPageMetrics)
-      .values(row)
-      .onConflictDoUpdate({
-        target: [
-          contentPageMetrics.city,
-          contentPageMetrics.contentType,
-          contentPageMetrics.contentSlug,
-          contentPageMetrics.pageType,
-          contentPageMetrics.date,
-        ],
-        set: {
-          pageviews: sql`excluded.pageviews`,
-          visitorDays: sql`excluded.visitor_days`,
-          visitDurationS: sql`excluded.visit_duration_s`,
-          bounceRate: sql`excluded.bounce_rate`,
-          videoPlays: sql`excluded.video_plays`,
-        },
-      })
-      .run();
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const values = batch.map(r =>
+      `('${r.city}','${r.contentType}','${esc(r.contentSlug)}','${r.pageType}','${r.date}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays})`
+    ).join(',');
+
+    await db.run(sql.raw(`INSERT INTO content_page_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays)
+      VALUES ${values}
+      ON CONFLICT (city, content_type, content_slug, page_type, date)
+      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays`));
   }
 }
 
 /**
- * Upsert site daily metric rows into the database.
+ * Upsert site daily metric rows in batches.
  */
 export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Promise<void> {
   if (rows.length === 0) return;
 
-  for (const row of rows) {
-    await db.insert(siteDailyMetrics)
-      .values(row)
-      .onConflictDoUpdate({
-        target: [
-          siteDailyMetrics.city,
-          siteDailyMetrics.date,
-        ],
-        set: {
-          totalPageviews: sql`excluded.total_pageviews`,
-          uniqueVisitors: sql`excluded.unique_visitors`,
-          avgVisitDuration: sql`excluded.avg_visit_duration`,
-          newAccounts: sql`excluded.new_accounts`,
-          reactionsCount: sql`excluded.reactions_count`,
-          activeUsers: sql`excluded.active_users`,
-        },
-      })
-      .run();
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const values = batch.map(r =>
+      `('${r.city}','${r.date}',${r.totalPageviews},${r.uniqueVisitors},${r.avgVisitDuration},${r.newAccounts},${r.reactionsCount},${r.activeUsers})`
+    ).join(',');
+
+    await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, avg_visit_duration, new_accounts, reactions_count, active_users)
+      VALUES ${values}
+      ON CONFLICT (city, date)
+      DO UPDATE SET total_pageviews=excluded.total_pageviews, unique_visitors=excluded.unique_visitors, avg_visit_duration=excluded.avg_visit_duration, new_accounts=excluded.new_accounts, reactions_count=excluded.reactions_count, active_users=excluded.active_users`));
   }
+}
+
+/** Escape single quotes in SQL values. */
+function esc(s: string): string {
+  return s.replace(/'/g, "''");
 }
 
 /**
  * Check whether site-level analytics data needs syncing.
- * Returns true if no data exists or most recent day is older than maxAgeMs.
  */
 export async function needsSync(db: Database, city: string, maxAgeMs = 24 * 60 * 60 * 1000): Promise<boolean> {
   const lastRow = await db.select({ date: siteDailyMetrics.date })
@@ -231,8 +225,7 @@ interface SyncOptions {
 }
 
 // ── Site-level sync (overview) ──────────────────────────────────────
-// Two Plausible queries: site daily aggregates + page breakdown for engagement.
-// Runs at most once per 24h when visiting the overview page.
+// Two Plausible queries fired IN PARALLEL, then batch upserts.
 
 export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<{ dailyRows: number; contentPages: number }> {
   let fromDate: string;
@@ -249,59 +242,55 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
 
   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Site-wide daily aggregates (for overview time series)
-  const dailyRows = await queryPlausible(opts.apiKey, {
-    siteId: opts.siteId,
-    metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
-    dateRange: [fromDate, today],
-    dimensions: ['time:day'],
-  });
+  // Fire BOTH Plausible queries in parallel
+  const [dailyRows, pageRows] = await Promise.all([
+    queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
+      dateRange: [fromDate, today],
+      dimensions: ['time:day'],
+    }),
+    queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
+      dateRange: [fromDate, today],
+      dimensions: ['event:page'],
+      pagination: { limit: 10000 },
+    }),
+  ]);
 
   const dailyMetrics = processDailyAggregate(dailyRows, opts.city);
-  if (dailyMetrics.length > 0) {
-    await upsertDailyRows(db, dailyMetrics);
-  }
-
-  // 2. Page breakdown aggregate (for engagement scores + leaderboard)
-  const pageRows = await queryPlausible(opts.apiKey, {
-    siteId: opts.siteId,
-    metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
-    dateRange: [fromDate, today],
-    dimensions: ['event:page'],
-    pagination: { limit: 10000 },
-  });
 
   const redirectCount = Object.keys(opts.redirects ?? {}).length;
   const { contentRows, skippedPaths } = processPageBreakdown(
     pageRows, opts.city, {}, opts.redirects ?? {}, today, opts.locales, opts.defaultLocale,
   );
 
-  // Log for debugging redirect resolution
   const numberedSlugs = contentRows.filter(r => /^\d+-/.test(r.contentSlug));
   console.log(`stats sync: ${pageRows.length} Plausible rows → ${contentRows.length} content rows, ${skippedPaths.length} skipped, ${redirectCount} redirects loaded, ${numberedSlugs.length} unresolved numbered slugs`);
   if (numberedSlugs.length > 0) {
     console.log('stats sync: unresolved numbered slugs:', numberedSlugs.slice(0, 5).map(r => r.contentSlug));
   }
 
-  if (contentRows.length > 0) {
-    await upsertContentRows(db, contentRows);
-  }
+  // Batch upserts in parallel
+  await Promise.all([
+    dailyMetrics.length > 0 ? upsertDailyRows(db, dailyMetrics) : Promise.resolve(),
+    contentRows.length > 0 ? upsertContentRows(db, contentRows) : Promise.resolve(),
+  ]);
 
-  // 3. Rebuild engagement scores from aggregate data
+  // Rebuild engagement scores from aggregate data
   await rebuildEngagement(db, opts.city);
 
-  // 4. Invalidate dashboard cache
+  // Invalidate dashboard cache
   await invalidateStatsCache(db, opts.city);
 
   return { dailyRows: dailyMetrics.length, contentPages: contentRows.length };
 }
 
 // ── Per-page sync (drill-down) ──────────────────────────────────────
-// One Plausible query filtered to paths matching a single content slug.
-// Runs on demand when visiting a drill-down page, if data is stale.
 
 /**
- * Check whether per-page daily data needs syncing for a specific content item.
+ * Check whether per-page daily data needs syncing.
  */
 export async function needsPageSync(
   db: Database,
@@ -322,8 +311,6 @@ export async function needsPageSync(
 
   if (lastRow.length === 0) return true;
 
-  // If the only date is 'aggregate' or today (from the page-breakdown sync),
-  // we still need daily data
   const dates = await db.select({ date: contentPageMetrics.date })
     .from(contentPageMetrics)
     .where(and(
@@ -333,20 +320,13 @@ export async function needsPageSync(
     ))
     .groupBy(contentPageMetrics.date);
 
-  // If there's only one distinct date, the data is from the aggregate breakdown — need daily
   if (dates.length <= 1) return true;
 
   const lastDate = new Date(lastRow[0].date + 'T00:00:00Z');
   return (Date.now() - lastDate.getTime()) > maxAgeMs;
 }
 
-/**
- * Build the URL path patterns for a content item to use as Plausible filter.
- * Returns paths in all locales + page types (detail, map, map variants).
- */
 function buildPagePaths(contentType: string, contentSlug: string): string[] {
-  // We use a contains filter in Plausible, so just match the slug
-  // This is simpler and catches all locale variants and page types
   switch (contentType) {
     case 'route': return [`/routes/${contentSlug}`];
     case 'event': return [`/events/${contentSlug}`];
@@ -367,7 +347,6 @@ export async function syncPageMetrics(
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Fetch daily data for this page (using "contains" filter to catch all variants/locales)
   const rows = await queryPlausible(opts.apiKey, {
     siteId: opts.siteId,
     metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
@@ -378,7 +357,7 @@ export async function syncPageMetrics(
   });
 
   const { contentRows } = processPageDaily(
-    rows, opts.city, {}, {}, opts.locales, opts.defaultLocale,
+    rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale,
   );
 
   if (contentRows.length > 0) {
@@ -424,7 +403,6 @@ function findContiguousRanges(dates: string[]): Array<[string, string]> {
 /**
  * Ensure site_daily_metrics has data for the given date range.
  * Finds missing dates, fetches only those from Plausible.
- * Returns the dates that were backfilled.
  */
 export async function ensureSiteDailyData(
   db: Database,
@@ -446,17 +424,20 @@ export async function ensureSiteDailyData(
 
   if (missing.length === 0) return [];
 
+  // Fetch all missing ranges in parallel
   const ranges = findContiguousRanges(missing);
   const backfilled: string[] = [];
 
-  for (const [rangeFrom, rangeTo] of ranges) {
-    const rows = await queryPlausible(opts.apiKey, {
+  const results = await Promise.all(ranges.map(([rangeFrom, rangeTo]) =>
+    queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
       metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
       dateRange: [rangeFrom, rangeTo],
       dimensions: ['time:day'],
-    });
+    })
+  ));
 
+  for (const rows of results) {
     const dailyMetrics = processDailyAggregate(rows, opts.city);
     if (dailyMetrics.length > 0) {
       await upsertDailyRows(db, dailyMetrics);
@@ -468,8 +449,8 @@ export async function ensureSiteDailyData(
 }
 
 /**
- * Ensure content_page_metrics has daily data for a specific content item
- * in the given date range. Finds missing dates, fetches only those from Plausible.
+ * Ensure content_page_metrics has daily data for a specific content item.
+ * Finds missing dates, fetches only those from Plausible.
  */
 export async function ensurePageDailyData(
   db: Database,
@@ -498,19 +479,22 @@ export async function ensurePageDailyData(
 
   if (missing.length === 0) return 0;
 
+  // Fetch all missing ranges in parallel
   const ranges = findContiguousRanges(missing);
   let totalRows = 0;
 
-  for (const [rangeFrom, rangeTo] of ranges) {
-    const rows = await queryPlausible(opts.apiKey, {
+  const results = await Promise.all(ranges.map(([rangeFrom, rangeTo]) =>
+    queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
       metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
       dateRange: [rangeFrom, rangeTo],
       dimensions: ['time:day', 'event:page'],
       filters: [['contains', 'event:page', paths]],
       pagination: { limit: 10000 },
-    });
+    })
+  ));
 
+  for (const rows of results) {
     const { contentRows } = processPageDaily(
       rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale,
     );
@@ -530,7 +514,6 @@ export async function ensurePageDailyData(
 }
 
 // ── Legacy runSync (sync API endpoint) ──────────────────────────────
-// Kept for the manual "Sync now" button. Delegates to syncSiteMetrics.
 
 export async function runSync(db: Database, opts: SyncOptions): Promise<{ contentPages: number; skippedPaths: number; dailyRows: number }> {
   const result = await syncSiteMetrics(db, opts);
