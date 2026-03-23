@@ -429,10 +429,10 @@ export default function StatsOverview() {
           <div class="stats-chart-wrapper">
             <DualAxisChart
               labels={data.durationSeries.map(p => p.date)}
-              leftData={data.durationSeries.map(p => p.value)}
-              leftLabel="Visit duration (seconds)"
+              leftData={data.durationSeries.map(p => Math.round(p.value / 6) / 10)}
+              leftLabel="Visit duration (min)"
               leftColor="rgb(234, 88, 12)"
-              formatLeftTooltip={formatSeconds}
+              formatLeftTooltip={(min) => formatSeconds(min * 60)}
               rightData={data.pagesPerVisitSeries?.map(p => p.value) ?? []}
               rightLabel="Pages per visit"
               rightColor="rgb(16, 185, 129)"
