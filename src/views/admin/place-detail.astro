@@ -10,6 +10,7 @@ import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
 import { placeDetailFromCache } from '../../lib/models/place-model';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+import { t } from '@/i18n';
 
 const result = await loadDetailFromJson({
   contentType: 'places',
@@ -32,6 +33,6 @@ const mediaLocations = await fetchJson<_MediaLocation[]>(new URL('/admin/data/me
 ---
 
 <AdminEditorLayout title={`Edit: ${placeData.name}`} hideTitle user={user} currentTab="places">
-  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} mediaLocations={mediaLocations} />
+  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
   <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

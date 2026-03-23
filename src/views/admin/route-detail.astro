@@ -56,6 +56,6 @@ const focusLabels = focusMode ? {
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} focusMode={focusMode} focusLabels={focusLabels} nearbyMedia={allNearbyMedia[slug!] || []} />
+  <RouteEditor client:load initialData={routeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} parkedPhotos={parkedPhotos} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} focusMode={focusMode} focusLabels={focusLabels} nearbyMedia={allNearbyMedia[slug!] || []} guestLabel={t('editor.guest_label', locale)} />
   <EditHistory client:load contentPath={`${CITY}/routes/${slug}`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
 </AdminEditorLayout>

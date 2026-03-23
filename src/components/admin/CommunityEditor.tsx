@@ -30,10 +30,11 @@ interface Props {
   knownTags?: string[];
   defaultLocale?: string;
   userRole?: string;
+  guestLabel?: string;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
+export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -157,6 +158,9 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
 
   return (
     <div ref={hydratedRef} class="community-editor">
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
+      )}
       <div class="auth-form">
         <div class="form-field">
           <label for="community-name">Name</label>

@@ -29,6 +29,7 @@ interface Props {
   nearRouteSlug?: string;
   detailsToggleLabel?: string;
   mediaLocations?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
+  guestLabel?: string;
 }
 
 const categories = Object.entries(categoryEmoji);
@@ -65,7 +66,7 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [] }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [], guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [dirty, setDirty] = useState(false);
@@ -376,6 +377,9 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
   return (
     <div class="place-editor" ref={hydratedRef}>
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
+      )}
       <div class="auth-form">
         {initialData.isNew && googleMapsField}
 

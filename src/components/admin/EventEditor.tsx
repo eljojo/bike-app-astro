@@ -36,6 +36,7 @@ interface Props {
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
   defaultLocale?: string;
+  guestLabel?: string;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -74,7 +75,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '' }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLFieldSetElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -322,6 +323,9 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   return (
     <fieldset class="event-editor" disabled={readOnly} ref={hydratedRef}>
+        {userRole === 'guest' && guestLabel && (
+          <p class="editor-guest-label">{guestLabel}</p>
+        )}
         <div class="auth-form">
           <div class="form-field">
             <label for="event-name">Name</label>

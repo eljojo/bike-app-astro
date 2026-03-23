@@ -38,10 +38,11 @@ interface Props {
   focusMode?: 'description' | 'media' | null;
   focusLabels?: { description: string; media: string; showAll: string };
   nearbyMedia?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
+  guestLabel?: string;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels, nearbyMedia = [] }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels, nearbyMedia = [], guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
@@ -216,6 +217,10 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           showAllLabel={focusLabels.showAll}
           onExpand={() => setFocusExpanded(true)}
         />
+      )}
+
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
       )}
 
       {/* Mobile tabs — hidden in focus mode */}

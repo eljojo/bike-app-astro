@@ -32,5 +32,5 @@ const initialData = {
 ---
 
 <AdminEditorLayout title="New Place" user={Astro.locals.user} currentTab="places">
-  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} mediaLocations={mediaLocations} />
+  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
 </AdminEditorLayout>

@@ -11,6 +11,7 @@ import { organizerDetailFromCache } from '../../lib/models/organizer-model';
 import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+import { t } from '@/i18n';
 
 const result = await loadDetailFromJson({
   contentType: 'organizers',
@@ -31,6 +32,6 @@ const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json
 ---
 
 <AdminEditorLayout title={`Edit: ${data.name}`} hideTitle user={user} currentTab="organizers">
-  <CommunityEditor client:load initialData={data} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={user?.role} />
+  <CommunityEditor client:load initialData={data} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={user?.role} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
   <EditHistory client:load contentPath={`${CITY}/organizers/${data.slug}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

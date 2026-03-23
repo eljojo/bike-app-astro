@@ -382,6 +382,7 @@
   "editor.focus_description": "Editing the description for {name}",
   "editor.focus_media": "Adding media to {name}",
   "editor.show_all_fields": "Show all fields",
+  "editor.guest_label": "Editing as guest — your name won't appear on this edit",
 
   "place_editor.details_toggle": "Add details (address, website, phone)",
 

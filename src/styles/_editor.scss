@@ -105,6 +105,12 @@
   }
 }
 
+.editor-guest-label {
+  @include muted-text;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
 .editor-license-notice {
   @include muted-text;
   font-size: 0.8rem;

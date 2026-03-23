@@ -382,6 +382,7 @@
   "editor.focus_description": "Modification de la description de {name}",
   "editor.focus_media": "Ajout de médias à {name}",
   "editor.show_all_fields": "Afficher tous les champs",
+  "editor.guest_label": "Modification en tant qu'invité — votre nom n'apparaîtra pas sur cette modification",
 
   "place_editor.details_toggle": "Ajouter des détails (adresse, site web, téléphone)",
 

@@ -35,9 +35,10 @@ interface Props {
   rideLabels?: Record<string, string>;
   tours?: TourSummary[];
   stravaConnected?: boolean;
+  guestLabel?: string;
 }
 
-export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
+export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected, guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   // State
   const [name, setName] = useState(initialData.name);
@@ -253,6 +254,10 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
           onImport={handleStravaImport}
           onClose={() => setStravaBrowsing(false)}
         />
+      )}
+
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
       )}
 
       {/* Mobile tabs */}
