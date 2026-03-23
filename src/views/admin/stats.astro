@@ -10,7 +10,7 @@ import { db } from '../../lib/get-db';
 import { env } from '../../lib/env/env.service';
 import { CITY } from '../../lib/config/config';
 import { getCityConfig } from '../../lib/config/city-config';
-import { contentEngagement, siteDailyMetrics } from '../../db/schema';
+import { contentEngagement, siteDailyMetrics, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
@@ -160,6 +160,10 @@ if (!statsData) {
       contentSlug: contentEngagement.contentSlug,
       engagementScore: contentEngagement.engagementScore,
       totalPageviews: contentEngagement.totalPageviews,
+      wallTimeHours: contentEngagement.wallTimeHours,
+      mapConversionRate: contentEngagement.mapConversionRate,
+      stars: contentEngagement.stars,
+      videoPlayRate: contentEngagement.videoPlayRate,
     }).from(contentEngagement)
       .where(eq(contentEngagement.city, CITY))
       .orderBy(desc(contentEngagement.engagementScore))
@@ -175,7 +179,7 @@ if (!statsData) {
       secondaryLabel: 'hours',
     }));
 
-    const engagementLeaderboard: LeaderboardEntry[] = topByEngagement.map(r => ({
+    const engagementLeaderboard = topByEngagement.map(r => ({
       contentType: r.contentType as 'route' | 'event' | 'organizer',
       contentSlug: r.contentSlug,
       name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
@@ -183,9 +187,25 @@ if (!statsData) {
       primaryLabel: 'score',
       secondaryValue: r.totalPageviews,
       secondaryLabel: 'views',
+      breakdown: {
+        wallTime: `${Math.round(r.wallTimeHours * 10) / 10}h`,
+        mapConversion: `${Math.round(r.mapConversionRate * 100)}%`,
+        stars: r.stars,
+        videoPlayRate: `${Math.round(r.videoPlayRate * 100)}%`,
+      },
     }));
 
-    // 4. Insights
+    // 4. Reactions breakdown
+    const reactionsByType = await database.select({
+      reactionType: reactions.reactionType,
+      count: sql<number>`COUNT(*)`,
+    }).from(reactions)
+      .where(eq(reactions.city, CITY))
+      .groupBy(reactions.reactionType);
+
+    const reactionBreakdown = Object.fromEntries(reactionsByType.map(r => [r.reactionType, r.count]));
+
+    // 5. Insights
     const engagementRows = await database.select().from(contentEngagement)
       .where(eq(contentEngagement.city, CITY));
 
@@ -223,6 +243,7 @@ if (!statsData) {
       insights,
       range,
       lastSynced,
+      reactionBreakdown,
     };
 
     // Write to cache for next page load
@@ -267,6 +288,7 @@ function getStartDate(now: Date, r: TimeRange): Date {
           engagementLeaderboard={statsData.engagementLeaderboard}
           insights={statsData.insights}
           range={statsData.range}
+          reactionBreakdown={statsData.reactionBreakdown}
         />
       </>
     ) : (

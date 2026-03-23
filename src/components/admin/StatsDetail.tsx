@@ -13,6 +13,7 @@ interface StatsDetailProps {
   granularity: string;
   funnel?: FunnelStep[];
   range: string;
+  reactions?: Record<string, number>;
 }
 
 const RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
@@ -21,6 +22,13 @@ const RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: '1yr', label: 'Last year' },
   { value: 'all', label: 'All time' },
 ];
+
+const REACTION_LABELS: Record<string, string> = {
+  star: 'Starred',
+  ridden: 'Ridden it',
+  'thumbs-up': 'Thumbs up',
+  attended: 'Attended',
+};
 
 function formatNumber(n: number | string): string {
   if (typeof n === 'string') return n;
@@ -46,6 +54,15 @@ function contentTypeLabel(contentType: string): string {
   }
 }
 
+function liveUrl(contentType: string, contentSlug: string): string {
+  switch (contentType) {
+    case 'route': return `/routes/${contentSlug}`;
+    case 'event': return `/events/${contentSlug}`;
+    case 'organizer': return `/communities/${contentSlug}`;
+    default: return '#';
+  }
+}
+
 export default function StatsDetail(props: StatsDetailProps) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [data, setData] = useState<StatsDetailProps>(props);
@@ -66,36 +83,67 @@ export default function StatsDetail(props: StatsDetailProps) {
     }
   }
 
+  const hasDuration = data.timeSeries.some(p => (p.secondaryValue ?? 0) > 0);
+
   useEffect(() => {
     if (!chartRef.current) return;
 
     chartInstance.current?.destroy();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const datasets: any[] = [
+      {
+        label: 'Page views',
+        data: data.timeSeries.map(p => p.value),
+        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 1,
+        yAxisID: 'y',
+      },
+    ];
+
+    if (hasDuration) {
+      datasets.push({
+        label: 'Avg duration (s)',
+        data: data.timeSeries.map(p => p.secondaryValue ?? 0),
+        type: 'line',
+        borderColor: 'rgb(234, 88, 12)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        yAxisID: 'y1',
+      });
+    }
+
     chartInstance.current = new Chart(chartRef.current, {
       type: 'bar',
       data: {
         labels: data.timeSeries.map(p => p.date),
-        datasets: [
-          {
-            label: 'Page views',
-            data: data.timeSeries.map(p => p.value),
-            backgroundColor: 'rgba(59, 130, 246, 0.5)',
-            borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 1,
-          },
-        ],
+        datasets,
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true } },
-        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          y: { beginAtZero: true, position: 'left' },
+          ...(hasDuration ? {
+            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
+          } : {}),
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: { mode: 'index', intersect: false },
+        },
       },
     });
 
     return () => { chartInstance.current?.destroy(); };
   }, [data.timeSeries]);
+
+  const totalReactions = data.reactions
+    ? Object.values(data.reactions).reduce((sum, n) => sum + n, 0)
+    : 0;
 
   return (
     <div ref={hydratedRef} class="stats-detail">
@@ -103,7 +151,10 @@ export default function StatsDetail(props: StatsDetailProps) {
       <a href="/admin/stats" class="stats-back-link">&larr; Back to overview</a>
 
       {/* Title */}
-      <h2 class="stats-detail-title">{contentTypeLabel(data.contentType)}: {data.contentSlug}</h2>
+      <h2 class="stats-detail-title">
+        {contentTypeLabel(data.contentType)}: {data.contentSlug}
+        <a href={liveUrl(data.contentType, data.contentSlug)} class="stats-detail-live-link">View live &rarr;</a>
+      </h2>
 
       {/* Time range selector */}
       <div class="stats-range-selector">
@@ -122,7 +173,7 @@ export default function StatsDetail(props: StatsDetailProps) {
 
       {/* Hero stats */}
       {data.heroStats.length > 0 && (
-        <div class="stats-summary-cards" style={{ gridTemplateColumns: `repeat(${Math.min(data.heroStats.length, 6)}, 1fr)` }}>
+        <div class="stats-summary-cards">
           {data.heroStats.map(card => (
             <div class="stats-summary-card" key={card.label} title={card.description}>
               <span class="stats-card-label">{card.label}</span>
@@ -133,12 +184,14 @@ export default function StatsDetail(props: StatsDetailProps) {
       )}
 
       {/* Time series chart */}
-      <div class="stats-chart-container">
-        <h3 class="stats-section-title">Traffic over time</h3>
-        <div class="stats-chart-wrapper">
-          <canvas ref={chartRef} />
+      {data.timeSeries.length > 0 && (
+        <div class="stats-chart-container">
+          <h3 class="stats-section-title">Traffic over time</h3>
+          <div class="stats-chart-wrapper">
+            <canvas ref={chartRef} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Funnel (route only) */}
       {data.funnel && data.funnel.length > 0 && (
@@ -154,6 +207,27 @@ export default function StatsDetail(props: StatsDetailProps) {
                 {step.rate != null && (
                   <span class="stats-funnel-rate">{step.rate}% conversion</span>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Reactions */}
+      {totalReactions > 0 && (
+        <div class="stats-reactions">
+          <h3 class="stats-section-title">Reactions ({totalReactions})</h3>
+          <div class="stats-reaction-bars">
+            {Object.entries(data.reactions!).map(([type, count]) => (
+              <div class="stats-reaction-row" key={type}>
+                <span class="stats-reaction-label">{REACTION_LABELS[type] || type}</span>
+                <div class="stats-reaction-bar-track">
+                  <div
+                    class="stats-reaction-bar-fill"
+                    style={{ width: `${Math.max((count / totalReactions) * 100, 2)}%` }}
+                  />
+                </div>
+                <span class="stats-reaction-count">{count}</span>
               </div>
             ))}
           </div>

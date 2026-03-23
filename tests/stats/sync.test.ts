@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createTestDb } from '../test-db';
-import { processPlausibleData, processDailyAggregate, upsertContentRows, upsertDailyRows } from '../../src/lib/stats/sync.server';
+import { processPageBreakdown, processPageDaily, processDailyAggregate, upsertContentRows, upsertDailyRows } from '../../src/lib/stats/sync.server';
 import { contentPageMetrics, siteDailyMetrics } from '../../src/db/schema';
 import type { Database } from '../../src/db';
 import { eq } from 'drizzle-orm';
 import fs from 'node:fs';
 
 const pageBreakdown = JSON.parse(fs.readFileSync('e2e/fixtures/plausible/page-breakdown.json', 'utf-8'));
+const pageDaily = JSON.parse(fs.readFileSync('e2e/fixtures/plausible/page-daily.json', 'utf-8'));
 const dailyAggregate = JSON.parse(fs.readFileSync('e2e/fixtures/plausible/daily-aggregate.json', 'utf-8'));
 
 // Fixture city — matches the Plausible fixture data origin
@@ -14,23 +15,47 @@ const FIXTURE_CITY = 'ottawa'; // eslint-disable-line bike-app/no-hardcoded-city
 
 describe('sync pipeline', () => {
 
-  it('processes page breakdown fixture and writes to DB', async () => {
+  it('processes page breakdown fixture (aggregate) and writes to DB', async () => {
     const testDb = createTestDb();
     try {
-      const result = processPlausibleData(pageBreakdown.results, FIXTURE_CITY, {}, {}, 'aggregate', ['en', 'fr'], 'en');
+      const result = processPageBreakdown(pageBreakdown.results, FIXTURE_CITY, {}, {}, '2025-03-22', ['en', 'fr'], 'en');
 
       expect(result.contentRows.length).toBeGreaterThan(0);
       expect(result.skippedPaths.length).toBeGreaterThan(0);
+      // All rows have the same date (aggregate mode)
+      expect(result.contentRows[0].date).toBe('2025-03-22');
 
       await upsertContentRows(testDb.db as unknown as Database, result.contentRows);
       const rows = testDb.db.select().from(contentPageMetrics)
         .where(eq(contentPageMetrics.city, FIXTURE_CITY))
         .all();
       expect(rows.length).toBeGreaterThan(0);
-      expect(rows.length).toBeLessThanOrEqual(result.contentRows.length);
       expect(rows[0]).toHaveProperty('contentType');
       expect(rows[0]).toHaveProperty('contentSlug');
       expect(rows[0].pageviews).toBeGreaterThan(0);
+    } finally {
+      testDb.cleanup();
+    }
+  });
+
+  it('processes page-daily fixture (per-page daily) and writes to DB', async () => {
+    const testDb = createTestDb();
+    try {
+      const result = processPageDaily(pageDaily.results, FIXTURE_CITY, {}, {}, ['en', 'fr'], 'en');
+
+      expect(result.contentRows.length).toBeGreaterThan(0);
+      // Rows have real dates from dimensions[0]
+      expect(result.contentRows[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      // Multiple distinct dates
+      const dates = new Set(result.contentRows.map(r => r.date));
+      expect(dates.size).toBeGreaterThan(1);
+
+      await upsertContentRows(testDb.db as unknown as Database, result.contentRows);
+      const rows = testDb.db.select().from(contentPageMetrics)
+        .where(eq(contentPageMetrics.city, FIXTURE_CITY))
+        .all();
+      expect(rows.length).toBeGreaterThan(0);
     } finally {
       testDb.cleanup();
     }

@@ -371,6 +371,18 @@
   font-family: $font-heading;
   font-size: 1.25rem;
   margin: 0 0 1rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.stats-detail-live-link {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  text-decoration: none;
+  @include muted-text;
+
+  &:hover { text-decoration: underline; }
 }
 
 .stats-funnel {
@@ -424,4 +436,61 @@
   font-size: 0.8125rem;
   @include muted-text;
   white-space: nowrap;
+}
+
+// --- Reactions ---
+
+.stats-reactions {
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.stats-reaction-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stats-reaction-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stats-reaction-label {
+  font-size: 0.875rem;
+  width: 6rem;
+  flex-shrink: 0;
+}
+
+.stats-reaction-bar-track {
+  flex: 1;
+  height: 1.25rem;
+  background: $color-border;
+  border-radius: $border-radius;
+  overflow: hidden;
+
+  @include dark-mode { background: $color-border-dark; }
+}
+
+.stats-reaction-bar-fill {
+  height: 100%;
+  background: $color-accent;
+  border-radius: $border-radius;
+}
+
+.stats-reaction-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: 2.5rem;
+  text-align: right;
+  flex-shrink: 0;
 }

@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentPageMetrics, contentEngagement } from '../../db/schema';
+import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type TimeSeriesPoint, type FunnelStep } from '../../lib/stats/types';
 
@@ -46,14 +46,16 @@ export async function GET({ locals, url, params }: APIContext) {
       { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
       { label: 'Avg duration', value: `${Math.round(eng.avgVisitDuration)}s`, description: 'Average visit duration' },
       { label: 'Bounce rate', value: `${Math.round(eng.avgBounceRate)}%`, description: 'Percentage who left without interacting' },
+      { label: 'Map conversion', value: `${Math.round(eng.mapConversionRate * 100)}%`, description: 'Visitors who opened the map' },
       { label: 'Stars', value: eng.stars, description: 'Bookmarks by users' },
       { label: 'Engagement', value: Math.round(eng.engagementScore * 100), description: 'Combined engagement score (0-100)' },
     ] : [];
 
-    // Time series
+    // Time series with visit duration
     const daily = await database.select({
       date: contentPageMetrics.date,
       pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
+      avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
     }).from(contentPageMetrics)
       .where(and(
         eq(contentPageMetrics.city, CITY),
@@ -64,7 +66,11 @@ export async function GET({ locals, url, params }: APIContext) {
       .groupBy(contentPageMetrics.date)
       .orderBy(contentPageMetrics.date);
 
-    const timeSeries: TimeSeriesPoint[] = daily.map(d => ({ date: d.date, value: d.pageviews }));
+    const timeSeries: TimeSeriesPoint[] = daily.map(d => ({
+      date: d.date,
+      value: d.pageviews,
+      secondaryValue: Math.round(d.avgDuration ?? 0),
+    }));
 
     // Funnel: detail views → map views
     const funnelData = await database.select({
@@ -86,12 +92,27 @@ export async function GET({ locals, url, params }: APIContext) {
       { label: 'Map page', count: mapViews, rate: detailViews > 0 ? Math.round((mapViews / detailViews) * 100) : 0 },
     ];
 
+    // Reactions breakdown
+    const reactionData = await database.select({
+      reactionType: reactions.reactionType,
+      count: sql<number>`COUNT(*)`,
+    }).from(reactions)
+      .where(and(
+        eq(reactions.city, CITY),
+        eq(reactions.contentType, 'route'),
+        eq(reactions.contentSlug, slug),
+      ))
+      .groupBy(reactions.reactionType);
+
+    const reactionBreakdown = Object.fromEntries(reactionData.map(r => [r.reactionType, r.count]));
+
     return jsonResponse({
       heroStats,
       timeSeries,
       granularity: granularityForRange(range),
       funnel,
       range,
+      reactions: reactionBreakdown,
     } as Record<string, unknown>);
   } catch (err: unknown) {
     console.error('stats route detail error:', err);

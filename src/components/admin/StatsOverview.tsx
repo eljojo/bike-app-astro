@@ -11,15 +11,27 @@ import type {
 
 Chart.register(...registerables);
 
+interface EngagementEntry extends LeaderboardEntry {
+  breakdown?: { wallTime: string; mapConversion: string; stars: number; videoPlayRate: string };
+}
+
 interface StatsOverviewProps {
   summaryCards: SummaryCard[];
   timeSeries: TimeSeriesPoint[];
   granularity: string;
   viewsLeaderboard: LeaderboardEntry[];
-  engagementLeaderboard: LeaderboardEntry[];
+  engagementLeaderboard: EngagementEntry[];
   insights: InsightCard[];
   range: string;
+  reactionBreakdown?: Record<string, number>;
 }
+
+const REACTION_LABELS: Record<string, string> = {
+  star: 'Starred',
+  ridden: 'Ridden it',
+  'thumbs-up': 'Thumbs up',
+  attended: 'Attended',
+};
 
 const RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: '30d', label: 'Last 30 days' },
@@ -248,7 +260,9 @@ export default function StatsOverview(props: StatsOverviewProps) {
                 <tr>
                   <th>Content</th>
                   <th class="stats-table-num">Score</th>
-                  <th class="stats-table-num">Views</th>
+                  <th class="stats-table-num">Wall time</th>
+                  <th class="stats-table-num">Map</th>
+                  <th class="stats-table-num">Stars</th>
                 </tr>
               </thead>
               <tbody>
@@ -261,7 +275,9 @@ export default function StatsOverview(props: StatsOverviewProps) {
                       </a>
                     </td>
                     <td class="stats-table-num">{entry.primaryValue}</td>
-                    <td class="stats-table-num">{formatNumber(entry.secondaryValue ?? 0)}</td>
+                    <td class="stats-table-num">{entry.breakdown?.wallTime ?? ''}</td>
+                    <td class="stats-table-num">{entry.breakdown?.mapConversion ?? ''}</td>
+                    <td class="stats-table-num">{entry.breakdown?.stars ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -269,6 +285,27 @@ export default function StatsOverview(props: StatsOverviewProps) {
           )}
         </div>
       </div>
+
+      {/* Reactions breakdown */}
+      {data.reactionBreakdown && Object.keys(data.reactionBreakdown).length > 0 && (() => {
+        const total = Object.values(data.reactionBreakdown!).reduce((s, n) => s + n, 0);
+        return (
+          <div class="stats-reactions">
+            <h3 class="stats-section-title">Reactions ({total})</h3>
+            <div class="stats-reaction-bars">
+              {Object.entries(data.reactionBreakdown!).map(([type, count]) => (
+                <div class="stats-reaction-row" key={type}>
+                  <span class="stats-reaction-label">{REACTION_LABELS[type] || type}</span>
+                  <div class="stats-reaction-bar-track">
+                    <div class="stats-reaction-bar-fill" style={{ width: `${Math.max((count / total) * 100, 2)}%` }} />
+                  </div>
+                  <span class="stats-reaction-count">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Insights */}
       {data.insights.length > 0 && (
