@@ -134,6 +134,7 @@ export function processDailyAggregate(
   rows: PlausibleRow[],
   city: string,
 ): DailyMetricRow[] {
+  // Metrics order matches the query: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate']
   return rows.map((row) => ({
     city,
     date: row.dimensions[0],
@@ -251,7 +252,7 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   // 1. Site-wide daily aggregates (for overview time series)
   const dailyRows = await queryPlausible(opts.apiKey, {
     siteId: opts.siteId,
-    metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+    metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
     dateRange: [fromDate, today],
     dimensions: ['time:day'],
   });
@@ -264,7 +265,7 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   // 2. Page breakdown aggregate (for engagement scores + leaderboard)
   const pageRows = await queryPlausible(opts.apiKey, {
     siteId: opts.siteId,
-    metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+    metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
     dateRange: [fromDate, today],
     dimensions: ['event:page'],
     pagination: { limit: 10000 },
@@ -361,7 +362,7 @@ export async function syncPageMetrics(
   // Fetch daily data for this page (using "contains" filter to catch all variants/locales)
   const rows = await queryPlausible(opts.apiKey, {
     siteId: opts.siteId,
-    metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+    metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
     dateRange: ['2020-01-01', today],
     dimensions: ['time:day', 'event:page'],
     filters: [['contains', 'event:page', paths]],
@@ -443,7 +444,7 @@ export async function ensureSiteDailyData(
   for (const [rangeFrom, rangeTo] of ranges) {
     const rows = await queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
-      metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+      metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
       dateRange: [rangeFrom, rangeTo],
       dimensions: ['time:day'],
     });
@@ -495,7 +496,7 @@ export async function ensurePageDailyData(
   for (const [rangeFrom, rangeTo] of ranges) {
     const rows = await queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
-      metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+      metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
       dateRange: [rangeFrom, rangeTo],
       dimensions: ['time:day', 'event:page'],
       filters: [['contains', 'event:page', paths]],
