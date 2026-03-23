@@ -87,14 +87,14 @@ function DurationChart({ series }: { series: TimeSeriesPoint[] }) {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'minutes' } } },
         plugins: {
           legend: { display: false },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tooltip: { mode: 'index', intersect: false, callbacks: { label: (ctx: any) => {
-            const s = ctx.parsed.y;
-            const m = Math.floor(s / 60);
-            const sec = Math.round(s % 60);
+            const totalSeconds = ctx.parsed.y * 60;
+            const m = Math.floor(totalSeconds / 60);
+            const sec = Math.round(totalSeconds % 60);
             return m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`;
           }}},
         },
@@ -289,9 +289,9 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
           {/* Visit duration chart */}
           {hasDuration && (
             <div class="stats-chart-container">
-              <h3 class="stats-section-title">Visit duration (seconds)</h3>
+              <h3 class="stats-section-title">Visit duration</h3>
               <div class="stats-chart-wrapper">
-                <DurationChart series={data.durationSeries!} />
+                <DurationChart series={data.durationSeries!.map(p => ({ ...p, value: Math.round(p.value / 6) / 10 }))} />
               </div>
             </div>
           )}
