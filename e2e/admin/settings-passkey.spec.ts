@@ -19,7 +19,7 @@ test.describe('Settings — Passkey Empty State', () => {
     await waitForHydration(page);
 
     // The passkey section should exist
-    await expect(page.getByText('Passkeys')).toBeVisible();
+    await expect(page.getByText('Passkeys', { exact: true })).toBeVisible();
 
     // The empty state should show the explanation text
     const emptyState = page.locator('.passkey-empty-state');
