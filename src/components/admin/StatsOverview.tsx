@@ -110,40 +110,40 @@ function InsightCardView({ insight, cdnUrl }: { insight: InsightCard; cdnUrl?: s
       class="stats-insight-card"
       style={{ borderLeftColor: severityColor(insight.severity) }}
     >
-      <div class="stats-insight-header">
-        <strong class="stats-insight-title">{insight.title}</strong>
-        {insight.metrics && (
-          <button
-            type="button"
-            class="stats-insight-metrics-toggle"
-            onClick={() => setShowMetrics(!showMetrics)}
-            title="Show metrics"
-          >
-            {showMetrics ? 'Hide numbers' : 'Show numbers'}
-          </button>
-        )}
-      </div>
-      <div class="stats-insight-content">
+      <Thumb cdnUrl={cdnUrl} thumbKey={insight.thumbKey} size="insight" />
+      <div class="stats-insight-body-col">
+        <div class="stats-insight-header">
+          <strong class="stats-insight-title">{insight.title}</strong>
+          {insight.metrics && (
+            <button
+              type="button"
+              class="stats-insight-metrics-toggle"
+              onClick={() => setShowMetrics(!showMetrics)}
+              title="Show metrics"
+            >
+              {showMetrics ? 'Hide numbers' : 'Show numbers'}
+            </button>
+          )}
+        </div>
         <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-name">
-          <Thumb cdnUrl={cdnUrl} thumbKey={insight.thumbKey} size="insight" />
           {insight.name}
         </a>
         <p class="stats-insight-body">{insight.body}</p>
-      </div>
-      <div class="stats-insight-links">
-        <a href={liveUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-link">View live</a>
-        <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-link">View stats</a>
-      </div>
-      {showMetrics && insight.metrics && (
-        <div class="stats-insight-metrics">
-          {Object.entries(insight.metrics).map(([label, value]) => (
-            <div class="stats-insight-metric" key={label}>
-              <span class="stats-insight-metric-label">{label}</span>
-              <span class="stats-insight-metric-value">{value}</span>
-            </div>
-          ))}
+        <div class="stats-insight-links">
+          <a href={liveUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-link">View live</a>
+          <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-link">View stats</a>
         </div>
-      )}
+        {showMetrics && insight.metrics && (
+          <div class="stats-insight-metrics">
+            {Object.entries(insight.metrics).map(([label, value]) => (
+              <div class="stats-insight-metric" key={label}>
+                <span class="stats-insight-metric-label">{label}</span>
+                <span class="stats-insight-metric-value">{value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
