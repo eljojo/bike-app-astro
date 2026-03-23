@@ -30,10 +30,8 @@ interface StatsData {
   visitorInsights?: {
     repeatVisits: Record<string, number>;
     returningVisitors: number;
-    returnRate: number;
     avgReturns: number;
     socialReferrals: Record<string, number>;
-    entryPages: Array<{ path: string; visitors: number }>;
   };
   cdnUrl?: string;
   lastSynced?: string;
@@ -561,7 +559,7 @@ export default function StatsOverview() {
       )}
 
       {/* Visitor behavior */}
-      {data.visitorInsights && (data.visitorInsights.returningVisitors > 0 || data.visitorInsights.entryPages.length > 0) && (
+      {data.visitorInsights && (data.visitorInsights.returningVisitors > 0 || Object.keys(data.visitorInsights.socialReferrals).length > 0) && (
         <div class="stats-visitor-insights">
           <h3 class="stats-section-title">Visitor behavior</h3>
           <div class="stats-leaderboards">
@@ -617,28 +615,6 @@ export default function StatsOverview() {
             )}
           </div>
 
-          {/* Entry pages */}
-          {data.visitorInsights.entryPages.length > 0 && (
-            <div class="stats-leaderboard" style={{ marginTop: '1rem' }}>
-              <h4 class="stats-subsection-title">How people arrive</h4>
-              <table class="stats-table">
-                <thead>
-                  <tr>
-                    <th>Entry page</th>
-                    <th class="stats-table-num">Visitors</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.visitorInsights.entryPages.map(e => (
-                    <tr key={e.path}>
-                      <td><a href={e.path} class="stats-content-link">{e.path}</a></td>
-                      <td class="stats-table-num">{formatNumber(e.visitors)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       )}
 

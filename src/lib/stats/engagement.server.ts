@@ -151,7 +151,7 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
     lastSyncedAt: string;
   }> = [];
 
-  for (const [, items] of byType) {
+  for (const [contentType, items] of byType) {
     const wallTimes = items.map((i) => i.wallTimeHours);
     const mapRates = items.map((i) => i.mapConversionRate);
     const videoRates = items.map((i) => i.videoPlayRate);
@@ -165,6 +165,13 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
     const videoRateRanks = percentileRanks(videoRates);
     const starRanks = percentileRanks(starValues);
 
+    // Content-type-specific weights. Routes have maps; events/organizers don't.
+    // For non-route types, the map weight (0.25) is redistributed proportionally.
+    const hasMap = contentType === 'route';
+    const weights = hasMap
+      ? { wallTime: 0.4, map: 0.25, stars: 0.2, video: 0.15 }
+      : { wallTime: 0.5, map: 0, stars: 0.3, video: 0.2 };
+
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx];
       const key = `${item.contentType}:${item.contentSlug}`;
@@ -173,24 +180,22 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
       // Engagement score: weighted sum of percentile ranks within content type.
       //
       // Weight rationale:
-      //   Wall time (0.4)      — Total attention is the strongest signal of content value.
+      //   Wall time (0.4/0.5)  — Total attention is the strongest signal of content value.
       //                          A page that holds people for minutes is doing something right.
-      //   Map conversion (0.25) — Opening the map signals intent to ride, which is specific
-      //                          to cycling and a stronger action than just reading. Note:
-      //                          events and communities always score 0 here (25% of their
-      //                          formula is zeroed out). Percentile normalization within
-      //                          content types mitigates this — they're only compared to
-      //                          each other, not to routes.
-      //   Stars (0.2)          — A deliberate endorsement (bookmarking), but rare — most
+      //   Map conversion (0.25/0) — Opening the map signals intent to ride, which is specific
+      //                          to cycling and a stronger action than just reading. Events and
+      //                          communities have no map, so this weight is redistributed to
+      //                          wall time, stars, and video plays.
+      //   Stars (0.2/0.3)      — A deliberate endorsement (bookmarking), but rare — most
       //                          content has zero stars, so fewer data points to work with.
-      //   Video plays (0.15)   — Video is optional and not all content has it. When present,
+      //   Video plays (0.15/0.2) — Video is optional and not all content has it. When present,
       //                          play rate is meaningful, but the low weight avoids penalizing
       //                          content without video.
       const engagementScore =
-        wallTimeRanks[idx] * 0.4 +
-        mapRateRanks[idx] * 0.25 +
-        starRanks[idx] * 0.2 +
-        videoRateRanks[idx] * 0.15;
+        wallTimeRanks[idx] * weights.wallTime +
+        mapRateRanks[idx] * weights.map +
+        starRanks[idx] * weights.stars +
+        videoRateRanks[idx] * weights.video;
 
       allRows.push({
         city,
@@ -216,7 +221,7 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
     const batch = allRows.slice(i, i + BATCH);
     const esc = (s: string) => s.replace(/'/g, "''");
     const values = batch.map(r =>
-      `('${r.city}','${r.contentType}','${esc(r.contentSlug)}',${r.totalPageviews},${r.totalVisitorDays},${r.avgVisitDuration},${r.avgBounceRate},${r.stars},${r.videoPlayRate},${r.mapConversionRate},${r.wallTimeHours},${r.engagementScore},'${r.lastSyncedAt}')`
+      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}',${r.totalPageviews},${r.totalVisitorDays},${r.avgVisitDuration},${r.avgBounceRate},${r.stars},${r.videoPlayRate},${r.mapConversionRate},${r.wallTimeHours},${r.engagementScore},'${esc(r.lastSyncedAt)}')`
     ).join(',');
 
     await db.run(sql.raw(`INSERT INTO content_engagement (city, content_type, content_slug, total_pageviews, total_visitor_days, avg_visit_duration, avg_bounce_rate, stars, video_play_rate, map_conversion_rate, wall_time_hours, engagement_score, last_synced_at)

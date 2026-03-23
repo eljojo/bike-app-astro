@@ -3,7 +3,8 @@ import { queryPlausible } from '../external/plausible-api.server';
 import type { Database } from '../../db';
 import { resolveUrl, detectLocale } from './url-resolver.server';
 import { rebuildEngagement } from './engagement.server';
-import { invalidateStatsCache } from './cache.server';
+import { invalidateStatsCache, readStatsCache, writeStatsCache } from './cache.server';
+import { translatePath } from '../i18n/path-translations';
 import { contentDailyMetrics, contentTotals, siteDailyMetrics, siteEventMetrics } from '../../db/schema';
 import { sql, eq, and, desc } from 'drizzle-orm';
 
@@ -158,7 +159,7 @@ export async function upsertContentRows(db: Database, rows: ContentMetricRow[]):
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${r.city}','${r.contentType}','${esc(r.contentSlug)}','${r.pageType}','${r.date}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays})`
+      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}','${esc(r.date)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays})`
     ).join(',');
 
     await db.run(sql.raw(`INSERT INTO content_daily_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays)
@@ -193,7 +194,7 @@ export async function upsertTotalsRows(db: Database, rows: TotalsRow[]): Promise
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${r.city}','${r.contentType}','${esc(r.contentSlug)}','${r.pageType}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},'${r.syncedAt}')`
+      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},'${esc(r.syncedAt)}')`
     ).join(',');
 
     await db.run(sql.raw(`INSERT INTO content_totals (city, content_type, content_slug, page_type, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, synced_at)
@@ -212,7 +213,7 @@ export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Pro
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${r.city}','${r.date}',${r.totalPageviews},${r.uniqueVisitors},${r.avgVisitDuration})`
+      `('${esc(r.city)}','${esc(r.date)}',${r.totalPageviews},${r.uniqueVisitors},${r.avgVisitDuration})`
     ).join(',');
 
     await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, avg_visit_duration)
@@ -225,6 +226,45 @@ export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Pro
 /** Escape single quotes in SQL values. */
 function esc(s: string): string {
   return s.replace(/'/g, "''");
+}
+
+/**
+ * Aggregate content metric rows by (contentType, contentSlug, pageType) into totals rows.
+ * Multiple Plausible paths map to the same content identity — e.g. /routes/wakefield
+ * and /routes/wakefield/ both resolve to (route, wakefield, detail). Sum their metrics.
+ */
+export function aggregateContentRows(contentRows: ContentMetricRow[], syncedAt: string): TotalsRow[] {
+  const totalsMap = new Map<string, TotalsRow>();
+  for (const r of contentRows) {
+    const key = `${r.contentType}:${r.contentSlug}:${r.pageType}`;
+    const existing = totalsMap.get(key);
+    if (existing) {
+      existing.pageviews += r.pageviews;
+      existing.visitorDays += r.visitorDays;
+      // Weighted average for duration and bounce rate
+      const totalPv = existing.pageviews; // already includes r.pageviews
+      const prevPv = totalPv - r.pageviews;
+      if (totalPv > 0) {
+        existing.visitDurationS = (existing.visitDurationS * prevPv + r.visitDurationS * r.pageviews) / totalPv;
+        existing.bounceRate = (existing.bounceRate * prevPv + r.bounceRate * r.pageviews) / totalPv;
+      }
+      existing.videoPlays += r.videoPlays;
+    } else {
+      totalsMap.set(key, {
+        city: r.city,
+        contentType: r.contentType,
+        contentSlug: r.contentSlug,
+        pageType: r.pageType,
+        pageviews: r.pageviews,
+        visitorDays: r.visitorDays,
+        visitDurationS: r.visitDurationS,
+        bounceRate: r.bounceRate,
+        videoPlays: r.videoPlays,
+        syncedAt,
+      });
+    }
+  }
+  return [...totalsMap.values()];
 }
 
 /**
@@ -298,40 +338,7 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   const numberedAfter = contentRows.filter(r => /^\d+-/.test(r.contentSlug)).length;
   console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered`);
 
-  // Aggregate contentRows by (contentType, contentSlug, pageType) before writing totals.
-  // Multiple Plausible paths map to the same content identity — e.g. /routes/wakefield
-  // and /routes/wakefield/ both resolve to (route, wakefield, detail). Sum their metrics.
-  const totalsMap = new Map<string, TotalsRow>();
-  for (const r of contentRows) {
-    const key = `${r.contentType}:${r.contentSlug}:${r.pageType}`;
-    const existing = totalsMap.get(key);
-    if (existing) {
-      existing.pageviews += r.pageviews;
-      existing.visitorDays += r.visitorDays;
-      // Weighted average for duration and bounce rate
-      const totalPv = existing.pageviews; // already includes r.pageviews
-      const prevPv = totalPv - r.pageviews;
-      if (totalPv > 0) {
-        existing.visitDurationS = (existing.visitDurationS * prevPv + r.visitDurationS * r.pageviews) / totalPv;
-        existing.bounceRate = (existing.bounceRate * prevPv + r.bounceRate * r.pageviews) / totalPv;
-      }
-      existing.videoPlays += r.videoPlays;
-    } else {
-      totalsMap.set(key, {
-        city: r.city,
-        contentType: r.contentType,
-        contentSlug: r.contentSlug,
-        pageType: r.pageType,
-        pageviews: r.pageviews,
-        visitorDays: r.visitorDays,
-        visitDurationS: r.visitDurationS,
-        bounceRate: r.bounceRate,
-        videoPlays: r.videoPlays,
-        syncedAt: today,
-      });
-    }
-  }
-  const totalsRows = [...totalsMap.values()];
+  const totalsRows = aggregateContentRows(contentRows, today);
 
   // Delete existing totals, then insert fresh
   await db.delete(contentTotals).where(eq(contentTotals.city, opts.city)).run();
@@ -390,13 +397,25 @@ export async function needsPageSync(
   return (Date.now() - lastDate.getTime()) > maxAgeMs;
 }
 
-function buildPagePaths(contentType: string, contentSlug: string): string[] {
+function buildPagePaths(contentType: string, contentSlug: string, locales?: string[], defaultLocale?: string): string[] {
+  let basePath: string;
   switch (contentType) {
-    case 'route': return [`/routes/${contentSlug}`];
-    case 'event': return [`/events/${contentSlug}`];
-    case 'organizer': return [`/communities/${contentSlug}`];
+    case 'route': basePath = `/routes/${contentSlug}`; break;
+    case 'event': basePath = `/events/${contentSlug}`; break;
+    case 'organizer': basePath = `/communities/${contentSlug}`; break;
     default: return [];
   }
+
+  const paths = [basePath];
+  if (locales && defaultLocale) {
+    for (const locale of locales) {
+      if (locale !== defaultLocale) {
+        const translated = translatePath(basePath, locale);
+        paths.push(`/${locale}${translated}`);
+      }
+    }
+  }
+  return paths;
 }
 
 /**
@@ -406,7 +425,7 @@ export async function syncPageMetrics(
   db: Database,
   opts: SyncOptions & { contentType: string; contentSlug: string },
 ): Promise<number> {
-  const paths = buildPagePaths(opts.contentType, opts.contentSlug);
+  const paths = buildPagePaths(opts.contentType, opts.contentSlug, opts.locales, opts.defaultLocale);
   if (paths.length === 0) return 0;
 
   const today = new Date().toISOString().split('T')[0];
@@ -524,7 +543,7 @@ export async function ensurePageDailyData(
   fromDate: string,
   toDate: string,
 ): Promise<number> {
-  const paths = buildPagePaths(contentType, contentSlug);
+  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale);
   if (paths.length === 0) return 0;
 
   const existing = await db.select({ date: contentDailyMetrics.date })
@@ -593,7 +612,7 @@ async function upsertEventRows(db: Database, rows: EventMetricRow[]): Promise<vo
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${r.city}','${r.eventName}','${r.date}','${esc(r.dimensionValue)}',${r.visitors})`
+      `('${esc(r.city)}','${esc(r.eventName)}','${esc(r.date)}','${esc(r.dimensionValue)}',${r.visitors})`
     ).join(',');
 
     await db.run(sql.raw(`INSERT INTO site_event_metrics (city, event_name, date, dimension_value, visitors)
@@ -711,38 +730,24 @@ export async function ensureEntryPageData(
   fromDate: string,
   toDate: string,
 ): Promise<number> {
-  const paths = buildPagePaths(contentType, contentSlug);
+  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale);
   if (paths.length === 0) return 0;
 
-  // Check which dates already have entry_visitors > 0
-  const existing = await db.select({ date: contentDailyMetrics.date })
-    .from(contentDailyMetrics)
-    .where(and(
-      eq(contentDailyMetrics.city, opts.city),
-      eq(contentDailyMetrics.contentType, contentType),
-      eq(contentDailyMetrics.contentSlug, contentSlug),
-      sql`${contentDailyMetrics.date} >= ${fromDate}`,
-      sql`${contentDailyMetrics.date} <= ${toDate}`,
-      sql`${contentDailyMetrics.entryVisitors} > 0`,
-    ));
+  // Check if entry data has already been synced for this slug up to this date
+  const cacheKey = `entry_synced:${contentType}:${contentSlug}`;
+  const cached = await readStatsCache(db, opts.city, cacheKey);
+  if (cached && typeof cached.toDate === 'string' && cached.toDate >= toDate) return 0;
 
-  const existingDates = new Set(existing.map(r => r.date));
-  const allDates = buildDateSet(fromDate, toDate);
-  const missing = [...allDates].filter(d => !existingDates.has(d));
+  // Use the cached toDate as the start of what's missing, falling back to fromDate
+  const effectiveFrom = (cached && typeof cached.toDate === 'string' && cached.toDate > fromDate)
+    ? cached.toDate : fromDate;
+
+  const allDates = buildDateSet(effectiveFrom, toDate);
+  const missing = [...allDates];
 
   if (missing.length === 0) return 0;
 
-  // Build locale-aware paths for filtering
-  const allPaths: string[] = [];
-  for (const p of paths) {
-    allPaths.push(p);
-    for (const locale of opts.locales) {
-      if (locale !== opts.defaultLocale) {
-        allPaths.push(`/${locale}${p}`);
-      }
-    }
-  }
-
+  // paths already includes locale-variant URLs from buildPagePaths
   const ranges = findContiguousRanges(missing);
   let totalUpdated = 0;
 
@@ -752,25 +757,34 @@ export async function ensureEntryPageData(
       metrics: ['visitors'],
       dateRange: [rangeFrom, rangeTo],
       dimensions: ['time:day'],
-      filters: [['is', 'visit:entry_page', allPaths]],
+      filters: [['is', 'visit:entry_page', paths]],
     }).catch(() => [])
   ));
 
+  // Batch updates — collect all date/visitor pairs first
+  const updates: Array<{ date: string; entryVisitors: number }> = [];
   for (const rows of results) {
     for (const row of rows) {
-      const date = row.dimensions[0];
-      const entryVisitors = row.metrics[0];
-
-      // Update existing content_daily_metrics rows for this date
-      await db.run(sql.raw(`UPDATE content_daily_metrics
-        SET entry_visitors = ${entryVisitors}
-        WHERE city = '${opts.city}'
-          AND content_type = '${contentType}'
-          AND content_slug = '${esc(contentSlug)}'
-          AND date = '${date}'`));
-      totalUpdated++;
+      updates.push({ date: row.dimensions[0], entryVisitors: row.metrics[0] });
     }
   }
+
+  // Execute updates in batches
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const batch = updates.slice(i, i + BATCH_SIZE);
+    for (const u of batch) {
+      await db.run(sql.raw(`UPDATE content_daily_metrics
+        SET entry_visitors = ${u.entryVisitors}
+        WHERE city = '${esc(opts.city)}'
+          AND content_type = '${esc(contentType)}'
+          AND content_slug = '${esc(contentSlug)}'
+          AND date = '${esc(u.date)}'`));
+    }
+  }
+  totalUpdated = updates.length;
+
+  // Record that entry data has been synced up to this date
+  await writeStatsCache(db, opts.city, cacheKey, { toDate });
 
   return totalUpdated;
 }

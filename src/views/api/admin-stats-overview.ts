@@ -72,6 +72,19 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       } else {
         // Incremental: just backfill missing daily rows
         await ensureSiteDailyData(database, ctx, startStr, endStr);
+
+        // Check if content_totals are stale (>24h old) — if so, refresh
+        // totals + engagement so they don't go permanently stale after first sync
+        const totalsAge = await database.select({ syncedAt: contentTotals.syncedAt })
+          .from(contentTotals).where(eq(contentTotals.city, CITY))
+          .orderBy(desc(contentTotals.syncedAt)).limit(1);
+
+        const totalsStale = totalsAge.length === 0 ||
+          (Date.now() - new Date(totalsAge[0].syncedAt).getTime()) > 24 * 60 * 60 * 1000;
+
+        if (totalsStale) {
+          await syncSiteMetrics(database, ctx);
+        }
       }
 
       // Ensure event metrics (repeat visits, social referrals) are synced
@@ -95,6 +108,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       socialReferralRows,
       currentPeriodByContent,
       prevPeriodByContent,
+      monthlyByContent,
+      variantByContent,
     ] = await Promise.all([
       // 1. Current period summary
       database.select({
@@ -107,9 +122,10 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         totalPageviews: sql<number>`COALESCE(SUM(${siteDailyMetrics.totalPageviews}), 0)`,
       }).from(siteDailyMetrics)
         .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, prevStartStr), lte(siteDailyMetrics.date, prevEndStr))),
-      // 3. Content count
+      // 3. Content count (distinct type+slug pairs — slug alone undercounts if
+      // different types share a slug)
       database.select({
-        count: sql<number>`COUNT(DISTINCT ${contentEngagement.contentSlug})`,
+        count: sql<number>`COUNT(DISTINCT ${contentEngagement.contentType} || ':' || ${contentEngagement.contentSlug})`,
       }).from(contentEngagement).where(eq(contentEngagement.city, CITY)),
       // 4. Time series
       database.select({
@@ -216,6 +232,26 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
           lte(contentDailyMetrics.date, prevEndStr),
         ))
         .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug),
+      // 17. Monthly pageviews per content item (for seasonal insight)
+      database.select({
+        contentType: contentDailyMetrics.contentType,
+        contentSlug: contentDailyMetrics.contentSlug,
+        month: sql<string>`SUBSTR(${contentDailyMetrics.date}, 6, 2)`,
+        monthlyViews: sql<number>`COALESCE(SUM(${contentDailyMetrics.pageviews}), 0)`,
+      }).from(contentDailyMetrics)
+        .where(eq(contentDailyMetrics.city, CITY))
+        .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug, sql`SUBSTR(${contentDailyMetrics.date}, 6, 2)`),
+      // 18. Variant views per content item (for underused-variant insight)
+      database.select({
+        contentType: contentTotals.contentType,
+        contentSlug: contentTotals.contentSlug,
+        pageType: contentTotals.pageType,
+        pageviews: contentTotals.pageviews,
+      }).from(contentTotals)
+        .where(and(
+          eq(contentTotals.city, CITY),
+          sql`${contentTotals.pageType} LIKE 'map%'`,
+        )),
     ]);
 
     // Build name + thumbnail lookups from parallel results
@@ -307,6 +343,25 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       prevPeriodMap.set(`${row.contentType}:${row.contentSlug}`, row.pageviews);
     }
 
+    // Build monthly pageviews lookup: key → number[12]
+    const monthlyMap = new Map<string, number[]>();
+    for (const row of monthlyByContent) {
+      const key = `${row.contentType}:${row.contentSlug}`;
+      if (!monthlyMap.has(key)) monthlyMap.set(key, new Array(12).fill(0));
+      const monthIdx = parseInt(row.month, 10) - 1;
+      if (monthIdx >= 0 && monthIdx < 12) {
+        monthlyMap.get(key)![monthIdx] = row.monthlyViews;
+      }
+    }
+
+    // Build variant views lookup: key → Record<pageType, pageviews>
+    const variantMap = new Map<string, Record<string, number>>();
+    for (const row of variantByContent) {
+      const key = `${row.contentType}:${row.contentSlug}`;
+      if (!variantMap.has(key)) variantMap.set(key, {});
+      variantMap.get(key)![row.pageType] = row.pageviews;
+    }
+
     const insightInput: EngagementRow[] = engagementRows.map(r => {
       const key = `${r.contentType}:${r.contentSlug}`;
       return {
@@ -318,6 +373,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         engagementScore: r.engagementScore,
         currentPeriodPageviews: currentPeriodMap.get(key),
         previousPeriodPageviews: prevPeriodMap.get(key),
+        monthlyPageviews: monthlyMap.get(key),
+        variantViews: variantMap.get(key),
       };
     });
 
@@ -364,10 +421,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const visitorInsights = (totalReturning > 0 || Object.keys(socialReferrals).length > 0) ? {
       repeatVisits,
       returningVisitors: totalReturning,
-      returnRate: 0,
       avgReturns: totalReturning > 0 ? Math.round((totalReturnCount / totalReturning) * 10) / 10 : 0,
       socialReferrals,
-      entryPages: [] as Array<{ path: string; visitors: number }>,
     } : null;
 
     return jsonResponse({

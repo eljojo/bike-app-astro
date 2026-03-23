@@ -73,6 +73,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
           eq(contentDailyMetrics.contentType, 'event'),
           eq(contentDailyMetrics.contentSlug, slug),
           gte(contentDailyMetrics.date, startStr),
+          lte(contentDailyMetrics.date, endStr),
         ))
         .groupBy(contentDailyMetrics.date)
         .orderBy(contentDailyMetrics.date),

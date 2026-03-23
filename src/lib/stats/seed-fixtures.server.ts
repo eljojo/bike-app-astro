@@ -12,6 +12,7 @@ import {
   processPageBreakdown,
   processPageDaily,
   processDailyAggregate,
+  aggregateContentRows,
   upsertContentRows,
   upsertTotalsRows,
   upsertDailyRows,
@@ -87,18 +88,7 @@ export async function seedFromFixtures(db: Database, city: string): Promise<bool
   );
   if (contentRows.length > 0) {
     await db.delete(contentTotals).where(eq(contentTotals.city, city)).run();
-    const totalsRows = contentRows.map(r => ({
-      city: r.city,
-      contentType: r.contentType,
-      contentSlug: r.contentSlug,
-      pageType: r.pageType,
-      pageviews: r.pageviews,
-      visitorDays: r.visitorDays,
-      visitDurationS: r.visitDurationS,
-      bounceRate: r.bounceRate,
-      videoPlays: r.videoPlays,
-      syncedAt: today,
-    }));
+    const totalsRows = aggregateContentRows(contentRows, today);
     await upsertTotalsRows(db, totalsRows);
   }
 
