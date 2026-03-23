@@ -141,6 +141,7 @@ export const contentPageMetrics = sqliteTable('content_page_metrics', {
   visitDurationS: real('visit_duration_s').notNull().default(0),
   bounceRate: real('bounce_rate').notNull().default(0),
   videoPlays: integer('video_plays').notNull().default(0),
+  entryVisitors: integer('entry_visitors').notNull().default(0),
 }, (table) => [
   primaryKey({ columns: [table.city, table.contentType, table.contentSlug, table.pageType, table.date] }),
   index('cpm_date_idx').on(table.city, table.date),
@@ -175,11 +176,18 @@ export const siteDailyMetrics = sqliteTable('site_daily_metrics', {
   totalPageviews: integer('total_pageviews').notNull().default(0),
   uniqueVisitors: integer('unique_visitors').notNull().default(0),
   avgVisitDuration: real('avg_visit_duration').notNull().default(0),
-  newAccounts: integer('new_accounts').notNull().default(0),
-  reactionsCount: integer('reactions_count').notNull().default(0),
-  activeUsers: integer('active_users').notNull().default(0),
 }, (table) => [
   primaryKey({ columns: [table.city, table.date] }),
+]);
+
+export const siteEventMetrics = sqliteTable('site_event_metrics', {
+  city: text('city').notNull(),
+  eventName: text('event_name').notNull(),
+  date: text('date').notNull(),
+  dimensionValue: text('dimension_value').notNull(),
+  visitors: integer('visitors').notNull().default(0),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.eventName, table.date, table.dimensionValue] }),
 ]);
 
 export const statsCache = sqliteTable('stats_cache', {

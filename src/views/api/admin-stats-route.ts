@@ -9,7 +9,7 @@ import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type TimeSeriesPoint, type FunnelStep } from '../../lib/stats/types';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
-import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
+import { ensurePageDailyData, ensureEntryPageData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 
 export const prerender = false;
@@ -68,6 +68,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       } else {
         await ensurePageDailyData(database, syncOpts, 'route', slug, startStr, endStr);
       }
+
+      // Ensure entry page data is synced
+      await ensureEntryPageData(database, syncOpts, 'route', slug, startStr, endStr);
     }
 
     // All queries in parallel
@@ -81,11 +84,12 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
           eq(contentEngagement.contentSlug, slug),
         ))
         .limit(1),
-      // Time series with visit duration
+      // Time series with visit duration and entry visitors
       database.select({
         date: contentPageMetrics.date,
         pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
         avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
+        entryVisitors: sql<number>`COALESCE(SUM(${contentPageMetrics.entryVisitors}), 0)`,
       }).from(contentPageMetrics)
         .where(and(
           eq(contentPageMetrics.city, CITY),
@@ -121,8 +125,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
 
     const eng = engagement[0];
 
+    const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
+
     const heroStats = eng ? [
       { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
+      { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page' },
       { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
       { label: 'Visit duration', value: formatDuration(eng.avgVisitDuration), description: 'Average time spent per visit' },
       { label: 'Bounce rate', value: `${Math.round(eng.avgBounceRate)}%`, description: 'Percentage who left without interacting' },

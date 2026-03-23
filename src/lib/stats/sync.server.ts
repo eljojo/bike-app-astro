@@ -4,7 +4,7 @@ import type { Database } from '../../db';
 import { resolveUrl, detectLocale } from './url-resolver.server';
 import { rebuildEngagement } from './engagement.server';
 import { invalidateStatsCache } from './cache.server';
-import { contentPageMetrics, siteDailyMetrics } from '../../db/schema';
+import { contentPageMetrics, siteDailyMetrics, siteEventMetrics } from '../../db/schema';
 import { sql, eq, and, desc } from 'drizzle-orm';
 
 /**
@@ -32,9 +32,6 @@ export interface DailyMetricRow {
   totalPageviews: number;
   uniqueVisitors: number;
   avgVisitDuration: number;
-  newAccounts: number;
-  reactionsCount: number;
-  activeUsers: number;
 }
 
 /**
@@ -142,9 +139,6 @@ export function processDailyAggregate(
     totalPageviews: row.metrics[0],
     uniqueVisitors: row.metrics[1],
     avgVisitDuration: row.metrics[2] ?? 0,
-    newAccounts: 0,
-    reactionsCount: 0,
-    activeUsers: 0,
   }));
 }
 
@@ -183,13 +177,13 @@ export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Pro
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${r.city}','${r.date}',${r.totalPageviews},${r.uniqueVisitors},${r.avgVisitDuration},${r.newAccounts},${r.reactionsCount},${r.activeUsers})`
+      `('${r.city}','${r.date}',${r.totalPageviews},${r.uniqueVisitors},${r.avgVisitDuration})`
     ).join(',');
 
-    await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, avg_visit_duration, new_accounts, reactions_count, active_users)
+    await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, avg_visit_duration)
       VALUES ${values}
       ON CONFLICT (city, date)
-      DO UPDATE SET total_pageviews=excluded.total_pageviews, unique_visitors=excluded.unique_visitors, avg_visit_duration=excluded.avg_visit_duration, new_accounts=excluded.new_accounts, reactions_count=excluded.reactions_count, active_users=excluded.active_users`));
+      DO UPDATE SET total_pageviews=excluded.total_pageviews, unique_visitors=excluded.unique_visitors, avg_visit_duration=excluded.avg_visit_duration`));
   }
 }
 
@@ -511,6 +505,204 @@ export async function ensurePageDailyData(
   }
 
   return totalRows;
+}
+
+// ── Site event metrics sync ──────────────────────────────────────────
+
+interface EventMetricRow {
+  city: string;
+  eventName: string;
+  date: string;
+  dimensionValue: string;
+  visitors: number;
+}
+
+async function upsertEventRows(db: Database, rows: EventMetricRow[]): Promise<void> {
+  if (rows.length === 0) return;
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    const values = batch.map(r =>
+      `('${r.city}','${r.eventName}','${r.date}','${esc(r.dimensionValue)}',${r.visitors})`
+    ).join(',');
+
+    await db.run(sql.raw(`INSERT INTO site_event_metrics (city, event_name, date, dimension_value, visitors)
+      VALUES ${values}
+      ON CONFLICT (city, event_name, date, dimension_value)
+      DO UPDATE SET visitors=excluded.visitors`));
+  }
+}
+
+/**
+ * Ensure site_event_metrics has data for the given date range.
+ * Fetches repeat visits, social referrals from Plausible custom events.
+ */
+export async function ensureSiteEventData(
+  db: Database,
+  opts: { apiKey: string; siteId: string; city: string },
+  fromDate: string,
+  toDate: string,
+): Promise<number> {
+  // Check which dates already exist for each event type
+  const [existingRepeat, existingSocial] = await Promise.all([
+    db.select({ date: siteEventMetrics.date })
+      .from(siteEventMetrics)
+      .where(and(
+        eq(siteEventMetrics.city, opts.city),
+        eq(siteEventMetrics.eventName, 'repeat_visit'),
+        sql`${siteEventMetrics.date} >= ${fromDate}`,
+        sql`${siteEventMetrics.date} <= ${toDate}`,
+      )),
+    db.select({ date: siteEventMetrics.date })
+      .from(siteEventMetrics)
+      .where(and(
+        eq(siteEventMetrics.city, opts.city),
+        eq(siteEventMetrics.eventName, 'social_referral'),
+        sql`${siteEventMetrics.date} >= ${fromDate}`,
+        sql`${siteEventMetrics.date} <= ${toDate}`,
+      )),
+  ]);
+
+  const allDates = buildDateSet(fromDate, toDate);
+  const repeatExisting = new Set(existingRepeat.map(r => r.date));
+  const socialExisting = new Set(existingSocial.map(r => r.date));
+
+  const repeatMissing = [...allDates].filter(d => !repeatExisting.has(d));
+  const socialMissing = [...allDates].filter(d => !socialExisting.has(d));
+
+  if (repeatMissing.length === 0 && socialMissing.length === 0) return 0;
+
+  // Fetch from Plausible — both event types in parallel
+  const queries: Promise<EventMetricRow[]>[] = [];
+
+  if (repeatMissing.length > 0) {
+    const ranges = findContiguousRanges(repeatMissing);
+    for (const [rangeFrom, rangeTo] of ranges) {
+      queries.push(
+        queryPlausible(opts.apiKey, {
+          siteId: opts.siteId,
+          metrics: ['visitors'],
+          dateRange: [rangeFrom, rangeTo],
+          dimensions: ['time:day', 'event:props:totalVisits'],
+          filters: [['is', 'event:goal', ['Repeat Visit']]],
+          pagination: { limit: 10000 },
+        }).then(rows => rows.map(r => ({
+          city: opts.city,
+          eventName: 'repeat_visit',
+          date: r.dimensions[0],
+          dimensionValue: r.dimensions[1],
+          visitors: r.metrics[0],
+        }))).catch(() => [])
+      );
+    }
+  }
+
+  if (socialMissing.length > 0) {
+    const ranges = findContiguousRanges(socialMissing);
+    for (const [rangeFrom, rangeTo] of ranges) {
+      queries.push(
+        queryPlausible(opts.apiKey, {
+          siteId: opts.siteId,
+          metrics: ['visitors'],
+          dateRange: [rangeFrom, rangeTo],
+          dimensions: ['time:day', 'event:props:network'],
+          filters: [['is', 'event:goal', ['Social Visit']]],
+          pagination: { limit: 10000 },
+        }).then(rows => rows.map(r => ({
+          city: opts.city,
+          eventName: 'social_referral',
+          date: r.dimensions[0],
+          dimensionValue: r.dimensions[1],
+          visitors: r.metrics[0],
+        }))).catch(() => [])
+      );
+    }
+  }
+
+  const results = await Promise.all(queries);
+  const allRows = results.flat();
+
+  if (allRows.length > 0) {
+    await upsertEventRows(db, allRows);
+  }
+
+  return allRows.length;
+}
+
+/**
+ * Ensure entry visitor data for a specific content item.
+ * Queries Plausible with visit:entry_page dimension filtered to this slug's paths.
+ */
+export async function ensureEntryPageData(
+  db: Database,
+  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string; redirects?: Record<string, string> },
+  contentType: string,
+  contentSlug: string,
+  fromDate: string,
+  toDate: string,
+): Promise<number> {
+  const paths = buildPagePaths(contentType, contentSlug);
+  if (paths.length === 0) return 0;
+
+  // Check which dates already have entry_visitors > 0
+  const existing = await db.select({ date: contentPageMetrics.date })
+    .from(contentPageMetrics)
+    .where(and(
+      eq(contentPageMetrics.city, opts.city),
+      eq(contentPageMetrics.contentType, contentType),
+      eq(contentPageMetrics.contentSlug, contentSlug),
+      sql`${contentPageMetrics.date} >= ${fromDate}`,
+      sql`${contentPageMetrics.date} <= ${toDate}`,
+      sql`${contentPageMetrics.entryVisitors} > 0`,
+    ));
+
+  const existingDates = new Set(existing.map(r => r.date));
+  const allDates = buildDateSet(fromDate, toDate);
+  const missing = [...allDates].filter(d => !existingDates.has(d));
+
+  if (missing.length === 0) return 0;
+
+  // Build locale-aware paths for filtering
+  const allPaths: string[] = [];
+  for (const p of paths) {
+    allPaths.push(p);
+    for (const locale of opts.locales) {
+      if (locale !== opts.defaultLocale) {
+        allPaths.push(`/${locale}${p}`);
+      }
+    }
+  }
+
+  const ranges = findContiguousRanges(missing);
+  let totalUpdated = 0;
+
+  const results = await Promise.all(ranges.map(([rangeFrom, rangeTo]) =>
+    queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['visitors'],
+      dateRange: [rangeFrom, rangeTo],
+      dimensions: ['time:day'],
+      filters: [['is', 'visit:entry_page', allPaths]],
+    }).catch(() => [])
+  ));
+
+  for (const rows of results) {
+    for (const row of rows) {
+      const date = row.dimensions[0];
+      const entryVisitors = row.metrics[0];
+
+      // Update existing content_page_metrics rows for this date
+      await db.run(sql.raw(`UPDATE content_page_metrics
+        SET entry_visitors = ${entryVisitors}
+        WHERE city = '${opts.city}'
+          AND content_type = '${contentType}'
+          AND content_slug = '${esc(contentSlug)}'
+          AND date = '${date}'`));
+      totalUpdated++;
+    }
+  }
+
+  return totalUpdated;
 }
 
 // ── Legacy runSync (sync API endpoint) ──────────────────────────────

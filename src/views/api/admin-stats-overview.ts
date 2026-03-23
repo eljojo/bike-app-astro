@@ -4,16 +4,15 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentEngagement, siteDailyMetrics, reactions, users } from '../../db/schema';
+import { contentEngagement, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
-import { ensureSiteDailyData, syncSiteMetrics } from '../../lib/stats/sync.server';
+import { ensureSiteDailyData, ensureSiteEventData, syncSiteMetrics } from '../../lib/stats/sync.server';
 import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
-import { getVisitorInsights, type VisitorInsights } from '../../lib/stats/visitor-insights.server';
 
 export const prerender = false;
 
@@ -62,6 +61,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
 
       const needsFullSync = forceSync || (engagementCount[0]?.count ?? 0) === 0;
 
+      const syncOpts = { apiKey, siteId: cityConfig.plausible_domain, city: CITY };
+
       if (needsFullSync) {
         if (forceSync) {
           // Delete existing site daily data for the range
@@ -75,27 +76,19 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         }
         // Full site sync: daily aggregates + page breakdown + engagement rebuild
         await syncSiteMetrics(database, {
-          apiKey,
-          siteId: cityConfig.plausible_domain,
-          city: CITY,
+          ...syncOpts,
           locales: cityConfig.locales ?? [cityConfig.locale],
           defaultLocale: cityConfig.locale,
           redirects,
         });
       } else {
         // Incremental: just backfill missing daily rows
-        await ensureSiteDailyData(database, {
-          apiKey, siteId: cityConfig.plausible_domain, city: CITY,
-        }, startStr, endStr);
+        await ensureSiteDailyData(database, syncOpts, startStr, endStr);
       }
-    }
 
-    // Visitor insights (Plausible custom events) — fetched in parallel with D1 queries, cached separately
-    const plausibleKey = env.PLAUSIBLE_API_KEY;
-    // Fire all queries in parallel — each D1 round trip is ~30-50ms
-    const visitorInsightsPromise = plausibleKey
-      ? getVisitorInsights(database, { apiKey: plausibleKey, siteId: getCityConfig().plausible_domain, city: CITY }, [startStr, endStr])
-      : Promise.resolve(null as VisitorInsights | null);
+      // Ensure event metrics (repeat visits, social referrals) are synced
+      await ensureSiteEventData(database, syncOpts, startStr, endStr);
+    }
 
     const [
       currentMetrics,
@@ -110,13 +103,13 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       routeNames,
       eventNames,
       signupsByDate,
+      repeatVisitRows,
+      socialReferralRows,
     ] = await Promise.all([
       // 1. Current period summary
       database.select({
         totalPageviews: sql<number>`COALESCE(SUM(${siteDailyMetrics.totalPageviews}), 0)`,
         totalVisitors: sql<number>`COALESCE(SUM(${siteDailyMetrics.uniqueVisitors}), 0)`,
-        newAccounts: sql<number>`COALESCE(SUM(${siteDailyMetrics.newAccounts}), 0)`,
-        totalReactions: sql<number>`COALESCE(SUM(${siteDailyMetrics.reactionsCount}), 0)`,
       }).from(siteDailyMetrics)
         .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, startStr), lte(siteDailyMetrics.date, endStr))),
       // 2. Previous period summary
@@ -185,6 +178,30 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         ))
         .groupBy(sql`DATE(${users.createdAt})`, users.role)
         .orderBy(sql`DATE(${users.createdAt})`),
+      // 13. Repeat visit event metrics from D1
+      database.select({
+        dimensionValue: siteEventMetrics.dimensionValue,
+        visitors: sql<number>`SUM(${siteEventMetrics.visitors})`,
+      }).from(siteEventMetrics)
+        .where(and(
+          eq(siteEventMetrics.city, CITY),
+          eq(siteEventMetrics.eventName, 'repeat_visit'),
+          gte(siteEventMetrics.date, startStr),
+          lte(siteEventMetrics.date, endStr),
+        ))
+        .groupBy(siteEventMetrics.dimensionValue),
+      // 14. Social referral event metrics from D1
+      database.select({
+        dimensionValue: siteEventMetrics.dimensionValue,
+        visitors: sql<number>`SUM(${siteEventMetrics.visitors})`,
+      }).from(siteEventMetrics)
+        .where(and(
+          eq(siteEventMetrics.city, CITY),
+          eq(siteEventMetrics.eventName, 'social_referral'),
+          gte(siteEventMetrics.date, startStr),
+          lte(siteEventMetrics.date, endStr),
+        ))
+        .groupBy(siteEventMetrics.dimensionValue),
     ]);
 
     // Build name lookup from parallel results
@@ -200,11 +217,19 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       ? Math.round(((current.totalPageviews - prev.totalPageviews) / prev.totalPageviews) * 100)
       : null;
 
+    // Compute new accounts from signups (non-guest)
+    const newAccountsCount = signupsByDate
+      .filter(r => r.role !== 'guest')
+      .reduce((sum, r) => sum + r.count, 0);
+
+    // Compute total reactions from source table
+    const totalReactionsCount = reactionsByType.reduce((sum, r) => sum + r.count, 0);
+
     const summaryCards: SummaryCard[] = [
       { label: 'Page views', value: current.totalPageviews, change: pctChange ?? undefined, description: 'Total page views across the site' },
       { label: 'Visitors', value: current.totalVisitors, description: 'Unique visitors (daily count, summed)' },
-      { label: 'New accounts', value: current.newAccounts, description: 'New registered users (non-guest)' },
-      { label: 'Reactions', value: current.totalReactions, description: 'Stars and other reactions' },
+      { label: 'New accounts', value: newAccountsCount, description: 'New registered users (non-guest)' },
+      { label: 'Reactions', value: totalReactionsCount, description: 'Stars and other reactions' },
       { label: 'Content tracked', value: contentCount[0]?.count ?? 0, description: 'Routes, events, and communities with analytics' },
     ];
 
@@ -273,7 +298,33 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }
     signups.sort((a, b) => a.date.localeCompare(b.date));
 
-    const visitorInsights = await visitorInsightsPromise;
+    // Build visitor insights from D1 event metrics
+    const repeatVisits: Record<string, number> = {};
+    let totalReturning = 0;
+    let totalReturnCount = 0;
+    for (const row of repeatVisitRows) {
+      const count = parseInt(row.dimensionValue, 10);
+      const visitors = row.visitors;
+      if (isNaN(count)) continue;
+      const bucket = count >= 5 ? '5+' : String(count);
+      repeatVisits[bucket] = (repeatVisits[bucket] || 0) + visitors;
+      totalReturning += visitors;
+      totalReturnCount += visitors * count;
+    }
+
+    const socialReferrals: Record<string, number> = {};
+    for (const row of socialReferralRows) {
+      socialReferrals[row.dimensionValue] = row.visitors;
+    }
+
+    const visitorInsights = (totalReturning > 0 || Object.keys(socialReferrals).length > 0) ? {
+      repeatVisits,
+      returningVisitors: totalReturning,
+      returnRate: 0,
+      avgReturns: totalReturning > 0 ? Math.round((totalReturnCount / totalReturning) * 10) / 10 : 0,
+      socialReferrals,
+      entryPages: [] as Array<{ path: string; visitors: number }>,
+    } : null;
 
     return jsonResponse({
       summaryCards, timeSeries, durationSeries, pagesPerVisitSeries,
