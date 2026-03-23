@@ -141,6 +141,13 @@
       "when": 1774944000000,
       "tag": "0017_reset_analytics_data_v4",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1775030400000,
+      "tag": "0018_reset_analytics_data_v5",
+      "breakpoints": true
     }
   ]
 }
