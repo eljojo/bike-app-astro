@@ -209,6 +209,25 @@ describe('sync pipeline', () => {
     expect(slugs.has('greenbelt')).toBe(true);
   });
 
+  it('built redirects.json contains entries when data repo has redirects.yml', () => {
+    // Verifies the prerendered redirects.json endpoint produces non-empty output.
+    // If this file is empty after a build, redirects won't be applied during sync.
+    const builtPath = 'dist/client/admin/data/redirects.json';
+    if (!fs.existsSync(builtPath)) return; // skip if not built
+
+    const built = JSON.parse(fs.readFileSync(builtPath, 'utf-8'));
+    const count = Object.keys(built).length;
+
+    // The demo city (E2E) has no redirects.yml, so 0 is expected for CITY=demo.
+    // For ottawa, we expect 30+ entries.
+    const city = process.env.CITY || 'ottawa'; // eslint-disable-line bike-app/no-hardcoded-city-locale
+    if (city === 'demo') {
+      expect(count).toBe(0);
+    } else {
+      expect(count).toBeGreaterThan(0);
+    }
+  });
+
   it('processes daily aggregate fixture and writes to DB', async () => {
     const testDb = createTestDb();
     try {

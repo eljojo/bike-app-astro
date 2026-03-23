@@ -120,6 +120,13 @@
       "when": 1774684800000,
       "tag": "0014_schema_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1774771200000,
+      "tag": "0015_reset_analytics_data_v3",
+      "breakpoints": true
     }
   ]
 }
