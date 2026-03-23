@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier } from '../src/lib/auth/auth';
+import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier, buildSessionBatch } from '../src/lib/auth/auth';
 
 describe('auth helpers', () => {
   describe('normalizeEmail', () => {
@@ -197,6 +197,50 @@ describe('session lifecycle', () => {
     const user = await validateSession(database, token);
     expect(user).not.toBeNull();
     expect(user!.hasPasskey).toBe(true);
+  });
+
+  it('buildSessionBatch respects custom durationMs', async () => {
+    const { sessions } = await import('../src/db/schema');
+
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
+    const before = Date.now();
+    const plan = buildSessionBatch(database, 'user-1', { durationMs: ninetyDays });
+    const after = Date.now();
+
+    // Execute the statements to insert the session
+    for (const stmt of plan.statements) {
+      await stmt;
+    }
+
+    const allSessions = await database.select().from(sessions);
+    const session = allSessions.find((s: any) => s.token === plan.token);
+    expect(session).toBeDefined();
+
+    const expiresAt = new Date(session!.expiresAt).getTime();
+    // Expiry should be ~90 days from now, not 30
+    expect(expiresAt).toBeGreaterThanOrEqual(before + ninetyDays);
+    expect(expiresAt).toBeLessThanOrEqual(after + ninetyDays);
+  });
+
+  it('buildSessionBatch defaults to 30-day duration', async () => {
+    const { sessions } = await import('../src/db/schema');
+
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    const before = Date.now();
+    const plan = buildSessionBatch(database, 'user-1');
+    const after = Date.now();
+
+    for (const stmt of plan.statements) {
+      await stmt;
+    }
+
+    const allSessions = await database.select().from(sessions);
+    const session = allSessions.find((s: any) => s.token === plan.token);
+    expect(session).toBeDefined();
+
+    const expiresAt = new Date(session!.expiresAt).getTime();
+    expect(expiresAt).toBeGreaterThanOrEqual(before + thirtyDays);
+    expect(expiresAt).toBeLessThanOrEqual(after + thirtyDays);
   });
 });
 

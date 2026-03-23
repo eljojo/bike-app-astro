@@ -78,6 +78,8 @@ export function generateId(): string {
   return randomHex(16);
 }
 
+const DEFAULT_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
 /**
  * Build session write statements for batch/sequential execution.
  * Returns a fresh token and the required DB statements.
@@ -85,10 +87,11 @@ export function generateId(): string {
 export function buildSessionBatch(
   db: DbClient,
   userId: string,
-  opts: { revokeToken?: string } = {},
+  opts: { revokeToken?: string; durationMs?: number } = {},
 ): { token: string; statements: unknown[] } {
+  const durationMs = opts.durationMs ?? DEFAULT_SESSION_DURATION_MS;
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const expiresAt = new Date(now.getTime() + durationMs);
   const token = randomHex(32);
 
   const statements: unknown[] = [
@@ -216,26 +219,27 @@ export function getWebAuthnConfig(requestUrl: string, env: Partial<AppEnv> = {})
   };
 }
 
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 /** Set session cookies on a response. */
 export function setSessionCookies(
   cookies: AstroCookies,
-  token: string
+  token: string,
+  maxAge: number = DEFAULT_SESSION_MAX_AGE,
 ): void {
   cookies.set('session_token', token, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_MAX_AGE,
+    maxAge,
   });
   cookies.set('logged_in', '1', {
     httpOnly: false,
     secure: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_MAX_AGE,
+    maxAge,
   });
 }
 
@@ -299,9 +303,13 @@ export async function createSessionWithCookies(
   database: DbClient,
   userId: string,
   cookies: AstroCookies,
+  opts: { durationMs?: number; maxAge?: number } = {},
 ): Promise<string> {
-  const token = await createSession(database, userId);
-  setSessionCookies(cookies, token);
+  const { token, statements } = buildSessionBatch(database, userId, { durationMs: opts.durationMs });
+  for (const statement of statements) {
+    await statement;
+  }
+  setSessionCookies(cookies, token, opts.maxAge);
   return token;
 }
 
