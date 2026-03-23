@@ -104,7 +104,6 @@ export function useEditorState(opts: EditorStateOptions) {
 
       if (data.contentHash) setContentHash(data.contentHash);
       setSaved(true);
-      setTimeout(() => setSaved(false), 8000);
 
       onSuccess?.(data);
     } catch (err: unknown) {
@@ -114,5 +113,7 @@ export function useEditorState(opts: EditorStateOptions) {
     }
   }, [contentHash, apiBase, contentId, validate, buildPayload, onSuccess]);
 
-  return { saving, saved, error, githubUrl, contentHash, guestCreated, save, setError };
+  const dismissSaved = useCallback(() => setSaved(false), []);
+
+  return { saving, saved, error, githubUrl, contentHash, guestCreated, save, setError, dismissSaved };
 }

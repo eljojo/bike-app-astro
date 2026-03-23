@@ -20,12 +20,14 @@ interface Props {
   licenseDocsUrl?: string;
   /** Extra disabled condition beyond `saving` */
   disabled?: boolean;
+  /** Dismiss the saved state (hides modal/success message) */
+  onDismiss?: () => void;
 }
 
 export default function EditorActions({
   error, githubUrl, saved, saving, onSave,
   contentType, userRole, guestCreated, viewLink,
-  showLicenseNotice = true, licenseDocsUrl, disabled = false,
+  showLicenseNotice = true, licenseDocsUrl, disabled = false, onDismiss,
 }: Props) {
   return (
     <div class="editor-actions">
@@ -49,7 +51,7 @@ export default function EditorActions({
         </div>
       )}
       {saved && (userRole === 'guest' || guestCreated) && viewLink && (
-        <SaveSuccessModal viewLink={viewLink} />
+        <SaveSuccessModal viewLink={viewLink} onClose={onDismiss} />
       )}
       {saved && userRole !== 'guest' && !guestCreated && (
         <div class="save-success">

@@ -119,7 +119,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     { field: '', check: () => !lat && !lng, message: 'Click on the map to set a location' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, setError } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, setError, dismissSaved } = useEditorState({
     apiBase: '/api/places',
     contentId: initialData.isNew ? null : initialData.id,
     initialContentHash: initialData.contentHash,
@@ -512,7 +512,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} contentType="place" userRole={userRole} guestCreated={guestCreated}
+        onSave={handleSave} onDismiss={dismissSaved} contentType="place" userRole={userRole} guestCreated={guestCreated}
         viewLink="/admin/places"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />

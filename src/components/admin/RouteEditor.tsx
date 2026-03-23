@@ -102,7 +102,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     { field: '', check: () => !variants.length, message: 'At least one route option is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/routes',
     contentId: initialData.slug,
     initialContentHash: initialData.contentHash,
@@ -436,6 +436,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         viewLink={`/routes/${initialData.slug}`}
         showLicenseNotice={showLicenseNotice !== false}
         licenseDocsUrl="https://whereto.bike/about/licensing/"
+        onDismiss={dismissSaved}
       />
         </div>
 

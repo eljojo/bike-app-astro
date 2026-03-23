@@ -72,7 +72,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     { field: 'community-name', check: () => !name.trim(), message: 'Name is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/organizers',
     contentId: initialData.isNew ? null : (initialData.slug || null),
     initialContentHash: initialData.contentHash,
@@ -279,7 +279,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} contentType="community" userRole={userRole} guestCreated={guestCreated}
+        onSave={handleSave} onDismiss={dismissSaved} contentType="community" userRole={userRole} guestCreated={guestCreated}
         viewLink="/admin/communities"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />

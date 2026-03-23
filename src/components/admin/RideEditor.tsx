@@ -203,7 +203,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
     { field: '', check: () => !variants.length, message: 'A GPX file is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/rides',
     contentId: initialData.isNew ? null : initialData.slug,
     initialContentHash: initialData.contentHash,
@@ -430,7 +430,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
           {/* Save */}
           <EditorActions
             error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-            onSave={handleSave} contentType="ride" userRole={userRole} guestCreated={guestCreated}
+            onSave={handleSave} onDismiss={dismissSaved} contentType="ride" userRole={userRole} guestCreated={guestCreated}
             viewLink={paths.ride(initialData.slug, initialData.tour_slug)}
             showLicenseNotice={false}
           />
