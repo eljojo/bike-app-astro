@@ -7,6 +7,7 @@ Chart.register(...registerables);
 
 interface StatsDetailData {
   heroStats: SummaryCard[];
+  narrative?: string[];
   timeSeries: TimeSeriesPoint[];
   durationSeries?: TimeSeriesPoint[];
   granularity: string;
@@ -254,6 +255,15 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
       {/* Data loaded */}
       {data && !error && (
         <>
+          {/* Narrative summary */}
+          {data.narrative && data.narrative.length > 0 && (
+            <div class="stats-narrative">
+              {data.narrative.map((sentence, i) => (
+                <p key={i}>{sentence}</p>
+              ))}
+            </div>
+          )}
+
           {/* Hero stats */}
           {data.heroStats.length > 0 && (
             <div class="stats-summary-cards">

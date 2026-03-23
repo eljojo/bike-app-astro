@@ -11,6 +11,7 @@ import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { buildNarrative } from '../../lib/stats/narrative';
 
 export const prerender = false;
 
@@ -116,9 +117,23 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
 
     const timeSeries: TimeSeriesPoint[] = daily.map(d => ({ date: d.date, value: d.pageviews }));
     const reactionBreakdown = Object.fromEntries(reactionData.map(r => [r.reactionType, r.count]));
+    const totalReactions = reactionData.reduce((sum, r) => sum + r.count, 0);
+
+    const narrative = eng ? buildNarrative({
+      contentType: 'event',
+      totalPageviews: eng.totalPageviews,
+      totalVisitors: eng.totalVisitorDays,
+      entryVisitors: 0,
+      wallTimeHours: eng.wallTimeHours,
+      avgVisitDuration: eng.avgVisitDuration,
+      mapConversionRate: 0,
+      stars: eng.stars,
+      totalReactions,
+    }) : [];
 
     return jsonResponse({
       heroStats,
+      narrative,
       timeSeries,
       granularity: granularityForRange(range),
       range,
