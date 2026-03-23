@@ -1,11 +1,12 @@
 /**
  * Shared sync context builder for stats API endpoints.
- * Loads API key, city config, redirects — everything the sync functions need.
+ * Loads API key, city config, redirects, video map — everything the sync functions need.
  */
 import { env } from '../env/env.service';
 import { CITY } from '../config/config';
 import { getCityConfig } from '../config/city-config';
 import routeRedirects from 'virtual:bike-app/route-redirects';
+import videoRouteMap from 'virtual:bike-app/video-route-map';
 
 export interface SyncContext {
   apiKey: string;
@@ -14,10 +15,11 @@ export interface SyncContext {
   locales: string[];
   defaultLocale: string;
   redirects: Record<string, string>;
+  videoRouteMap: Record<string, string>;
 }
 
 /**
- * Build the sync context from env + city config + build-time redirects.
+ * Build the sync context from env + city config + build-time data.
  * Returns null if PLAUSIBLE_API_KEY is not set (local dev without API key).
  */
 export async function buildSyncContext(_baseUrl: string): Promise<SyncContext | null> {
@@ -33,5 +35,6 @@ export async function buildSyncContext(_baseUrl: string): Promise<SyncContext | 
     locales: cityConfig.locales ?? [cityConfig.locale],
     defaultLocale: cityConfig.locale,
     redirects: routeRedirects,
+    videoRouteMap,
   };
 }

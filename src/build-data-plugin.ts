@@ -244,6 +244,27 @@ function buildRouteRedirectsModule(): string {
   return `export default ${JSON.stringify(map)};`;
 }
 
+function buildVideoRouteMapModule(): string {
+  const routesDir = path.join(CITY_DIR, 'routes');
+  const map: Record<string, string> = {};
+
+  if (fs.existsSync(routesDir)) {
+    for (const slug of fs.readdirSync(routesDir)) {
+      const mediaPath = path.join(routesDir, slug, 'media.yml');
+      if (!fs.existsSync(mediaPath)) continue;
+      const media = yaml.load(fs.readFileSync(mediaPath, 'utf-8'));
+      if (!Array.isArray(media)) continue;
+      for (const item of media) {
+        if (item.type === 'video' && item.handle) {
+          map[item.handle] = slug;
+        }
+      }
+    }
+  }
+
+  return `export default ${JSON.stringify(map)};`;
+}
+
 // --- Plugin ---
 
 export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
@@ -350,6 +371,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
     'ride-redirects': async () => buildRideRedirectsModule(),
     'route-redirects': async () => buildRouteRedirectsModule(),
+    'video-route-map': async () => buildVideoRouteMapModule(),
 
     'homepage-facts': async () =>
       `export default ${JSON.stringify(homepageFacts)};`,

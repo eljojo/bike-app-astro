@@ -12,7 +12,7 @@ const CONTENT_PREFIXES: Array<{ prefix: string; contentType: ContentIdentity['co
 const SKIP_PREFIXES = ['admin', 'api', 'about', 'map', 'calendar', 'feeds', '_'];
 
 /** Content types excluded from v1 tracking — logged during sync for visibility. */
-const EXCLUDED_CONTENT_PREFIXES = ['guides', 'videos', 'tours'];
+const EXCLUDED_CONTENT_PREFIXES = ['guides', 'tours'];
 
 /**
  * Resolve a URL path to a content identity.
@@ -21,6 +21,7 @@ const EXCLUDED_CONTENT_PREFIXES = ['guides', 'videos', 'tours'];
  * @param locale - Detected locale (for reverse-translating path segments)
  * @param slugAliases - Map of translated slugs to canonical slugs
  * @param redirects - Map of old slugs to current slugs (from redirects.yml)
+ * @param videoRouteMap - Map of video handle → route slug (from media.yml)
  * @returns ContentIdentity or null if not a content page
  */
 export function resolveUrl(
@@ -28,6 +29,7 @@ export function resolveUrl(
   locale: string,
   slugAliases: Record<string, string>,
   redirects: Record<string, string>,
+  videoRouteMap?: Record<string, string>,
 ): ContentIdentity | null {
   const cleaned = path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
   const translated = reverseTranslatePath(cleaned, locale);
@@ -38,6 +40,17 @@ export function resolveUrl(
 
   if (SKIP_PREFIXES.includes(topSegment)) return null;
   if (EXCLUDED_CONTENT_PREFIXES.includes(topSegment)) return null;
+
+  // Videos: attribute to the owning route via videoRouteMap
+  if (topSegment === 'videos' && segments.length >= 2 && videoRouteMap) {
+    const videoHandle = segments[1];
+    const routeSlug = videoRouteMap[videoHandle];
+    if (routeSlug) {
+      return { contentType: 'route', contentSlug: routeSlug, pageType: 'detail' };
+    }
+    return null; // video not attached to any route
+  }
+  if (topSegment === 'videos') return null; // no map available
 
   for (const { prefix, contentType } of CONTENT_PREFIXES) {
     if (topSegment !== prefix) continue;

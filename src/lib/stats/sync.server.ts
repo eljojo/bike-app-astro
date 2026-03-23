@@ -47,6 +47,7 @@ export function processPageBreakdown(
   date: string,
   locales: string[],
   defaultLoc: string,
+  videoRouteMap?: Record<string, string>,
 ): { contentRows: ContentMetricRow[]; skippedPaths: string[] } {
   const contentRows: ContentMetricRow[] = [];
   const skippedPaths: string[] = [];
@@ -54,7 +55,7 @@ export function processPageBreakdown(
   for (const row of rows) {
     const fullPath = row.dimensions[0];
     const [locale, pathWithoutLocale] = detectLocale(fullPath, locales, defaultLoc);
-    const identity = resolveUrl(pathWithoutLocale, locale, slugAliases, redirects);
+    const identity = resolveUrl(pathWithoutLocale, locale, slugAliases, redirects, videoRouteMap);
 
     if (!identity) {
       skippedPaths.push(fullPath);
@@ -93,6 +94,7 @@ export function processPageDaily(
   redirects: Record<string, string>,
   locales: string[],
   defaultLoc: string,
+  videoRouteMap?: Record<string, string>,
 ): { contentRows: ContentMetricRow[]; skippedPaths: string[] } {
   const contentRows: ContentMetricRow[] = [];
   const skippedPaths: string[] = [];
@@ -101,7 +103,7 @@ export function processPageDaily(
     const date = row.dimensions[0];
     const fullPath = row.dimensions[1];
     const [locale, pathWithoutLocale] = detectLocale(fullPath, locales, defaultLoc);
-    const identity = resolveUrl(pathWithoutLocale, locale, slugAliases, redirects);
+    const identity = resolveUrl(pathWithoutLocale, locale, slugAliases, redirects, videoRouteMap);
 
     if (!identity) {
       skippedPaths.push(fullPath);
@@ -291,6 +293,7 @@ interface SyncOptions {
   locales: string[];
   defaultLocale: string;
   redirects?: Record<string, string>;
+  videoRouteMap?: Record<string, string>;
   full?: boolean;
 }
 
@@ -334,7 +337,7 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   const redir = opts.redirects ?? {};
   const redirCount = Object.keys(redir).length;
   const { contentRows } = processPageBreakdown(
-    pageRows, opts.city, {}, redir, today, opts.locales, opts.defaultLocale,
+    pageRows, opts.city, {}, redir, today, opts.locales, opts.defaultLocale, opts.videoRouteMap,
   );
   const numberedAfter = contentRows.filter(r => /^\d+-/.test(r.contentSlug)).length;
   console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered`);
@@ -462,7 +465,7 @@ export async function syncPageMetrics(
   });
 
   const { contentRows } = processPageDaily(
-    rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale,
+    rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale, opts.videoRouteMap,
   );
 
   if (contentRows.length > 0) {
@@ -559,7 +562,7 @@ export async function ensureSiteDailyData(
  */
 export async function ensurePageDailyData(
   db: Database,
-  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string; redirects?: Record<string, string> },
+  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string; redirects?: Record<string, string>; videoRouteMap?: Record<string, string> },
   contentType: string,
   contentSlug: string,
   fromDate: string,
@@ -601,7 +604,7 @@ export async function ensurePageDailyData(
 
   for (const rows of results) {
     const { contentRows } = processPageDaily(
-      rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale,
+      rows, opts.city, {}, opts.redirects ?? {}, opts.locales, opts.defaultLocale, opts.videoRouteMap,
     );
 
     if (contentRows.length > 0) {
