@@ -7,14 +7,6 @@ import '../../styles/admin.scss';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { authorize } from '../../lib/auth/authorize';
 import StatsDetail from '../../components/admin/StatsDetail';
-import { db } from '../../lib/get-db';
-import { env } from '../../lib/env/env.service';
-import { CITY } from '../../lib/config/config';
-import { getCityConfig } from '../../lib/config/city-config';
-import { contentPageMetrics, contentEngagement, reactions } from '../../db/schema';
-import { eq, and, gte, sql } from 'drizzle-orm';
-import { granularityForRange, type TimeRange, type TimeSeriesPoint, type FunnelStep, type SummaryCard } from '../../lib/stats/types';
-import { needsPageSync, syncPageMetrics } from '../../lib/stats/sync.server';
 
 const features = getInstanceFeatures();
 if (!features.hasRoutes) {
@@ -26,145 +18,17 @@ if (user instanceof Response) return user;
 
 const slug = Astro.params.slug;
 if (!slug) return Astro.redirect('/admin/stats');
-
-const range = (Astro.url.searchParams.get('range') || '30d') as TimeRange;
-const database = db();
-
-// On-demand per-page sync: fetch daily data from Plausible if stale
-const apiKey = env.PLAUSIBLE_API_KEY;
-if (apiKey) {
-  try {
-    const stale = await needsPageSync(database, CITY, 'route', slug);
-    if (stale) {
-      const cityConfig = getCityConfig();
-      await syncPageMetrics(database, {
-        apiKey,
-        siteId: cityConfig.plausible_domain,
-        city: CITY,
-        locales: cityConfig.locales ?? [cityConfig.locale],
-        defaultLocale: cityConfig.locale,
-        contentType: 'route',
-        contentSlug: slug,
-      });
-    }
-  } catch (err) {
-    console.error('stats page sync error:', err);
-  }
-}
-
-const now = new Date();
-const startDate = getStartDate(now, range);
-const startStr = startDate.toISOString().split('T')[0];
-
-// Engagement summary
-const engagement = await database.select()
-  .from(contentEngagement)
-  .where(and(
-    eq(contentEngagement.city, CITY),
-    eq(contentEngagement.contentType, 'route'),
-    eq(contentEngagement.contentSlug, slug),
-  ))
-  .limit(1);
-
-const eng = engagement[0];
-
-const heroStats: SummaryCard[] = eng ? [
-  { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
-  { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
-  { label: 'Avg duration', value: `${Math.round(eng.avgVisitDuration)}s`, description: 'Average visit duration' },
-  { label: 'Bounce rate', value: `${Math.round(eng.avgBounceRate)}%`, description: 'Percentage who left without interacting' },
-  { label: 'Map conversion', value: `${Math.round(eng.mapConversionRate * 100)}%`, description: 'Visitors who opened the map' },
-  { label: 'Stars', value: eng.stars, description: 'Bookmarks by users' },
-  { label: 'Engagement', value: Math.round(eng.engagementScore * 100), description: 'Combined engagement score (0-100)' },
-] : [];
-
-// Time series with visit duration
-const daily = await database.select({
-  date: contentPageMetrics.date,
-  pageviews: sql<number>`SUM(${contentPageMetrics.pageviews})`,
-  avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
-}).from(contentPageMetrics)
-  .where(and(
-    eq(contentPageMetrics.city, CITY),
-    eq(contentPageMetrics.contentType, 'route'),
-    eq(contentPageMetrics.contentSlug, slug),
-    gte(contentPageMetrics.date, startStr),
-  ))
-  .groupBy(contentPageMetrics.date)
-  .orderBy(contentPageMetrics.date);
-
-const timeSeries: TimeSeriesPoint[] = daily.map(d => ({
-  date: d.date,
-  value: d.pageviews,
-  secondaryValue: Math.round(d.avgDuration ?? 0),
-}));
-
-// Funnel: detail views → map views
-const funnelData = await database.select({
-  pageType: contentPageMetrics.pageType,
-  total: sql<number>`SUM(${contentPageMetrics.pageviews})`,
-}).from(contentPageMetrics)
-  .where(and(
-    eq(contentPageMetrics.city, CITY),
-    eq(contentPageMetrics.contentType, 'route'),
-    eq(contentPageMetrics.contentSlug, slug),
-  ))
-  .groupBy(contentPageMetrics.pageType);
-
-const detailViews = funnelData.find(f => f.pageType === 'detail')?.total ?? 0;
-const mapViews = funnelData.filter(f => f.pageType.startsWith('map')).reduce((sum, f) => sum + f.total, 0);
-
-const funnel: FunnelStep[] = [
-  { label: 'Detail page', count: detailViews },
-  { label: 'Map page', count: mapViews, rate: detailViews > 0 ? Math.round((mapViews / detailViews) * 100) : 0 },
-];
-
-// Reactions breakdown for this route
-const reactionData = await database.select({
-  reactionType: reactions.reactionType,
-  count: sql<number>`COUNT(*)`,
-}).from(reactions)
-  .where(and(
-    eq(reactions.city, CITY),
-    eq(reactions.contentType, 'route'),
-    eq(reactions.contentSlug, slug),
-  ))
-  .groupBy(reactions.reactionType);
-
-const reactionBreakdown = Object.fromEntries(reactionData.map(r => [r.reactionType, r.count]));
-
-function getStartDate(now: Date, r: TimeRange): Date {
-  const d = new Date(now);
-  switch (r) {
-    case '30d': d.setDate(d.getDate() - 30); break;
-    case '3mo': d.setMonth(d.getMonth() - 3); break;
-    case '1yr': d.setFullYear(d.getFullYear() - 1); break;
-    case 'all': d.setFullYear(2020); break;
-  }
-  return d;
-}
 ---
 
 <Base title={`Stats: ${slug}`} admin>
   <div class="admin-stats">
     <AdminHeader user={user} currentTab="stats" />
-    <StatsDetail
-      client:load
-      contentType="route"
-      contentSlug={slug}
-      heroStats={heroStats}
-      timeSeries={timeSeries}
-      granularity={granularityForRange(range)}
-      funnel={funnel}
-      range={range}
-      reactions={reactionBreakdown}
-    />
+    <StatsDetail client:load contentType="route" contentSlug={slug} />
   </div>
 </Base>
 
 <style lang="scss">
   @use '../../styles/variables' as *;
-  @use '../../styles/mixins' as *;
 
   .admin-stats {
     max-width: 1200px;

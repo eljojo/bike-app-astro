@@ -375,6 +375,147 @@ export async function syncPageMetrics(
   return contentRows.length;
 }
 
+// ── Incremental sync helpers ────────────────────────────────────────
+// Nix-like: check what's already in D1, fetch only what's missing.
+
+function buildDateSet(from: string, to: string): Set<string> {
+  const dates = new Set<string>();
+  const d = new Date(from + 'T00:00:00Z');
+  const end = new Date(to + 'T00:00:00Z');
+  while (d <= end) {
+    dates.add(d.toISOString().split('T')[0]);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+function findContiguousRanges(dates: string[]): Array<[string, string]> {
+  if (dates.length === 0) return [];
+  const sorted = [...dates].sort();
+  const ranges: Array<[string, string]> = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const expected = new Date(prev + 'T00:00:00Z');
+    expected.setUTCDate(expected.getUTCDate() + 1);
+    if (sorted[i] !== expected.toISOString().split('T')[0]) {
+      ranges.push([start, prev]);
+      start = sorted[i];
+    }
+    prev = sorted[i];
+  }
+  ranges.push([start, prev]);
+  return ranges;
+}
+
+/**
+ * Ensure site_daily_metrics has data for the given date range.
+ * Finds missing dates, fetches only those from Plausible.
+ * Returns the dates that were backfilled.
+ */
+export async function ensureSiteDailyData(
+  db: Database,
+  opts: { apiKey: string; siteId: string; city: string },
+  fromDate: string,
+  toDate: string,
+): Promise<string[]> {
+  const existing = await db.select({ date: siteDailyMetrics.date })
+    .from(siteDailyMetrics)
+    .where(and(
+      eq(siteDailyMetrics.city, opts.city),
+      sql`${siteDailyMetrics.date} >= ${fromDate}`,
+      sql`${siteDailyMetrics.date} <= ${toDate}`,
+    ));
+
+  const existingDates = new Set(existing.map(r => r.date));
+  const allDates = buildDateSet(fromDate, toDate);
+  const missing = [...allDates].filter(d => !existingDates.has(d));
+
+  if (missing.length === 0) return [];
+
+  const ranges = findContiguousRanges(missing);
+  const backfilled: string[] = [];
+
+  for (const [rangeFrom, rangeTo] of ranges) {
+    const rows = await queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+      dateRange: [rangeFrom, rangeTo],
+      dimensions: ['time:day'],
+    });
+
+    const dailyMetrics = processDailyAggregate(rows, opts.city);
+    if (dailyMetrics.length > 0) {
+      await upsertDailyRows(db, dailyMetrics);
+      backfilled.push(...dailyMetrics.map(r => r.date));
+    }
+  }
+
+  return backfilled;
+}
+
+/**
+ * Ensure content_page_metrics has daily data for a specific content item
+ * in the given date range. Finds missing dates, fetches only those from Plausible.
+ */
+export async function ensurePageDailyData(
+  db: Database,
+  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string },
+  contentType: string,
+  contentSlug: string,
+  fromDate: string,
+  toDate: string,
+): Promise<number> {
+  const paths = buildPagePaths(contentType, contentSlug);
+  if (paths.length === 0) return 0;
+
+  const existing = await db.select({ date: contentPageMetrics.date })
+    .from(contentPageMetrics)
+    .where(and(
+      eq(contentPageMetrics.city, opts.city),
+      eq(contentPageMetrics.contentType, contentType),
+      eq(contentPageMetrics.contentSlug, contentSlug),
+      sql`${contentPageMetrics.date} >= ${fromDate}`,
+      sql`${contentPageMetrics.date} <= ${toDate}`,
+    ));
+
+  const existingDates = new Set(existing.map(r => r.date));
+  const allDates = buildDateSet(fromDate, toDate);
+  const missing = [...allDates].filter(d => !existingDates.has(d));
+
+  if (missing.length === 0) return 0;
+
+  const ranges = findContiguousRanges(missing);
+  let totalRows = 0;
+
+  for (const [rangeFrom, rangeTo] of ranges) {
+    const rows = await queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['visitors', 'pageviews', 'visit_duration', 'bounce_rate'],
+      dateRange: [rangeFrom, rangeTo],
+      dimensions: ['time:day', 'event:page'],
+      filters: [['contains', 'event:page', paths]],
+      pagination: { limit: 10000 },
+    });
+
+    const { contentRows } = processPageDaily(
+      rows, opts.city, {}, {}, opts.locales, opts.defaultLocale,
+    );
+
+    if (contentRows.length > 0) {
+      await upsertContentRows(db, contentRows);
+      totalRows += contentRows.length;
+    }
+  }
+
+  // Rebuild engagement scores if new data was fetched
+  if (totalRows > 0) {
+    await rebuildEngagement(db, opts.city);
+  }
+
+  return totalRows;
+}
+
 // ── Legacy runSync (sync API endpoint) ──────────────────────────────
 // Kept for the manual "Sync now" button. Delegates to syncSiteMetrics.
 

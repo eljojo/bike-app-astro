@@ -5,9 +5,7 @@ import type { TimeRange, TimeSeriesPoint, FunnelStep, SummaryCard } from '../../
 
 Chart.register(...registerables);
 
-interface StatsDetailProps {
-  contentType: 'route' | 'event' | 'organizer';
-  contentSlug: string;
+interface StatsDetailData {
   heroStats: SummaryCard[];
   timeSeries: TimeSeriesPoint[];
   granularity: string;
@@ -63,30 +61,51 @@ function liveUrl(contentType: string, contentSlug: string): string {
   }
 }
 
-export default function StatsDetail(props: StatsDetailProps) {
+export default function StatsDetail({ contentType, contentSlug }: { contentType: string; contentSlug: string }) {
   const hydratedRef = useHydrated<HTMLDivElement>();
-  const [data, setData] = useState<StatsDetailProps>(props);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<StatsDetailData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [currentRange, setCurrentRange] = useState<string>('30d');
+  const [syncing, setSyncing] = useState(false);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
   async function loadRange(range: string) {
     setLoading(true);
+    setError('');
+    setCurrentRange(range);
     try {
-      const res = await fetch(`/api/admin/stats/${apiPath(data.contentType)}/${data.contentSlug}?range=${range}`);
+      const res = await fetch(`/api/admin/stats/${apiPath(contentType)}/${contentSlug}?range=${range}`);
       if (res.ok) {
-        const json = await res.json();
-        setData({ ...data, ...json });
+        setData(await res.json());
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || `Failed (${res.status})`);
       }
+    } catch {
+      setError('Network error');
     } finally {
       setLoading(false);
     }
   }
 
-  const hasDuration = data.timeSeries.some(p => (p.secondaryValue ?? 0) > 0);
+  async function triggerSync() {
+    setSyncing(true);
+    try {
+      await fetch(`/api/admin/stats/${apiPath(contentType)}/${contentSlug}?range=${currentRange}&sync=force`, { method: 'POST' });
+      await loadRange(currentRange);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  useEffect(() => { loadRange('30d'); }, []);
+
+  const hasDuration = data?.timeSeries.some(p => (p.secondaryValue ?? 0) > 0) ?? false;
 
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || !data) return;
 
     chartInstance.current?.destroy();
 
@@ -139,9 +158,9 @@ export default function StatsDetail(props: StatsDetailProps) {
     });
 
     return () => { chartInstance.current?.destroy(); };
-  }, [data.timeSeries]);
+  }, [data?.timeSeries]);
 
-  const totalReactions = data.reactions
+  const totalReactions = data?.reactions
     ? Object.values(data.reactions).reduce((sum, n) => sum + n, 0)
     : 0;
 
@@ -152,92 +171,119 @@ export default function StatsDetail(props: StatsDetailProps) {
 
       {/* Title */}
       <h2 class="stats-detail-title">
-        {contentTypeLabel(data.contentType)}: {data.contentSlug}
-        <a href={liveUrl(data.contentType, data.contentSlug)} class="stats-detail-live-link">View live &rarr;</a>
+        {contentTypeLabel(contentType)}: {contentSlug}
+        <a href={liveUrl(contentType, contentSlug)} class="stats-detail-live-link">View live &rarr;</a>
       </h2>
 
-      {/* Time range selector */}
+      {/* Time range selector + sync button */}
       <div class="stats-range-selector">
         {RANGE_OPTIONS.map(opt => (
           <button
             key={opt.value}
             type="button"
-            class={`stats-range-btn ${data.range === opt.value ? 'active' : ''}`}
+            class={`stats-range-btn ${currentRange === opt.value ? 'active' : ''}`}
             disabled={loading}
             onClick={() => loadRange(opt.value)}
           >
             {opt.label}
           </button>
         ))}
+        <button
+          type="button"
+          class="stats-range-btn stats-sync-btn"
+          disabled={syncing || loading}
+          onClick={triggerSync}
+        >
+          {syncing ? 'Syncing\u2026' : 'Sync now'}
+        </button>
       </div>
 
-      {/* Hero stats */}
-      {data.heroStats.length > 0 && (
-        <div class="stats-summary-cards">
-          {data.heroStats.map(card => (
-            <div class="stats-summary-card" key={card.label} title={card.description}>
-              <span class="stats-card-label">{card.label}</span>
-              <span class="stats-card-value">{formatNumber(card.value)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Time series chart */}
-      {data.timeSeries.length > 0 && (
-        <div class="stats-chart-container">
-          <h3 class="stats-section-title">Traffic over time</h3>
-          <div class="stats-chart-wrapper">
-            <canvas ref={chartRef} />
-          </div>
-        </div>
-      )}
-
-      {/* Funnel (route only) */}
-      {data.funnel && data.funnel.length > 0 && (
-        <div class="stats-funnel">
-          <h3 class="stats-section-title">Conversion funnel</h3>
-          <div class="stats-funnel-steps">
-            {data.funnel.map((step, i) => (
-              <div class="stats-funnel-step" key={step.label}>
-                <div class="stats-funnel-bar" style={{ width: `${i === 0 ? 100 : Math.max((step.count / (data.funnel![0].count || 1)) * 100, 5)}%` }}>
-                  <span class="stats-funnel-label">{step.label}</span>
-                  <span class="stats-funnel-count">{formatNumber(step.count)}</span>
-                </div>
-                {step.rate != null && (
-                  <span class="stats-funnel-rate">{step.rate}% conversion</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Reactions */}
-      {totalReactions > 0 && (
-        <div class="stats-reactions">
-          <h3 class="stats-section-title">Reactions ({totalReactions})</h3>
-          <div class="stats-reaction-bars">
-            {Object.entries(data.reactions!).map(([type, count]) => (
-              <div class="stats-reaction-row" key={type}>
-                <span class="stats-reaction-label">{REACTION_LABELS[type] || type}</span>
-                <div class="stats-reaction-bar-track">
-                  <div
-                    class="stats-reaction-bar-fill"
-                    style={{ width: `${Math.max((count / totalReactions) * 100, 2)}%` }}
-                  />
-                </div>
-                <span class="stats-reaction-count">{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.heroStats.length === 0 && (
+      {/* Loading state */}
+      {loading && !data && (
         <div class="stats-empty-text">
-          <p>No analytics data found for this {data.contentType}.</p>
+          <p>Loading stats...</p>
         </div>
+      )}
+
+      {/* Error state */}
+      {error && (
+        <div class="stats-empty-text">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {/* Data loaded */}
+      {data && !error && (
+        <>
+          {/* Hero stats */}
+          {data.heroStats.length > 0 && (
+            <div class="stats-summary-cards">
+              {data.heroStats.map(card => (
+                <div class="stats-summary-card" key={card.label} title={card.description}>
+                  <span class="stats-card-label">{card.label}</span>
+                  <span class="stats-card-value">{formatNumber(card.value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Time series chart */}
+          {data.timeSeries.length > 0 && (
+            <div class="stats-chart-container">
+              <h3 class="stats-section-title">Traffic over time</h3>
+              <div class="stats-chart-wrapper">
+                <canvas ref={chartRef} />
+              </div>
+            </div>
+          )}
+
+          {/* Funnel (route only) */}
+          {data.funnel && data.funnel.length > 0 && (
+            <div class="stats-funnel">
+              <h3 class="stats-section-title">Conversion funnel</h3>
+              <div class="stats-funnel-steps">
+                {data.funnel.map((step, i) => (
+                  <div class="stats-funnel-step" key={step.label}>
+                    <div class="stats-funnel-bar" style={{ width: `${i === 0 ? 100 : Math.max((step.count / (data.funnel![0].count || 1)) * 100, 5)}%` }}>
+                      <span class="stats-funnel-label">{step.label}</span>
+                      <span class="stats-funnel-count">{formatNumber(step.count)}</span>
+                    </div>
+                    {step.rate != null && (
+                      <span class="stats-funnel-rate">{step.rate}% conversion</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reactions */}
+          {totalReactions > 0 && (
+            <div class="stats-reactions">
+              <h3 class="stats-section-title">Reactions ({totalReactions})</h3>
+              <div class="stats-reaction-bars">
+                {Object.entries(data.reactions!).map(([type, count]) => (
+                  <div class="stats-reaction-row" key={type}>
+                    <span class="stats-reaction-label">{REACTION_LABELS[type] || type}</span>
+                    <div class="stats-reaction-bar-track">
+                      <div
+                        class="stats-reaction-bar-fill"
+                        style={{ width: `${Math.max((count / totalReactions) * 100, 2)}%` }}
+                      />
+                    </div>
+                    <span class="stats-reaction-count">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.heroStats.length === 0 && (
+            <div class="stats-empty-text">
+              <p>No analytics data found for this {contentType}.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

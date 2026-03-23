@@ -9,6 +9,9 @@ import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { env } from '../../lib/env/env.service';
+import { getCityConfig } from '../../lib/config/city-config';
+import { ensureSiteDailyData } from '../../lib/stats/sync.server';
 
 export const prerender = false;
 
@@ -36,6 +39,15 @@ export async function GET({ locals, url, request }: APIContext) {
     const granularity = granularityForRange(range);
     const features = getInstanceFeatures();
     const baseUrl = url.origin;
+
+    // Incremental sync — backfill missing site-level dates
+    const apiKey = env.PLAUSIBLE_API_KEY;
+    if (apiKey) {
+      const cityConfig = getCityConfig();
+      await ensureSiteDailyData(database, {
+        apiKey, siteId: cityConfig.plausible_domain, city: CITY,
+      }, startStr, endStr);
+    }
 
     // Fire all queries in parallel — each D1 round trip is ~30-50ms,
     // running 11 sequentially would be 400ms+ just in latency
