@@ -121,9 +121,16 @@ function InsightCardView({ insight }: { insight: InsightCard }) {
   );
 }
 
-function DualAxisChart({ labels, leftData, leftLabel, leftColor, rightData, rightLabel, rightColor }: {
+function formatSeconds(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.round(s % 60);
+  return m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`;
+}
+
+function DualAxisChart({ labels, leftData, leftLabel, leftColor, rightData, rightLabel, rightColor, formatLeftTooltip }: {
   labels: string[]; leftData: number[]; leftLabel: string; leftColor: string;
   rightData: number[]; rightLabel: string; rightColor: string;
+  formatLeftTooltip?: (value: number) => string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const instance = useRef<Chart | null>(null);
@@ -162,10 +169,34 @@ function DualAxisChart({ labels, leftData, leftLabel, leftColor, rightData, righ
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 8,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              callback: function(_: any, index: number) {
+                const d = labels[index];
+                if (!d) return '';
+                const day = d.slice(8, 10);
+                // Show month on the 1st or first visible tick
+                return index === 0 || day === '01' ? d.slice(5) : day;
+              },
+            },
+          },
           y: { beginAtZero: true, position: 'left', title: { display: true, text: leftLabel } },
           y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: rightLabel } },
         },
-        plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            callbacks: formatLeftTooltip ? { label: (ctx: any) => {
+              if (ctx.datasetIndex === 0) return `${ctx.dataset.label}: ${formatLeftTooltip(ctx.parsed.y)}`;
+              return `${ctx.dataset.label}: ${ctx.parsed.y}`;
+            }} : undefined,
+          },
+        },
       },
     });
     return () => { instance.current?.destroy(); };
@@ -286,7 +317,22 @@ export default function StatsOverview() {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true } },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 10,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              callback: function(_: any, index: number) {
+                const labels = data!.timeSeries.map(p => p.date);
+                const d = labels[index];
+                if (!d) return '';
+                const day = d.slice(8, 10);
+                return index === 0 || day === '01' ? d.slice(5) : day;
+              },
+            },
+          },
+          y: { beginAtZero: true },
+        },
         plugins: { legend: { position: 'bottom' }, tooltip: { mode: 'index', intersect: false } },
       },
     });
@@ -376,8 +422,9 @@ export default function StatsOverview() {
             <DualAxisChart
               labels={data.durationSeries.map(p => p.date)}
               leftData={data.durationSeries.map(p => p.value)}
-              leftLabel="Avg duration (s)"
+              leftLabel="Visit duration (seconds)"
               leftColor="rgb(234, 88, 12)"
+              formatLeftTooltip={formatSeconds}
               rightData={data.pagesPerVisitSeries?.map(p => p.value) ?? []}
               rightLabel="Pages per visit"
               rightColor="rgb(16, 185, 129)"

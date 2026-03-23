@@ -123,7 +123,7 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
 
     if (hasDuration) {
       datasets.push({
-        label: 'Avg duration (s)',
+        label: 'Visit duration (avg)',
         data: data.timeSeries.map(p => p.secondaryValue ?? 0),
         type: 'line',
         borderColor: 'rgb(234, 88, 12)',
@@ -152,7 +152,20 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
         },
         plugins: {
           legend: { position: 'bottom' },
-          tooltip: { mode: 'index', intersect: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            callbacks: hasDuration ? { label: (ctx: any) => {
+              if (ctx.datasetIndex === 1) {
+                const s = ctx.parsed.y;
+                const m = Math.floor(s / 60);
+                const sec = Math.round(s % 60);
+                return `${ctx.dataset.label}: ${m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`}`;
+              }
+              return `${ctx.dataset.label}: ${ctx.parsed.y}`;
+            }} : undefined,
+          },
         },
       },
     });
