@@ -302,6 +302,9 @@
 }
 
 .stats-content-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   text-decoration: none;
   color: $color-text;
 
@@ -312,6 +315,21 @@
   &:hover {
     text-decoration: underline;
   }
+}
+
+.stats-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: $border-radius;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.stats-thumb--insight {
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius;
+  margin-right: 0.25rem;
 }
 
 .stats-content-type {

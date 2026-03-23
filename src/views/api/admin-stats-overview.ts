@@ -10,6 +10,7 @@ import { granularityForRange, type TimeRange, type SummaryCard, type TimeSeriesP
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
+import { getCityConfig } from '../../lib/config/city-config';
 import { ensureSiteDailyData, ensureSiteEventData, syncSiteMetrics } from '../../lib/stats/sync.server';
 import { seedFromFixtures } from '../../lib/stats/seed-fixtures.server';
 import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
@@ -147,11 +148,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       database.select({ date: siteDailyMetrics.date })
         .from(siteDailyMetrics).where(eq(siteDailyMetrics.city, CITY))
         .orderBy(desc(siteDailyMetrics.date)).limit(1),
-      // 10-11. Content names from static JSON
-      fetchJson<Array<{ slug: string; name: string }>>(new URL('/admin/data/routes.json', baseUrl)).catch(() => [] as Array<{ slug: string; name: string }>),
+      // 10-11. Content names + thumbnails from static JSON
+      fetchJson<Array<{ slug: string; name: string; coverKey?: string }>>(new URL('/admin/data/routes.json', baseUrl)).catch(() => [] as Array<{ slug: string; name: string; coverKey?: string }>),
       features.hasEvents
-        ? fetchJson<{ events: Array<{ id: string; name: string }>; organizers: Array<{ slug: string; name: string }> }>(new URL('/admin/data/events.json', baseUrl)).catch(() => ({ events: [], organizers: [] }))
-        : Promise.resolve({ events: [] as Array<{ id: string; name: string }>, organizers: [] as Array<{ slug: string; name: string }> }),
+        ? fetchJson<{ events: Array<{ id: string; name: string; poster_key?: string }>; organizers: Array<{ slug: string; name: string; photo_key?: string }> }>(new URL('/admin/data/events.json', baseUrl)).catch(() => ({ events: [], organizers: [] }))
+        : Promise.resolve({ events: [] as Array<{ id: string; name: string; poster_key?: string }>, organizers: [] as Array<{ slug: string; name: string; photo_key?: string }> }),
       // 12. Signups over time (guests + registered)
       database.select({
         date: sql<string>`DATE(${users.createdAt})`,
@@ -190,11 +191,21 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         .groupBy(siteEventMetrics.dimensionValue),
     ]);
 
-    // Build name lookup from parallel results
+    // Build name + thumbnail lookups from parallel results
     const contentNames: Record<string, string> = {};
-    for (const r of routeNames) contentNames[`route:${r.slug}`] = r.name;
-    for (const e of eventNames.events) contentNames[`event:${e.id}`] = e.name;
-    for (const o of eventNames.organizers) contentNames[`organizer:${o.slug}`] = o.name;
+    const contentThumbs: Record<string, string> = {};
+    for (const r of routeNames) {
+      contentNames[`route:${r.slug}`] = r.name;
+      if (r.coverKey) contentThumbs[`route:${r.slug}`] = r.coverKey;
+    }
+    for (const e of eventNames.events) {
+      contentNames[`event:${e.id}`] = e.name;
+      if (e.poster_key) contentThumbs[`event:${e.id}`] = e.poster_key;
+    }
+    for (const o of eventNames.organizers) {
+      contentNames[`organizer:${o.slug}`] = o.name;
+      if (o.photo_key) contentThumbs[`organizer:${o.slug}`] = o.photo_key;
+    }
 
     // Assemble response
     const current = currentMetrics[0];
@@ -235,6 +246,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       contentType: r.contentType as 'route' | 'event' | 'organizer',
       contentSlug: r.contentSlug,
       name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
+      thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
       primaryValue: r.totalPageviews,
       primaryLabel: 'views',
       secondaryValue: Math.round(r.wallTimeHours * 10) / 10,
@@ -245,6 +257,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       contentType: r.contentType as 'route' | 'event' | 'organizer',
       contentSlug: r.contentSlug,
       name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
+      thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
       primaryValue: Math.round(r.engagementScore * 100),
       primaryLabel: 'score',
       secondaryValue: r.totalPageviews,
@@ -267,7 +280,10 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }));
 
     const medians = computeMedians(insightInput);
-    const insights = computeInsights(insightInput, medians, contentNames);
+    const insights = computeInsights(insightInput, medians, contentNames).map(i => ({
+      ...i,
+      thumbKey: i.contentType && i.contentSlug ? contentThumbs[`${i.contentType}:${i.contentSlug}`] : undefined,
+    }));
     const reactionBreakdown = Object.fromEntries(reactionsByType.map(r => [r.reactionType, r.count]));
 
     // Signups over time — combine guest + registered into time series
@@ -317,6 +333,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       granularity, viewsLeaderboard, engagementLeaderboard,
       insights, reactionBreakdown, signups, range,
       visitorInsights,
+      cdnUrl: getCityConfig().cdn_url,
       lastSynced: lastSyncRow[0]?.date ?? null,
     } as Record<string, unknown>);
   } catch (err: unknown) {

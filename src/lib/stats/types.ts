@@ -40,6 +40,7 @@ export interface LeaderboardEntry {
   contentType: 'route' | 'event' | 'organizer';
   contentSlug: string;
   name: string;
+  thumbKey?: string;
   primaryValue: number;
   primaryLabel: string;
   secondaryValue?: number;
@@ -55,6 +56,7 @@ export interface InsightCard {
   body: string;
   contentType?: string;
   contentSlug?: string;
+  thumbKey?: string;
   /** Key metrics for this content item — shown on hover or in drill-down. */
   metrics?: Record<string, string | number>;
 }

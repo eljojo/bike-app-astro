@@ -35,6 +35,7 @@ interface StatsData {
     socialReferrals: Record<string, number>;
     entryPages: Array<{ path: string; visitors: number }>;
   };
+  cdnUrl?: string;
   lastSynced?: string;
 }
 
@@ -56,6 +57,11 @@ function formatNumber(n: number | string): string {
   if (typeof n === 'string') return n;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
+}
+
+function thumbUrl(cdnUrl: string | undefined, key: string | undefined): string | null {
+  if (!cdnUrl || !key) return null;
+  return `${cdnUrl}/cdn-cgi/image/width=64,height=64,fit=cover/${key}`;
 }
 
 function drillDownUrl(contentType: string, contentSlug: string): string {
@@ -84,7 +90,7 @@ function severityColor(severity: string): string {
   }
 }
 
-function InsightCardView({ insight }: { insight: InsightCard }) {
+function InsightCardView({ insight, cdnUrl }: { insight: InsightCard; cdnUrl?: string }) {
   const [showMetrics, setShowMetrics] = useState(false);
 
   return (
@@ -107,6 +113,9 @@ function InsightCardView({ insight }: { insight: InsightCard }) {
       </div>
       <div class="stats-insight-content">
         <a href={drillDownUrl(insight.contentType || '', insight.contentSlug || '')} class="stats-insight-name">
+          {thumbUrl(cdnUrl, insight.thumbKey) && (
+            <img src={thumbUrl(cdnUrl, insight.thumbKey)!} alt="" class="stats-thumb stats-thumb--insight" loading="lazy" />
+          )}
           {insight.name}
         </a>
         <p class="stats-insight-body">{insight.body}</p>
@@ -461,8 +470,13 @@ export default function StatsOverview() {
                   <tr key={`${entry.contentType}-${entry.contentSlug}`}>
                     <td>
                       <a href={drillDownUrl(entry.contentType, entry.contentSlug)} class="stats-content-link">
-                        <span class="stats-content-type">{entry.contentType}</span>
-                        {entry.name}
+                        {thumbUrl(data.cdnUrl, entry.thumbKey) && (
+                          <img src={thumbUrl(data.cdnUrl, entry.thumbKey)!} alt="" class="stats-thumb" loading="lazy" />
+                        )}
+                        <span>
+                          <span class="stats-content-type">{entry.contentType}</span>
+                          {entry.name}
+                        </span>
                       </a>
                     </td>
                     <td class="stats-table-num">{formatNumber(entry.primaryValue)}</td>
@@ -494,8 +508,13 @@ export default function StatsOverview() {
                   <tr key={`${entry.contentType}-${entry.contentSlug}`}>
                     <td>
                       <a href={drillDownUrl(entry.contentType, entry.contentSlug)} class="stats-content-link">
-                        <span class="stats-content-type">{entry.contentType}</span>
-                        {entry.name}
+                        {thumbUrl(data.cdnUrl, entry.thumbKey) && (
+                          <img src={thumbUrl(data.cdnUrl, entry.thumbKey)!} alt="" class="stats-thumb" loading="lazy" />
+                        )}
+                        <span>
+                          <span class="stats-content-type">{entry.contentType}</span>
+                          {entry.name}
+                        </span>
                       </a>
                     </td>
                     <td class="stats-table-num">{entry.primaryValue}</td>
@@ -629,7 +648,7 @@ export default function StatsOverview() {
           <h3 class="stats-section-title">Insights</h3>
           <div class="stats-insight-cards">
             {data.insights.map((insight, i) => (
-              <InsightCardView key={i} insight={insight} />
+              <InsightCardView key={i} insight={insight} cdnUrl={data.cdnUrl} />
             ))}
           </div>
         </div>
