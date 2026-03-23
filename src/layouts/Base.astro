@@ -35,9 +35,10 @@ interface Props {
   breadcrumbs?: Record<string, any> | null;
   alternateUrls?: Record<string, string>;
   admin?: boolean;
+  fullbleed?: boolean;
 }
 
-const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadcrumbs, alternateUrls, admin } = Astro.props;
+const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadcrumbs, alternateUrls, admin, fullbleed } = Astro.props;
 ---
 <!DOCTYPE html>
 <html lang={htmlLang}>
@@ -57,7 +58,7 @@ const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadc
     {import.meta.env.DISABLE_ANALYTICS === 'true' && <script is:inline nonce={cspNonce}>localStorage.plausible_ignore=true</script>}
     <LocaleRedirect cspNonce={cspNonce} />
   </head>
-  <body>
+  <body class:list={[fullbleed && 'fullbleed']}>
     <header class="site-header">
       <a href={logoHref} class="site-title" set:html={config.site_title_html} />
       {isWiki && <p class="site-subtitle">{t('home.subtitle', locale)}</p>}
@@ -66,7 +67,7 @@ const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadc
     <main>
       <slot />
     </main>
-    <Footer alternateUrls={alternateUrls} />
+    {!fullbleed && <Footer alternateUrls={alternateUrls} />}
     <script>
       document.addEventListener('click', (e) => {
         const origin = e.target;
