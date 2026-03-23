@@ -99,6 +99,14 @@ if (isWiki) {
 
       // Show random items from statically rendered lists
       // Items with data-weight="N" are N times more likely to be picked
+      // Seeded by today's date so selections are stable within a day
+      // (consistent for CI screenshots, still varies day-to-day for users)
+      var _seed = new Date().toISOString().slice(0, 10).split('').reduce(function(h, c) { return (h * 31 + c.charCodeAt(0)) | 0; }, 0);
+      function seededRandom() {
+        _seed = (_seed * 1103515245 + 12345) & 0x7fffffff;
+        return _seed / 0x7fffffff;
+      }
+
       const isDesktop = window.matchMedia('(min-width: 800px)').matches;
       for (const list of document.querySelectorAll<HTMLElement>('[data-show-random]')) {
         const mobileCount = parseInt(list.dataset.showRandom || '3', 10);
@@ -114,7 +122,7 @@ if (isWiki) {
           for (let i = 0; i < items.length; i++) {
             if (!picked.has(items[i])) total += weights[i];
           }
-          let r = Math.random() * total;
+          let r = seededRandom() * total;
           for (let i = 0; i < items.length; i++) {
             if (picked.has(items[i])) continue;
             r -= weights[i];
@@ -125,7 +133,7 @@ if (isWiki) {
         // Shuffle picked items in DOM for visual variety
         const pickedArr = Array.from(picked);
         for (let i = pickedArr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
+          const j = Math.floor(seededRandom() * (i + 1));
           [pickedArr[i], pickedArr[j]] = [pickedArr[j], pickedArr[i]];
         }
         for (const el of pickedArr) list.appendChild(el);
