@@ -185,7 +185,7 @@ test.describe('Admin Screenshots — Guest Variant', () => {
     await saveButton.click();
 
     // Wait for guest contribution modal
-    await expect(page.getByText('Thanks for your contribution')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your anonymous contribution has been saved')).toBeVisible({ timeout: 15000 });
 
     await expect(page).toHaveScreenshot('admin-guest-save-modal.png', screenshotOpts);
   });

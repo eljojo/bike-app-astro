@@ -42,7 +42,7 @@ test.describe('Community Editing — Guest-First Flow', () => {
     await saveButton.click();
 
     // The success modal should appear with upgrade form
-    await expect(page.getByText('Thanks for your contribution')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your anonymous contribution has been saved')).toBeVisible({ timeout: 15000 });
 
     // The upgrade form (email + username) should be present in the modal
     await expect(page.locator('#upgrade-email')).toBeVisible();
@@ -84,7 +84,7 @@ test.describe('Community Editing — Guest Direct Commit', () => {
     await saveButton.click();
 
     // Wait for save response — guests see a success modal
-    await expect(page.getByText('Thanks for your contribution')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your anonymous contribution has been saved')).toBeVisible({ timeout: 15000 });
   });
 });
 
