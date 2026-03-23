@@ -134,6 +134,13 @@
       "when": 1774857600000,
       "tag": "0016_split_content_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1774944000000,
+      "tag": "0017_reset_analytics_data_v4",
+      "breakpoints": true
     }
   ]
 }
