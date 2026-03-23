@@ -132,6 +132,51 @@ describe('sync pipeline', () => {
     expect(withRedirects.contentRows[0].contentSlug).toBe('the-big-loop-around-ottawa');
   });
 
+  it('resolves all numbered slugs from real redirects.yml', () => {
+    // Load the actual redirects.yml from the Ottawa data repo
+    const fs = require('node:fs');
+    const yaml = require('js-yaml');
+    const redirectsPath = '../bike-routes/ottawa/redirects.yml';
+    if (!fs.existsSync(redirectsPath)) return; // skip if data repo not available
+
+    const data = yaml.load(fs.readFileSync(redirectsPath, 'utf-8')) as Record<string, Array<{ from: string; to: string }>>;
+    const redirects: Record<string, string> = {};
+    for (const r of data.routes || []) redirects[r.from] = r.to;
+
+    // Every numbered slug from the "Most viewed" list that was failing
+    const problematicSlugs = [
+      '16-the-big-loop-around-ottawa',
+      '27-experimental-farm-and-carlington-woods',
+      '4-easy-loop-around-the-canal',
+      '14-east-end-petrie-island',
+      '22-ottawa-to-plaisance',
+      '1-aylmer',
+      '26-chill-loop-to-lake-leamy',
+      '15-greenbelt',
+    ];
+
+    // Simulate Plausible rows with these slugs
+    const rows = problematicSlugs.map(slug => ({
+      dimensions: [`/routes/${slug}`],
+      metrics: [100, 200, 120, 40],
+    }));
+
+    const result = processPageBreakdown(rows, 'test', {}, redirects, '2025-03-22', ['en'], 'en');
+
+    // None of the numbered slugs should survive — all should be resolved
+    for (const row of result.contentRows) {
+      expect(row.contentSlug).not.toMatch(/^\d+-/);
+    }
+
+    // Verify specific mappings
+    const slugs = new Set(result.contentRows.map(r => r.contentSlug));
+    expect(slugs.has('the-big-loop-around-ottawa')).toBe(true);
+    expect(slugs.has('easy-loop-around-the-canal')).toBe(true);
+    expect(slugs.has('aylmer')).toBe(true);
+    expect(slugs.has('lake-leamy')).toBe(true); // 26-chill-loop-to-lake-leamy → lake-leamy
+    expect(slugs.has('greenbelt')).toBe(true);
+  });
+
   it('processes daily aggregate fixture and writes to DB', async () => {
     const testDb = createTestDb();
     try {

@@ -11,7 +11,7 @@ import { computeInsights, computeMedians, type EngagementRow } from '../../lib/s
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
-import { ensureSiteDailyData } from '../../lib/stats/sync.server';
+import { ensureSiteDailyData, syncSiteMetrics } from '../../lib/stats/sync.server';
 import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
 
 export const prerender = false;
@@ -41,23 +41,46 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const features = getInstanceFeatures();
     const baseUrl = url.origin;
 
-    // Incremental sync — backfill missing site-level dates
+    // Incremental sync — backfill what's missing
     const apiKey = env.PLAUSIBLE_API_KEY;
     if (apiKey) {
       const cityConfig = getCityConfig();
-      if (forceSync) {
-        // Delete existing data for the range, then re-fetch
-        await database.delete(siteDailyTable)
-          .where(and(
-            eq(siteDailyTable.city, CITY),
-            sql`${siteDailyTable.date} >= ${startStr}`,
-            sql`${siteDailyTable.date} <= ${endStr}`,
-          ))
-          .run();
+      const redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl)).catch(() => ({}));
+
+      // Check if engagement data exists — if not, we need a full site sync
+      // (page breakdown + engagement rebuild), not just daily aggregates
+      const engagementCount = await database.select({
+        count: sql<number>`COUNT(*)`,
+      }).from(contentEngagement).where(eq(contentEngagement.city, CITY));
+
+      const needsFullSync = forceSync || (engagementCount[0]?.count ?? 0) === 0;
+
+      if (needsFullSync) {
+        if (forceSync) {
+          // Delete existing site daily data for the range
+          await database.delete(siteDailyTable)
+            .where(and(
+              eq(siteDailyTable.city, CITY),
+              sql`${siteDailyTable.date} >= ${startStr}`,
+              sql`${siteDailyTable.date} <= ${endStr}`,
+            ))
+            .run();
+        }
+        // Full site sync: daily aggregates + page breakdown + engagement rebuild
+        await syncSiteMetrics(database, {
+          apiKey,
+          siteId: cityConfig.plausible_domain,
+          city: CITY,
+          locales: cityConfig.locales ?? [cityConfig.locale],
+          defaultLocale: cityConfig.locale,
+          redirects,
+        });
+      } else {
+        // Incremental: just backfill missing daily rows
+        await ensureSiteDailyData(database, {
+          apiKey, siteId: cityConfig.plausible_domain, city: CITY,
+        }, startStr, endStr);
       }
-      await ensureSiteDailyData(database, {
-        apiKey, siteId: cityConfig.plausible_domain, city: CITY,
-      }, startStr, endStr);
     }
 
     // Fire all queries in parallel — each D1 round trip is ~30-50ms,
