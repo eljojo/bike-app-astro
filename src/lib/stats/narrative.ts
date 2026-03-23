@@ -11,6 +11,7 @@ interface NarrativeInput {
   wallTimeHours: number;
   avgVisitDuration: number; // seconds
   mapConversionRate: number; // 0-1
+  mapDurationS?: number; // avg seconds spent on the map page
   stars: number;
   totalReactions: number;
 }
@@ -61,6 +62,13 @@ export function buildNarrative(input: NarrativeInput): string[] {
       sentences.push(`${Math.round(mapConversionRate * 100)}% open the map. People are interested but may need more to commit — better photos or a clearer description could help.`);
     } else if (totalPageviews > 50 && mapConversionRate < 0.05) {
       sentences.push('Very few visitors open the map. They read the page but don\'t take the next step toward riding.');
+    }
+
+    // Map time — people studying the map are seriously planning
+    if (input.mapDurationS && input.mapDurationS > 90) {
+      sentences.push(`People spend ${formatDuration(input.mapDurationS)} on the map — they're studying the route, not just glancing. This is planning behavior.`);
+    } else if (input.mapDurationS && input.mapDurationS > 45 && mapConversionRate > 0.15) {
+      sentences.push(`Map visitors stay for ${formatDuration(input.mapDurationS)} — a good sign they're considering the ride.`);
     }
   }
 

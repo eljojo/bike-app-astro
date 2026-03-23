@@ -39,6 +39,11 @@ describe('buildNarrative', () => {
     expect(result.some(s => s.includes('map') && s.includes("don't"))).toBe(true);
   });
 
+  it('detects deep map study behavior', () => {
+    const result = buildNarrative({ ...base, mapDurationS: 120, mapConversionRate: 0.25 });
+    expect(result.some(s => s.includes('studying the route'))).toBe(true);
+  });
+
   it('returns fallback for no data', () => {
     const result = buildNarrative({ ...base, totalPageviews: 0 });
     expect(result).toEqual(['No analytics data for this period.']);

@@ -101,10 +101,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         ))
         .groupBy(contentPageMetrics.date)
         .orderBy(contentPageMetrics.date),
-      // Funnel: detail views -> map views
+      // Funnel: detail views -> map views, with avg duration per page type
       database.select({
         pageType: contentPageMetrics.pageType,
         total: sql<number>`SUM(${contentPageMetrics.pageviews})`,
+        avgDuration: sql<number>`CASE WHEN SUM(${contentPageMetrics.pageviews}) > 0 THEN SUM(${contentPageMetrics.pageviews} * ${contentPageMetrics.visitDurationS}) / SUM(${contentPageMetrics.pageviews}) ELSE 0 END`,
       }).from(contentPageMetrics)
         .where(and(
           eq(contentPageMetrics.city, CITY),
@@ -156,10 +157,14 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     }));
 
     const detailViews = funnelData.find(f => f.pageType === 'detail')?.total ?? 0;
-    const mapViews = funnelData.filter(f => f.pageType.startsWith('map')).reduce((sum, f) => sum + f.total, 0);
+    const mapEntries = funnelData.filter(f => f.pageType.startsWith('map'));
+    const mapViews = mapEntries.reduce((sum, f) => sum + f.total, 0);
+    const mapDuration = mapViews > 0
+      ? mapEntries.reduce((sum, f) => sum + f.total * f.avgDuration, 0) / mapViews
+      : 0;
 
     const funnel: FunnelStep[] = [
-      { label: 'Detail page', count: detailViews },
+      { label: 'Detail page', count: detailViews, rate: undefined, siteAvgRate: undefined },
       { label: 'Map page', count: mapViews, rate: detailViews > 0 ? Math.round((mapViews / detailViews) * 100) : 0 },
     ];
 
@@ -174,6 +179,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       wallTimeHours: eng.wallTimeHours,
       avgVisitDuration: eng.avgVisitDuration,
       mapConversionRate: eng.mapConversionRate,
+      mapDurationS: mapDuration,
       stars: eng.stars,
       totalReactions,
     }) : [];
