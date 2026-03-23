@@ -308,7 +308,7 @@ export default function StatsOverview() {
       {/* Toolbar */}
       <div class="stats-toolbar">
         {data.lastSynced && <span class="stats-last-synced">Data through {data.lastSynced}</span>}
-        <button type="button" class="stats-sync-btn" id="sync-btn">Sync now</button>
+        <button type="button" class="stats-sync-btn" disabled={syncing} onClick={triggerSync}>{syncing ? 'Syncing\u2026' : 'Sync now'}</button>
       </div>
 
       {/* Time range selector */}
