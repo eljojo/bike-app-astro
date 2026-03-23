@@ -11,6 +11,7 @@ import { computeInsights, computeMedians, type EngagementRow } from '../../lib/s
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { ensureSiteDailyData, ensureSiteEventData, syncSiteMetrics } from '../../lib/stats/sync.server';
+import { seedFromFixtures } from '../../lib/stats/seed-fixtures.server';
 import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
 
 export const prerender = false;
@@ -42,7 +43,10 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
 
     // Incremental sync — backfill what's missing
     const ctx = await buildSyncContext(baseUrl);
-    if (ctx) {
+    if (!ctx) {
+      // No API key — seed from fixtures in local dev
+      await seedFromFixtures(database, CITY);
+    } else {
       // Check if engagement data exists — if not, we need a full site sync
       // (page breakdown + engagement rebuild), not just daily aggregates
       const engagementCount = await database.select({
