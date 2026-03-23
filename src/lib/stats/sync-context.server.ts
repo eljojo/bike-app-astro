@@ -30,9 +30,11 @@ export async function buildSyncContext(baseUrl: string): Promise<SyncContext | n
 
   let redirects: Record<string, string> = {};
   try {
-    redirects = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl));
+    const raw = await fetchJson<Record<string, string>>(new URL('/admin/data/redirects.json', baseUrl));
+    redirects = raw;
+    console.log(`buildSyncContext: loaded ${Object.keys(redirects).length} redirects, sample: ${JSON.stringify(Object.entries(redirects).slice(0, 2))}`);
   } catch (err) {
-    console.error('stats: failed to load redirects.json:', err);
+    console.error('buildSyncContext: FAILED to load redirects.json:', err);
   }
 
   return {

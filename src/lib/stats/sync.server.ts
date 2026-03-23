@@ -255,9 +255,13 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
 
   const dailyMetrics = processDailyAggregate(dailyRows, opts.city);
 
+  const redir = opts.redirects ?? {};
+  const redirCount = Object.keys(redir).length;
   const { contentRows } = processPageBreakdown(
-    pageRows, opts.city, {}, opts.redirects ?? {}, today, opts.locales, opts.defaultLocale,
+    pageRows, opts.city, {}, redir, today, opts.locales, opts.defaultLocale,
   );
+  const numberedAfter = contentRows.filter(r => /^\d+-/.test(r.contentSlug)).length;
+  console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered`);
 
   // Batch upserts in parallel
   await Promise.all([
