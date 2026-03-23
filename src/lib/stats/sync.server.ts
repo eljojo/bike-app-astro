@@ -22,6 +22,7 @@ export interface ContentMetricRow {
   visitDurationS: number;
   bounceRate: number;
   videoPlays: number;
+  gpxDownloads: number;
 }
 
 /**
@@ -32,7 +33,7 @@ export interface DailyMetricRow {
   date: string;
   totalPageviews: number;
   uniqueVisitors: number;
-  avgVisitDuration: number;
+  totalDurationS: number;
 }
 
 /**
@@ -74,6 +75,7 @@ export function processPageBreakdown(
       visitDurationS: row.metrics[2],
       bounceRate: row.metrics[3],
       videoPlays: 0,
+      gpxDownloads: 0,
     });
   }
 
@@ -121,6 +123,7 @@ export function processPageDaily(
       visitDurationS: row.metrics[2],
       bounceRate: row.metrics[3],
       videoPlays: 0,
+      gpxDownloads: 0,
     });
   }
 
@@ -141,7 +144,7 @@ export function processDailyAggregate(
     date: row.dimensions[0],
     totalPageviews: row.metrics[0],
     uniqueVisitors: row.metrics[1],
-    avgVisitDuration: row.metrics[2] ?? 0,
+    totalDurationS: row.metrics[2] ?? 0,
   }));
 }
 
@@ -161,13 +164,13 @@ export async function upsertContentRows(db: Database, rows: ContentMetricRow[]):
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}','${esc(r.date)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays})`
+      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}','${esc(r.date)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},${r.gpxDownloads})`
     ).join(',');
 
-    await db.run(sql.raw(`INSERT INTO content_daily_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays)
+    await db.run(sql.raw(`INSERT INTO content_daily_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, gpx_downloads)
       VALUES ${values}
       ON CONFLICT (city, content_type, content_slug, page_type, date)
-      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays`));
+      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays, gpx_downloads=excluded.gpx_downloads`));
   }
 }
 
@@ -184,6 +187,7 @@ export interface TotalsRow {
   visitDurationS: number;
   bounceRate: number;
   videoPlays: number;
+  gpxDownloads: number;
   syncedAt: string;
 }
 
@@ -196,13 +200,13 @@ export async function upsertTotalsRows(db: Database, rows: TotalsRow[]): Promise
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},'${esc(r.syncedAt)}')`
+      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},${r.gpxDownloads},'${esc(r.syncedAt)}')`
     ).join(',');
 
-    await db.run(sql.raw(`INSERT INTO content_totals (city, content_type, content_slug, page_type, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, synced_at)
+    await db.run(sql.raw(`INSERT INTO content_totals (city, content_type, content_slug, page_type, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, gpx_downloads, synced_at)
       VALUES ${values}
       ON CONFLICT (city, content_type, content_slug, page_type)
-      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays, synced_at=excluded.synced_at`));
+      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays, gpx_downloads=excluded.gpx_downloads, synced_at=excluded.synced_at`));
   }
 }
 
@@ -215,13 +219,13 @@ export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Pro
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
     const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.date)}',${r.totalPageviews},${r.uniqueVisitors},${r.avgVisitDuration})`
+      `('${esc(r.city)}','${esc(r.date)}',${r.totalPageviews},${r.uniqueVisitors},${r.totalDurationS})`
     ).join(',');
 
-    await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, avg_visit_duration)
+    await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, total_duration_s)
       VALUES ${values}
       ON CONFLICT (city, date)
-      DO UPDATE SET total_pageviews=excluded.total_pageviews, unique_visitors=excluded.unique_visitors, avg_visit_duration=excluded.avg_visit_duration`));
+      DO UPDATE SET total_pageviews=excluded.total_pageviews, unique_visitors=excluded.unique_visitors, total_duration_s=excluded.total_duration_s`));
   }
 }
 
@@ -252,6 +256,7 @@ export function aggregateContentRows(contentRows: ContentMetricRow[], syncedAt: 
         existing.bounceRate = (existing.bounceRate * prevPv + r.bounceRate * r.pageviews) / totalPv;
       }
       existing.videoPlays += r.videoPlays;
+      existing.gpxDownloads += r.gpxDownloads;
     } else {
       totalsMap.set(key, {
         city: r.city,
@@ -263,6 +268,7 @@ export function aggregateContentRows(contentRows: ContentMetricRow[], syncedAt: 
         visitDurationS: r.visitDurationS,
         bounceRate: r.bounceRate,
         videoPlays: r.videoPlays,
+        gpxDownloads: r.gpxDownloads,
         syncedAt,
       });
     }
@@ -809,6 +815,80 @@ export async function ensureEntryPageData(
   totalUpdated = updates.length;
 
   // Record that entry data has been synced up to this date
+  await writeStatsCache(db, opts.city, cacheKey, { toDate });
+
+  return totalUpdated;
+}
+
+/**
+ * Ensure GPX download counts are recorded for a specific content item.
+ * Queries Plausible for Link: Click events with destination=gpx on this content's pages.
+ */
+export async function ensureGpxDownloadData(
+  db: Database,
+  opts: { apiKey: string; siteId: string; city: string; locales: string[]; defaultLocale: string; redirects?: Record<string, string>; videoRouteMap?: Record<string, string> },
+  contentType: string,
+  contentSlug: string,
+  fromDate: string,
+  toDate: string,
+): Promise<number> {
+  const paths = buildPagePaths(contentType, contentSlug, opts.locales, opts.defaultLocale, opts.redirects);
+  if (paths.length === 0) return 0;
+
+  // Check if GPX download data has already been synced for this slug up to this date
+  const cacheKey = `gpx_synced:${contentType}:${contentSlug}`;
+  const cached = await readStatsCache(db, opts.city, cacheKey);
+  if (cached && typeof cached.toDate === 'string' && cached.toDate >= toDate) return 0;
+
+  // Use the cached toDate as the start of what's missing, falling back to fromDate
+  const effectiveFrom = (cached && typeof cached.toDate === 'string' && cached.toDate > fromDate)
+    ? cached.toDate : fromDate;
+
+  const allDates = buildDateSet(effectiveFrom, toDate);
+  const missing = [...allDates];
+
+  if (missing.length === 0) return 0;
+
+  const ranges = findContiguousRanges(missing);
+  let totalUpdated = 0;
+
+  const results = await Promise.all(ranges.map(([rangeFrom, rangeTo]) =>
+    queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['visitors'],
+      dateRange: [rangeFrom, rangeTo],
+      dimensions: ['time:day'],
+      filters: [
+        ['is', 'event:goal', ['Link: Click']],
+        ['is', 'event:props:destination', ['gpx']],
+        ['contains', 'event:props:page', paths],
+      ],
+    }).catch(() => [])
+  ));
+
+  // Collect all date/count pairs
+  const updates: Array<{ date: string; gpxDownloads: number }> = [];
+  for (const rows of results) {
+    for (const row of rows) {
+      updates.push({ date: row.dimensions[0], gpxDownloads: row.metrics[0] });
+    }
+  }
+
+  // Execute updates in batches
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const batch = updates.slice(i, i + BATCH_SIZE);
+    for (const u of batch) {
+      await db.run(sql.raw(`UPDATE content_daily_metrics
+        SET gpx_downloads = ${u.gpxDownloads}
+        WHERE city = '${esc(opts.city)}'
+          AND content_type = '${esc(contentType)}'
+          AND content_slug = '${esc(contentSlug)}'
+          AND date = '${esc(u.date)}'`));
+    }
+  }
+  totalUpdated = updates.length;
+
+  // Record that GPX data has been synced up to this date
   await writeStatsCache(db, opts.city, cacheKey, { toDate });
 
   return totalUpdated;

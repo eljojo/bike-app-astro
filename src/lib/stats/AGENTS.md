@@ -37,7 +37,11 @@ The Plausible API returns metrics in the order you request them. All queries use
 
 ### visit_duration Is TOTAL Seconds, Not Average
 
-Plausible's `visit_duration` metric returns **total seconds** spent on a page on a given day, NOT the average per visit. The field is stored as `visitDurationS` in `content_daily_metrics` and `content_totals`. To get average per visit, divide by pageviews. Wall time = `SUM(visitDurationS) / 3600`, NOT `SUM(pageviews * visitDurationS) / 3600`.
+Plausible's `visit_duration` metric returns **total seconds** spent on a page on a given day, NOT the average per visit. Stored as:
+- `visitDurationS` in `content_daily_metrics` and `content_totals` — total seconds per page
+- `totalDurationS` in `site_daily_metrics` — total seconds site-wide
+
+To get average per visit, divide by pageviews. Wall time = `SUM(visitDurationS) / 3600`, NOT `SUM(pageviews * visitDurationS) / 3600`.
 
 ### Aggregate Before Writing Totals
 

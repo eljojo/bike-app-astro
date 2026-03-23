@@ -132,7 +132,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         date: siteDailyMetrics.date,
         pageviews: siteDailyMetrics.totalPageviews,
         visitors: siteDailyMetrics.uniqueVisitors,
-        avgVisitDuration: siteDailyMetrics.avgVisitDuration,
+        totalDurationS: siteDailyMetrics.totalDurationS,
       }).from(siteDailyMetrics)
         .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, startStr), lte(siteDailyMetrics.date, endStr)))
         .orderBy(siteDailyMetrics.date),
@@ -297,8 +297,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       date: d.date, value: d.pageviews, secondaryValue: d.visitors,
     }));
 
+    // totalDurationS is total seconds for the whole site that day — divide by pageviews for per-visit avg
     const durationSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: Math.round(d.avgVisitDuration),
+      date: d.date, value: d.pageviews > 0 ? Math.round(d.totalDurationS / d.pageviews) : 0,
     }));
 
     const pagesPerVisitSeries: TimeSeriesPoint[] = dailyData.map(d => ({

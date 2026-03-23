@@ -17,6 +17,7 @@ interface NarrativeInput {
   mapDurationS?: number; // avg seconds spent on the map page
   stars: number;
   totalReactions: number;
+  gpxDownloads?: number;
 }
 
 function formatDuration(seconds: number): string {
@@ -79,7 +80,17 @@ export function buildNarrative(input: NarrativeInput): string[] {
     sentences.push(`Average visit duration is ${formatDuration(avgVisitDuration)}.`);
   }
 
-  // 5. Stars
+  // 5. GPX downloads (routes only)
+  if (contentType === 'route' && input.gpxDownloads && input.gpxDownloads > 0) {
+    const downloadRate = totalVisitors > 0 ? input.gpxDownloads / totalVisitors : 0;
+    if (downloadRate > 0.1) {
+      sentences.push(`${Math.round(downloadRate * 100)}% of visitors download the GPX file.`);
+    } else if (input.gpxDownloads >= 3) {
+      sentences.push(`${input.gpxDownloads} GPX downloads.`);
+    }
+  }
+
+  // 6. Stars
   if (stars > 0) {
     sentences.push(`Starred by ${stars} ${stars === 1 ? 'person' : 'people'}.`);
   }

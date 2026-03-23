@@ -7,7 +7,7 @@ import { CITY } from '../../lib/config/config';
 import { contentDailyMetrics, contentTotals, contentEngagement, reactions } from '../../db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, getStartDate, formatDuration, type TimeRange, type TimeSeriesPoint, type FunnelStep } from '../../lib/stats/types';
-import { ensurePageDailyData, ensureEntryPageData, syncPageMetrics } from '../../lib/stats/sync.server';
+import { ensurePageDailyData, ensureEntryPageData, ensureGpxDownloadData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
 
@@ -51,6 +51,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         await ensurePageDailyData(database, ctx, 'route', slug, startStr, endStr);
       }
       await ensureEntryPageData(database, ctx, 'route', slug, startStr, endStr);
+      await ensureGpxDownloadData(database, ctx, 'route', slug, startStr, endStr);
     }
 
     // All queries in parallel
@@ -70,6 +71,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
         // visitDurationS is TOTAL seconds — SUM gives total for the day, divide by pageviews for avg
         avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.pageviews}) > 0 THEN SUM(${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.pageviews}) ELSE 0 END`,
         entryVisitors: sql<number>`COALESCE(SUM(${contentDailyMetrics.entryVisitors}), 0)`,
+        gpxDownloads: sql<number>`COALESCE(SUM(${contentDailyMetrics.gpxDownloads}), 0)`,
       }).from(contentDailyMetrics)
         .where(and(
           eq(contentDailyMetrics.city, CITY),
@@ -108,6 +110,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const totalPageviews = daily.reduce((sum, d) => sum + d.pageviews, 0);
     const totalVisitors = daily.reduce((sum, d) => sum + (d.visitors ?? 0), 0);
     const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
+    const totalGpxDownloads = daily.reduce((sum, d) => sum + (d.gpxDownloads ?? 0), 0);
     // Wall time = sum of (daily pageviews × daily avg duration) / 3600
     const wallTimeHours = daily.reduce((sum, d) => sum + d.pageviews * (d.avgDuration ?? 0) / 3600, 0);
     // Weighted avg visit duration across the period
@@ -126,6 +129,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       { label: 'Time/visitor', value: formatDuration(wallTimePerVisitor * 60), description: 'Wall time per visitor' },
       { label: 'Visit duration', value: formatDuration(avgVisitDuration), description: 'Average time spent per visit' },
       { label: 'Map conversion', value: eng ? `${Math.round(eng.mapConversionRate * 100)}%` : '—', description: 'Visitors who opened the map (all time)' },
+      { label: 'GPX downloads', value: totalGpxDownloads, description: 'People who downloaded the GPX file' },
       { label: 'Stars', value: eng?.stars ?? 0, description: 'Bookmarks by users' },
     ] : [];
 
@@ -166,6 +170,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       mapDurationS: mapDuration,
       stars: eng.stars,
       totalReactions,
+      gpxDownloads: totalGpxDownloads,
     }) : [];
 
     return jsonResponse({
