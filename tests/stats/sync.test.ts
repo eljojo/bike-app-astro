@@ -149,9 +149,19 @@ describe('sync pipeline', () => {
 
     const result = processPageBreakdown(fixture.results, 'ottawa', {}, redirects, '2025-03-23', ['en', 'fr'], 'en'); // eslint-disable-line bike-app/no-hardcoded-city-locale
 
-    // No numbered slugs should survive after redirect resolution
+    // No numbered slugs should survive — all should be resolved via redirects
     const numberedSlugs = result.contentRows.filter(r => /^\d+-/.test(r.contentSlug));
-    expect(numberedSlugs).toEqual([]);
+    const uniqueUnresolved = [...new Set(numberedSlugs.map(r => r.contentSlug))];
+    expect(uniqueUnresolved).toEqual([]);
+
+    // Verify specific mappings from the bug report
+    const allSlugs = new Set(result.contentRows.map(r => r.contentSlug));
+    expect(allSlugs.has('16-the-big-loop-around-ottawa')).toBe(false);
+    expect(allSlugs.has('the-big-loop-around-ottawa')).toBe(true);
+    expect(allSlugs.has('1-aylmer')).toBe(false);
+    expect(allSlugs.has('aylmer')).toBe(true);
+    expect(allSlugs.has('4-loop-around-the-canal')).toBe(false);
+    expect(allSlugs.has('easy-loop-around-the-canal')).toBe(true);
   });
 
   it('resolves all numbered slugs from real redirects.yml', () => {
