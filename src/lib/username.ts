@@ -10,6 +10,19 @@ export function sanitizeUsername(name: string): string {
     || 'anonymous';
 }
 
+/** Generate a username from an email address. Uses the local part, sanitized. */
+export function generateUsernameFromEmail(email: string): string {
+  const prefix = email.split('@')[0] || '';
+  let username = sanitizeUsername(prefix);
+
+  if (username.length < 2) {
+    const hex = Math.random().toString(16).slice(2, 6);
+    username = sanitizeUsername(`${prefix}-${hex}`);
+  }
+
+  return username;
+}
+
 /** Check if a username is valid (already sanitized form). */
 export function isValidUsername(name: string): boolean {
   return /^[a-z0-9][a-z0-9_-]*[a-z0-9]$/.test(name) && name.length >= 2 && name.length <= 30;
