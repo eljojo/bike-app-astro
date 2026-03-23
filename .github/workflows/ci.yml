@@ -68,11 +68,8 @@ jobs:
           git push
 
   test:
-    needs: [changes, sync-playwright-flake]
-    if: |
-      always()
-      && needs.changes.outputs.app == 'true'
-      && (needs.sync-playwright-flake.result == 'success' || needs.sync-playwright-flake.result == 'skipped')
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     uses: ./.github/workflows/_test.yml
     with:
       update-screenshots: ${{ github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
