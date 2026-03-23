@@ -183,7 +183,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   ]);
 
   // Save state
-  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave } = useEditorState({
     apiBase: '/api/events',
     contentId: initialData.isNew ? null : initialData.id,
     initialContentHash: initialData.contentHash,
@@ -763,7 +763,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} contentType="event" userRole={userRole}
+        onSave={handleSave} contentType="event" userRole={userRole} guestCreated={guestCreated}
         viewLink={`/events/${initialData.id}`}
         showLicenseNotice={showLicenseNotice !== false}
         licenseDocsUrl="https://whereto.bike/about/licensing/"

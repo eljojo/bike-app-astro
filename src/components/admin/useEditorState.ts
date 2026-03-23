@@ -46,6 +46,7 @@ export function useEditorState(opts: EditorStateOptions) {
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [contentHash, setContentHash] = useState(opts.initialContentHash);
+  const [guestCreated, setGuestCreated] = useState(false);
 
   const { apiBase, contentId, validate, buildPayload, onSuccess } = opts;
 
@@ -86,6 +87,7 @@ export function useEditorState(opts: EditorStateOptions) {
         const retryRes = await createGuestAndRetry(url, fetchOptions);
         if (!retryRes) return; // redirected to login
         res = retryRes;
+        setGuestCreated(true);
         // Fall through to normal response handling
       }
 
@@ -112,5 +114,5 @@ export function useEditorState(opts: EditorStateOptions) {
     }
   }, [contentHash, apiBase, contentId, validate, buildPayload, onSuccess]);
 
-  return { saving, saved, error, githubUrl, contentHash, save, setError };
+  return { saving, saved, error, githubUrl, contentHash, guestCreated, save, setError };
 }

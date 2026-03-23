@@ -61,3 +61,52 @@
     color: $color-text-muted-dark;
   }
 }
+
+.inline-upgrade-form {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: $color-tag-bg;
+  border-radius: $border-radius;
+
+  @include dark-mode {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn-primary {
+    align-self: flex-start;
+  }
+}
+
+.upgrade-prompt {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.upgrade-gravatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+
+  img {
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.upgrade-confirmation {
+  text-align: center;
+
+  p {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+}
