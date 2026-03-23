@@ -163,7 +163,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.ref }}
-          lfs: true
 
       - name: Checkout data repo
         uses: actions/checkout@v6
@@ -172,7 +171,30 @@ jobs:
           ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
           ref: main
           path: bike-routes
-          lfs: true
+
+      - name: LFS cache period
+        id: lfs-period
+        run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore app repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-app-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-app-
+
+      - name: Pull app repo LFS files
+        run: git lfs pull
+
+      - name: Restore data repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: bike-routes/.git/lfs
+          key: lfs-bike-routes-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-bike-routes-
+
+      - name: Pull data repo LFS files
+        run: git -C bike-routes lfs pull
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -237,7 +259,25 @@ jobs:
           path: e2e/.tile-cache
           key: e2e-tile-cache-v1
 
-      # --- Public E2E only: build site and set up D1 ---
+      # --- Public E2E only: caches, build, and D1 setup ---
+      - name: Restore Astro content cache
+        if: matrix.suite == 'public'
+        uses: actions/cache@v5
+        with:
+          path: .astro
+          key: astro-e2e-${{ github.run_id }}
+          restore-keys: |
+            astro-e2e-
+
+      - name: Restore map cache
+        if: matrix.suite == 'public'
+        uses: actions/cache@v5
+        with:
+          path: public/maps
+          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/maps/map-paths.ts') }}
+          restore-keys: |
+            maps-demo-
+
       - name: Generate map thumbnails
         if: matrix.suite == 'public'
         run: npx tsx scripts/generate-maps.ts
