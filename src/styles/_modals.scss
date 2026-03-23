@@ -62,15 +62,15 @@
   }
 }
 
-.inline-upgrade-form {
-  margin: 1rem 0;
-  padding: 1rem;
-  background: $color-tag-bg;
-  border-radius: $border-radius;
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
 
-  @include dark-mode {
-    background: rgba(255, 255, 255, 0.05);
-  }
+.inline-upgrade-form {
+  margin: 1rem 0 0;
 
   form {
     display: flex;
