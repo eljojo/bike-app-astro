@@ -11,11 +11,19 @@ export const prerender = false;
 const CACHE_TTL = 60 * 60; // 1 hour in seconds
 const CLIENT_CACHE_TTL = 900; // 15 minutes
 
+type WeatherIcon = 'sun' | 'cloud-sun' | 'cloud' | 'moon-stars';
+
 interface WeatherResponse {
   rideable: boolean;
   text?: string;
   sunscreen?: string;
-  icon?: 'sun' | 'moon';
+  icon?: WeatherIcon;
+}
+
+function dayIcon(descriptionKey: string): WeatherIcon {
+  if (descriptionKey === 'partly_cloudy') return 'cloud-sun';
+  if (descriptionKey === 'overcast') return 'cloud';
+  return 'sun';
 }
 
 function jsonResponse(data: WeatherResponse): Response {
@@ -69,7 +77,7 @@ export const GET: APIRoute = async ({ url }) => {
       response = {
         rideable: true,
         text,
-        icon: isNight ? 'moon' : 'sun',
+        icon: isNight ? 'moon-stars' : dayIcon(result.descriptionKey),
       };
       if (result.uvIndex != null && result.uvIndex >= 6) {
         response.sunscreen = t('weather.sunscreen', locale);
