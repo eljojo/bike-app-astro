@@ -125,6 +125,10 @@ const mediaItems = (data.media ?? []).map(m => ({
   height: m.height,
 }));
 
+const contactPlatforms = new Set(['telephone', 'email', 'booking']);
+const contactLinks = socialLinks.filter(l => contactPlatforms.has(l.platform));
+const socialOnlyLinks = socialLinks.filter(l => !contactPlatforms.has(l.platform));
+
 const PAST_EVENTS_INITIAL = 4;
 ---
 
@@ -148,21 +152,34 @@ const PAST_EVENTS_INITIAL = 4;
       <div class="community-detail-header-info">
         <h1>{data.name}</h1>
         {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
-        <div class="community-detail-links">
-          {socialLinks.map(link => (
-            <a
-              href={socialLinkHref(link)}
-              {...(['telephone', 'email'].includes(link.platform) ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
-              class="community-social-pill"
-            >
-              {link.platform === 'telephone' && <Icon name="phone" size={14} />}
-              {link.platform === 'email' && <Icon name="envelope-simple" size={14} />}
-              {socialLinkLabel(link)}
-            </a>
-          ))}
-        </div>
+        {socialOnlyLinks.length > 0 && (
+          <div class="community-detail-links">
+            {socialOnlyLinks.map(link => (
+              <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+                {socialLinkLabel(link)}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </header>
+
+    {contactLinks.length > 0 && (
+      <div class="community-contact-card">
+        {contactLinks.map(link => (
+          <a
+            href={socialLinkHref(link)}
+            {...(link.platform === 'booking' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            class:list={['community-contact-item', { 'community-contact-booking': link.platform === 'booking' }]}
+          >
+            {link.platform === 'telephone' && <Icon name="phone" size={16} />}
+            {link.platform === 'email' && <Icon name="envelope-simple" size={16} />}
+            {link.platform === 'booking' && <Icon name="calendar-check" size={16} />}
+            {socialLinkLabel(link)}
+          </a>
+        ))}
+      </div>
+    )}
 
     {data.tags && data.tags.length > 0 && (
       <ul class="community-detail-tags">
