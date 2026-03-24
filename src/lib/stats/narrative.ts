@@ -60,8 +60,6 @@ export function buildNarrative(input: NarrativeInput): string[] {
     sentences.push(`${humanFraction(entryRate)} visitors land here directly, likely from search or shared links.`);
   } else if (entryRate > 0.2 && entryVisitors > 5) {
     sentences.push(`${humanFraction(entryRate)} visitors arrive here from outside the site.`);
-  } else if (entryRate < 0.05 && totalVisitors > 20) {
-    sentences.push('Most visitors navigate here from other pages on the site rather than arriving directly.');
   }
 
   // 3. Map engagement (routes only)
