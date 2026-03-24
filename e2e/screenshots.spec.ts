@@ -65,7 +65,8 @@ test.describe('Screenshots', () => {
   test('homepage', async ({ page }) => {
     await page.goto('/');
     await waitForImages(page);
-    await expect(page).toHaveScreenshot('homepage.png', { clip: { x: 0, y: 0, width: 1280, height: 4000 } });
+    // Clip to 2000px — 4000px at 2x deviceScaleFactor exceeds libpng limits
+    await expect(page).toHaveScreenshot('homepage.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
   });
 
   test('route detail', async ({ page }) => {
@@ -124,7 +125,8 @@ test.describe('Screenshots', () => {
     await page.goto('/');
     await waitForImages(page);
     await expect(page.locator('.home-view-discover')).toBeVisible();
-    await expect(page).toHaveScreenshot('homepage-magazine.png', { clip: { x: 0, y: 0, width: 1280, height: 4000 } });
+    // Clip to 2000px — 4000px at 2x deviceScaleFactor exceeds libpng limits
+    await expect(page).toHaveScreenshot('homepage-magazine.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
   });
 
   test('homepage browse toggle', async ({ page }) => {
@@ -159,15 +161,15 @@ test.describe('Screenshots', () => {
 // These catch "NoMatchingRenderer" errors where the Preact renderer is missing
 // from the server bundle at runtime (the page 500s instead of rendering).
 test.describe('SSR Preact islands', () => {
-  test('gate page renders AuthGate', async ({ page }) => {
-    const response = await page.goto('/gate');
+  test('login page renders LoginForm', async ({ page }) => {
+    const response = await page.goto('/login');
     expect(response?.status()).toBe(200);
-    await expect(page.locator('.gate-options')).toBeVisible();
+    await expect(page.locator('#login-email')).toBeVisible();
   });
 
-  test('register page renders RegisterForm', async ({ page }) => {
-    const response = await page.goto('/register');
-    expect(response?.status()).toBe(200);
-    await expect(page.locator('.auth-form')).toBeVisible();
+  test('register redirects to login', async ({ page }) => {
+    await page.goto('/register');
+    // 301 redirect followed by Playwright — check final URL
+    expect(page.url()).toContain('/login');
   });
 });

@@ -22,9 +22,8 @@ const routes = [
   // Auth pages
   { pattern: '/setup', entrypoint: view('auth/setup.astro') },
   { pattern: '/login', entrypoint: view('auth/login.astro') },
-  { pattern: '/gate', entrypoint: view('auth/gate.astro') },
   { pattern: '/register', entrypoint: view('auth/register.astro') },
-  { pattern: '/auth/verify', entrypoint: view('auth/verify.astro') },
+{ pattern: '/auth/verify', entrypoint: view('auth/verify.astro') },
   // Auth API
   { pattern: '/api/auth/login-options', entrypoint: view('api/auth/login-options.ts') },
   { pattern: '/api/auth/login', entrypoint: view('api/auth/login.ts') },
@@ -33,8 +32,8 @@ const routes = [
   { pattern: '/api/auth/register', entrypoint: view('api/auth/register.ts') },
   { pattern: '/api/auth/register-options', entrypoint: view('api/auth/register-options.ts') },
   { pattern: '/api/auth/upgrade', entrypoint: view('api/auth/upgrade.ts') },
-  { pattern: '/api/auth/upgrade-options', entrypoint: view('api/auth/upgrade-options.ts') },
   { pattern: '/api/auth/email-login', entrypoint: view('api/auth/email-login.ts') },
+  { pattern: '/api/auth/signup', entrypoint: view('api/auth/signup.ts') },
   { pattern: '/api/auth/add-passkey', entrypoint: view('api/auth/add-passkey.ts') },
   { pattern: '/api/auth/remove-passkey', entrypoint: view('api/auth/remove-passkey.ts') },
   { pattern: '/api/auth/strava/callback', entrypoint: view('api/auth/strava-callback.ts') },

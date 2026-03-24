@@ -107,27 +107,86 @@
   "shape.loop": "loop",
   "shape.one-way": "one-way",
   "shape.out-and-back": "out & back",
-  "category.cafe": ["cafe", "cafes"],
-  "category.restaurant": ["restaurant", "restaurants"],
-  "category.park": ["park", "parks"],
-  "category.beach": ["beach", "beaches"],
-  "category.bike-shop": ["bike shop", "bike shops"],
-  "category.bike-trail": ["trail", "trails"],
-  "category.water-fountain": ["water fountain", "water fountains"],
-  "category.chill-spot": ["chill spot", "chill spots"],
-  "category.lookout": ["lookout", "lookouts"],
-  "category.bridge": ["bridge", "bridges"],
-  "category.poutine": ["poutine spot", "poutine spots"],
-  "category.beer": ["brewery", "breweries"],
-  "category.pizza": ["pizza spot", "pizza spots"],
-  "category.ice-cream": ["ice cream spot", "ice cream spots"],
-  "category.bike-rental": ["bike rental", "bike rentals"],
-  "category.ferry": ["ferry", "ferries"],
-  "category.parking": ["parking lot", "parking lots"],
-  "category.meeting-point": ["meeting point", "meeting points"],
-  "category.camping-spot": ["campsite", "campsites"],
-  "category.wc": ["restroom", "restrooms"],
-
+  "category.cafe": [
+    "cafe",
+    "cafes"
+  ],
+  "category.restaurant": [
+    "restaurant",
+    "restaurants"
+  ],
+  "category.park": [
+    "park",
+    "parks"
+  ],
+  "category.beach": [
+    "beach",
+    "beaches"
+  ],
+  "category.bike-shop": [
+    "bike shop",
+    "bike shops"
+  ],
+  "category.bike-trail": [
+    "trail",
+    "trails"
+  ],
+  "category.water-fountain": [
+    "water fountain",
+    "water fountains"
+  ],
+  "category.chill-spot": [
+    "chill spot",
+    "chill spots"
+  ],
+  "category.lookout": [
+    "lookout",
+    "lookouts"
+  ],
+  "category.bridge": [
+    "bridge",
+    "bridges"
+  ],
+  "category.poutine": [
+    "poutine spot",
+    "poutine spots"
+  ],
+  "category.beer": [
+    "brewery",
+    "breweries"
+  ],
+  "category.pizza": [
+    "pizza spot",
+    "pizza spots"
+  ],
+  "category.ice-cream": [
+    "ice cream spot",
+    "ice cream spots"
+  ],
+  "category.bike-rental": [
+    "bike rental",
+    "bike rentals"
+  ],
+  "category.ferry": [
+    "ferry",
+    "ferries"
+  ],
+  "category.parking": [
+    "parking lot",
+    "parking lots"
+  ],
+  "category.meeting-point": [
+    "meeting point",
+    "meeting points"
+  ],
+  "category.camping-spot": [
+    "campsite",
+    "campsites"
+  ],
+  "category.wc": [
+    "restroom",
+    "restrooms"
+  ],
   "nav.events": "Events",
   "nav.routes": "Routes",
   "nav.places": "Places",
@@ -231,28 +290,85 @@
   "events.view_route_map": "View route map",
   "events.view_route_map_on": "View route map on {service}",
   "events.also_on": "Also on {service}",
-  "events.noun.default": ["event", "events"],
-  "events.noun.brevet": ["ride", "rides"],
-  "events.noun.gravel": ["ride", "rides"],
-  "events.noun.group-ride": ["ride", "rides"],
-  "events.noun.race": ["race", "races"],
-  "events.noun.criterium": ["race", "races"],
-  "events.noun.workshop": ["workshop", "workshops"],
-  "events.noun.conference": ["conference", "conferences"],
-  "events.noun.critical-mass": ["ride", "rides"],
-  "events.noun.triathlon": ["race", "races"],
-  "events.noun.duathlon": ["race", "races"],
-  "events.noun.gran-fondo": ["ride", "rides"],
-  "events.noun.tour": ["tour", "tours"],
-  "events.noun.charity-ride": ["ride", "rides"],
-  "events.noun.bikepacking": ["adventure", "adventures"],
-  "events.noun.social": ["meetup", "meetups"],
-  "events.noun.advocacy": ["meetup", "meetups"],
-  "events.noun.festival": ["festival", "festivals"],
-  "events.noun.swap-meet": ["meetup", "meetups"],
+  "events.noun.default": [
+    "event",
+    "events"
+  ],
+  "events.noun.brevet": [
+    "ride",
+    "rides"
+  ],
+  "events.noun.gravel": [
+    "ride",
+    "rides"
+  ],
+  "events.noun.group-ride": [
+    "ride",
+    "rides"
+  ],
+  "events.noun.race": [
+    "race",
+    "races"
+  ],
+  "events.noun.criterium": [
+    "race",
+    "races"
+  ],
+  "events.noun.workshop": [
+    "workshop",
+    "workshops"
+  ],
+  "events.noun.conference": [
+    "conference",
+    "conferences"
+  ],
+  "events.noun.critical-mass": [
+    "ride",
+    "rides"
+  ],
+  "events.noun.triathlon": [
+    "race",
+    "races"
+  ],
+  "events.noun.duathlon": [
+    "race",
+    "races"
+  ],
+  "events.noun.gran-fondo": [
+    "ride",
+    "rides"
+  ],
+  "events.noun.tour": [
+    "tour",
+    "tours"
+  ],
+  "events.noun.charity-ride": [
+    "ride",
+    "rides"
+  ],
+  "events.noun.bikepacking": [
+    "adventure",
+    "adventures"
+  ],
+  "events.noun.social": [
+    "meetup",
+    "meetups"
+  ],
+  "events.noun.advocacy": [
+    "meetup",
+    "meetups"
+  ],
+  "events.noun.festival": [
+    "festival",
+    "festivals"
+  ],
+  "events.noun.swap-meet": [
+    "meetup",
+    "meetups"
+  ],
   "events.photos_count": "{count} photos",
   "events.edit_description": "See something wrong? You can fix it — every edit can be undone.",
-  "events.meet_time": "Meet {meet} \u00b7 Roll {roll}",
+  "events.meet_time": "Meet {meet} · Roll {roll}",
   "events.next.default": "Next event",
   "events.next.brevet": "Next ride",
   "events.next.gravel": "Next ride",
@@ -275,7 +391,7 @@
   "events.series_schedule": "Schedule",
   "events.series_every_week": "Every {day}, {time}",
   "events.series_every_two_weeks": "Every other {day}, {time}",
-  "events.series_season": "{start} \u2013 {end}",
+  "events.series_season": "{start} – {end}",
   "events.series_ended": "This series has ended.",
   "events.series_cancelled": "Cancelled",
   "events.series_rescheduled_from": "Rescheduled from {date}",
@@ -283,7 +399,6 @@
   "events.series_past_dates": "Past dates",
   "events.similar": "Similar events",
   "events.similar_one": "Similar event",
-
   "calendar.upcoming.default": "Upcoming events",
   "calendar.upcoming.brevet": "Upcoming rides",
   "calendar.upcoming.gravel": "Upcoming rides",
@@ -303,11 +418,9 @@
   "calendar.upcoming.advocacy": "Upcoming meetups",
   "calendar.upcoming.festival": "Upcoming festivals",
   "calendar.upcoming.swap-meet": "Upcoming meetups",
-
   "nav.rides": "Rides",
   "nav.tours": "Tours",
   "nav.stats": "Stats",
-
   "rides.description": "All bike rides",
   "ride.date": "Date",
   "ride.distance": "Distance",
@@ -322,7 +435,6 @@
   "ride.badge.biggest_climb": "One of the biggest climbs",
   "ride.badge.part_of_tour": "Part of {tour}",
   "ride.badge.abroad": "Abroad",
-
   "tours.title": "Bikepacking Tours",
   "tours.description": "All bikepacking tours",
   "tours.summary": "{distance} km over {days} days on {count} tours",
@@ -333,7 +445,6 @@
   "tours.countries_label": "Countries",
   "tours.ride_list": "Rides",
   "tours.go_back": "go back to all tours",
-
   "stats.description": "Ride statistics and records",
   "stats.total_rides": "Total Rides",
   "stats.total_distance": "Total Distance",
@@ -348,27 +459,26 @@
   "stats.by_year": "By Year",
   "stats.by_country": "By Country",
   "stats.year": "Year",
-
   "home.highlights": "Highlights",
   "home.latest_rides": "Latest Rides",
   "home.all_rides": "View all rides",
   "home.all_rides_count": "View all {count} rides",
-
-  "auth.gate_title_blog": "Sign in to continue",
-  "auth.gate_title_wiki": "Edit this page",
-  "auth.gate_title_route": "Edit this route",
-  "auth.gate_title_event": "Edit this event",
-  "auth.gate_title_place": "Add a new place",
-  "auth.gate_title_new_route": "Add a new route",
-  "auth.gate_subtitle": "Choose how to continue:",
-  "auth.gate_intro": "This site is built by cyclists like you. Your local knowledge helps others discover great routes and events.",
-  "auth.gate_reassurance": "Every edit can be undone, and guest edits are published without your name.",
-  "auth.gate_guest_button": "Continue as guest",
-  "auth.gate_guest_hint": "No email, no account. Just start editing.",
-  "auth.gate_signin": "Already have an account? Sign in",
-  "auth.gate_register": "Want credit for your contributions? Create account",
-  "auth.gate_how_editing": "How does editing work?",
-
+  "auth.email_placeholder": "you@example.com",
+  "auth.username_label": "Choose a username",
+  "auth.username_placeholder": "your-username",
+  "auth.username_hint": "This will appear on your contributions.",
+  "auth.continue": "Continue",
+  "auth.create_account": "Create account",
+  "auth.sign_in_passkey": "Sign in with passkey",
+  "auth.signing_in": "Signing in...",
+  "auth.check_email_magic_link": "Check your email for a sign-in link. It expires in 15 minutes.",
+  "auth.check_email_verify": "Check your email to verify your account and finish setting up.",
+  "auth.back_to_sign_in": "Back to sign in",
+  "auth.send_link_instead": "Send a sign-in link instead",
+  "settings.passkey_empty_description": "Passkeys let you sign in without email. They're stored on your device and work with fingerprint, face, or PIN.",
+  "settings.passkey_add": "Add a passkey",
+  "auth.error_email_required": "Email is required",
+  "auth.error_invalid_username": "Username must be 2-30 characters: letters, numbers, hyphens, underscores",
   "about.contributors_heading": "People who contribute to this site",
   "about.hero_subtitle": "Cycling routes found by people who ride here. Photos, tips, and the good roads — from experience, not an algorithm.",
   "about.trust_ridden": "Every route ridden",
@@ -378,15 +488,12 @@
   "about.cta_contribute": "Contribute",
   "about.contact_line": "Questions? Say hi at {email}",
   "about.section_learn_more": "Learn more",
-
   "editor.focus_description": "Editing the description for {name}",
   "editor.focus_media": "Adding media to {name}",
   "editor.show_all_fields": "Show all fields",
-
+  "editor.guest_label": "Editing as guest — your name won't appear on this edit",
   "place_editor.details_toggle": "Add details (address, website, phone)",
-
   "map.description": "{count} cycling routes in {city}",
-
   "nav.communities": "Communities",
   "communities.title": "Communities",
   "communities.intro": "The people and groups who organize cycling events and rides.",
@@ -398,7 +505,6 @@
   "communities.upcoming_events": "Upcoming events",
   "communities.show_all_events": "Show all {count} events",
   "communities.edit_description": "See something wrong? You can fix it — every edit can be undone.",
-
   "home.subtitle": "Routes, events, and the people who ride here",
   "home.discover": "Discover",
   "home.browse_all": "Browse all routes",
@@ -411,7 +517,6 @@
   "home.full_calendar": "Full calendar",
   "home.all_communities": "All communities",
   "home.view_all_routes": "View all {count} routes",
-
   "calendar.add_event": "Add your event",
   "events.organizer_website": "Organizer website",
   "photos.title": "Photos",

@@ -127,6 +127,50 @@ export function seedContentEdit(
   }
 }
 
+/** Get the latest email token for a user (by userId or email). */
+export function getEmailToken(
+  dbPath: string,
+  opts: { userId?: string; email?: string },
+): { token: string; userId: string; email: string; expiresAt: string } | null {
+  if (!fs.existsSync(dbPath)) return null;
+  const db = openDb(dbPath);
+  try {
+    const where = opts.userId ? 'user_id = ?' : 'email = ?';
+    const param = opts.userId || opts.email;
+    const row = db.prepare(
+      `SELECT token, user_id, email, expires_at FROM email_tokens
+       WHERE ${where} AND used_at IS NULL
+       ORDER BY created_at DESC LIMIT 1`
+    ).get(param) as { token: string; user_id: string; email: string; expires_at: string } | undefined;
+    if (!row) return null;
+    return { token: row.token, userId: row.user_id, email: row.email, expiresAt: row.expires_at };
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
+/** Get user by ID from the DB. */
+export function getUser(
+  dbPath: string,
+  userId: string,
+): { id: string; email: string | null; username: string; role: string; emailVerified: number } | null {
+  if (!fs.existsSync(dbPath)) return null;
+  const db = openDb(dbPath);
+  try {
+    const row = db.prepare(
+      'SELECT id, email, username, role, email_verified FROM users WHERE id = ?'
+    ).get(userId) as { id: string; email: string | null; username: string; role: string; email_verified: number } | undefined;
+    if (!row) return null;
+    return { id: row.id, email: row.email, username: row.username, role: row.role, emailVerified: row.email_verified };
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
 // Staging origin used to proxy tile requests in E2E — CI has no Thunderforest
 // API key, so we intercept /api/tiles/* and forward to staging which has one.
 const TILE_PROXY_ORIGIN = 'https://new.ottawabybike.ca';

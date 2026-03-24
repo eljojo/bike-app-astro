@@ -10,6 +10,8 @@ interface Props {
   contentType?: string;
   /** Role determines guest modal vs inline success */
   userRole?: string;
+  /** True when a guest session was created during this save (401 retry) */
+  guestCreated?: boolean;
   /** Link for "View live" after save */
   viewLink?: string;
   /** Show CC BY-SA license notice (default true) */
@@ -18,12 +20,14 @@ interface Props {
   licenseDocsUrl?: string;
   /** Extra disabled condition beyond `saving` */
   disabled?: boolean;
+  /** Dismiss the saved state (hides modal/success message) */
+  onDismiss?: () => void;
 }
 
 export default function EditorActions({
   error, githubUrl, saved, saving, onSave,
-  contentType, userRole, viewLink,
-  showLicenseNotice = true, licenseDocsUrl, disabled = false,
+  contentType, userRole, guestCreated, viewLink,
+  showLicenseNotice = true, licenseDocsUrl, disabled = false, onDismiss,
 }: Props) {
   return (
     <div class="editor-actions">
@@ -46,10 +50,10 @@ export default function EditorActions({
           </a>
         </div>
       )}
-      {saved && userRole === 'guest' && viewLink && (
-        <SaveSuccessModal viewLink={viewLink} />
+      {saved && (userRole === 'guest' || guestCreated) && viewLink && (
+        <SaveSuccessModal viewLink={viewLink} onClose={onDismiss} />
       )}
-      {saved && userRole !== 'guest' && (
+      {saved && userRole !== 'guest' && !guestCreated && (
         <div class="save-success">
           Saved! Your edit will be live in a few minutes.
           {viewLink && <>{' '}<a href={viewLink}>View live</a></>}

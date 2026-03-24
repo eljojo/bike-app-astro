@@ -265,6 +265,6 @@ test.describe('Community Admin — Guest Role', () => {
     const saveButton = page.getByRole('button', { name: /save/i });
     await saveButton.click();
 
-    await expect(page.getByText('Thanks for your contribution!')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your anonymous contribution has been saved')).toBeVisible({ timeout: 15000 });
   });
 });

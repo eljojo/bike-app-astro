@@ -30,10 +30,11 @@ interface Props {
   knownTags?: string[];
   defaultLocale?: string;
   userRole?: string;
+  guestLabel?: string;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole }: Props) {
+export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -71,7 +72,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     { field: 'community-name', check: () => !name.trim(), message: 'Name is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/organizers',
     contentId: initialData.isNew ? null : (initialData.slug || null),
     initialContentHash: initialData.contentHash,
@@ -157,6 +158,9 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
 
   return (
     <div ref={hydratedRef} class="community-editor">
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
+      )}
       <div class="auth-form">
         <div class="form-field">
           <label for="community-name">Name</label>
@@ -275,7 +279,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} contentType="community" userRole={userRole}
+        onSave={handleSave} onDismiss={dismissSaved} contentType="community" userRole={userRole} guestCreated={guestCreated}
         viewLink="/admin/communities"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />

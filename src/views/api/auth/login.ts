@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { env } from '../../../lib/env/env.service';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { db } from '../../../lib/get-db';
-import { credentials } from '../../../db/schema';
+import { credentials, users } from '../../../db/schema';
 import {
   findUserByIdentifier,
   createSessionWithCookies,
@@ -20,7 +20,7 @@ export async function POST({ request, cookies }: APIContext) {
     const identifier = body.identifier || body.email;
     const { credential: authResponse } = body;
 
-    if (!identifier || !authResponse) {
+    if (!authResponse) {
       return jsonError('Missing required fields');
     }
 
@@ -33,25 +33,49 @@ export async function POST({ request, cookies }: APIContext) {
       return jsonError('Challenge expired, please try again');
     }
 
-    // Look up user by email or username
-    const user = await findUserByIdentifier(database, identifier);
+    let user;
+    let credResult;
+
+    if (identifier) {
+      // Standard flow: look up user by email or username
+      user = await findUserByIdentifier(database, identifier);
+
+      if (!user) {
+        return jsonError('Invalid email or credentials');
+      }
+
+      // Find the matching credential — must belong to this user
+      credResult = await database
+        .select()
+        .from(credentials)
+        .where(and(
+          eq(credentials.credentialId, authResponse.id),
+          eq(credentials.userId, user.id)
+        ))
+        .limit(1);
+    } else {
+      // Conditional UI / discoverable credential: look up by credential ID only
+      credResult = await database
+        .select()
+        .from(credentials)
+        .where(eq(credentials.credentialId, authResponse.id))
+        .limit(1);
+
+      if (credResult.length > 0) {
+        user = await database
+          .select()
+          .from(users)
+          .where(eq(users.id, credResult[0].userId))
+          .then((rows) => rows[0] ?? null);
+      }
+    }
+
+    if (!credResult || credResult.length === 0) {
+      return jsonError('Credential not found');
+    }
 
     if (!user) {
       return jsonError('Invalid email or credentials');
-    }
-
-    // Find the matching credential — must belong to this user
-    const credResult = await database
-      .select()
-      .from(credentials)
-      .where(and(
-        eq(credentials.credentialId, authResponse.id),
-        eq(credentials.userId, user.id)
-      ))
-      .limit(1);
-
-    if (credResult.length === 0) {
-      return jsonError('Credential not found');
     }
 
     const storedCredential = credResult[0];

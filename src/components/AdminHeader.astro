@@ -6,7 +6,7 @@ import { getInstanceFeatures } from '../lib/config/instance-features';
 import { getContentTypes } from '../lib/content/content-types.server';
 
 interface Props {
-  user: { id: string; username: string; role: string; email?: string | null };
+  user: { id: string; username: string; role: string; email?: string | null; hasPasskey?: boolean };
   currentTab: string;
   subtitle?: string;
   ctaHref?: string;
@@ -57,9 +57,14 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
       <span class="admin-user-caret">&#9662;</span>
     </button>
     <div class="admin-user-dropdown" id="user-menu-dropdown" role="menu">
-      <a href="/admin/settings" class="admin-user-dropdown-item">Settings</a>
+      <a href="/admin/settings" class="admin-user-dropdown-item">
+        Settings
+        {!user.hasPasskey && user.role !== 'guest' && (
+          <span class="settings-nudge-dot" />
+        )}
+      </a>
       {user.role === 'guest' && features.allowsRegistration && (
-        <a href="/register?join=1" class="admin-user-dropdown-item">Create account</a>
+        <a href="/login" class="admin-user-dropdown-item">Create account</a>
       )}
       <form method="POST" action="/api/auth/logout" class="logout-form">
         <button type="submit" class="admin-user-dropdown-item">Sign out</button>
@@ -281,6 +286,16 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
 
   .logout-form {
     display: contents;
+  }
+
+  .settings-nudge-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: $color-primary;
+    border-radius: 50%;
+    margin-left: 0.25rem;
+    vertical-align: middle;
   }
 
 </style>

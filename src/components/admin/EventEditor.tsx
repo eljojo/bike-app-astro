@@ -36,6 +36,7 @@ interface Props {
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
   defaultLocale?: string;
+  guestLabel?: string;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -74,7 +75,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '' }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLFieldSetElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -182,7 +183,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   ]);
 
   // Save state
-  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/events',
     contentId: initialData.isNew ? null : initialData.id,
     initialContentHash: initialData.contentHash,
@@ -322,6 +323,9 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   return (
     <fieldset class="event-editor" disabled={readOnly} ref={hydratedRef}>
+        {userRole === 'guest' && guestLabel && (
+          <p class="editor-guest-label">{guestLabel}</p>
+        )}
         <div class="auth-form">
           <div class="form-field">
             <label for="event-name">Name</label>
@@ -759,7 +763,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} contentType="event" userRole={userRole}
+        onSave={handleSave} onDismiss={dismissSaved} contentType="event" userRole={userRole} guestCreated={guestCreated}
         viewLink={`/events/${initialData.id}`}
         showLicenseNotice={showLicenseNotice !== false}
         licenseDocsUrl="https://whereto.bike/about/licensing/"

@@ -35,9 +35,10 @@ interface Props {
   rideLabels?: Record<string, string>;
   tours?: TourSummary[];
   stravaConnected?: boolean;
+  guestLabel?: string;
 }
 
-export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected }: Props) {
+export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected, guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   // State
   const [name, setName] = useState(initialData.name);
@@ -202,7 +203,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
     { field: '', check: () => !variants.length, message: 'A GPX file is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/rides',
     contentId: initialData.isNew ? null : initialData.slug,
     initialContentHash: initialData.contentHash,
@@ -253,6 +254,10 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
           onImport={handleStravaImport}
           onClose={() => setStravaBrowsing(false)}
         />
+      )}
+
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
       )}
 
       {/* Mobile tabs */}
@@ -425,7 +430,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
           {/* Save */}
           <EditorActions
             error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-            onSave={handleSave} contentType="ride"
+            onSave={handleSave} onDismiss={dismissSaved} contentType="ride" userRole={userRole} guestCreated={guestCreated}
             viewLink={paths.ride(initialData.slug, initialData.tour_slug)}
             showLicenseNotice={false}
           />

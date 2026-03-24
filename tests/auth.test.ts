@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier } from '../src/lib/auth/auth';
+import { normalizeEmail, generateId, getWebAuthnConfig, findUserByIdentifier, buildSessionBatch } from '../src/lib/auth/auth';
 
 describe('auth helpers', () => {
   describe('normalizeEmail', () => {
@@ -95,6 +95,8 @@ describe('session lifecycle', () => {
     expect(user!.id).toBe('user-1');
     expect(user!.username).toBe('testuser');
     expect(user!.role).toBe('editor');
+    expect(user!.emailVerified).toBe(true);
+    expect(user!.hasPasskey).toBe(false);
   });
 
   it('validateSession returns null for expired session', async () => {
@@ -162,6 +164,83 @@ describe('session lifecycle', () => {
     expect(user).not.toBeNull();
     expect(user!.emailInCommits).toBe(false);
     expect(user!.analyticsOptOut).toBe(false);
+  });
+
+  it('validateSession returns emailVerified from user row', async () => {
+    const { createSession, validateSession } = await import('../src/lib/auth/auth');
+    const { users } = await import('../src/db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    // Default is emailVerified=1, already tested above. Set to 0 and verify false.
+    await database.update(users).set({ emailVerified: 0 }).where(eq(users.id, 'user-1'));
+
+    const token = await createSession(database, 'user-1');
+    const user = await validateSession(database, token);
+    expect(user).not.toBeNull();
+    expect(user!.emailVerified).toBe(false);
+  });
+
+  it('validateSession returns hasPasskey true when credential exists', async () => {
+    const { createSession, validateSession, generateId } = await import('../src/lib/auth/auth');
+    const { credentials } = await import('../src/db/schema');
+
+    await database.insert(credentials).values({
+      id: generateId(),
+      userId: 'user-1',
+      credentialId: 'cred-abc',
+      publicKey: Buffer.from('fake-key'),
+      counter: 0,
+      createdAt: new Date().toISOString(),
+    });
+
+    const token = await createSession(database, 'user-1');
+    const user = await validateSession(database, token);
+    expect(user).not.toBeNull();
+    expect(user!.hasPasskey).toBe(true);
+  });
+
+  it('buildSessionBatch respects custom durationMs', async () => {
+    const { sessions } = await import('../src/db/schema');
+
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
+    const before = Date.now();
+    const plan = buildSessionBatch(database, 'user-1', { durationMs: ninetyDays });
+    const after = Date.now();
+
+    // Execute the statements to insert the session
+    for (const stmt of plan.statements) {
+      await stmt;
+    }
+
+    const allSessions = await database.select().from(sessions);
+    const session = allSessions.find((s: any) => s.token === plan.token);
+    expect(session).toBeDefined();
+
+    const expiresAt = new Date(session!.expiresAt).getTime();
+    // Expiry should be ~90 days from now, not 30
+    expect(expiresAt).toBeGreaterThanOrEqual(before + ninetyDays);
+    expect(expiresAt).toBeLessThanOrEqual(after + ninetyDays);
+  });
+
+  it('buildSessionBatch defaults to 90-day duration', async () => {
+    const { sessions } = await import('../src/db/schema');
+
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
+    const before = Date.now();
+    const plan = buildSessionBatch(database, 'user-1');
+    const after = Date.now();
+
+    for (const stmt of plan.statements) {
+      await stmt;
+    }
+
+    const allSessions = await database.select().from(sessions);
+    const session = allSessions.find((s: any) => s.token === plan.token);
+    expect(session).toBeDefined();
+
+    const expiresAt = new Date(session!.expiresAt).getTime();
+    expect(expiresAt).toBeGreaterThanOrEqual(before + ninetyDays);
+    expect(expiresAt).toBeLessThanOrEqual(after + ninetyDays);
   });
 });
 

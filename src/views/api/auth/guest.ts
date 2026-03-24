@@ -10,6 +10,9 @@ import { getInstanceFeatures } from '../../../lib/config/instance-features';
 
 export const prerender = false;
 
+const GUEST_SESSION_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
+const GUEST_SESSION_MAX_AGE = 90 * 24 * 60 * 60; // seconds
+
 export async function POST({ cookies, request }: APIContext) {
   if (!getInstanceFeatures().allowsGuestAccess) {
     return new Response(null, { status: 404 });
@@ -29,7 +32,7 @@ export async function POST({ cookies, request }: APIContext) {
 
     let token = '';
     await withBatch(database, (tx) => {
-      const sessionPlan = buildSessionBatch(tx, userId);
+      const sessionPlan = buildSessionBatch(tx, userId, { durationMs: GUEST_SESSION_DURATION_MS });
       token = sessionPlan.token;
 
       return [
@@ -44,7 +47,7 @@ export async function POST({ cookies, request }: APIContext) {
         ...sessionPlan.statements,
       ];
     });
-    setSessionCookies(cookies, token);
+    setSessionCookies(cookies, token, GUEST_SESSION_MAX_AGE);
 
     return jsonResponse({ success: true, username });
   } catch (err: unknown) {

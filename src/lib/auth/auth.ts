@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { eq, and, gt, lt } from 'drizzle-orm';
+import { eq, and, gt, lt, sql } from 'drizzle-orm';
 import { credentials, sessions, users, userSettings } from '../../db/schema';
 import type { Database, DbClient } from '../../db';
 import type { AppEnv } from '../config/app-env';
@@ -12,6 +12,8 @@ export interface SessionUser {
   bannedAt: string | null;
   emailInCommits: boolean;
   analyticsOptOut: boolean;
+  emailVerified: boolean;
+  hasPasskey: boolean;
 }
 
 export const ANONYMOUS_USER: SessionUser = Object.freeze({
@@ -22,6 +24,8 @@ export const ANONYMOUS_USER: SessionUser = Object.freeze({
   bannedAt: null,
   emailInCommits: false,
   analyticsOptOut: false,
+  emailVerified: false,
+  hasPasskey: false,
 });
 
 export interface WebAuthnConfig {
@@ -74,6 +78,8 @@ export function generateId(): string {
   return randomHex(16);
 }
 
+const DEFAULT_SESSION_DURATION_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
 /**
  * Build session write statements for batch/sequential execution.
  * Returns a fresh token and the required DB statements.
@@ -81,10 +87,11 @@ export function generateId(): string {
 export function buildSessionBatch(
   db: DbClient,
   userId: string,
-  opts: { revokeToken?: string } = {},
+  opts: { revokeToken?: string; durationMs?: number } = {},
 ): { token: string; statements: unknown[] } {
+  const durationMs = opts.durationMs ?? DEFAULT_SESSION_DURATION_MS;
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const expiresAt = new Date(now.getTime() + durationMs);
   const token = randomHex(32);
 
   const statements: unknown[] = [
@@ -148,6 +155,7 @@ export async function validateSession(db: Database, token: string): Promise<Sess
       username: users.username,
       role: users.role,
       bannedAt: users.bannedAt,
+      emailVerified: users.emailVerified,
     })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
@@ -173,6 +181,14 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     .where(eq(userSettings.userId, row.userId))
     .limit(1);
 
+  // Count credentials separately (same pattern as settings — avoids LEFT JOIN with WAL mode)
+  const credentialCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(credentials)
+    .where(eq(credentials.userId, row.userId));
+
+  const hasPasskey = (credentialCount[0]?.count ?? 0) > 0;
+
   const s = settings[0];
   return {
     id: row.userId,
@@ -182,6 +198,8 @@ export async function validateSession(db: Database, token: string): Promise<Sess
     bannedAt: row.bannedAt,
     emailInCommits: s?.emailInCommits ?? false,
     analyticsOptOut: s?.analyticsOptOut ?? false,
+    emailVerified: Boolean(row.emailVerified),
+    hasPasskey,
   };
 }
 
@@ -201,26 +219,27 @@ export function getWebAuthnConfig(requestUrl: string, env: Partial<AppEnv> = {})
   };
 }
 
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+const DEFAULT_SESSION_MAX_AGE = 90 * 24 * 60 * 60; // 90 days in seconds
 
 /** Set session cookies on a response. */
 export function setSessionCookies(
   cookies: AstroCookies,
-  token: string
+  token: string,
+  maxAge: number = DEFAULT_SESSION_MAX_AGE,
 ): void {
   cookies.set('session_token', token, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_MAX_AGE,
+    maxAge,
   });
   cookies.set('logged_in', '1', {
     httpOnly: false,
     secure: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_MAX_AGE,
+    maxAge,
   });
 }
 
@@ -284,9 +303,13 @@ export async function createSessionWithCookies(
   database: DbClient,
   userId: string,
   cookies: AstroCookies,
+  opts: { durationMs?: number; maxAge?: number } = {},
 ): Promise<string> {
-  const token = await createSession(database, userId);
-  setSessionCookies(cookies, token);
+  const { token, statements } = buildSessionBatch(database, userId, { durationMs: opts.durationMs });
+  for (const statement of statements) {
+    await statement;
+  }
+  setSessionCookies(cookies, token, opts.maxAge);
   return token;
 }
 

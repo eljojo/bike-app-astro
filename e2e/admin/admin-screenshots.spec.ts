@@ -145,12 +145,19 @@ test.describe('Admin Screenshots — Unauthenticated', () => {
     await expect(page).toHaveScreenshot('admin-anonymous-dashboard.png', screenshotOpts);
   });
 
-  test('auth gate', async ({ page }) => {
-    // Non-browsable paths redirect to gate
+  test('editor page renders for unauthenticated user', async ({ page }) => {
+    // Editor pages are now browsable without auth (guest-first flow)
     await page.goto('/admin/routes/carp');
     await page.waitForLoadState('networkidle');
-    expect(page.url()).toContain('/gate');
-    await expect(page).toHaveScreenshot('admin-auth-gate.png', screenshotOpts);
+    expect(page.url()).toContain('/admin/routes/carp');
+    await expect(page).toHaveScreenshot('admin-anonymous-editor.png', screenshotOpts);
+  });
+
+  test('protected admin pages redirect to login', async ({ page }) => {
+    // /admin/settings is NOT browsable — should redirect to /login
+    await page.goto('/admin/settings');
+    await page.waitForLoadState('networkidle');
+    expect(page.url()).toContain('/login');
   });
 });
 
@@ -185,7 +192,7 @@ test.describe('Admin Screenshots — Guest Variant', () => {
     await saveButton.click();
 
     // Wait for guest contribution modal
-    await expect(page.getByText('Thanks for your contribution!')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Your anonymous contribution has been saved')).toBeVisible({ timeout: 15000 });
 
     await expect(page).toHaveScreenshot('admin-guest-save-modal.png', screenshotOpts);
   });

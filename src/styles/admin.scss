@@ -4,6 +4,7 @@
 @use 'events';
 @use 'forms';
 @use 'modals';
+@use 'editor';
 @use 'community-editor';
 @use 'place-editor-extras';
 
@@ -82,6 +83,26 @@
     @include dark-mode {
       color: $color-text-dark;
     }
+  }
+}
+
+.auth-avatar {
+  text-align: center;
+
+  img {
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+  }
+}
+
+.auth-field-hint {
+  font-size: 0.8125rem;
+  color: $color-text-muted;
+  margin: 0.25rem 0 0;
+
+  @include dark-mode {
+    color: $color-text-muted-dark;
   }
 }
 
@@ -310,69 +331,6 @@
   }
 }
 
-.gate-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.gate-btn {
-  display: block;
-  text-align: center;
-  text-decoration: none;
-  font-size: 1rem;
-  padding: 0.625rem 1.25rem;
-}
-
-.gate-options--guest-first {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: center;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.gate-reassurance {
-  @include muted-text;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin-bottom: 0.5rem;
-}
-
-.gate-btn--primary {
-  width: 100%;
-  padding: 0.75rem 1.5rem;
-  font-size: 1.1rem;
-}
-
-.gate-guest-hint {
-  @include muted-text;
-  font-size: 0.8rem;
-  margin: -0.25rem 0 0.75rem;
-}
-
-.gate-secondary-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-
-  a {
-    @include muted-text;
-    text-decoration: none;
-    &:hover { text-decoration: underline; }
-  }
-}
-
-.gate-how-link {
-  @include muted-text;
-  font-size: 0.8rem;
-  margin-top: 1rem;
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
-}
 
 // Tag editor (RouteEditor island)
 .tag-editor {

@@ -14,12 +14,22 @@ export async function POST({ request, cookies }: APIContext) {
     const body = await request.json();
     const identifier = body.identifier || body.email;
 
+    const config = getWebAuthnConfig(request.url, env);
+
     if (!identifier) {
-      return jsonError('Email or username is required');
+      // Conditional UI — return options for any discoverable credential
+      const options = await generateAuthenticationOptions({
+        rpID: config.rpID,
+        allowCredentials: [],
+        userVerification: 'preferred',
+      });
+
+      storeChallenge(cookies, options.challenge);
+
+      return jsonResponse(options as unknown as Record<string, unknown>);
     }
 
     const database = db();
-    const config = getWebAuthnConfig(request.url, env);
 
     // Look up user by email or username
     const user = await findUserByIdentifier(database, identifier);

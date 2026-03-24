@@ -5,7 +5,7 @@ function mockLocals(user: any) {
   return { user } as any;
 }
 
-const base = { email: null, emailInCommits: false, analyticsOptOut: false } as const;
+const base = { email: null, emailInCommits: false, analyticsOptOut: false, emailVerified: true, hasPasskey: false } as const;
 const admin = { ...base, id: '1', username: 'admin', role: 'admin' as const, bannedAt: null };
 const editor = { ...base, id: '2', username: 'editor', role: 'editor' as const, bannedAt: null };
 const guest = { ...base, id: '3', username: 'guest', role: 'guest' as const, bannedAt: null };

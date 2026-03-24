@@ -38,10 +38,11 @@ interface Props {
   focusMode?: 'description' | 'media' | null;
   focusLabels?: { description: string; media: string; showAll: string };
   nearbyMedia?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
+  guestLabel?: string;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels, nearbyMedia = [] }: Props) {
+export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, parkedPhotos: initialParkedPhotos = [], tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, showLicenseNotice, focusMode, focusLabels, nearbyMedia = [], guestLabel }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
@@ -101,7 +102,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     { field: '', check: () => !variants.length, message: 'At least one route option is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, save: handleSave } = useEditorState({
+  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/routes',
     contentId: initialData.slug,
     initialContentHash: initialData.contentHash,
@@ -216,6 +217,10 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           showAllLabel={focusLabels.showAll}
           onExpand={() => setFocusExpanded(true)}
         />
+      )}
+
+      {userRole === 'guest' && guestLabel && (
+        <p class="editor-guest-label">{guestLabel}</p>
       )}
 
       {/* Mobile tabs — hidden in focus mode */}
@@ -427,10 +432,11 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} contentType="route" userRole={userRole}
+        onSave={handleSave} contentType="route" userRole={userRole} guestCreated={guestCreated}
         viewLink={`/routes/${initialData.slug}`}
         showLicenseNotice={showLicenseNotice !== false}
         licenseDocsUrl="https://whereto.bike/about/licensing/"
+        onDismiss={dismissSaved}
       />
         </div>
 

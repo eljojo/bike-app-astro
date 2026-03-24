@@ -17,12 +17,36 @@ interface EditorStateOptions {
   validate?: () => string | null;
 }
 
+async function createGuestAndRetry(
+  url: string,
+  options: RequestInit,
+): Promise<Response | null> {
+  try {
+    const guestRes = await fetch('/api/auth/guest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!guestRes.ok) {
+      // Guest creation failed (e.g., blog mode returns 404)
+      // Redirect to login
+      const returnTo = encodeURIComponent(window.location.pathname);
+      window.location.href = `/login?returnTo=${returnTo}`;
+      return null;
+    }
+    // Retry the original save
+    return fetch(url, options);
+  } catch {
+    return null;
+  }
+}
+
 export function useEditorState(opts: EditorStateOptions) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [contentHash, setContentHash] = useState(opts.initialContentHash);
+  const [guestCreated, setGuestCreated] = useState(false);
 
   const { apiBase, contentId, validate, buildPayload, onSuccess } = opts;
 
@@ -51,11 +75,21 @@ export function useEditorState(opts: EditorStateOptions) {
         ? `${apiBase}/${contentId}`
         : `${apiBase}/new`;
 
-      const res = await fetch(url, {
+      const fetchOptions: RequestInit = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
+      };
+
+      let res = await fetch(url, fetchOptions);
+
+      if (res.status === 401) {
+        const retryRes = await createGuestAndRetry(url, fetchOptions);
+        if (!retryRes) return; // redirected to login
+        res = retryRes;
+        setGuestCreated(true);
+        // Fall through to normal response handling
+      }
 
       const data = await res.json();
 
@@ -70,7 +104,6 @@ export function useEditorState(opts: EditorStateOptions) {
 
       if (data.contentHash) setContentHash(data.contentHash);
       setSaved(true);
-      setTimeout(() => setSaved(false), 8000);
 
       onSuccess?.(data);
     } catch (err: unknown) {
@@ -80,5 +113,7 @@ export function useEditorState(opts: EditorStateOptions) {
     }
   }, [contentHash, apiBase, contentId, validate, buildPayload, onSuccess]);
 
-  return { saving, saved, error, githubUrl, contentHash, save, setError };
+  const dismissSaved = useCallback(() => setSaved(false), []);
+
+  return { saving, saved, error, githubUrl, contentHash, guestCreated, save, setError, dismissSaved };
 }

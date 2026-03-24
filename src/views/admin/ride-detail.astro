@@ -95,7 +95,7 @@ try {
   user={Astro.locals.user}
   currentTab="routes"
 >
-  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} rideLabels={rideLabels} tours={tours} stravaConnected={stravaConnected} />
+  <RideEditor client:load initialData={rideData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} rideLabels={rideLabels} tours={tours} stravaConnected={stravaConnected} guestLabel={t('editor.guest_label', locale)} />
   {slug && (
     <EditHistory client:load contentPath={contentPath} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={Astro.locals.user?.role} />
   )}

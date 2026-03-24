@@ -180,7 +180,7 @@ export default function SettingsForm({ username: initialUsername, email: initial
           {isGuest ? (
             <p class="settings-help" style={{ margin: 0 }}>
               You're browsing as <strong>{initialUsername}</strong>.{' '}
-              <a href="/register?join=1">Create an account</a> to choose a username, set an email, and get credit for your contributions.
+              <a href="/login">Create an account</a> to choose a username, set an email, and get credit for your contributions.
             </p>
           ) : (
             <div class="settings-profile-row">
@@ -278,38 +278,51 @@ export default function SettingsForm({ username: initialUsername, email: initial
           <div class="settings-card-body">
             {passkeyError && <div class="auth-error">{passkeyError}</div>}
             {passkeys.length > 0 ? (
-              <ul class="passkey-list">
-                {passkeys.map(pk => (
-                  <li key={pk.id} class="passkey-item">
-                    <span class="passkey-info">
-                      <span class="passkey-id">{pk.credentialId.slice(0, 8)}...</span>
-                      <span class="passkey-date">Added {new Date(pk.createdAt).toLocaleDateString()}</span>
-                    </span>
-                    <button
-                      type="button"
-                      class="btn-small btn-small--danger"
-                      onClick={() => handleRemovePasskey(pk.id)}
-                      disabled={passkeys.length <= 1 && !email.trim()}
-                      title={passkeys.length <= 1 && !email.trim() ? 'Add an email before removing your only passkey' : 'Remove passkey'}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul class="passkey-list">
+                  {passkeys.map(pk => (
+                    <li key={pk.id} class="passkey-item">
+                      <span class="passkey-info">
+                        <span class="passkey-id">{pk.credentialId.slice(0, 8)}...</span>
+                        <span class="passkey-date">Added {new Date(pk.createdAt).toLocaleDateString()}</span>
+                      </span>
+                      <button
+                        type="button"
+                        class="btn-small btn-small--danger"
+                        onClick={() => handleRemovePasskey(pk.id)}
+                        disabled={passkeys.length <= 1 && !email.trim()}
+                        title={passkeys.length <= 1 && !email.trim() ? 'Add an email before removing your only passkey' : 'Remove passkey'}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  onClick={handleAddPasskey}
+                  disabled={passkeyLoading}
+                >
+                  {passkeyLoading ? 'Adding...' : '+ Add passkey'}
+                </button>
+              </>
             ) : (
-              <p class="settings-help" style={{ margin: 0 }}>
-                No passkeys yet. Passkeys let you sign in with your fingerprint, face, or security key instead of a password.
-              </p>
+              <div class="passkey-empty-state">
+                <p class="settings-help" style={{ margin: '0 0 1rem' }}>
+                  Passkeys let you sign in without email. They're stored on your device and work with fingerprint, face, or PIN.
+                  {' '}<a href="https://whereto.bike/guides/passkeys/" target="_blank" rel="noopener">Learn more</a>
+                </p>
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  onClick={handleAddPasskey}
+                  disabled={passkeyLoading}
+                >
+                  {passkeyLoading ? 'Adding...' : 'Add a passkey'}
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              class="btn-secondary"
-              onClick={handleAddPasskey}
-              disabled={passkeyLoading}
-            >
-              {passkeyLoading ? 'Adding...' : '+ Add passkey'}
-            </button>
           </div>
         </div>
       )}

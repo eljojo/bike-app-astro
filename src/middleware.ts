@@ -6,7 +6,7 @@ import { buildNonceCspHeader, createCspNonce } from './lib/csp';
 import { getCspEnv } from './lib/csp-env';
 import rideRedirects from 'virtual:bike-app/ride-redirects';
 
-const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/gate', '/auth/verify']);
+const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/auth/verify']);
 
 /** Admin paths that can be browsed without authentication.
  * Exact match after stripping trailing slashes. */
@@ -16,8 +16,17 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/rides',
   '/admin/places',
   '/admin/events',
+  '/admin/communities',
   '/admin/history',
 ]);
+
+/** Admin path prefixes where any sub-path is browsable (editor pages). */
+const BROWSABLE_ADMIN_PREFIXES = [
+  '/admin/routes/',
+  '/admin/events/',
+  '/admin/places/',
+  '/admin/communities/',
+];
 
 /** API paths that support anonymous browsing (rate-limited in the endpoint). */
 const BROWSABLE_API_PATHS = new Set([
@@ -27,7 +36,11 @@ const BROWSABLE_API_PATHS = new Set([
 
 function isBrowsableAdmin(pathname: string): boolean {
   const normalized = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
-  return BROWSABLE_ADMIN_PATHS.has(normalized) || BROWSABLE_API_PATHS.has(normalized);
+  return (
+    BROWSABLE_ADMIN_PATHS.has(normalized) ||
+    BROWSABLE_API_PATHS.has(normalized) ||
+    BROWSABLE_ADMIN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
 }
 
 function needsNonceCsp(pathname: string): boolean {
@@ -169,7 +182,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return jsonError('Unauthorized', 401);
     }
     const returnTo = encodeURIComponent(pathname);
-    return context.redirect(`/gate?returnTo=${returnTo}`);
+    return context.redirect(`/login?returnTo=${returnTo}`);
   }
 
   const user = await validateSession(database, token);
@@ -182,7 +195,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return jsonError('Unauthorized', 401);
     }
     const returnTo = encodeURIComponent(pathname);
-    return context.redirect(`/gate?returnTo=${returnTo}`);
+    return context.redirect(`/login?returnTo=${returnTo}`);
   }
 
   // Ban enforcement
@@ -190,7 +203,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (pathname.startsWith('/api/')) {
       return jsonError('Forbidden', 403);
     }
-    return context.redirect('/gate');
+    return context.redirect('/login');
   }
 
   // Make user available to page/API handlers

@@ -8,7 +8,7 @@ describe('database schema', () => {
     const cols = getTableColumns(users);
     expect(Object.keys(cols)).toEqual([
       'id', 'email', 'username', 'role', 'createdAt',
-      'bannedAt', 'ipAddress', 'previousUsernames',
+      'bannedAt', 'emailVerified', 'ipAddress', 'previousUsernames',
     ]);
   });
 

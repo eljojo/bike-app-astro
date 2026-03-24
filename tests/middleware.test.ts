@@ -78,7 +78,7 @@ describe('onRequest middleware', () => {
   });
 
   it('adds nonce attributes to inline scripts on nonce-CSP pages', async () => {
-    const { context } = makeContext('/gate');
+    const { context } = makeContext('/login');
     const next = vi.fn(async () => new Response(
       '<html><script>window.a=1</script><script nonce="keep">window.b=2</script></html>',
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
@@ -113,12 +113,12 @@ describe('onRequest middleware', () => {
     expect(res.headers.get('Content-Security-Policy')).toBeNull();
   });
 
-  it('redirects to /gate for non-browsable admin pages with no cookie', async () => {
+  it('redirects to /login for non-browsable admin pages with no cookie', async () => {
     const { context } = makeContext('/admin/settings');
     const next = vi.fn();
     const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
-    expect(res.headers.get('Location')).toContain('/gate');
+    expect(res.headers.get('Location')).toContain('/login');
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -143,7 +143,7 @@ describe('onRequest middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('banned user on admin page → redirect to /gate', async () => {
+  it('banned user on admin page → redirect to /login', async () => {
     mockValidateSession.mockResolvedValue({
       id: 'u1', username: 'banned', role: 'editor', bannedAt: '2026-01-01',
     });
@@ -151,7 +151,7 @@ describe('onRequest middleware', () => {
     const next = vi.fn();
     const res = await onRequest(context as any, next) as Response;
     expect(res.status).toBe(302);
-    expect(res.headers.get('Location')).toBe('/gate');
+    expect(res.headers.get('Location')).toBe('/login');
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -209,13 +209,12 @@ describe('browsable admin paths', () => {
     expect(context.locals.user.id).toBe('');
   });
 
-  it('still redirects /admin/routes/new to gate', async () => {
+  it('allows anonymous browsing of /admin/routes/new (editor page)', async () => {
     const { context } = makeContext('/admin/routes/new');
-    const next = vi.fn();
-    const res = await onRequest(context as any, next) as Response;
-    expect(res.status).toBe(302);
-    expect(res.headers.get('Location')).toContain('/gate');
-    expect(next).not.toHaveBeenCalled();
+    const next = vi.fn(async () => htmlResponse());
+    await onRequest(context as any, next);
+    expect(next).toHaveBeenCalled();
+    expect(context.locals.user.id).toBe('');
   });
 
   it('allows anonymous browsing of /admin/history', async () => {

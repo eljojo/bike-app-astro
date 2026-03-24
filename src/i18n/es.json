@@ -101,27 +101,86 @@
   "shape.loop": "circuito",
   "shape.one-way": "solo ida",
   "shape.out-and-back": "ida y vuelta",
-  "category.cafe": ["café", "cafés"],
-  "category.restaurant": ["restaurante", "restaurantes"],
-  "category.park": ["parque", "parques"],
-  "category.beach": ["playa", "playas"],
-  "category.bike-shop": ["tienda de bicicletas", "tiendas de bicicletas"],
-  "category.bike-trail": ["sendero", "senderos"],
-  "category.water-fountain": ["fuente de agua", "fuentes de agua"],
-  "category.chill-spot": ["lugar de descanso", "lugares de descanso"],
-  "category.lookout": ["mirador", "miradores"],
-  "category.bridge": ["puente", "puentes"],
-  "category.poutine": ["poutine", "poutines"],
-  "category.beer": ["cervecería", "cervecerías"],
-  "category.pizza": ["pizzería", "pizzerías"],
-  "category.ice-cream": ["heladería", "heladerías"],
-  "category.bike-rental": ["arriendo de bicicletas", "arriendos de bicicletas"],
-  "category.ferry": ["ferry", "ferries"],
-  "category.parking": ["estacionamiento", "estacionamientos"],
-  "category.meeting-point": ["punto de encuentro", "puntos de encuentro"],
-  "category.camping-spot": ["camping", "campings"],
-  "category.wc": ["baño", "baños"],
-
+  "category.cafe": [
+    "café",
+    "cafés"
+  ],
+  "category.restaurant": [
+    "restaurante",
+    "restaurantes"
+  ],
+  "category.park": [
+    "parque",
+    "parques"
+  ],
+  "category.beach": [
+    "playa",
+    "playas"
+  ],
+  "category.bike-shop": [
+    "tienda de bicicletas",
+    "tiendas de bicicletas"
+  ],
+  "category.bike-trail": [
+    "sendero",
+    "senderos"
+  ],
+  "category.water-fountain": [
+    "fuente de agua",
+    "fuentes de agua"
+  ],
+  "category.chill-spot": [
+    "lugar de descanso",
+    "lugares de descanso"
+  ],
+  "category.lookout": [
+    "mirador",
+    "miradores"
+  ],
+  "category.bridge": [
+    "puente",
+    "puentes"
+  ],
+  "category.poutine": [
+    "poutine",
+    "poutines"
+  ],
+  "category.beer": [
+    "cervecería",
+    "cervecerías"
+  ],
+  "category.pizza": [
+    "pizzería",
+    "pizzerías"
+  ],
+  "category.ice-cream": [
+    "heladería",
+    "heladerías"
+  ],
+  "category.bike-rental": [
+    "arriendo de bicicletas",
+    "arriendos de bicicletas"
+  ],
+  "category.ferry": [
+    "ferry",
+    "ferries"
+  ],
+  "category.parking": [
+    "estacionamiento",
+    "estacionamientos"
+  ],
+  "category.meeting-point": [
+    "punto de encuentro",
+    "puntos de encuentro"
+  ],
+  "category.camping-spot": [
+    "camping",
+    "campings"
+  ],
+  "category.wc": [
+    "baño",
+    "baños"
+  ],
   "nav.events": "Eventos",
   "nav.routes": "Rutas",
   "nav.places": "Lugares",
@@ -225,28 +284,85 @@
   "events.view_route_map": "Ver mapa del recorrido",
   "events.view_route_map_on": "Ver mapa del recorrido en {service}",
   "events.also_on": "También en {service}",
-  "events.noun.default": ["evento", "eventos"],
-  "events.noun.brevet": ["recorrido", "recorridos"],
-  "events.noun.gravel": ["recorrido", "recorridos"],
-  "events.noun.group-ride": ["recorrido", "recorridos"],
-  "events.noun.race": ["carrera", "carreras"],
-  "events.noun.criterium": ["carrera", "carreras"],
-  "events.noun.workshop": ["taller", "talleres"],
-  "events.noun.conference": ["conferencia", "conferencias"],
-  "events.noun.critical-mass": ["recorrido", "recorridos"],
-  "events.noun.triathlon": ["carrera", "carreras"],
-  "events.noun.duathlon": ["carrera", "carreras"],
-  "events.noun.gran-fondo": ["recorrido", "recorridos"],
-  "events.noun.tour": ["tour", "tours"],
-  "events.noun.charity-ride": ["recorrido", "recorridos"],
-  "events.noun.bikepacking": ["aventura", "aventuras"],
-  "events.noun.social": ["encuentro", "encuentros"],
-  "events.noun.advocacy": ["encuentro", "encuentros"],
-  "events.noun.festival": ["festival", "festivales"],
-  "events.noun.swap-meet": ["encuentro", "encuentros"],
+  "events.noun.default": [
+    "evento",
+    "eventos"
+  ],
+  "events.noun.brevet": [
+    "recorrido",
+    "recorridos"
+  ],
+  "events.noun.gravel": [
+    "recorrido",
+    "recorridos"
+  ],
+  "events.noun.group-ride": [
+    "recorrido",
+    "recorridos"
+  ],
+  "events.noun.race": [
+    "carrera",
+    "carreras"
+  ],
+  "events.noun.criterium": [
+    "carrera",
+    "carreras"
+  ],
+  "events.noun.workshop": [
+    "taller",
+    "talleres"
+  ],
+  "events.noun.conference": [
+    "conferencia",
+    "conferencias"
+  ],
+  "events.noun.critical-mass": [
+    "recorrido",
+    "recorridos"
+  ],
+  "events.noun.triathlon": [
+    "carrera",
+    "carreras"
+  ],
+  "events.noun.duathlon": [
+    "carrera",
+    "carreras"
+  ],
+  "events.noun.gran-fondo": [
+    "recorrido",
+    "recorridos"
+  ],
+  "events.noun.tour": [
+    "tour",
+    "tours"
+  ],
+  "events.noun.charity-ride": [
+    "recorrido",
+    "recorridos"
+  ],
+  "events.noun.bikepacking": [
+    "aventura",
+    "aventuras"
+  ],
+  "events.noun.social": [
+    "encuentro",
+    "encuentros"
+  ],
+  "events.noun.advocacy": [
+    "encuentro",
+    "encuentros"
+  ],
+  "events.noun.festival": [
+    "festival",
+    "festivales"
+  ],
+  "events.noun.swap-meet": [
+    "encuentro",
+    "encuentros"
+  ],
   "events.photos_count": "{count} fotos",
   "events.edit_description": "¿Ves algo incorrecto? Puedes corregirlo — cada edición se puede deshacer.",
-  "events.meet_time": "Encuentro {meet} \u00b7 Salida {roll}",
+  "events.meet_time": "Encuentro {meet} · Salida {roll}",
   "events.next.default": "Próximo evento",
   "events.next.brevet": "Próximo recorrido",
   "events.next.gravel": "Próximo recorrido",
@@ -269,7 +385,7 @@
   "events.series_schedule": "Calendario",
   "events.series_every_week": "Cada {day}, {time}",
   "events.series_every_two_weeks": "Cada dos {day}s, {time}",
-  "events.series_season": "{start} \u2013 {end}",
+  "events.series_season": "{start} – {end}",
   "events.series_ended": "Esta serie ha terminado.",
   "events.series_cancelled": "Cancelado",
   "events.series_rescheduled_from": "Reprogramado del {date}",
@@ -277,7 +393,6 @@
   "events.series_past_dates": "Fechas pasadas",
   "events.similar": "Eventos similares",
   "events.similar_one": "Evento similar",
-
   "calendar.upcoming.default": "Próximos eventos",
   "calendar.upcoming.brevet": "Próximos recorridos",
   "calendar.upcoming.gravel": "Próximos recorridos",
@@ -297,17 +412,14 @@
   "calendar.upcoming.advocacy": "Próximos encuentros",
   "calendar.upcoming.festival": "Próximos festivales",
   "calendar.upcoming.swap-meet": "Próximos encuentros",
-
   "route.distance": "Distancia",
   "route.shape": "Tipo",
   "places.show_all": "Mostrar los {count} lugares",
   "places.add_near_route_long": "¿Conoces un café, parque o punto de agua cerca de esta ruta? Agrégalo.",
   "places.add_missing": "¿Conoces un lugar que falta? Agrégalo.",
-
   "nav.rides": "Recorridos",
   "nav.tours": "Viajes",
   "nav.stats": "Estadísticas",
-
   "rides.description": "Todos los recorridos en bicicleta",
   "ride.date": "Fecha",
   "ride.distance": "Distancia",
@@ -322,7 +434,6 @@
   "ride.badge.biggest_climb": "Uno de los mayores desniveles",
   "ride.badge.part_of_tour": "Parte de {tour}",
   "ride.badge.abroad": "En el extranjero",
-
   "tours.title": "Viajes en bicicleta",
   "tours.description": "Todos los viajes en bicicleta",
   "tours.summary": "{distance} km en {days} días en {count} viajes",
@@ -333,7 +444,6 @@
   "tours.countries_label": "Países",
   "tours.ride_list": "Recorridos",
   "tours.go_back": "volver a todos los viajes",
-
   "stats.description": "Estadísticas y récords",
   "stats.total_rides": "Recorridos totales",
   "stats.total_distance": "Distancia total",
@@ -348,27 +458,26 @@
   "stats.by_year": "Por año",
   "stats.by_country": "Por país",
   "stats.year": "Año",
-
   "home.highlights": "Destacados",
   "home.latest_rides": "Últimos recorridos",
   "home.all_rides": "Ver todos los recorridos",
   "home.all_rides_count": "Ver los {count} recorridos",
-
-  "auth.gate_title_blog": "Inicia sesión para continuar",
-  "auth.gate_title_wiki": "Editar esta página",
-  "auth.gate_title_route": "Editar esta ruta",
-  "auth.gate_title_event": "Editar este evento",
-  "auth.gate_title_place": "Agregar un nuevo lugar",
-  "auth.gate_title_new_route": "Agregar una nueva ruta",
-  "auth.gate_subtitle": "Elige cómo continuar:",
-  "auth.gate_intro": "Este sitio está construido por ciclistas como tú. Tu conocimiento local ayuda a otros a descubrir grandes rutas y eventos.",
-  "auth.gate_reassurance": "Cada edición se puede deshacer, y las ediciones anónimas se publican sin tu nombre.",
-  "auth.gate_guest_button": "Continuar como invitado",
-  "auth.gate_guest_hint": "Sin correo, sin cuenta. Solo empieza a editar.",
-  "auth.gate_signin": "¿Ya tienes una cuenta? Inicia sesión",
-  "auth.gate_register": "¿Quieres crédito por tus contribuciones? Crea una cuenta",
-  "auth.gate_how_editing": "¿Cómo funciona la edición?",
-
+  "auth.email_placeholder": "tu@ejemplo.com",
+  "auth.username_label": "Elige un nombre de usuario",
+  "auth.username_placeholder": "tu-nombre",
+  "auth.username_hint": "Este nombre aparecerá en tus contribuciones.",
+  "auth.continue": "Continuar",
+  "auth.create_account": "Crear cuenta",
+  "auth.sign_in_passkey": "Iniciar sesión con llave de acceso",
+  "auth.signing_in": "Iniciando sesión...",
+  "auth.check_email_magic_link": "Revisa tu correo para un enlace de inicio de sesión. Expira en 15 minutos.",
+  "auth.check_email_verify": "Revisa tu correo para verificar tu cuenta y terminar la configuración.",
+  "auth.back_to_sign_in": "Volver al inicio de sesión",
+  "auth.send_link_instead": "Enviar un enlace de inicio de sesión",
+  "settings.passkey_empty_description": "Las llaves de acceso te permiten iniciar sesión sin correo. Se almacenan en tu dispositivo y funcionan con huella digital, rostro o PIN.",
+  "settings.passkey_add": "Agregar una llave de acceso",
+  "auth.error_email_required": "El correo es obligatorio",
+  "auth.error_invalid_username": "El nombre de usuario debe tener 2-30 caracteres: letras, números, guiones, guiones bajos",
   "about.contributors_heading": "Personas que contribuyen a este sitio",
   "about.hero_subtitle": "Rutas ciclistas encontradas por personas que pedalean aquí. Fotos, consejos y los buenos caminos — por experiencia, no por algoritmo.",
   "about.trust_ridden": "Cada ruta ha sido recorrida",
@@ -378,15 +487,12 @@
   "about.cta_contribute": "Contribuir",
   "about.contact_line": "¿Preguntas? Escribe a {email}",
   "about.section_learn_more": "Más información",
-
   "editor.focus_description": "Editando la descripción de {name}",
   "editor.focus_media": "Agregando medios a {name}",
   "editor.show_all_fields": "Mostrar todos los campos",
-
+  "editor.guest_label": "Editando como invitado — tu nombre no aparecerá en esta edición",
   "place_editor.details_toggle": "Agregar detalles (dirección, sitio web, teléfono)",
-
   "map.description": "{count} rutas ciclistas en {city}",
-
   "nav.communities": "Comunidades",
   "communities.title": "Comunidades",
   "communities.intro": "Las personas y grupos que organizan eventos y salidas ciclistas.",
@@ -397,7 +503,6 @@
   "communities.past_events": "Eventos pasados",
   "communities.upcoming_events": "Próximos eventos",
   "communities.show_all_events": "Mostrar los {count} eventos",
-
   "home.subtitle": "Rutas, eventos y las personas que pedalean aquí",
   "home.discover": "Descubrir",
   "home.browse_all": "Todas las rutas",
@@ -410,7 +515,6 @@
   "home.full_calendar": "Calendario completo",
   "home.all_communities": "Todas las comunidades",
   "home.view_all_routes": "Ver los {count} recorridos",
-
   "places.add_near_route": "¿Conoces un lugar cerca de esta ruta? Agrégalo.",
   "communities.edit_description": "¿Ves algo incorrecto? Puedes corregirlo — cada edición se puede deshacer.",
   "calendar.add_event": "Agrega tu evento",

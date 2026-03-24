@@ -152,6 +152,90 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [public, admin, blog, club]
+    steps:
+      - name: Checkout astro repo
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Checkout data repo
+        uses: actions/checkout@v6
+        with:
+          repository: eljojo/bike-routes
+          ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+          ref: main
+          path: bike-routes
+
+      - name: LFS cache period
+        id: lfs-period
+        run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore app repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-app-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-app-
+
+      - name: Pull app repo LFS files
+        run: git lfs pull
+
+      - name: Restore data repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: bike-routes/.git/lfs
+          key: lfs-bike-routes-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-bike-routes-
+
+      - name: Pull data repo LFS files
+        run: git -C bike-routes lfs pull
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Run prebuild (map style, icon paths)
+        run: npx tsx scripts/prebuild.ts
+
+      - name: Fix corrupt PNG baselines
+        if: matrix.suite == 'public'
+        run: |
+          for f in $(find e2e/snapshots/ -name '*.png' -type f 2>/dev/null); do
+            node -e "
+              const fs = require('fs');
+              const data = fs.readFileSync('$f');
+              if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) process.exit();
+              let pos = 8;
+              while (pos < data.length) {
+                if (pos + 8 > data.length) break;
+                const len = data.readUInt32BE(pos);
+                const type = data.subarray(pos+4, pos+8).toString('ascii');
+                if (type === 'IEND') {
+                  const clean = pos + 12;
+                  if (data.length > clean) {
+                    console.log('Stripping ' + (data.length - clean) + ' trailing bytes from $f');
+                    fs.writeFileSync('$f', data.subarray(0, clean));
+                  }
+                  break;
+                }
+                pos += 12 + len;
+              }
+            " 2>/dev/null
+          done
+
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v5
@@ -201,7 +285,51 @@ jobs:
           path: e2e/.tile-cache
           key: e2e-tile-cache-v1
 
+      # --- Public E2E only: caches, build, and D1 setup ---
+      - name: Restore Astro content cache
+        if: matrix.suite == 'public'
+        uses: actions/cache@v5
+        with:
+          path: .astro
+          key: astro-e2e-${{ github.run_id }}
+          restore-keys: |
+            astro-e2e-
+
+      - name: Restore map cache
+        if: matrix.suite == 'public'
+        uses: actions/cache@v5
+        with:
+          path: public/maps
+          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/maps/map-paths.ts') }}
+          restore-keys: |
+            maps-demo-
+
+      - name: Generate map thumbnails
+        if: matrix.suite == 'public'
+        run: npx tsx scripts/generate-maps.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+      - name: Build contributor stats
+        if: matrix.suite == 'public'
+        run: npx tsx scripts/build-contributors.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+
+      - name: Build site (demo)
+        if: matrix.suite == 'public'
+        run: npx astro build
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          DISABLE_ANALYTICS: 'true'
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
       - name: Add test bindings to generated wrangler config
+        if: matrix.suite == 'public'
         run: |
           node -e "
             const fs = require('fs');
@@ -213,12 +341,14 @@ jobs:
           "
 
       - name: Apply D1 migrations to local test database
+        if: matrix.suite == 'public'
         run: |
           for f in drizzle/migrations/*.sql; do
             npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$f"
           done
 
-      - name: Run E2E tests
+      - name: Run public E2E tests
+        if: matrix.suite == 'public'
         run: >-
           npx playwright test --config e2e/playwright.config.ts
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
@@ -226,27 +356,144 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
-      - name: Run admin E2E tests
+      # --- Admin/blog/club E2E: each builds its own fixture ---
+      - name: Run ${{ matrix.suite }} E2E tests
+        if: matrix.suite != 'public'
         run: >-
-          npx playwright test --config e2e/admin/fixture.ts
+          npx playwright test --config e2e/${{ matrix.suite }}/fixture.ts
           ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
-      - name: Run blog E2E tests
-        run: >-
-          npx playwright test --config e2e/blog/fixture.ts
-          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+      - name: Check PNGs after test run (before upload)
+        if: matrix.suite == 'public' && !cancelled()
+        run: |
+          echo "=== PNG integrity after Playwright ==="
+          for f in $(find e2e/snapshots/ -name '*.png' -type f 2>/dev/null); do
+            node -e "
+              const fs = require('fs');
+              const data = fs.readFileSync('$f');
+              if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) { console.log('$f: NOT_PNG'); process.exit(); }
+              let pos = 8;
+              while (pos < data.length) {
+                if (pos + 8 > data.length) { console.log('$f: TRUNCATED'); process.exit(); }
+                const len = data.readUInt32BE(pos);
+                const type = data.subarray(pos+4, pos+8).toString('ascii');
+                if (type === 'IEND') {
+                  const extra = data.length - (pos + 12);
+                  console.log('$f: ' + (extra > 0 ? 'CORRUPT (' + extra + ' trailing bytes)' : 'CLEAN') + ' size=' + data.length);
+                  process.exit();
+                }
+                pos += 12 + len;
+              }
+            " 2>/dev/null
+          done
 
-      - name: Run club E2E tests
-        run: >-
-          npx playwright test --config e2e/club/fixture.ts
-          ${{ inputs.update-screenshots && '--update-snapshots' || '' }}
+      - name: Tar screenshots before upload
+        if: inputs.update-screenshots && !cancelled()
+        run: |
+          tar cf /tmp/screenshots-${{ matrix.suite }}.tar \
+            $(find e2e/snapshots/ e2e/${{ matrix.suite }}/ -name '*-snapshots' -type d 2>/dev/null) \
+            2>/dev/null || true
 
-      - name: Update screenshot baselines
+      - name: Upload screenshot artifacts
+        if: inputs.update-screenshots && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.suite }}
+          path: /tmp/screenshots-${{ matrix.suite }}.tar
+          if-no-files-found: ignore
+
+  update-screenshots:
+    if: ${{ inputs.update-screenshots && !cancelled() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout astro repo
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: LFS cache period
+        id: lfs-period
+        run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Restore app repo LFS cache
+        uses: actions/cache@v5
+        with:
+          path: .git/lfs
+          key: lfs-app-${{ steps.lfs-period.outputs.period }}
+          restore-keys: lfs-app-
+
+      - name: Pull app repo LFS files
+        run: git lfs pull
+
+      - name: Download all screenshot artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-*
+          merge-multiple: true
+          path: /tmp/screenshot-tars/
+
+      - name: Untar screenshots
+        run: |
+          for f in /tmp/screenshot-tars/*.tar; do
+            [ -f "$f" ] && tar xf "$f"
+          done
+
+      - name: Check PNGs after artifact download (before commit)
+        run: |
+          echo "=== PNG integrity after artifact download ==="
+          corrupt=0
+          for f in $(find e2e/ -name '*.png' -type f); do
+            # Check for trailing bytes after IEND chunk
+            result=$(node -e "
+              const fs = require('fs');
+              const data = fs.readFileSync('$f');
+              if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) { console.log('NOT_PNG'); process.exit(); }
+              let pos = 8;
+              while (pos < data.length) {
+                if (pos + 8 > data.length) { console.log('TRUNCATED'); process.exit(); }
+                const len = data.readUInt32BE(pos);
+                const type = data.subarray(pos+4, pos+8).toString('ascii');
+                if (type === 'IEND') {
+                  const extra = data.length - (pos + 12);
+                  if (extra > 0) { console.log('CORRUPT:' + extra); } else { console.log('OK'); }
+                  process.exit();
+                }
+                pos += 12 + len;
+              }
+              console.log('NO_IEND');
+            " 2>/dev/null)
+            case "$result" in
+              CORRUPT:*)
+                extra=${result#CORRUPT:}
+                echo "::warning::$f has $extra trailing bytes after IEND — stripping"
+                node -e "
+                  const fs = require('fs');
+                  const data = fs.readFileSync('$f');
+                  let pos = 8;
+                  while (pos < data.length) {
+                    const len = data.readUInt32BE(pos);
+                    const type = data.subarray(pos+4, pos+8).toString('ascii');
+                    if (type === 'IEND') { fs.writeFileSync('$f', data.subarray(0, pos + 12)); break; }
+                    pos += 12 + len;
+                  }
+                "
+                corrupt=$((corrupt + 1))
+                ;;
+              TRUNCATED|NO_IEND)
+                echo "::warning::$f is malformed ($result) — removing"
+                rm "$f"
+                corrupt=$((corrupt + 1))
+                ;;
+            esac
+          done
+          echo "Checked PNGs: $corrupt needed fixing"
+
+      - name: Commit updated screenshots
         id: update-screenshots
-        if: ${{ inputs.update-screenshots }}
         run: |
           if git log -1 --format='%s' | grep -q '^ci: update screenshot baselines'; then
             echo "Latest commit is already a screenshot update, skipping"
