@@ -11,6 +11,7 @@ import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-cont
 import { placeDetailFromCache } from '../../lib/models/place-model';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 import { t } from '@/i18n';
+import type { AdminOrganizer } from '../../types/admin';
 
 const result = await loadDetailFromJson({
   contentType: 'places',
@@ -30,9 +31,11 @@ const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 const user = Astro.locals.user;
 const mapCenter: [number, number] = [cityConfig.center.lat, cityConfig.center.lng];
 const mediaLocations = await fetchJson<_MediaLocation[]>(new URL('/admin/data/media-locations.json', Astro.url));
+const allOrganizers = await fetchJson<AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url));
+const organizerOptions = allOrganizers.map((o: AdminOrganizer) => ({ slug: o.slug, name: o.name }));
 ---
 
 <AdminEditorLayout title={`Edit: ${placeData.name}`} hideTitle user={user} currentTab="places">
-  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
+  <PlaceEditor client:load initialData={placeData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} organizers={organizerOptions} />
   <EditHistory client:load contentPath={`${CITY}/places/${placeData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

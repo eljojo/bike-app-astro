@@ -18,6 +18,18 @@ import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
 import { localeLabel } from '../../lib/i18n/locale-utils';
 
+const SOCIAL_PLATFORMS = [
+  'instagram', 'facebook', 'strava', 'youtube',
+  'meetup', 'tiktok', 'bluesky', 'threads', 'website',
+  'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
+  'booking',
+] as const;
+
+interface SocialLink {
+  platform: string;
+  url: string;
+}
+
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
   cdnUrl: string;
@@ -30,6 +42,7 @@ interface Props {
   detailsToggleLabel?: string;
   mediaLocations?: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: 'photo' | 'video' }>;
   guestLabel?: string;
+  organizers?: Array<{ slug: string; name: string }>;
 }
 
 const categories = Object.entries(categoryEmoji);
@@ -66,7 +79,7 @@ function isGoogleMapsUrl(text: string): boolean {
   return GMAPS_PATTERNS.some(p => text.includes(p));
 }
 
-export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [], guestLabel }: Props) {
+export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [], guestLabel, organizers }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
   const [dirty, setDirty] = useState(false);
@@ -98,6 +111,10 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
   const [vibe, setVibe] = useState(initialData.vibe || '');
   const [goodFor, setGoodFor] = useState<string[]>(initialData.good_for || []);
+  const [organizer, setOrganizer] = useState(initialData.organizer || '');
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>(
+    initialData.social_links?.length ? initialData.social_links : [],
+  );
   const [prefilling, setPrefilling] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(!initialData.isNew);
 
@@ -105,7 +122,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey, vibe, goodFor]);
+  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey, vibe, goodFor, organizer, socialLinks]);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
@@ -144,7 +161,8 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           ...(phone && { phone }),
           ...(googleMapsUrl && { google_maps_url: googleMapsUrl }),
           ...(photoKey && { photo_key: photoKey }),
-          social_links: [],
+          ...(organizer && { organizer }),
+          social_links: socialLinks.filter(l => l.url.trim()),
         },
       };
       return payload as unknown as Record<string, unknown>;
@@ -248,6 +266,20 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     if (query && isGoogleMapsUrl(query)) {
       handlePrefill();
     }
+  }
+
+  function addSocialLink() {
+    setSocialLinks(prev => [...prev, { platform: 'instagram', url: '' }]);
+  }
+
+  function removeSocialLink(index: number) {
+    setSocialLinks(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function updateSocialLink(index: number, field: 'platform' | 'url', value: string) {
+    setSocialLinks(prev => prev.map((link, i) =>
+      i === index ? { ...link, [field]: value } : link,
+    ));
   }
 
   // Initialize map
@@ -472,6 +504,50 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
                   </label>
                 ))}
               </div>
+            </div>
+
+            {organizers && organizers.length > 0 && (
+              <div class="form-field">
+                <label for="place-organizer">Organizer</label>
+                <select
+                  id="place-organizer"
+                  value={organizer}
+                  onChange={(e) => setOrganizer((e.target as HTMLSelectElement).value)}
+                >
+                  <option value="">None</option>
+                  {organizers.map(org => (
+                    <option key={org.slug} value={org.slug}>{org.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div class="form-field">
+              <label>Social links</label>
+              {socialLinks.map((link, index) => (
+                <div class="social-link-row" key={index}>
+                  <select
+                    value={link.platform}
+                    onChange={(e) => updateSocialLink(index, 'platform', (e.target as HTMLSelectElement).value)}
+                  >
+                    {SOCIAL_PLATFORMS.map(p => (
+                      <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="url"
+                    value={link.url}
+                    placeholder="https://..."
+                    onInput={(e) => updateSocialLink(index, 'url', (e.target as HTMLInputElement).value)}
+                  />
+                  <button type="button" class="btn-remove-social" onClick={() => removeSocialLink(index)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" class="btn-secondary" onClick={addSocialLink}>
+                + Add social link
+              </button>
             </div>
 
             {initialData.isNew && googleMapsField}
