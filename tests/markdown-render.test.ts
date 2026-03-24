@@ -57,4 +57,10 @@ describe('renderMarkdownHtml phone auto-linking', () => {
     const matches = result.match(/tel:/g);
     expect(matches?.length).toBe(1);
   });
+
+  it('does not corrupt phone numbers inside HTML attributes', async () => {
+    const result = await renderMarkdownHtml('<img src="x" alt="Call 613-521-3791">');
+    expect(result).toContain('alt="Call 613-521-3791"');
+    expect(result).not.toContain('alt="Call <a');
+  });
 });

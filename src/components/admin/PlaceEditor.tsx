@@ -508,7 +508,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
             {organizers && organizers.length > 0 && (
               <div class="form-field">
-                <label for="place-organizer">Organizer</label>
+                <label for="place-organizer">Bike Shop</label>
                 <select
                   id="place-organizer"
                   value={organizer}
