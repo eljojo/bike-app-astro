@@ -860,7 +860,8 @@ export async function ensureGpxDownloadData(
       dimensions: ['time:day'],
       filters: [
         ['is', 'event:goal', ['Link: Click']],
-        ['is', 'event:props:destination', ['gpx']],
+        // Match by URL ending in .gpx — catches both old (destination=routes) and new (destination=gpx) events
+        ['contains', 'event:props:url', ['.gpx']],
         ['contains', 'event:props:page', paths],
       ],
     }).catch(() => [])
