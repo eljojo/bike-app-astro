@@ -93,3 +93,30 @@ a.community-card {
   @include muted-text;
   font-size: 0.8rem;
 }
+
+.community-card-tagline {
+  @include muted-text;
+  font-size: 0.85rem;
+}
+
+.community-card-specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.specialty-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 1rem;
+  background: $color-tag-bg;
+  color: $color-tag-text;
+}
+
+.communities-lbs-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid $color-border;
+}
