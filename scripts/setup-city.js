@@ -29,6 +29,7 @@ import {
   getCloudflareAccountId, getCloudflareApiToken,
   ensureR2Cors,
 } from './setup-aws-video.js';
+import { secretsForInstanceType } from './lib/secrets-manifest.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -53,6 +54,7 @@ function discoverCities(contentDir) {
       name: entry.name,
       domain: config.domain || `${entry.name}.whereto.bike`,
       display_name: config.display_name || config.name || entry.name,
+      instanceType: config.instance_type || 'wiki',
     });
   }
 
@@ -155,15 +157,17 @@ function ensureCityInWorkflow(cityName) {
 /**
  * Ensure all required Worker secrets are set for a city environment.
  *
- * Auto-detects: R2_ACCOUNT_ID (from Cloudflare CLI), R2_BUCKET_NAME (from wrangler config).
- * Prompts for: GITHUB_TOKEN, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.
- *
- * Prompted values are cached in promptCache so multi-city runs prompt once.
+ * Reads the secrets manifest (single source of truth for all instance types)
+ * and ensures each applicable secret is set. Auto-detects what's derivable,
+ * prompts for the rest. Prompted values cached so multi-city runs prompt once.
  */
 async function ensureSecrets(city, wranglerEnv, wranglerConfig, promptCache) {
   if (city.name === 'ottawa') return; // Ottawa's secrets are managed manually
 
   console.log('\n  Worker secrets:\n');
+
+  const instanceType = city.instanceType || 'wiki';
+  const secrets = secretsForInstanceType(instanceType);
 
   // List existing secrets to know what's already set
   let existingSecrets = '';
@@ -172,56 +176,85 @@ async function ensureSecrets(city, wranglerEnv, wranglerConfig, promptCache) {
   } catch {
     // Worker may not exist yet — that's fine, we'll set all secrets
   }
-
   const secretExists = (name) => existingSecrets.includes(name);
 
-  // --- Auto-detected ---
-
-  // R2_ACCOUNT_ID: derivable from Cloudflare CLI
+  // --- Auto-detect resolvers ---
   const accountId = getCloudflareAccountId();
-  if (!accountId) {
-    console.error('  ✗ Cannot detect Cloudflare account ID. Is wrangler logged in?');
-    console.error('    Run: wrangler login');
-    process.exit(1);
-  }
-  setWranglerSecret('R2_ACCOUNT_ID', accountId, wranglerEnv);
-
-  // R2_BUCKET_NAME: from the R2 binding in wrangler config
   const r2Binding = wranglerConfig.env?.[wranglerEnv]?.r2_buckets?.[0]
     || wranglerConfig.env?.['production']?.r2_buckets?.[0];
   const bucketName = r2Binding?.bucket_name;
-  if (bucketName) {
-    setWranglerSecret('R2_BUCKET_NAME', bucketName, wranglerEnv);
-  } else {
-    console.warn('  ⚠ Could not detect R2 bucket name from wrangler config');
+
+  function resolveAutoDetect(entry) {
+    switch (entry.autoDetect) {
+      case 'cloudflare-account-id':
+        if (!accountId) {
+          console.error('  ✗ Cannot detect Cloudflare account ID. Is wrangler logged in?');
+          process.exit(1);
+        }
+        return accountId;
+      case 'wrangler-r2-binding':
+        if (!bucketName) {
+          console.warn(`  ⚠ Could not detect R2 bucket name from wrangler config for ${entry.name}`);
+          return null;
+        }
+        return bucketName;
+      case 'city-domain':
+        return `noreply@${city.domain}`;
+      case 'video-setup':
+        // Managed by setup-aws-video.js — skip silently
+        return null;
+      default:
+        return null;
+    }
   }
 
-  // --- Prompted (cached across cities) ---
+  // Process each secret from the manifest
+  for (const entry of secrets) {
+    // Skip video-managed secrets (handled by setup-aws-video.js)
+    if (entry.autoDetect === 'video-setup') {
+      continue;
+    }
 
-  const prompted = [
-    {
-      name: 'GITHUB_TOKEN',
-      guidance: [
-        'GitHub Personal Access Token for admin git operations.',
-        'Create at: https://github.com/settings/personal-access-tokens/new',
-        'Permissions: Contents + Pull requests (R/W) on bike-routes + bike-app-astro',
-      ],
-    },
-    {
-      name: 'R2_ACCESS_KEY_ID',
-      guidance: [
-        'Cloudflare R2 API token Access Key ID (for presigned uploads).',
-        'Create at: Cloudflare dashboard → R2 → Manage R2 API Tokens',
-        'Permissions: Object Read & Write',
-      ],
-    },
-    {
-      name: 'R2_SECRET_ACCESS_KEY',
-      guidance: [
-        'Cloudflare R2 API token Secret Access Key (paired with the above).',
-      ],
-    },
-  ];
+    // Auto-detected secrets
+    if (entry.autoDetect) {
+      const value = resolveAutoDetect(entry);
+      if (value) {
+        setWranglerSecret(entry.name, value, wranglerEnv);
+      }
+      continue;
+    }
+
+    // Already set on Worker — skip
+    if (secretExists(entry.name)) {
+      logSkip(entry.name);
+      continue;
+    }
+
+    // Check cache from a prior city in this run
+    if (promptCache.has(entry.name)) {
+      setWranglerSecret(entry.name, promptCache.get(entry.name), wranglerEnv, { force: true });
+      continue;
+    }
+
+    // Prompt
+    console.log('');
+    console.log(`  ${entry.name}${entry.required ? ' (required)' : ' (optional)'}`);
+    console.log(`  ${entry.description}`);
+    console.log(`  ${entry.howTo.split('\n').join('\n  ')}`);
+    const value = (await ask(`\n  ${entry.name}: `)).trim();
+    if (!value) {
+      if (entry.required) {
+        console.warn(`  ⚠ Skipped required secret — admin may not function correctly.`);
+        console.warn(`    Set later: echo "VALUE" | ${wranglerCmd()} secret put ${entry.name} --env ${wranglerEnv}`);
+      } else {
+        console.log(`    → skipped`);
+      }
+      continue;
+    }
+
+    promptCache.set(entry.name, value);
+    setWranglerSecret(entry.name, value, wranglerEnv, { force: true });
+  }
 
   for (const { name, guidance } of prompted) {
     if (secretExists(name)) {
