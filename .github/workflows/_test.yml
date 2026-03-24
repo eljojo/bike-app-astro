@@ -390,14 +390,19 @@ jobs:
             " 2>/dev/null
           done
 
+      - name: Tar screenshots before upload
+        if: inputs.update-screenshots && !cancelled()
+        run: |
+          tar cf /tmp/screenshots-${{ matrix.suite }}.tar \
+            $(find e2e/snapshots/ e2e/${{ matrix.suite }}/ -name '*-snapshots' -type d 2>/dev/null) \
+            2>/dev/null || true
+
       - name: Upload screenshot artifacts
-        if: ${{ inputs.update-screenshots && !cancelled() }}
+        if: inputs.update-screenshots && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-${{ matrix.suite }}
-          path: |
-            e2e/snapshots/
-            e2e/${{ matrix.suite }}/*-snapshots/
+          path: /tmp/screenshots-${{ matrix.suite }}.tar
           if-no-files-found: ignore
 
   update-screenshots:
@@ -429,7 +434,13 @@ jobs:
         with:
           pattern: screenshots-*
           merge-multiple: true
-          path: e2e/
+          path: /tmp/screenshot-tars/
+
+      - name: Untar screenshots
+        run: |
+          for f in /tmp/screenshot-tars/*.tar; do
+            [ -f "$f" ] && tar xf "$f"
+          done
 
       - name: Check PNGs after artifact download (before commit)
         run: |
