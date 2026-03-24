@@ -26,7 +26,7 @@ const RIDEABLE_CODES = new Set(Object.keys(WMO_DESCRIPTIONS).map(Number));
 /** Evaluate weather conditions for cycling suitability. Pure function, no side effects. */
 export function evaluateWeather(current: OpenMeteoCurrentWeather): WeatherResult {
   const rideable =
-    current.temperature_2m >= 10 &&
+    current.temperature_2m >= -10 &&
     current.temperature_2m <= 35 &&
     current.wind_speed_10m < 30 &&
     RIDEABLE_CODES.has(current.weather_code);
