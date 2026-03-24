@@ -132,9 +132,20 @@ function getTrackPoints(route: RouteEntry) {
 // Featured route — pick one per day at build time
 // ---------------------------------------------------------------------------
 
+const HTML_ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00A0',
+};
+
 function stripHtml(html: string): string {
-  const { decodeHTML } = require('entities') as typeof import('entities');
-  return decodeHTML(html.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+  return html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(\w+));/g, (_, dec, hex, named) => {
+      if (dec) return String.fromCodePoint(Number(dec));
+      if (hex) return String.fromCodePoint(parseInt(hex, 16));
+      return HTML_ENTITIES[named] ?? '';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function getAllFeaturedRoutes(routes: RouteEntry[], locale?: string): FeaturedRoute[] {
