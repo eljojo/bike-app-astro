@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { Chart, registerables } from 'chart.js';
 import { useHydrated } from '../../lib/hooks';
-import type { TimeSeriesPoint, FunnelStep, SummaryCard } from '../../lib/stats/types';
+import { formatDuration, type TimeSeriesPoint, type FunnelStep, type SummaryCard } from '../../lib/stats/types';
 import { formatNumber, REACTION_LABELS, RANGE_OPTIONS, liveUrl } from '../../lib/stats/ui-helpers';
 
 Chart.register(...registerables);
@@ -42,12 +42,21 @@ function DurationChart({ series, isHours }: { series: TimeSeriesPoint[]; isHours
   useEffect(() => {
     if (!canvasRef.current) return;
     instance.current?.destroy();
+
+    // For cumulative wall time: show minutes when max < 1 hour
+    const maxVal = Math.max(...series.map(p => p.value), 0);
+    const useMinutes = isHours && maxVal < 1;
+    const chartData = useMinutes
+      ? series.map(p => Math.round(p.value * 60 * 10) / 10)
+      : series.map(p => p.value);
+    const yLabel = useMinutes ? 'minutes' : isHours ? 'hours' : 'minutes';
+
     instance.current = new Chart(canvasRef.current, {
       type: 'line',
       data: {
         labels: series.map(p => p.date),
         datasets: [{
-          data: series.map(p => p.value),
+          data: chartData,
           borderColor: 'rgb(234, 88, 12)',
           backgroundColor: 'rgba(234, 88, 12, 0.1)',
           borderWidth: 2,
@@ -59,16 +68,14 @@ function DurationChart({ series, isHours }: { series: TimeSeriesPoint[]; isHours
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true, title: { display: true, text: isHours ? 'hours' : 'minutes' } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: yLabel } } },
         plugins: {
           legend: { display: false },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tooltip: { mode: 'index', intersect: false, callbacks: { label: (ctx: any) => {
-            if (isHours) return `${ctx.parsed.y}h`;
-            const totalSeconds = ctx.parsed.y * 60;
-            const m = Math.floor(totalSeconds / 60);
-            const sec = Math.round(totalSeconds % 60);
-            return m > 0 ? (sec > 0 ? `${m}m ${sec}s` : `${m}m`) : `${sec}s`;
+            // Convert chart value back to seconds for formatDuration
+            const seconds = useMinutes ? ctx.parsed.y * 60 : isHours ? ctx.parsed.y * 3600 : ctx.parsed.y * 60;
+            return formatDuration(seconds);
           }}},
         },
       },

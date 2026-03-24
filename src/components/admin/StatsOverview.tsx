@@ -441,21 +441,26 @@ export default function StatsOverview() {
           <h3 class="stats-section-title">{cumulative ? 'Wall time (cumulative)' : 'Engagement depth'}</h3>
           <div class="stats-chart-wrapper">
             {cumulative ? (() => {
-              // Cumulative wall time in hours: sum of (visitors × avg_duration_s / 3600)
+              // Cumulative wall time: sum of (visitors × avg_duration_s / 3600) per day
               const wallTimePerDay = data.timeSeries.map((p, i) => {
                 const durationS = data.durationSeries![i]?.value ?? 0;
                 const visitors = p.secondaryValue ?? 0;
                 return visitors * durationS / 3600;
               });
               let sum = 0;
-              const cumWallTime = wallTimePerDay.map(wt => { sum += wt; return Math.round(sum * 10) / 10; });
+              const cumHours = wallTimePerDay.map(wt => { sum += wt; return sum; });
+              const maxHours = cumHours.length > 0 ? cumHours[cumHours.length - 1] : 0;
+              const useMinutes = maxHours < 1;
+              const chartValues = useMinutes
+                ? cumHours.map(h => Math.round(h * 60 * 10) / 10)
+                : cumHours.map(h => Math.round(h * 10) / 10);
               return (
                 <DualAxisChart
                   labels={data.durationSeries!.map(p => p.date)}
-                  leftData={cumWallTime}
-                  leftLabel="Wall time (hours)"
+                  leftData={chartValues}
+                  leftLabel={useMinutes ? 'Wall time (minutes)' : 'Wall time (hours)'}
                   leftColor="rgb(234, 88, 12)"
-                  formatLeftTooltip={(h) => formatDuration(h * 3600)}
+                  formatLeftTooltip={(v) => formatDuration(useMinutes ? v * 60 : v * 3600)}
                   rightData={[]}
                   rightLabel=""
                   rightColor="transparent"
