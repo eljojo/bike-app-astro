@@ -536,7 +536,7 @@ export function resolveHomepageFacts(
   locale?: string,
 ): ResolvedFact[] {
   const short = locale ? shortLocale(locale) : defaultLocale();
-  const homepageFactEntries = homepageFactsByLocale[short] || homepageFactsByLocale[defaultLocale()] || [];
+  const homepageFactEntries = homepageFactsByLocale[short] ?? homepageFactsByLocale[defaultLocale()] ?? [];
   if (homepageFactEntries.length === 0) return [];
 
   // Build a slug map for locale-aware route links
