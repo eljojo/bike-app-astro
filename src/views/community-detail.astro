@@ -19,6 +19,7 @@ import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import PinMap from '@/components/PinMap.astro';
+import Icon from '@/components/Icon.astro';
 import { escapeHtml } from '@/lib/maps/map-helpers';
 
 const config = getCityConfig();
@@ -154,6 +155,8 @@ const PAST_EVENTS_INITIAL = 4;
               {...(['telephone', 'email'].includes(link.platform) ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
               class="community-social-pill"
             >
+              {link.platform === 'telephone' && <Icon name="phone" size={14} />}
+              {link.platform === 'email' && <Icon name="envelope-simple" size={14} />}
               {socialLinkLabel(link)}
             </a>
           ))}
