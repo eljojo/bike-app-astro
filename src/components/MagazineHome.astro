@@ -235,7 +235,7 @@ const locale = Astro.currentLocale;
       )}
 
       <section id="weather-card" class="magazine-weather" hidden data-locale={locale}>
-        <a href="/?tags=chill" class="weather-card-link">
+        <a href={`${localePath('/', locale)}?tags=chill`} class="weather-card-link">
           <span id="weather-icon"></span>
           <span id="weather-text"></span>
         </a>
