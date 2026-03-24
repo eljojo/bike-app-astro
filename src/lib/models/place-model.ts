@@ -1,6 +1,6 @@
 import { z } from 'astro/zod';
 import { type GitFiles } from './content-model';
-import { goodForEnum } from '../../schemas/index';
+import { goodForEnum, socialLinkSchema } from '../../schemas/index';
 
 export const placeDetailSchema = z.object({
   id: z.string(),
@@ -17,6 +17,8 @@ export const placeDetailSchema = z.object({
   phone: z.string().optional(),
   google_maps_url: z.string().optional(),
   photo_key: z.string().optional(),
+  organizer: z.string().optional(),
+  social_links: z.array(socialLinkSchema).default([]),
 });
 
 export type PlaceDetail = z.infer<typeof placeDetailSchema>;

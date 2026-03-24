@@ -28,6 +28,13 @@ export const organizerDetailSchema = z.object({
 export type OrganizerDetail = z.infer<typeof organizerDetailSchema>;
 
 /**
+ * Returns true if the organizer is tagged as a bike shop.
+ */
+export function isBikeShop(org: OrganizerEntry): boolean {
+  return org.data.tags.includes('bike-shop');
+}
+
+/**
  * A community qualifies for a detail page if it's not explicitly hidden
  * and has at least one of:
  * - A markdown body (bio/description)
