@@ -40,9 +40,10 @@ const mapId = `pin-map-${Math.random().toString(36).slice(2, 8)}`;
       const bounds = new maplibregl.LngLatBounds();
       for (const pin of pins) bounds.extend([pin.lng, pin.lat]);
 
+      // initMap expects center as [lat, lng] and swaps internally
       const center: [number, number] = pins.length === 1
-        ? [pins[0].lng, pins[0].lat]
-        : [(bounds.getWest() + bounds.getEast()) / 2, (bounds.getSouth() + bounds.getNorth()) / 2];
+        ? [pins[0].lat, pins[0].lng]
+        : [(bounds.getSouth() + bounds.getNorth()) / 2, (bounds.getWest() + bounds.getEast()) / 2];
 
       const map = initMap({
         el,
@@ -51,11 +52,12 @@ const mapId = `pin-map-${Math.random().toString(36).slice(2, 8)}`;
         styleUrl: getStyleUrl(loadStylePreference()),
       });
 
-      map.on('load', () => {
-        if (pins.length > 1) {
-          map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 40 });
-        }
+      // For multiple pins, fit bounds immediately without animation
+      if (pins.length > 1) {
+        map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 40, animate: false });
+      }
 
+      map.on('load', () => {
         for (const pin of pins) {
           const markerEl = document.createElement('div');
           markerEl.className = 'pin-map-marker';
