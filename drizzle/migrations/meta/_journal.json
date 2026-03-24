@@ -155,6 +155,13 @@
       "when": 1775116800000,
       "tag": "0019_gpx_downloads",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1775203200000,
+      "tag": "0020_reset_analytics_data_v6",
+      "breakpoints": true
     }
   ]
 }
