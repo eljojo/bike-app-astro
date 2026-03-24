@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 import { env, tileCache } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
-import { fetchWeather, evaluateWeather, tomorrowForecast } from '../../lib/external/open-meteo.server';
+import { fetchWeather, evaluateWeather, dailyForecast } from '../../lib/external/open-meteo.server';
 import { t } from '../../i18n';
 
 export const prerender = false;
@@ -47,8 +47,11 @@ export const GET: APIRoute = async ({ url }) => {
   const timezone = config.timezone || 'UTC';
   const hour = localHour(timezone);
   const isNight = hour < 6 || hour >= 19;
+  const isEvening = hour >= 19; // 7pm–midnight: show tomorrow's forecast
+  // midnight–6am: show today's daily forecast (the upcoming daytime)
+  const period = isEvening ? 'evening' : hour < 6 ? 'late-night' : 'day';
 
-  const cacheKey = `weather:${CITY}:${locale || 'default'}:${isNight ? 'night' : 'day'}`;
+  const cacheKey = `weather:${CITY}:${locale || 'default'}:${period}`;
 
   // Check cache
   const cached = await tileCache.get(cacheKey).catch(() => null);
@@ -63,16 +66,21 @@ export const GET: APIRoute = async ({ url }) => {
     const data = await fetchWeather(config.center.lat, config.center.lng, timezone);
     const staging = env.ENVIRONMENT === 'staging';
 
-    const weatherData = isNight && data.daily
-      ? tomorrowForecast(data.daily)
-      : data.current;
+    let weatherData;
+    if (isEvening && data.daily) {
+      weatherData = dailyForecast(data.daily, 1); // tomorrow
+    } else if (hour < 6 && data.daily) {
+      weatherData = dailyForecast(data.daily, 0); // today
+    } else {
+      weatherData = data.current;
+    }
     const result = evaluateWeather(weatherData, { staging });
 
     if (!result.rideable || result.temperature == null || !result.descriptionKey) {
       response = { rideable: false };
     } else {
       const description = t(`weather.${result.descriptionKey}`, locale);
-      const key = isNight ? 'weather.good_day_tomorrow' : 'weather.good_day';
+      const key = isEvening ? 'weather.good_day_tomorrow' : 'weather.good_day';
       const text = t(key, locale, { temp: result.temperature, description });
       response = {
         rideable: true,

@@ -69,13 +69,12 @@ export async function fetchWeather(lat: number, lng: number, timezone: string): 
   return response.json();
 }
 
-/** Extract tomorrow's forecast from daily arrays as an OpenMeteoCurrentWeather-compatible shape. */
-export function tomorrowForecast(daily: NonNullable<OpenMeteoResponse['daily']>): OpenMeteoCurrentWeather {
-  // Index 1 = tomorrow (index 0 = today)
+/** Extract a day's forecast from daily arrays. Index 0 = today, 1 = tomorrow. */
+export function dailyForecast(daily: NonNullable<OpenMeteoResponse['daily']>, dayIndex: number): OpenMeteoCurrentWeather {
   return {
-    temperature_2m: daily.temperature_2m_max[1],
-    wind_speed_10m: daily.wind_speed_10m_max[1],
-    weather_code: daily.weather_code[1],
-    uv_index: daily.uv_index_max[1],
+    temperature_2m: daily.temperature_2m_max[dayIndex],
+    wind_speed_10m: daily.wind_speed_10m_max[dayIndex],
+    weather_code: daily.weather_code[dayIndex],
+    uv_index: daily.uv_index_max[dayIndex],
   };
 }
