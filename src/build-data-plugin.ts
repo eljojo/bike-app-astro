@@ -88,11 +88,31 @@ function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
 }
 
-function loadHomepageFacts(): unknown[] {
-  const filePath = path.join(CITY_DIR, 'homepage-facts.yml');
-  if (!fs.existsSync(filePath)) return [];
-  const parsed = yaml.load(fs.readFileSync(filePath, 'utf-8')) as { facts?: unknown[] } | null;
-  return parsed?.facts || [];
+function loadHomepageFacts(): Record<string, unknown[]> {
+  const config = yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8')) as { locale: string; locales?: string[] };
+  const defaultLocale = config.locale.split('-')[0];
+  const locales = (config.locales || [config.locale]).map((l: string) => l.split('-')[0]);
+
+  const result: Record<string, unknown[]> = {};
+
+  // Load default locale facts
+  const defaultPath = path.join(CITY_DIR, 'homepage-facts.yml');
+  if (fs.existsSync(defaultPath)) {
+    const parsed = yaml.load(fs.readFileSync(defaultPath, 'utf-8')) as { facts?: unknown[] } | null;
+    result[defaultLocale] = parsed?.facts || [];
+  }
+
+  // Load locale-specific overrides (e.g. homepage-facts.fr.yml)
+  for (const locale of locales) {
+    if (locale === defaultLocale) continue;
+    const localePath = path.join(CITY_DIR, `homepage-facts.${locale}.yml`);
+    if (fs.existsSync(localePath)) {
+      const parsed = yaml.load(fs.readFileSync(localePath, 'utf-8')) as { facts?: unknown[] } | null;
+      result[locale] = parsed?.facts || [];
+    }
+  }
+
+  return result;
 }
 
 function loadTagTranslations() {
