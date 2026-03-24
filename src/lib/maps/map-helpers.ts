@@ -47,6 +47,8 @@ interface PlacePopupData {
   phone?: string;
   photo_key?: string;
   category?: string;
+  organizer_name?: string;
+  organizer_url?: string;
 }
 
 export function escapeHtml(s: string): string {
@@ -90,6 +92,9 @@ export function buildPlacePopup(place: PlacePopupData, cdnUrl?: string): string 
     popup += html`<img class="place-popup-photo" src="${raw(buildImageUrl(cdnUrl, place.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" />`;
   }
   popup += html`<strong>${place.name}</strong>`;
+  if (place.organizer_url) {
+    popup += html`<div class="place-popup-organizer"><a href="${place.organizer_url}">${place.organizer_name || place.name}</a></div>`;
+  }
   if (place.address) popup += html`<div class="place-popup-address">${place.address}</div>`;
   if (place.phone) popup += html`<div class="place-popup-phone">${place.phone}</div>`;
   const links: string[] = [];

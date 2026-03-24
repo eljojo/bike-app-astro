@@ -144,6 +144,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           ...(phone && { phone }),
           ...(googleMapsUrl && { google_maps_url: googleMapsUrl }),
           ...(photoKey && { photo_key: photoKey }),
+          social_links: [],
         },
       };
       return payload as unknown as Record<string, unknown>;

@@ -35,6 +35,11 @@ const placeUpdateSchema = z.object({
     phone: z.string().optional(),
     google_maps_url: z.string().optional(),
     photo_key: z.string().optional(),
+    organizer: z.string().optional(),
+    social_links: z.array(z.object({
+      platform: z.string(),
+      url: z.string(),
+    })).default([]),
   }),
   contentHash: z.string().optional(),
 });
@@ -54,6 +59,8 @@ export interface PlaceUpdate {
     phone?: string;
     google_maps_url?: string;
     photo_key?: string;
+    organizer?: string;
+    social_links: Array<{ platform: string; url: string }>;
   };
   contentHash?: string;
 }
@@ -140,6 +147,8 @@ export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSl
     if (update.frontmatter.photo_key) {
       fm.photo_key = update.frontmatter.photo_key;
     }
+    if (update.frontmatter.organizer) fm.organizer = update.frontmatter.organizer;
+    if (update.frontmatter.social_links.length > 0) fm.social_links = update.frontmatter.social_links;
 
     files.push({ path: placePath, content: serializeMdFile(fm) });
 

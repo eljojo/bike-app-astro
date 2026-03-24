@@ -18,6 +18,8 @@ const locale = Astro.currentLocale;
 
 const routes = await getCollection('routes');
 const places = await getCollection('places');
+const organizers = await getCollection('organizers');
+const organizerMap = new Map(organizers.map(o => [o.id, o]));
 
 const published = routes.filter(r => r.data.status === 'published');
 
@@ -50,6 +52,7 @@ const placeData = places
   .filter(p => p.data.status === 'published')
   .map(p => {
     const mediaCover = p.data.media?.find(m => m.cover)?.key || p.data.media?.[0]?.key;
+    const org = p.data.organizer ? organizerMap.get(p.data.organizer) : undefined;
     return {
       name: p.data.name,
       category: p.data.category,
@@ -61,6 +64,8 @@ const placeData = places
       address: p.data.address,
       phone: p.data.phone,
       photo_key: mediaCover || p.data.photo_key,
+      organizer_name: org?.data.name,
+      organizer_url: org ? paths.community(org.id, locale) : undefined,
     };
   });
 // Auto-assign nearby route photos to places without a photo
