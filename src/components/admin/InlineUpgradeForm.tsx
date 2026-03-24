@@ -101,15 +101,14 @@ export default function InlineUpgradeForm({ locale: _locale }: Props) {
       <p class="upgrade-prompt">
         Keep your contributions — add an email to create your account.
       </p>
+      {avatarUrl && (
+        <div class="upgrade-gravatar">
+          <img src={avatarUrl} alt="" width="48" height="48" />
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         {(formState === 'error') && errorMessage && (
           <div class="auth-error">{errorMessage}</div>
-        )}
-
-        {avatarUrl && (
-          <div class="upgrade-gravatar">
-            <img src={avatarUrl} alt="" width="48" height="48" />
-          </div>
         )}
 
         <div class="form-field">
