@@ -11,7 +11,7 @@ import { parseLocalDate, formatDateRange } from '../lib/date-utils';
 import { toPlaceData } from '../lib/geo/places';
 import { resolveHomepageFacts } from '../lib/homepage-data.server';
 import type { ResolvedFact } from '../lib/homepage-data.server';
-import { hasDetailPage } from '../lib/models/organizer-model';
+import { hasDetailPage, isBikeShop } from '../lib/models/organizer-model';
 import { paths } from '../lib/paths';
 
 export function stripEmoji(text: string): string {
@@ -182,7 +182,7 @@ export async function loadCommunities(): Promise<CommunityFacts[]> {
   }
 
   return organizers
-    .filter(org => hasDetailPage(org))
+    .filter(org => hasDetailPage(org) && !isBikeShop(org))
     .sort((a, b) => {
       if (a.data.featured && !b.data.featured) return -1;
       if (!a.data.featured && b.data.featured) return 1;
@@ -194,6 +194,30 @@ export async function loadCommunities(): Promise<CommunityFacts[]> {
       url: `${config.url}${paths.community(org.id)}`,
       tagline: org.data.tagline || '',
       eventCount: eventCounts.get(org.id) || 0,
+    }));
+}
+
+export interface BikeShopFacts {
+  name: string;
+  slug: string;
+  url: string;
+  tagline: string;
+  specialties: string[];
+}
+
+export async function loadBikeShops(): Promise<BikeShopFacts[]> {
+  const config = getCityConfig();
+  const organizers = await getCollection('organizers');
+
+  return organizers
+    .filter(org => hasDetailPage(org) && isBikeShop(org))
+    .sort((a, b) => a.data.name.localeCompare(b.data.name))
+    .map(org => ({
+      name: org.data.name,
+      slug: org.id,
+      url: `${config.url}${paths.community(org.id)}`,
+      tagline: org.data.tagline || '',
+      specialties: org.data.tags.filter(t => t !== 'bike-shop'),
     }));
 }
 
