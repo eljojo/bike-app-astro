@@ -4,10 +4,10 @@
  * Idempotent city setup script.
  *
  * Like Ansible or Terraform — discovers cities from the data repo and
- * ensures each one is fully provisioned: wrangler env, CI matrix, Worker
- * secrets, R2 CORS, D1 migrations, build, deploy.
+ * ensures each one is fully provisioned: wrangler env, CI matrix, stub
+ * Worker deploy, secrets (from shared manifest), R2 CORS, custom domain.
  *
- * By the end of the script, the city is up and running.
+ * Real builds and deploys are CI's job. Migrations are Ottawa-only (shared DB).
  *
  * Follows the same pattern as setup-aws-video.js: idempotent ensure*
  * functions, auto-detect what's derivable, prompt for the rest.
@@ -256,30 +256,6 @@ async function ensureSecrets(city, wranglerEnv, wranglerConfig, promptCache) {
     setWranglerSecret(entry.name, value, wranglerEnv, { force: true });
   }
 
-  for (const { name, guidance } of prompted) {
-    if (secretExists(name)) {
-      logSkip(`${name}`);
-      continue;
-    }
-
-    // Check cache from a prior city in this run
-    if (promptCache.has(name)) {
-      setWranglerSecret(name, promptCache.get(name), wranglerEnv, { force: true });
-      continue;
-    }
-
-    // Prompt
-    console.log('');
-    for (const line of guidance) console.log(`  ${line}`);
-    const value = (await ask(`  ${name}: `)).trim();
-    if (!value) {
-      console.warn(`  ⚠ Skipped ${name} — set it later with: echo "VALUE" | ${wranglerCmd()} secret put ${name} --env ${wranglerEnv}`);
-      continue;
-    }
-
-    promptCache.set(name, value);
-    setWranglerSecret(name, value, wranglerEnv, { force: true });
-  }
 }
 
 // ---------------------------------------------------------------------------
