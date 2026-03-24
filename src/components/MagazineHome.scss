@@ -458,3 +458,25 @@
   display: block;
   font-size: 0.8rem;
 }
+
+// Weather card — low-key nudge when conditions are good
+.magazine-weather {
+  .weather-card-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    border: 1px solid $color-border;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    text-decoration: none;
+    @include muted-text;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
