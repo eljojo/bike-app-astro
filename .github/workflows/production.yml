@@ -34,7 +34,7 @@ jobs:
             echo 'cities=["ottawa"]' >> "$GITHUB_OUTPUT"
           else
             # Code change or manual dispatch — rebuild all cities
-            echo 'cities=["ottawa","demo","brevet"]' >> "$GITHUB_OUTPUT"
+            echo 'cities=["ottawa","demo","brevet","santiago"]' >> "$GITHUB_OUTPUT"
           fi
 
   deploy:
@@ -52,6 +52,9 @@ jobs:
             run-migrations: false
           - city: brevet
             wrangler-env: brevet-production
+            run-migrations: false
+          - city: santiago
+            wrangler-env: santiago-production
             run-migrations: false
       fail-fast: false
     uses: ./.github/workflows/_build-city.yml
