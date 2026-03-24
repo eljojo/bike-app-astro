@@ -14,7 +14,7 @@ const SOCIAL_PLATFORMS = [
   'instagram', 'facebook', 'strava', 'youtube',
   'meetup', 'tiktok', 'bluesky', 'threads', 'website',
   'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
-  'booking',
+  'booking', 'telephone', 'email',
 ] as const;
 
 interface SocialLink {

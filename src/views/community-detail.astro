@@ -80,11 +80,19 @@ const socialLinks = normalizeSocialLinks(
   { instagram: data.instagram, website: data.website },
 ).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
 
+function socialLinkHref(link: { platform: string; url: string }): string {
+  if (link.platform === 'telephone') return `tel:${link.url.replace(/[^+\d]/g, '')}`;
+  if (link.platform === 'email') return `mailto:${link.url}`;
+  return link.url;
+}
+
 function socialLinkLabel(link: { platform: string; url: string }): string {
   if (link.platform === 'instagram') {
     const username = parseInstagramUsername(link.url);
     return username ? t('social.on_instagram', locale, { username }) : 'Instagram';
   }
+  if (link.platform === 'telephone') return link.url;
+  if (link.platform === 'email') return link.url;
   // Brand names stay untranslated; generic labels use t()
   const labels: Record<string, string> = {
     facebook: 'Facebook',
@@ -141,7 +149,11 @@ const PAST_EVENTS_INITIAL = 4;
         {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
         <div class="community-detail-links">
           {socialLinks.map(link => (
-            <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+            <a
+              href={socialLinkHref(link)}
+              {...(['telephone', 'email'].includes(link.platform) ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+              class="community-social-pill"
+            >
               {socialLinkLabel(link)}
             </a>
           ))}
