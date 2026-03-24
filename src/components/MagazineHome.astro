@@ -310,6 +310,16 @@ const locale = Astro.currentLocale;
           wrapper.replaceWith(link);
         }
       }
+
+      // Move to top of main column when prominence is high
+      if (data.prominence === 'high') {
+        const main = document.querySelector('.magazine-main');
+        if (main) {
+          main.prepend(card);
+          card.classList.add('weather-prominent');
+        }
+      }
+
       card.removeAttribute('hidden');
     } catch {
       // Silently fail — weather card is progressive enhancement
