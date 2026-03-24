@@ -366,6 +366,30 @@ jobs:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
 
+      - name: Check PNGs after test run (before upload)
+        if: matrix.suite == 'public' && !cancelled()
+        run: |
+          echo "=== PNG integrity after Playwright ==="
+          for f in $(find e2e/snapshots/ -name '*.png' -type f 2>/dev/null); do
+            node -e "
+              const fs = require('fs');
+              const data = fs.readFileSync('$f');
+              if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) { console.log('$f: NOT_PNG'); process.exit(); }
+              let pos = 8;
+              while (pos < data.length) {
+                if (pos + 8 > data.length) { console.log('$f: TRUNCATED'); process.exit(); }
+                const len = data.readUInt32BE(pos);
+                const type = data.subarray(pos+4, pos+8).toString('ascii');
+                if (type === 'IEND') {
+                  const extra = data.length - (pos + 12);
+                  console.log('$f: ' + (extra > 0 ? 'CORRUPT (' + extra + ' trailing bytes)' : 'CLEAN') + ' size=' + data.length);
+                  process.exit();
+                }
+                pos += 12 + len;
+              }
+            " 2>/dev/null
+          done
+
       - name: Upload screenshot artifacts
         if: ${{ inputs.update-screenshots && !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -407,8 +431,9 @@ jobs:
           merge-multiple: true
           path: e2e/
 
-      - name: Check PNG integrity before committing
+      - name: Check PNGs after artifact download (before commit)
         run: |
+          echo "=== PNG integrity after artifact download ==="
           corrupt=0
           for f in $(find e2e/ -name '*.png' -type f); do
             # Check for trailing bytes after IEND chunk
