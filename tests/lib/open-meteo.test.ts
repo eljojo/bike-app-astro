@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateWeather } from '../../src/lib/external/open-meteo.server';
+import { evaluateWeather, resolveThresholds } from '../../src/lib/external/open-meteo.server';
+
+const defaults = resolveThresholds();
 
 describe('evaluateWeather', () => {
   it('returns rideable for clear warm calm weather', () => {
@@ -8,7 +10,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 10,
       weather_code: 0,
       uv_index: 3,
-    });
+    }, defaults);
     expect(result).toEqual({
       rideable: true,
       temperature: 22,
@@ -23,7 +25,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 10,
       weather_code: 0,
       uv_index: 1,
-    });
+    }, defaults);
     expect(result.rideable).toBe(false);
   });
 
@@ -33,7 +35,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 10,
       weather_code: 0,
       uv_index: 9,
-    });
+    }, defaults);
     expect(result.rideable).toBe(false);
   });
 
@@ -43,7 +45,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 35,
       weather_code: 1,
       uv_index: 4,
-    });
+    }, defaults);
     expect(result.rideable).toBe(false);
   });
 
@@ -53,7 +55,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 10,
       weather_code: 61,
       uv_index: 2,
-    });
+    }, defaults);
     expect(result.rideable).toBe(false);
   });
 
@@ -63,7 +65,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 5,
       weather_code: 2,
       uv_index: 5,
-    });
+    }, defaults);
     expect(result.rideable).toBe(true);
     expect(result.temperature).toBe(19);
   });
@@ -74,7 +76,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 5,
       weather_code: 1,
       uv_index: 2,
-    });
+    }, defaults);
     expect(result.descriptionKey).toBe('mostly_clear');
   });
 
@@ -84,7 +86,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 5,
       weather_code: 2,
       uv_index: 2,
-    });
+    }, defaults);
     expect(result.descriptionKey).toBe('partly_cloudy');
   });
 
@@ -94,7 +96,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 5,
       weather_code: 3,
       uv_index: 2,
-    });
+    }, defaults);
     expect(result.descriptionKey).toBe('overcast');
   });
 
@@ -104,18 +106,28 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 5,
       weather_code: 0,
       uv_index: 1,
-    });
+    }, defaults);
     expect(result.rideable).toBe(true);
   });
 
-  it('is rideable at exactly 35 degrees (upper boundary)', () => {
+  it('is rideable at exactly 30 degrees (upper boundary)', () => {
     const result = evaluateWeather({
-      temperature_2m: 35,
+      temperature_2m: 30,
       wind_speed_10m: 5,
       weather_code: 0,
       uv_index: 8,
-    });
+    }, defaults);
     expect(result.rideable).toBe(true);
+  });
+
+  it('is not rideable above 30 degrees', () => {
+    const result = evaluateWeather({
+      temperature_2m: 31,
+      wind_speed_10m: 5,
+      weather_code: 0,
+      uv_index: 8,
+    }, defaults);
+    expect(result.rideable).toBe(false);
   });
 
   it('is not rideable at exactly 30 km/h wind (boundary)', () => {
@@ -124,7 +136,7 @@ describe('evaluateWeather', () => {
       wind_speed_10m: 30,
       weather_code: 0,
       uv_index: 3,
-    });
+    }, defaults);
     expect(result.rideable).toBe(false);
   });
 });

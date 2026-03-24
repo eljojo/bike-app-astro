@@ -6,7 +6,7 @@ help: ## Show available targets
 install: ## Install npm dependencies
 	npm install
 
-dev: prebuild ## Start dev server
+dev: prebuild ## Start dev server (set DEV_HOST in .env for remote access)
 	RUNTIME=local npx astro dev
 
 build: prebuild contributors maps ## Build static site to dist/

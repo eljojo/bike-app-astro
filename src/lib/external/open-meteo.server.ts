@@ -26,16 +26,37 @@ const WMO_DESCRIPTION_KEYS: Record<number, string> = {
 
 const RIDEABLE_CODES = new Set(Object.keys(WMO_DESCRIPTION_KEYS).map(Number));
 
-const MIN_TEMP_C = 10;
-const MIN_TEMP_STAGING_C = -10;
+// Defaults based on cycling ridership research (Miranda-Moreno & Nosal 2011,
+// 40-city bikeshare study 2021). Ridership peaks at 17–28°C, drops sharply
+// above 30°C. Configurable per city via config.yml weather.min_temp/max_temp.
+const DEFAULT_MIN_TEMP = 10;
+const DEFAULT_MAX_TEMP = 30;
+const DEFAULT_MAX_WIND = 30;
+const STAGING_MIN_TEMP = -10;
+
+export interface WeatherThresholds {
+  minTemp: number;
+  maxTemp: number;
+  maxWind: number;
+}
+
+export function resolveThresholds(
+  cityWeather?: { min_temp?: number; max_temp?: number; max_wind_kmh?: number },
+  staging = false,
+): WeatherThresholds {
+  return {
+    minTemp: staging ? STAGING_MIN_TEMP : (cityWeather?.min_temp ?? DEFAULT_MIN_TEMP),
+    maxTemp: cityWeather?.max_temp ?? DEFAULT_MAX_TEMP,
+    maxWind: cityWeather?.max_wind_kmh ?? DEFAULT_MAX_WIND,
+  };
+}
 
 /** Evaluate weather conditions for cycling suitability. Pure function, no side effects. */
-export function evaluateWeather(current: OpenMeteoCurrentWeather, { staging = false } = {}): WeatherResult {
-  const minTemp = staging ? MIN_TEMP_STAGING_C : MIN_TEMP_C;
+export function evaluateWeather(current: OpenMeteoCurrentWeather, thresholds: WeatherThresholds): WeatherResult {
   const rideable =
-    current.temperature_2m >= minTemp &&
-    current.temperature_2m <= 35 &&
-    current.wind_speed_10m < 30 &&
+    current.temperature_2m >= thresholds.minTemp &&
+    current.temperature_2m <= thresholds.maxTemp &&
+    current.wind_speed_10m < thresholds.maxWind &&
     RIDEABLE_CODES.has(current.weather_code);
 
   if (!rideable) return { rideable: false };
@@ -48,9 +69,10 @@ export function evaluateWeather(current: OpenMeteoCurrentWeather, { staging = fa
   };
 }
 
-interface OpenMeteoResponse {
+export interface OpenMeteoResponse {
   current: OpenMeteoCurrentWeather;
   daily?: {
+    time: string[];
     temperature_2m_max: number[];
     weather_code: number[];
     wind_speed_10m_max: number[];
@@ -58,9 +80,9 @@ interface OpenMeteoResponse {
   };
 }
 
-/** Fetch current weather + tomorrow's daily forecast from Open-Meteo. */
+/** Fetch current weather + 7-day daily forecast from Open-Meteo. */
 export async function fetchWeather(lat: number, lng: number, timezone: string): Promise<OpenMeteoResponse> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&daily=temperature_2m_max,weather_code,wind_speed_10m_max,uv_index_max&forecast_days=2&timezone=${encodeURIComponent(timezone)}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&daily=temperature_2m_max,weather_code,wind_speed_10m_max,uv_index_max&forecast_days=7&timezone=${encodeURIComponent(timezone)}`;
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) {
     const body = await response.text().catch(() => '');
@@ -93,6 +115,73 @@ export async function fetchAirQuality(lat: number, lng: number): Promise<AirQual
 // ---------------------------------------------------------------------------
 // Daily forecast helper
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Weather window — detect rare good days in a bad stretch
+// ---------------------------------------------------------------------------
+
+export interface WeatherWindow {
+  /** 'only' = sole good day, 'rare' = 1–2 good days, 'upcoming' = not today but soon, null = plenty of good days */
+  type: 'only' | 'rare' | 'upcoming' | null;
+  /** Index of the next good day (0 = today) */
+  nextGoodDayIndex?: number;
+  /** Day name key for the next good day (e.g. 'thursday') */
+  nextGoodDayName?: string;
+  /** Temperature of the next good day */
+  nextGoodDayTemp?: number;
+  /** Description key of the next good day */
+  nextGoodDayDescriptionKey?: string;
+  /** How many rideable days in the 7-day window */
+  rideableDays: number;
+}
+
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/** Analyze the 7-day forecast for weather windows. */
+export function analyzeWeatherWindow(
+  daily: NonNullable<OpenMeteoResponse['daily']>,
+  thresholds: WeatherThresholds,
+): WeatherWindow {
+  const days = daily.time.length;
+  const rideable: boolean[] = [];
+  for (let i = 0; i < days; i++) {
+    const result = evaluateWeather(dailyForecast(daily, i), thresholds);
+    rideable.push(result.rideable);
+  }
+
+  const rideableDays = rideable.filter(Boolean).length;
+  const todayRideable = rideable[0];
+
+  // Find next good day (starting from tomorrow if today is not good)
+  let nextGoodDayIndex: number | undefined;
+  if (!todayRideable) {
+    for (let i = 1; i < days; i++) {
+      if (rideable[i]) { nextGoodDayIndex = i; break; }
+    }
+  }
+
+  let type: WeatherWindow['type'] = null;
+  if (todayRideable && rideableDays === 1) {
+    type = 'only'; // today is the only good day all week
+  } else if (todayRideable && rideableDays <= 2) {
+    type = 'rare'; // today is one of very few good days
+  } else if (!todayRideable && nextGoodDayIndex != null && rideableDays <= 2) {
+    type = 'upcoming'; // today is bad but there's a window coming
+  }
+
+  const result: WeatherWindow = { type, rideableDays };
+
+  if (nextGoodDayIndex != null) {
+    const forecast = dailyForecast(daily, nextGoodDayIndex);
+    const date = new Date(daily.time[nextGoodDayIndex] + 'T12:00:00');
+    result.nextGoodDayIndex = nextGoodDayIndex;
+    result.nextGoodDayName = DAY_NAMES[date.getDay()];
+    result.nextGoodDayTemp = Math.round(forecast.temperature_2m);
+    result.nextGoodDayDescriptionKey = WMO_DESCRIPTION_KEYS[forecast.weather_code] ?? 'clear';
+  }
+
+  return result;
+}
 
 /** Extract a day's forecast from daily arrays. Index 0 = today, 1 = tomorrow. */
 export function dailyForecast(daily: NonNullable<OpenMeteoResponse['daily']>, dayIndex: number): OpenMeteoCurrentWeather {
