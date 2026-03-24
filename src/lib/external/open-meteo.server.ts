@@ -26,16 +26,37 @@ const WMO_DESCRIPTION_KEYS: Record<number, string> = {
 
 const RIDEABLE_CODES = new Set(Object.keys(WMO_DESCRIPTION_KEYS).map(Number));
 
-const MIN_TEMP_C = 10;
-const MIN_TEMP_STAGING_C = -10;
+// Defaults based on cycling ridership research (Miranda-Moreno & Nosal 2011,
+// 40-city bikeshare study 2021). Ridership peaks at 17–28°C, drops sharply
+// above 30°C. Configurable per city via config.yml weather.min_temp/max_temp.
+const DEFAULT_MIN_TEMP = 10;
+const DEFAULT_MAX_TEMP = 30;
+const DEFAULT_MAX_WIND = 30;
+const STAGING_MIN_TEMP = -10;
+
+export interface WeatherThresholds {
+  minTemp: number;
+  maxTemp: number;
+  maxWind: number;
+}
+
+export function resolveThresholds(
+  cityWeather?: { min_temp?: number; max_temp?: number; max_wind_kmh?: number },
+  staging = false,
+): WeatherThresholds {
+  return {
+    minTemp: staging ? STAGING_MIN_TEMP : (cityWeather?.min_temp ?? DEFAULT_MIN_TEMP),
+    maxTemp: cityWeather?.max_temp ?? DEFAULT_MAX_TEMP,
+    maxWind: cityWeather?.max_wind_kmh ?? DEFAULT_MAX_WIND,
+  };
+}
 
 /** Evaluate weather conditions for cycling suitability. Pure function, no side effects. */
-export function evaluateWeather(current: OpenMeteoCurrentWeather, { staging = false } = {}): WeatherResult {
-  const minTemp = staging ? MIN_TEMP_STAGING_C : MIN_TEMP_C;
+export function evaluateWeather(current: OpenMeteoCurrentWeather, thresholds: WeatherThresholds): WeatherResult {
   const rideable =
-    current.temperature_2m >= minTemp &&
-    current.temperature_2m <= 35 &&
-    current.wind_speed_10m < 30 &&
+    current.temperature_2m >= thresholds.minTemp &&
+    current.temperature_2m <= thresholds.maxTemp &&
+    current.wind_speed_10m < thresholds.maxWind &&
     RIDEABLE_CODES.has(current.weather_code);
 
   if (!rideable) return { rideable: false };
@@ -119,12 +140,12 @@ const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frid
 /** Analyze the 7-day forecast for weather windows. */
 export function analyzeWeatherWindow(
   daily: NonNullable<OpenMeteoResponse['daily']>,
-  opts: { staging?: boolean } = {},
+  thresholds: WeatherThresholds,
 ): WeatherWindow {
   const days = daily.time.length;
   const rideable: boolean[] = [];
   for (let i = 0; i < days; i++) {
-    const result = evaluateWeather(dailyForecast(daily, i), opts);
+    const result = evaluateWeather(dailyForecast(daily, i), thresholds);
     rideable.push(result.rideable);
   }
 

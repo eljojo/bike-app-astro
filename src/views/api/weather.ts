@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 import { env, tileCache } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
-import { fetchWeather, evaluateWeather, dailyForecast, fetchAirQuality, analyzeWeatherWindow } from '../../lib/external/open-meteo.server';
+import { fetchWeather, evaluateWeather, dailyForecast, fetchAirQuality, analyzeWeatherWindow, resolveThresholds } from '../../lib/external/open-meteo.server';
 import { t } from '../../i18n';
 
 export const prerender = false;
@@ -69,7 +69,7 @@ export const GET: APIRoute = async ({ url }) => {
       fetchWeather(lat, lng, timezone),
       fetchAirQuality(lat, lng).catch(() => null),
     ]);
-    const staging = env.ENVIRONMENT === 'staging';
+    const thresholds = resolveThresholds(config.weather, env.ENVIRONMENT === 'staging');
 
     // AQI > 100 = unhealthy — show warning instead of ride suggestion
     if (airQuality && airQuality.aqi > 100) {
@@ -80,7 +80,7 @@ export const GET: APIRoute = async ({ url }) => {
       };
     } else {
       // Analyze the 7-day window
-      const window = data.daily ? analyzeWeatherWindow(data.daily, { staging }) : null;
+      const window = data.daily ? analyzeWeatherWindow(data.daily, thresholds) : null;
 
       // If today isn't rideable but there's a rare good day coming, show that
       let weatherData;
@@ -91,7 +91,7 @@ export const GET: APIRoute = async ({ url }) => {
       } else {
         weatherData = data.current;
       }
-      const result = evaluateWeather(weatherData, { staging });
+      const result = evaluateWeather(weatherData, thresholds);
 
       if (window?.type === 'upcoming' && window.nextGoodDayName && window.nextGoodDayTemp != null && window.nextGoodDayDescriptionKey) {
         // Today is bad but there's a rare good day coming
