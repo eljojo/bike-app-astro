@@ -130,55 +130,63 @@ function DualAxisChart({ labels, leftData, leftLabel, leftColor, rightData, righ
   useEffect(() => {
     if (!canvasRef.current) return;
     instance.current?.destroy();
+
+    const hasRight = rightData.length > 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const datasets: any[] = [
+      {
+        label: leftLabel,
+        data: leftData,
+        borderColor: leftColor,
+        backgroundColor: leftColor.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        yAxisID: 'y',
+      },
+    ];
+    if (hasRight) {
+      datasets.push({
+        label: rightLabel,
+        data: rightData,
+        borderColor: rightColor,
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        yAxisID: 'y1',
+      });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scales: any = {
+      x: {
+        ticks: {
+          maxTicksLimit: 8,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          callback: function(_: any, index: number) {
+            const d = labels[index];
+            if (!d) return '';
+            const day = d.slice(8, 10);
+            return index === 0 || day === '01' ? d.slice(5) : day;
+          },
+        },
+      },
+      y: { beginAtZero: true, position: 'left', title: { display: true, text: leftLabel } },
+    };
+    if (hasRight) {
+      scales.y1 = { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: rightLabel } };
+    }
+
     instance.current = new Chart(canvasRef.current, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: leftLabel,
-            data: leftData,
-            borderColor: leftColor,
-            backgroundColor: leftColor.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: true,
-            yAxisID: 'y',
-          },
-          {
-            label: rightLabel,
-            data: rightData,
-            borderColor: rightColor,
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false,
-            yAxisID: 'y1',
-          },
-        ],
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        scales: {
-          x: {
-            ticks: {
-              maxTicksLimit: 8,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              callback: function(_: any, index: number) {
-                const d = labels[index];
-                if (!d) return '';
-                const day = d.slice(8, 10);
-                // Show month on the 1st or first visible tick
-                return index === 0 || day === '01' ? d.slice(5) : day;
-              },
-            },
-          },
-          y: { beginAtZero: true, position: 'left', title: { display: true, text: leftLabel } },
-          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: rightLabel } },
-        },
+        scales,
         plugins: {
-          legend: { position: 'bottom' },
+          legend: { display: hasRight, position: 'bottom' },
           tooltip: {
             mode: 'index',
             intersect: false,
@@ -427,21 +435,44 @@ export default function StatsOverview() {
         </div>
       </div>
 
-      {/* Engagement depth: duration + pages per visit on dual axes */}
+      {/* Engagement depth: duration + pages per visit on dual axes (daily) or cumulative wall time */}
       {data.durationSeries && data.durationSeries.length > 0 && (
         <div class="stats-chart-container">
-          <h3 class="stats-section-title">Engagement depth</h3>
+          <h3 class="stats-section-title">{cumulative ? 'Wall time (cumulative)' : 'Engagement depth'}</h3>
           <div class="stats-chart-wrapper">
-            <DualAxisChart
-              labels={data.durationSeries.map(p => p.date)}
-              leftData={data.durationSeries.map(p => Math.round(p.value / 6) / 10)}
-              leftLabel="Visit duration (min)"
-              leftColor="rgb(234, 88, 12)"
-              formatLeftTooltip={(min) => formatDuration(min * 60)}
-              rightData={data.pagesPerVisitSeries?.map(p => p.value) ?? []}
-              rightLabel="Pages per visit"
-              rightColor="rgb(16, 185, 129)"
-            />
+            {cumulative ? (() => {
+              // Cumulative wall time in hours: sum of (visitors × avg_duration_s / 3600)
+              const wallTimePerDay = data.timeSeries.map((p, i) => {
+                const durationS = data.durationSeries![i]?.value ?? 0;
+                const visitors = p.secondaryValue ?? 0;
+                return visitors * durationS / 3600;
+              });
+              let sum = 0;
+              const cumWallTime = wallTimePerDay.map(wt => { sum += wt; return Math.round(sum * 10) / 10; });
+              return (
+                <DualAxisChart
+                  labels={data.durationSeries!.map(p => p.date)}
+                  leftData={cumWallTime}
+                  leftLabel="Wall time (hours)"
+                  leftColor="rgb(234, 88, 12)"
+                  formatLeftTooltip={(h) => formatDuration(h * 3600)}
+                  rightData={[]}
+                  rightLabel=""
+                  rightColor="transparent"
+                />
+              );
+            })() : (
+              <DualAxisChart
+                labels={data.durationSeries.map(p => p.date)}
+                leftData={data.durationSeries.map(p => Math.round(p.value / 6) / 10)}
+                leftLabel="Visit duration (min)"
+                leftColor="rgb(234, 88, 12)"
+                formatLeftTooltip={(min) => formatDuration(min * 60)}
+                rightData={data.pagesPerVisitSeries?.map(p => p.value) ?? []}
+                rightLabel="Pages per visit"
+                rightColor="rgb(16, 185, 129)"
+              />
+            )}
           </div>
         </div>
       )}
