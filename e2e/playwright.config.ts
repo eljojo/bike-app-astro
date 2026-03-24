@@ -7,6 +7,7 @@ export default defineConfig({
   testDir: '.',
   testMatch: ['screenshots.spec.ts', 'functional.spec.ts'],
   fullyParallel: true,
+  retries: 2,
   workers: '100%',
   outputDir: './test-results',
   snapshotDir: './snapshots',
