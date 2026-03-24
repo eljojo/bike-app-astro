@@ -261,6 +261,30 @@ function detectSeasonal(row: EngagementRow, name: string): InsightCard | null {
   };
 }
 
+function detectLowBounce(row: EngagementRow, medians: MedianValues, name: string): InsightCard | null {
+  // Need meaningful traffic and a bounce rate well below median
+  if (row.totalPageviews < 20) return null;
+  if (medians.avgBounceRate === 0) return null;
+  if (row.avgBounceRate >= medians.avgBounceRate * 0.5) return null;
+
+  const pct = Math.round(row.avgBounceRate);
+  return {
+    type: 'low-bounce',
+    severity: 'positive',
+    title: 'Low bounce rate',
+    name,
+    body: `Only ${pct}% of visitors leave without interacting — less than half the site average.`,
+    contentType: row.contentType,
+    contentSlug: row.contentSlug,
+    metrics: {
+      'Bounce rate': `${pct}%`,
+      'Site median': `${Math.round(medians.avgBounceRate)}%`,
+      'Page views': row.totalPageviews,
+      'Avg duration': formatDuration(row.avgVisitDuration),
+    },
+  };
+}
+
 function detectUnderusedVariant(row: EngagementRow, name: string): InsightCard | null {
   const variants = row.variantViews;
   if (!variants) return null;
@@ -304,9 +328,10 @@ function detectUnderusedVariant(row: EngagementRow, name: string): InsightCard |
  *   3. trending
  *   4. declining
  *   5. strong-performer
- *   6. seasonal
- *   7. videos-working
- *   8. underused-variant
+ *   6. low-bounce
+ *   7. seasonal
+ *   8. videos-working
+ *   9. underused-variant
  */
 export function computeInsights(
   rows: EngagementRow[],
@@ -323,6 +348,7 @@ export function computeInsights(
       detectTrending(row, name) ??
       detectDeclining(row, name) ??
       detectStrongPerformer(row, rows, name) ??
+      detectLowBounce(row, medians, name) ??
       detectSeasonal(row, name) ??
       detectVideosWorking(row, medians, name) ??
       detectUnderusedVariant(row, name);

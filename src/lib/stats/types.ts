@@ -57,7 +57,7 @@ export interface LeaderboardEntry {
 
 /** Auto-generated insight card. */
 export interface InsightCard {
-  type: 'hidden-gem' | 'needs-work' | 'trending' | 'declining' | 'strong-performer' | 'seasonal' | 'videos-working' | 'underused-variant';
+  type: 'hidden-gem' | 'needs-work' | 'trending' | 'declining' | 'strong-performer' | 'seasonal' | 'videos-working' | 'underused-variant' | 'low-bounce';
   severity: 'positive' | 'warning' | 'neutral';
   title: string;
   name: string;

@@ -195,6 +195,33 @@ describe('computeInsights', () => {
     expect(variant!.body).toContain('1%');
   });
 
+  it('detects low bounce rate (less than half the median)', () => {
+    const rows = [
+      makeRow({ contentSlug: 'sticky-page', totalPageviews: 200, avgBounceRate: 15, engagementScore: 0.1 }),
+      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgBounceRate: 50 }),
+      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgBounceRate: 60 }),
+    ];
+    const medians = computeMedians(rows);
+    // Median bounce rate is 50, so 15% is well below 50% threshold (25)
+    const insights = computeInsights(rows, medians);
+    const lowBounce = insights.find(i => i.type === 'low-bounce');
+    expect(lowBounce).toBeDefined();
+    expect(lowBounce!.contentSlug).toBe('sticky-page');
+    expect(lowBounce!.body).toContain('15%');
+  });
+
+  it('does not flag low bounce with too few views', () => {
+    const rows = [
+      makeRow({ contentSlug: 'tiny', totalPageviews: 5, avgBounceRate: 10 }),
+      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgBounceRate: 50 }),
+      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgBounceRate: 60 }),
+    ];
+    const medians = computeMedians(rows);
+    const insights = computeInsights(rows, medians);
+    const lowBounce = insights.find(i => i.type === 'low-bounce' && i.contentSlug === 'tiny');
+    expect(lowBounce).toBeUndefined();
+  });
+
   it('insight body text uses factual language only', () => {
     const rows = [
       makeRow({ contentSlug: 'trending-check', totalPageviews: 200, currentPeriodPageviews: 200, previousPeriodPageviews: 100 }),
