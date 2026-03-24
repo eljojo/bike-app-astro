@@ -529,6 +529,7 @@
   "weather.good_day_tomorrow": "Demain : {temp}°C et {description} — belle journée pour rouler",
   "weather.sunscreen": "N\u2019oubliez pas la crème solaire",
   "weather.air_moderate": "La qualité de l\u2019air est modérée aujourd\u2019hui",
+  "weather.air_unhealthy": "La qualité de l\u2019air est mauvaise aujourd\u2019hui — mieux vaut rester à l\u2019intérieur",
   "weather.clear": "dégagé",
   "weather.mostly_clear": "plutôt dégagé",
   "weather.partly_cloudy": "partiellement nuageux",

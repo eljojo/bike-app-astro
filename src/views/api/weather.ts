@@ -11,7 +11,7 @@ export const prerender = false;
 const CACHE_TTL = 60 * 60; // 1 hour in seconds
 const CLIENT_CACHE_TTL = 900; // 15 minutes
 
-type WeatherIcon = 'sun' | 'cloud-sun' | 'cloud' | 'moon-stars';
+type WeatherIcon = 'sun' | 'cloud-sun' | 'cloud' | 'moon-stars' | 'face-mask';
 
 interface WeatherResponse {
   rideable: boolean;
@@ -71,9 +71,13 @@ export const GET: APIRoute = async ({ url }) => {
     ]);
     const staging = env.ENVIRONMENT === 'staging';
 
-    // AQI > 100 = unhealthy — not a good day to ride
+    // AQI > 100 = unhealthy — show warning instead of ride suggestion
     if (airQuality && airQuality.aqi > 100) {
-      response = { rideable: false };
+      response = {
+        rideable: false,
+        text: t('weather.air_unhealthy', locale),
+        icon: 'face-mask',
+      };
     } else {
       let weatherData;
       if (isEvening && data.daily) {
