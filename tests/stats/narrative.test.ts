@@ -24,14 +24,14 @@ describe('buildNarrative', () => {
     expect(result.some(s => s.includes('1.1 views per visitor'))).toBe(true);
   });
 
-  it('reports high direct landing rate', () => {
+  it('reports high direct landing rate with human fraction', () => {
     const result = buildNarrative({ ...base, entryVisitors: 60 });
-    expect(result.some(s => s.includes('60%') && s.includes('directly'))).toBe(true);
+    expect(result.some(s => s.includes('2 in 3') && s.includes('directly'))).toBe(true);
   });
 
-  it('reports map open rate for routes', () => {
+  it('reports map open rate with human fraction', () => {
     const result = buildNarrative({ ...base, mapConversionRate: 0.45 });
-    expect(result.some(s => s.includes('45%') && s.includes('map'))).toBe(true);
+    expect(result.some(s => s.includes('Half the') && s.includes('map'))).toBe(true);
   });
 
   it('reports map time when significant', () => {
@@ -47,6 +47,12 @@ describe('buildNarrative', () => {
   it('reports stars', () => {
     const result = buildNarrative({ ...base, stars: 5 });
     expect(result.some(s => s.includes('5 people'))).toBe(true);
+  });
+
+  it('does not show 0 seconds visit duration', () => {
+    const result = buildNarrative({ ...base, avgVisitDuration: 0, wallTimeHours: 0 });
+    const allText = result.join(' ');
+    expect(allText).not.toContain('0 seconds');
   });
 
   it('does not interpret visitor intent', () => {

@@ -27,6 +27,22 @@ function formatDuration(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m} minutes`;
 }
 
+/**
+ * Convert a 0–1 rate to a human-friendly fraction string.
+ * Rounds to the nearest "nice" fraction for readability.
+ */
+function humanFraction(rate: number): string {
+  if (rate >= 0.92) return 'Almost all';
+  if (rate >= 0.72) return '3 in 4';
+  if (rate >= 0.6) return '2 in 3';
+  if (rate >= 0.45) return 'Half the';
+  if (rate >= 0.3) return '1 in 3';
+  if (rate >= 0.22) return '1 in 4';
+  if (rate >= 0.17) return '1 in 5';
+  if (rate >= 0.08) return '1 in 10';
+  return `${Math.round(rate * 100)}% of`;
+}
+
 export function buildNarrative(input: NarrativeInput): string[] {
   const sentences: string[] = [];
   const {
@@ -51,19 +67,17 @@ export function buildNarrative(input: NarrativeInput): string[] {
 
   // 2. How people arrive
   if (entryRate > 0.5 && entryVisitors > 5) {
-    sentences.push(`${Math.round(entryRate * 100)}% of visitors land here directly, likely from search or shared links.`);
+    sentences.push(`${humanFraction(entryRate)} visitors land here directly, likely from search or shared links.`);
   } else if (entryRate > 0.2 && entryVisitors > 5) {
-    sentences.push(`${Math.round(entryRate * 100)}% of visitors arrive here from outside the site.`);
+    sentences.push(`${humanFraction(entryRate)} visitors arrive here from outside the site.`);
   } else if (entryRate < 0.05 && totalVisitors > 20) {
     sentences.push('Most visitors navigate here from other pages on the site rather than arriving directly.');
   }
 
   // 3. Map engagement (routes only)
   if (contentType === 'route') {
-    if (mapConversionRate > 0.3) {
-      sentences.push(`${Math.round(mapConversionRate * 100)}% of visitors open the map.`);
-    } else if (mapConversionRate > 0.1) {
-      sentences.push(`${Math.round(mapConversionRate * 100)}% of visitors open the map.`);
+    if (mapConversionRate > 0.1) {
+      sentences.push(`${humanFraction(mapConversionRate)} visitors open the map.`);
     } else if (totalPageviews > 50 && mapConversionRate < 0.05) {
       sentences.push('Less than 5% of visitors open the map.');
     }
@@ -76,7 +90,7 @@ export function buildNarrative(input: NarrativeInput): string[] {
   // 4. Time spent
   if (wallTimePerVisitor > 3) {
     sentences.push(`Each visitor spends an average of ${formatDuration(wallTimePerVisitor * 60)} on this page.`);
-  } else if (avgVisitDuration < 15 && totalPageviews > 30) {
+  } else if (avgVisitDuration > 0 && avgVisitDuration < 15 && totalPageviews > 30) {
     sentences.push(`Average visit duration is ${formatDuration(avgVisitDuration)}.`);
   }
 
@@ -84,7 +98,7 @@ export function buildNarrative(input: NarrativeInput): string[] {
   if (contentType === 'route' && input.gpxDownloads && input.gpxDownloads > 0) {
     const downloadRate = totalVisitors > 0 ? input.gpxDownloads / totalVisitors : 0;
     if (downloadRate > 0.1) {
-      sentences.push(`${Math.round(downloadRate * 100)}% of visitors download the GPX file.`);
+      sentences.push(`${humanFraction(downloadRate)} visitors download the GPX file.`);
     } else if (input.gpxDownloads >= 3) {
       sentences.push(`${input.gpxDownloads} GPX downloads.`);
     }

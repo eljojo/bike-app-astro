@@ -111,11 +111,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
 
     const narrative = eng ? buildNarrative({
       contentType: 'route',
-      totalPageviews: eng.totalPageviews,
+      totalPageviews,
       totalVisitors,
       entryVisitors: totalEntryVisitors,
-      wallTimeHours: eng.wallTimeHours,
-      avgVisitDuration: eng.avgVisitDuration,
+      wallTimeHours,
+      avgVisitDuration,
       mapConversionRate: eng.mapConversionRate,
       mapDurationS: mapDuration,
       stars: eng.stars,
