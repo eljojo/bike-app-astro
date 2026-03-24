@@ -1,4 +1,4 @@
-# 🚲 whereto.bike
+# where to bike 🚲
 
 Open-source cycling platform — one codebase, three modes: community route wiki, personal ride blog, cycling club archive. The WordPress for cycling.
 
