@@ -261,6 +261,42 @@
   display: none;
 }
 
+// Locations list
+.community-locations-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.community-location-card {
+  padding: 1rem;
+  border: 1px solid $color-border;
+  border-radius: 0.5rem;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+  }
+}
+
+.community-location-address {
+  @include muted-text;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.community-location-phone {
+  margin-top: 0.25rem;
+
+  a {
+    color: inherit;
+  }
+}
+
+.community-location-links {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
 // Go back link
 .community-go-back {
   margin-top: 2rem;

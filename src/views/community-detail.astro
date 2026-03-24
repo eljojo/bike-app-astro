@@ -9,7 +9,8 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramUsername } from '@/lib/models/organizer-model';
+import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramUsername, isBikeShop } from '@/lib/models/organizer-model';
+import { categoryEmoji } from '@/lib/geo/place-categories';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
 import { eventCoverKey } from '@/lib/models/event-model';
@@ -34,6 +35,25 @@ export async function getStaticPaths() {
 const { organizer } = Astro.props;
 const data = organizer.data;
 const { videoIds: youtubeIds, cleanedMarkdown: cleanBody } = extractYouTubeUrls(organizer.body || '');
+
+// Load places linked to this organizer
+const allPlaces = await getCollection('places');
+const locations = allPlaces
+  .filter(p => p.data.organizer === organizer.id && p.data.status === 'published')
+  .map(p => ({
+    name: p.data.name,
+    address: p.data.address,
+    phone: p.data.phone,
+    website: p.data.website,
+    google_maps_url: p.data.google_maps_url,
+    lat: p.data.lat,
+    lng: p.data.lng,
+    category: p.data.category,
+    emoji: categoryEmoji[p.data.category] || '📍',
+    social_links: p.data.social_links || [],
+  }));
+
+const isShop = isBikeShop(organizer);
 
 // Load events by this organizer
 const allEvents = await getCollection('events');
@@ -80,6 +100,7 @@ function socialLinkLabel(link: { platform: string; url: string }): string {
     komoot: 'Komoot',
     newsletter: t('social.newsletter', locale),
     mastodon: 'Mastodon',
+    booking: t('social.booking', locale),
   };
   return labels[link.platform] || link.platform;
 }
@@ -149,6 +170,31 @@ const PAST_EVENTS_INITIAL = 4;
     {mediaItems.length > 0 && (
       <section class="community-detail-section">
         <MediaGallery media={mediaItems} name={data.name} />
+      </section>
+    )}
+
+    {locations.length > 0 && (
+      <section class="community-detail-section community-locations">
+        <h2>{t('communities.locations', locale)}</h2>
+        <div class="community-locations-list">
+          {locations.map(loc => (
+            <div class="community-location-card">
+              <div class="community-location-info">
+                <strong>{loc.name}</strong>
+                {loc.address && <div class="community-location-address">{loc.address}</div>}
+                {loc.phone && <div class="community-location-phone"><a href={`tel:${loc.phone.replace(/[^+\d]/g, '')}`}>{loc.phone}</a></div>}
+                <div class="community-location-links">
+                  {loc.social_links.filter(l => l.platform === 'booking').map(l => (
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">{t('social.booking', locale)}</a>
+                  ))}
+                  {loc.google_maps_url && (
+                    <a href={loc.google_maps_url} target="_blank" rel="noopener noreferrer" class="community-social-pill">{t('social.directions', locale)}</a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
     )}
 
