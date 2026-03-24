@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -115,6 +115,36 @@ record-fixtures: ## Re-record Google Directions API fixtures (requires GOOGLE_PL
 	echo "Canonicalizing JSON..."; \
 	jq -S . e2e/fixtures/google-directions/fixture2-directions.json > /tmp/f2.json && mv /tmp/f2.json e2e/fixtures/google-directions/fixture2-directions.json; \
 	jq -S . e2e/fixtures/google-directions/fixture3-directions.json > /tmp/f3.json && mv /tmp/f3.json e2e/fixtures/google-directions/fixture3-directions.json; \
+	echo "Done. Review the JSON files before committing."
+
+record-plausible: ## Re-record Plausible API fixtures (requires PLAUSIBLE_API_KEY in .env)
+	@if [ -z "$$PLAUSIBLE_API_KEY" ] && [ -f .env ]; then \
+		export $$(grep -v '^#' .env | xargs); \
+	fi; \
+	if [ -z "$$PLAUSIBLE_API_KEY" ]; then \
+		echo "Error: PLAUSIBLE_API_KEY not set (check .env)"; \
+		exit 1; \
+	fi; \
+	echo "Recording page breakdown (90d)..."; \
+	hurl --variable plausible_api_key=$$PLAUSIBLE_API_KEY \
+		e2e/fixtures/plausible/record-page-breakdown.hurl \
+		--output e2e/fixtures/plausible/page-breakdown.json; \
+	echo "Recording page breakdown (all time)..."; \
+	hurl --variable plausible_api_key=$$PLAUSIBLE_API_KEY \
+		e2e/fixtures/plausible/record-page-breakdown-full.hurl \
+		--output e2e/fixtures/plausible/page-breakdown-full.json; \
+	echo "Recording daily aggregate..."; \
+	hurl --variable plausible_api_key=$$PLAUSIBLE_API_KEY \
+		e2e/fixtures/plausible/record-daily-aggregate.hurl \
+		--output e2e/fixtures/plausible/daily-aggregate.json; \
+	echo "Recording page daily..."; \
+	hurl --variable plausible_api_key=$$PLAUSIBLE_API_KEY \
+		e2e/fixtures/plausible/record-page-daily.hurl \
+		--output e2e/fixtures/plausible/page-daily.json; \
+	echo "Recording video plays..."; \
+	hurl --variable plausible_api_key=$$PLAUSIBLE_API_KEY \
+		e2e/fixtures/plausible/record-video-plays.hurl \
+		--output e2e/fixtures/plausible/video-plays.json; \
 	echo "Done. Review the JSON files before committing."
 
 clean: ## Remove build artifacts

@@ -7,7 +7,8 @@ export type Action =
   | 'revert-commit' | 'manage-users' | 'delete-media'
   | 'sync-staging' | 'view-history' | 'upload-media'
   | 'import-gpx' | 'update-settings' | 'add-reaction'
-  | 'event-draft' | 'strava-connect';
+  | 'event-draft' | 'strava-connect'
+  | 'view-stats' | 'sync-stats';
 
 type Policy = (user: SessionUser) => boolean;
 
@@ -27,6 +28,8 @@ const policies: Record<Action, Policy> = {
   'delete-media':    (user) => user.role === 'admin',
   'sync-staging':    (user) => user.role === 'admin',
   'strava-connect':  (user) => user.role === 'admin',
+  'view-stats':      (user) => user.role === 'admin',
+  'sync-stats':      (user) => user.role === 'admin',
 };
 
 /**

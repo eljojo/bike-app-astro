@@ -46,6 +46,9 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
       <a href={href} class:list={['admin-nav-link', { active: currentTab === tab }]}>{label}</a>
     ))}
     <a href="/admin/history" class:list={['admin-nav-link', { active: currentTab === 'history' }]}>History</a>
+    {user.role === 'admin' && features.hasRoutes && (
+      <a href="/admin/stats" class:list={['admin-nav-link', { active: currentTab === 'stats' }]}>Stats</a>
+    )}
     {user.role === 'admin' && features.allowsRegistration && (
       <a href="/admin/users" class:list={['admin-nav-link', { active: currentTab === 'users' }]}>Users</a>
     )}

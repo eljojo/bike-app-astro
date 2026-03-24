@@ -328,6 +328,18 @@ declare module 'virtual:bike-app/ride-redirects' {
   export default redirects;
 }
 
+declare module 'virtual:bike-app/route-redirects' {
+  /** Map of old route slug → canonical slug from redirects.yml routes section */
+  const redirects: Record<string, string>;
+  export default redirects;
+}
+
+declare module 'virtual:bike-app/video-route-map' {
+  /** Map of video handle → route slug (from each route's media.yml) */
+  const map: Record<string, string>;
+  export default map;
+}
+
 interface _HomepageFact {
   template?: string;
   text?: string;

@@ -34,13 +34,13 @@ function trackLinkClicks() {
       if (host === thisHost) {
         const path = linkUrl.pathname;
         switch (true) {
+          case path.endsWith('.gpx'): destination = 'gpx'; break;
           case path.endsWith('/map') || path.endsWith('/carte'): destination = 'map page'; break;
           case path.endsWith('/about') || path.endsWith('/a-propos'): destination = 'about'; break;
           case path.endsWith('/calendar') || path.endsWith('/calendrier'): destination = 'calendar'; break;
           case path.includes('/routes') || path.includes('/parcours'): destination = 'routes'; break;
           case path.includes('/videos'): destination = 'videos'; break;
           case path.includes('/guides'): destination = 'guides'; break;
-          case path.includes('gpx'): destination = 'gpx'; break;
           case path.endsWith('.jpg'): return;
           case path.endsWith('.webp'): return;
           default: destination = 'other';
@@ -62,8 +62,13 @@ function trackSocialReferral() {
   for (const [key, value] of Object.entries(networks)) {
     if (params.get(key)) {
       track('Social Visit', { props: { network: value } });
-      break;
+      return;
     }
+  }
+  // utm_source-based referrals (ChatGPT, newsletters, etc.)
+  const utmSource = params.get('utm_source');
+  if (utmSource) {
+    track('Social Visit', { props: { network: utmSource.replace(/\.com$/, '') } });
   }
 }
 

@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import '../../styles/admin.scss';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
+import { authorize } from '../../lib/auth/authorize';
+import StatsDetail from '../../components/admin/StatsDetail';
+
+const features = getInstanceFeatures();
+if (!features.hasRoutes) {
+  return Astro.redirect('/admin');
+}
+
+const user = authorize(Astro.locals, 'view-stats');
+if (user instanceof Response) return user;
+
+const slug = Astro.params.slug;
+if (!slug) return Astro.redirect('/admin/stats');
+---
+
+<Base title={`Stats: ${slug}`} admin>
+  <div class="admin-stats">
+    <AdminHeader user={user} currentTab="stats" />
+    <StatsDetail client:load contentType="event" contentSlug={slug} />
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+
+  .admin-stats {
+    max-width: 1200px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+</style>

@@ -40,4 +40,5 @@ export interface AppEnv {
   MEDIACONVERT_REGION?: string;
   S3_ORIGINALS_BUCKET?: string;
   WEBHOOK_SECRET?: string;
+  PLAUSIBLE_API_KEY?: string;
 }
