@@ -209,7 +209,7 @@ export async function queryContentTimeSeries(
     date: contentDailyMetrics.date,
     pageviews: sql<number>`SUM(${contentDailyMetrics.pageviews})`,
     visitors: sql<number>`SUM(${contentDailyMetrics.visitorDays})`,
-    avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.pageviews}) > 0 THEN SUM(${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.pageviews}) ELSE 0 END`,
+    avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.visitorDays}) > 0 THEN SUM(${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.visitorDays}) ELSE 0 END`,
     entryVisitors: sql<number>`COALESCE(SUM(${contentDailyMetrics.entryVisitors}), 0)`,
     gpxDownloads: sql<number>`COALESCE(SUM(${contentDailyMetrics.gpxDownloads}), 0)`,
   }).from(contentDailyMetrics)
@@ -232,7 +232,7 @@ export async function queryContentFunnel(
   return db.select({
     pageType: contentTotals.pageType,
     total: contentTotals.pageviews,
-    avgDuration: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.visitDurationS} / ${contentTotals.pageviews} ELSE 0 END`,
+    avgDuration: sql<number>`CASE WHEN ${contentTotals.visitorDays} > 0 THEN ${contentTotals.visitDurationS} / ${contentTotals.visitorDays} ELSE 0 END`,
   }).from(contentTotals)
     .where(and(
       eq(contentTotals.city, city),

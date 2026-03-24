@@ -61,11 +61,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const totalVisitors = daily.reduce((sum, d) => sum + (d.visitors ?? 0), 0);
     const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
     const totalGpxDownloads = daily.reduce((sum, d) => sum + (d.gpxDownloads ?? 0), 0);
-    // Wall time = sum of (daily pageviews × daily avg duration) / 3600
-    const wallTimeHours = daily.reduce((sum, d) => sum + d.pageviews * (d.avgDuration ?? 0) / 3600, 0);
-    // Weighted avg visit duration across the period
-    const avgVisitDuration = totalPageviews > 0
-      ? daily.reduce((sum, d) => sum + d.pageviews * (d.avgDuration ?? 0), 0) / totalPageviews
+    // Wall time = sum of (daily visitors × daily avg duration per visitor) / 3600
+    const wallTimeHours = daily.reduce((sum, d) => sum + (d.visitors ?? 0) * (d.avgDuration ?? 0) / 3600, 0);
+    // Weighted avg visit duration across the period (weighted by visitors, not pageviews)
+    const avgVisitDuration = totalVisitors > 0
+      ? daily.reduce((sum, d) => sum + (d.visitors ?? 0) * (d.avgDuration ?? 0), 0) / totalVisitors
       : 0;
     const viewsPerVisitor = totalVisitors > 0 ? Math.round(totalPageviews / totalVisitors * 10) / 10 : 0;
     const wallTimePerVisitor = totalVisitors > 0 ? wallTimeHours / totalVisitors * 60 : 0;

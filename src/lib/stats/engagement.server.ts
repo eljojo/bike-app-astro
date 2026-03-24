@@ -54,8 +54,8 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
       pageType: contentTotals.pageType,
       totalPageviews: contentTotals.pageviews,
       totalVisitorDays: contentTotals.visitorDays,
-      // visitDurationS is TOTAL seconds (not avg per visit) — divide by pageviews for avg
-      avgVisitDuration: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.visitDurationS} / ${contentTotals.pageviews} ELSE 0 END`,
+      // visitDurationS is TOTAL seconds — divide by visitors for per-visit avg
+      avgVisitDuration: sql<number>`CASE WHEN ${contentTotals.visitorDays} > 0 THEN ${contentTotals.visitDurationS} / ${contentTotals.visitorDays} ELSE 0 END`,
       avgBounceRate: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.bounceRate} ELSE 0 END`,
       // Wall time = total seconds / 3600 (NOT pageviews * seconds, since seconds is already total)
       wallTimeHours: sql<number>`${contentTotals.visitDurationS} / 3600.0`,

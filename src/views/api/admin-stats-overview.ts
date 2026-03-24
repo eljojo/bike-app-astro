@@ -178,9 +178,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       date: d.date, value: d.pageviews, secondaryValue: d.visitors,
     }));
 
-    // totalDurationS is total seconds for the whole site that day — divide by pageviews for per-visit avg
+    // totalDurationS is total seconds for the whole site that day — divide by visitors for per-visit avg
     const durationSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: d.pageviews > 0 ? Math.round(d.totalDurationS / d.pageviews) : 0,
+      date: d.date, value: d.visitors > 0 ? Math.round(d.totalDurationS / d.visitors) : 0,
     }));
 
     const pagesPerVisitSeries: TimeSeriesPoint[] = dailyData.map(d => ({

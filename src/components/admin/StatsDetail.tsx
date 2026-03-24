@@ -316,10 +316,11 @@ export default function StatsDetail({ contentType, contentSlug }: { contentType:
               <div class="stats-chart-wrapper">
                 {cumulative ? (
                   <DurationChart series={(() => {
-                    // Cumulative wall time in hours: sum of (pageviews × avg_duration_s / 3600)
+                    // Cumulative wall time in hours: sum of (visitors × avg_duration_per_visitor / 3600)
                     const wallTimePerDay = data.timeSeries.map((p, i) => {
                       const durationS = data.durationSeries![i]?.value ?? 0;
-                      return p.value * durationS / 3600;
+                      const visitors = p.secondaryValue ?? 0;
+                      return visitors * durationS / 3600;
                     });
                     let sum = 0;
                     return data.durationSeries!.map((p, i) => {

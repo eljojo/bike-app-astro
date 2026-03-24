@@ -41,7 +41,7 @@ Plausible's `visit_duration` metric returns **total seconds** spent on a page on
 - `visitDurationS` in `content_daily_metrics` and `content_totals` — total seconds per page
 - `totalDurationS` in `site_daily_metrics` — total seconds site-wide
 
-To get average per visit, divide by pageviews. Wall time = `SUM(visitDurationS) / 3600`, NOT `SUM(pageviews * visitDurationS) / 3600`.
+To get average per visit, divide by **visitors** (not pageviews). A visit can have multiple pageviews — dividing by pageviews gives time-per-pageview which is much smaller than time-per-visit. Wall time = `SUM(visitDurationS) / 3600` or `SUM(visitors * avgDurationPerVisitor) / 3600`.
 
 ### Aggregate Before Writing Totals
 
