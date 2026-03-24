@@ -1,280 +1,30 @@
-import type { PlausibleRow } from '../external/plausible-api.server';
 import { queryPlausible } from '../external/plausible-api.server';
 import type { Database } from '../../db';
-import { resolveUrl, detectLocale } from './url-resolver.server';
 import { rebuildEngagement } from './engagement.server';
 import { invalidateStatsCache, readStatsCache, writeStatsCache } from './cache.server';
 import { translatePath } from '../i18n/path-translations';
 import { contentDailyMetrics, contentTotals, siteDailyMetrics, siteEventMetrics } from '../../db/schema';
 import { sql, eq, and, desc } from 'drizzle-orm';
+import {
+  processPageBreakdown,
+  processPageDaily,
+  processDailyAggregate,
+  aggregateContentRows,
+} from './parsers.server';
+import {
+  BATCH_SIZE,
+  esc,
+  upsertContentRows,
+  upsertTotalsRows,
+  upsertDailyRows,
+  upsertEventRows,
+} from './upsert.server';
+import type { EventMetricRow } from './upsert.server';
 
-/**
- * A content page metric row ready for DB upsert.
- */
-export interface ContentMetricRow {
-  city: string;
-  contentType: string;
-  contentSlug: string;
-  pageType: string;
-  date: string;
-  pageviews: number;
-  visitorDays: number;
-  visitDurationS: number;
-  bounceRate: number;
-  videoPlays: number;
-  gpxDownloads: number;
-}
-
-/**
- * A site daily metric row ready for DB upsert.
- */
-export interface DailyMetricRow {
-  city: string;
-  date: string;
-  totalPageviews: number;
-  uniqueVisitors: number;
-  totalDurationS: number;
-}
-
-/**
- * Process Plausible page-breakdown results (aggregate, no date dimension).
- * Dimensions: [pagePath]. Used for engagement score computation.
- */
-export function processPageBreakdown(
-  rows: PlausibleRow[],
-  city: string,
-  slugAliases: Record<string, string>,
-  redirects: Record<string, string>,
-  date: string,
-  locales: string[],
-  defaultLoc: string,
-  videoRouteMap?: Record<string, string>,
-): { contentRows: ContentMetricRow[]; skippedPaths: string[] } {
-  const contentRows: ContentMetricRow[] = [];
-  const skippedPaths: string[] = [];
-
-  for (const row of rows) {
-    const fullPath = row.dimensions[0];
-    const [locale, pathWithoutLocale] = detectLocale(fullPath, locales, defaultLoc);
-    const identity = resolveUrl(pathWithoutLocale, locale, slugAliases, redirects, videoRouteMap);
-
-    if (!identity) {
-      skippedPaths.push(fullPath);
-      continue;
-    }
-
-    contentRows.push({
-      city,
-      contentType: identity.contentType,
-      contentSlug: identity.contentSlug,
-      pageType: identity.pageType,
-      date,
-      // Metrics order: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate']
-      pageviews: row.metrics[0],
-      visitorDays: row.metrics[1],
-      visitDurationS: row.metrics[2],
-      bounceRate: row.metrics[3],
-      videoPlays: 0,
-      gpxDownloads: 0,
-    });
-  }
-
-  return { contentRows, skippedPaths };
-}
-
-// Keep old name as alias for test compatibility
-export const processPlausibleData = processPageBreakdown;
-
-/**
- * Process Plausible daily per-page results.
- * Dimensions: [date, pagePath]. Used for drill-down time series.
- */
-export function processPageDaily(
-  rows: PlausibleRow[],
-  city: string,
-  slugAliases: Record<string, string>,
-  redirects: Record<string, string>,
-  locales: string[],
-  defaultLoc: string,
-  videoRouteMap?: Record<string, string>,
-): { contentRows: ContentMetricRow[]; skippedPaths: string[] } {
-  const contentRows: ContentMetricRow[] = [];
-  const skippedPaths: string[] = [];
-
-  for (const row of rows) {
-    const date = row.dimensions[0];
-    const fullPath = row.dimensions[1];
-    const [locale, pathWithoutLocale] = detectLocale(fullPath, locales, defaultLoc);
-    const identity = resolveUrl(pathWithoutLocale, locale, slugAliases, redirects, videoRouteMap);
-
-    if (!identity) {
-      skippedPaths.push(fullPath);
-      continue;
-    }
-
-    contentRows.push({
-      city,
-      contentType: identity.contentType,
-      contentSlug: identity.contentSlug,
-      pageType: identity.pageType,
-      date,
-      pageviews: row.metrics[0],
-      visitorDays: row.metrics[1],
-      visitDurationS: row.metrics[2],
-      bounceRate: row.metrics[3],
-      videoPlays: 0,
-      gpxDownloads: 0,
-    });
-  }
-
-  return { contentRows, skippedPaths };
-}
-
-/**
- * Process Plausible daily aggregate results into site daily metric rows.
- * Metrics order: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate']
- * Dimensions: [date]
- */
-export function processDailyAggregate(
-  rows: PlausibleRow[],
-  city: string,
-): DailyMetricRow[] {
-  return rows.map((row) => ({
-    city,
-    date: row.dimensions[0],
-    totalPageviews: row.metrics[0],
-    uniqueVisitors: row.metrics[1],
-    totalDurationS: row.metrics[2] ?? 0,
-  }));
-}
-
-// ── Batch upsert helpers ────────────────────────────────────────────
-// D1 has ~30-50ms latency per query. Row-by-row inserts of 300 rows
-// would take 9-15 seconds. Batching into chunks of 50 rows brings
-// that down to ~6 queries = ~200ms.
-
-const BATCH_SIZE = 50;
-
-/**
- * Upsert content page metric rows in batches.
- */
-export async function upsertContentRows(db: Database, rows: ContentMetricRow[]): Promise<void> {
-  if (rows.length === 0) return;
-
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
-    const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}','${esc(r.date)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},${r.gpxDownloads})`
-    ).join(',');
-
-    await db.run(sql.raw(`INSERT INTO content_daily_metrics (city, content_type, content_slug, page_type, date, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, gpx_downloads)
-      VALUES ${values}
-      ON CONFLICT (city, content_type, content_slug, page_type, date)
-      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays, gpx_downloads=excluded.gpx_downloads`));
-  }
-}
-
-/**
- * A content totals row ready for DB upsert (no date — all-time aggregate).
- */
-export interface TotalsRow {
-  city: string;
-  contentType: string;
-  contentSlug: string;
-  pageType: string;
-  pageviews: number;
-  visitorDays: number;
-  visitDurationS: number;
-  bounceRate: number;
-  videoPlays: number;
-  gpxDownloads: number;
-  syncedAt: string;
-}
-
-/**
- * Upsert content totals rows in batches.
- */
-export async function upsertTotalsRows(db: Database, rows: TotalsRow[]): Promise<void> {
-  if (rows.length === 0) return;
-
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
-    const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}','${esc(r.pageType)}',${r.pageviews},${r.visitorDays},${r.visitDurationS},${r.bounceRate},${r.videoPlays},${r.gpxDownloads},'${esc(r.syncedAt)}')`
-    ).join(',');
-
-    await db.run(sql.raw(`INSERT INTO content_totals (city, content_type, content_slug, page_type, pageviews, visitor_days, visit_duration_s, bounce_rate, video_plays, gpx_downloads, synced_at)
-      VALUES ${values}
-      ON CONFLICT (city, content_type, content_slug, page_type)
-      DO UPDATE SET pageviews=excluded.pageviews, visitor_days=excluded.visitor_days, visit_duration_s=excluded.visit_duration_s, bounce_rate=excluded.bounce_rate, video_plays=excluded.video_plays, gpx_downloads=excluded.gpx_downloads, synced_at=excluded.synced_at`));
-  }
-}
-
-/**
- * Upsert site daily metric rows in batches.
- */
-export async function upsertDailyRows(db: Database, rows: DailyMetricRow[]): Promise<void> {
-  if (rows.length === 0) return;
-
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
-    const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.date)}',${r.totalPageviews},${r.uniqueVisitors},${r.totalDurationS})`
-    ).join(',');
-
-    await db.run(sql.raw(`INSERT INTO site_daily_metrics (city, date, total_pageviews, unique_visitors, total_duration_s)
-      VALUES ${values}
-      ON CONFLICT (city, date)
-      DO UPDATE SET total_pageviews=excluded.total_pageviews, unique_visitors=excluded.unique_visitors, total_duration_s=excluded.total_duration_s`));
-  }
-}
-
-/** Escape single quotes in SQL values. */
-function esc(s: string): string {
-  return s.replace(/'/g, "''");
-}
-
-/**
- * Aggregate content metric rows by (contentType, contentSlug, pageType) into totals rows.
- * Multiple Plausible paths map to the same content identity — e.g. /routes/wakefield
- * and /routes/wakefield/ both resolve to (route, wakefield, detail). Sum their metrics.
- */
-export function aggregateContentRows(contentRows: ContentMetricRow[], syncedAt: string): TotalsRow[] {
-  const totalsMap = new Map<string, TotalsRow>();
-  for (const r of contentRows) {
-    const key = `${r.contentType}:${r.contentSlug}:${r.pageType}`;
-    const existing = totalsMap.get(key);
-    if (existing) {
-      const prevPv = existing.pageviews;
-      existing.pageviews += r.pageviews;
-      existing.visitorDays += r.visitorDays;
-      // visitDurationS is TOTAL seconds — just sum them
-      existing.visitDurationS += r.visitDurationS;
-      // bounceRate IS an average — weighted merge
-      const totalPv = existing.pageviews;
-      if (totalPv > 0) {
-        existing.bounceRate = (existing.bounceRate * prevPv + r.bounceRate * r.pageviews) / totalPv;
-      }
-      existing.videoPlays += r.videoPlays;
-      existing.gpxDownloads += r.gpxDownloads;
-    } else {
-      totalsMap.set(key, {
-        city: r.city,
-        contentType: r.contentType,
-        contentSlug: r.contentSlug,
-        pageType: r.pageType,
-        pageviews: r.pageviews,
-        visitorDays: r.visitorDays,
-        visitDurationS: r.visitDurationS,
-        bounceRate: r.bounceRate,
-        videoPlays: r.videoPlays,
-        gpxDownloads: r.gpxDownloads,
-        syncedAt,
-      });
-    }
-  }
-  return [...totalsMap.values()];
-}
+// Re-exports for backwards compatibility
+export { processPageBreakdown, processPlausibleData, processPageDaily, processDailyAggregate, aggregateContentRows } from './parsers.server';
+export type { ContentMetricRow, DailyMetricRow, TotalsRow } from './parsers.server';
+export { upsertContentRows, upsertTotalsRows, upsertDailyRows } from './upsert.server';
 
 /**
  * Check whether site-level analytics data needs syncing.
@@ -292,7 +42,7 @@ export async function needsSync(db: Database, city: string, maxAgeMs = 24 * 60 *
   return (Date.now() - lastDate.getTime()) > maxAgeMs;
 }
 
-interface SyncOptions {
+export interface SyncOptions {
   apiKey: string;
   siteId: string;
   city: string;
@@ -628,30 +378,6 @@ export async function ensurePageDailyData(
 }
 
 // ── Site event metrics sync ──────────────────────────────────────────
-
-interface EventMetricRow {
-  city: string;
-  eventName: string;
-  date: string;
-  dimensionValue: string;
-  visitors: number;
-}
-
-async function upsertEventRows(db: Database, rows: EventMetricRow[]): Promise<void> {
-  if (rows.length === 0) return;
-
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
-    const values = batch.map(r =>
-      `('${esc(r.city)}','${esc(r.eventName)}','${esc(r.date)}','${esc(r.dimensionValue)}',${r.visitors})`
-    ).join(',');
-
-    await db.run(sql.raw(`INSERT INTO site_event_metrics (city, event_name, date, dimension_value, visitors)
-      VALUES ${values}
-      ON CONFLICT (city, event_name, date, dimension_value)
-      DO UPDATE SET visitors=excluded.visitors`));
-  }
-}
 
 /**
  * Ensure site_event_metrics has data for the given date range.
