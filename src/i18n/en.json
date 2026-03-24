@@ -529,6 +529,7 @@
   "404.heading": "Wrong Turn!",
   "404.message": "Looks like this route doesn't exist. Maybe it was moved, or perhaps you pedaled past it.",
   "weather.good_day": "{temp}°C and {description} — good day for a ride",
+  "weather.good_day_tomorrow": "Tomorrow: {temp}°C and {description} — good day for a ride",
   "weather.sunscreen": "Don\u2019t forget sunscreen",
   "weather.clear": "clear",
   "weather.mostly_clear": "mostly clear",

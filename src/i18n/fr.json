@@ -526,6 +526,7 @@
   "social.sign_up_form": "Formulaire d'inscription",
   "social.newsletter": "Infolettre",
   "weather.good_day": "{temp}°C et {description} — belle journée pour rouler",
+  "weather.good_day_tomorrow": "Demain : {temp}°C et {description} — belle journée pour rouler",
   "weather.sunscreen": "N\u2019oubliez pas la crème solaire",
   "weather.clear": "dégagé",
   "weather.mostly_clear": "plutôt dégagé",

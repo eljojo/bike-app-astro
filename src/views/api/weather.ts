@@ -3,8 +3,7 @@ import type { APIRoute } from 'astro';
 import { env, tileCache } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
-import { fetchCurrentWeather, evaluateWeather } from '../../lib/external/open-meteo.server';
-import type { WeatherResult } from '../../lib/external/open-meteo.server';
+import { fetchWeather, evaluateWeather, tomorrowForecast } from '../../lib/external/open-meteo.server';
 import { t } from '../../i18n';
 
 export const prerender = false;
@@ -16,6 +15,7 @@ interface WeatherResponse {
   rideable: boolean;
   text?: string;
   sunscreen?: string;
+  icon?: 'sun' | 'moon';
 }
 
 function jsonResponse(data: WeatherResponse): Response {
@@ -27,9 +27,20 @@ function jsonResponse(data: WeatherResponse): Response {
   });
 }
 
+function localHour(timezone: string): number {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { timeZone: timezone, hour12: false, hour: 'numeric' });
+  return parseInt(timeStr, 10);
+}
+
 export const GET: APIRoute = async ({ url }) => {
   const locale = url.searchParams.get('locale') || undefined;
-  const cacheKey = `weather:${CITY}:${locale || 'default'}`;
+  const config = getCityConfig();
+  const timezone = config.timezone || 'UTC';
+  const hour = localHour(timezone);
+  const isNight = hour < 6 || hour >= 19;
+
+  const cacheKey = `weather:${CITY}:${locale || 'default'}:${isNight ? 'night' : 'day'}`;
 
   // Check cache
   const cached = await tileCache.get(cacheKey).catch(() => null);
@@ -39,27 +50,34 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   // Fetch from Open-Meteo
-  const { center } = getCityConfig();
-  let result: WeatherResult;
+  let response: WeatherResponse;
   try {
-    const current = await fetchCurrentWeather(center.lat, center.lng);
-    result = evaluateWeather(current, { staging: env.ENVIRONMENT === 'staging' });
+    const data = await fetchWeather(config.center.lat, config.center.lng, timezone);
+    const staging = env.ENVIRONMENT === 'staging';
+
+    const weatherData = isNight && data.daily
+      ? tomorrowForecast(data.daily)
+      : data.current;
+    const result = evaluateWeather(weatherData, { staging });
+
+    if (!result.rideable || result.temperature == null || !result.descriptionKey) {
+      response = { rideable: false };
+    } else {
+      const description = t(`weather.${result.descriptionKey}`, locale);
+      const key = isNight ? 'weather.good_day_tomorrow' : 'weather.good_day';
+      const text = t(key, locale, { temp: result.temperature, description });
+      response = {
+        rideable: true,
+        text,
+        icon: isNight ? 'moon' : 'sun',
+      };
+      if (result.uvIndex != null && result.uvIndex >= 6) {
+        response.sunscreen = t('weather.sunscreen', locale);
+      }
+    }
   } catch (err) {
     console.error('Weather fetch failed:', err);
-    result = { rideable: false };
-  }
-
-  // Build translated response
-  let response: WeatherResponse;
-  if (!result.rideable || result.temperature == null || !result.descriptionKey) {
     response = { rideable: false };
-  } else {
-    const description = t(`weather.${result.descriptionKey}`, locale);
-    const text = t('weather.good_day', locale, { temp: result.temperature, description });
-    response = { rideable: true, text };
-    if (result.uvIndex != null && result.uvIndex >= 6) {
-      response.sunscreen = t('weather.sunscreen', locale);
-    }
   }
 
   // Cache result (fire-and-forget)

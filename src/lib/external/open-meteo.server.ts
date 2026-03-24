@@ -12,6 +12,8 @@ export interface WeatherResult {
   temperature?: number;
   descriptionKey?: string;
   uvIndex?: number;
+  /** true when showing tomorrow's forecast (nighttime request) */
+  tomorrow?: boolean;
 }
 
 /** WMO code → i18n key suffix (translated by the API endpoint via t()) */
@@ -46,14 +48,34 @@ export function evaluateWeather(current: OpenMeteoCurrentWeather, { staging = fa
   };
 }
 
-/** Fetch current weather from Open-Meteo. Throws on non-200 responses. */
-export async function fetchCurrentWeather(lat: number, lng: number): Promise<OpenMeteoCurrentWeather> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index`;
+interface OpenMeteoResponse {
+  current: OpenMeteoCurrentWeather;
+  daily?: {
+    temperature_2m_max: number[];
+    weather_code: number[];
+    wind_speed_10m_max: number[];
+    uv_index_max: number[];
+  };
+}
+
+/** Fetch current weather + tomorrow's daily forecast from Open-Meteo. */
+export async function fetchWeather(lat: number, lng: number, timezone: string): Promise<OpenMeteoResponse> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&daily=temperature_2m_max,weather_code,wind_speed_10m_max,uv_index_max&forecast_days=2&timezone=${encodeURIComponent(timezone)}`;
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     throw new Error(`Open-Meteo API error: ${response.status} — ${body}`);
   }
-  const data = await response.json();
-  return data.current;
+  return response.json();
+}
+
+/** Extract tomorrow's forecast from daily arrays as an OpenMeteoCurrentWeather-compatible shape. */
+export function tomorrowForecast(daily: NonNullable<OpenMeteoResponse['daily']>): OpenMeteoCurrentWeather {
+  // Index 1 = tomorrow (index 0 = today)
+  return {
+    temperature_2m: daily.temperature_2m_max[1],
+    wind_speed_10m: daily.wind_speed_10m_max[1],
+    weather_code: daily.weather_code[1],
+    uv_index: daily.uv_index_max[1],
+  };
 }

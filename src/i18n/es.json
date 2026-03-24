@@ -529,6 +529,7 @@
   "404.heading": "¡Giro equivocado!",
   "404.message": "Parece que esta página no existe. Quizás fue movida.",
   "weather.good_day": "{temp}°C y {description} — buen día para salir a pedalear",
+  "weather.good_day_tomorrow": "Mañana: {temp}°C y {description} — buen día para salir a pedalear",
   "weather.sunscreen": "No olvides el protector solar",
   "weather.clear": "despejado",
   "weather.mostly_clear": "mayormente despejado",

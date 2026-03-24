@@ -462,7 +462,9 @@
 // Weather card — low-key nudge when conditions are good
 .magazine-weather {
   .weather-card-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.75rem 1rem;
     border: 1px solid $color-border;
     border-radius: 8px;
