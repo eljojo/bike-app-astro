@@ -8,9 +8,9 @@
   "footer.powered_by": "fait avec whereto.bike",
   "home.welcome": "Nouveau au vélo? Cycliste expérimenté? Trouvez votre nouveau parcours préféré et explorez la nature!",
   "home.identity": "Parcours cyclistes entretenus par la communauté pour {name}. Créé par des gens qui roulent ici.",
-  "home.suggest_route": "Vous connaissez un parcours qui manque\u00a0? Ajoutez-le — partagez un trajet que vous aimez.",
+  "home.suggest_route": "Vous connaissez un parcours qui manque ? Ajoutez-le — partagez un trajet que vous aimez.",
   "home.suggest_route_few": "Aidez à construire la bibliothèque de parcours — ajoutez un trajet que vous aimez",
-  "home.suggest_route_many": "Vous connaissez un autre beau parcours\u00a0? Ajoutez-le",
+  "home.suggest_route_many": "Vous connaissez un autre beau parcours ? Ajoutez-le",
   "filter.choose_tag": "choisir un tag pour filtrer :",
   "filter.all": "tout",
   "route.elevation_gain": "Dénivelé positif",
@@ -42,9 +42,9 @@
   "places.website": "site web",
   "places.summary_prefix": "passe par",
   "places.show_all": "Afficher les {count} lieux",
-  "places.add_near_route": "Vous connaissez un lieu près de cette route\u00a0? Ajoutez-le.",
-  "places.add_near_route_long": "Vous connaissez un café, parc ou point d'eau près de ce parcours\u00a0? Ajoutez-le.",
-  "places.add_missing": "Vous connaissez un lieu qui manque\u00a0? Ajoutez-le.",
+  "places.add_near_route": "Vous connaissez un lieu près de cette route ? Ajoutez-le.",
+  "places.add_near_route_long": "Vous connaissez un café, parc ou point d'eau près de ce parcours ? Ajoutez-le.",
+  "places.add_missing": "Vous connaissez un lieu qui manque ? Ajoutez-le.",
   "calendar.title": "Événements cyclistes pour {year}",
   "calendar.subscribe": "S'abonner au flux iCal",
   "calendar.google": "Ajouter à Google Agenda",
@@ -87,8 +87,8 @@
   "route.distance": "Distance",
   "route.shape": "Type",
   "route.suggest_edit": "Suggérer une modification",
-  "route.edit_description": "Quelque chose à corriger\u00a0? Vous pouvez le faire — chaque modification peut être annulée.",
-  "route.add_photo": "Vous avez une photo de ce parcours\u00a0? Ajoutez-la.",
+  "route.edit_description": "Quelque chose à corriger ? Vous pouvez le faire — chaque modification peut être annulée.",
+  "route.add_photo": "Vous avez une photo de ce parcours ? Ajoutez-la.",
   "route.add_first_photo": "Soyez la première personne à partager une photo de ce parcours.",
   "strava.open": "Ouvrir dans Strava",
   "rwgps.open": "Ouvrir dans Ride With GPS",
@@ -107,27 +107,86 @@
   "shape.loop": "boucle",
   "shape.one-way": "aller simple",
   "shape.out-and-back": "aller-retour",
-  "category.cafe": ["café", "cafés"],
-  "category.restaurant": ["restaurant", "restaurants"],
-  "category.park": ["parc", "parcs"],
-  "category.beach": ["plage", "plages"],
-  "category.bike-shop": ["magasin de vélo", "magasins de vélo"],
-  "category.bike-trail": ["sentier", "sentiers"],
-  "category.water-fountain": ["fontaine d'eau", "fontaines d'eau"],
-  "category.chill-spot": ["coin repos", "coins repos"],
-  "category.lookout": ["belvédère", "belvédères"],
-  "category.bridge": ["pont", "ponts"],
-  "category.poutine": ["poutine", "poutines"],
-  "category.beer": ["brasserie", "brasseries"],
-  "category.pizza": ["pizzeria", "pizzerias"],
-  "category.ice-cream": ["crèmerie", "crèmeries"],
-  "category.bike-rental": ["location de vélo", "locations de vélo"],
-  "category.ferry": ["traversier", "traversiers"],
-  "category.parking": ["stationnement", "stationnements"],
-  "category.meeting-point": ["point de rencontre", "points de rencontre"],
-  "category.camping-spot": ["camping", "campings"],
-  "category.wc": ["toilettes", "toilettes"],
-
+  "category.cafe": [
+    "café",
+    "cafés"
+  ],
+  "category.restaurant": [
+    "restaurant",
+    "restaurants"
+  ],
+  "category.park": [
+    "parc",
+    "parcs"
+  ],
+  "category.beach": [
+    "plage",
+    "plages"
+  ],
+  "category.bike-shop": [
+    "magasin de vélo",
+    "magasins de vélo"
+  ],
+  "category.bike-trail": [
+    "sentier",
+    "sentiers"
+  ],
+  "category.water-fountain": [
+    "fontaine d'eau",
+    "fontaines d'eau"
+  ],
+  "category.chill-spot": [
+    "coin repos",
+    "coins repos"
+  ],
+  "category.lookout": [
+    "belvédère",
+    "belvédères"
+  ],
+  "category.bridge": [
+    "pont",
+    "ponts"
+  ],
+  "category.poutine": [
+    "poutine",
+    "poutines"
+  ],
+  "category.beer": [
+    "brasserie",
+    "brasseries"
+  ],
+  "category.pizza": [
+    "pizzeria",
+    "pizzerias"
+  ],
+  "category.ice-cream": [
+    "crèmerie",
+    "crèmeries"
+  ],
+  "category.bike-rental": [
+    "location de vélo",
+    "locations de vélo"
+  ],
+  "category.ferry": [
+    "traversier",
+    "traversiers"
+  ],
+  "category.parking": [
+    "stationnement",
+    "stationnements"
+  ],
+  "category.meeting-point": [
+    "point de rencontre",
+    "points de rencontre"
+  ],
+  "category.camping-spot": [
+    "camping",
+    "campings"
+  ],
+  "category.wc": [
+    "toilettes",
+    "toilettes"
+  ],
   "nav.events": "Événements",
   "nav.routes": "Parcours",
   "nav.places": "Lieux",
@@ -185,7 +244,7 @@
   "events.rsvp_instagram": "RSVP sur Instagram",
   "events.past_event": "Cet {noun} est passé.",
   "events.follow_next": "Suivez {name} pour la prochaine édition",
-  "events.next_edition": "Prochaine édition\u00a0: {name}",
+  "events.next_edition": "Prochaine édition : {name}",
   "events.checkpoints_count": "{count} points de contrôle",
   "events.finishers_count": "{count} arrivants",
   "events.editions": "Autres dates",
@@ -231,28 +290,85 @@
   "events.view_route_map": "Voir le tracé",
   "events.view_route_map_on": "Voir le tracé sur {service}",
   "events.also_on": "Aussi sur {service}",
-  "events.noun.default": ["événement", "événements"],
-  "events.noun.brevet": ["parcours", "parcours"],
-  "events.noun.gravel": ["parcours", "parcours"],
-  "events.noun.group-ride": ["parcours", "parcours"],
-  "events.noun.race": ["course", "courses"],
-  "events.noun.criterium": ["course", "courses"],
-  "events.noun.workshop": ["atelier", "ateliers"],
-  "events.noun.conference": ["conférence", "conférences"],
-  "events.noun.critical-mass": ["parcours", "parcours"],
-  "events.noun.triathlon": ["course", "courses"],
-  "events.noun.duathlon": ["course", "courses"],
-  "events.noun.gran-fondo": ["parcours", "parcours"],
-  "events.noun.tour": ["tour", "tours"],
-  "events.noun.charity-ride": ["parcours", "parcours"],
-  "events.noun.bikepacking": ["aventure", "aventures"],
-  "events.noun.social": ["rencontre", "rencontres"],
-  "events.noun.advocacy": ["rencontre", "rencontres"],
-  "events.noun.festival": ["festival", "festivals"],
-  "events.noun.swap-meet": ["rencontre", "rencontres"],
+  "events.noun.default": [
+    "événement",
+    "événements"
+  ],
+  "events.noun.brevet": [
+    "parcours",
+    "parcours"
+  ],
+  "events.noun.gravel": [
+    "parcours",
+    "parcours"
+  ],
+  "events.noun.group-ride": [
+    "parcours",
+    "parcours"
+  ],
+  "events.noun.race": [
+    "course",
+    "courses"
+  ],
+  "events.noun.criterium": [
+    "course",
+    "courses"
+  ],
+  "events.noun.workshop": [
+    "atelier",
+    "ateliers"
+  ],
+  "events.noun.conference": [
+    "conférence",
+    "conférences"
+  ],
+  "events.noun.critical-mass": [
+    "parcours",
+    "parcours"
+  ],
+  "events.noun.triathlon": [
+    "course",
+    "courses"
+  ],
+  "events.noun.duathlon": [
+    "course",
+    "courses"
+  ],
+  "events.noun.gran-fondo": [
+    "parcours",
+    "parcours"
+  ],
+  "events.noun.tour": [
+    "tour",
+    "tours"
+  ],
+  "events.noun.charity-ride": [
+    "parcours",
+    "parcours"
+  ],
+  "events.noun.bikepacking": [
+    "aventure",
+    "aventures"
+  ],
+  "events.noun.social": [
+    "rencontre",
+    "rencontres"
+  ],
+  "events.noun.advocacy": [
+    "rencontre",
+    "rencontres"
+  ],
+  "events.noun.festival": [
+    "festival",
+    "festivals"
+  ],
+  "events.noun.swap-meet": [
+    "rencontre",
+    "rencontres"
+  ],
   "events.photos_count": "{count} photos",
-  "events.edit_description": "Quelque chose à corriger\u00a0? Vous pouvez le faire — chaque modification peut être annulée.",
-  "events.meet_time": "Rendez-vous {meet} \u00b7 Départ {roll}",
+  "events.edit_description": "Quelque chose à corriger ? Vous pouvez le faire — chaque modification peut être annulée.",
+  "events.meet_time": "Rendez-vous {meet} · Départ {roll}",
   "events.next.default": "Prochain événement",
   "events.next.brevet": "Prochain parcours",
   "events.next.gravel": "Prochain parcours",
@@ -275,7 +391,7 @@
   "events.series_schedule": "Calendrier",
   "events.series_every_week": "Chaque {day}, {time}",
   "events.series_every_two_weeks": "Aux deux {day}s, {time}",
-  "events.series_season": "{start} \u2013 {end}",
+  "events.series_season": "{start} – {end}",
   "events.series_ended": "Cette série est terminée.",
   "events.series_cancelled": "Annulé",
   "events.series_rescheduled_from": "Reporté du {date}",
@@ -283,7 +399,6 @@
   "events.series_past_dates": "Dates passées",
   "events.similar": "Événements similaires",
   "events.similar_one": "Événement similaire",
-
   "calendar.upcoming.default": "Événements à venir",
   "calendar.upcoming.brevet": "Prochains parcours",
   "calendar.upcoming.gravel": "Prochains parcours",
@@ -303,11 +418,9 @@
   "calendar.upcoming.advocacy": "Prochaines rencontres",
   "calendar.upcoming.festival": "Prochains festivals",
   "calendar.upcoming.swap-meet": "Prochaines rencontres",
-
   "nav.rides": "Sorties",
   "nav.tours": "Voyages",
   "nav.stats": "Statistiques",
-
   "rides.description": "Toutes les sorties à vélo",
   "ride.date": "Date",
   "ride.distance": "Distance",
@@ -322,7 +435,6 @@
   "ride.badge.biggest_climb": "Un des plus gros dénivelés",
   "ride.badge.part_of_tour": "Fait partie de {tour}",
   "ride.badge.abroad": "À l'étranger",
-
   "tours.title": "Voyages à vélo",
   "tours.description": "Tous les voyages à vélo",
   "tours.summary": "{distance} km en {days} jours sur {count} voyages",
@@ -333,7 +445,6 @@
   "tours.countries_label": "Pays",
   "tours.ride_list": "Sorties",
   "tours.go_back": "retour à tous les voyages",
-
   "stats.description": "Statistiques et records",
   "stats.total_rides": "Sorties totales",
   "stats.total_distance": "Distance totale",
@@ -348,31 +459,27 @@
   "stats.by_year": "Par année",
   "stats.by_country": "Par pays",
   "stats.year": "Année",
-
   "home.highlights": "À la une",
   "home.latest_rides": "Dernières sorties",
   "home.all_rides": "Voir toutes les sorties",
   "home.all_rides_count": "Voir les {count} sorties",
-
-
   "auth.email_placeholder": "vous@exemple.com",
   "auth.username_label": "Choisissez un nom d'utilisateur",
   "auth.username_placeholder": "votre-nom",
   "auth.username_hint": "Ce nom apparaitra sur vos contributions.",
   "auth.continue": "Continuer",
-  "auth.create_account": "Cr\u00e9er un compte",
-  "auth.sign_in_passkey": "Se connecter avec une cl\u00e9 d'acc\u00e8s",
+  "auth.create_account": "Créer un compte",
+  "auth.sign_in_passkey": "Se connecter avec une clé d'accès",
   "auth.signing_in": "Connexion en cours...",
-  "auth.check_email_magic_link": "V\u00e9rifiez vos courriels pour un lien de connexion. Il expire dans 15 minutes.",
-  "auth.check_email_verify": "V\u00e9rifiez vos courriels pour confirmer votre compte.",
-  "auth.back_to_sign_in": "Retour \u00e0 la connexion",
-  "auth.send_link_instead": "Envoyer un lien de connexion \u00e0 la place",
-  "settings.passkey_empty_description": "Les cl\u00e9s d'acc\u00e8s vous permettent de vous connecter sans courriel. Elles sont stock\u00e9es sur votre appareil et fonctionnent avec empreinte digitale, visage ou NIP.",
-  "settings.passkey_add": "Ajouter une cl\u00e9 d'acc\u00e8s",
+  "auth.check_email_magic_link": "Vérifiez vos courriels pour un lien de connexion. Il expire dans 15 minutes.",
+  "auth.check_email_verify": "Vérifiez vos courriels pour confirmer votre compte.",
+  "auth.back_to_sign_in": "Retour à la connexion",
+  "auth.send_link_instead": "Envoyer un lien de connexion à la place",
+  "settings.passkey_empty_description": "Les clés d'accès vous permettent de vous connecter sans courriel. Elles sont stockées sur votre appareil et fonctionnent avec empreinte digitale, visage ou NIP.",
+  "settings.passkey_add": "Ajouter une clé d'accès",
   "auth.error_email_required": "Le courriel est requis",
-  "auth.error_invalid_username": "Le nom d'utilisateur doit contenir 2 \u00e0 30 caract\u00e8res\u00a0: lettres, chiffres, tirets, underscores",
-
-  "about.contributors_heading": "Les gens qui contribuent \u00e0 ce site",
+  "auth.error_invalid_username": "Le nom d'utilisateur doit contenir 2 à 30 caractères : lettres, chiffres, tirets, underscores",
+  "about.contributors_heading": "Les gens qui contribuent à ce site",
   "about.hero_subtitle": "Des parcours cyclables trouvés par des gens qui roulent ici. Photos, conseils et les bonnes routes — par expérience, pas par algorithme.",
   "about.trust_ridden": "Chaque parcours a été roulé",
   "about.trust_community": "Maintenu par la communauté",
@@ -381,16 +488,12 @@
   "about.cta_contribute": "Contribuer",
   "about.contact_line": "Des questions? Écrivez à {email}",
   "about.section_learn_more": "En savoir plus",
-
   "editor.focus_description": "Modification de la description de {name}",
   "editor.focus_media": "Ajout de médias à {name}",
   "editor.show_all_fields": "Afficher tous les champs",
   "editor.guest_label": "Modification en tant qu'invité — votre nom n'apparaîtra pas sur cette modification",
-
   "place_editor.details_toggle": "Ajouter des détails (adresse, site web, téléphone)",
-
   "map.description": "{count} itinéraires cyclables à {city}",
-
   "nav.communities": "Communautés",
   "communities.title": "Communautés",
   "communities.intro": "Les personnes et groupes qui organisent des événements et sorties cyclistes.",
@@ -401,8 +504,7 @@
   "communities.past_events": "Événements passés",
   "communities.upcoming_events": "Événements à venir",
   "communities.show_all_events": "Afficher les {count} événements",
-  "communities.edit_description": "Quelque chose à corriger\u00a0? Vous pouvez le faire — chaque modification peut être annulée.",
-
+  "communities.edit_description": "Quelque chose à corriger ? Vous pouvez le faire — chaque modification peut être annulée.",
   "home.subtitle": "Parcours, événements et les gens qui roulent ici",
   "home.discover": "Découvrir",
   "home.browse_all": "Tous les parcours",
@@ -415,7 +517,6 @@
   "home.full_calendar": "Calendrier complet",
   "home.all_communities": "Toutes les communautés",
   "home.view_all_routes": "Voir les {count} parcours",
-
   "calendar.add_event": "Ajoutez votre événement",
   "events.organizer_website": "Site de l'organisateur",
   "photos.title": "Photos",
@@ -424,24 +525,10 @@
   "social.website": "Site web",
   "social.sign_up_form": "Formulaire d'inscription",
   "social.newsletter": "Infolettre",
-  "passkeys.title": "Clés d'accès",
-  "passkeys.intro": "Une façon plus rapide et plus sûre de se connecter — sans lien par courriel.",
-  "passkeys.what_heading": "Qu'est-ce qu'une clé d'accès",
-  "passkeys.what_body": "Une clé d'accès est une méthode de connexion intégrée à votre appareil. Elle utilise votre empreinte digitale, votre visage ou le verrouillage de votre écran pour confirmer votre identité. Pas de mot de passe à retenir, pas de code à saisir.",
-  "passkeys.why_heading": "Pourquoi en utiliser une",
-  "passkeys.why_body": "Quand vous vous connectez avec une clé d'accès, vous évitez l'aller-retour par courriel. Pas besoin d'attendre un lien ni de changer de fenêtre. Vous appuyez, confirmez avec votre appareil, et c'est fait.",
-  "passkeys.how_heading": "Comment en configurer une",
-  "passkeys.how_body": "Allez dans vos <a href=\"{settings_url}\">paramètres de compte</a> et cherchez la section clés d'accès. Votre navigateur vous guidera pour enregistrer une clé sur votre appareil. Cela prend environ dix secondes.",
-  "passkeys.lost_device_heading": "Si vous perdez votre appareil",
-  "passkeys.lost_device_body": "Vous pouvez toujours vous connecter avec votre adresse courriel. Une clé d'accès est un raccourci, pas le seul moyen de se connecter. Si vous changez d'appareil, connectez-vous par courriel et configurez une nouvelle clé dans vos paramètres.",
-  "passkeys.learn_more_heading": "En savoir plus",
-  "passkeys.learn_more_body": "L'équipe de <a href=\"https://passkeys.dev\" target=\"_blank\" rel=\"noopener\">passkeys.dev</a> propose une explication détaillée du fonctionnement des clés d'accès.",
-  "passkeys.back_to_about": "Retour à la page à propos",
-
   "404.title": "Page introuvable",
-  "404.heading": "Mauvais tournant\u00a0!",
+  "404.heading": "Mauvais tournant !",
   "404.message": "On dirait que cette page n'existe pas. Elle a peut-être été déplacée.",
-  "404.help": "Voici quelques pistes pour retrouver votre chemin\u00a0:",
+  "404.help": "Voici quelques pistes pour retrouver votre chemin :",
   "404.home": "Accueil — parcourir les parcours",
   "404.map": "Carte — explorer la ville",
   "404.calendar": "Calendrier — événements à venir"

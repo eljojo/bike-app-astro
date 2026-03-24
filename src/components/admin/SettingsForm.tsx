@@ -309,8 +309,9 @@ export default function SettingsForm({ username: initialUsername, email: initial
               </>
             ) : (
               <div class="passkey-empty-state">
-                <p class="settings-help" style={{ margin: 0 }}>
+                <p class="settings-help" style={{ margin: '0 0 1rem' }}>
                   Passkeys let you sign in without email. They're stored on your device and work with fingerprint, face, or PIN.
+                  {' '}<a href="https://whereto.bike/guides/passkeys/" target="_blank" rel="noopener">Learn more</a>
                 </p>
                 <button
                   type="button"
