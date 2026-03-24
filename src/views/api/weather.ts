@@ -5,14 +5,21 @@ import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
 import { fetchCurrentWeather, evaluateWeather } from '../../lib/external/open-meteo.server';
 import type { WeatherResult } from '../../lib/external/open-meteo.server';
+import { t } from '../../i18n';
 
 export const prerender = false;
 
 const CACHE_TTL = 60 * 60; // 1 hour in seconds
 const CLIENT_CACHE_TTL = 900; // 15 minutes
 
-function weatherResponse(result: WeatherResult): Response {
-  return new Response(JSON.stringify(result), {
+interface WeatherResponse {
+  rideable: boolean;
+  text?: string;
+  sunscreen?: string;
+}
+
+function jsonResponse(data: WeatherResponse): Response {
+  return new Response(JSON.stringify(data), {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': `public, max-age=${CLIENT_CACHE_TTL}`,
@@ -20,14 +27,15 @@ function weatherResponse(result: WeatherResult): Response {
   });
 }
 
-export const GET: APIRoute = async () => {
-  const cacheKey = `weather:${CITY}`;
+export const GET: APIRoute = async ({ url }) => {
+  const locale = url.searchParams.get('locale') || undefined;
+  const cacheKey = `weather:${CITY}:${locale || 'default'}`;
 
   // Check cache
   const cached = await tileCache.get(cacheKey).catch(() => null);
   if (cached) {
     const text = new TextDecoder().decode(cached);
-    return weatherResponse(JSON.parse(text));
+    return jsonResponse(JSON.parse(text));
   }
 
   // Fetch from Open-Meteo
@@ -41,9 +49,22 @@ export const GET: APIRoute = async () => {
     result = { rideable: false };
   }
 
+  // Build translated response
+  let response: WeatherResponse;
+  if (!result.rideable || result.temperature == null || !result.descriptionKey) {
+    response = { rideable: false };
+  } else {
+    const description = t(`weather.${result.descriptionKey}`, locale);
+    const text = t('weather.good_day', locale, { temp: result.temperature, description });
+    response = { rideable: true, text };
+    if (result.uvIndex != null && result.uvIndex >= 6) {
+      response.sunscreen = t('weather.sunscreen', locale);
+    }
+  }
+
   // Cache result (fire-and-forget)
-  const encoded = new TextEncoder().encode(JSON.stringify(result));
+  const encoded = new TextEncoder().encode(JSON.stringify(response));
   tileCache.put(cacheKey, encoded, CACHE_TTL).catch(() => {});
 
-  return weatherResponse(result);
+  return jsonResponse(response);
 };

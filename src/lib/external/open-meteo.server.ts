@@ -10,18 +10,19 @@ export interface OpenMeteoCurrentWeather {
 export interface WeatherResult {
   rideable: boolean;
   temperature?: number;
-  description?: string;
+  descriptionKey?: string;
   uvIndex?: number;
 }
 
-const WMO_DESCRIPTIONS: Record<number, string> = {
+/** WMO code → i18n key suffix (translated by the API endpoint via t()) */
+const WMO_DESCRIPTION_KEYS: Record<number, string> = {
   0: 'clear',
-  1: 'mostly clear',
-  2: 'partly cloudy',
+  1: 'mostly_clear',
+  2: 'partly_cloudy',
   3: 'overcast',
 };
 
-const RIDEABLE_CODES = new Set(Object.keys(WMO_DESCRIPTIONS).map(Number));
+const RIDEABLE_CODES = new Set(Object.keys(WMO_DESCRIPTION_KEYS).map(Number));
 
 const MIN_TEMP_C = 10;
 const MIN_TEMP_STAGING_C = -10;
@@ -40,7 +41,7 @@ export function evaluateWeather(current: OpenMeteoCurrentWeather, { staging = fa
   return {
     rideable: true,
     temperature: Math.round(current.temperature_2m),
-    description: WMO_DESCRIPTIONS[current.weather_code] ?? 'clear',
+    descriptionKey: WMO_DESCRIPTION_KEYS[current.weather_code] ?? 'clear',
     uvIndex: current.uv_index,
   };
 }

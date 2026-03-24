@@ -234,7 +234,7 @@ const locale = Astro.currentLocale;
         </section>
       )}
 
-      <section id="weather-card" class="magazine-weather" hidden>
+      <section id="weather-card" class="magazine-weather" hidden data-locale={locale}>
         <a href="/?tags=chill" class="weather-card-link">
           <span id="weather-text"></span>
         </a>
@@ -272,20 +272,17 @@ const locale = Astro.currentLocale;
 <script>
   (async () => {
     try {
-      const res = await fetch('/api/weather');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!data.rideable || data.temperature == null || !data.description) return;
-
-      let text = `${data.temperature}°C and ${data.description} — good day for a ride`;
-      if (data.uvIndex >= 6) {
-        text += '. Don\u2019t forget sunscreen';
-      }
-
       const card = document.getElementById('weather-card');
       const span = document.getElementById('weather-text');
       if (!card || !span) return;
-      span.textContent = text;
+
+      const locale = card.dataset.locale || '';
+      const res = await fetch(`/api/weather${locale ? `?locale=${locale}` : ''}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.rideable || !data.text) return;
+
+      span.textContent = data.sunscreen ? `${data.text}. ${data.sunscreen}` : data.text;
       card.removeAttribute('hidden');
     } catch {
       // Silently fail — weather card is progressive enhancement

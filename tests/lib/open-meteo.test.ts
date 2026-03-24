@@ -12,7 +12,7 @@ describe('evaluateWeather', () => {
     expect(result).toEqual({
       rideable: true,
       temperature: 22,
-      description: 'clear',
+      descriptionKey: 'clear',
       uvIndex: 3,
     });
   });
@@ -75,7 +75,7 @@ describe('evaluateWeather', () => {
       weather_code: 1,
       uv_index: 2,
     });
-    expect(result.description).toBe('mostly clear');
+    expect(result.descriptionKey).toBe('mostly_clear');
   });
 
   it('maps weather code 2 to partly cloudy', () => {
@@ -85,7 +85,7 @@ describe('evaluateWeather', () => {
       weather_code: 2,
       uv_index: 2,
     });
-    expect(result.description).toBe('partly cloudy');
+    expect(result.descriptionKey).toBe('partly_cloudy');
   });
 
   it('maps weather code 3 to overcast', () => {
@@ -95,7 +95,7 @@ describe('evaluateWeather', () => {
       weather_code: 3,
       uv_index: 2,
     });
-    expect(result.description).toBe('overcast');
+    expect(result.descriptionKey).toBe('overcast');
   });
 
   it('is rideable at exactly 10 degrees (lower boundary)', () => {
