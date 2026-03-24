@@ -23,8 +23,11 @@ const CITY = 'ottawa'; // eslint-disable-line bike-app/no-hardcoded-city-locale
 
 describe('computed values match fixture data', () => {
 
-  it('daily aggregate stores total duration, not average', () => {
-    // Site-wide Mar 3: pv=50, vis=12, dur=395
+  it('daily aggregate visit_duration IS the average per visit (not total)', () => {
+    // Site-wide Mar 3: pv=50, vis=12, visit_duration=395
+    // Plausible's visit_duration for site-wide daily = average seconds per visit
+    // 395s = 6.6 min — this is what Plausible shows in the UI
+    // Do NOT divide by visitors or pageviews — the value is already the average
     const mar3 = dailyAggregate.results.find(
       (r: { dimensions: string[] }) => r.dimensions[0] === '2026-03-03',
     );
@@ -33,16 +36,12 @@ describe('computed values match fixture data', () => {
     const result = processDailyAggregate([mar3], CITY);
     expect(result[0].totalPageviews).toBe(50);
     expect(result[0].uniqueVisitors).toBe(12);
+    // This value (395) should be shown directly as the visit duration, not divided
     expect(result[0].totalDurationS).toBe(395);
 
-    // Average per visit = 395 / 12 = ~33s (NOT 395 / 50 = ~8s)
-    const avgPerVisit = result[0].totalDurationS / result[0].uniqueVisitors;
-    expect(avgPerVisit).toBeCloseTo(32.9, 0);
-
-    // Per-pageview would be wrong — verify it's different
-    const wrongPerPageview = result[0].totalDurationS / result[0].totalPageviews;
-    expect(wrongPerPageview).toBeCloseTo(7.9, 0);
-    expect(avgPerVisit).toBeGreaterThan(wrongPerPageview * 2);
+    // The overview engagement depth chart should show 395s = 6.6 min
+    // NOT 395/12 = 33s, NOT 395/50 = 8s
+    expect(result[0].totalDurationS / 60).toBeCloseTo(6.6, 0);
   });
 
   it('per-page daily stores total duration correctly', () => {

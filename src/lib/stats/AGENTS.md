@@ -35,13 +35,14 @@ Route redirects (`16-the-big-loop` → `the-big-loop`) are loaded from `virtual:
 
 The Plausible API returns metrics in the order you request them. All queries use `['pageviews', 'visitors', 'visit_duration', 'bounce_rate']`. If you change the order, update `processPageBreakdown`, `processPageDaily`, and `processDailyAggregate` — they index `row.metrics[0]` etc. positionally.
 
-### visit_duration Is TOTAL Seconds, Not Average
+### visit_duration Has Different Semantics Per Query Type
 
-Plausible's `visit_duration` metric returns **total seconds** spent on a page on a given day, NOT the average per visit. Stored as:
-- `visitDurationS` in `content_daily_metrics` and `content_totals` — total seconds per page
-- `totalDurationS` in `site_daily_metrics` — total seconds site-wide
+Plausible's `visit_duration` metric means different things depending on the query dimensions:
 
-To get average per visit, divide by **visitors** (not pageviews). A visit can have multiple pageviews — dividing by pageviews gives time-per-pageview which is much smaller than time-per-visit. Wall time = `SUM(visitDurationS) / 3600` or `SUM(visitors * avgDurationPerVisitor) / 3600`.
+- **Site-wide daily** (`dimensions: ['time:day']`): `visit_duration` = **average seconds per visit**. Use directly — do NOT divide. Stored as `totalDurationS` in `site_daily_metrics` (misleading name, kept for migration compat).
+- **Per-page** (`dimensions: ['event:page']` or `['time:day', 'event:page']`): `visit_duration` = **total seconds** on that page. Divide by `visitors` for per-visit average. Stored as `visitDurationS` in `content_daily_metrics` and `content_totals`.
+
+Wall time for per-page data = `SUM(visitDurationS) / 3600`. Wall time from site aggregate = `totalDurationS * visitors / 3600` (since it's already the average, multiply back by visitors to get total).
 
 ### Aggregate Before Writing Totals
 

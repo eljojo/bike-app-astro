@@ -178,9 +178,9 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       date: d.date, value: d.pageviews, secondaryValue: d.visitors,
     }));
 
-    // totalDurationS is total seconds for the whole site that day — divide by visitors for per-visit avg
+    // For the site-wide daily aggregate, Plausible's visit_duration IS the average per visit (in seconds)
     const durationSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: d.visitors > 0 ? Math.round(d.totalDurationS / d.visitors) : 0,
+      date: d.date, value: Math.round(d.totalDurationS),
     }));
 
     const pagesPerVisitSeries: TimeSeriesPoint[] = dailyData.map(d => ({
