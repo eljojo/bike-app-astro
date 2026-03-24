@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTestDb } from '../test-db';
-import { processPageBreakdown, processPageDaily, processDailyAggregate, upsertContentRows, upsertDailyRows } from '../../src/lib/stats/sync.server';
+import { processPageBreakdown, processPageDaily, processDailyAggregate } from '../../src/lib/stats/parsers.server';
+import { upsertContentRows, upsertDailyRows } from '../../src/lib/stats/upsert.server';
 import { contentDailyMetrics, siteDailyMetrics } from '../../src/db/schema';
 import type { Database } from '../../src/db';
 import { eq } from 'drizzle-orm';

@@ -1,6 +1,7 @@
 import type { Database } from '../../db';
 import { contentTotals, contentEngagement, reactions } from '../../db/schema';
 import { sql, eq, and } from 'drizzle-orm';
+import { esc } from './upsert.server';
 
 /**
  * Normalize values to 0–1 using percentile rank within an array.
@@ -221,7 +222,6 @@ export async function rebuildEngagement(db: Database, city: string): Promise<voi
   const BATCH = 50;
   for (let i = 0; i < allRows.length; i += BATCH) {
     const batch = allRows.slice(i, i + BATCH);
-    const esc = (s: string) => s.replace(/'/g, "''");
     const values = batch.map(r =>
       `('${esc(r.city)}','${esc(r.contentType)}','${esc(r.contentSlug)}',${r.totalPageviews},${r.totalVisitorDays},${r.avgVisitDuration},${r.avgBounceRate},${r.stars},${r.videoPlayRate},${r.mapConversionRate},${r.wallTimeHours},${r.engagementScore},'${esc(r.lastSyncedAt)}')`
     ).join(',');

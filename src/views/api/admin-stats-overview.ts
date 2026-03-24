@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { granularityForRange, getStartDate, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, parseTimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
@@ -30,7 +30,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
   const user = authorize(locals, forceSync ? 'sync-stats' : 'view-stats');
   if (user instanceof Response) return user;
 
-  const range = (url.searchParams.get('range') || '30d') as TimeRange;
+  const range = parseTimeRange(url.searchParams.get('range'));
+  if (!range) return jsonError('Invalid range', 400);
   const database = db();
 
   try {

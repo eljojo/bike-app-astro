@@ -92,9 +92,6 @@ export function processPageBreakdown(
   return { contentRows, skippedPaths };
 }
 
-// Keep old name as alias for test compatibility
-export const processPlausibleData = processPageBreakdown;
-
 /**
  * Process Plausible daily per-page results.
  * Dimensions: [date, pagePath]. Used for drill-down time series.

@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { Chart, registerables } from 'chart.js';
 import { useHydrated } from '../../lib/hooks';
-import type { TimeRange, TimeSeriesPoint, FunnelStep, SummaryCard } from '../../lib/stats/types';
+import type { TimeSeriesPoint, FunnelStep, SummaryCard } from '../../lib/stats/types';
+import { formatNumber, REACTION_LABELS, RANGE_OPTIONS, liveUrl } from '../../lib/stats/ui-helpers';
 
 Chart.register(...registerables);
 
@@ -14,26 +15,6 @@ interface StatsDetailData {
   funnel?: FunnelStep[];
   range: string;
   reactions?: Record<string, number>;
-}
-
-const RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
-  { value: '30d', label: 'Last 30 days' },
-  { value: '3mo', label: 'Last 3 months' },
-  { value: '1yr', label: 'Last year' },
-  { value: 'all', label: 'All time' },
-];
-
-const REACTION_LABELS: Record<string, string> = {
-  star: 'Starred',
-  ridden: 'Ridden it',
-  'thumbs-up': 'Thumbs up',
-  attended: 'Attended',
-};
-
-function formatNumber(n: number | string): string {
-  if (typeof n === 'string') return n;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
 }
 
 function apiPath(contentType: string): string {
@@ -51,15 +32,6 @@ function contentTypeLabel(contentType: string): string {
     case 'event': return 'Event';
     case 'organizer': return 'Community';
     default: return contentType;
-  }
-}
-
-function liveUrl(contentType: string, contentSlug: string): string {
-  switch (contentType) {
-    case 'route': return `/routes/${contentSlug}`;
-    case 'event': return `/events/${contentSlug}`;
-    case 'organizer': return `/communities/${contentSlug}`;
-    default: return '#';
   }
 }
 

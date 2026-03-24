@@ -8,6 +8,14 @@ export interface ContentIdentity {
 /** Time range options for the dashboard. */
 export type TimeRange = '30d' | '3mo' | '1yr' | 'all';
 
+export const VALID_RANGES: readonly TimeRange[] = ['30d', '3mo', '1yr', 'all'] as const;
+
+/** Parse and validate a time range string. Returns null if invalid. */
+export function parseTimeRange(value: string | null): TimeRange | null {
+  const v = value || '30d';
+  return (VALID_RANGES as readonly string[]).includes(v) ? (v as TimeRange) : null;
+}
+
 /** Granularity adapts to the time range. */
 export type Granularity = 'day' | 'week' | 'month';
 

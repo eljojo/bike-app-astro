@@ -7,9 +7,9 @@ import {
   type TimeSeriesPoint,
   type LeaderboardEntry,
   type InsightCard,
-  type TimeRange,
 } from '../../lib/stats/types';
 import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
+import { formatNumber, REACTION_LABELS, RANGE_OPTIONS, liveUrl } from '../../lib/stats/ui-helpers';
 
 Chart.register(...registerables);
 
@@ -39,26 +39,6 @@ interface StatsData {
   lastSynced?: string;
 }
 
-const REACTION_LABELS: Record<string, string> = {
-  star: 'Starred',
-  ridden: 'Ridden it',
-  'thumbs-up': 'Thumbs up',
-  attended: 'Attended',
-};
-
-const RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
-  { value: '30d', label: 'Last 30 days' },
-  { value: '3mo', label: 'Last 3 months' },
-  { value: '1yr', label: 'Last year' },
-  { value: 'all', label: 'All time' },
-];
-
-function formatNumber(n: number | string): string {
-  if (typeof n === 'string') return n;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
 const THUMB_OPTS = { width: 32, height: 32, fit: 'cover' as const };
 const THUMB_INSIGHT_OPTS = { width: 40, height: 40, fit: 'cover' as const };
 
@@ -81,15 +61,6 @@ function drillDownUrl(contentType: string, contentSlug: string): string {
     case 'route': return `/admin/stats/route/${contentSlug}`;
     case 'event': return `/admin/stats/event/${contentSlug}`;
     case 'organizer': return `/admin/stats/community/${contentSlug}`;
-    default: return '#';
-  }
-}
-
-function liveUrl(contentType: string, contentSlug: string): string {
-  switch (contentType) {
-    case 'route': return `/routes/${contentSlug}`;
-    case 'event': return `/events/${contentSlug}`;
-    case 'organizer': return `/communities/${contentSlug}`;
     default: return '#';
   }
 }

@@ -21,11 +21,6 @@ import {
 } from './upsert.server';
 import type { EventMetricRow } from './upsert.server';
 
-// Re-exports for backwards compatibility
-export { processPageBreakdown, processPlausibleData, processPageDaily, processDailyAggregate, aggregateContentRows } from './parsers.server';
-export type { ContentMetricRow, DailyMetricRow, TotalsRow } from './parsers.server';
-export { upsertContentRows, upsertTotalsRows, upsertDailyRows } from './upsert.server';
-
 /**
  * Check whether site-level analytics data needs syncing.
  */
@@ -119,43 +114,6 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
 }
 
 // ── Per-page sync (drill-down) ──────────────────────────────────────
-
-/**
- * Check whether per-page daily data needs syncing.
- */
-export async function needsPageSync(
-  db: Database,
-  city: string,
-  contentType: string,
-  contentSlug: string,
-  maxAgeMs = 24 * 60 * 60 * 1000,
-): Promise<boolean> {
-  const lastRow = await db.select({ date: contentDailyMetrics.date })
-    .from(contentDailyMetrics)
-    .where(and(
-      eq(contentDailyMetrics.city, city),
-      eq(contentDailyMetrics.contentType, contentType),
-      eq(contentDailyMetrics.contentSlug, contentSlug),
-    ))
-    .orderBy(desc(contentDailyMetrics.date))
-    .limit(1);
-
-  if (lastRow.length === 0) return true;
-
-  const dates = await db.select({ date: contentDailyMetrics.date })
-    .from(contentDailyMetrics)
-    .where(and(
-      eq(contentDailyMetrics.city, city),
-      eq(contentDailyMetrics.contentType, contentType),
-      eq(contentDailyMetrics.contentSlug, contentSlug),
-    ))
-    .groupBy(contentDailyMetrics.date);
-
-  if (dates.length <= 1) return true;
-
-  const lastDate = new Date(lastRow[0].date + 'T00:00:00Z');
-  return (Date.now() - lastDate.getTime()) > maxAgeMs;
-}
 
 function buildPagePaths(
   contentType: string,
@@ -526,17 +484,17 @@ export async function ensureEntryPageData(
     }
   }
 
-  // Execute updates in batches
+  // Execute updates in parallel batches
   for (let i = 0; i < updates.length; i += BATCH_SIZE) {
     const batch = updates.slice(i, i + BATCH_SIZE);
-    for (const u of batch) {
-      await db.run(sql.raw(`UPDATE content_daily_metrics
+    await Promise.all(batch.map(u =>
+      db.run(sql.raw(`UPDATE content_daily_metrics
         SET entry_visitors = ${u.entryVisitors}
         WHERE city = '${esc(opts.city)}'
           AND content_type = '${esc(contentType)}'
           AND content_slug = '${esc(contentSlug)}'
-          AND date = '${esc(u.date)}'`));
-    }
+          AND date = '${esc(u.date)}'`))
+    ));
   }
   totalUpdated = updates.length;
 
@@ -601,17 +559,17 @@ export async function ensureGpxDownloadData(
     }
   }
 
-  // Execute updates in batches
+  // Execute updates in parallel batches
   for (let i = 0; i < updates.length; i += BATCH_SIZE) {
     const batch = updates.slice(i, i + BATCH_SIZE);
-    for (const u of batch) {
-      await db.run(sql.raw(`UPDATE content_daily_metrics
+    await Promise.all(batch.map(u =>
+      db.run(sql.raw(`UPDATE content_daily_metrics
         SET gpx_downloads = ${u.gpxDownloads}
         WHERE city = '${esc(opts.city)}'
           AND content_type = '${esc(contentType)}'
           AND content_slug = '${esc(contentSlug)}'
-          AND date = '${esc(u.date)}'`));
-    }
+          AND date = '${esc(u.date)}'`))
+    ));
   }
   totalUpdated = updates.length;
 

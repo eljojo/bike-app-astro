@@ -8,15 +8,8 @@
 import type { Database } from '../../db';
 import { siteDailyMetrics, contentTotals } from '../../db/schema';
 import { eq, sql } from 'drizzle-orm';
-import {
-  processPageBreakdown,
-  processPageDaily,
-  processDailyAggregate,
-  aggregateContentRows,
-  upsertContentRows,
-  upsertTotalsRows,
-  upsertDailyRows,
-} from './sync.server';
+import { processPageBreakdown, processPageDaily, processDailyAggregate, aggregateContentRows } from './parsers.server';
+import { upsertContentRows, upsertTotalsRows, upsertDailyRows } from './upsert.server';
 import { rebuildEngagement } from './engagement.server';
 
 /**

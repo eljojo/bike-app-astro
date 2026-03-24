@@ -192,6 +192,8 @@ export const siteDailyMetrics = sqliteTable('site_daily_metrics', {
   date: text('date').notNull(),
   totalPageviews: integer('total_pageviews').notNull().default(0),
   uniqueVisitors: integer('unique_visitors').notNull().default(0),
+  // Plausible's site-wide visit_duration = avg seconds per visit (NOT total).
+  // Column name is misleading but kept for migration compatibility.
   totalDurationS: real('total_duration_s').notNull().default(0),
 }, (table) => [
   primaryKey({ columns: [table.city, table.date] }),
