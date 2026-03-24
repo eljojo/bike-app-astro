@@ -78,7 +78,7 @@ export function generateId(): string {
   return randomHex(16);
 }
 
-const DEFAULT_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const DEFAULT_SESSION_DURATION_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
 /**
  * Build session write statements for batch/sequential execution.
@@ -219,7 +219,7 @@ export function getWebAuthnConfig(requestUrl: string, env: Partial<AppEnv> = {})
   };
 }
 
-const DEFAULT_SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+const DEFAULT_SESSION_MAX_AGE = 90 * 24 * 60 * 60; // 90 days in seconds
 
 /** Set session cookies on a response. */
 export function setSessionCookies(

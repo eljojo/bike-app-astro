@@ -222,10 +222,10 @@ describe('session lifecycle', () => {
     expect(expiresAt).toBeLessThanOrEqual(after + ninetyDays);
   });
 
-  it('buildSessionBatch defaults to 30-day duration', async () => {
+  it('buildSessionBatch defaults to 90-day duration', async () => {
     const { sessions } = await import('../src/db/schema');
 
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    const ninetyDays = 90 * 24 * 60 * 60 * 1000;
     const before = Date.now();
     const plan = buildSessionBatch(database, 'user-1');
     const after = Date.now();
@@ -239,8 +239,8 @@ describe('session lifecycle', () => {
     expect(session).toBeDefined();
 
     const expiresAt = new Date(session!.expiresAt).getTime();
-    expect(expiresAt).toBeGreaterThanOrEqual(before + thirtyDays);
-    expect(expiresAt).toBeLessThanOrEqual(after + thirtyDays);
+    expect(expiresAt).toBeGreaterThanOrEqual(before + ninetyDays);
+    expect(expiresAt).toBeLessThanOrEqual(after + ninetyDays);
   });
 });
 
