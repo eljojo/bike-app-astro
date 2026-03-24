@@ -347,22 +347,6 @@
   gap: 0.5rem;
 }
 
-// Map marker (lettered pin)
-.location-marker {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: $color-accent;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-}
 
 // Go back link
 .community-go-back {

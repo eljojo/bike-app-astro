@@ -18,6 +18,8 @@ import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import PinMap from '@/components/PinMap.astro';
+import { escapeHtml } from '@/lib/maps/map-helpers';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -177,13 +179,15 @@ const PAST_EVENTS_INITIAL = 4;
       <section class="community-detail-section community-locations">
         <h2>{t('communities.locations', locale)}</h2>
         <div class="community-locations-layout">
-          <div
+          <PinMap
             class="community-locations-map"
-            id="locations-map"
-            data-locations={JSON.stringify(locations.map((loc, i) => ({
-              lat: loc.lat, lng: loc.lng, name: loc.name, letter: String.fromCharCode(65 + i),
-            })))}
-          ></div>
+            pins={locations.map((loc, i) => ({
+              lat: loc.lat,
+              lng: loc.lng,
+              label: String.fromCharCode(65 + i),
+              popup: `<strong>${escapeHtml(loc.name)}</strong>`,
+            }))}
+          />
           <div class="community-locations-list">
             {locations.map((loc, i) => (
               <div class="community-location-card">
@@ -274,61 +278,15 @@ const PAST_EVENTS_INITIAL = 4;
   </p>
 
   <script>
-    import { initMap } from '../lib/maps/map-init';
-    import { getStyleUrl, loadStylePreference } from '../lib/maps/map-style-switch';
-    import maplibregl from 'maplibre-gl';
-
     document.addEventListener('DOMContentLoaded', () => {
-      // Past events show-all button
       const btn = document.getElementById('show-all-past-events');
-      if (btn) {
-        btn.addEventListener('click', () => {
-          const grid = document.getElementById('past-events-grid');
-          if (!grid) return;
-          const hidden = grid.querySelectorAll('.community-event-hidden');
-          hidden.forEach(el => el.classList.remove('community-event-hidden'));
-          btn.remove();
-        });
-      }
-
-      // Locations map
-      const mapEl = document.getElementById('locations-map');
-      if (!mapEl) return;
-      const locations = JSON.parse(mapEl.dataset.locations || '[]');
-      if (!locations.length) return;
-
-      const bounds = new maplibregl.LngLatBounds();
-      for (const loc of locations) bounds.extend([loc.lng, loc.lat]);
-
-      const center: [number, number] = locations.length === 1
-        ? [locations[0].lng, locations[0].lat]
-        : [
-          (bounds.getWest() + bounds.getEast()) / 2,
-          (bounds.getSouth() + bounds.getNorth()) / 2,
-        ];
-
-      const map = initMap({
-        el: mapEl,
-        center,
-        zoom: locations.length === 1 ? 14 : 11,
-        styleUrl: getStyleUrl(loadStylePreference()),
-      });
-
-      map.on('load', () => {
-        if (locations.length > 1) {
-          map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 40 });
-        }
-
-        for (const loc of locations) {
-          const markerEl = document.createElement('div');
-          markerEl.className = 'location-marker';
-          markerEl.textContent = loc.letter;
-
-          new maplibregl.Marker({ element: markerEl })
-            .setLngLat([loc.lng, loc.lat])
-            .setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(`<strong>${loc.name}</strong>`))
-            .addTo(map);
-        }
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const grid = document.getElementById('past-events-grid');
+        if (!grid) return;
+        const hidden = grid.querySelectorAll('.community-event-hidden');
+        hidden.forEach(el => el.classList.remove('community-event-hidden'));
+        btn.remove();
       });
     });
   </script>
