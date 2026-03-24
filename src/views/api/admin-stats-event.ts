@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { granularityForRange, getStartDate, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, formatDuration, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
@@ -53,25 +53,43 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       queryReactionsForContent(database, CITY, 'event', slug),
     ]);
 
-    const heroStats = eng ? [
-      { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
-      { label: 'Wall time', value: `${Math.round(eng.wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading' },
-      { label: 'Visitor days', value: eng.totalVisitorDays, description: 'Unique visitor-days' },
+    const totalPageviews = daily.reduce((sum, d) => sum + d.pageviews, 0);
+    const totalVisitors = daily.reduce((sum, d) => sum + (d.visitors ?? 0), 0);
+    const totalEntryVisitors = daily.reduce((sum, d) => sum + (d.entryVisitors ?? 0), 0);
+    const wallTimeHours = daily.reduce((sum, d) => sum + (d.visitors ?? 0) * (d.avgDuration ?? 0) / 3600, 0);
+    const avgVisitDuration = totalVisitors > 0
+      ? daily.reduce((sum, d) => sum + (d.visitors ?? 0) * (d.avgDuration ?? 0), 0) / totalVisitors
+      : 0;
+    const viewsPerVisitor = totalVisitors > 0 ? Math.round(totalPageviews / totalVisitors * 10) / 10 : 0;
+
+    const heroStats = totalPageviews > 0 ? [
+      { label: 'Page views', value: totalPageviews, description: 'Total page views in this period' },
+      { label: 'Visitors', value: totalVisitors, description: 'Unique visitor-days in this period' },
+      { label: 'Views/visitor', value: viewsPerVisitor, description: 'Average page views per visitor' },
+      { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page' },
+      { label: 'Wall time', value: `${Math.round(wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading in this period' },
+      { label: 'Visit duration', value: formatDuration(avgVisitDuration), description: 'Average time spent per visit' },
+      { label: 'Stars', value: eng?.stars ?? 0, description: 'Bookmarks by users' },
     ] : [];
 
-    const timeSeries: TimeSeriesPoint[] = daily.map(d => ({ date: d.date, value: d.pageviews }));
+    const timeSeries: TimeSeriesPoint[] = daily.map(d => ({
+      date: d.date, value: d.pageviews, secondaryValue: d.visitors ?? 0,
+    }));
+    const durationSeries: TimeSeriesPoint[] = daily.map(d => ({
+      date: d.date, value: Math.round(d.avgDuration ?? 0),
+    }));
     const reactionBreakdown = reactionsByTypeMap;
     const totalReactions = Object.values(reactionsByTypeMap).reduce((sum, c) => sum + c, 0);
 
-    const narrative = eng ? buildNarrative({
+    const narrative = totalPageviews > 0 ? buildNarrative({
       contentType: 'event',
-      totalPageviews: eng.totalPageviews,
-      totalVisitors: eng.totalVisitorDays,
-      entryVisitors: 0,
-      wallTimeHours: eng.wallTimeHours,
-      avgVisitDuration: eng.avgVisitDuration,
+      totalPageviews,
+      totalVisitors,
+      entryVisitors: totalEntryVisitors,
+      wallTimeHours,
+      avgVisitDuration,
       mapConversionRate: 0,
-      stars: eng.stars,
+      stars: eng?.stars ?? 0,
       totalReactions,
     }) : [];
 
@@ -79,6 +97,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       heroStats,
       narrative,
       timeSeries,
+      durationSeries,
       granularity: granularityForRange(range),
       range,
       reactions: reactionBreakdown,
