@@ -23,10 +23,14 @@ const WMO_DESCRIPTIONS: Record<number, string> = {
 
 const RIDEABLE_CODES = new Set(Object.keys(WMO_DESCRIPTIONS).map(Number));
 
+const MIN_TEMP_C = 10;
+const MIN_TEMP_STAGING_C = -10;
+
 /** Evaluate weather conditions for cycling suitability. Pure function, no side effects. */
-export function evaluateWeather(current: OpenMeteoCurrentWeather): WeatherResult {
+export function evaluateWeather(current: OpenMeteoCurrentWeather, { staging = false } = {}): WeatherResult {
+  const minTemp = staging ? MIN_TEMP_STAGING_C : MIN_TEMP_C;
   const rideable =
-    current.temperature_2m >= -10 &&
+    current.temperature_2m >= minTemp &&
     current.temperature_2m <= 35 &&
     current.wind_speed_10m < 30 &&
     RIDEABLE_CODES.has(current.weather_code);

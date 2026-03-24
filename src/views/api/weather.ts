@@ -1,6 +1,6 @@
 /* eslint-disable bike-app/require-authorize-call -- public weather endpoint, excluded from auth middleware */
 import type { APIRoute } from 'astro';
-import { tileCache } from '../../lib/env/env.service';
+import { env, tileCache } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
 import { fetchCurrentWeather, evaluateWeather } from '../../lib/external/open-meteo.server';
@@ -35,7 +35,7 @@ export const GET: APIRoute = async () => {
   let result: WeatherResult;
   try {
     const current = await fetchCurrentWeather(center.lat, center.lng);
-    result = evaluateWeather(current);
+    result = evaluateWeather(current, { staging: env.ENVIRONMENT === 'staging' });
   } catch (err) {
     console.error('Weather fetch failed:', err);
     result = { rideable: false };
