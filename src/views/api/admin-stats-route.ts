@@ -4,12 +4,14 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentDailyMetrics, contentTotals, contentEngagement, reactions } from '../../db/schema';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, getStartDate, formatDuration, type TimeRange, type TimeSeriesPoint, type FunnelStep } from '../../lib/stats/types';
 import { ensurePageDailyData, ensureEntryPageData, ensureGpxDownloadData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
+import {
+  queryContentEngagement, queryContentTimeSeries, queryContentFunnel,
+  queryReactionsForContent, deleteContentDailyForSlug,
+} from '../../lib/stats/queries.server';
 
 export const prerender = false;
 
@@ -37,15 +39,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const ctx = await buildSyncContext(url.origin);
     if (ctx) {
       if (forceSync) {
-        await database.delete(contentDailyMetrics)
-          .where(and(
-            eq(contentDailyMetrics.city, CITY),
-            eq(contentDailyMetrics.contentType, 'route'),
-            eq(contentDailyMetrics.contentSlug, slug),
-            gte(contentDailyMetrics.date, startStr),
-            lte(contentDailyMetrics.date, endStr),
-          ))
-          .run();
+        await deleteContentDailyForSlug(database, CITY, 'route', slug, startStr, endStr);
         await syncPageMetrics(database, { ...ctx, contentType: 'route', contentSlug: slug });
       } else {
         await ensurePageDailyData(database, ctx, 'route', slug, startStr, endStr);
@@ -55,56 +49,12 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     }
 
     // All queries in parallel
-    const [engagement, daily, funnelData, reactionData] = await Promise.all([
-      database.select()
-        .from(contentEngagement)
-        .where(and(
-          eq(contentEngagement.city, CITY),
-          eq(contentEngagement.contentType, 'route'),
-          eq(contentEngagement.contentSlug, slug),
-        ))
-        .limit(1),
-      database.select({
-        date: contentDailyMetrics.date,
-        pageviews: sql<number>`SUM(${contentDailyMetrics.pageviews})`,
-        visitors: sql<number>`SUM(${contentDailyMetrics.visitorDays})`,
-        // visitDurationS is TOTAL seconds — SUM gives total for the day, divide by pageviews for avg
-        avgDuration: sql<number>`CASE WHEN SUM(${contentDailyMetrics.pageviews}) > 0 THEN SUM(${contentDailyMetrics.visitDurationS}) / SUM(${contentDailyMetrics.pageviews}) ELSE 0 END`,
-        entryVisitors: sql<number>`COALESCE(SUM(${contentDailyMetrics.entryVisitors}), 0)`,
-        gpxDownloads: sql<number>`COALESCE(SUM(${contentDailyMetrics.gpxDownloads}), 0)`,
-      }).from(contentDailyMetrics)
-        .where(and(
-          eq(contentDailyMetrics.city, CITY),
-          eq(contentDailyMetrics.contentType, 'route'),
-          eq(contentDailyMetrics.contentSlug, slug),
-          gte(contentDailyMetrics.date, startStr),
-          lte(contentDailyMetrics.date, endStr),
-        ))
-        .groupBy(contentDailyMetrics.date)
-        .orderBy(contentDailyMetrics.date),
-      database.select({
-        pageType: contentTotals.pageType,
-        total: contentTotals.pageviews,
-        avgDuration: sql<number>`CASE WHEN ${contentTotals.pageviews} > 0 THEN ${contentTotals.visitDurationS} ELSE 0 END`,
-      }).from(contentTotals)
-        .where(and(
-          eq(contentTotals.city, CITY),
-          eq(contentTotals.contentType, 'route'),
-          eq(contentTotals.contentSlug, slug),
-        )),
-      database.select({
-        reactionType: reactions.reactionType,
-        count: sql<number>`COUNT(*)`,
-      }).from(reactions)
-        .where(and(
-          eq(reactions.city, CITY),
-          eq(reactions.contentType, 'route'),
-          eq(reactions.contentSlug, slug),
-        ))
-        .groupBy(reactions.reactionType),
+    const [eng, daily, funnelData, reactionsByTypeMap] = await Promise.all([
+      queryContentEngagement(database, CITY, 'route', slug),
+      queryContentTimeSeries(database, CITY, 'route', slug, startStr, endStr),
+      queryContentFunnel(database, CITY, 'route', slug),
+      queryReactionsForContent(database, CITY, 'route', slug),
     ]);
-
-    const eng = engagement[0];
 
     // Compute hero stats from the time-range-filtered daily data, not all-time engagement
     const totalPageviews = daily.reduce((sum, d) => sum + d.pageviews, 0);
@@ -156,8 +106,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
       { label: 'Map page', count: mapViews, rate: detailViews > 0 ? Math.round((mapViews / detailViews) * 100) : 0 },
     ];
 
-    const reactionBreakdown = Object.fromEntries(reactionData.map(r => [r.reactionType, r.count]));
-    const totalReactions = reactionData.reduce((sum, r) => sum + r.count, 0);
+    const reactionBreakdown = reactionsByTypeMap;
+    const totalReactions = Object.values(reactionsByTypeMap).reduce((sum, c) => sum + c, 0);
 
     const narrative = eng ? buildNarrative({
       contentType: 'route',

@@ -4,12 +4,14 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentDailyMetrics, contentEngagement, reactions } from '../../db/schema';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { granularityForRange, getStartDate, type TimeRange, type TimeSeriesPoint } from '../../lib/stats/types';
 import { ensurePageDailyData, syncPageMetrics } from '../../lib/stats/sync.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { buildNarrative } from '../../lib/stats/narrative';
+import {
+  queryContentEngagement, queryContentTimeSeries,
+  queryReactionsForContent, deleteContentDailyForSlug,
+} from '../../lib/stats/queries.server';
 
 export const prerender = false;
 
@@ -37,15 +39,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     const ctx = await buildSyncContext(url.origin);
     if (ctx) {
       if (forceSync) {
-        await database.delete(contentDailyMetrics)
-          .where(and(
-            eq(contentDailyMetrics.city, CITY),
-            eq(contentDailyMetrics.contentType, 'organizer'),
-            eq(contentDailyMetrics.contentSlug, slug),
-            gte(contentDailyMetrics.date, startStr),
-            lte(contentDailyMetrics.date, endStr),
-          ))
-          .run();
+        await deleteContentDailyForSlug(database, CITY, 'organizer', slug, startStr, endStr);
         await syncPageMetrics(database, { ...ctx, contentType: 'organizer', contentSlug: slug });
       } else {
         await ensurePageDailyData(database, ctx, 'organizer', slug, startStr, endStr);
@@ -53,44 +47,11 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     }
 
     // All queries in parallel
-    const [engagement, daily, reactionData] = await Promise.all([
-      // Engagement summary
-      database.select()
-        .from(contentEngagement)
-        .where(and(
-          eq(contentEngagement.city, CITY),
-          eq(contentEngagement.contentType, 'organizer'),
-          eq(contentEngagement.contentSlug, slug),
-        ))
-        .limit(1),
-      // Time series
-      database.select({
-        date: contentDailyMetrics.date,
-        pageviews: sql<number>`SUM(${contentDailyMetrics.pageviews})`,
-      }).from(contentDailyMetrics)
-        .where(and(
-          eq(contentDailyMetrics.city, CITY),
-          eq(contentDailyMetrics.contentType, 'organizer'),
-          eq(contentDailyMetrics.contentSlug, slug),
-          gte(contentDailyMetrics.date, startStr),
-          lte(contentDailyMetrics.date, endStr),
-        ))
-        .groupBy(contentDailyMetrics.date)
-        .orderBy(contentDailyMetrics.date),
-      // Reactions breakdown
-      database.select({
-        reactionType: reactions.reactionType,
-        count: sql<number>`COUNT(*)`,
-      }).from(reactions)
-        .where(and(
-          eq(reactions.city, CITY),
-          eq(reactions.contentType, 'organizer'),
-          eq(reactions.contentSlug, slug),
-        ))
-        .groupBy(reactions.reactionType),
+    const [eng, daily, reactionsByTypeMap] = await Promise.all([
+      queryContentEngagement(database, CITY, 'organizer', slug),
+      queryContentTimeSeries(database, CITY, 'organizer', slug, startStr, endStr),
+      queryReactionsForContent(database, CITY, 'organizer', slug),
     ]);
-
-    const eng = engagement[0];
 
     const heroStats = eng ? [
       { label: 'Page views', value: eng.totalPageviews, description: 'Total page views' },
@@ -99,8 +60,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, params: API
     ] : [];
 
     const timeSeries: TimeSeriesPoint[] = daily.map(d => ({ date: d.date, value: d.pageviews }));
-    const reactionBreakdown = Object.fromEntries(reactionData.map(r => [r.reactionType, r.count]));
-    const totalReactions = reactionData.reduce((sum, r) => sum + r.count, 0);
+    const reactionBreakdown = reactionsByTypeMap;
+    const totalReactions = Object.values(reactionsByTypeMap).reduce((sum, c) => sum + c, 0);
 
     const narrative = eng ? buildNarrative({
       contentType: 'organizer',

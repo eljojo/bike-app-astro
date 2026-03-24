@@ -4,8 +4,6 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { contentEngagement, contentDailyMetrics, contentTotals, siteDailyMetrics, siteEventMetrics, reactions, users } from '../../db/schema';
-import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { granularityForRange, getStartDate, type TimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
@@ -13,7 +11,14 @@ import { buildSyncContext } from '../../lib/stats/sync-context.server';
 import { getCityConfig } from '../../lib/config/city-config';
 import { ensureSiteDailyData, ensureSiteEventData, syncSiteMetrics } from '../../lib/stats/sync.server';
 import { seedFromFixtures } from '../../lib/stats/seed-fixtures.server';
-import { siteDailyMetrics as siteDailyTable } from '../../db/schema';
+import {
+  queryEngagementCount, queryTotalsAge, deleteAllAnalyticsForCity,
+  querySiteSummary, querySiteTimeSeries, queryContentCount,
+  queryTopByViews, queryTopByEngagement, queryAllEngagement,
+  queryReactionsByType, queryLastSyncedDate,
+  querySignups, queryEventMetrics,
+  queryPerContentPeriodPageviews, queryMonthlyPageviews, queryVariantViews,
+} from '../../lib/stats/queries.server';
 
 export const prerender = false;
 
@@ -50,22 +55,14 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     } else {
       // Check if engagement data exists — if not, we need a full site sync
       // (page breakdown + engagement rebuild), not just daily aggregates
-      const engagementCount = await database.select({
-        count: sql<number>`COUNT(*)`,
-      }).from(contentEngagement).where(eq(contentEngagement.city, CITY));
+      const engagementCount = await queryEngagementCount(database, CITY);
 
-      const needsFullSync = forceSync || (engagementCount[0]?.count ?? 0) === 0;
+      const needsFullSync = forceSync || engagementCount === 0;
 
       if (needsFullSync) {
         if (forceSync) {
           // Force re-sync: clear ALL analytics data for this city, then rebuild
-          await Promise.all([
-            database.delete(siteDailyTable).where(eq(siteDailyTable.city, CITY)).run(),
-            database.delete(contentDailyMetrics).where(eq(contentDailyMetrics.city, CITY)).run(),
-            database.delete(contentTotals).where(eq(contentTotals.city, CITY)).run(),
-            database.delete(contentEngagement).where(eq(contentEngagement.city, CITY)).run(),
-            database.delete(siteEventMetrics).where(eq(siteEventMetrics.city, CITY)).run(),
-          ]);
+          await deleteAllAnalyticsForCity(database, CITY);
         }
         // Full site sync: daily aggregates + page breakdown + engagement rebuild
         await syncSiteMetrics(database, { ...ctx, full: forceSync });
@@ -75,12 +72,10 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
 
         // Check if content_totals are stale (>24h old) — if so, refresh
         // totals + engagement so they don't go permanently stale after first sync
-        const totalsAge = await database.select({ syncedAt: contentTotals.syncedAt })
-          .from(contentTotals).where(eq(contentTotals.city, CITY))
-          .orderBy(desc(contentTotals.syncedAt)).limit(1);
+        const totalsAge = await queryTotalsAge(database, CITY);
 
-        const totalsStale = totalsAge.length === 0 ||
-          (Date.now() - new Date(totalsAge[0].syncedAt).getTime()) > 24 * 60 * 60 * 1000;
+        const totalsStale = totalsAge === null ||
+          (Date.now() - new Date(totalsAge).getTime()) > 24 * 60 * 60 * 1000;
 
         if (totalsStale) {
           await syncSiteMetrics(database, ctx);
@@ -92,166 +87,59 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }
 
     const [
-      currentMetrics,
-      prevMetrics,
+      siteSummary,
       contentCount,
       dailyData,
       topByViews,
       topByEngagement,
       engagementRows,
-      reactionsByType,
-      lastSyncRow,
+      reactionsByTypeMap,
+      lastSynced,
       routeNames,
       eventNames,
       signupsByDate,
-      repeatVisitRows,
-      socialReferralRows,
-      currentPeriodByContent,
-      prevPeriodByContent,
-      monthlyByContent,
-      variantByContent,
+      repeatVisitMap,
+      socialReferralMap,
+      currentPeriodMap,
+      prevPeriodMap,
+      monthlyMap,
+      variantMap,
     ] = await Promise.all([
-      // 1. Current period summary
-      database.select({
-        totalPageviews: sql<number>`COALESCE(SUM(${siteDailyMetrics.totalPageviews}), 0)`,
-        totalVisitors: sql<number>`COALESCE(SUM(${siteDailyMetrics.uniqueVisitors}), 0)`,
-      }).from(siteDailyMetrics)
-        .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, startStr), lte(siteDailyMetrics.date, endStr))),
-      // 2. Previous period summary
-      database.select({
-        totalPageviews: sql<number>`COALESCE(SUM(${siteDailyMetrics.totalPageviews}), 0)`,
-      }).from(siteDailyMetrics)
-        .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, prevStartStr), lte(siteDailyMetrics.date, prevEndStr))),
-      // 3. Content count (distinct type+slug pairs — slug alone undercounts if
-      // different types share a slug)
-      database.select({
-        count: sql<number>`COUNT(DISTINCT ${contentEngagement.contentType} || ':' || ${contentEngagement.contentSlug})`,
-      }).from(contentEngagement).where(eq(contentEngagement.city, CITY)),
+      // 1+2. Current + previous period summary
+      querySiteSummary(database, CITY, startStr, endStr, prevStartStr, prevEndStr),
+      // 3. Content count
+      queryContentCount(database, CITY),
       // 4. Time series
-      database.select({
-        date: siteDailyMetrics.date,
-        pageviews: siteDailyMetrics.totalPageviews,
-        visitors: siteDailyMetrics.uniqueVisitors,
-        totalDurationS: siteDailyMetrics.totalDurationS,
-      }).from(siteDailyMetrics)
-        .where(and(eq(siteDailyMetrics.city, CITY), gte(siteDailyMetrics.date, startStr), lte(siteDailyMetrics.date, endStr)))
-        .orderBy(siteDailyMetrics.date),
+      querySiteTimeSeries(database, CITY, startStr, endStr),
       // 5. Top by views
-      database.select({
-        contentType: contentEngagement.contentType,
-        contentSlug: contentEngagement.contentSlug,
-        totalPageviews: contentEngagement.totalPageviews,
-        wallTimeHours: contentEngagement.wallTimeHours,
-      }).from(contentEngagement).where(eq(contentEngagement.city, CITY))
-        .orderBy(desc(contentEngagement.totalPageviews)).limit(10),
+      queryTopByViews(database, CITY, 10),
       // 6. Top by engagement
-      database.select({
-        contentType: contentEngagement.contentType,
-        contentSlug: contentEngagement.contentSlug,
-        engagementScore: contentEngagement.engagementScore,
-        totalPageviews: contentEngagement.totalPageviews,
-        wallTimeHours: contentEngagement.wallTimeHours,
-        mapConversionRate: contentEngagement.mapConversionRate,
-        stars: contentEngagement.stars,
-        videoPlayRate: contentEngagement.videoPlayRate,
-      }).from(contentEngagement).where(eq(contentEngagement.city, CITY))
-        .orderBy(desc(contentEngagement.engagementScore)).limit(10),
+      queryTopByEngagement(database, CITY, 10),
       // 7. All engagement (for insights)
-      database.select().from(contentEngagement).where(eq(contentEngagement.city, CITY)),
+      queryAllEngagement(database, CITY),
       // 8. Reactions
-      database.select({
-        reactionType: reactions.reactionType,
-        count: sql<number>`COUNT(*)`,
-      }).from(reactions).where(eq(reactions.city, CITY)).groupBy(reactions.reactionType),
+      queryReactionsByType(database, CITY),
       // 9. Last synced
-      database.select({ date: siteDailyMetrics.date })
-        .from(siteDailyMetrics).where(eq(siteDailyMetrics.city, CITY))
-        .orderBy(desc(siteDailyMetrics.date)).limit(1),
+      queryLastSyncedDate(database, CITY),
       // 10-11. Content names + thumbnails from static JSON
       fetchJson<Array<{ slug: string; name: string; coverKey?: string }>>(new URL('/admin/data/routes.json', baseUrl)).catch(() => [] as Array<{ slug: string; name: string; coverKey?: string }>),
       features.hasEvents
         ? fetchJson<{ events: Array<{ id: string; name: string; poster_key?: string }>; organizers: Array<{ slug: string; name: string; photo_key?: string }> }>(new URL('/admin/data/events.json', baseUrl)).catch(() => ({ events: [], organizers: [] }))
         : Promise.resolve({ events: [] as Array<{ id: string; name: string; poster_key?: string }>, organizers: [] as Array<{ slug: string; name: string; photo_key?: string }> }),
       // 12. Signups over time (guests + registered)
-      database.select({
-        date: sql<string>`DATE(${users.createdAt})`,
-        role: users.role,
-        count: sql<number>`COUNT(*)`,
-      }).from(users)
-        .where(and(
-          sql`DATE(${users.createdAt}) >= ${startStr}`,
-          sql`DATE(${users.createdAt}) <= ${endStr}`,
-        ))
-        .groupBy(sql`DATE(${users.createdAt})`, users.role)
-        .orderBy(sql`DATE(${users.createdAt})`),
-      // 13. Repeat visit event metrics from D1
-      database.select({
-        dimensionValue: siteEventMetrics.dimensionValue,
-        visitors: sql<number>`SUM(${siteEventMetrics.visitors})`,
-      }).from(siteEventMetrics)
-        .where(and(
-          eq(siteEventMetrics.city, CITY),
-          eq(siteEventMetrics.eventName, 'repeat_visit'),
-          gte(siteEventMetrics.date, startStr),
-          lte(siteEventMetrics.date, endStr),
-        ))
-        .groupBy(siteEventMetrics.dimensionValue),
-      // 14. Social referral event metrics from D1
-      database.select({
-        dimensionValue: siteEventMetrics.dimensionValue,
-        visitors: sql<number>`SUM(${siteEventMetrics.visitors})`,
-      }).from(siteEventMetrics)
-        .where(and(
-          eq(siteEventMetrics.city, CITY),
-          eq(siteEventMetrics.eventName, 'social_referral'),
-          gte(siteEventMetrics.date, startStr),
-          lte(siteEventMetrics.date, endStr),
-        ))
-        .groupBy(siteEventMetrics.dimensionValue),
+      querySignups(database, startStr, endStr),
+      // 13. Repeat visit event metrics
+      queryEventMetrics(database, CITY, 'repeat_visit', startStr, endStr),
+      // 14. Social referral event metrics
+      queryEventMetrics(database, CITY, 'social_referral', startStr, endStr),
       // 15. Per-content pageviews in current period (for trending/declining)
-      database.select({
-        contentType: contentDailyMetrics.contentType,
-        contentSlug: contentDailyMetrics.contentSlug,
-        pageviews: sql<number>`COALESCE(SUM(${contentDailyMetrics.pageviews}), 0)`,
-      }).from(contentDailyMetrics)
-        .where(and(
-          eq(contentDailyMetrics.city, CITY),
-          gte(contentDailyMetrics.date, startStr),
-          lte(contentDailyMetrics.date, endStr),
-        ))
-        .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug),
+      queryPerContentPeriodPageviews(database, CITY, startStr, endStr),
       // 16. Per-content pageviews in previous period (for trending/declining)
-      database.select({
-        contentType: contentDailyMetrics.contentType,
-        contentSlug: contentDailyMetrics.contentSlug,
-        pageviews: sql<number>`COALESCE(SUM(${contentDailyMetrics.pageviews}), 0)`,
-      }).from(contentDailyMetrics)
-        .where(and(
-          eq(contentDailyMetrics.city, CITY),
-          gte(contentDailyMetrics.date, prevStartStr),
-          lte(contentDailyMetrics.date, prevEndStr),
-        ))
-        .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug),
-      // 17. Monthly pageviews per content item (for seasonal insight)
-      database.select({
-        contentType: contentDailyMetrics.contentType,
-        contentSlug: contentDailyMetrics.contentSlug,
-        month: sql<string>`SUBSTR(${contentDailyMetrics.date}, 6, 2)`,
-        monthlyViews: sql<number>`COALESCE(SUM(${contentDailyMetrics.pageviews}), 0)`,
-      }).from(contentDailyMetrics)
-        .where(eq(contentDailyMetrics.city, CITY))
-        .groupBy(contentDailyMetrics.contentType, contentDailyMetrics.contentSlug, sql`SUBSTR(${contentDailyMetrics.date}, 6, 2)`),
+      queryPerContentPeriodPageviews(database, CITY, prevStartStr, prevEndStr),
+      // 17. Monthly pageviews per content item (for seasonal insight — all time, no date filter)
+      queryMonthlyPageviews(database, CITY, '2000-01-01', endStr),
       // 18. Variant views per content item (for underused-variant insight)
-      database.select({
-        contentType: contentTotals.contentType,
-        contentSlug: contentTotals.contentSlug,
-        pageType: contentTotals.pageType,
-        pageviews: contentTotals.pageviews,
-      }).from(contentTotals)
-        .where(and(
-          eq(contentTotals.city, CITY),
-          sql`${contentTotals.pageType} LIKE 'map%'`,
-        )),
+      queryVariantViews(database, CITY),
     ]);
 
     // Build name + thumbnail lookups from parallel results
@@ -271,26 +159,19 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }
 
     // Assemble response
-    const current = currentMetrics[0];
-    const prev = prevMetrics[0];
-    const pctChange = prev.totalPageviews > 0
-      ? Math.round(((current.totalPageviews - prev.totalPageviews) / prev.totalPageviews) * 100)
-      : null;
-
-    // Compute new accounts from signups (non-guest)
     const newAccountsCount = signupsByDate
       .filter(r => r.role !== 'guest')
       .reduce((sum, r) => sum + r.count, 0);
 
     // Compute total reactions from source table
-    const totalReactionsCount = reactionsByType.reduce((sum, r) => sum + r.count, 0);
+    const totalReactionsCount = Object.values(reactionsByTypeMap).reduce((sum, c) => sum + c, 0);
 
     const summaryCards: SummaryCard[] = [
-      { label: 'Page views', value: current.totalPageviews, change: pctChange ?? undefined, description: 'Total page views across the site' },
-      { label: 'Visitors', value: current.totalVisitors, description: 'Unique visitors (daily count, summed)' },
+      { label: 'Page views', value: siteSummary.totalPageviews, change: siteSummary.pctChange ?? undefined, description: 'Total page views across the site' },
+      { label: 'Visitors', value: siteSummary.totalVisitors, description: 'Unique visitors (daily count, summed)' },
       { label: 'New accounts', value: newAccountsCount, description: 'New registered users (non-guest)' },
       { label: 'Reactions', value: totalReactionsCount, description: 'Stars and other reactions' },
-      { label: 'Content tracked', value: contentCount[0]?.count ?? 0, description: 'Routes, events, and communities with analytics' },
+      { label: 'Content tracked', value: contentCount, description: 'Routes, events, and communities with analytics' },
     ];
 
     const timeSeries: TimeSeriesPoint[] = dailyData.map(d => ({
@@ -334,35 +215,6 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       },
     }));
 
-    // Build per-content period lookup maps for trending/declining
-    const currentPeriodMap = new Map<string, number>();
-    for (const row of currentPeriodByContent) {
-      currentPeriodMap.set(`${row.contentType}:${row.contentSlug}`, row.pageviews);
-    }
-    const prevPeriodMap = new Map<string, number>();
-    for (const row of prevPeriodByContent) {
-      prevPeriodMap.set(`${row.contentType}:${row.contentSlug}`, row.pageviews);
-    }
-
-    // Build monthly pageviews lookup: key → number[12]
-    const monthlyMap = new Map<string, number[]>();
-    for (const row of monthlyByContent) {
-      const key = `${row.contentType}:${row.contentSlug}`;
-      if (!monthlyMap.has(key)) monthlyMap.set(key, new Array(12).fill(0));
-      const monthIdx = parseInt(row.month, 10) - 1;
-      if (monthIdx >= 0 && monthIdx < 12) {
-        monthlyMap.get(key)![monthIdx] = row.monthlyViews;
-      }
-    }
-
-    // Build variant views lookup: key → Record<pageType, pageviews>
-    const variantMap = new Map<string, Record<string, number>>();
-    for (const row of variantByContent) {
-      const key = `${row.contentType}:${row.contentSlug}`;
-      if (!variantMap.has(key)) variantMap.set(key, {});
-      variantMap.get(key)![row.pageType] = row.pageviews;
-    }
-
     const insightInput: EngagementRow[] = engagementRows.map(r => {
       const key = `${r.contentType}:${r.contentSlug}`;
       return {
@@ -372,10 +224,10 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
         stars: r.stars, videoPlayRate: r.videoPlayRate,
         mapConversionRate: r.mapConversionRate, wallTimeHours: r.wallTimeHours,
         engagementScore: r.engagementScore,
-        currentPeriodPageviews: currentPeriodMap.get(key),
-        previousPeriodPageviews: prevPeriodMap.get(key),
-        monthlyPageviews: monthlyMap.get(key),
-        variantViews: variantMap.get(key),
+        currentPeriodPageviews: currentPeriodMap[key],
+        previousPeriodPageviews: prevPeriodMap[key],
+        monthlyPageviews: monthlyMap[key],
+        variantViews: variantMap[key],
       };
     });
 
@@ -384,7 +236,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       ...i,
       thumbKey: i.contentType && i.contentSlug ? contentThumbs[`${i.contentType}:${i.contentSlug}`] : undefined,
     }));
-    const reactionBreakdown = Object.fromEntries(reactionsByType.map(r => [r.reactionType, r.count]));
+    const reactionBreakdown = reactionsByTypeMap;
 
     // Signups over time — combine guest + registered into time series
     const signups: Array<{ date: string; guests: number; registered: number }> = [];
@@ -404,9 +256,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const repeatVisits: Record<string, number> = {};
     let totalReturning = 0;
     let totalReturnCount = 0;
-    for (const row of repeatVisitRows) {
-      const count = parseInt(row.dimensionValue, 10);
-      const visitors = row.visitors;
+    for (const [dimensionValue, visitors] of Object.entries(repeatVisitMap)) {
+      const count = parseInt(dimensionValue, 10);
       if (isNaN(count)) continue;
       const bucket = count >= 5 ? '5+' : String(count);
       repeatVisits[bucket] = (repeatVisits[bucket] || 0) + visitors;
@@ -414,10 +265,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       totalReturnCount += visitors * count;
     }
 
-    const socialReferrals: Record<string, number> = {};
-    for (const row of socialReferralRows) {
-      socialReferrals[row.dimensionValue] = row.visitors;
-    }
+    const socialReferrals = socialReferralMap;
 
     const visitorInsights = (totalReturning > 0 || Object.keys(socialReferrals).length > 0) ? {
       repeatVisits,
@@ -432,7 +280,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       insights, reactionBreakdown, signups, range,
       visitorInsights,
       cdnUrl: getCityConfig().cdn_url,
-      lastSynced: lastSyncRow[0]?.date ?? null,
+      lastSynced,
     } as Record<string, unknown>);
   } catch (err: unknown) {
     console.error('stats overview error:', err);
