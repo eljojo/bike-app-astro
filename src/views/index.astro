@@ -78,8 +78,8 @@ if (isWiki) {
         });
       }
 
-      // Check hash on load
-      if (location.hash === '#browse') {
+      // Check hash or query params on load
+      if (location.hash === '#browse' || new URLSearchParams(location.search).has('tags')) {
         showView('browse');
       }
 

@@ -105,6 +105,7 @@ const routes = [
   { pattern: '/api/reactions/event/_starred', entrypoint: view('api/reactions-starred.ts') },
   { pattern: '/api/reactions/[contentType]/[...contentSlug]', entrypoint: view('api/reactions-get.ts') },
   // Other API
+  { pattern: '/api/weather', entrypoint: view('api/weather.ts') },
   { pattern: '/api/event', entrypoint: view('api/event.ts') },
   { pattern: '/api/dev/upload', entrypoint: view('dev/upload.ts') },
   { pattern: '/api/tiles/[...path]', entrypoint: view('api/tile-proxy.ts') },

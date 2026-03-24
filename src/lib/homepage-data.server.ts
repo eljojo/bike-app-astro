@@ -1,7 +1,8 @@
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
-import homepageFactEntries from 'virtual:bike-app/homepage-facts';
+import homepageFactsByLocale from 'virtual:bike-app/homepage-facts';
 import { isPublished } from './content/content-filters';
+import { defaultLocale, shortLocale } from './i18n/locale-utils';
 import { endOfDay, parseLocalDate } from './date-utils';
 import { organizerLink, organizerInitials, hasDetailPage } from './models/organizer-model';
 import { toPlaceData } from './geo/places';
@@ -21,6 +22,7 @@ type OrganizerEntry = CollectionEntry<'organizers'>;
 
 export interface FeaturedRoute {
   slug: string;
+  localeSlug: string;
   name: string;
   distance_km: number;
   tagline?: string;
@@ -56,6 +58,7 @@ export interface FeaturedCommunity {
 
 export interface ExploreMiniCard {
   slug: string;
+  localeSlug: string;
   name: string;
   distance_km: number;
   tagline?: string;
@@ -74,6 +77,7 @@ export interface HomepageVideo {
   key: string;
   duration?: string;
   routeSlug: string;
+  localeRouteSlug: string;
   routeName: string;
   caption?: string;
 }
@@ -128,24 +132,38 @@ function getTrackPoints(route: RouteEntry) {
 // Featured route — pick one per day at build time
 // ---------------------------------------------------------------------------
 
+const HTML_ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00A0',
+};
+
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  return html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(\w+));/g, (_, dec, hex, named) => {
+      if (dec) return String.fromCodePoint(Number(dec));
+      if (hex) return String.fromCodePoint(parseInt(hex, 16));
+      return HTML_ENTITIES[named] ?? '';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function getAllFeaturedRoutes(routes: RouteEntry[]): FeaturedRoute[] {
+function getAllFeaturedRoutes(routes: RouteEntry[], locale?: string): FeaturedRoute[] {
   return routes
     .filter(r => r.data.homepage_featured)
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(r => {
       const cover = getCover(r);
       const video = getVideo(r);
-      const plainBody = stripHtml(r.data.renderedBody || '');
-      const description = plainBody.length > 200 ? plainBody.slice(0, 200).replace(/\s\S*$/, '') + '\u2026' : plainBody || undefined;
+      const trans = locale ? r.data.translations?.[locale] : undefined;
+      const body = stripHtml(trans?.renderedBody || r.data.renderedBody || '');
+      const description = body.length > 200 ? body.slice(0, 200).replace(/\s\S*$/, '') + '\u2026' : body || undefined;
       return {
         slug: r.id,
-        name: r.data.name,
+        localeSlug: localeRouteSlug(r, locale),
+        name: trans?.name || r.data.name,
         distance_km: r.data.distance_km,
-        tagline: r.data.tagline,
+        tagline: trans?.tagline || r.data.tagline,
         description,
         tags: r.data.tags ?? [],
         coverKey: cover?.key,
@@ -239,6 +257,7 @@ function getFeaturedCommunities(
 function getExploreRoutes(
   routes: RouteEntry[],
   featuredSlugs: Set<string>,
+  locale?: string,
 ): ExploreMiniCard[] {
   // Cap at 100 km — longer routes are for explorers who venture deeper into the site
   const candidates = routes.filter(r => !featuredSlugs.has(r.id) && r.data.distance_km <= 100);
@@ -253,11 +272,13 @@ function getExploreRoutes(
   }
   return picked.map(r => {
     const cover = getCover(r);
+    const trans = locale ? r.data.translations?.[locale] : undefined;
     return {
       slug: r.id,
-      name: r.data.name,
+      localeSlug: localeRouteSlug(r, locale),
+      name: trans?.name || r.data.name,
       distance_km: r.data.distance_km,
-      tagline: r.data.tagline,
+      tagline: trans?.tagline || r.data.tagline,
       coverKey: cover?.key,
       coverWidth: cover?.width,
       coverHeight: cover?.height,
@@ -272,17 +293,20 @@ function getExploreRoutes(
 function findHomepageVideo(
   routes: RouteEntry[],
   featuredRoutes: FeaturedRoute[],
+  locale?: string,
 ): HomepageVideo | null {
   const featuredSlugs = new Set(featuredRoutes.filter(r => r.videoKey).map(r => r.slug));
   const pool: HomepageVideo[] = [];
 
   // Add featured route videos (2x weight = add twice)
+  // Featured routes already have locale-resolved names
   for (const fr of featuredRoutes) {
     if (fr.videoKey) {
       const entry: HomepageVideo = {
         key: fr.videoKey,
         duration: fr.videoDuration,
         routeSlug: fr.slug,
+        localeRouteSlug: fr.localeSlug,
         routeName: fr.name,
       };
       pool.push(entry, entry);
@@ -294,11 +318,13 @@ function findHomepageVideo(
     if (featuredSlugs.has(route.id)) continue;
     const video = getVideo(route);
     if (video) {
+      const trans = locale ? route.data.translations?.[locale] : undefined;
       pool.push({
         key: video.key,
         duration: video.duration,
         routeSlug: route.id,
-        routeName: route.data.name,
+        localeRouteSlug: localeRouteSlug(route, locale),
+        routeName: trans?.name || route.data.name,
         caption: video.caption,
       });
     }
@@ -330,12 +356,27 @@ function resolveTemplate(template: string, values: Record<string, string | numbe
   });
 }
 
+function routeName(route: RouteEntry, locale?: string): string {
+  const trans = locale ? route.data.translations?.[shortLocale(locale)] : undefined;
+  return trans?.name || route.data.name;
+}
+
+function localeRouteSlug(route: RouteEntry, locale?: string): string {
+  if (locale) {
+    const short = shortLocale(locale);
+    const slug = route.data.translations?.[short]?.slug;
+    if (typeof slug === 'string') return slug;
+  }
+  return route.id;
+}
+
 function resolveFactQuery(
   query: FactQuery,
   routes: RouteEntry[],
   placeData: PlaceData[],
   organizers: OrganizerEntry[],
   events: EventEntry[],
+  locale?: string,
 ): Record<string, string | number> | null {
   const order = query.order || query.direction || 'asc';
 
@@ -374,7 +415,7 @@ function resolveFactQuery(
       if (!picked) return null;
 
       return {
-        name: picked.data.name,
+        name: routeName(picked, locale),
         slug: picked.id,
         distance_km: picked.data.distance_km,
         count: published.length,
@@ -464,7 +505,7 @@ function resolveFactQuery(
       }
       if (!bestRoute) return null;
       return {
-        name: bestRoute.data.name,
+        name: routeName(bestRoute, locale),
         slug: bestRoute.id,
         count: bestCount,
         distance_km: bestRoute.data.distance_km,
@@ -504,8 +545,15 @@ export function resolveHomepageFacts(
   placeData: PlaceData[],
   organizers: OrganizerEntry[],
   events: EventEntry[],
+  locale?: string,
 ): ResolvedFact[] {
+  const short = locale ? shortLocale(locale) : defaultLocale();
+  const homepageFactEntries = homepageFactsByLocale[short] ?? homepageFactsByLocale[defaultLocale()] ?? [];
   if (homepageFactEntries.length === 0) return [];
+
+  // Build a slug map for locale-aware route links
+  const routeBySlug = new Map<string, RouteEntry>();
+  for (const r of routes) routeBySlug.set(r.id, r);
 
   const resolved: ResolvedFact[] = [];
 
@@ -524,13 +572,17 @@ export function resolveHomepageFacts(
 
     // Template with query — resolve values
     if (fact.template && fact.query) {
-      const values = resolveFactQuery(fact.query, routes, placeData, organizers, events);
+      const values = resolveFactQuery(fact.query, routes, placeData, organizers, events, locale);
       if (!values) continue; // skip facts with zero results
 
       const text = resolveTemplate(fact.template, values);
       let link = fact.link;
       if (fact.link_from && values[fact.link_from]) {
-        link = paths.route(String(values[fact.link_from]));
+        const slug = String(values[fact.link_from]);
+        const route = routeBySlug.get(slug);
+        const trans = route?.data.translations?.[short];
+        const localeSlug = (trans && typeof trans.slug === 'string' ? trans.slug : null) || slug;
+        link = paths.route(localeSlug, locale);
       }
       const link_text = fact.link_text ? resolveTemplate(fact.link_text, values) : undefined;
       resolved.push({ text, link, link_text });
@@ -553,16 +605,16 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
   const allPlaces = features.hasPlaces ? await getCollection('places') : [];
   const placeData = toPlaceData(allPlaces);
 
-  const allFeatured = getAllFeaturedRoutes(routes);
+  const allFeatured = getAllFeaturedRoutes(routes, locale);
   const featuredRoute = pickByDay(allFeatured);
   const upcomingEvents = getUpcomingEvents(events, organizers);
   const featuredCommunities = getFeaturedCommunities(organizers, events, locale);
 
   const todayFeaturedSlug = new Set(featuredRoute ? [featuredRoute.slug] : []);
-  const exploreRoutes = getExploreRoutes(routes, todayFeaturedSlug);
+  const exploreRoutes = getExploreRoutes(routes, todayFeaturedSlug, locale);
 
-  const facts = resolveHomepageFacts(routes, placeData, organizers, events);
-  const video = findHomepageVideo(routes, allFeatured);
+  const facts = resolveHomepageFacts(routes, placeData, organizers, events, locale);
+  const video = findHomepageVideo(routes, allFeatured, locale);
 
   return {
     featuredRoute,

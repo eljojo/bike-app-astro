@@ -16,6 +16,7 @@ Vendor-isolated wrappers for third-party service integrations. Each file encapsu
 | `routing.ts` | `RoutingWaypoint`, `RoutingService`, `RoutingResult` types — browser-safe interface for vendor-isolated routing |
 | `routing.server.ts` | `createRoutingService()` factory — currently returns Google adapter. Server-only |
 | `routing.adapter-google.server.ts` | Google Directions API adapter: calls `directions/json`, decodes step-level polylines, converts `lng` → `lon`. Server-only |
+| `open-meteo.server.ts` | Open-Meteo current weather API wrapper: fetches conditions, evaluates cycling suitability. Server-only |
 
 ## Gotchas
 

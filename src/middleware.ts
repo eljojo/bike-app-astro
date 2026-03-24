@@ -123,6 +123,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     (pathname.startsWith('/api/') &&
      !pathname.startsWith('/api/auth/') &&
      !pathname.startsWith('/api/reactions/') &&
+     pathname !== '/api/weather' &&
      pathname !== '/api/event' &&
      pathname !== '/api/video/webhook' &&
      !pathname.startsWith('/api/tiles/'));

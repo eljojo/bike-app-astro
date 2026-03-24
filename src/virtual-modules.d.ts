@@ -360,6 +360,6 @@ interface _HomepageFact {
 }
 
 declare module 'virtual:bike-app/homepage-facts' {
-  const facts: _HomepageFact[];
+  const facts: Record<string, _HomepageFact[]>;
   export default facts;
 }

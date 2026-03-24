@@ -18,6 +18,7 @@
   background: $color-bg;
   color: $color-text-muted;
   cursor: pointer;
+  user-select: none;
   transition: all 0.15s;
 
   &:first-child {
@@ -457,4 +458,28 @@
   @include muted-text;
   display: block;
   font-size: 0.8rem;
+}
+
+// Weather card — low-key nudge when conditions are good
+.magazine-weather {
+  .weather-card-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid $color-border;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    text-decoration: none;
+    @include muted-text;
+
+    @include dark-mode {
+      border-color: $color-border-dark;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }

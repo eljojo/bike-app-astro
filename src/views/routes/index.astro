@@ -3,3 +3,9 @@ export const prerender = true;
 // Redirect to homepage (which is the routes listing)
 ---
 <meta http-equiv="refresh" content="0; url=/" />
+<script>
+  // meta refresh loses query params — preserve them via JS redirect
+  if (window.location.search) {
+    window.location.replace('/' + window.location.search);
+  }
+</script>
