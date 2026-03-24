@@ -36,6 +36,8 @@ export function placeDetailFromGit(
     phone: frontmatter.phone as string | undefined,
     google_maps_url: frontmatter.google_maps_url as string | undefined,
     photo_key: frontmatter.photo_key as string | undefined,
+    organizer: frontmatter.organizer as string | undefined,
+    social_links: (frontmatter.social_links as PlaceDetail['social_links']) || [],
   };
 }
 

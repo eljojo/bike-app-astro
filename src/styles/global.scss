@@ -326,6 +326,23 @@ body.fullbleed {
   font-size: 20px;
   line-height: 1;
 }
+// PinMap component — reusable lettered pin markers
+.pin-map-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: $color-accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
 .place-popup {
   min-width: 180px;
   max-width: 280px;

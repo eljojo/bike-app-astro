@@ -12,6 +12,7 @@ import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 import { t } from '@/i18n';
+import { loadAdminPlaceData } from '../../loaders/admin-places';
 
 const result = await loadDetailFromJson({
   contentType: 'organizers',
@@ -29,9 +30,14 @@ const videosCdnUrl = config.videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const tagTranslations = loadTagTranslations();
 const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
+const { details: placeDetails } = await loadAdminPlaceData();
+const locationOptions = Object.values(placeDetails)
+  .filter(p => p.organizer === data.slug)
+  .map(p => ({ slug: p.id, name: p.name, address: p.address }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 ---
 
 <AdminEditorLayout title={`Edit: ${data.name}`} hideTitle user={user} currentTab="organizers">
-  <CommunityEditor client:load initialData={data} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={user?.role} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
+  <CommunityEditor client:load initialData={data} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={user?.role} guestLabel={t('editor.guest_label', Astro.currentLocale)} locations={locationOptions} />
   <EditHistory client:load contentPath={`${CITY}/organizers/${data.slug}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

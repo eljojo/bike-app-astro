@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
-import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadHomepageFacts, factToStatement, formatCategory } from './llms-shared';
+import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement, formatCategory } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 
 export const prerender = true;
@@ -71,6 +71,7 @@ export const GET: APIRoute = async () => {
   const routeFacts = await loadRouteFacts();
   const events = await loadUpcomingEvents();
   const communities = await loadCommunities();
+  const bikeShops = await loadBikeShops();
   const facts = await loadHomepageFacts();
 
   const sections: string[] = [];
@@ -159,6 +160,20 @@ export const GET: APIRoute = async () => {
     });
 
     sections.push(`## Local Communities\n\n${communityBlocks.join('\n\n---\n\n')}\n`);
+  }
+
+  // Local bike shops
+  if (bikeShops.length > 0) {
+    const shopBlocks = bikeShops.map(s => {
+      const lines: string[] = [];
+      lines.push(`### ${s.name}\n`);
+      if (s.tagline) lines.push(`- **About:** ${s.tagline}`);
+      if (s.specialties.length > 0) lines.push(`- **Specialties:** ${s.specialties.join(', ')}`);
+      lines.push(`- **More info:** ${s.url}`);
+      return lines.join('\n');
+    });
+
+    sections.push(`## Local Bike Shops\n\n${shopBlocks.join('\n\n---\n\n')}\n`);
   }
 
   const text = sections.join('\n');

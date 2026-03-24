@@ -23,7 +23,41 @@ function stripDangerousAttributes(html: string): string {
     .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*javascript:[^\s>]+/gi, '');
 }
 
+// Matches common North American phone formats:
+//   613-521-3791
+//   (613) 741-2443
+//   +1-343-600-2453
+//   +1 343 600 2453
+const PHONE_RE = /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+
+function digitsOnly(phone: string): string {
+  const hasPlus = phone.trimStart().startsWith('+');
+  const digits = phone.replace(/\D/g, '');
+  return hasPlus ? `+${digits}` : digits;
+}
+
+function linkPhone(match: string): string {
+  const digits = digitsOnly(match);
+  if (digits.replace(/^\+/, '').length < 10) return match;
+  return `<a href="tel:${digits}">${match}</a>`;
+}
+
+function autoLinkPhones(html: string): string {
+  // Split HTML into tags and text nodes. Only apply phone linking to text nodes
+  // so we never corrupt attributes or content inside existing <a> tags.
+  // The regex matches: <a>...</a> blocks, or any other HTML tag. Everything else is text.
+  const parts = html.split(/(<a\b[^>]*>[\s\S]*?<\/a>|<[^>]+>)/gi);
+  return parts
+    .map((part, i) => {
+      // Odd indices are captured groups (anchor blocks or HTML tags) — leave them alone.
+      if (i % 2 === 1) return part;
+      // Even indices are plain text between tags — safe to process.
+      return part.replace(PHONE_RE, linkPhone);
+    })
+    .join('');
+}
+
 export async function renderMarkdownHtml(markdown: string): Promise<string> {
   const rawHtml = await Promise.resolve(marked.parse(markdown));
-  return stripDangerousAttributes(stripBlockedTags(rawHtml));
+  return autoLinkPhones(stripDangerousAttributes(stripBlockedTags(rawHtml)));
 }

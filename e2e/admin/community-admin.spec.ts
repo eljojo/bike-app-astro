@@ -37,7 +37,7 @@ test.describe('Community Admin — List', () => {
     await page.waitForLoadState('networkidle');
 
     // The list should contain our test organizers (4 fixture files)
-    await expect(page.locator('.community-list-item')).toHaveCount(4, { timeout: 10000 });
+    await expect(page.locator('.community-list-item')).toHaveCount(6, { timeout: 10000 });
     await expect(page.getByText('Demo Cycling Club')).toBeVisible();
     await expect(page.getByText('Community Admin Test Org')).toBeVisible();
   });

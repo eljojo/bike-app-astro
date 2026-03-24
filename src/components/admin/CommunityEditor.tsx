@@ -14,6 +14,7 @@ const SOCIAL_PLATFORMS = [
   'instagram', 'facebook', 'strava', 'youtube',
   'meetup', 'tiktok', 'bluesky', 'threads', 'website',
   'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
+  'booking', 'telephone', 'email',
 ] as const;
 
 interface SocialLink {
@@ -31,10 +32,11 @@ interface Props {
   defaultLocale?: string;
   userRole?: string;
   guestLabel?: string;
+  locations?: Array<{ slug: string; name: string; address?: string }>;
 }
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
-export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, guestLabel }: Props) {
+export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, guestLabel, locations }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -275,6 +277,21 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
             + Add social link
           </button>
         </div>
+
+        {tags.includes('bike-shop') && locations && (
+          <div class="form-field">
+            <label>Locations</label>
+            <div class="community-locations-panel">
+              {locations.length === 0 && <p class="text-muted">No locations linked. Add this organizer to places via the place editor.</p>}
+              {locations.map(loc => (
+                <div key={loc.slug} class="community-location-row">
+                  <a href={`/admin/places/${loc.slug}`}>{loc.name}</a>
+                  {loc.address && <span class="text-muted"> — {loc.address}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <EditorActions

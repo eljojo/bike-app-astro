@@ -9,7 +9,8 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramUsername } from '@/lib/models/organizer-model';
+import { hasDetailPage, organizerInitials, normalizeSocialLinks, parseInstagramUsername, isBikeShop } from '@/lib/models/organizer-model';
+import { categoryEmoji } from '@/lib/geo/place-categories';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import { parseLocalDate, endOfDay, formatDateRange } from '@/lib/date-utils';
 import { eventCoverKey } from '@/lib/models/event-model';
@@ -17,6 +18,9 @@ import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import PinMap from '@/components/PinMap.astro';
+import Icon from '@/components/Icon.astro';
+import { escapeHtml } from '@/lib/maps/map-helpers';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -34,6 +38,25 @@ export async function getStaticPaths() {
 const { organizer } = Astro.props;
 const data = organizer.data;
 const { videoIds: youtubeIds, cleanedMarkdown: cleanBody } = extractYouTubeUrls(organizer.body || '');
+
+// Load places linked to this organizer
+const allPlaces = await getCollection('places');
+const locations = allPlaces
+  .filter(p => p.data.organizer === organizer.id && p.data.status === 'published')
+  .map(p => ({
+    name: p.data.name,
+    address: p.data.address,
+    phone: p.data.phone,
+    website: p.data.website,
+    google_maps_url: p.data.google_maps_url,
+    lat: p.data.lat,
+    lng: p.data.lng,
+    category: p.data.category,
+    emoji: categoryEmoji[p.data.category] || '📍',
+    social_links: p.data.social_links || [],
+  }));
+
+const isShop = isBikeShop(organizer);
 
 // Load events by this organizer
 const allEvents = await getCollection('events');
@@ -58,11 +81,19 @@ const socialLinks = normalizeSocialLinks(
   { instagram: data.instagram, website: data.website },
 ).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
 
+function socialLinkHref(link: { platform: string; url: string }): string {
+  if (link.platform === 'telephone') return `tel:${link.url.replace(/[^+\d]/g, '')}`;
+  if (link.platform === 'email') return `mailto:${link.url}`;
+  return link.url;
+}
+
 function socialLinkLabel(link: { platform: string; url: string }): string {
   if (link.platform === 'instagram') {
     const username = parseInstagramUsername(link.url);
     return username ? t('social.on_instagram', locale, { username }) : 'Instagram';
   }
+  if (link.platform === 'telephone') return link.url;
+  if (link.platform === 'email') return link.url;
   // Brand names stay untranslated; generic labels use t()
   const labels: Record<string, string> = {
     facebook: 'Facebook',
@@ -80,6 +111,7 @@ function socialLinkLabel(link: { platform: string; url: string }): string {
     komoot: 'Komoot',
     newsletter: t('social.newsletter', locale),
     mastodon: 'Mastodon',
+    booking: t('social.booking', locale),
   };
   return labels[link.platform] || link.platform;
 }
@@ -92,6 +124,10 @@ const mediaItems = (data.media ?? []).map(m => ({
   width: m.width,
   height: m.height,
 }));
+
+const contactPlatforms = new Set(['telephone', 'email', 'booking']);
+const contactLinks = socialLinks.filter(l => contactPlatforms.has(l.platform));
+const socialOnlyLinks = socialLinks.filter(l => !contactPlatforms.has(l.platform));
 
 const PAST_EVENTS_INITIAL = 4;
 ---
@@ -116,15 +152,34 @@ const PAST_EVENTS_INITIAL = 4;
       <div class="community-detail-header-info">
         <h1>{data.name}</h1>
         {data.tagline && <p class="community-detail-tagline">{data.tagline}</p>}
-        <div class="community-detail-links">
-          {socialLinks.map(link => (
-            <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
-              {socialLinkLabel(link)}
-            </a>
-          ))}
-        </div>
+        {socialOnlyLinks.length > 0 && (
+          <div class="community-detail-links">
+            {socialOnlyLinks.map(link => (
+              <a href={link.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">
+                {socialLinkLabel(link)}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </header>
+
+    {contactLinks.length > 0 && (
+      <div class="community-contact-card">
+        {contactLinks.map(link => (
+          <a
+            href={socialLinkHref(link)}
+            {...(link.platform === 'booking' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            class:list={['community-contact-item', { 'community-contact-booking': link.platform === 'booking' }]}
+          >
+            {link.platform === 'telephone' && <Icon name="phone" size={16} />}
+            {link.platform === 'email' && <Icon name="envelope-simple" size={16} />}
+            {link.platform === 'booking' && <Icon name="calendar-check" size={16} />}
+            {socialLinkLabel(link)}
+          </a>
+        ))}
+      </div>
+    )}
 
     {data.tags && data.tags.length > 0 && (
       <ul class="community-detail-tags">
@@ -149,6 +204,43 @@ const PAST_EVENTS_INITIAL = 4;
     {mediaItems.length > 0 && (
       <section class="community-detail-section">
         <MediaGallery media={mediaItems} name={data.name} />
+      </section>
+    )}
+
+    {locations.length > 0 && (
+      <section class="community-detail-section community-locations">
+        <h2>{t('communities.locations', locale)}</h2>
+        <div class="community-locations-layout">
+          <PinMap
+            class="community-locations-map"
+            pins={locations.map((loc, i) => ({
+              lat: loc.lat,
+              lng: loc.lng,
+              label: String.fromCharCode(65 + i),
+              popup: `<strong>${escapeHtml(loc.name)}</strong>`,
+            }))}
+          />
+          <div class="community-locations-list">
+            {locations.map((loc, i) => (
+              <div class="community-location-card">
+                <div class="community-location-letter">{String.fromCharCode(65 + i)}</div>
+                <div class="community-location-info">
+                  <strong>{loc.name}</strong>
+                  {loc.address && <div class="community-location-address">{loc.address}</div>}
+                  {loc.phone && <div class="community-location-phone"><a href={`tel:${loc.phone.replace(/[^+\d]/g, '')}`}>{loc.phone}</a></div>}
+                  <div class="community-location-links">
+                    {loc.social_links.filter(l => l.platform === 'booking').map(l => (
+                      <a href={l.url} target="_blank" rel="noopener noreferrer" class="community-social-pill">{t('social.booking', locale)}</a>
+                    ))}
+                    {loc.google_maps_url && (
+                      <a href={loc.google_maps_url} target="_blank" rel="noopener noreferrer" class="community-social-pill">{t('social.directions', locale)}</a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     )}
 

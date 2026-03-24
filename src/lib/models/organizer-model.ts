@@ -28,6 +28,22 @@ export const organizerDetailSchema = z.object({
 export type OrganizerDetail = z.infer<typeof organizerDetailSchema>;
 
 /**
+ * Returns true if the organizer is tagged as a bike shop.
+ */
+export function isBikeShop(org: OrganizerEntry): boolean {
+  return org.data.tags.includes('bike-shop');
+}
+
+/**
+ * A bike shop that is also featured transcends the LBS section —
+ * it appears alongside regular communities (and in the magazine).
+ * Use this to filter the communities list, not isBikeShop directly.
+ */
+export function isCommunity(org: OrganizerEntry): boolean {
+  return !isBikeShop(org) || org.data.featured;
+}
+
+/**
  * A community qualifies for a detail page if it's not explicitly hidden
  * and has at least one of:
  * - A markdown body (bio/description)

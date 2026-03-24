@@ -70,6 +70,17 @@ export const goodForEnum = z.enum([
   'rest-stop', 'family', 'post-ride', 'supplies', 'photo-op', 'picnic',
 ]);
 
+export const socialLinkSchema = z.object({
+  platform: z.enum([
+    'instagram', 'facebook', 'strava', 'youtube',
+    'meetup', 'tiktok', 'bluesky', 'threads', 'website',
+    'discord', 'google_form', 'linktree',
+    'rwgps', 'komoot', 'newsletter', 'mastodon', 'booking',
+    'telephone', 'email',
+  ]),
+  url: z.string(),
+});
+
 export const placeSchema = z.object({
   name: z.string(),
   name_fr: z.string().optional(),
@@ -86,22 +97,14 @@ export const placeSchema = z.object({
   google_maps_url: z.string().optional(),
   photo_key: z.string().optional(),
   media: z.array(baseMediaItemSchema).default([]),
+  organizer: z.string().optional(),
+  social_links: z.array(socialLinkSchema).default([]),
 });
 
 export const guideSchema = z.object({
   name: z.string(),
   status: z.enum(['published', 'draft']),
   tagline: z.string().optional(),
-});
-
-export const socialLinkSchema = z.object({
-  platform: z.enum([
-    'instagram', 'facebook', 'strava', 'youtube',
-    'meetup', 'tiktok', 'bluesky', 'threads', 'website',
-    'discord', 'google_form', 'linktree',
-    'rwgps', 'komoot', 'newsletter', 'mastodon',
-  ]),
-  url: z.string(),
 });
 
 export const organizerSchema = z.object({

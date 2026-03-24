@@ -1,0 +1,76 @@
+---
+/**
+ * Reusable map component for showing labeled pins on a MapLibre map.
+ * Use anywhere you need to show a few markers — shop locations, meeting points,
+ * event venues, etc. Handles single or multiple pins with auto-fit bounds.
+ */
+
+export interface Pin {
+  lat: number;
+  lng: number;
+  label: string;
+  popup?: string;
+}
+
+interface Props {
+  pins: Pin[];
+  class?: string;
+}
+
+const { pins, class: className } = Astro.props;
+const mapId = `pin-map-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<div
+  class:list={['pin-map', className]}
+  id={mapId}
+  data-pins={JSON.stringify(pins)}
+></div>
+
+<script>
+  import { initMap } from '../lib/maps/map-init';
+  import { getStyleUrl, loadStylePreference } from '../lib/maps/map-style-switch';
+  import maplibregl from 'maplibre-gl';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    for (const el of document.querySelectorAll<HTMLElement>('.pin-map')) {
+      const pins = JSON.parse(el.dataset.pins || '[]');
+      if (!pins.length) continue;
+
+      const bounds = new maplibregl.LngLatBounds();
+      for (const pin of pins) bounds.extend([pin.lng, pin.lat]);
+
+      // initMap expects center as [lat, lng] and swaps internally
+      const center: [number, number] = pins.length === 1
+        ? [pins[0].lat, pins[0].lng]
+        : [(bounds.getSouth() + bounds.getNorth()) / 2, (bounds.getWest() + bounds.getEast()) / 2];
+
+      const map = initMap({
+        el,
+        center,
+        zoom: pins.length === 1 ? 14 : 11,
+        styleUrl: getStyleUrl(loadStylePreference()),
+      });
+
+      map.on('load', () => {
+        if (pins.length > 1) {
+          map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 40 });
+        }
+
+        for (const pin of pins) {
+          const markerEl = document.createElement('div');
+          markerEl.className = 'pin-map-marker';
+          markerEl.textContent = pin.label;
+
+          const marker = new maplibregl.Marker({ element: markerEl })
+            .setLngLat([pin.lng, pin.lat])
+            .addTo(map);
+
+          if (pin.popup) {
+            marker.setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(pin.popup));
+          }
+        }
+      });
+    }
+  });
+</script>

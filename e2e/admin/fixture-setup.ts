@@ -494,6 +494,47 @@ website: https://shared.example.com
 `
   );
 
+  // lbs-test-shop: bike shop organizer for LBS feature tests
+  fs.writeFileSync(
+    path.join(orgDir, 'lbs-test-shop.md'),
+    `---
+name: LBS Test Shop
+tagline: A test bike shop
+tags:
+  - bike-shop
+  - repairs
+  - mobile
+social_links:
+  - platform: website
+    url: https://lbs-test.example.com
+  - platform: booking
+    url: https://lbs-test.example.com/book
+  - platform: telephone
+    url: "+1-613-555-1234"
+  - platform: email
+    url: test@lbs-test.example.com
+---
+
+A test bike shop for E2E tests.
+`
+  );
+
+  // lbs-featured-shop: featured bike shop that appears in both communities and LBS sections
+  fs.writeFileSync(
+    path.join(orgDir, 'lbs-featured-shop.md'),
+    `---
+name: LBS Featured Shop
+tagline: A featured community bike shop
+tags:
+  - bike-shop
+  - workshop
+featured: true
+---
+
+A featured bike shop for testing isCommunity() override.
+`
+  );
+
   // About page is pre-rendered and throws if missing
   const pagesDir = path.join(CITY_DIR, 'pages');
   fs.mkdirSync(pagesDir, { recursive: true });
@@ -510,6 +551,46 @@ About page fixture.
   // Empty directories for collections that must exist (glob loader fails otherwise)
   fs.mkdirSync(path.join(CITY_DIR, 'guides'), { recursive: true });
   fs.mkdirSync(path.join(CITY_DIR, 'places'), { recursive: true });
+
+  // Place fixtures for LBS tests
+  fs.writeFileSync(
+    path.join(CITY_DIR, 'places', 'lbs-shop-location-a.md'),
+    `---
+name: LBS Shop Location A
+category: bike-shop
+organizer: lbs-test-shop
+lat: 45.42
+lng: -75.69
+status: published
+address: 123 Test St, Ottawa, ON
+phone: (613) 555-1234
+google_maps_url: https://maps.example.com/a
+social_links:
+  - platform: booking
+    url: https://lbs-test.example.com/book-a
+good_for:
+  - supplies
+---
+`
+  );
+
+  fs.writeFileSync(
+    path.join(CITY_DIR, 'places', 'lbs-shop-location-b.md'),
+    `---
+name: LBS Shop Location B
+category: bike-shop
+organizer: lbs-test-shop
+lat: 45.40
+lng: -75.72
+status: published
+address: 456 Other Ave, Ottawa, ON
+phone: (613) 555-5678
+google_maps_url: https://maps.example.com/b
+good_for:
+  - supplies
+---
+`
+  );
 
   // Init git repo with user config so simple-git can commit during saves.
   // Use a fixed date for deterministic commit timestamps in screenshot tests.

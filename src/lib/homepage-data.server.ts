@@ -4,7 +4,7 @@ import homepageFactsByLocale from 'virtual:bike-app/homepage-facts';
 import { isPublished } from './content/content-filters';
 import { defaultLocale, shortLocale } from './i18n/locale-utils';
 import { endOfDay, parseLocalDate } from './date-utils';
-import { organizerLink, organizerInitials, hasDetailPage } from './models/organizer-model';
+import { organizerLink, organizerInitials, hasDetailPage, isCommunity } from './models/organizer-model';
 import { toPlaceData } from './geo/places';
 import { findNearbyPlaces } from './geo/proximity';
 import type { PlaceData } from './geo/proximity';
@@ -232,7 +232,7 @@ function getFeaturedCommunities(
   }
 
   return organizers
-    .filter(org => hasDetailPage(org))
+    .filter(org => hasDetailPage(org) && isCommunity(org))
     .sort((a, b) => {
       if (a.data.featured && !b.data.featured) return -1;
       if (!a.data.featured && b.data.featured) return 1;

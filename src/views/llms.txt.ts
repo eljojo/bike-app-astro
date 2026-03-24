@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
-import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadHomepageFacts, factToStatement } from './llms-shared';
+import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 
 export const prerender = true;
@@ -24,6 +24,7 @@ export const GET: APIRoute = async () => {
   const routeFacts = await loadRouteFacts();
   const events = await loadUpcomingEvents();
   const communities = await loadCommunities();
+  const bikeShops = await loadBikeShops();
   const facts = await loadHomepageFacts();
 
   const sections: string[] = [];
@@ -93,6 +94,18 @@ export const GET: APIRoute = async () => {
       return `- [${c.name}](${c.url})${suffix}`;
     });
     sections.push(`## Local Communities\n\n${communityLines.join('\n')}\n`);
+  }
+
+  // Local bike shops
+  if (bikeShops.length > 0) {
+    const shopLines = bikeShops.map(s => {
+      const parts: string[] = [];
+      if (s.tagline) parts.push(s.tagline);
+      if (s.specialties.length > 0) parts.push(s.specialties.join(', '));
+      const suffix = parts.length > 0 ? `: ${parts.join(' — ')}` : '';
+      return `- [${s.name}](${s.url})${suffix}`;
+    });
+    sections.push(`## Local Bike Shops\n\n${shopLines.join('\n')}\n`);
   }
 
   const text = sections.join('\n');

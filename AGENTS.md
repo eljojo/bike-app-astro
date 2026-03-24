@@ -212,6 +212,10 @@ Data lives next to what uses it. Route photos live in the route's `media.yml`. P
 
 The build has simultaneous access to the entire dataset. It computes relationships and rankings that individual pages can't know alone — difficulty scoring, similarity matrix, route shape classification, nearby places. All insights are build-time computation frozen into static HTML. Never compute dataset-wide intelligence at request time.
 
+### Tags as Behaviour Triggers
+
+Tags are lightweight feature flags. A single tag can recontextualize an entire entity — `bike-shop` on an organizer demotes it from the magazine, moves it to a separate section on the communities page, and turns sibling tags into shop specialties (`repairs`, `cargo`, `mobile`). Tags combine: `bike-shop` + `mobile` means no physical locations. No enums, no feature flag infrastructure — just data that the UI responds to. When designing new behaviour variations, prefer a tag over a new field or content type. A tag is data the community can edit; a schema field is structure only a developer can change.
+
 ---
 
 ## Architecture Reference

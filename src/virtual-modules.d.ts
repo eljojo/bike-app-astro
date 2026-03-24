@@ -200,6 +200,8 @@ interface _AdminPlaceDetail {
   phone?: string;
   google_maps_url?: string;
   photo_key?: string;
+  organizer?: string;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash?: string;
 }
 
