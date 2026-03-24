@@ -133,17 +133,8 @@ function getTrackPoints(route: RouteEntry) {
 // ---------------------------------------------------------------------------
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, '')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
+  const { decodeHTML } = require('entities') as typeof import('entities');
+  return decodeHTML(html.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
 }
 
 function getAllFeaturedRoutes(routes: RouteEntry[], locale?: string): FeaturedRoute[] {
