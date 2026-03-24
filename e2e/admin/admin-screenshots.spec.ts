@@ -152,6 +152,13 @@ test.describe('Admin Screenshots — Unauthenticated', () => {
     expect(page.url()).toContain('/admin/routes/carp');
     await expect(page).toHaveScreenshot('admin-anonymous-editor.png', screenshotOpts);
   });
+
+  test('protected admin pages redirect to login', async ({ page }) => {
+    // /admin/settings is NOT browsable — should redirect to /login
+    await page.goto('/admin/settings');
+    await page.waitForLoadState('networkidle');
+    expect(page.url()).toContain('/login');
+  });
 });
 
 test.describe('Admin Screenshots — Guest Variant', () => {
