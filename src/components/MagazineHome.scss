@@ -482,4 +482,18 @@
       text-decoration: underline;
     }
   }
+
+  // Prominent placement — rare good day, moved to top of main column
+  &.weather-prominent {
+    margin-bottom: 1.5rem;
+
+    .weather-card-link {
+      font-size: 1rem;
+      color: $color-text;
+
+      @include dark-mode {
+        color: $color-text-dark;
+      }
+    }
+  }
 }

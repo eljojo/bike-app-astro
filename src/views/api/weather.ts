@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 import { env, tileCache } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
-import { fetchWeather, evaluateWeather, dailyForecast, fetchAirQuality } from '../../lib/external/open-meteo.server';
+import { fetchWeather, evaluateWeather, dailyForecast, fetchAirQuality, analyzeWeatherWindow } from '../../lib/external/open-meteo.server';
 import { t } from '../../i18n';
 
 export const prerender = false;
@@ -19,6 +19,7 @@ interface WeatherResponse {
   sunscreen?: string;
   airWarning?: string;
   icon?: WeatherIcon;
+  prominence?: 'high' | 'normal';
 }
 
 function dayIcon(descriptionKey: string): WeatherIcon {
@@ -48,8 +49,7 @@ export const GET: APIRoute = async ({ url }) => {
   const timezone = config.timezone || 'UTC';
   const hour = localHour(timezone);
   const isNight = hour < 6 || hour >= 19;
-  const isEvening = hour >= 19; // 7pm–midnight: show tomorrow's forecast
-  // midnight–6am: show today's daily forecast (the upcoming daytime)
+  const isEvening = hour >= 19;
   const period = isEvening ? 'evening' : hour < 6 ? 'late-night' : 'day';
 
   const cacheKey = `weather:${CITY}:${locale || 'default'}:${period}`;
@@ -79,31 +79,53 @@ export const GET: APIRoute = async ({ url }) => {
         icon: 'face-mask',
       };
     } else {
+      // Analyze the 7-day window
+      const window = data.daily ? analyzeWeatherWindow(data.daily, { staging }) : null;
+
+      // If today isn't rideable but there's a rare good day coming, show that
       let weatherData;
       if (isEvening && data.daily) {
-        weatherData = dailyForecast(data.daily, 1); // tomorrow
+        weatherData = dailyForecast(data.daily, 1);
       } else if (hour < 6 && data.daily) {
-        weatherData = dailyForecast(data.daily, 0); // today
+        weatherData = dailyForecast(data.daily, 0);
       } else {
         weatherData = data.current;
       }
       const result = evaluateWeather(weatherData, { staging });
 
-      if (!result.rideable || result.temperature == null || !result.descriptionKey) {
+      if (window?.type === 'upcoming' && window.nextGoodDayName && window.nextGoodDayTemp != null && window.nextGoodDayDescriptionKey) {
+        // Today is bad but there's a rare good day coming
+        const dayName = t(`weather.day.${window.nextGoodDayName}`, locale);
+        const desc = t(`weather.${window.nextGoodDayDescriptionKey}`, locale);
+        response = {
+          rideable: true,
+          text: t('weather.window_upcoming', locale, { day: dayName, temp: window.nextGoodDayTemp, description: desc }),
+          icon: dayIcon(window.nextGoodDayDescriptionKey),
+          prominence: 'high',
+        };
+      } else if (!result.rideable || result.temperature == null || !result.descriptionKey) {
         response = { rideable: false };
       } else {
         const description = t(`weather.${result.descriptionKey}`, locale);
         const key = isEvening ? 'weather.good_day_tomorrow' : 'weather.good_day';
-        const text = t(key, locale, { temp: result.temperature, description });
+        let text = t(key, locale, { temp: result.temperature, description });
         response = {
           rideable: true,
           text,
           icon: isNight ? 'moon-stars' : dayIcon(result.descriptionKey),
+          prominence: (window?.type === 'only' || window?.type === 'rare') ? 'high' : 'normal',
         };
+
+        // Add window context to the text
+        if (window?.type === 'only') {
+          response.text = t('weather.window_only', locale, { temp: result.temperature, description });
+        } else if (window?.type === 'rare') {
+          response.text = t('weather.window_rare', locale, { temp: result.temperature, description });
+        }
+
         if (result.uvIndex != null && result.uvIndex >= 6) {
           response.sunscreen = t('weather.sunscreen', locale);
         }
-        // AQI 51–100 = moderate — still rideable but warn sensitive groups
         if (airQuality && airQuality.aqi > 50) {
           response.airWarning = t('weather.air_moderate', locale);
         }
