@@ -51,7 +51,7 @@ export interface LeaderboardEntry {
   thumbKey?: string;
   primaryValue: number;
   primaryLabel: string;
-  secondaryValue?: number;
+  secondaryValue?: number | string;
   secondaryLabel?: string;
 }
 

@@ -61,7 +61,7 @@ export function computeMedians(rows: EngagementRow[]): MedianValues {
 }
 
 function formatHours(h: number): string {
-  return h >= 10 ? `${Math.round(h)}h` : `${Math.round(h * 10) / 10}h`;
+  return formatDuration(h * 3600);
 }
 
 /** Resolve a content slug to a human-readable name via the lookup map. */

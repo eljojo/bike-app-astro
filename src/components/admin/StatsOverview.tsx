@@ -458,7 +458,7 @@ export default function StatsOverview() {
                 <tr>
                   <th>Content</th>
                   <th class="stats-table-num">Views</th>
-                  <th class="stats-table-num">Hours</th>
+                  <th class="stats-table-num">Time</th>
                 </tr>
               </thead>
               <tbody>

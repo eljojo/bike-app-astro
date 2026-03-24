@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { granularityForRange, getStartDate, parseTimeRange, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, parseTimeRange, formatDuration, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
@@ -195,8 +195,8 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
       primaryValue: r.totalPageviews,
       primaryLabel: 'views',
-      secondaryValue: Math.round(r.wallTimeHours * 10) / 10,
-      secondaryLabel: 'hours',
+      secondaryValue: formatDuration(r.wallTimeHours * 3600),
+      secondaryLabel: 'time',
     }));
 
     const engagementLeaderboard = topByEngagement.map(r => ({
@@ -209,7 +209,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       secondaryValue: r.totalPageviews,
       secondaryLabel: 'views',
       breakdown: {
-        wallTime: `${Math.round(r.wallTimeHours * 10) / 10}h`,
+        wallTime: formatDuration(r.wallTimeHours * 3600),
         mapConversion: `${Math.round(r.mapConversionRate * 100)}%`,
         stars: r.stars,
         videoPlayRate: `${Math.round(r.videoPlayRate * 100)}%`,

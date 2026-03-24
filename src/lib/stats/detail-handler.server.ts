@@ -97,7 +97,7 @@ export async function handleContentDetailRequest(
         { label: 'Visitors', value: totalVisitors, description: 'Unique visitor-days in this period' },
         { label: 'Views/visitor', value: viewsPerVisitor, description: 'Average page views per visitor' },
         { label: 'Entry visitors', value: totalEntryVisitors, description: 'Visitors who entered the site on this page' },
-        { label: 'Wall time', value: `${Math.round(wallTimeHours * 10) / 10}h`, description: 'Total hours spent reading in this period' },
+        { label: 'Wall time', value: formatDuration(wallTimeHours * 3600), description: 'Total hours spent reading in this period' },
       ];
 
       if (isRoute) {
