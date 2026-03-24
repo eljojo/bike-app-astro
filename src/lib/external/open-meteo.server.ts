@@ -61,7 +61,7 @@ export interface OpenMeteoResponse {
 
 /** Fetch current weather + 7-day daily forecast from Open-Meteo. */
 export async function fetchWeather(lat: number, lng: number, timezone: string): Promise<OpenMeteoResponse> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&daily=time,temperature_2m_max,weather_code,wind_speed_10m_max,uv_index_max&forecast_days=7&timezone=${encodeURIComponent(timezone)}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&daily=temperature_2m_max,weather_code,wind_speed_10m_max,uv_index_max&forecast_days=7&timezone=${encodeURIComponent(timezone)}`;
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) {
     const body = await response.text().catch(() => '');
