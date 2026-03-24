@@ -52,12 +52,11 @@ const mapId = `pin-map-${Math.random().toString(36).slice(2, 8)}`;
         styleUrl: getStyleUrl(loadStylePreference()),
       });
 
-      // For multiple pins, fit bounds immediately without animation
-      if (pins.length > 1) {
-        map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 40, animate: false });
-      }
-
       map.on('load', () => {
+        if (pins.length > 1) {
+          map.fitBounds(bounds.toArray() as [[number, number], [number, number]], { padding: 40 });
+        }
+
         for (const pin of pins) {
           const markerEl = document.createElement('div');
           markerEl.className = 'pin-map-marker';
