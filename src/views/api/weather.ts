@@ -3,7 +3,7 @@ import type { APIRoute } from 'astro';
 import { env, tileCache } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { CITY } from '../../lib/config/config';
-import { fetchWeather, evaluateWeather, dailyForecast } from '../../lib/external/open-meteo.server';
+import { fetchWeather, evaluateWeather, dailyForecast, fetchAirQuality } from '../../lib/external/open-meteo.server';
 import { t } from '../../i18n';
 
 export const prerender = false;
@@ -17,6 +17,7 @@ interface WeatherResponse {
   rideable: boolean;
   text?: string;
   sunscreen?: string;
+  airWarning?: string;
   icon?: WeatherIcon;
 }
 
@@ -60,35 +61,48 @@ export const GET: APIRoute = async ({ url }) => {
     return jsonResponse(JSON.parse(text));
   }
 
-  // Fetch from Open-Meteo
+  // Fetch weather and air quality in parallel
   let response: WeatherResponse;
   try {
-    const data = await fetchWeather(config.center.lat, config.center.lng, timezone);
+    const { lat, lng } = config.center;
+    const [data, airQuality] = await Promise.all([
+      fetchWeather(lat, lng, timezone),
+      fetchAirQuality(lat, lng).catch(() => null),
+    ]);
     const staging = env.ENVIRONMENT === 'staging';
 
-    let weatherData;
-    if (isEvening && data.daily) {
-      weatherData = dailyForecast(data.daily, 1); // tomorrow
-    } else if (hour < 6 && data.daily) {
-      weatherData = dailyForecast(data.daily, 0); // today
-    } else {
-      weatherData = data.current;
-    }
-    const result = evaluateWeather(weatherData, { staging });
-
-    if (!result.rideable || result.temperature == null || !result.descriptionKey) {
+    // AQI > 100 = unhealthy — not a good day to ride
+    if (airQuality && airQuality.aqi > 100) {
       response = { rideable: false };
     } else {
-      const description = t(`weather.${result.descriptionKey}`, locale);
-      const key = isEvening ? 'weather.good_day_tomorrow' : 'weather.good_day';
-      const text = t(key, locale, { temp: result.temperature, description });
-      response = {
-        rideable: true,
-        text,
-        icon: isNight ? 'moon-stars' : dayIcon(result.descriptionKey),
-      };
-      if (result.uvIndex != null && result.uvIndex >= 6) {
-        response.sunscreen = t('weather.sunscreen', locale);
+      let weatherData;
+      if (isEvening && data.daily) {
+        weatherData = dailyForecast(data.daily, 1); // tomorrow
+      } else if (hour < 6 && data.daily) {
+        weatherData = dailyForecast(data.daily, 0); // today
+      } else {
+        weatherData = data.current;
+      }
+      const result = evaluateWeather(weatherData, { staging });
+
+      if (!result.rideable || result.temperature == null || !result.descriptionKey) {
+        response = { rideable: false };
+      } else {
+        const description = t(`weather.${result.descriptionKey}`, locale);
+        const key = isEvening ? 'weather.good_day_tomorrow' : 'weather.good_day';
+        const text = t(key, locale, { temp: result.temperature, description });
+        response = {
+          rideable: true,
+          text,
+          icon: isNight ? 'moon-stars' : dayIcon(result.descriptionKey),
+        };
+        if (result.uvIndex != null && result.uvIndex >= 6) {
+          response.sunscreen = t('weather.sunscreen', locale);
+        }
+        // AQI 51–100 = moderate — still rideable but warn sensitive groups
+        if (airQuality && airQuality.aqi > 50) {
+          response.airWarning = t('weather.air_moderate', locale);
+        }
       }
     }
   } catch (err) {

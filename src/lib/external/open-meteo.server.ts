@@ -69,6 +69,31 @@ export async function fetchWeather(lat: number, lng: number, timezone: string): 
   return response.json();
 }
 
+// ---------------------------------------------------------------------------
+// Air Quality
+// ---------------------------------------------------------------------------
+
+export interface AirQualityResult {
+  aqi: number;
+  pm2_5: number;
+}
+
+/** Fetch current air quality from Open-Meteo. Separate API from weather. */
+export async function fetchAirQuality(lat: number, lng: number): Promise<AirQualityResult> {
+  const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi,pm2_5`;
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Open-Meteo Air Quality API error: ${response.status} — ${body}`);
+  }
+  const data = await response.json();
+  return { aqi: data.current.us_aqi, pm2_5: data.current.pm2_5 };
+}
+
+// ---------------------------------------------------------------------------
+// Daily forecast helper
+// ---------------------------------------------------------------------------
+
 /** Extract a day's forecast from daily arrays. Index 0 = today, 1 = tomorrow. */
 export function dailyForecast(daily: NonNullable<OpenMeteoResponse['daily']>, dayIndex: number): OpenMeteoCurrentWeather {
   return {

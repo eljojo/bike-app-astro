@@ -531,6 +531,7 @@
   "weather.good_day": "{temp}°C and {description} — good day for a ride",
   "weather.good_day_tomorrow": "Tomorrow: {temp}°C and {description} — good day for a ride",
   "weather.sunscreen": "Don\u2019t forget sunscreen",
+  "weather.air_moderate": "Air quality is moderate today",
   "weather.clear": "clear",
   "weather.mostly_clear": "mostly clear",
   "weather.partly_cloudy": "partly cloudy",
