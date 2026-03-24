@@ -288,11 +288,23 @@ function deployStub(wranglerEnv) {
   logAction(`Deploying stub worker to create ${wranglerEnv}...`);
 
   const stubPath = resolve(ROOT, '.data', 'stub-worker.mjs');
-  const distCreated = !existsSync(resolve(ROOT, 'dist'));
 
-  mkdirSync(resolve(ROOT, '.data'), { recursive: true });
-  // wrangler validates assets.directory exists
-  if (distCreated) mkdirSync(resolve(ROOT, 'dist'), { recursive: true });
+  // Track which directories we create so we can clean up
+  const created = [];
+  const ensureDir = (dir) => {
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+      created.push(dir);
+    }
+  };
+
+  ensureDir(resolve(ROOT, '.data'));
+  // Wrangler validates assets.directory exists. A previous build may have
+  // left dist/server/wrangler.json which redirects config and expects
+  // dist/client — create both to satisfy either path.
+  ensureDir(resolve(ROOT, 'dist'));
+  ensureDir(resolve(ROOT, 'dist', 'client'));
+
   writeFileSync(stubPath, 'export default { fetch() { return new Response("Setting up — check back soon!"); } };\n');
 
   try {
@@ -306,7 +318,10 @@ function deployStub(wranglerEnv) {
     throw err;
   } finally {
     rmSync(stubPath, { force: true });
-    if (distCreated) rmSync(resolve(ROOT, 'dist'), { recursive: true, force: true });
+    // Clean up directories we created (reverse order — children first)
+    for (const dir of created.reverse()) {
+      try { rmSync(dir, { recursive: true, force: true }); } catch { /* may have other contents */ }
+    }
   }
 }
 
