@@ -108,7 +108,7 @@ describe('computeInsights', () => {
     const strong = insights.find(i => i.type === 'strong-performer');
     expect(strong).toBeDefined();
     expect(strong!.body).toContain('30h');
-    expect(strong!.body).toContain('50%');
+    expect(strong!.body).toContain('half the visitors open the map');
     expect(strong!.body).toContain('5 stars');
   });
 

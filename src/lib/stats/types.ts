@@ -109,6 +109,19 @@ export function formatDuration(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+/** Format a 0–1 rate as a human-readable fraction (e.g. "1 in 3", "Half the"). */
+export function humanFraction(rate: number): string {
+  if (rate >= 0.92) return 'Almost all';
+  if (rate >= 0.72) return '3 in 4';
+  if (rate >= 0.6) return '2 in 3';
+  if (rate >= 0.45) return 'Half the';
+  if (rate >= 0.3) return '1 in 3';
+  if (rate >= 0.22) return '1 in 4';
+  if (rate >= 0.17) return '1 in 5';
+  if (rate >= 0.08) return '1 in 10';
+  return `${Math.round(rate * 100)}% of`;
+}
+
 /** Funnel step for route drill-down. */
 export interface FunnelStep {
   label: string;

@@ -1,5 +1,5 @@
 import type { InsightCard } from './types';
-import { formatDuration } from './types';
+import { formatDuration, humanFraction } from './types';
 
 /** Shape of a content_engagement table row, as consumed by the insights engine. */
 export interface EngagementRow {
@@ -132,9 +132,9 @@ function detectStrongPerformer(row: EngagementRow, rows: EngagementRow[], name: 
   // Build a human-readable narrative of what makes it strong
   const signals: string[] = [];
   if (row.wallTimeHours > 1) signals.push(`${formatHours(row.wallTimeHours)} of reading time`);
-  if (row.mapConversionRate > 0.1) signals.push(`${Math.round(row.mapConversionRate * 100)}% open the map`);
+  if (row.mapConversionRate > 0.1) signals.push(`${humanFraction(row.mapConversionRate).toLowerCase()} visitors open the map`);
   if (row.stars > 0) signals.push(`${row.stars} star${row.stars > 1 ? 's' : ''}`);
-  if (row.videoPlayRate > 0.05) signals.push(`${Math.round(row.videoPlayRate * 100)}% play the video`);
+  if (row.videoPlayRate > 0.05) signals.push(`${humanFraction(row.videoPlayRate).toLowerCase()} visitors play the video`);
   const narrative = signals.length > 0
     ? signals.join(', ') + '.'
     : 'Performs well across engagement signals.';
@@ -162,17 +162,16 @@ function detectVideosWorking(row: EngagementRow, medians: MedianValues, name: st
   if (medians.videoPlayRate === 0) return null;
   if (row.videoPlayRate <= medians.videoPlayRate * 1.5) return null;
 
-  const pct = Math.round(row.videoPlayRate * 100);
   return {
     type: 'videos-working',
     severity: 'positive',
     title: 'Video is working',
     name,
-    body: `${pct}% of visitors play the video — well above average.`,
+    body: `${humanFraction(row.videoPlayRate)} visitors play the video — well above average.`,
     contentType: row.contentType,
     contentSlug: row.contentSlug,
     metrics: {
-      'Video play rate': `${pct}%`,
+      'Video play rate': `${Math.round(row.videoPlayRate * 100)}%`,
       'Page views': row.totalPageviews,
     },
   };
