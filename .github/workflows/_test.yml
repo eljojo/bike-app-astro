@@ -210,6 +210,32 @@ jobs:
       - name: Run prebuild (map style, icon paths)
         run: npx tsx scripts/prebuild.ts
 
+      - name: Fix corrupt PNG baselines
+        if: matrix.suite == 'public'
+        run: |
+          for f in $(find e2e/snapshots/ -name '*.png' -type f 2>/dev/null); do
+            node -e "
+              const fs = require('fs');
+              const data = fs.readFileSync('$f');
+              if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) process.exit();
+              let pos = 8;
+              while (pos < data.length) {
+                if (pos + 8 > data.length) break;
+                const len = data.readUInt32BE(pos);
+                const type = data.subarray(pos+4, pos+8).toString('ascii');
+                if (type === 'IEND') {
+                  const clean = pos + 12;
+                  if (data.length > clean) {
+                    console.log('Stripping ' + (data.length - clean) + ' trailing bytes from $f');
+                    fs.writeFileSync('$f', data.subarray(0, clean));
+                  }
+                  break;
+                }
+                pos += 12 + len;
+              }
+            " 2>/dev/null
+          done
+
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v5
@@ -380,6 +406,55 @@ jobs:
           pattern: screenshots-*
           merge-multiple: true
           path: e2e/
+
+      - name: Check PNG integrity before committing
+        run: |
+          corrupt=0
+          for f in $(find e2e/ -name '*.png' -type f); do
+            # Check for trailing bytes after IEND chunk
+            result=$(node -e "
+              const fs = require('fs');
+              const data = fs.readFileSync('$f');
+              if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) { console.log('NOT_PNG'); process.exit(); }
+              let pos = 8;
+              while (pos < data.length) {
+                if (pos + 8 > data.length) { console.log('TRUNCATED'); process.exit(); }
+                const len = data.readUInt32BE(pos);
+                const type = data.subarray(pos+4, pos+8).toString('ascii');
+                if (type === 'IEND') {
+                  const extra = data.length - (pos + 12);
+                  if (extra > 0) { console.log('CORRUPT:' + extra); } else { console.log('OK'); }
+                  process.exit();
+                }
+                pos += 12 + len;
+              }
+              console.log('NO_IEND');
+            " 2>/dev/null)
+            case "$result" in
+              CORRUPT:*)
+                extra=${result#CORRUPT:}
+                echo "::warning::$f has $extra trailing bytes after IEND — stripping"
+                node -e "
+                  const fs = require('fs');
+                  const data = fs.readFileSync('$f');
+                  let pos = 8;
+                  while (pos < data.length) {
+                    const len = data.readUInt32BE(pos);
+                    const type = data.subarray(pos+4, pos+8).toString('ascii');
+                    if (type === 'IEND') { fs.writeFileSync('$f', data.subarray(0, pos + 12)); break; }
+                    pos += 12 + len;
+                  }
+                "
+                corrupt=$((corrupt + 1))
+                ;;
+              TRUNCATED|NO_IEND)
+                echo "::warning::$f is malformed ($result) — removing"
+                rm "$f"
+                corrupt=$((corrupt + 1))
+                ;;
+            esac
+          done
+          echo "Checked PNGs: $corrupt needed fixing"
 
       - name: Commit updated screenshots
         id: update-screenshots
