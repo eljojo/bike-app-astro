@@ -289,7 +289,7 @@ const locale = Astro.currentLocale;
       if (!data.rideable || !data.text) return;
 
       if (iconSpan && data.icon && ICONS[data.icon]) {
-        iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">${ICONS[data.icon]}</svg>`;
+        iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" style="vertical-align:-0.125em">${ICONS[data.icon]}</svg>`;
       }
       span.textContent = data.sunscreen ? `${data.text}. ${data.sunscreen}` : data.text;
       card.removeAttribute('hidden');
