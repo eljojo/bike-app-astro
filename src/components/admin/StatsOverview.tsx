@@ -269,6 +269,7 @@ export default function StatsOverview() {
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [cumulative, setCumulative] = useState(false);
   const [error, setError] = useState('');
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
@@ -306,26 +307,41 @@ export default function StatsOverview() {
   // Load default range on mount
   useEffect(() => { loadRange('30d'); }, []);
 
+  // Cumulative helper
+  function cumulate(values: number[]): number[] {
+    let sum = 0;
+    return values.map(v => { sum += v; return sum; });
+  }
+
   useEffect(() => {
     if (!chartRef.current || !data) return;
 
     chartInstance.current?.destroy();
 
+    const pvData = cumulative
+      ? cumulate(data.timeSeries.map(p => p.value))
+      : data.timeSeries.map(p => p.value);
+    const visData = cumulative
+      ? cumulate(data.timeSeries.map(p => p.secondaryValue ?? 0))
+      : data.timeSeries.map(p => p.secondaryValue ?? 0);
+
     chartInstance.current = new Chart(chartRef.current, {
-      type: 'bar',
+      type: cumulative ? 'line' : 'bar',
       data: {
         labels: data.timeSeries.map(p => p.date),
         datasets: [
           {
-            label: 'Page views',
-            data: data.timeSeries.map(p => p.value),
-            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+            label: cumulative ? 'Total page views' : 'Page views',
+            data: pvData,
+            backgroundColor: cumulative ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.5)',
             borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 1,
+            borderWidth: cumulative ? 2 : 1,
+            pointRadius: 0,
+            fill: cumulative,
           },
           {
-            label: 'Visitors',
-            data: data.timeSeries.map(p => p.secondaryValue ?? 0),
+            label: cumulative ? 'Total visitors' : 'Visitors',
+            data: visData,
             type: 'line',
             borderColor: 'rgb(234, 88, 12)',
             borderWidth: 2,
@@ -359,7 +375,7 @@ export default function StatsOverview() {
     });
 
     return () => { chartInstance.current?.destroy(); };
-  }, [data?.timeSeries]);
+  }, [data?.timeSeries, cumulative]);
 
   if (!data && loading) {
     return (
@@ -429,7 +445,12 @@ export default function StatsOverview() {
 
       {/* Traffic chart */}
       <div class="stats-chart-container">
-        <h3 class="stats-section-title">Traffic</h3>
+        <div class="stats-chart-header">
+          <h3 class="stats-section-title">Traffic</h3>
+          <button type="button" class="stats-toggle-btn" onClick={() => setCumulative(!cumulative)}>
+            {cumulative ? 'Show daily' : 'Show cumulative'}
+          </button>
+        </div>
         <div class="stats-chart-wrapper">
           <canvas ref={chartRef} />
         </div>
