@@ -11,7 +11,7 @@ import { parseLocalDate, formatDateRange } from '../lib/date-utils';
 import { toPlaceData } from '../lib/geo/places';
 import { resolveHomepageFacts } from '../lib/homepage-data.server';
 import type { ResolvedFact } from '../lib/homepage-data.server';
-import { hasDetailPage, isBikeShop } from '../lib/models/organizer-model';
+import { hasDetailPage, isBikeShop, isCommunity } from '../lib/models/organizer-model';
 import { paths } from '../lib/paths';
 
 export function stripEmoji(text: string): string {
@@ -182,7 +182,7 @@ export async function loadCommunities(): Promise<CommunityFacts[]> {
   }
 
   return organizers
-    .filter(org => hasDetailPage(org) && !isBikeShop(org))
+    .filter(org => hasDetailPage(org) && isCommunity(org))
     .sort((a, b) => {
       if (a.data.featured && !b.data.featured) return -1;
       if (!a.data.featured && b.data.featured) return 1;
