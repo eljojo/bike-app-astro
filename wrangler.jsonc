@@ -5,14 +5,7 @@
     "nodejs_compat"
   ],
   "no_bundle": true,
-  "rules": [
-    {
-      "type": "ESModule",
-      "globs": [
-        "***.mjs"
-      ]
-    }
-  ],
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",

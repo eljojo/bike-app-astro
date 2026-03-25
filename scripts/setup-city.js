@@ -67,9 +67,38 @@ function discoverCities(contentDir) {
 
 function readWranglerConfig() {
   const raw = readFileSync(resolve(ROOT, 'wrangler.jsonc'), 'utf8');
-  const stripped = raw
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/.*$/gm, '');
+  // Strip JSONC comments without mangling strings.
+  // The naive //.*$ regex treats "//" inside strings (e.g. glob "**/*.js")
+  // as a comment. Instead, walk the string tracking quote state.
+  let stripped = '';
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escape) { stripped += ch; escape = false; continue; }
+    if (inString) {
+      if (ch === '\\') { stripped += ch; escape = true; continue; }
+      if (ch === '"') inString = false;
+      stripped += ch;
+      continue;
+    }
+    // Not in string
+    if (ch === '"') { inString = true; stripped += ch; continue; }
+    if (ch === '/' && raw[i + 1] === '/') {
+      // Line comment — skip to end of line
+      while (i < raw.length && raw[i] !== '\n') i++;
+      stripped += '\n';
+      continue;
+    }
+    if (ch === '/' && raw[i + 1] === '*') {
+      // Block comment — skip to */
+      i += 2;
+      while (i < raw.length - 1 && !(raw[i] === '*' && raw[i + 1] === '/')) i++;
+      i++; // skip past /
+      continue;
+    }
+    stripped += ch;
+  }
   return JSON.parse(stripped);
 }
 
