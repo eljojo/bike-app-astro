@@ -264,6 +264,31 @@ function buildRouteRedirectsModule(): string {
   return `export default ${JSON.stringify(map)};`;
 }
 
+function buildContentRedirectsModule(): string {
+  const data = loadRedirectsYaml();
+  const map: Record<string, string> = {};
+
+  const sections: Record<string, string> = {
+    routes: '/routes/',
+    guides: '/guides/',
+    videos: '/videos/',
+    tours: '/tours/',
+  };
+  for (const [key, prefix] of Object.entries(sections)) {
+    const entries = data[key] as Array<{ from: string; to: string }> | undefined;
+    if (entries) {
+      for (const r of entries) map[`${prefix}${r.from}`] = `${prefix}${r.to}`;
+    }
+  }
+
+  const shortUrls = data.short_urls as Array<{ from: string; to: string }> | undefined;
+  if (shortUrls) {
+    for (const r of shortUrls) map[`/${r.from}`] = r.to;
+  }
+
+  return `export default ${JSON.stringify(map)};`;
+}
+
 function buildVideoRouteMapModule(): string {
   const routesDir = path.join(CITY_DIR, 'routes');
   const map: Record<string, string> = {};
@@ -391,6 +416,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
     'ride-redirects': async () => buildRideRedirectsModule(),
     'route-redirects': async () => buildRouteRedirectsModule(),
+    'content-redirects': async () => buildContentRedirectsModule(),
     'video-route-map': async () => buildVideoRouteMapModule(),
 
     'homepage-facts': async () =>

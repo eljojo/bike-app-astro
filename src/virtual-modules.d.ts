@@ -336,6 +336,12 @@ declare module 'virtual:bike-app/route-redirects' {
   export default redirects;
 }
 
+declare module 'virtual:bike-app/content-redirects' {
+  /** Map of source path → target path for content 301 redirects (routes, guides, videos, tours, short_urls) */
+  const redirects: Record<string, string>;
+  export default redirects;
+}
+
 declare module 'virtual:bike-app/video-route-map' {
   /** Map of video handle → route slug (from each route's media.yml) */
   const map: Record<string, string>;

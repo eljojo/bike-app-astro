@@ -25,6 +25,9 @@ vi.mock('../src/lib/get-db', () => ({
 vi.mock('virtual:bike-app/ride-redirects', () => ({
   default: {},
 }));
+vi.mock('virtual:bike-app/content-redirects', () => ({
+  default: {},
+}));
 
 const { onRequest } = await import('../src/middleware');
 

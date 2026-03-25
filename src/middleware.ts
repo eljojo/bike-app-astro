@@ -5,6 +5,7 @@ import { db } from './lib/get-db';
 import { buildNonceCspHeader, createCspNonce } from './lib/csp';
 import { getCspEnv } from './lib/csp-env';
 import rideRedirects from 'virtual:bike-app/ride-redirects';
+import contentRedirects from 'virtual:bike-app/content-redirects';
 
 const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/auth/verify']);
 
@@ -107,6 +108,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const rideTarget = rideRedirects[pathname];
   if (rideTarget) {
     return context.redirect(rideTarget, 301);
+  }
+
+  // Content redirects: routes, guides, videos, tours, short_urls from redirects.yml
+  const stripped = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const contentTarget = contentRedirects[stripped];
+  if (contentTarget) {
+    return context.redirect(contentTarget, 301);
   }
 
   const withNonceCsp = needsNonceCsp(pathname);
