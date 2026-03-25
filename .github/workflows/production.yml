@@ -25,9 +25,11 @@ jobs:
       - id: detect
         run: |
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            # Data repo webhook — check payload for city
-            CITY="${{ github.event.client_payload.city || 'ottawa' }}"
-            echo "cities=[\"${CITY}\"]" >> "$GITHUB_OUTPUT"
+            # Data repo webhook — payload.city is comma-separated (e.g. "santiago,ottawa")
+            RAW="${{ github.event.client_payload.city || 'ottawa' }}"
+            # Convert comma-separated to JSON array: "a,b" → ["a","b"]
+            JSON_CITIES=$(echo "$RAW" | tr ',' '\n' | sed 's/.*/"&"/' | paste -sd ',' - | sed 's/^/[/;s/$/]/')
+            echo "cities=${JSON_CITIES}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             # Daily rebuild — keeps calendar, events, and date-sensitive
             # content current without needing to check specific dates.
