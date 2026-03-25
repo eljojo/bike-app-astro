@@ -33,6 +33,7 @@ function jsonResponse(data: WeatherResponse): Response {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': `public, max-age=${CLIENT_CACHE_TTL}`,
+      'CDN-Cache-Control': `public, max-age=${CACHE_TTL}`,
     },
   });
 }
