@@ -20,6 +20,11 @@ const locale = Astro.currentLocale;
       <li><a href="/calendar">📅 {t('404.calendar', locale)}</a></li>
     </ul>
   </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.BikeApp?.tE('404', { props: { path: window.location.pathname } });
+    });
+  </script>
 </Base>
 
 <style lang="scss">

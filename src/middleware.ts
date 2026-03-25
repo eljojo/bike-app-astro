@@ -6,6 +6,8 @@ import { buildNonceCspHeader, createCspNonce } from './lib/csp';
 import { getCspEnv } from './lib/csp-env';
 import rideRedirects from 'virtual:bike-app/ride-redirects';
 import contentRedirects from 'virtual:bike-app/content-redirects';
+import { translatePath } from './lib/i18n/path-translations';
+import { supportedLocales, defaultLocale } from './lib/i18n/locale-utils';
 
 const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/auth/verify']);
 
@@ -126,6 +128,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const baseTarget = contentRedirects[base];
     if (baseTarget) {
       return context.redirect(`${baseTarget}/map`, 301);
+    }
+  }
+
+  // Redirect untranslated segments on locale prefixes (e.g. /fr/routes/x → /fr/parcours/x)
+  const localeMatch = stripped.match(/^\/([a-z]{2})(\/.*)/);
+  if (localeMatch) {
+    const [, locale, rest] = localeMatch;
+    if (locale !== defaultLocale() && supportedLocales().includes(locale)) {
+      const translated = translatePath(rest, locale);
+      if (translated !== rest) {
+        return context.redirect(`/${locale}${translated}`, 301);
+      }
     }
   }
 
