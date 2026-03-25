@@ -23,6 +23,9 @@ import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
+import { extractYouTubeUrls } from '@/lib/youtube-extract';
+import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
+import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -57,7 +60,12 @@ const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.d
 const trans = route.data.translations?.[locale!];
 const localeName = trans?.name || name;
 const localeTagline = trans?.tagline || tagline;
-const localeBody = trans?.renderedBody || route.data.renderedBody;
+// Extract YouTube videos from raw markdown body, render cleaned body
+const rawBody = route.body || '';
+const { videoIds: youtubeIds, cleanedMarkdown } = extractYouTubeUrls(rawBody);
+const localeBody = youtubeIds.length > 0
+  ? await renderMarkdownHtml(cleanedMarkdown)
+  : (trans?.renderedBody || route.data.renderedBody);
 const slug = routeSlug(route, locale);
 const alternateUrls: Record<string, string> = {};
 for (const loc of supportedLocales()) {
@@ -214,6 +222,14 @@ const jsonLd = [
 
         {/* Zone 3: Description */}
         <div class="route-description" set:html={localeBody} />
+
+        {youtubeIds.length > 0 && (
+          <div class="route-videos">
+            {youtubeIds.map(id => (
+              <YouTubeEmbed videoId={id} title={localeName} />
+            ))}
+          </div>
+        )}
 
         <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
