@@ -80,7 +80,8 @@ export { buildVideoPosterUrl } from './video-urls';
 
 export function videoPosterUrl(key: string): string {
   const { prefix, bareKey } = resolveVideoPath(key);
-  return `${VIDEOS_CDN}/${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`;
+  const posterPath = `${prefix}/${bareKey}/${bareKey}-poster.0000000.jpg`;
+  return `${VIDEOS_CDN}/cdn-cgi/image/format=auto/${posterPath}`;
 }
 
 export function videoDisplaySize(width: number, height: number): { width: number; height: number } {
