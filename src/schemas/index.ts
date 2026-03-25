@@ -63,6 +63,8 @@ export const routeSchema = z.object({
   moving_time_s: z.number().optional(),
   average_speed_kmh: z.number().optional(),
   homepage_featured: z.boolean().optional(),
+  bike_path: z.string().optional(),
+  bike_paths: z.array(z.string()).optional(),
 });
 
 export const goodForEnum = z.enum([
