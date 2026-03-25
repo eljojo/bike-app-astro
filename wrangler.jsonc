@@ -1,21 +1,31 @@
 {
   "name": "whereto-bike",
   "compatibility_date": "2026-03-19",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "no_bundle": true,
   "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist",
     "not_found_handling": "none",
-    "run_worker_first": ["/events/*"]
+    "run_worker_first": [
+      "/events/*"
+    ]
   },
   "env": {
     "staging": {
       "name": "bike-ottawa-staging",
-      "observability": { "enabled": true },
-      "traces": { "enabled": true },
-      "ai": { "binding": "AI" },
+      "observability": {
+        "enabled": true
+      },
+      "traces": {
+        "enabled": true
+      },
+      "ai": {
+        "binding": "AI"
+      },
       "vars": {
         "GIT_BRANCH": "staging",
         "GIT_OWNER": "eljojo",
@@ -48,9 +58,15 @@
     },
     "production": {
       "name": "bike-ottawa-production",
-      "observability": { "enabled": true },
-      "traces": { "enabled": true },
-      "ai": { "binding": "AI" },
+      "observability": {
+        "enabled": true
+      },
+      "traces": {
+        "enabled": true
+      },
+      "ai": {
+        "binding": "AI"
+      },
       "vars": {
         "GIT_BRANCH": "main",
         "GIT_OWNER": "eljojo",
@@ -83,9 +99,15 @@
     },
     "demo-production": {
       "name": "bike-demo-production",
-      "observability": { "enabled": true },
-      "traces": { "enabled": true },
-      "ai": { "binding": "AI" },
+      "observability": {
+        "enabled": true
+      },
+      "traces": {
+        "enabled": true
+      },
+      "ai": {
+        "binding": "AI"
+      },
       "vars": {
         "GIT_BRANCH": "main",
         "GIT_OWNER": "eljojo",
@@ -116,15 +138,60 @@
     },
     "brevet-production": {
       "name": "bike-brevet-production",
-      "observability": { "enabled": true },
-      "traces": { "enabled": true },
-      "ai": { "binding": "AI" },
+      "observability": {
+        "enabled": true
+      },
+      "traces": {
+        "enabled": true
+      },
+      "ai": {
+        "binding": "AI"
+      },
       "vars": {
         "GIT_BRANCH": "blogs",
         "GIT_OWNER": "eljojo",
         "GIT_DATA_REPO": "bike-routes",
         "ENVIRONMENT": "production",
         "STORAGE_KEY_PREFIX": "brevet/"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "bike-admin-production",
+          "database_id": "9bec7997-6dbb-4099-875c-6be0681b6aea",
+          "migrations_dir": "./drizzle/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "eljojo-bike-prod"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "TILE_CACHE",
+          "id": "295e43f49e3a4497aae86c3898b7c507"
+        }
+      ]
+    },
+    "santiago-production": {
+      "name": "bike-santiago-production",
+      "observability": {
+        "enabled": true
+      },
+      "traces": {
+        "enabled": true
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "vars": {
+        "GIT_BRANCH": "main",
+        "GIT_OWNER": "eljojo",
+        "GIT_DATA_REPO": "bike-routes",
+        "ENVIRONMENT": "production",
+        "STORAGE_KEY_PREFIX": "santiago/"
       },
       "d1_databases": [
         {

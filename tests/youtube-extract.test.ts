@@ -17,11 +17,11 @@ describe('extractYouTubeUrls', () => {
     expect(result.videoIds).toEqual(['2ajt7RW00yo']);
   });
 
-  it('extracts youtube URL from markdown link', () => {
+  it('leaves inline markdown links with YouTube URLs untouched', () => {
     const md = 'Check out [this video](https://www.youtube.com/watch?v=2ajt7RW00yo)';
     const result = extractYouTubeUrls(md);
-    expect(result.videoIds).toEqual(['2ajt7RW00yo']);
-    expect(result.cleanedMarkdown).not.toContain('youtube');
+    expect(result.videoIds).toEqual([]);
+    expect(result.cleanedMarkdown).toBe(md);
   });
 
   it('returns empty for markdown with no YouTube URLs', () => {

@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video setup-city deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -92,6 +92,9 @@ hooks: ## Install pre-commit hook (lint + typecheck)
 
 setup-video: ## Run video pipeline setup (pass ARGS for subcommands)
 	node scripts/setup-aws-video.js $(ARGS)
+
+setup-city: ## Ensure wrangler env and CI matrix for each city
+	node scripts/setup-city.js $(ARGS)
 
 deploy-lambda: ## Deploy video Lambda code to AWS
 	cd aws/video-agent && zip -j /tmp/video-agent.zip handler.mjs && aws lambda update-function-code --function-name video-agent --zip-file fileb:///tmp/video-agent.zip --region us-east-1 && aws lambda wait function-updated --function-name video-agent --region us-east-1
