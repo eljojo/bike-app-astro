@@ -104,17 +104,29 @@ async function finalize(response: Response, context: { locals: { cspNonce?: stri
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
-  // Ride redirects: old slugs → canonical URLs (from redirects.yml + tour mappings)
-  const rideTarget = rideRedirects[pathname];
+  // Normalize: strip trailing slash for all redirect lookups
+  const stripped = pathname.endsWith('/') && pathname.length > 1
+    ? pathname.slice(0, -1)
+    : pathname;
+
+  // Ride redirects: old slugs → canonical URLs (from redirects.yml rides section + tour mappings)
+  const rideTarget = rideRedirects[stripped];
   if (rideTarget) {
     return context.redirect(rideTarget, 301);
   }
 
-  // Content redirects: routes, guides, videos, tours, short_urls from redirects.yml
-  const stripped = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  // Content redirects: routes, guides, videos, tours, short_urls, per-route redirects
   const contentTarget = contentRedirects[stripped];
   if (contentTarget) {
     return context.redirect(contentTarget, 301);
+  }
+  // Handle /map sub-path on redirected URLs (e.g. /rides/old-slug/map → /routes/new-slug/map)
+  if (stripped.endsWith('/map')) {
+    const base = stripped.slice(0, -4);
+    const baseTarget = contentRedirects[base];
+    if (baseTarget) {
+      return context.redirect(`${baseTarget}/map`, 301);
+    }
   }
 
   const withNonceCsp = needsNonceCsp(pathname);

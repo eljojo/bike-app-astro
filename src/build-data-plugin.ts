@@ -286,6 +286,21 @@ function buildContentRedirectsModule(): string {
     for (const r of shortUrls) map[`/${r.from}`] = r.to;
   }
 
+  // Per-route redirects (e.g. old /rides/* URLs → /routes/{slug})
+  const routesDir = path.join(CITY_DIR, 'routes');
+  if (fs.existsSync(routesDir)) {
+    for (const slug of fs.readdirSync(routesDir)) {
+      const routeRedirects = path.join(routesDir, slug, 'redirects.yml');
+      if (!fs.existsSync(routeRedirects)) continue;
+      const routeEntries = yaml.load(fs.readFileSync(routeRedirects, 'utf-8'));
+      if (Array.isArray(routeEntries)) {
+        for (const from of routeEntries as string[]) {
+          map[from] = `/routes/${slug}`;
+        }
+      }
+    }
+  }
+
   return `export default ${JSON.stringify(map)};`;
 }
 
