@@ -65,7 +65,7 @@ interface Props {
 
 const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM, gpxPath, backPath } = Astro.props;
 const linkSlug = routeLocaleSlug || routeSlug;
-const siteUrl = import.meta.env.SITE || getCityConfig().url;
+const siteUrl = getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
 const locale = Astro.currentLocale;
 
