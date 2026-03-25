@@ -60,8 +60,8 @@ const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.d
 const trans = route.data.translations?.[locale!];
 const localeName = trans?.name || name;
 const localeTagline = trans?.tagline || tagline;
-// Extract YouTube videos from raw markdown body, render cleaned body
-const rawBody = route.body || '';
+// Extract bare YouTube URLs from the locale-appropriate raw body
+const rawBody = trans?.body || route.body || '';
 const { videoIds: youtubeIds, cleanedMarkdown } = extractYouTubeUrls(rawBody);
 const localeBody = youtubeIds.length > 0
   ? await renderMarkdownHtml(cleanedMarkdown)

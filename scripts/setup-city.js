@@ -488,6 +488,7 @@ async function main() {
 
   const wranglerConfig = readWranglerConfig();
   const originalWorkflow = readFileSync(WORKFLOW_PATH, 'utf8');
+  const originalWrangler = readFileSync(resolve(ROOT, 'wrangler.jsonc'), 'utf8');
   const promptCache = new Map();
   let wranglerChanged = false;
 
@@ -536,9 +537,10 @@ async function main() {
     console.log(`    After CI deploys, visit https://${city.domain}/setup to create the first admin account.`);
   }
 
-  // Restore workflow if dry run
+  // Restore config files if dry run
   if (opts.dryRun) {
     writeFileSync(WORKFLOW_PATH, originalWorkflow);
+    writeFileSync(resolve(ROOT, 'wrangler.jsonc'), originalWrangler);
     console.log('\n  Dry run complete. No changes made.\n');
   }
 
