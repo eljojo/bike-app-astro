@@ -78,10 +78,15 @@ export function readRouteDir(
     media = (yaml.load(mediaYml) as RouteMedia[]) || [];
   }
 
-  // Parse GPX tracks referenced in frontmatter variants
+  // Parse GPX tracks referenced in frontmatter variants.
+  // If no variants are defined but main.gpx exists, infer a default variant.
   const gpxTracks: Record<string, GpxTrack> = {};
   const gpxFiles: Record<string, string> = {};
-  const variants = (frontmatter.variants as Array<{ gpx: string }>) || [];
+  let variants = (frontmatter.variants as Array<{ gpx: string; name?: string; distance_km?: number }>) || [];
+  if (variants.length === 0 && fs.existsSync(path.join(routeAbsPath, 'main.gpx'))) {
+    variants = [{ gpx: 'main.gpx', name: frontmatter.name as string || slug, distance_km: frontmatter.distance_km as number | undefined }];
+    frontmatter.variants = variants;
+  }
   for (const variant of variants) {
     const gpxPath = path.join(routeAbsPath, variant.gpx);
     if (fs.existsSync(gpxPath)) {
