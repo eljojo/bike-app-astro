@@ -63,7 +63,10 @@ export const routeSchema = z.object({
   moving_time_s: z.number().optional(),
   average_speed_kmh: z.number().optional(),
   homepage_featured: z.boolean().optional(),
-  waypoints: z.array(z.string()).optional(),
+  waypoints: z.array(z.union([
+    z.string(),
+    z.object({ name: z.string(), lat: z.number(), lng: z.number() }),
+  ])).optional(),
 });
 
 export const goodForEnum = z.enum([
