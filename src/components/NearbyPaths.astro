@@ -1,0 +1,31 @@
+---
+import { paths as urlPaths } from '@/lib/paths';
+import { t } from '@/i18n';
+
+interface NearbyPath {
+  slug: string;
+  name: string;
+  surface?: string;
+}
+
+interface Props {
+  nearbyPaths: NearbyPath[];
+  locale?: string;
+}
+
+const { nearbyPaths, locale } = Astro.props;
+---
+
+{nearbyPaths.length > 0 && (
+  <section class="nearby-paths">
+    <h2>{t('paths.nearby_paths', locale)}</h2>
+    <ul class="nearby-paths-list">
+      {nearbyPaths.map(p => (
+        <li>
+          <a href={urlPaths.bikePath(p.slug, locale)}>{p.name}</a>
+          {p.surface && <span class="path-meta">{p.surface}</span>}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

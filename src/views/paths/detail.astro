@@ -1,23 +1,105 @@
 ---
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
-import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
+import { loadBikePathData, routePassesNearPath, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import BikePathMap from '@/components/BikePathMap.astro';
+import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import RoutesOnPath from '@/components/RoutesOnPath.astro';
+import NearbyPaths from '@/components/NearbyPaths.astro';
 import type { SluggedBikePathYml } from '@/lib/bike-paths/bikepaths-yml';
 import { t } from '@/i18n';
+import { loadRouteData } from '@/lib/route-data';
+import { isPublished } from '@/lib/content/content-filters';
+import { haversineM, findNearbyPlaces } from '@/lib/geo/proximity';
+import type { NearbyPlace } from '@/lib/geo/proximity';
 
-export async function getStaticPaths() {
-  const { pages } = await loadBikePathData();
-  return pages.map(page => ({
-    params: { slug: page.slug },
-    props: { page },
-  }));
+interface RouteCard {
+  slug: string;
+  name: string;
+  distance_km: number;
+  coverKey?: string;
 }
 
-interface Props { page: BikePathPage }
-const { page } = Astro.props;
+interface NearbyPathItem {
+  slug: string;
+  name: string;
+  surface?: string;
+}
+
+export async function getStaticPaths() {
+  const [{ pages }, { routes, placeData }] = await Promise.all([
+    loadBikePathData(),
+    loadRouteData(),
+  ]);
+
+  const publishedRoutes = routes.filter(isPublished);
+
+  return pages.map(page => {
+    // Extract anchors as { lat, lng } from all YML entries
+    const pathAnchors = page.ymlEntries.flatMap(e =>
+      (e.anchors ?? []).map(a =>
+        Array.isArray(a) ? { lat: a[1], lng: a[0] } : a,
+      ),
+    );
+
+    // Find routes that pass near this path's anchors
+    const overlappingRoutes: RouteCard[] = pathAnchors.length > 0
+      ? publishedRoutes.filter(r => {
+          const gpxKey = r.data.variants?.[0]?.gpx;
+          const track = gpxKey ? r.data.gpxTracks[gpxKey] : null;
+          if (!track?.points || track.points.length === 0) return false;
+          return routePassesNearPath(track.points, pathAnchors);
+        }).map(r => {
+          const cover = r.data.media.find((m: { cover?: boolean }) => m.cover);
+          return {
+            slug: r.id,
+            name: r.data.name,
+            distance_km: r.data.distance_km,
+            coverKey: cover?.key,
+          };
+        })
+      : [];
+
+    // Find nearby places using path anchors as approximate track points
+    const anchorPoints = pathAnchors.map(a => ({ lat: a.lat, lon: a.lng }));
+    const nearbyPlaces: NearbyPlace[] = anchorPoints.length >= 2
+      ? findNearbyPlaces(anchorPoints, placeData)
+      : [];
+
+    // Find nearby paths: other pages whose anchors are within 2km
+    const nearbyPathsList: NearbyPathItem[] = pathAnchors.length > 0
+      ? pages.filter(other => {
+          if (other.slug === page.slug) return false;
+          const otherAnchors = other.ymlEntries.flatMap(e =>
+            (e.anchors ?? []).map(a =>
+              Array.isArray(a) ? { lat: a[1], lng: a[0] } : a,
+            ),
+          );
+          for (const a of pathAnchors) {
+            for (const b of otherAnchors) {
+              if (haversineM(a.lat, a.lng, b.lat, b.lng) < 2000) return true;
+            }
+          }
+          return false;
+        }).map(p => ({ slug: p.slug, name: p.name, surface: p.surface }))
+      : [];
+
+    return {
+      params: { slug: page.slug },
+      props: { page, overlappingRoutes, nearbyPlaces, nearbyPaths: nearbyPathsList },
+    };
+  });
+}
+
+interface Props {
+  page: BikePathPage;
+  overlappingRoutes: RouteCard[];
+  nearbyPlaces: NearbyPlace[];
+  nearbyPaths: NearbyPathItem[];
+}
+const { page, overlappingRoutes, nearbyPlaces, nearbyPaths } = Astro.props;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
@@ -49,19 +131,6 @@ const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
           {page.lit && <span class="fact">{page.lit === 'yes' ? t('paths.lit', locale) : t('paths.unlit', locale)}</span>}
           {page.operator && <span class="fact">{t('paths.maintained_by', locale, { operator: page.operator })}</span>}
         </div>
-
-        {page.osmRelationIds.length > 0 && (
-          <div class="bike-path-osm">
-            <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
-            {page.ymlEntries.map(entry => (
-              entry.osm_relations?.map(id => (
-                <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
-                  {entry.name} — relation {id} ↗
-                </a>
-              ))
-            ))}
-          </div>
-        )}
       </div>
 
       <BikePathMap
@@ -75,6 +144,27 @@ const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
     {descriptionHtml && (
       <div class="bike-path-description" set:html={descriptionHtml} />
+    )}
+
+    <RoutesOnPath routes={overlappingRoutes} locale={locale} />
+
+    {nearbyPlaces.length > 0 && (
+      <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+    )}
+
+    <NearbyPaths nearbyPaths={nearbyPaths} locale={locale} />
+
+    {page.osmRelationIds.length > 0 && (
+      <div class="bike-path-osm">
+        <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
+        {page.ymlEntries.map(entry => (
+          entry.osm_relations?.map(id => (
+            <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
+              {entry.name} — relation {id} ↗
+            </a>
+          ))
+        ))}
+      </div>
     )}
   </div>
 </Base>

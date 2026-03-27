@@ -570,5 +570,8 @@
   "paths.osm_edit": "Help improve it",
   "paths.click_to_explore": "Click to explore",
   "paths.close_map": "Close map",
-  "paths.other_group": "Other"
+  "paths.other_group": "Other",
+  "paths.routes_on_path": "Routes on this path",
+  "paths.nearby_places": "Places nearby",
+  "paths.nearby_paths": "Nearby paths"
 }

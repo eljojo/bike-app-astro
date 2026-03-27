@@ -1,0 +1,254 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// --- Index page ---
+.paths-index {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.paths-map-hero {
+  border-radius: $border-radius;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.paths-featured {
+  margin-bottom: 2.5rem;
+
+  h2 {
+    font-family: $font-heading;
+    font-size: 1.25rem;
+    margin: 0 0 0.7rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid $color-accent;
+    display: inline-block;
+  }
+}
+
+.featured-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.2em;
+}
+
+.path-card {
+  display: block;
+  padding: 1rem;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  text-decoration: none;
+  color: $color-text;
+  transition: background 0.15s ease;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+
+  h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+  .path-vibe { font-style: italic; font-size: 0.875rem; @include muted-text; margin: 0; }
+  .path-surface { font-size: 0.75rem; @include muted-text; }
+}
+
+.paths-group {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid $color-border;
+    @include dark-mode { border-color: $color-border-subtle-dark; }
+  }
+}
+
+.paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}
+
+// --- Detail page ---
+.bike-path-detail {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.bike-path-header {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+}
+
+.bike-path-info {
+  flex: 1;
+
+  h1 { margin: 0 0 0.25rem; }
+}
+
+.bike-path-vibe {
+  font-style: italic;
+  font-size: 1.05rem;
+  @include muted-text;
+  margin: 0.25rem 0 1rem;
+}
+
+.bike-path-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  .fact {
+    display: inline-block;
+    font-size: 0.8125rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: $color-card-bg;
+    @include dark-mode { background: $color-card-bg-dark; }
+  }
+}
+
+.bike-path-osm {
+  font-size: 0.8125rem;
+  @include muted-text;
+  margin-top: 1rem;
+
+  a {
+    display: inline;
+    margin-right: 0.5rem;
+  }
+}
+
+.bike-path-description {
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+// Routes on this path
+.routes-on-path {
+  margin-bottom: 2rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.routes-on-path-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.routes-on-path-card {
+  a {
+    display: block;
+    text-decoration: none;
+    color: $color-text;
+    border-radius: $border-radius;
+    overflow: hidden;
+    background: $color-card-bg;
+    transition: background 0.15s ease;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+      @include dark-mode { background: $color-card-hover-dark; }
+    }
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  }
+}
+
+.routes-on-path-card-name {
+  display: block;
+  padding: 0.5rem 0.75rem 0.125rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.routes-on-path-card-distance {
+  display: block;
+  padding: 0 0.75rem 0.5rem;
+  font-size: 0.8rem;
+  @include muted-text;
+}
+
+// Nearby paths
+.nearby-paths {
+  margin-bottom: 2rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.nearby-paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}

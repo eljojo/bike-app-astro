@@ -1,5 +1,7 @@
 ---
 export const prerender = true;
+import fs from 'node:fs';
+import nodePath from 'node:path';
 import Base from '@/layouts/Base.astro';
 import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
@@ -41,13 +43,27 @@ for (const [operator, pathsList] of sortedEntries) {
     paths: pathsList,
   });
 }
+
+// Discover available GeoJSON files for the network map
+const geoDir = nodePath.resolve('public/paths/geo');
+const geoFiles = fs.existsSync(geoDir)
+  ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
+  : [];
+
+const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 ---
 
 <Base title={`${t('paths.title', locale)} | ${config.display_name}`}>
   <div class="paths-index">
-    <div class="paths-map-hero" id="paths-network-map">
-      <div class="map-placeholder" style="height: 400px; background: var(--color-surface-alt);">Network map</div>
-    </div>
+    {geoFiles.length > 0 && (
+      <div
+        class="paths-map-hero"
+        id="paths-network-map"
+        data-geo-files={JSON.stringify(geoFiles)}
+        data-center={JSON.stringify(mapCenter)}
+        style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
+      ></div>
+    )}
 
     {featured.length > 0 && (
       <section class="paths-featured">
@@ -74,7 +90,6 @@ for (const [operator, pathsList] of sortedEntries) {
                 {p.name}
               </a>
               {p.surface && <span class="path-meta">{p.surface}</span>}
-              {p.operator && <span class="path-meta">{p.operator}</span>}
             </li>
           ))}
         </ul>
@@ -82,3 +97,75 @@ for (const [operator, pathsList] of sortedEntries) {
     ))}
   </div>
 </Base>
+
+<script>
+  import { initMap } from '../../lib/maps/map-init';
+  import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
+  import maplibregl from 'maplibre-gl';
+
+  const PATH_COLOR = '#E6194B';
+  const PATH_WIDTH = 3;
+
+  const container = document.getElementById('paths-network-map');
+  if (container) {
+    const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
+    const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+
+    if (geoFiles.length > 0) {
+      const styleKey = loadStylePreference();
+      const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
+
+      // Non-interactive overview
+      map.scrollZoom.disable();
+      map.dragPan.disable();
+      map.doubleClickZoom.disable();
+      map.touchZoomRotate.disable();
+
+      map.on('load', async () => {
+        const allFeatures: GeoJSON.Feature[] = [];
+        const bounds = new maplibregl.LngLatBounds();
+
+        for (const file of geoFiles) {
+          try {
+            const res = await fetch(`/paths/geo/${file}`);
+            if (!res.ok) continue;
+            const geojson = await res.json();
+            for (const feature of geojson.features) {
+              allFeatures.push(feature);
+              if (feature.geometry.type === 'LineString') {
+                for (const coord of feature.geometry.coordinates) {
+                  bounds.extend(coord as [number, number]);
+                }
+              }
+            }
+          } catch {
+            // Missing file — fine
+          }
+        }
+
+        if (allFeatures.length > 0) {
+          map.addSource('paths-network', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: allFeatures },
+          });
+
+          map.addLayer({
+            id: 'paths-network-line',
+            type: 'line',
+            source: 'paths-network',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+              'line-color': PATH_COLOR,
+              'line-width': PATH_WIDTH,
+              'line-opacity': 0.8,
+            },
+          });
+
+          if (!bounds.isEmpty()) {
+            map.fitBounds(bounds, { padding: 40, animate: false });
+          }
+        }
+      });
+    }
+  }
+</script>

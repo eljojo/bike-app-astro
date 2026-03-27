@@ -570,5 +570,8 @@
   "paths.osm_edit": "Ayuda a mejorarlo",
   "paths.click_to_explore": "Clic para explorar",
   "paths.close_map": "Cerrar mapa",
-  "paths.other_group": "Otros"
+  "paths.other_group": "Otros",
+  "paths.routes_on_path": "Rutas en este sendero",
+  "paths.nearby_places": "Lugares cercanos",
+  "paths.nearby_paths": "Senderos cercanos"
 }
