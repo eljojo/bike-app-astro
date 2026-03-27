@@ -158,13 +158,16 @@ jobs:
       - name: Restore bike path geometry cache
         uses: actions/cache@v5
         with:
-          path: bike-routes/.cache/bikepath-geometry
+          path: .cache/bikepath-geometry
           key: bikepath-geo-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/bikepaths.yml', inputs.city)) }}
           restore-keys: |
             bikepath-geo-${{ inputs.city }}-
 
-      - name: Cache bike path geometry from OSM
-        run: cd bike-routes && node scripts/cache-bikepath-geometry.mjs --city=${{ inputs.city }}
+      - name: Fetch bike path geometry from OSM
+        run: npx tsx scripts/cache-path-geometry.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: ${{ inputs.city }}
 
       - name: Record build start time
         if: inputs.deploy

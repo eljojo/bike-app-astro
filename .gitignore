@@ -56,3 +56,6 @@ e2e/test-results-blog/
 
 # local dev data (uploads, SQLite, etc.)
 .data/
+
+# Overpass geometry cache (populated by scripts/cache-path-geometry.ts)
+.cache/
