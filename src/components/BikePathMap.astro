@@ -1,0 +1,266 @@
+---
+interface Props {
+  osmRelationIds: number[];
+  center?: [number, number];  // [lat, lng] from anchors
+}
+const { osmRelationIds, center } = Astro.props;
+---
+
+<div class="bike-path-map-wrapper">
+  <div class="bike-path-map-overlay" id="bike-path-map-overlay"></div>
+  <div
+    class="bike-path-map-card"
+    id="bike-path-map"
+    data-relation-ids={JSON.stringify(osmRelationIds)}
+    data-center={center ? JSON.stringify(center) : ''}
+    role="button"
+    tabindex="0"
+  >
+    <div class="bike-path-map-gl" id="bike-path-map-gl"></div>
+    <button class="bike-path-map-close" id="bike-path-map-close" aria-label="Close map">✕</button>
+    <div class="bike-path-map-expand-hint">Click to explore</div>
+  </div>
+</div>
+
+<script>
+  import { initMap } from '../lib/maps/map-init';
+  import { loadStylePreference, getStyleUrl } from '../lib/maps/map-style-switch';
+  import maplibregl from 'maplibre-gl';
+
+  const PATH_COLOR = '#E6194B';
+  const PATH_WIDTH = 4;
+
+  const container = document.getElementById('bike-path-map');
+  const glEl = document.getElementById('bike-path-map-gl');
+  const overlay = document.getElementById('bike-path-map-overlay');
+  const closeBtn = document.getElementById('bike-path-map-close');
+
+  if (container && glEl) {
+    const relationIds: number[] = JSON.parse(container.dataset.relationIds || '[]');
+    const centerData = container.dataset.center ? JSON.parse(container.dataset.center) : null;
+    const center: [number, number] = centerData || [45.4215, -75.6972]; // Ottawa fallback
+
+    const styleKey = loadStylePreference();
+    const map = initMap({ el: glEl, center, zoom: 12, styleUrl: getStyleUrl(styleKey) });
+
+    // Disable interaction in card mode
+    map.scrollZoom.disable();
+    map.dragPan.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
+
+    let expanded = false;
+    let geometryLoaded = false;
+
+    // Load GeoJSON for each relation
+    async function loadGeometry() {
+      if (geometryLoaded || relationIds.length === 0) return;
+
+      const allFeatures: GeoJSON.Feature[] = [];
+      const bounds = new maplibregl.LngLatBounds();
+
+      for (const relId of relationIds) {
+        try {
+          const res = await fetch(`/paths/geo/${relId}.geojson`);
+          if (!res.ok) continue;
+          const geojson = await res.json();
+          for (const feature of geojson.features) {
+            allFeatures.push(feature);
+            if (feature.geometry.type === 'LineString') {
+              for (const coord of feature.geometry.coordinates) {
+                bounds.extend(coord as [number, number]);
+              }
+            }
+          }
+        } catch {
+          // Geometry not cached yet — that's fine
+        }
+      }
+
+      if (allFeatures.length > 0) {
+        map.addSource('bike-path', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: allFeatures },
+        });
+
+        map.addLayer({
+          id: 'bike-path-line',
+          type: 'line',
+          source: 'bike-path',
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': PATH_COLOR,
+            'line-width': PATH_WIDTH,
+            'line-opacity': 0.85,
+          },
+        });
+
+        // Fit to path bounds with padding
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 30, animate: false });
+        }
+
+        geometryLoaded = true;
+      }
+    }
+
+    // Load geometry once map style is ready
+    map.on('load', loadGeometry);
+
+    function expand() {
+      if (expanded) return;
+      expanded = true;
+      container.classList.add('expanded');
+      overlay!.classList.add('visible');
+      closeBtn!.style.display = 'flex';
+
+      // Enable interaction
+      map.scrollZoom.enable();
+      map.dragPan.enable();
+      map.doubleClickZoom.enable();
+      map.touchZoomRotate.enable();
+
+      // Resize after CSS transition
+      setTimeout(() => map.resize(), 350);
+    }
+
+    function collapse() {
+      if (!expanded) return;
+      expanded = false;
+      container.classList.remove('expanded');
+      overlay!.classList.remove('visible');
+      closeBtn!.style.display = 'none';
+
+      // Disable interaction
+      map.scrollZoom.disable();
+      map.dragPan.disable();
+      map.doubleClickZoom.disable();
+      map.touchZoomRotate.disable();
+
+      // Resize after CSS transition
+      setTimeout(() => map.resize(), 350);
+    }
+
+    container.addEventListener('click', (e) => {
+      if (!expanded) expand();
+    });
+
+    closeBtn!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      collapse();
+    });
+
+    overlay!.addEventListener('click', collapse);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && expanded) collapse();
+    });
+  }
+</script>
+
+<style is:global>
+  .bike-path-map-wrapper {
+    position: relative;
+  }
+
+  .bike-path-map-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+
+    &.visible {
+      display: block;
+      opacity: 1;
+    }
+  }
+
+  .bike-path-map-card {
+    width: 300px;
+    height: 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    &.expanded {
+      position: fixed;
+      inset: 20px;
+      width: auto;
+      height: auto;
+      z-index: 1000;
+      border-radius: 16px;
+      cursor: default;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  .bike-path-map-gl {
+    width: 100%;
+    height: 100%;
+  }
+
+  .bike-path-map-close {
+    display: none;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
+  .bike-path-map-expand-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    .bike-path-map-card:hover & {
+      opacity: 1;
+    }
+
+    .bike-path-map-card.expanded & {
+      display: none;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .bike-path-map-card {
+      width: 100%;
+      height: 200px;
+      border-radius: 8px;
+    }
+
+    .bike-path-map-card.expanded {
+      inset: 0;
+      border-radius: 0;
+    }
+  }
+</style>

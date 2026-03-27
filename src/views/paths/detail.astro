@@ -4,6 +4,8 @@ import Base from '@/layouts/Base.astro';
 import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import BikePathMap from '@/components/BikePathMap.astro';
+import type { SluggedBikePathYml } from '@/lib/bike-paths/bikepaths-yml';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -17,6 +19,17 @@ interface Props { page: BikePathPage }
 const { page } = Astro.props;
 const config = getCityConfig();
 const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
+
+function computeCenter(entries: SluggedBikePathYml[]): [number, number] | undefined {
+  const anchors = entries.flatMap(e => e.anchors ?? []);
+  if (anchors.length === 0) return undefined;
+  const lats = anchors.map(a => typeof a === 'object' && 'lat' in a ? a.lat : a[1]);
+  const lngs = anchors.map(a => typeof a === 'object' && 'lng' in a ? a.lng : a[0]);
+  return [
+    lats.reduce((s, v) => s + v, 0) / lats.length,
+    lngs.reduce((s, v) => s + v, 0) / lngs.length,
+  ];
+}
 ---
 
 <Base title={`${page.name} | ${config.display_name}`}>
@@ -47,9 +60,10 @@ const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
         )}
       </div>
 
-      <div class="bike-path-map-card" id="path-map-card">
-        <div class="map-placeholder">Map</div>
-      </div>
+      <BikePathMap
+        osmRelationIds={page.osmRelationIds}
+        center={computeCenter(page.ymlEntries)}
+      />
     </div>
 
     {descriptionHtml && (
