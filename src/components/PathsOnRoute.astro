@@ -1,0 +1,25 @@
+---
+import type { BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
+import { paths } from '@/lib/paths';
+
+interface Props {
+  bikePaths: BikePathPage[];
+  locale?: string;
+}
+
+const { bikePaths, locale } = Astro.props;
+---
+
+{bikePaths.length > 0 && (
+  <section class="paths-on-route">
+    <h3>Paths on this route</h3>
+    <ul class="paths-on-route-list">
+      {bikePaths.map(bp => (
+        <li>
+          <a href={paths.bikePath(bp.slug, locale)}>{bp.name}</a>
+          {bp.surface && <span class="path-meta">{bp.surface}</span>}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

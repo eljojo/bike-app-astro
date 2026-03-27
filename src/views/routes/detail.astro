@@ -26,13 +26,18 @@ import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.serve
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import { loadBikePathData, routePassesNearPath } from '@/lib/bike-paths/bike-path-data.server';
+import PathsOnRoute from '@/components/PathsOnRoute.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
 export const prerender = true;
 export async function getStaticPaths() {
-  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix } = await loadRouteData();
+  const [
+    { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix },
+    { pages: bikePathPages },
+  ] = await Promise.all([loadRouteData(), loadBikePathData()]);
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
   // Build lightweight data for similar routes thumbnails
@@ -49,11 +54,11 @@ export async function getStaticPaths() {
 
   return filtered.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, bikePathPages },
   }));
 }
 
-const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, bikePathPages } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -113,6 +118,18 @@ for (const v of variants) {
 
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
+
+const nearbyBikePaths = primaryTrack
+  ? bikePathPages.filter(bp => {
+      const anchors = bp.ymlEntries.flatMap(e =>
+        (e.anchors ?? []).map(a =>
+          Array.isArray(a) ? { lat: a[0], lng: a[1] } : a
+        )
+      );
+      if (anchors.length === 0) return false;
+      return routePassesNearPath(primaryTrack.points, anchors);
+    })
+  : [];
 
 // Build place description using new i18n functions
 function buildPlaceDesc(categories: { category: string; count: number }[]): string | null {
@@ -273,6 +290,7 @@ const jsonLd = [
             <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
           )}
           {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
+          <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
         </div>
       )}
     </div>

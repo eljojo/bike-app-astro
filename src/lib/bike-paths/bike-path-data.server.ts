@@ -4,6 +4,8 @@ import path from 'node:path';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml';
 import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { haversineM } from '../geo/proximity';
+import type { GpxPoint } from '../gpx/parse';
 
 /** A bike path page to be generated — merged YML + markdown data. */
 export interface BikePathPage {
@@ -132,4 +134,20 @@ export async function loadBikePathData(): Promise<{
   }
 
   return { pages, allYmlEntries };
+}
+
+/** Check if a GPX track passes near any of a bike path's anchor points. */
+export function routePassesNearPath(
+  trackPoints: GpxPoint[],
+  pathAnchors: { lat: number; lng: number }[],
+  thresholdM: number = 100,
+): boolean {
+  for (const anchor of pathAnchors) {
+    for (const tp of trackPoints) {
+      if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) {
+        return true;
+      }
+    }
+  }
+  return false;
 }

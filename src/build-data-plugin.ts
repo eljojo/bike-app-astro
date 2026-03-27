@@ -509,6 +509,7 @@ export function getFontPreloads() { return _data; }
           code: `
 import { getCollection } from 'astro:content';
 import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { haversineM } from '../geo/proximity';
 
 const _allYmlEntries = ${JSON.stringify(bikePaths)};
 
@@ -604,6 +605,18 @@ export async function loadBikePathData() {
   }
 
   return { pages, allYmlEntries };
+}
+
+/** Check if a GPX track passes near any of a bike path's anchor points. */
+export function routePassesNearPath(trackPoints, pathAnchors, thresholdM = 100) {
+  for (const anchor of pathAnchors) {
+    for (const tp of trackPoints) {
+      if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 `,
           map: null,
