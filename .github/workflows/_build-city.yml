@@ -155,6 +155,24 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Restore bike path geometry cache
+        uses: actions/cache@v5
+        with:
+          path: bike-routes/.cache/bikepath-geometry
+          key: bikepath-geo-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/bikepaths.yml', inputs.city)) }}
+          restore-keys: |
+            bikepath-geo-${{ inputs.city }}-
+
+      - name: Cache bike path geometry from OSM
+        run: cd bike-routes && node scripts/cache-bikepath-geometry.mjs --city=${{ inputs.city }}
+
+      - name: Copy bike path geometry to public
+        run: |
+          mkdir -p public/paths/geo
+          if [ -d "bike-routes/.cache/bikepath-geometry/${{ inputs.city }}" ]; then
+            cp bike-routes/.cache/bikepath-geometry/${{ inputs.city }}/*.geojson public/paths/geo/ 2>/dev/null || true
+          fi
+
       - name: Record build start time
         if: inputs.deploy
         run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"

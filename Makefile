@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video setup-city deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild path-geo validate fonts contributors docs-dev docs-build docs-preview setup-video setup-city deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -9,7 +9,7 @@ install: ## Install npm dependencies
 dev: prebuild ## Start dev server (set DEV_HOST in .env for remote access)
 	RUNTIME=local npx astro dev
 
-build: prebuild contributors maps ## Build static site to dist/
+build: prebuild contributors maps path-geo ## Build static site to dist/
 	npx astro build
 
 preview: prebuild ## Preview built site locally
@@ -74,6 +74,18 @@ fonts: ## Download and embed Google Fonts locally
 
 contributors: ## Build contributor stats for about page
 	npx tsx scripts/build-contributors.ts
+
+path-geo: ## Copy cached bike path geometry to public/paths/geo/
+	@mkdir -p public/paths/geo
+	@CITY=$${CITY:-ottawa}; \
+	CACHE_DIR=$${CONTENT_DIR:-$$HOME/code/bike-routes}/.cache/bikepath-geometry/$$CITY; \
+	if [ -d "$$CACHE_DIR" ]; then \
+		cp $$CACHE_DIR/*.geojson public/paths/geo/ 2>/dev/null && \
+		echo "Copied $$(ls public/paths/geo/*.geojson 2>/dev/null | wc -l) geometry files to public/paths/geo/" || \
+		echo "No geometry files found in $$CACHE_DIR"; \
+	else \
+		echo "No geometry cache at $$CACHE_DIR (run cache-bikepath-geometry.mjs in bike-routes first)"; \
+	fi
 
 validate: ## Run content validation (uses CITY env, defaults to ottawa)
 	npx tsx scripts/validate.ts
