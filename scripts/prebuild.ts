@@ -18,6 +18,7 @@ const scripts = path.resolve(import.meta.dirname);
 const generators = [
   { name: 'map-style', script: 'build-map-style.ts' },
   { name: 'icon-paths', script: 'build-icon-paths.ts' },
+  { name: 'path-geo', script: 'copy-path-geometry.ts' },
 ];
 
 for (const { name, script } of generators) {
