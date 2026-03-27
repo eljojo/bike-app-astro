@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isHardExcluded, scoreBikePath } from '../src/lib/bike-paths/bike-path-scoring';
+import { normalizeOperator } from '../src/lib/bike-paths/bike-path-data.server';
 import type { SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml';
 
 function entry(overrides: Partial<SluggedBikePathYml> & { name: string }): SluggedBikePathYml {
@@ -48,6 +49,26 @@ describe('isHardExcluded', () => {
   it('does not exclude valid cycling paths', () => {
     expect(isHardExcluded(entry({ name: 'Ottawa River Pathway', highway: 'cycleway', network: 'rcn' }))).toBe(false);
     expect(isHardExcluded(entry({ name: 'Sentier des Voyageurs Pathway', highway: 'cycleway' }))).toBe(false);
+  });
+});
+
+describe('normalizeOperator', () => {
+  it('normalizes NCC variants to canonical name', () => {
+    expect(normalizeOperator('NCC')).toBe('NCC');
+    expect(normalizeOperator('CCN NCC')).toBe('NCC');
+    expect(normalizeOperator('NCC/CCN')).toBe('NCC');
+    expect(normalizeOperator('Commission de la capitale nationale / National Capital Commission')).toBe('NCC');
+    expect(normalizeOperator('National Capital Commission')).toBe('NCC');
+  });
+
+  it('passes through other operators unchanged', () => {
+    expect(normalizeOperator('City of Ottawa')).toBe('City of Ottawa');
+    expect(normalizeOperator('Russell Township')).toBe('Russell Township');
+  });
+
+  it('returns undefined for empty/undefined input', () => {
+    expect(normalizeOperator(undefined)).toBeUndefined();
+    expect(normalizeOperator('')).toBeUndefined();
   });
 });
 

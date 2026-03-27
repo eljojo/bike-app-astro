@@ -530,6 +530,13 @@ import { getCollection } from 'astro:content';
 import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
 import { haversineM } from '../geo/proximity';
 
+const _NCC_NORMALIZE = /\\b(ncc|ccn|national capital commission|commission de la capitale nationale)\\b/i;
+export function normalizeOperator(operator) {
+  if (!operator) return undefined;
+  if (_NCC_NORMALIZE.test(operator)) return 'NCC';
+  return operator;
+}
+
 const _allYmlEntries = ${JSON.stringify(bikePaths)};
 
 export async function loadBikePathData() {
@@ -591,7 +598,7 @@ export async function loadBikePathData() {
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
-      operator: primary?.operator,
+      operator: normalizeOperator(primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
     });
@@ -617,7 +624,7 @@ export async function loadBikePathData() {
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,
-      operator: entry.operator,
+      operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
     });

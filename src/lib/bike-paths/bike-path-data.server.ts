@@ -29,6 +29,15 @@ export interface BikePathPage {
   highway?: string;
 }
 
+const NCC_NORMALIZE = /\b(ncc|ccn|national capital commission|commission de la capitale nationale)\b/i;
+
+/** Normalize operator names — OSM has many variants for the same org. */
+export function normalizeOperator(operator: string | undefined): string | undefined {
+  if (!operator) return undefined;
+  if (NCC_NORMALIZE.test(operator)) return 'NCC';
+  return operator;
+}
+
 /** Load all bike path data, merge YML + markdown, score, and return pages to generate. */
 export async function loadBikePathData(): Promise<{
   pages: BikePathPage[];
@@ -101,7 +110,7 @@ export async function loadBikePathData(): Promise<{
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
-      operator: primary?.operator,
+      operator: normalizeOperator(primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
     });
@@ -128,7 +137,7 @@ export async function loadBikePathData(): Promise<{
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,
-      operator: entry.operator,
+      operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
     });
