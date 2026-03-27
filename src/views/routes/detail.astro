@@ -290,9 +290,9 @@ const jsonLd = [
             <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
           )}
           {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
-          <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
         </div>
       )}
+      <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
     </div>
 
     <MediaGallery media={media} name={localeName} />

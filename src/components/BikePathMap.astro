@@ -56,6 +56,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
 
     let expanded = false;
     let geometryLoaded = false;
+    let pathBounds: maplibregl.LngLatBounds | null = null;
 
     // Load GeoJSON for each relation
     async function loadGeometry() {
@@ -102,6 +103,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
 
         // Fit to path bounds with padding
         if (!bounds.isEmpty()) {
+          pathBounds = bounds;
           map.fitBounds(bounds, { padding: 30, animate: false });
         }
 
@@ -125,8 +127,13 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
       map.doubleClickZoom.enable();
       map.touchZoomRotate.enable();
 
-      // Resize after CSS transition
-      setTimeout(() => map.resize(), 350);
+      // Resize after CSS transition, then refit with tighter padding
+      setTimeout(() => {
+        map.resize();
+        if (pathBounds && !pathBounds.isEmpty()) {
+          map.fitBounds(pathBounds, { padding: 60, animate: true });
+        }
+      }, 350);
     }
 
     function collapse() {
@@ -142,8 +149,13 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
       map.doubleClickZoom.disable();
       map.touchZoomRotate.disable();
 
-      // Resize after CSS transition
-      setTimeout(() => map.resize(), 350);
+      // Resize after CSS transition, then refit with wider padding
+      setTimeout(() => {
+        map.resize();
+        if (pathBounds && !pathBounds.isEmpty()) {
+          map.fitBounds(pathBounds, { padding: 20, animate: true });
+        }
+      }, 350);
     }
 
     container.addEventListener('click', (e) => {
