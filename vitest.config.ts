@@ -18,7 +18,7 @@ if (!existsSync(mapStyleUrlPath)) {
 export default defineConfig({
   plugins: [buildDataPlugin()],
   test: {
-    exclude: ['e2e/**', 'node_modules/**', 'docs/**', 'aws/**'],
+    exclude: ['e2e/**', 'node_modules/**', 'docs/**', 'aws/**', 'bike-routes/**'],
     setupFiles: ['./tests/setup.ts'],
   },
 });
