@@ -1,7 +1,59 @@
 ---
 export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
+import { getCityConfig } from '@/lib/config/city-config';
+import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+
 export async function getStaticPaths() {
-  return [];
+  const { pages } = await loadBikePathData();
+  return pages.map(page => ({
+    params: { slug: page.slug },
+    props: { page },
+  }));
 }
+
+interface Props { page: BikePathPage }
+const { page } = Astro.props;
+const config = getCityConfig();
+const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
 ---
-<html><body>placeholder</body></html>
+
+<Base title={`${page.name} | ${config.display_name}`}>
+  <div class="bike-path-detail">
+    <div class="bike-path-header">
+      <div class="bike-path-info">
+        <h1>{page.name}</h1>
+        {page.vibe && <p class="bike-path-vibe">{page.vibe}</p>}
+
+        <div class="bike-path-facts">
+          {page.surface && <span class="fact">Surface: {page.surface}</span>}
+          {page.width && <span class="fact">Width: {page.width}m</span>}
+          {page.lit && <span class="fact">{page.lit === 'yes' ? 'Lit' : 'Unlit'}</span>}
+          {page.operator && <span class="fact">Maintained by {page.operator}</span>}
+        </div>
+
+        {page.osmRelationIds.length > 0 && (
+          <div class="bike-path-osm">
+            <span>Path data from <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
+            {page.ymlEntries.map(entry => (
+              entry.osm_relations?.map(id => (
+                <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
+                  {entry.name} — relation {id} ↗
+                </a>
+              ))
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div class="bike-path-map-card" id="path-map-card">
+        <div class="map-placeholder">Map</div>
+      </div>
+    </div>
+
+    {descriptionHtml && (
+      <div class="bike-path-description" set:html={descriptionHtml} />
+    )}
+  </div>
+</Base>

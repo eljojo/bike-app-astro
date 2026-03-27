@@ -31,6 +31,7 @@ import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/media-regis
 import { isBlogInstance } from './lib/config/city-config';
 import { getContentTypes } from './lib/content/content-types.server';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
+import { parseBikePathsYml } from './lib/bike-paths/bikepaths-yml';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -119,6 +120,12 @@ function loadTagTranslations() {
   const filePath = path.join(CITY_DIR, 'tag-translations.yml');
   if (!fs.existsSync(filePath)) return {};
   return yaml.load(fs.readFileSync(filePath, 'utf-8')) || {};
+}
+
+function loadBikePaths() {
+  const filePath = path.join(CITY_DIR, 'bikepaths.yml');
+  if (!fs.existsSync(filePath)) return [];
+  return parseBikePathsYml(fs.readFileSync(filePath, 'utf-8'));
 }
 
 function loadFontPreloads() {
@@ -333,6 +340,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const CONSUMER_ROOT = options?.consumerRoot || PROJECT_ROOT;
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
+  const bikePaths = loadBikePaths();
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -492,6 +500,111 @@ export function tTag(tag, locale) {
           code: `
 const _data = ${JSON.stringify(fontPreloads)};
 export function getFontPreloads() { return _data; }
+`,
+          map: null,
+        };
+      }
+      if (id.endsWith('src/lib/bike-paths/bike-path-data.server.ts')) {
+        return {
+          code: `
+import { getCollection } from 'astro:content';
+import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+
+const _allYmlEntries = ${JSON.stringify(bikePaths)};
+
+export async function loadBikePathData() {
+  const allYmlEntries = _allYmlEntries;
+  const markdownEntries = await getCollection('bike-paths');
+
+  const ymlBySlug = new Map();
+  for (const entry of allYmlEntries) {
+    ymlBySlug.set(entry.slug, entry);
+  }
+
+  const claimedSlugs = new Set();
+  const pages = [];
+
+  for (const md of markdownEntries) {
+    if (md.data.hidden) continue;
+
+    const includes = md.data.includes ?? [];
+    const matchedEntries = [];
+
+    for (const inc of includes) {
+      const entry = ymlBySlug.get(inc);
+      if (entry) {
+        matchedEntries.push(entry);
+        claimedSlugs.add(inc);
+      }
+    }
+
+    if (matchedEntries.length === 0) {
+      const entry = ymlBySlug.get(md.id);
+      if (entry) {
+        matchedEntries.push(entry);
+        claimedSlugs.add(md.id);
+      }
+    }
+
+    const osmRelationIds = matchedEntries.flatMap(e => e.osm_relations ?? []);
+    const osmNames = matchedEntries.flatMap(e => e.osm_names ?? []);
+    const primary = matchedEntries[0];
+
+    const bestChildScore = matchedEntries.reduce(
+      (max, e) => Math.max(max, scoreBikePath(e, 0)),
+      0,
+    );
+
+    pages.push({
+      slug: md.id,
+      name: md.data.name ?? primary?.name ?? md.id,
+      name_fr: md.data.name_fr ?? primary?.name_fr,
+      vibe: md.data.vibe,
+      body: md.body,
+      photo_key: md.data.photo_key,
+      tags: md.data.tags ?? [],
+      score: bestChildScore,
+      hasMarkdown: true,
+      ymlEntries: matchedEntries,
+      osmRelationIds,
+      osmNames,
+      surface: primary?.surface,
+      width: primary?.width,
+      lit: primary?.lit,
+      operator: primary?.operator,
+      network: primary?.network,
+      highway: primary?.highway,
+    });
+  }
+
+  for (const entry of allYmlEntries) {
+    if (claimedSlugs.has(entry.slug)) continue;
+    if (isHardExcluded(entry)) continue;
+
+    const score = scoreBikePath(entry, 0);
+    if (score < SCORE_THRESHOLD) continue;
+
+    pages.push({
+      slug: entry.slug,
+      name: entry.name,
+      name_fr: entry.name_fr,
+      tags: [],
+      score,
+      hasMarkdown: false,
+      ymlEntries: [entry],
+      osmRelationIds: entry.osm_relations ?? [],
+      osmNames: entry.osm_names ?? [],
+      surface: entry.surface,
+      width: entry.width,
+      lit: entry.lit,
+      operator: entry.operator,
+      network: entry.network,
+      highway: entry.highway,
+    });
+  }
+
+  return { pages, allYmlEntries };
+}
 `,
           map: null,
         };

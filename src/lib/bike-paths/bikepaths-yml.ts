@@ -8,7 +8,10 @@ export const bikePathYmlEntrySchema = z.object({
   name_fr: z.string().optional(),
   osm_relations: z.array(z.number()).optional(),
   osm_names: z.array(z.string()).optional(),
-  anchors: z.array(z.object({ lat: z.number(), lng: z.number() })).optional(),
+  anchors: z.array(z.union([
+    z.object({ lat: z.number(), lng: z.number() }),
+    z.tuple([z.number(), z.number()]),
+  ])).optional(),
   surface: z.string().optional(),
   smoothness: z.string().optional(),
   width: z.string().optional(),

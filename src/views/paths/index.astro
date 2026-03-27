@@ -1,5 +1,70 @@
 ---
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
+import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
+import { getCityConfig } from '@/lib/config/city-config';
+import { paths } from '@/lib/paths';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+const { pages } = await loadBikePathData();
+
+// Featured: paths with markdown descriptions
+const featured = pages.filter(p => p.hasMarkdown && p.body);
+
+// Group by operator
+const NCC_PATTERN = /\b(ncc|national capital commission|ccn)\b/i;
+const CITY_PATTERN = /\bcity of ottawa\b/i;
+
+const ncc = pages.filter(p => p.operator && NCC_PATTERN.test(p.operator));
+const cityOfOttawa = pages.filter(p => p.operator && CITY_PATTERN.test(p.operator));
+const nccSlugs = new Set(ncc.map(p => p.slug));
+const citySlugs = new Set(cityOfOttawa.map(p => p.slug));
+const other = pages.filter(p => !nccSlugs.has(p.slug) && !citySlugs.has(p.slug));
+
+type OperatorGroup = { label: string; paths: typeof pages };
+const groups: OperatorGroup[] = [];
+if (ncc.length > 0) groups.push({ label: 'NCC Pathways', paths: ncc });
+if (cityOfOttawa.length > 0) groups.push({ label: 'City of Ottawa', paths: cityOfOttawa });
+if (other.length > 0) groups.push({ label: 'Other', paths: other });
 ---
-<Base title="Paths"><h1>Paths</h1><p>Coming soon.</p></Base>
+
+<Base title={`Paths | ${config.display_name}`}>
+  <div class="paths-index">
+    <div class="paths-map-hero" id="paths-network-map">
+      <div class="map-placeholder" style="height: 400px; background: var(--color-surface-alt);">Network map</div>
+    </div>
+
+    {featured.length > 0 && (
+      <section class="paths-featured">
+        <h2>Featured Paths</h2>
+        <div class="featured-cards">
+          {featured.map(p => (
+            <a href={paths.bikePath(p.slug, locale)} class="path-card">
+              <h3>{p.name}</h3>
+              {p.vibe && <p class="path-vibe">{p.vibe}</p>}
+              {p.surface && <span class="path-surface">{p.surface}</span>}
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {groups.map(group => (
+      <section class="paths-group">
+        <h2>{group.label}</h2>
+        <ul class="paths-list">
+          {group.paths.map(p => (
+            <li>
+              <a href={paths.bikePath(p.slug, locale)}>
+                {p.name}
+              </a>
+              {p.surface && <span class="path-meta">{p.surface}</span>}
+              {p.operator && <span class="path-meta">{p.operator}</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</Base>
