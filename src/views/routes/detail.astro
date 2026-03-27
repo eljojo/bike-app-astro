@@ -123,7 +123,7 @@ const nearbyBikePaths = primaryTrack
   ? bikePathPages.filter(bp => {
       const anchors = bp.ymlEntries.flatMap(e =>
         (e.anchors ?? []).map(a =>
-          Array.isArray(a) ? { lat: a[0], lng: a[1] } : a
+          Array.isArray(a) ? { lat: a[1], lng: a[0] } : a
         )
       );
       if (anchors.length === 0) return false;

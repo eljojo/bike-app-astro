@@ -34,10 +34,11 @@ export async function loadBikePathData(): Promise<{
   pages: BikePathPage[];
   allYmlEntries: SluggedBikePathYml[];
 }> {
-  // 1. Parse bikepaths.yml
+  // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
-  const ymlContent = fs.readFileSync(ymlPath, 'utf-8');
-  const allYmlEntries = parseBikePathsYml(ymlContent);
+  const allYmlEntries = fs.existsSync(ymlPath)
+    ? parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'))
+    : [];
 
   // 2. Load markdown files
   const markdownEntries = await getCollection('bike-paths');

@@ -235,6 +235,20 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
 
 // --- Virtual module builders (complex data composition) ---
 
+function loadBikePathPhotoKeys(): Array<{ slug: string; photo_key?: string }> {
+  const bikePathsDir = path.join(CITY_DIR, 'bike-paths');
+  if (!fs.existsSync(bikePathsDir)) return [];
+  return fs.readdirSync(bikePathsDir)
+    .filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))
+    .map(f => {
+      const content = fs.readFileSync(path.join(bikePathsDir, f), 'utf-8');
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) return { slug: f.replace('.md', '') };
+      const fm = yaml.load(fmMatch[1]) as Record<string, unknown>;
+      return { slug: f.replace('.md', ''), photo_key: fm.photo_key as string | undefined };
+    });
+}
+
 function buildMediaSharedKeysModule(
   routeDetails: Record<string, { media: Array<{ key: string }> }>,
 ): string {
@@ -245,7 +259,8 @@ function buildMediaSharedKeysModule(
   const parked = loadParkedMedia();
   const places = loadPlacePhotoKeys();
   const events = loadEventPosterKeys();
-  const map = buildSharedKeysMap(routeData, places, events, parked);
+  const bikePaths = loadBikePathPhotoKeys();
+  const map = buildSharedKeysMap(routeData, places, events, parked, bikePaths);
   return `export default ${serializeSharedKeys(map)};`;
 }
 

@@ -6,10 +6,15 @@ import { serializeMdFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';
 import { saveContent } from '../../lib/content/content-save';
-import type { SaveHandlers } from '../../lib/content/content-save';
+import type { SaveHandlers, BuildResult, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { bikePathOps } from '../../lib/content/content-ops.server';
-import { buildCommitTrailer } from '../../lib/content/save-helpers.server';
+import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup, mergeFrontmatter } from '../../lib/content/save-helpers.server';
+import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
+import type { ParkedMediaEntry } from '../../lib/media/media-merge';
+import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
+
+let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 
 export const prerender = false;
 
@@ -41,7 +46,14 @@ export interface BikePathUpdate {
   contentHash?: string;
 }
 
-export const bikePathHandlers: SaveHandlers<BikePathUpdate> = {
+interface BikePathBuildResult extends BuildResult {
+  oldPhotoKey: string | undefined;
+  newPhotoKey: string | undefined;
+  bikePathSlug: string;
+  mergedParked: ParkedMediaEntry[] | undefined;
+}
+
+export const bikePathHandlers: SaveHandlers<BikePathUpdate, BikePathBuildResult> & WithAfterCommit<BikePathBuildResult> = {
   parseRequest(body: unknown): BikePathUpdate {
     return bikePathUpdateSchema.parse(body);
   },
@@ -54,22 +66,47 @@ export const bikePathHandlers: SaveHandlers<BikePathUpdate> = {
   computeContentHash: bikePathOps.computeContentHash,
   buildFreshData: bikePathOps.buildFreshData,
 
-  async buildFileChanges(update, bikePathId, _currentFiles) {
+  async buildFileChanges(update, bikePathId, currentFiles, git) {
     const bikePath = bikePathOps.getFilePaths(bikePathId).primary;
+    const isNew = !currentFiles.primaryFile;
     const files: FileChange[] = [];
 
-    const fm: Record<string, unknown> = {};
-    if (update.frontmatter.name) fm.name = update.frontmatter.name;
-    if (update.frontmatter.name_fr) fm.name_fr = update.frontmatter.name_fr;
-    if (update.frontmatter.vibe) fm.vibe = update.frontmatter.vibe;
-    if (update.frontmatter.hidden) fm.hidden = update.frontmatter.hidden;
-    if (update.frontmatter.includes.length > 0) fm.includes = update.frontmatter.includes;
-    if (update.frontmatter.photo_key) fm.photo_key = update.frontmatter.photo_key;
-    if (update.frontmatter.tags.length > 0) fm.tags = update.frontmatter.tags;
+    // Detect photo_key change and park orphaned photo
+    const oldPhotoKey = currentFiles.primaryFile
+      ? extractFrontmatterField(currentFiles.primaryFile.content, 'photo_key')
+      : undefined;
+    const newPhotoKey = update.frontmatter.photo_key;
 
-    files.push({ path: bikePath, content: serializeMdFile(fm, update.body) });
+    let mergedParked: ParkedMediaEntry[] | undefined;
+    const parked = await parkOrphanedMedia({
+      oldKey: oldPhotoKey,
+      newKey: newPhotoKey,
+      contentType: 'bike-path',
+      contentId: bikePathId,
+      sharedKeysData,
+      git,
+    });
+    if (parked) {
+      mergedParked = parked.mergedParked;
+      files.push(parked.fileChange);
+    }
 
-    return { files, deletePaths: [], isNew: !_currentFiles.primaryFile };
+    // Merge frontmatter: overlay editor fields on existing frontmatter
+    const mergedFrontmatter = mergeFrontmatter(
+      isNew,
+      currentFiles.primaryFile?.content ?? null,
+      update.frontmatter as Record<string, unknown>,
+    );
+
+    files.push({ path: bikePath, content: serializeMdFile(mergedFrontmatter, update.body) });
+
+    return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, bikePathSlug: bikePathId, mergedParked };
+  },
+
+  async afterCommit(result, database) {
+    const { oldPhotoKey, newPhotoKey, bikePathSlug, mergedParked } = result;
+    const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'bike-path', bikePathSlug);
+    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
   },
 
   buildCommitMessage(update, bikePathId, isNew): string {
@@ -85,5 +122,6 @@ export const bikePathHandlers: SaveHandlers<BikePathUpdate> = {
 };
 
 export async function POST({ params, request, locals }: APIContext) {
+  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
   return saveContent(request, locals, params, 'bike-paths', bikePathHandlers);
 }

@@ -2,7 +2,7 @@ import { z } from 'astro/zod';
 import yaml from 'js-yaml';
 
 /** A single entry from bikepaths.yml */
-export const bikePathYmlEntrySchema = z.object({
+export const bikePathYmlEntrySchema = z.looseObject({
   name: z.string(),
   name_en: z.string().optional(),
   name_fr: z.string().optional(),
@@ -26,7 +26,7 @@ export const bikePathYmlEntrySchema = z.object({
   description: z.string().optional(),
   cycleway: z.string().optional(),
   ref: z.string().optional(),
-}).passthrough();
+});
 
 export type BikePathYmlEntry = z.infer<typeof bikePathYmlEntrySchema>;
 
