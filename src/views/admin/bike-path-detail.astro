@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
+import { bikePathDetailFromCache } from '../../lib/models/bike-path-model';
+
+const result = await loadDetailFromJson({
+  contentType: 'bike-paths',
+  id: Astro.params.id,
+  jsonUrl: new URL(`/admin/data/bike-paths/${Astro.params.id}.json`, Astro.url),
+  fromCache: bikePathDetailFromCache,
+});
+
+if (result.notFound) return new Response(null, { status: 404 });
+const bikePathData = result.data;
+
+const user = Astro.locals.user;
+---
+
+<AdminEditorLayout title={`Edit: ${bikePathData.name || bikePathData.id}`} hideTitle user={user} currentTab="bike-paths">
+  <div class="editor-placeholder">
+    <h1>{bikePathData.name || bikePathData.id}</h1>
+    <p>ID: <code>{bikePathData.id}</code></p>
+    {bikePathData.vibe && <p>Vibe: {bikePathData.vibe}</p>}
+    {bikePathData.includes.length > 0 && (
+      <p>Includes: {bikePathData.includes.join(', ')}</p>
+    )}
+  </div>
+</AdminEditorLayout>
+
+<style lang="scss">
+  .editor-placeholder {
+    max-width: 700px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+</style>

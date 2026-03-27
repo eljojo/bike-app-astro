@@ -46,6 +46,8 @@ const routes = [
   { pattern: '/admin/data/events/[...id].json', entrypoint: view('admin/data/event-detail.json.ts') },
   { pattern: '/admin/data/places.json', entrypoint: view('admin/data/places.json.ts') },
   { pattern: '/admin/data/places/[id].json', entrypoint: view('admin/data/place-detail.json.ts') },
+  { pattern: '/admin/data/bike-paths.json', entrypoint: view('admin/data/bike-paths.json.ts') },
+  { pattern: '/admin/data/bike-paths/[id].json', entrypoint: view('admin/data/bike-path-detail.json.ts') },
   { pattern: '/admin/data/organizers.json', entrypoint: view('admin/data/organizers.json.ts') },
   { pattern: '/admin/data/organizers/[slug].json', entrypoint: view('admin/data/organizer-detail.json.ts') },
   { pattern: '/admin/data/media-shared-keys.json', entrypoint: view('admin/data/media-shared-keys.json.ts') },

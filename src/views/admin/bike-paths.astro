@@ -1,0 +1,139 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
+import '../../styles/admin.scss';
+
+interface AdminBikePathItem {
+  id: string;
+  name: string;
+  vibe?: string;
+  hidden: boolean;
+  includes: string[];
+  tags: string[];
+  contentHash: string;
+}
+
+const bikePaths = await fetchJson<AdminBikePathItem[]>(new URL('/admin/data/bike-paths.json', Astro.url));
+const user = Astro.locals.user;
+---
+
+<Base title="Paths - Admin" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="bike-paths" subtitle="Named cycling corridors — collections of routes that share a path." />
+
+    <div class="path-actions-bar">
+      <span class="path-count">{bikePaths.length} paths</span>
+    </div>
+
+    <div class="path-list">
+      {bikePaths.map(p => (
+        <a href={`/admin/paths/${p.id}`} class="path-list-item">
+          <div class="path-card-info">
+            <span class="path-card-name">{p.name || p.id}</span>
+            {p.vibe && <span class="path-card-vibe">{p.vibe}</span>}
+            {p.hidden && <span class="path-badge path-badge--hidden">Hidden</span>}
+          </div>
+        </a>
+      ))}
+    </div>
+
+    {bikePaths.length === 0 && <p class="auth-message">No paths found. Save a bike path to see it here.</p>}
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+  @use '../../styles/mixins' as *;
+
+  .admin-page {
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+
+  .path-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .path-count {
+    font-size: 0.875rem;
+    @include muted-text;
+  }
+
+  .path-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: $color-border;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    @include dark-mode {
+      background: $color-border-subtle-dark;
+    }
+  }
+
+  .path-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    background: $color-card-bg;
+    color: $color-text;
+    text-decoration: none;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+
+      @include dark-mode {
+        background: $color-card-hover-dark;
+      }
+    }
+  }
+
+  .path-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  .path-card-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .path-card-vibe {
+    font-size: 0.8125rem;
+    @include muted-text;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .path-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    font-weight: 600;
+
+    &--hidden {
+      background: $color-warning-bg;
+      color: $color-warning;
+    }
+  }
+</style>
