@@ -15,15 +15,7 @@ export const bikePathDetailSchema = z.object({
 
 export type BikePathDetail = z.infer<typeof bikePathDetailSchema>;
 
-export interface AdminBikePath {
-  id: string;
-  name: string;
-  vibe?: string;
-  hidden: boolean;
-  includes: string[];
-  tags: string[];
-  contentHash: string;
-}
+export type { AdminBikePath } from '../../types/admin';
 
 /** Serialize BikePathDetail to JSON string for D1 cache. */
 export function bikePathDetailToCache(detail: BikePathDetail): string {

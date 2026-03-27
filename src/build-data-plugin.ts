@@ -26,6 +26,7 @@ import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
 import { loadAdminPlaceData } from './loaders/admin-places';
 import { loadAdminRideData } from './loaders/admin-rides';
+import { loadAdminBikePathData } from './loaders/admin-bike-paths';
 import { buildMediaLocations, buildNearbyMediaMap, type ParkedMedia } from './loaders/media-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/media-registry';
 import { isBlogInstance } from './lib/config/city-config';
@@ -42,6 +43,7 @@ export { loadAdminEventData };
 export { loadAdminOrganizers };
 export { loadAdminPlaceData };
 export { loadAdminRideData };
+export { loadAdminBikePathData };
 
 const CITY_DIR = cityDir;
 
@@ -191,7 +193,7 @@ interface AdminModuleConfig {
 // All admin module names that any view might dynamically import.
 // Inactive modules (e.g. admin-events on a blog instance) get empty stubs
 // so Rollup can resolve them even when the content type isn't registered.
-const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places', 'organizers'];
+const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places', 'organizers', 'bike-paths'];
 
 function registerAdminModules(configs: AdminModuleConfig[]) {
   const promises = new Map<string, Promise<{ list: unknown; details: unknown }>>();
@@ -354,6 +356,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const adminEventDataPromise = loadAdminEventData();
   const adminPlaceDataPromise = loadAdminPlaceData();
   const adminOrganizersPromise = loadAdminOrganizers();
+  const adminBikePathDataPromise = loadAdminBikePathData();
 
   // Helper: resolve route/ride details (used by multiple virtual modules)
   async function getRouteDetails() {
@@ -373,6 +376,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     events: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; },
     places: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; },
     organizers: async () => { const d = await adminOrganizersPromise; return { list: d.list, details: d.details }; },
+    'bike-paths': async () => { const d = await adminBikePathDataPromise; return { list: d.bikePaths, details: d.details }; },
   };
 
   // Build admin modules from the content type registry, using the loader map

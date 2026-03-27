@@ -4,6 +4,7 @@ import Base from '@/layouts/Base.astro';
 import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
 import { paths } from '@/lib/paths';
+import { t } from '@/i18n';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -12,24 +13,37 @@ const { pages } = await loadBikePathData();
 // Featured: paths with markdown descriptions
 const featured = pages.filter(p => p.hasMarkdown && p.body);
 
-// Group by operator
-const NCC_PATTERN = /\b(ncc|national capital commission|ccn)\b/i;
-const CITY_PATTERN = /\bcity of ottawa\b/i;
-
-const ncc = pages.filter(p => p.operator && NCC_PATTERN.test(p.operator));
-const cityOfOttawa = pages.filter(p => p.operator && CITY_PATTERN.test(p.operator));
-const nccSlugs = new Set(ncc.map(p => p.slug));
-const citySlugs = new Set(cityOfOttawa.map(p => p.slug));
-const other = pages.filter(p => !nccSlugs.has(p.slug) && !citySlugs.has(p.slug));
-
+// Group by operator dynamically
 type OperatorGroup = { label: string; paths: typeof pages };
+const operatorMap = new Map<string, typeof pages>();
+
+for (const p of pages) {
+  const key = p.operator || '';
+  const list = operatorMap.get(key);
+  if (list) {
+    list.push(p);
+  } else {
+    operatorMap.set(key, [p]);
+  }
+}
+
 const groups: OperatorGroup[] = [];
-if (ncc.length > 0) groups.push({ label: 'NCC Pathways', paths: ncc });
-if (cityOfOttawa.length > 0) groups.push({ label: 'City of Ottawa', paths: cityOfOttawa });
-if (other.length > 0) groups.push({ label: 'Other', paths: other });
+// Sort groups: largest first, "Other" (empty operator) last
+const sortedEntries = [...operatorMap.entries()].sort((a, b) => {
+  if (a[0] === '') return 1;
+  if (b[0] === '') return -1;
+  return b[1].length - a[1].length;
+});
+
+for (const [operator, pathsList] of sortedEntries) {
+  groups.push({
+    label: operator || t('paths.other_group', locale),
+    paths: pathsList,
+  });
+}
 ---
 
-<Base title={`Paths | ${config.display_name}`}>
+<Base title={`${t('paths.title', locale)} | ${config.display_name}`}>
   <div class="paths-index">
     <div class="paths-map-hero" id="paths-network-map">
       <div class="map-placeholder" style="height: 400px; background: var(--color-surface-alt);">Network map</div>
@@ -37,7 +51,7 @@ if (other.length > 0) groups.push({ label: 'Other', paths: other });
 
     {featured.length > 0 && (
       <section class="paths-featured">
-        <h2>Featured Paths</h2>
+        <h2>{t('paths.featured', locale)}</h2>
         <div class="featured-cards">
           {featured.map(p => (
             <a href={paths.bikePath(p.slug, locale)} class="path-card">

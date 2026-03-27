@@ -22,6 +22,7 @@ const segmentTranslations: Record<string, Record<string, string>> = {
   routes: { fr: 'parcours', es: 'rutas' },
   guides: { fr: 'guides', es: 'guias' },
   // club
+  paths: { fr: 'sentiers', es: 'senderos' },
   places: { fr: 'lieux', es: 'lugares' },
   // blog
   rides: { fr: 'sorties', es: 'recorridos' },

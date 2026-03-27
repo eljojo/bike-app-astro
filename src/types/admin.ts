@@ -63,6 +63,16 @@ export interface AdminOrganizer {
   contentHash: string;
 }
 
+export interface AdminBikePath {
+  id: string;
+  name: string;
+  vibe?: string;
+  hidden: boolean;
+  includes: string[];
+  tags: string[];
+  contentHash: string;
+}
+
 /** Minimal route reference used by event editors. */
 export interface RouteOption {
   slug: string;

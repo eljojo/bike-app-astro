@@ -1,6 +1,7 @@
 ---
 import type { BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { paths } from '@/lib/paths';
+import { t } from '@/i18n';
 
 interface Props {
   bikePaths: BikePathPage[];
@@ -12,7 +13,7 @@ const { bikePaths, locale } = Astro.props;
 
 {bikePaths.length > 0 && (
   <section class="paths-on-route">
-    <h3>Paths on this route</h3>
+    <h3>{t('paths.on_route', locale)}</h3>
     <ul class="paths-on-route-list">
       {bikePaths.map(bp => (
         <li>

@@ -557,5 +557,18 @@
   "404.help": "Here are some places to get back on track:",
   "404.home": "Home — browse all routes",
   "404.map": "Map — explore the city",
-  "404.calendar": "Calendar — upcoming rides"
+  "404.calendar": "Calendar — upcoming rides",
+  "paths.title": "Paths",
+  "paths.featured": "Featured Paths",
+  "paths.on_route": "Paths on this route",
+  "paths.surface": "Surface",
+  "paths.width": "Width",
+  "paths.lit": "Lit",
+  "paths.unlit": "Unlit",
+  "paths.maintained_by": "Maintained by {operator}",
+  "paths.osm_attribution": "Path data from",
+  "paths.osm_edit": "Help improve it",
+  "paths.click_to_explore": "Click to explore",
+  "paths.close_map": "Close map",
+  "paths.other_group": "Other"
 }

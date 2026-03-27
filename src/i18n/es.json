@@ -557,5 +557,18 @@
   "404.help": "Aquí hay algunos lugares para retomar el camino:",
   "404.home": "Inicio — explorar todas las rutas",
   "404.map": "Mapa — explorar la ciudad",
-  "404.calendar": "Calendario — próximos eventos"
+  "404.calendar": "Calendario — próximos eventos",
+  "paths.title": "Senderos",
+  "paths.featured": "Senderos destacados",
+  "paths.on_route": "Senderos en esta ruta",
+  "paths.surface": "Superficie",
+  "paths.width": "Ancho",
+  "paths.lit": "Iluminado",
+  "paths.unlit": "Sin iluminación",
+  "paths.maintained_by": "Mantenido por {operator}",
+  "paths.osm_attribution": "Datos del sendero de",
+  "paths.osm_edit": "Ayuda a mejorarlo",
+  "paths.click_to_explore": "Clic para explorar",
+  "paths.close_map": "Cerrar mapa",
+  "paths.other_group": "Otros"
 }

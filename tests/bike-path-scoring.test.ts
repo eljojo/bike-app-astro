@@ -20,10 +20,13 @@ describe('isHardExcluded', () => {
   it('excludes non-cycling networks', () => {
     expect(isHardExcluded(entry({ name: 'MTB Trail', network: 'mtb' }))).toBe(true);
     expect(isHardExcluded(entry({ name: 'Hiking Trail', network: 'lwn' }))).toBe(true);
-    expect(isHardExcluded(entry({ name: 'Pine Grove', network: 'Pine Grove' }))).toBe(true);
-    expect(isHardExcluded(entry({ name: 'Nordic Trail', network: 'KanataNordicCampground' }))).toBe(true);
-    expect(isHardExcluded(entry({ name: 'Mer Bleue', network: 'Mer Bleue' }))).toBe(true);
     expect(isHardExcluded(entry({ name: 'Walk', network: 'rwn' }))).toBe(true);
+  });
+
+  it('does not exclude city-specific trail networks', () => {
+    expect(isHardExcluded(entry({ name: 'Pine Grove', network: 'Pine Grove' }))).toBe(false);
+    expect(isHardExcluded(entry({ name: 'Nordic Trail', network: 'KanataNordicCampground' }))).toBe(false);
+    expect(isHardExcluded(entry({ name: 'Mer Bleue', network: 'Mer Bleue' }))).toBe(false);
   });
 
   it('excludes bridge names', () => {
@@ -49,7 +52,7 @@ describe('isHardExcluded', () => {
 });
 
 describe('scoreBikePath', () => {
-  it('scores a high-quality NCC pathway', () => {
+  it('scores a high-quality pathway with named operator', () => {
     const score = scoreBikePath(entry({
       name: 'Ottawa River Pathway',
       osm_relations: [7174864],
@@ -60,7 +63,7 @@ describe('scoreBikePath', () => {
       name_en: 'Ottawa River Pathway',
       name_fr: 'Sentier de la rivière des Outaouais',
     }), 3);
-    // osm_relations(+3) + rcn(+3) + overlaps(+3) + NCC(+2) + cycleway(+1) + bilingual(+1) + asphalt(+1) = 14
+    // osm_relations(+3) + rcn(+3) + overlaps(+3) + operator(+2) + cycleway(+1) + bilingual(+1) + asphalt(+1) = 14
     expect(score).toBe(14);
   });
 
@@ -78,11 +81,17 @@ describe('scoreBikePath', () => {
     expect(withOverlap - withoutOverlap).toBe(3);
   });
 
-  it('recognises City of Ottawa operator', () => {
+  it('gives +2 for any non-empty operator', () => {
     const score = scoreBikePath(entry({
       name: 'Crosstown Bikeway',
       operator: 'City of Ottawa',
     }), 0);
-    expect(score).toBeGreaterThanOrEqual(2);
+    expect(score).toBe(2);
+
+    const score2 = scoreBikePath(entry({
+      name: 'River Trail',
+      operator: 'Parks Department',
+    }), 0);
+    expect(score2).toBe(2);
   });
 });

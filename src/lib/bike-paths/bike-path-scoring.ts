@@ -6,8 +6,7 @@ const EXCLUDED_HIGHWAYS = new Set([
 ]);
 
 const EXCLUDED_NETWORKS = new Set([
-  'mtb', 'lwn', 'rwn', 'Pine Grove',
-  'KanataNordicCampground', 'Mer Bleue',
+  'mtb', 'lwn', 'rwn',
 ]);
 
 // Matches "Bridge" or "Footbridge" at the END of a name,
@@ -28,15 +27,12 @@ export function isHardExcluded(entry: SluggedBikePathYml): boolean {
   return false;
 }
 
-const NCC_PATTERN = /\b(ncc|national capital commission|ccn)\b/i;
-const CITY_OTTAWA_PATTERN = /\bcity of ottawa\b/i;
-
 export function scoreBikePath(entry: SluggedBikePathYml, routeOverlapCount: number): number {
   let score = 0;
   if (entry.osm_relations && entry.osm_relations.length > 0) score += 3;
   if (entry.network === 'rcn' || entry.network === 'ncn') score += 3;
   if (routeOverlapCount > 0) score += 3;
-  if (entry.operator && (NCC_PATTERN.test(entry.operator) || CITY_OTTAWA_PATTERN.test(entry.operator))) score += 2;
+  if (entry.operator) score += 2;
   if (entry.website || entry.wikidata) score += 2;
   if (entry.highway === 'cycleway') score += 1;
   if (entry.name_en && entry.name_fr) score += 1;

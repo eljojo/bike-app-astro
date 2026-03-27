@@ -215,6 +215,39 @@ declare module 'virtual:bike-app/admin-place-detail' {
   export default details;
 }
 
+interface _AdminBikePath {
+  id: string;
+  name: string;
+  vibe?: string;
+  hidden: boolean;
+  includes: string[];
+  tags: string[];
+  contentHash: string;
+}
+
+interface _AdminBikePathDetail {
+  id: string;
+  name?: string;
+  name_fr?: string;
+  vibe?: string;
+  hidden: boolean;
+  includes: string[];
+  photo_key?: string;
+  tags: string[];
+  body: string;
+  contentHash?: string;
+}
+
+declare module 'virtual:bike-app/admin-bike-paths' {
+  const bikePaths: _AdminBikePath[];
+  export default bikePaths;
+}
+
+declare module 'virtual:bike-app/admin-bike-path-detail' {
+  const details: Record<string, _AdminBikePathDetail>;
+  export default details;
+}
+
 declare module 'virtual:bike-app/admin-organizers' {
   const organizers: _AdminOrganizer[];
   export default organizers;
