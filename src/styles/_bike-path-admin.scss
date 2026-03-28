@@ -85,9 +85,33 @@
   }
 }
 
-// Admin bike-path detail page
-.editor-placeholder {
+// Admin bike-path editor
+.bike-path-editor {
   max-width: 700px;
-  margin: 2rem auto;
+  margin: 0 auto;
   padding: 0 1rem;
+}
+
+.bp-includes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    background: $color-tag-bg;
+    border-radius: $border-radius;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+
+    @include dark-mode {
+      background: $color-tag-bg-dark;
+    }
+  }
+
+  code {
+    font-size: 0.8125rem;
+  }
 }

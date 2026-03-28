@@ -20,7 +20,7 @@ const bikePaths = await fetchJson<AdminBikePathItem[]>(new URL('/admin/data/bike
 const user = Astro.locals.user;
 ---
 
-<Base title="Paths - Admin" admin>
+<Base title="Bike Paths - Admin" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="bike-paths" subtitle="Named cycling corridors — collections of routes that share a path." />
 
