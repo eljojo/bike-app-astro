@@ -148,10 +148,8 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
 </Base>
 
 <script>
-  import { initMap } from '../../lib/maps/map-init';
+  import { initMap, ROUTE_COLOR } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
-
-  const PATH_COLOR = '#0077BB'; // Same as big map
   const PATH_WIDTH = 3;
   const PATH_WIDTH_HOVER = 5;
 
@@ -211,7 +209,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
             filter: ['!=', ['get', 'interactive'], 'true'],
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
-              'line-color': PATH_COLOR,
+              'line-color': ROUTE_COLOR,
               'line-width': Math.max(1, PATH_WIDTH - 1),
               'line-opacity': 0.5,
             },
@@ -225,7 +223,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
             filter: ['==', ['get', 'interactive'], 'true'],
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
-              'line-color': PATH_COLOR,
+              'line-color': ROUTE_COLOR,
               'line-width': PATH_WIDTH,
               'line-opacity': 0.8,
             },

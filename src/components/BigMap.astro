@@ -72,7 +72,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible, ROUTE_LINE_WIDTH } from '../lib/maps/map-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible, ROUTE_LINE_WIDTH, ROUTE_COLOR } from '../lib/maps/map-init';
   import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
@@ -80,7 +80,6 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
   import MapControls, { loadToggleState } from './admin/MapControls';
   import maplibregl from 'maplibre-gl';
 
-  const PATH_COLOR = '#0077BB'; // Distinct from route colour (#350091) but same visual weight
 
   interface PathFeatureProps {
     slug: string;
@@ -190,7 +189,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
           'visibility': 'none',
         },
         paint: {
-          'line-color': PATH_COLOR,
+          'line-color': ROUTE_COLOR,
           'line-width': Math.max(1, ROUTE_LINE_WIDTH - 2),
           'line-opacity': 0.5,
         },
@@ -208,7 +207,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
           'visibility': 'none',
         },
         paint: {
-          'line-color': PATH_COLOR,
+          'line-color': ROUTE_COLOR,
           'line-width': ROUTE_LINE_WIDTH,
           'line-opacity': 0.8,
         },
