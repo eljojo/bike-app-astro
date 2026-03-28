@@ -1050,12 +1050,25 @@ export async function loadBikePathData() {
     });
   }
 
-  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: _routeToPaths };
+  // Filter all path references to only include slugs that have generated pages
+  const validSlugs = new Set(pages.map(p => p.slug));
+  for (const page of pages) {
+    page.nearbyPaths = page.nearbyPaths.filter(p => validSlugs.has(p.slug));
+    page.connectedPaths = page.connectedPaths.filter(p => validSlugs.has(p.slug));
+  }
+  // Build filtered routeToPaths
+  const filteredRouteToPaths = {};
+  for (const [routeSlug, pathList] of Object.entries(_routeToPaths)) {
+    const filtered = pathList.filter(p => validSlugs.has(p.slug));
+    if (filtered.length > 0) filteredRouteToPaths[routeSlug] = filtered;
+  }
+
+  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: filteredRouteToPaths };
 }
 
 /** Get precomputed route → paths mapping without loading the full bike path dataset. */
 export function getRouteToPaths() {
-  return _routeToPaths;
+  return filteredRouteToPaths;
 }
 
 /** Check if a GPX track passes near any of a bike path's anchor points. */
