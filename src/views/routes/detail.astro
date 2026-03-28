@@ -282,8 +282,8 @@ const jsonLd = [
         )}
       </div>
 
-      {hasMap && (
-        <div class="route-detail--static-map">
+      <div class="route-detail--static-map">
+        {hasMap && (
           <a href={paths.routeMap(slug, locale)} title={t('route.view_map', locale, { name: localeName })}>
             <img
               src={assets.mapThumbnail(route.id, 750, mapLang)}
@@ -291,13 +291,13 @@ const jsonLd = [
               alt={t('route.map_of', locale, { name: localeName })}
             />
           </a>
-          {nearbyPlaces.length > 0 && (
-            <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
-          )}
-        </div>
-      )}
-      {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
-      <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+        )}
+        {nearbyPlaces.length > 0 && (
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
+        )}
+        {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
+        <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+      </div>
     </div>
 
     <MediaGallery media={media} name={localeName} />
