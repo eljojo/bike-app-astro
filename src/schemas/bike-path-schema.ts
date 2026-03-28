@@ -10,4 +10,8 @@ export const bikePathSchema = z.object({
   includes: z.array(z.string()).default([]),
   photo_key: z.string().optional(),
   tags: z.array(z.string()).default([]),
+  /** Wikipedia article reference — "en:Article Title" or "fr:Titre". Overrides YML value. */
+  wikipedia: z.string().optional(),
+  /** Operator override — overrides the operator from bikepaths.yml. */
+  operator: z.string().optional(),
 });

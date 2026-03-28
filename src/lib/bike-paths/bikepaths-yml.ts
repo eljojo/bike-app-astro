@@ -22,6 +22,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
   operator: z.string().optional(),
   website: z.string().optional(),
   wikidata: z.string().optional(),
+  wikipedia: z.string().optional(),
   seasonal: z.string().optional(),
   description: z.string().optional(),
   cycleway: z.string().optional(),

@@ -212,6 +212,17 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
       return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
     })()}
 
+    {page.wikipedia && (() => {
+      const [lang, ...titleParts] = page.wikipedia.split(':');
+      const title = titleParts.join(':');
+      const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+      return (
+        <p class="bike-path-wikipedia">
+          <a href={url} target="_blank" rel="noopener">{title}</a> — Wikipedia
+        </p>
+      );
+    })()}
+
     {(page.osmRelationIds.length > 0 || page.osmNames.length > 0) && (
       <div class="bike-path-osm">
         <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>

@@ -404,3 +404,11 @@ declare module 'virtual:bike-app/homepage-facts' {
   const facts: Record<string, _HomepageFact[]>;
   export default facts;
 }
+
+declare module 'virtual:bike-app/bike-path-pages' {
+  const pages: import('./lib/bike-paths/bike-path-entries.server').BikePathPage[];
+  const allYmlEntries: import('./lib/bike-paths/bikepaths-yml').SluggedBikePathYml[];
+  const geoFiles: string[];
+  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>>;
+  export { pages, allYmlEntries, geoFiles, routeToPaths };
+}

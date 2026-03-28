@@ -35,6 +35,8 @@ import { getContentTypes } from './lib/content/content-types.server';
 import { haversineM, PLACE_NEAR_ROUTE_M } from './lib/geo/proximity';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { parseBikePathsYml } from './lib/bike-paths/bikepaths-yml';
+import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
+import { scoreBikePath, SCORE_THRESHOLD } from './lib/bike-paths/bike-path-scoring';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -124,12 +126,6 @@ function loadTagTranslations() {
   const filePath = path.join(CITY_DIR, 'tag-translations.yml');
   if (!fs.existsSync(filePath)) return {};
   return yaml.load(fs.readFileSync(filePath, 'utf-8')) || {};
-}
-
-function loadBikePaths() {
-  const filePath = path.join(CITY_DIR, 'bikepaths.yml');
-  if (!fs.existsSync(filePath)) return [];
-  return parseBikePathsYml(fs.readFileSync(filePath, 'utf-8'));
 }
 
 function loadGeoFiles(consumerRoot: string): string[] {
@@ -466,6 +462,124 @@ function loadGeoElevation(consumerRoot: string): Record<string, { gain_m: number
   return result;
 }
 
+/**
+ * Enrich Tier 1 bike path pages with Tier 2 relation data.
+ *
+ * For markdown pages with `includes`, relations from all included YML entries
+ * are merged and deduplicated. YML-only pages are re-scored with the real
+ * routeOverlapCount and filtered below SCORE_THRESHOLD.
+ */
+function enrichBikePathPages(
+  tier1Pages: import('./lib/bike-paths/bike-path-entries.server').BikePathPage[],
+  relations: Record<string, PathRelations>,
+  routeOverlaps: Record<string, { count: number }>,
+  geoElevation: Record<string, { gain_m: number; loss_m: number }>,
+): import('./lib/bike-paths/bike-path-entries.server').BikePathPage[] {
+  const result: import('./lib/bike-paths/bike-path-entries.server').BikePathPage[] = [];
+
+  for (const page of tier1Pages) {
+    const matchedEntries = page.ymlEntries;
+
+    // Re-score YML-only pages with real route overlap count
+    if (!page.hasMarkdown) {
+      const entry = matchedEntries[0];
+      const overlapCount = routeOverlaps[entry.slug]?.count ?? 0;
+      const score = scoreBikePath(entry, overlapCount);
+      if (score < SCORE_THRESHOLD) continue;
+      page.score = score;
+      page.routeCount = overlapCount;
+    } else {
+      // For markdown pages, routeCount = max of all included entries
+      page.routeCount = Math.max(
+        ...matchedEntries.map(e => routeOverlaps[e.slug]?.count ?? 0),
+        0,
+      );
+      // Re-score markdown pages with real overlap counts too
+      const bestChildScore = matchedEntries.reduce(
+        (max, e) => Math.max(max, scoreBikePath(e, routeOverlaps[e.slug]?.count ?? 0)),
+        0,
+      );
+      page.score = bestChildScore;
+    }
+
+    // Merge overlappingRoutes from all included entries (deduplicated by slug)
+    const seenRoutes = new Set<string>();
+    const overlappingRoutes: PathRelations['overlappingRoutes'] = [];
+    for (const e of matchedEntries) {
+      for (const r of (relations[e.slug]?.overlappingRoutes ?? [])) {
+        if (!seenRoutes.has(r.slug)) { seenRoutes.add(r.slug); overlappingRoutes.push(r); }
+      }
+    }
+    page.overlappingRoutes = overlappingRoutes;
+
+    // Merge nearbyPhotos
+    const seenPhotos = new Set<string>();
+    const nearbyPhotos: PathRelations['nearbyPhotos'] = [];
+    for (const e of matchedEntries) {
+      for (const p of (relations[e.slug]?.nearbyPhotos ?? [])) {
+        if (!seenPhotos.has(p.key)) { seenPhotos.add(p.key); nearbyPhotos.push(p); }
+      }
+    }
+    page.nearbyPhotos = nearbyPhotos;
+
+    // Merge nearbyPlaces
+    const seenPlaces = new Set<string>();
+    const nearbyPlaces: PathRelations['nearbyPlaces'] = [];
+    for (const e of matchedEntries) {
+      for (const p of (relations[e.slug]?.nearbyPlaces ?? [])) {
+        const key = p.name + p.lat + p.lng;
+        if (!seenPlaces.has(key)) { seenPlaces.add(key); nearbyPlaces.push(p); }
+      }
+    }
+    page.nearbyPlaces = nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
+
+    // Merge nearbyPaths (exclude self)
+    const seenNearby = new Set<string>();
+    const nearbyPaths: PathRelations['nearbyPaths'] = [];
+    for (const e of matchedEntries) {
+      for (const p of (relations[e.slug]?.nearbyPaths ?? [])) {
+        if (!seenNearby.has(p.slug) && p.slug !== page.slug) { seenNearby.add(p.slug); nearbyPaths.push(p); }
+      }
+    }
+    page.nearbyPaths = nearbyPaths;
+
+    // Merge connectedPaths (exclude self)
+    const seenConnected = new Set<string>();
+    const connectedPaths: PathRelations['connectedPaths'] = [];
+    for (const e of matchedEntries) {
+      for (const p of (relations[e.slug]?.connectedPaths ?? [])) {
+        if (!seenConnected.has(p.slug) && p.slug !== page.slug) { seenConnected.add(p.slug); connectedPaths.push(p); }
+      }
+    }
+    page.connectedPaths = connectedPaths;
+
+    // Compute elevation_gain_m from all matched entries' relations
+    let totalElevation = 0;
+    for (const e of matchedEntries) {
+      for (const relId of e.osm_relations ?? []) {
+        const ele = geoElevation[String(relId)];
+        if (ele) totalElevation += ele.gain_m;
+      }
+    }
+    page.elevation_gain_m = totalElevation > 0 ? totalElevation : undefined;
+
+    // Resolve thumbnail: path's own photo_key → cover from route with most overlap → undefined (map PNG used at render time)
+    if (!page.thumbnail_key && page.photo_key) {
+      page.thumbnail_key = page.photo_key;
+    }
+    if (!page.thumbnail_key && overlappingRoutes.length > 0) {
+      // Pick cover from the first overlapping route that has one (routes are already sorted by overlap)
+      for (const r of overlappingRoutes) {
+        if (r.coverKey) { page.thumbnail_key = r.coverKey; break; }
+      }
+    }
+
+    result.push(page);
+  }
+
+  return result;
+}
+
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
@@ -693,7 +807,9 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const CONSUMER_ROOT = options?.consumerRoot || PROJECT_ROOT;
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
-  const bikePaths = loadBikePaths();
+  // Tier 1: canonical merge of bikepaths.yml + markdown entries + geometry
+  const bikePathBase = loadBikePathEntries();
+  const bikePaths = bikePathBase.allYmlEntries;
   const geoFiles = loadGeoFiles(CONSUMER_ROOT);
   const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
   const geoElevation = loadGeoElevation(CONSUMER_ROOT);
@@ -726,7 +842,23 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     }
   }
 
-  const { relations: bikePathRelations, routeOverlaps, routeToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList, mediaLocations);
+  // Tier 2: compute relations per YML slug (overlapping routes, nearby photos/places/paths, connected paths)
+  const { relations: bikePathRelations, routeOverlaps, routeToPaths: rawRouteToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList, mediaLocations);
+
+  // Enrich Tier 1 pages with Tier 2 relations at config time
+  const enrichedPages = enrichBikePathPages(bikePathBase.pages, bikePathRelations, routeOverlaps, geoElevation);
+  // Filter all path references to only include slugs that have generated pages
+  const validSlugs = new Set(enrichedPages.map(p => p.slug));
+  for (const page of enrichedPages) {
+    page.nearbyPaths = page.nearbyPaths.filter(p => validSlugs.has(p.slug));
+    page.connectedPaths = page.connectedPaths.filter(p => validSlugs.has(p.slug));
+  }
+  // Filter routeToPaths to only valid page slugs
+  const enrichedRouteToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> = {};
+  for (const [routeSlug, pathList] of Object.entries(rawRouteToPaths)) {
+    const valid = pathList.filter(p => validSlugs.has(p.slug));
+    if (valid.length > 0) enrichedRouteToPaths[routeSlug] = valid;
+  }
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -832,6 +964,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
     'homepage-facts': async () =>
       `export default ${JSON.stringify(homepageFacts)};`,
+
+    'bike-path-pages': async () => {
+      return `
+export const pages = ${JSON.stringify(enrichedPages)};
+export const allYmlEntries = ${JSON.stringify(bikePathBase.allYmlEntries)};
+export const geoFiles = ${JSON.stringify(geoFiles)};
+export const routeToPaths = ${JSON.stringify(enrichedRouteToPaths)};
+`;
+    },
   };
 
   return {
@@ -895,278 +1036,20 @@ export function getFontPreloads() { return _data; }
       if (id.endsWith('src/lib/bike-paths/bike-path-data.server.ts')) {
         return {
           code: `
-import { getCollection } from 'astro:content';
-import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { pages as _pages, allYmlEntries as _allYml, geoFiles as _geoFiles, routeToPaths as _rtp } from 'virtual:bike-app/bike-path-pages';
 import { haversineM } from '../geo/proximity';
-
-const _NCC_NORMALIZE = /\\b(ncc|ccn|national capital commission|commission de la capitale nationale)\\b/i;
-export function normalizeOperator(operator) {
-  if (!operator) return undefined;
-  if (_NCC_NORMALIZE.test(operator)) return 'NCC';
-  return operator;
-}
-
-const _allYmlEntries = ${JSON.stringify(bikePaths)};
-const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
-const _routeOverlaps = ${JSON.stringify(routeOverlaps)};
-const _bikePathRelations = ${JSON.stringify(bikePathRelations)};
-const _geoElevation = ${JSON.stringify(geoElevation)};
-let _routeToPaths = ${JSON.stringify(routeToPaths)};
-
-/** Get geographic points: GeoJSON geometry first, YML anchors as fallback. */
-function getPathPoints(entry) {
-  const points = [];
-  // Try GeoJSON for relation-based paths
-  for (const relId of entry.osm_relations ?? []) {
-    const coords = _geoCoordinates[String(relId)];
-    if (coords) points.push(...coords);
-  }
-  // Try GeoJSON for name-based paths
-  if (points.length === 0 && entry.osm_names?.length) {
-    const coords = _geoCoordinates['name-' + entry.slug];
-    if (coords) points.push(...coords);
-  }
-  // Try GeoJSON for segment-based paths
-  if (points.length === 0 && entry.segments?.length) {
-    const coords = _geoCoordinates['seg-' + entry.slug];
-    if (coords) points.push(...coords);
-  }
-  // Fall back to YML anchors
-  if (points.length === 0) {
-    const anchors = (entry.anchors ?? []).map(a =>
-      Array.isArray(a) ? { lat: a[1], lng: a[0] } : a
-    );
-    points.push(...anchors);
-  }
-  return points;
-}
-
-function entryGeoFiles(entries) {
-  const files = [];
-  for (const e of entries) {
-    if (e.osm_relations?.length) {
-      for (const relId of e.osm_relations) files.push(relId + '.geojson');
-    } else if (e.osm_names?.length) {
-      files.push('name-' + e.slug + '.geojson');
-    } else if (e.segments?.length) {
-      files.push('seg-' + e.slug + '.geojson');
-    }
-  }
-  return files;
-}
+export { normalizeOperator } from './bike-path-entries.server';
 
 export async function loadBikePathData() {
-  const allYmlEntries = _allYmlEntries;
-  const markdownEntries = await getCollection('bike-paths');
-
-  const ymlBySlug = new Map();
-  for (const entry of allYmlEntries) {
-    ymlBySlug.set(entry.slug, entry);
-  }
-
-  const claimedSlugs = new Set();
-  const pages = [];
-
-  for (const md of markdownEntries) {
-    if (md.data.hidden) continue;
-
-    const includes = md.data.includes ?? [];
-    const matchedEntries = [];
-
-    for (const inc of includes) {
-      const entry = ymlBySlug.get(inc);
-      if (entry) {
-        matchedEntries.push(entry);
-        claimedSlugs.add(inc);
-      }
-    }
-
-    if (matchedEntries.length === 0) {
-      const entry = ymlBySlug.get(md.id);
-      if (entry) {
-        matchedEntries.push(entry);
-        claimedSlugs.add(md.id);
-      }
-    }
-
-    const osmRelationIds = matchedEntries.flatMap(e => e.osm_relations ?? []);
-    const osmNames = matchedEntries.flatMap(e => e.osm_names ?? []);
-    const primary = matchedEntries[0];
-
-    const bestChildScore = matchedEntries.reduce(
-      (max, e) => Math.max(max, scoreBikePath(e, _routeOverlaps[e.slug]?.count ?? 0)),
-      0,
-    );
-
-    // Collect geographic points from all matched entries (anchors or GeoJSON fallback)
-    const points = matchedEntries.flatMap(e => getPathPoints(e));
-
-    pages.push({
-      slug: md.id,
-      name: md.data.name ?? primary?.name ?? md.id,
-      name_fr: md.data.name_fr ?? primary?.name_fr,
-      vibe: md.data.vibe,
-      body: md.body,
-      photo_key: md.data.photo_key,
-      tags: md.data.tags ?? [],
-      score: bestChildScore,
-      hasMarkdown: true,
-      stub: md.data.stub ?? false,
-      featured: md.data.featured ?? false,
-      ymlEntries: matchedEntries,
-      osmRelationIds,
-      osmNames,
-      geoFiles: entryGeoFiles(matchedEntries),
-      points,
-      routeCount: Math.max(...matchedEntries.map(e => _routeOverlaps[e.slug]?.count ?? 0), 0),
-      // Merge precomputed relations from all included entries, deduplicated by slug
-      overlappingRoutes: (() => {
-        const seen = new Set();
-        const routes = [];
-        for (const e of matchedEntries) {
-          for (const r of (_bikePathRelations[e.slug]?.overlappingRoutes ?? [])) {
-            if (!seen.has(r.slug)) { seen.add(r.slug); routes.push(r); }
-          }
-        }
-        return routes;
-      })(),
-      nearbyPhotos: (() => {
-        const seen = new Set();
-        const photos = [];
-        for (const e of matchedEntries) {
-          for (const p of (_bikePathRelations[e.slug]?.nearbyPhotos ?? [])) {
-            if (!seen.has(p.key)) { seen.add(p.key); photos.push(p); }
-          }
-        }
-        return photos;
-      })(),
-      nearbyPlaces: (() => {
-        const seen = new Set();
-        const places = [];
-        for (const e of matchedEntries) {
-          for (const p of (_bikePathRelations[e.slug]?.nearbyPlaces ?? [])) {
-            const key = p.name + p.lat + p.lng;
-            if (!seen.has(key)) { seen.add(key); places.push(p); }
-          }
-        }
-        return places.sort((a, b) => a.distance_m - b.distance_m);
-      })(),
-      nearbyPaths: (() => {
-        const seen = new Set();
-        const paths = [];
-        for (const e of matchedEntries) {
-          for (const p of (_bikePathRelations[e.slug]?.nearbyPaths ?? [])) {
-            if (!seen.has(p.slug) && p.slug !== md.id) { seen.add(p.slug); paths.push(p); }
-          }
-        }
-        return paths;
-      })(),
-      connectedPaths: (() => {
-        const seen = new Set();
-        const paths = [];
-        for (const e of matchedEntries) {
-          for (const p of (_bikePathRelations[e.slug]?.connectedPaths ?? [])) {
-            if (!seen.has(p.slug) && p.slug !== md.id) { seen.add(p.slug); paths.push(p); }
-          }
-        }
-        return paths;
-      })(),
-      surface: primary?.surface,
-      width: primary?.width,
-      lit: primary?.lit,
-      segregated: primary?.segregated,
-      smoothness: primary?.smoothness,
-      operator: normalizeOperator(primary?.operator),
-      network: primary?.network,
-      highway: primary?.highway,
-      elevation_gain_m: (() => {
-        let total = 0;
-        for (const e of matchedEntries) {
-          for (const relId of e.osm_relations ?? []) {
-            const ele = _geoElevation[String(relId)];
-            if (ele) total += ele.gain_m;
-          }
-        }
-        return total > 0 ? total : undefined;
-      })(),
-    });
-  }
-
-  for (const entry of allYmlEntries) {
-    if (claimedSlugs.has(entry.slug)) continue;
-    if (isHardExcluded(entry)) continue;
-
-    const score = scoreBikePath(entry, _routeOverlaps[entry.slug]?.count ?? 0);
-    if (score < SCORE_THRESHOLD) continue;
-
-    pages.push({
-      slug: entry.slug,
-      name: entry.name,
-      name_fr: entry.name_fr,
-      tags: [],
-      score,
-      hasMarkdown: false,
-      stub: false,
-      featured: false,
-      ymlEntries: [entry],
-      osmRelationIds: entry.osm_relations ?? [],
-      osmNames: entry.osm_names ?? [],
-      geoFiles: entryGeoFiles([entry]),
-      points: getPathPoints(entry),
-      routeCount: _routeOverlaps[entry.slug]?.count ?? 0,
-      overlappingRoutes: _bikePathRelations[entry.slug]?.overlappingRoutes ?? [],
-      nearbyPhotos: _bikePathRelations[entry.slug]?.nearbyPhotos ?? [],
-      nearbyPlaces: _bikePathRelations[entry.slug]?.nearbyPlaces ?? [],
-      nearbyPaths: _bikePathRelations[entry.slug]?.nearbyPaths ?? [],
-      connectedPaths: _bikePathRelations[entry.slug]?.connectedPaths ?? [],
-      surface: entry.surface,
-      width: entry.width,
-      lit: entry.lit,
-      segregated: entry.segregated,
-      smoothness: entry.smoothness,
-      operator: normalizeOperator(entry.operator),
-      network: entry.network,
-      highway: entry.highway,
-      elevation_gain_m: (() => {
-        let total = 0;
-        for (const relId of entry.osm_relations ?? []) {
-          const ele = _geoElevation[String(relId)];
-          if (ele) total += ele.gain_m;
-        }
-        return total > 0 ? total : undefined;
-      })(),
-    });
-  }
-
-  // Filter all path references to only include slugs that have generated pages
-  const validSlugs = new Set(pages.map(p => p.slug));
-  for (const page of pages) {
-    page.nearbyPaths = page.nearbyPaths.filter(p => validSlugs.has(p.slug));
-    page.connectedPaths = page.connectedPaths.filter(p => validSlugs.has(p.slug));
-  }
-  // Filter routeToPaths to only valid page slugs
-  const filtered = {};
-  for (const [routeSlug, pathList] of Object.entries(_routeToPaths)) {
-    const valid = pathList.filter(p => validSlugs.has(p.slug));
-    if (valid.length > 0) filtered[routeSlug] = valid;
-  }
-  _routeToPaths = filtered;
-
-  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: _routeToPaths };
+  return { pages: _pages, allYmlEntries: _allYml, geoFiles: _geoFiles, routeToPaths: _rtp };
 }
 
-/** Get precomputed route → paths mapping without loading the full bike path dataset. */
-export function getRouteToPaths() {
-  return _routeToPaths;
-}
+export function getRouteToPaths() { return _rtp; }
 
-/** Check if a GPX track passes near any of a bike path's anchor points. */
 export function routePassesNearPath(trackPoints, pathAnchors, thresholdM = 100) {
   for (const anchor of pathAnchors) {
     for (const tp of trackPoints) {
-      if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) {
-        return true;
-      }
+      if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) return true;
     }
   }
   return false;

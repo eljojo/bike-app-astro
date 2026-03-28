@@ -45,6 +45,10 @@ export interface BikePathPage {
   nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
   /** Precomputed connected paths (endpoints within 200m). */
   connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
+  /** Wikipedia article reference — "en:Article Title" format. */
+  wikipedia?: string;
+  /** Resolved thumbnail key for index display (photo_key → route cover → map PNG). */
+  thumbnail_key?: string;
   /** Elevation gain in meters (from enriched GeoJSON, if available). */
   elevation_gain_m?: number;
   surface?: string;
@@ -155,6 +159,8 @@ interface MarkdownEntry {
     includes: string[];
     photo_key?: string;
     tags: string[];
+    wikipedia?: string;
+    operator?: string;
   };
   body: string;
 }
@@ -187,6 +193,8 @@ function readMarkdownEntries(): MarkdownEntry[] {
         includes: (fm.includes as string[]) || [],
         photo_key: fm.photo_key as string | undefined,
         tags: (fm.tags as string[]) || [],
+        wikipedia: fm.wikipedia as string | undefined,
+        operator: fm.operator as string | undefined,
       },
       body: body.trim(),
     });
@@ -288,9 +296,10 @@ export function loadBikePathEntries(): {
       lit: primary?.lit,
       segregated: primary?.segregated,
       smoothness: primary?.smoothness,
-      operator: normalizeOperator(primary?.operator),
+      operator: normalizeOperator(md.data.operator ?? primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
+      wikipedia: md.data.wikipedia ?? primary?.wikipedia,
     });
   }
 
@@ -330,6 +339,7 @@ export function loadBikePathEntries(): {
       operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
+      wikipedia: entry.wikipedia,
     });
   }
 

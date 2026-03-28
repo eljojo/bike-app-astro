@@ -5,28 +5,12 @@ import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
+import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import { t } from '@/i18n';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const { pages, geoFiles } = await loadBikePathData();
-
-// Build operator → colour mapping for the map
-const operatorSet = new Set<string>();
-for (const p of pages) {
-  if (p.operator) operatorSet.add(p.operator);
-}
-const operatorList = [...operatorSet].sort();
-const operatorColorMap: Record<string, number> = {};
-operatorList.forEach((op, i) => { operatorColorMap[op] = i; });
-
-// Build slug → operator index for the map script
-const slugOperatorMap: Record<string, number> = {};
-for (const p of pages) {
-  if (p.operator && operatorColorMap[p.operator] !== undefined) {
-    slugOperatorMap[p.slug] = operatorColorMap[p.operator];
-  }
-}
 
 // Build relation ID → slug mapping so the map script can tag features correctly
 const relationToSlug: Record<string, string> = {};
@@ -94,7 +78,6 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
         id="paths-network-map"
         data-geo-files={JSON.stringify(geoFiles)}
         data-center={JSON.stringify(mapCenter)}
-        data-slug-operators={JSON.stringify(slugOperatorMap)}
         data-relation-slugs={JSON.stringify(relationToSlug)}
         style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
       ></div>
@@ -105,13 +88,20 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
         <h2>{t('paths.featured', locale)}</h2>
         <div class="featured-cards">
           {featured.map(p => {
-            const photoKey = p.photo_key;
+            const thumb = p.thumbnail_key;
+            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}.png` : undefined;
+            const thumbSrc = thumb
+              ? imageUrl(thumb, { width: 400, height: 200, fit: 'cover' })
+              : mapThumb;
+            const thumbSrcset = thumb
+              ? `${imageUrl(thumb, { width: 800, height: 400, fit: 'cover' })} 2x`
+              : undefined;
             return (
               <a href={paths.bikePath(p.slug, locale)} class="path-card">
-                {photoKey && (
+                {thumbSrc && (
                   <img
-                    src={imageUrl(photoKey, { width: 400, height: 200, fit: 'cover' })}
-                    srcset={`${imageUrl(photoKey, { width: 800, height: 400, fit: 'cover' })} 2x`}
+                    src={thumbSrc}
+                    srcset={thumbSrcset}
                     alt={p.name}
                     width="400"
                     height="200"
@@ -136,15 +126,27 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
       <section class="paths-group">
         <h2>{group.label}</h2>
         <ul class="paths-list">
-          {group.paths.map(p => (
+          {group.paths.map(p => {
+            const thumb = p.thumbnail_key;
+            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}.png` : undefined;
+            const thumbSrc = thumb
+              ? imageUrl(thumb, { width: 80, height: 60, fit: 'cover' })
+              : mapThumb;
+            return (
               <li data-slug={p.slug} id={`path-${p.slug}`}>
-                <a href={paths.bikePath(p.slug, locale)}>
-                  {p.name}
+                <a href={paths.bikePath(p.slug, locale)} class="path-list-link">
+                  {thumbSrc && <img src={thumbSrc} alt="" width="80" height="60" loading="lazy" class="path-list-thumb" />}
+                  <span class="path-list-info">
+                    <span class="path-list-name">{p.name}</span>
+                    <span class="path-list-meta">
+                      {displaySurface(p.surface) && <span>{displaySurface(p.surface)}</span>}
+                      {p.routeCount > 0 && <span>{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
+                    </span>
+                  </span>
                 </a>
-                {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
-                {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
               </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
     ))}
@@ -156,17 +158,17 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
 </Base>
 
 <script>
-  import { initMap, TOUR_PALETTE, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
+  import { initMap } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
 
-  const PATH_WIDTH_HOVER = ROUTE_LINE_WIDTH + 3;
-  const DEFAULT_COLOR = '#888888';
+  const PATH_COLOR = '#0077BB'; // Same as big map
+  const PATH_WIDTH = 3;
+  const PATH_WIDTH_HOVER = 5;
 
   const container = document.getElementById('paths-network-map');
   if (container) {
     const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
-    const slugOperators: Record<string, number> = JSON.parse(container.dataset.slugOperators || '{}');
     const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
 
     if (geoFiles.length > 0) {
@@ -189,16 +191,11 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
             const geojson = await res.json();
             const relationId = file.replace(/\.geojson$/, '');
             const slug = relationSlugs[relationId] || relationId;
-            const opIdx = slugOperators[slug];
-            const color = opIdx !== undefined
-              ? TOUR_PALETTE[opIdx % TOUR_PALETTE.length]
-              : DEFAULT_COLOR;
 
             for (const feature of geojson.features) {
               feature.properties = feature.properties || {};
               feature.properties.slug = slug;
               feature.properties.relationId = relationId;
-              feature.properties.color = color;
 
               allFeatures.push(feature);
             }
@@ -219,8 +216,8 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
             source: 'paths-network',
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
-              'line-color': ['get', 'color'],
-              'line-width': ROUTE_LINE_WIDTH,
+              'line-color': PATH_COLOR,
+              'line-width': PATH_WIDTH,
               'line-opacity': 0.8,
             },
           });
@@ -261,7 +258,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 'case',
                 ['==', ['get', 'slug'], slug],
                 PATH_WIDTH_HOVER,
-                ROUTE_LINE_WIDTH,
+                PATH_WIDTH,
               ]);
               map.setPaintProperty('paths-network-line', 'line-opacity', [
                 'case',
@@ -270,7 +267,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 0.4,
               ]);
             } else {
-              map.setPaintProperty('paths-network-line', 'line-width', ROUTE_LINE_WIDTH);
+              map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
               map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
             }
           }
