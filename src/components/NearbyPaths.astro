@@ -14,6 +14,18 @@ interface Props {
 }
 
 const { nearbyPaths, locale } = Astro.props;
+const surfaceLabels: Record<string, string> = {
+  asphalt: t('paths.fact.paved', locale),
+  concrete: t('paths.fact.paved', locale),
+  fine_gravel: t('paths.fact.gravel', locale),
+  gravel: t('paths.fact.gravel', locale),
+  ground: t('paths.fact.dirt', locale),
+  dirt: t('paths.fact.dirt', locale),
+  compacted: t('paths.fact.gravel', locale),
+};
+function displaySurface(raw?: string): string | undefined {
+  return raw ? surfaceLabels[raw] || raw : undefined;
+}
 ---
 
 {nearbyPaths.length > 0 && (
@@ -23,7 +35,7 @@ const { nearbyPaths, locale } = Astro.props;
       {nearbyPaths.map(p => (
         <li>
           <a href={urlPaths.bikePath(p.slug, locale)}>{p.name}</a>
-          {p.surface && <span class="path-meta">{p.surface}</span>}
+          {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
         </li>
       ))}
     </ul>

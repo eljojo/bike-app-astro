@@ -71,6 +71,7 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
+          PREBUILD_MINIMAL: '1'
 
       - name: Run unit tests
         run: npx vitest run

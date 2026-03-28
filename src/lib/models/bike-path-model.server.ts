@@ -1,6 +1,6 @@
 import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';
-import { bikePathDetailToCache } from './bike-path-model';
+import { bikePathDetailToCache, bikePathDetailSchema } from './bike-path-model';
 import type { BikePathDetail } from './bike-path-model';
 import type { CurrentFiles } from '../content/content-save';
 
@@ -23,19 +23,11 @@ export function bikePathDetailFromGit(
   frontmatter: Record<string, unknown>,
   body: string,
 ): BikePathDetail {
-  return {
+  return bikePathDetailSchema.parse({
     id: bikePathId,
-    name: frontmatter.name as string | undefined,
-    name_fr: frontmatter.name_fr as string | undefined,
-    vibe: frontmatter.vibe as string | undefined,
-    hidden: (frontmatter.hidden as boolean) ?? false,
-    stub: (frontmatter.stub as boolean) ?? false,
-    featured: (frontmatter.featured as boolean) ?? false,
-    includes: (frontmatter.includes as string[]) ?? [],
-    photo_key: frontmatter.photo_key as string | undefined,
-    tags: (frontmatter.tags as string[]) ?? [],
+    ...frontmatter,
     body: body.trim(),
-  };
+  });
 }
 
 /** Build fresh bike path cache JSON from git file snapshots. */

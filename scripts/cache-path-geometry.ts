@@ -40,46 +40,55 @@ interface BikePathEntry {
 
 /**
  * Fetch an Overpass query with server rotation and retry.
- * Matches the retry pattern from bike-routes/scripts/lib/overpass.mjs.
+ * On failure, immediately rotate to the next server rather than retrying the same one.
+ * Each server gets up to 2 attempts across the full rotation.
  */
 async function queryOverpass(query: string): Promise<any> {
-  for (let attempt = 0; attempt < OVERPASS_SERVERS.length * 2; attempt++) {
-    const serverIdx = Math.floor(attempt / 2) % OVERPASS_SERVERS.length;
-    const serverUrl = process.env.OVERPASS_URL || OVERPASS_SERVERS[serverIdx];
+  const servers = process.env.OVERPASS_URL
+    ? [process.env.OVERPASS_URL, ...OVERPASS_SERVERS.filter(s => s !== process.env.OVERPASS_URL)]
+    : OVERPASS_SERVERS;
+  const MAX_ROUNDS = 2; // try the full server list up to 2 times
 
-    let res: Response;
-    try {
-      res = await fetch(serverUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-    } catch (err: any) {
-      console.log(`  [overpass] ${serverUrl} network error: ${err.message}`);
-      continue;
-    }
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    for (let si = 0; si < servers.length; si++) {
+      const serverUrl = servers[si];
 
-    if (res.ok) {
-      const text = await res.text();
-      // Overpass sometimes returns XML error pages with 200 OK
-      if (text.startsWith('<?xml') || text.startsWith('<html')) {
-        console.log(`  [overpass] ${serverUrl} returned XML instead of JSON, retrying...`);
-        const wait = (attempt + 1) * 10;
-        await new Promise(r => setTimeout(r, wait * 1000));
+      let res: Response;
+      try {
+        res = await fetch(serverUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(query)}`,
+        });
+      } catch (err: any) {
+        console.log(`  [overpass] ${new URL(serverUrl).hostname} network error: ${err.message}, rotating...`);
         continue;
       }
-      return JSON.parse(text);
+
+      if (res.ok) {
+        const text = await res.text();
+        // Overpass sometimes returns XML error pages with 200 OK
+        if (text.startsWith('<?xml') || text.startsWith('<html')) {
+          console.log(`  [overpass] ${new URL(serverUrl).hostname} returned XML instead of JSON, rotating...`);
+          continue;
+        }
+        return JSON.parse(text);
+      }
+
+      if ([429, 502, 503, 504].includes(res.status)) {
+        console.log(`  [overpass] ${new URL(serverUrl).hostname} returned ${res.status}, rotating...`);
+        continue;
+      }
+
+      throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
     }
 
-    if ([429, 502, 503, 504].includes(res.status)) {
-      const wait = (attempt + 1) * 10;
-      const nextServer = OVERPASS_SERVERS[(serverIdx + 1) % OVERPASS_SERVERS.length];
-      console.log(`  [overpass] ${serverUrl} returned ${res.status}, trying ${new URL(nextServer).hostname} in ${wait}s...`);
+    // Finished one full round of all servers — wait before retrying
+    if (round < MAX_ROUNDS - 1) {
+      const wait = (round + 1) * 15;
+      console.log(`  [overpass] All servers failed, retrying in ${wait}s...`);
       await new Promise(r => setTimeout(r, wait * 1000));
-      continue;
     }
-
-    throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
   }
 
   throw new Error('Overpass API: all servers failed after retries');

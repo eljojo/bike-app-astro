@@ -49,12 +49,18 @@ export interface BikePathPage {
   highway?: string;
 }
 
-const NCC_NORMALIZE = /\b(ncc|ccn|national capital commission|commission de la capitale nationale)\b/i;
+// TODO: move operator aliases to city config (operator_aliases field) so each
+// city can define its own normalization rules. Currently Ottawa-specific.
+const OPERATOR_ALIASES: Array<{ pattern: RegExp; canonical: string }> = [
+  { pattern: /\b(ncc|ccn|national capital commission|commission de la capitale nationale)\b/i, canonical: 'NCC' },
+];
 
 /** Normalize operator names — OSM has many variants for the same org. */
 export function normalizeOperator(operator: string | undefined): string | undefined {
   if (!operator) return undefined;
-  if (NCC_NORMALIZE.test(operator)) return 'NCC';
+  for (const alias of OPERATOR_ALIASES) {
+    if (alias.pattern.test(operator)) return alias.canonical;
+  }
   return operator;
 }
 
@@ -67,12 +73,16 @@ function readGeoPoints(filePath: string): Array<{ lat: number; lng: number }> {
     const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     const points: Array<{ lat: number; lng: number }> = [];
     for (const feature of geojson.features ?? []) {
-      if (feature.geometry?.type === 'LineString') {
-        const coords = feature.geometry.coordinates;
+      const geomType = feature.geometry?.type;
+      const lineArrays: number[][][] =
+        geomType === 'LineString' ? [feature.geometry.coordinates] :
+        geomType === 'MultiLineString' ? feature.geometry.coordinates :
+        [];
+      for (const coords of lineArrays) {
         for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
           points.push({ lat: coords[i][1], lng: coords[i][0] });
         }
-        if (coords.length > 0) {
+        if (coords.length > 0 && coords.length % SAMPLE_INTERVAL !== 0) {
           const last = coords[coords.length - 1];
           points.push({ lat: last[1], lng: last[0] });
         }
@@ -98,7 +108,7 @@ function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: num
   }
 
   // Try GeoJSON for segment-based paths
-  if (points.length === 0 && (entry as unknown as { segments?: unknown[] }).segments?.length) {
+  if (points.length === 0 && entry.segments?.length) {
     points.push(...readGeoPoints(path.join(geoDir, `seg-${entry.slug}.geojson`)));
   }
 
@@ -118,8 +128,6 @@ export async function loadBikePathData(): Promise<{
   pages: BikePathPage[];
   allYmlEntries: SluggedBikePathYml[];
   geoFiles: string[];
-  /** Precomputed: route slug → bike paths that overlap it. */
-  routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>>;
 }> {
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
@@ -251,7 +259,8 @@ export async function loadBikePathData(): Promise<{
     ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
     : [];
 
-  return { pages, allYmlEntries, geoFiles, routeToPaths: {} };
+  // routeToPaths is only populated at build time by build-data-plugin.ts (empty in dev)
+  return { pages, allYmlEntries, geoFiles };
 }
 
 /** Get precomputed route → paths mapping without loading the full bike path dataset. */

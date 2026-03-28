@@ -251,15 +251,23 @@ async function main() {
     const ymlPath = path.join(CONTENT_DIR, CITY, 'bikepaths.yml');
     if (fs.existsSync(ymlPath)) {
       const entries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
-      // Build relation → slug map
-      const relToSlug = new Map<string, string>();
-      const slugRelations = new Map<string, number[]>();
+      // Build slug → GeoJSON file paths map
+      const slugGeoFiles = new Map<string, string[]>();
       for (const e of entries) {
+        const files: string[] = [];
         for (const relId of e.osm_relations ?? []) {
-          relToSlug.set(String(relId), e.slug);
-          const existing = slugRelations.get(e.slug) ?? [];
-          existing.push(relId);
-          slugRelations.set(e.slug, existing);
+          files.push(path.join(geoDir, `${relId}.geojson`));
+        }
+        if (files.length === 0 && e.osm_names?.length) {
+          files.push(path.join(geoDir, `name-${e.slug}.geojson`));
+        }
+        if (files.length === 0 && e.segments?.length) {
+          files.push(path.join(geoDir, `seg-${e.slug}.geojson`));
+        }
+        if (files.length > 0) {
+          const existing = slugGeoFiles.get(e.slug) ?? [];
+          existing.push(...files);
+          slugGeoFiles.set(e.slug, existing);
         }
       }
 
@@ -270,23 +278,21 @@ async function main() {
           const mdSlug = file.replace(/\.md$/, '');
           const { data } = matter(fs.readFileSync(path.join(bikePathsDir, file), 'utf-8'));
           const includes: string[] = data.includes ?? [];
-          // Collect all relations from included entries
-          const allRels: number[] = [];
+          const allFiles: string[] = [];
           for (const inc of includes) {
-            const incEntry = entries.find(e => e.slug === inc);
-            if (incEntry?.osm_relations) allRels.push(...incEntry.osm_relations);
+            const incFiles = slugGeoFiles.get(inc);
+            if (incFiles) allFiles.push(...incFiles);
           }
-          if (allRels.length > 0) slugRelations.set(mdSlug, allRels);
+          if (allFiles.length > 0) slugGeoFiles.set(mdSlug, allFiles);
         }
       }
 
       // Generate a map for each slug that has GeoJSON
-      for (const [slug, relIds] of slugRelations) {
+      for (const [slug, geoFilePaths] of slugGeoFiles) {
         // Collect all coordinates from GeoJSON files
         const allPoints: [number, number][] = [];
         const geoContents: string[] = [];
-        for (const relId of relIds) {
-          const geoPath = path.join(geoDir, `${relId}.geojson`);
+        for (const geoPath of geoFilePaths) {
           if (!fs.existsSync(geoPath)) continue;
           const content = fs.readFileSync(geoPath, 'utf-8');
           geoContents.push(content);
@@ -295,6 +301,12 @@ async function main() {
             if (feature.geometry?.type === 'LineString') {
               for (const coord of feature.geometry.coordinates) {
                 allPoints.push([coord[1], coord[0]]); // [lat, lng] for polyline encoding
+              }
+            } else if (feature.geometry?.type === 'MultiLineString') {
+              for (const line of feature.geometry.coordinates) {
+                for (const coord of line) {
+                  allPoints.push([coord[1], coord[0]]);
+                }
               }
             }
           }

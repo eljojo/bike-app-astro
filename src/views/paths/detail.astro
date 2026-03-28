@@ -106,6 +106,19 @@ function buildPathFacts(p: BikePathPage): string[] {
   return facts;
 }
 
+const surfaceLabels: Record<string, string> = {
+  asphalt: t('paths.fact.paved', locale),
+  concrete: t('paths.fact.paved', locale),
+  fine_gravel: t('paths.fact.gravel', locale),
+  gravel: t('paths.fact.gravel', locale),
+  ground: t('paths.fact.dirt', locale),
+  dirt: t('paths.fact.dirt', locale),
+  compacted: t('paths.fact.gravel', locale),
+};
+function displaySurface(raw?: string): string | undefined {
+  return raw ? surfaceLabels[raw] || raw : undefined;
+}
+
 const pathFacts = buildPathFacts(page);
 
 // SEO
@@ -164,7 +177,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
               <img
                 src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
                 srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
-                alt={photo.caption || ''}
+                alt={photo.caption || page.name}
                 width="300"
                 height="200"
                 loading="lazy"
@@ -186,7 +199,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
           {connectedPaths.map(p => (
             <li>
               <a href={paths.bikePath(p.slug, locale)}>{p.name}</a>
-              {p.surface && <span class="path-meta">{p.surface}</span>}
+              {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
             </li>
           ))}
         </ul>

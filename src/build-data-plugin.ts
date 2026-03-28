@@ -32,6 +32,7 @@ import { buildMediaLocations, buildNearbyMediaMap, type ParkedMedia } from './lo
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/media-registry';
 import { isBlogInstance } from './lib/config/city-config';
 import { getContentTypes } from './lib/content/content-types.server';
+import { haversineM, PLACE_NEAR_ROUTE_M } from './lib/geo/proximity';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { parseBikePathsYml } from './lib/bike-paths/bikepaths-yml';
 
@@ -138,11 +139,6 @@ function loadGeoFiles(consumerRoot: string): string[] {
 }
 
 /**
- * Load GeoJSON geometry files and extract sampled coordinates per relation ID.
- * This provides geographic data for relation-based paths that lack anchors in the YML.
- * Sample every Nth point to keep the data small but geographically representative.
- */
-/**
  * Load GeoJSON geometry files and extract sampled coordinates.
  * Files are keyed by their identifier:
  * - {relationId}.geojson → keyed by relation ID
@@ -161,13 +157,17 @@ function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: n
       const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
       const points: Array<{ lat: number; lng: number }> = [];
       for (const feature of geojson.features ?? []) {
-        if (feature.geometry?.type === 'LineString') {
-          const coords = feature.geometry.coordinates;
+        const geomType = feature.geometry?.type;
+        const lineArrays: number[][][] =
+          geomType === 'LineString' ? [feature.geometry.coordinates] :
+          geomType === 'MultiLineString' ? feature.geometry.coordinates :
+          [];
+        for (const coords of lineArrays) {
           for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
             points.push({ lat: coords[i][1], lng: coords[i][0] });
           }
-          // Always include the last point
-          if (coords.length > 0) {
+          // Include the last point only if not already sampled
+          if (coords.length > 0 && coords.length % SAMPLE_INTERVAL !== 0) {
             const last = coords[coords.length - 1];
             points.push({ lat: last[1], lng: last[0] });
           }
@@ -180,8 +180,6 @@ function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: n
   }
   return result;
 }
-
-import { haversineM, PLACE_NEAR_ROUTE_M } from './lib/geo/proximity';
 
 /** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
 function boundingBox(points: Array<{ lat: number; lng: number }>, padDeg = 0.001) {
@@ -704,7 +702,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const placesDir = path.join(CITY_DIR, 'places');
   const placeList: Array<{ name: string; category: string; lat: number; lng: number; status?: string }> = [];
   if (fs.existsSync(placesDir)) {
-    for (const file of fs.readdirSync(placesDir).filter(f => f.endsWith('.md') && !f.includes('.'))) {
+    for (const file of fs.readdirSync(placesDir).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
       const { data } = matter(fs.readFileSync(path.join(placesDir, file), 'utf-8'));
       if (data.lat != null && data.lng != null) {
         placeList.push({ name: data.name as string, category: data.category as string, lat: data.lat as number, lng: data.lng as number, status: data.status as string });
@@ -800,7 +798,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       const details = await getRouteDetails();
       const parked = loadParkedMedia();
       const locations = buildMediaLocations(details, parked);
-      const tracks = loadRouteTrackPoints();
+      const tracks = routeTracks;
       return `export default ${JSON.stringify(buildNearbyMediaMap(locations, tracks))};`;
     },
 
@@ -915,7 +913,6 @@ const _bikePathRelations = ${JSON.stringify(bikePathRelations)};
 const _geoElevation = ${JSON.stringify(geoElevation)};
 let _routeToPaths = ${JSON.stringify(routeToPaths)};
 
-/** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
 /** Get geographic points: GeoJSON geometry first, YML anchors as fallback. */
 function getPathPoints(entry) {
   const points = [];
@@ -983,7 +980,7 @@ export async function loadBikePathData() {
     const primary = matchedEntries[0];
 
     const bestChildScore = matchedEntries.reduce(
-      (max, e) => Math.max(max, scoreBikePath(e, 0)),
+      (max, e) => Math.max(max, scoreBikePath(e, _routeOverlaps[e.slug]?.count ?? 0)),
       0,
     );
 
@@ -1084,7 +1081,7 @@ export async function loadBikePathData() {
     if (claimedSlugs.has(entry.slug)) continue;
     if (isHardExcluded(entry)) continue;
 
-    const score = scoreBikePath(entry, 0);
+    const score = scoreBikePath(entry, _routeOverlaps[entry.slug]?.count ?? 0);
     if (score < SCORE_THRESHOLD) continue;
 
     pages.push({

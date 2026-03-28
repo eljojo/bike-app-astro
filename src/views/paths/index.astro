@@ -69,6 +69,19 @@ for (const [operator, pathsList] of sortedEntries) {
   });
 }
 
+const surfaceLabels: Record<string, string> = {
+  asphalt: t('paths.fact.paved', locale),
+  concrete: t('paths.fact.paved', locale),
+  fine_gravel: t('paths.fact.gravel', locale),
+  gravel: t('paths.fact.gravel', locale),
+  ground: t('paths.fact.dirt', locale),
+  dirt: t('paths.fact.dirt', locale),
+  compacted: t('paths.fact.gravel', locale),
+};
+function displaySurface(raw?: string): string | undefined {
+  return raw ? surfaceLabels[raw] || raw : undefined;
+}
+
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
 ---
@@ -109,7 +122,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 <h3>{p.name}</h3>
                 {p.vibe && <p class="path-vibe">{p.vibe}</p>}
                 <span class="path-card-meta">
-                  {p.surface && <span class="path-surface">{p.surface}</span>}
+                  {displaySurface(p.surface) && <span class="path-surface">{displaySurface(p.surface)}</span>}
                   {p.routeCount > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
                 </span>
               </a>
@@ -128,7 +141,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 <a href={paths.bikePath(p.slug, locale)}>
                   {p.name}
                 </a>
-                {p.surface && <span class="path-meta">{p.surface}</span>}
+                {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
                 {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
               </li>
           ))}
@@ -248,7 +261,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 'case',
                 ['==', ['get', 'slug'], slug],
                 PATH_WIDTH_HOVER,
-                PATH_WIDTH,
+                ROUTE_LINE_WIDTH,
               ]);
               map.setPaintProperty('paths-network-line', 'line-opacity', [
                 'case',

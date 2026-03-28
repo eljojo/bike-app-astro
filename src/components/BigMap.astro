@@ -185,19 +185,23 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
       });
 
       // Click popup on paths
+      function esc(s: string): string {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
       map.on('click', 'paths-network-line', (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties;
         if (!props) return;
+        const name = esc(props.name || props.slug || 'Unnamed path');
         let nameLink: string;
         if (props.hasPage === 'true' && props.slug) {
-          nameLink = `<a href="/paths/${props.slug}">${props.name || props.slug}</a>`;
+          nameLink = `<a href="/paths/${esc(props.slug)}">${name}</a>`;
         } else if (props.relId && /^\d+$/.test(props.relId)) {
-          nameLink = `${props.name || 'Unnamed path'} <a href="https://openstreetmap.org/relation/${props.relId}" target="_blank" rel="noopener">OSM ↗</a>`;
+          nameLink = `${name} <a href="https://openstreetmap.org/relation/${esc(props.relId)}" target="_blank" rel="noopener">OSM ↗</a>`;
         } else {
-          nameLink = props.name || 'Unnamed path';
+          nameLink = name;
         }
-        const surfaceInfo = props.surface ? `<br>${props.surface}` : '';
+        const surfaceInfo = props.surface ? `<br>${esc(props.surface)}` : '';
         new maplibregl.Popup()
           .setLngLat(e.lngLat)
           .setHTML(`<div class="place-popup">${nameLink}${surfaceInfo}</div>`)

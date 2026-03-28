@@ -53,7 +53,27 @@ describe('parseBikePathsYml', () => {
     network: rcn`;
 
     const entries = parseBikePathsYml(yml);
-    expect(entries[0].slug).toBe('trail-50');
+    expect(entries[0].slug).toBe('trail-50-1');
     expect(entries[1].slug).toBe('trail-50-2');
+  });
+
+  it('sorts duplicate slugs deterministically by OSM relation ID', () => {
+    const yml = `bike_paths:
+  - name: River Path
+    osm_relations:
+      - 9999
+  - name: River Path
+    osm_relations:
+      - 1111`;
+
+    const entries = parseBikePathsYml(yml);
+    // Entry with relation 1111 sorts first (r1111 < r9999)
+    // But original YAML order is preserved in the output
+    expect(entries[0].slug).toBe('river-path-2'); // rel 9999 → sorted second
+    expect(entries[1].slug).toBe('river-path-1'); // rel 1111 → sorted first
+  });
+
+  it('throws on invalid YAML structure', () => {
+    expect(() => parseBikePathsYml('not_bike_paths: []')).toThrow('bike_paths array');
   });
 });

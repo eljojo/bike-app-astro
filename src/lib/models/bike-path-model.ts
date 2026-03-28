@@ -1,16 +1,8 @@
 import { z } from 'astro/zod';
+import { bikePathSchema } from '../../schemas/bike-path-schema';
 
-export const bikePathDetailSchema = z.object({
+export const bikePathDetailSchema = bikePathSchema.extend({
   id: z.string(),
-  name: z.string().optional(),
-  name_fr: z.string().optional(),
-  vibe: z.string().optional(),
-  hidden: z.boolean().default(false),
-  stub: z.boolean().default(false),
-  featured: z.boolean().default(false),
-  includes: z.array(z.string()).default([]),
-  photo_key: z.string().optional(),
-  tags: z.array(z.string()).default([]),
   body: z.string().default(''),
   contentHash: z.string().optional(),
 });

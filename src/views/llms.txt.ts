@@ -76,7 +76,7 @@ export const GET: APIRoute = async () => {
   }
 
   // Bike paths index
-  if (features.hasRoutes) {
+  if (features.hasPaths) {
     const { pages: bikePaths } = await loadBikePathData();
     if (bikePaths.length > 0) {
       const pathLines = bikePaths.map(bp => {

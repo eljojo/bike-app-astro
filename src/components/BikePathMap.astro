@@ -19,6 +19,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
     data-fallback-center={JSON.stringify(fallbackCenter)}
     role="button"
     tabindex="0"
+    aria-expanded="false"
   >
     <div class="bike-path-map-gl" id="bike-path-map-gl"></div>
     <div id="bike-path-map-controls"></div>
@@ -136,6 +137,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
       if (expanded) return;
       expanded = true;
       container.classList.add('expanded');
+      container.setAttribute('aria-expanded', 'true');
       overlay!.classList.add('visible');
       closeBtn!.style.display = 'flex';
 
@@ -158,6 +160,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
       if (!expanded) return;
       expanded = false;
       container.classList.remove('expanded');
+      container.setAttribute('aria-expanded', 'false');
       overlay!.classList.remove('visible');
       closeBtn!.style.display = 'none';
 
@@ -178,6 +181,13 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
 
     container.addEventListener('click', (e) => {
       if (!expanded) expand();
+    });
+
+    container.addEventListener('keydown', (e) => {
+      if (!expanded && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        expand();
+      }
     });
 
     closeBtn!.addEventListener('click', (e) => {

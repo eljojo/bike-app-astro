@@ -26,6 +26,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
   description: z.string().optional(),
   cycleway: z.string().optional(),
   ref: z.string().optional(),
+  segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
 });
 
 export type BikePathYmlEntry = z.infer<typeof bikePathYmlEntrySchema>;
@@ -46,17 +47,46 @@ export function slugifyBikePathName(name: string): string {
     .replace(/^-+|-+$/g, '');         // trim leading/trailing hyphens
 }
 
+/** Sort key for deterministic ordering of entries with the same slug. */
+function slugSortKey(entry: BikePathYmlEntry): string {
+  // Prefer first OSM relation ID, then first anchor coordinate, then name
+  if (entry.osm_relations?.length) return `r${entry.osm_relations[0]}`;
+  if (entry.anchors?.length) {
+    const a = entry.anchors[0];
+    const [x, y] = Array.isArray(a) ? a : [a.lng, a.lat];
+    return `a${x.toFixed(6)},${y.toFixed(6)}`;
+  }
+  return `n${entry.name}`;
+}
+
 /** Parse bikepaths.yml content and return entries with stable slugs. */
 export function parseBikePathsYml(content: string): SluggedBikePathYml[] {
-  const raw = yaml.load(content) as { bike_paths: unknown[] };
+  const raw = yaml.load(content) as { bike_paths?: unknown[] };
+  if (!raw || !Array.isArray(raw.bike_paths)) {
+    throw new Error('bikepaths.yml must have a top-level bike_paths array');
+  }
   const entries = raw.bike_paths.map(e => bikePathYmlEntrySchema.parse(e));
 
-  const slugCounts = new Map<string, number>();
-  return entries.map(entry => {
-    let slug = slugifyBikePathName(entry.name);
-    const count = (slugCounts.get(slug) ?? 0) + 1;
-    slugCounts.set(slug, count);
-    if (count > 1) slug = `${slug}-${count}`;
-    return { ...entry, slug };
-  });
+  // Group entries by base slug, sort each group deterministically, then number
+  const baseSlugMap = new Map<string, Array<{ entry: BikePathYmlEntry; index: number }>>();
+  for (let i = 0; i < entries.length; i++) {
+    const base = slugifyBikePathName(entries[i].name);
+    const list = baseSlugMap.get(base);
+    if (list) list.push({ entry: entries[i], index: i });
+    else baseSlugMap.set(base, [{ entry: entries[i], index: i }]);
+  }
+
+  const result: Array<{ slug: string; index: number; entry: BikePathYmlEntry }> = [];
+  for (const [base, group] of baseSlugMap) {
+    // Sort group deterministically by OSM relation ID / anchor / name
+    group.sort((a, b) => slugSortKey(a.entry).localeCompare(slugSortKey(b.entry)));
+    for (let i = 0; i < group.length; i++) {
+      const slug = group.length === 1 ? base : `${base}-${i + 1}`;
+      result.push({ slug, index: group[i].index, entry: group[i].entry });
+    }
+  }
+
+  // Restore original order so downstream code sees entries in YAML order
+  result.sort((a, b) => a.index - b.index);
+  return result.map(r => ({ ...r.entry, slug: r.slug }));
 }

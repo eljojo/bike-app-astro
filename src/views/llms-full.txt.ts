@@ -124,7 +124,7 @@ export const GET: APIRoute = async () => {
   }
 
   // Bike Paths
-  if (features.hasRoutes) {
+  if (features.hasPaths) {
     const { pages: bikePaths } = await loadBikePathData();
     if (bikePaths.length > 0) {
       const pathBlocks = bikePaths.map(bp => {

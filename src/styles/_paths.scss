@@ -136,9 +136,10 @@
     border-radius: 3px;
   }
 
+  $path-highlight: #E6194B;
   li.path-highlight {
-    background: rgba(230, 25, 75, 0.12);
-    @include dark-mode { background: rgba(230, 25, 75, 0.25); }
+    background: rgba($path-highlight, 0.12);
+    @include dark-mode { background: rgba($path-highlight, 0.25); }
   }
 }
 
@@ -179,6 +180,11 @@
   background: $color-warning-bg;
   color: $color-warning;
   margin-bottom: 1rem;
+
+  @include dark-mode {
+    background: $color-warning-bg-dark;
+    color: $color-warning-dark;
+  }
 
   a {
     color: inherit;

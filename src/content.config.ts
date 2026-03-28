@@ -9,8 +9,8 @@ import { cityDir } from './lib/config/config.server';
 import {
   routeSchema, placeSchema, guideSchema,
   eventSchema, organizerSchema, pageSchema,
+  bikePathSchema,
 } from './schemas/index';
-import { bikePathSchema } from './schemas/bike-path-schema';
 
 const CITY_DIR = cityDir;
 
