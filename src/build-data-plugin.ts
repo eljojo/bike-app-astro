@@ -36,7 +36,7 @@ import { haversineM, PLACE_NEAR_ROUTE_M } from './lib/geo/proximity';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { parseBikePathsYml } from './lib/bike-paths/bikepaths-yml';
 import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
-import { scoreBikePath, SCORE_THRESHOLD } from './lib/bike-paths/bike-path-scoring';
+import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './lib/bike-paths/bike-path-scoring';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -305,8 +305,50 @@ function computeBikePathRelations(
     entryPoints.set(entry.slug, points);
   }
 
-  // For each entry, compute route overlaps
-  for (const entry of bikePaths) {
+  // Build spatial grid index for fast point-in-radius queries.
+  // Cell size ~111m (0.001°) — checking a 3x3 neighborhood covers 100m radius.
+  const CELL_SIZE = 0.001;
+  function cellKey(lat: number, lng: number): string {
+    return `${Math.floor(lat / CELL_SIZE)},${Math.floor(lng / CELL_SIZE)}`;
+  }
+
+  // Index: cell → list of { slug, lat, lng }
+  const pathGrid = new Map<string, Array<{ slug: string; lat: number; lng: number }>>();
+  for (const [slug, pts] of entryPoints) {
+    for (const p of pts) {
+      const key = cellKey(p.lat, p.lng);
+      let cell = pathGrid.get(key);
+      if (!cell) { cell = []; pathGrid.set(key, cell); }
+      cell.push({ slug, lat: p.lat, lng: p.lng });
+    }
+  }
+
+  /** Check if a point is within `thresholdM` of any point belonging to `targetSlug` using the grid. */
+  function isNearPath(lat: number, lng: number, targetSlug: string, thresholdM: number): boolean {
+    const cLat = Math.floor(lat / CELL_SIZE);
+    const cLng = Math.floor(lng / CELL_SIZE);
+    const radius = Math.ceil(thresholdM / 111000 / CELL_SIZE); // cells to check
+    for (let dLat = -radius; dLat <= radius; dLat++) {
+      for (let dLng = -radius; dLng <= radius; dLng++) {
+        const cell = pathGrid.get(`${cLat + dLat},${cLng + dLng}`);
+        if (!cell) continue;
+        for (const p of cell) {
+          if (p.slug !== targetSlug) continue;
+          if (haversineM(lat, lng, p.lat, p.lng) <= thresholdM) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Only compute expensive relations for entries that will become pages.
+  // A path becomes a page if it has markdown OR passes isHardExcluded + scoring.
+  // We can't know the final score yet (it depends on route overlap count), so we
+  // use a pre-filter: skip entries that are hard-excluded or have no points.
+  // This reduces the inner loop from ~600 to ~100-200 candidates.
+  const candidateEntries = bikePaths.filter(e => !isHardExcluded(e));
+
+  for (const entry of candidateEntries) {
     const points = entryPoints.get(entry.slug) ?? [];
     if (points.length === 0) {
       routeOverlaps[entry.slug] = { count: 0 };
@@ -329,9 +371,7 @@ function computeBikePathRelations(
       for (const tp of trackPoints) {
         if (tp.lat < pathBbox.minLat || tp.lat > pathBbox.maxLat ||
             tp.lng < pathBbox.minLng || tp.lng > pathBbox.maxLng) continue;
-        for (const pp of points) {
-          if (haversineM(tp.lat, tp.lng, pp.lat, pp.lng) <= 100) { nearCount++; break; }
-        }
+        if (isNearPath(tp.lat, tp.lng, entry.slug, 100)) nearCount++;
       }
 
       const routePct = nearCount / trackPoints.length * 100;
@@ -344,30 +384,32 @@ function computeBikePathRelations(
     }
     routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
 
-    // Nearby paths (within 2km)
+    // Nearby paths (within 2km) — bbox pre-filter + sample points for speed
     const nearbyPaths: Array<{ slug: string; name: string; surface?: string }> = [];
-    for (const other of bikePaths) {
+    for (const other of candidateEntries) {
       if (other.slug === entry.slug) continue;
       const otherPts = entryPoints.get(other.slug) ?? [];
       if (otherPts.length === 0) continue;
       const otherBbox = boundingBox(otherPts, 0.02); // ~2km padding
       if (!bboxOverlap(pathBbox, otherBbox)) continue;
+      // Sample every 5th point to reduce comparisons
       let found = false;
-      for (const a of points) {
-        if (found) break;
-        for (const b of otherPts) {
-          if (haversineM(a.lat, a.lng, b.lat, b.lng) < 2000) { found = true; break; }
+      for (let i = 0; i < points.length && !found; i += 5) {
+        for (let j = 0; j < otherPts.length; j += 5) {
+          if (haversineM(points[i].lat, points[i].lng, otherPts[j].lat, otherPts[j].lng) < 2000) { found = true; break; }
         }
       }
       if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
     }
 
-    // Connected paths (endpoints within 200m)
+
+
+    // Connected paths (endpoints within 200m) — only check candidate entries
     const endpoints = points.length >= 2
       ? [points[0], points[points.length - 1]]
       : points.slice(0, 1);
     const connectedPaths: Array<{ slug: string; name: string; surface?: string }> = [];
-    for (const other of bikePaths) {
+    for (const other of candidateEntries) {
       if (other.slug === entry.slug) continue;
       const otherPts = entryPoints.get(other.slug) ?? [];
       if (otherPts.length === 0) continue;
@@ -384,6 +426,8 @@ function computeBikePathRelations(
       if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
     }
 
+
+
     // Nearby places (within threshold of any path point)
     const PLACE_NEAR_M = PLACE_NEAR_ROUTE_M;
     const nearbyPlaces: NearbyPlace[] = [];
@@ -399,6 +443,8 @@ function computeBikePathRelations(
       }
     }
     nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
+
+
 
     // Photos near the path (within 300m, geolocated from route media)
     const PHOTO_NEAR_M = 300;

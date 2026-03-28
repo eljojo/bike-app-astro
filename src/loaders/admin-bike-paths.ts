@@ -1,10 +1,10 @@
 // admin-bike-paths.ts — Admin virtual module loader for bike paths.
 //
-// Reads bike-path .md files from the content directory, parses frontmatter,
-// and produces data for the virtual module system.
+// Derives admin data from the canonical loadBikePathEntries() merge function,
+// plus reads raw files for content hashes (needed for save conflict detection).
 //
 // Data flow:
-//   content files → admin-bike-paths.ts → build-data-plugin.ts
+//   loadBikePathEntries() → admin-bike-paths.ts → build-data-plugin.ts
 //     → virtual:bike-app/admin-bike-paths (list)
 //     → virtual:bike-app/admin-bike-path-detail (details)
 
@@ -13,10 +13,9 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config/config.server';
+import { loadBikePathEntries } from '../lib/bike-paths/bike-path-entries.server';
 import type { AdminBikePath } from '../types/admin';
 import type { BikePathDetail } from '../lib/models/bike-path-model';
-
-const CITY_DIR = cityDir;
 
 interface AdminBikePathData {
   bikePaths: AdminBikePath[];
@@ -32,54 +31,95 @@ function computeContentHash(raw: string): string {
 export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
   if (cachedData) return cachedData;
 
-  const bikePathsDir = path.join(CITY_DIR, 'bike-paths');
-  if (!fs.existsSync(bikePathsDir)) {
-    cachedData = { bikePaths: [], details: {} };
-    return cachedData;
-  }
+  const bikePathsDir = path.join(cityDir, 'bike-paths');
+
+  // Get canonical pages (excludes hidden)
+  const { pages } = loadBikePathEntries();
 
   const bikePaths: AdminBikePath[] = [];
   const details: Record<string, BikePathDetail & { contentHash: string }> = {};
 
-  for (const file of fs.readdirSync(bikePathsDir)) {
-    if (!file.endsWith('.md')) continue;
-    // Skip translation files like path.fr.md
-    const parts = file.replace('.md', '').split('.');
-    if (parts.length > 1) continue;
+  // Process pages that have markdown files
+  for (const page of pages) {
+    if (!page.hasMarkdown) continue;
 
-    const id = file.replace('.md', '');
-    const filePath = path.join(bikePathsDir, file);
-    const raw = fs.readFileSync(filePath, 'utf-8');
+    // Read raw file for content hash (conflict detection on save)
+    const filePath = path.join(bikePathsDir, `${page.slug}.md`);
+    const raw = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
     const contentHash = computeContentHash(raw);
-    const { data: fm, content: body } = matter(raw);
 
     bikePaths.push({
-      id,
-      name: (fm.name as string) || id,
-      vibe: fm.vibe as string | undefined,
-      hidden: (fm.hidden as boolean) || false,
-      includes: (fm.includes as string[]) || [],
-      tags: (fm.tags as string[]) || [],
+      id: page.slug,
+      name: page.name,
+      vibe: page.vibe,
+      hidden: false, // hidden pages are filtered by loadBikePathEntries
+      includes: page.ymlEntries.length > 1 ? page.ymlEntries.map(e => e.slug) : [],
+      tags: page.tags,
       contentHash,
     });
 
-    details[id] = {
-      id,
-      name: fm.name as string | undefined,
-      name_fr: fm.name_fr as string | undefined,
-      vibe: fm.vibe as string | undefined,
-      hidden: (fm.hidden as boolean) || false,
-      stub: (fm.stub as boolean) || false,
-      featured: (fm.featured as boolean) || false,
-      includes: (fm.includes as string[]) || [],
-      photo_key: fm.photo_key as string | undefined,
-      tags: (fm.tags as string[]) || [],
-      body: body.trim(),
+    details[page.slug] = {
+      id: page.slug,
+      name: page.name,
+      name_fr: page.name_fr,
+      vibe: page.vibe,
+      hidden: false,
+      stub: page.stub,
+      featured: page.featured,
+      includes: page.ymlEntries.length > 1 ? page.ymlEntries.map(e => e.slug) : [],
+      photo_key: page.photo_key,
+      tags: page.tags,
+      body: page.body ?? '',
       contentHash,
     };
   }
 
-  // Sort by name
+  // Also include hidden markdown files (loadBikePathEntries filters them,
+  // but admin needs to see and edit them)
+  if (fs.existsSync(bikePathsDir)) {
+    for (const file of fs.readdirSync(bikePathsDir)) {
+      if (!file.endsWith('.md')) continue;
+      const parts = file.replace('.md', '').split('.');
+      if (parts.length > 1) continue; // skip translation files
+
+      const id = file.replace('.md', '');
+      if (details[id]) continue; // already added from canonical pages
+
+      const filePath = path.join(bikePathsDir, file);
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const { data: fm, content: body } = matter(raw);
+
+      if (!fm.hidden) continue; // not hidden = should have been in canonical pages
+
+      const contentHash = computeContentHash(raw);
+
+      bikePaths.push({
+        id,
+        name: (fm.name as string) || id,
+        vibe: fm.vibe as string | undefined,
+        hidden: true,
+        includes: (fm.includes as string[]) || [],
+        tags: (fm.tags as string[]) || [],
+        contentHash,
+      });
+
+      details[id] = {
+        id,
+        name: fm.name as string | undefined,
+        name_fr: fm.name_fr as string | undefined,
+        vibe: fm.vibe as string | undefined,
+        hidden: true,
+        stub: (fm.stub as boolean) || false,
+        featured: (fm.featured as boolean) || false,
+        includes: (fm.includes as string[]) || [],
+        photo_key: fm.photo_key as string | undefined,
+        tags: (fm.tags as string[]) || [],
+        body: body.trim(),
+        contentHash,
+      };
+    }
+  }
+
   bikePaths.sort((a, b) => a.name.localeCompare(b.name));
   cachedData = { bikePaths, details };
   return cachedData;
