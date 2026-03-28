@@ -71,7 +71,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible, TOUR_PALETTE } from '../lib/maps/map-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
   import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
@@ -80,7 +80,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
   import maplibregl from 'maplibre-gl';
 
   const PATH_WIDTH = 3;
-  const DEFAULT_PATH_COLOR = '#888888';
+  const PATH_COLOR = '#0077BB'; // Distinct from route colour (#350091) but same visual weight
 
   const el = document.getElementById('big-map');
   const controlsEl = document.getElementById('big-map-controls');
@@ -117,15 +117,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
     }));
 
     // --- Bike paths layer ---
-    // Build lookup: relation ID → path info
     const pathInfoByRelId = new Map(pathMapData.map(p => [p.relId, p]));
-    // Build operator → colour index
-    const operatorSet = new Set<string>();
-    for (const p of pathMapData) {
-      if (p.operator) operatorSet.add(p.operator);
-    }
-    const operatorList = [...operatorSet].sort();
-    const operatorColorMap = new Map(operatorList.map((op, i) => [op, i]));
 
     let pathFeaturesCache: GeoJSON.Feature[] | null = null;
 
@@ -139,17 +131,12 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
           const geojson = await res.json();
           const relationId = file.replace(/\.geojson$/, '');
           const info = pathInfoByRelId.get(relationId);
-          const opIdx = info?.operator ? operatorColorMap.get(info.operator) : undefined;
-          const color = opIdx !== undefined
-            ? TOUR_PALETTE[opIdx % TOUR_PALETTE.length]
-            : DEFAULT_PATH_COLOR;
 
           for (const feature of geojson.features) {
             feature.properties = feature.properties || {};
             feature.properties.slug = info?.slug || relationId;
             feature.properties.name = info?.name || '';
             feature.properties.surface = info?.surface || '';
-            feature.properties.color = color;
             allFeatures.push(feature);
           }
         } catch { /* skip missing files */ }
@@ -189,7 +176,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
           'visibility': 'none', // hidden by default
         },
         paint: {
-          'line-color': ['get', 'color'],
+          'line-color': PATH_COLOR,
           'line-width': PATH_WIDTH,
           'line-opacity': 0.8,
         },

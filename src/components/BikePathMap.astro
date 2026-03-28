@@ -21,6 +21,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
     tabindex="0"
   >
     <div class="bike-path-map-gl" id="bike-path-map-gl"></div>
+    <div id="bike-path-map-controls"></div>
     <button class="bike-path-map-close" id="bike-path-map-close" aria-label={closeLabel}>✕</button>
     <div class="bike-path-map-expand-hint">{hintText}</div>
   </div>
@@ -28,8 +29,10 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
 
 <script>
   import { initMap } from '../lib/maps/map-init';
-  import { loadStylePreference, getStyleUrl } from '../lib/maps/map-style-switch';
+  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import maplibregl from 'maplibre-gl';
+  import { render, h } from 'preact';
+  import MapControls from './admin/MapControls';
 
   const PATH_COLOR = '#E6194B';
   const PATH_WIDTH = 4;
@@ -112,7 +115,22 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
     }
 
     // Load geometry once map style is ready
-    map.on('load', loadGeometry);
+    map.on('load', () => {
+      loadGeometry();
+
+      // Render controls (hidden until expanded)
+      const controlsEl = document.getElementById('bike-path-map-controls');
+      if (controlsEl) {
+        render(h(MapControls, {
+          hasPhotos: false,
+          hasPlaces: false,
+          hasPaths: false,
+          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
+            loadGeometry(); // replay layers after style switch
+          }),
+        }), controlsEl);
+      }
+    });
 
     function expand() {
       if (expanded) return;
@@ -207,7 +225,9 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
 
     /* Hide attribution in compact card — too much space for a small preview */
     .maplibregl-ctrl-attrib { display: none; }
+    #bike-path-map-controls { display: none; }
     &.expanded .maplibregl-ctrl-attrib { display: block; }
+    &.expanded #bike-path-map-controls { display: block; position: absolute; bottom: 16px; left: 16px; z-index: 1; }
 
     &.expanded {
       position: fixed;
