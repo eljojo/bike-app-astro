@@ -242,7 +242,10 @@ for (const entry of segmentEntries) {
 
 console.log(`[path-geo] Done. Fetched: ${fetched}, Cached: ${skipped}`);
 
-// --- Second pass: enrich with elevation from Open-Meteo ---
+// --- Elevation enrichment (featured paths only) ---
+// Only enrich files belonging to featured bike paths (those with `featured: true`
+// in their markdown frontmatter). Skips files that already have elevation data,
+// so enriched files persist across cache restores without being overwritten.
 if (!dryRun) {
   const { fetchElevations, downsamplePoints } = await import('../src/lib/geo/elevation-enrichment');
   type GeoPoint = { lon: number; lat: number };
@@ -256,74 +259,161 @@ if (!dryRun) {
     return false;
   }
 
-  const cachedFiles = fs.readdirSync(CACHE_DIR).filter(f => f.endsWith('.geojson'));
-  const needsElevation = cachedFiles.filter(f => {
-    const geojson = JSON.parse(fs.readFileSync(path.join(CACHE_DIR, f), 'utf-8'));
-    return !hasElevation(geojson);
-  });
+  // --- Determine which cache files belong to featured paths ---
 
-  if (needsElevation.length > 0) {
-    console.log(`[path-geo] Enriching ${needsElevation.length} files with elevation...`);
-    let enriched = 0;
+  // 1. Compute slugs for all YML entries (same logic as bikepaths-yml.ts)
+  const baseSlugMap = new Map<string, Array<{ entry: BikePathEntry; index: number }>>();
+  for (let i = 0; i < raw.bike_paths.length; i++) {
+    const base = slugify(raw.bike_paths[i].name);
+    const list = baseSlugMap.get(base);
+    if (list) list.push({ entry: raw.bike_paths[i], index: i });
+    else baseSlugMap.set(base, [{ entry: raw.bike_paths[i], index: i }]);
+  }
 
-    for (const file of needsElevation) {
-      const filePath = path.join(CACHE_DIR, file);
-      const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-
-      // Collect all coordinates
-      const allCoords: { featureIdx: number; coordIdx: number; point: GeoPoint }[] = [];
-      for (let fi = 0; fi < (geojson.features ?? []).length; fi++) {
-        const feature = geojson.features[fi];
-        if (feature.geometry?.type !== 'LineString') continue;
-        for (let ci = 0; ci < feature.geometry.coordinates.length; ci++) {
-          const [lng, lat] = feature.geometry.coordinates[ci];
-          allCoords.push({ featureIdx: fi, coordIdx: ci, point: { lon: lng, lat } });
-        }
-      }
-
-      if (allCoords.length === 0) continue;
-
-      const points = allCoords.map(c => c.point);
-      const { sampled, indices } = downsamplePoints(points, 500);
-      const elevations = await fetchElevations(sampled);
-
-      if (!elevations) {
-        console.log(`  ${file}: elevation fetch failed, skipping`);
-        // Delay before next attempt to avoid hammering a rate-limited API
-        await new Promise(r => setTimeout(r, 2000));
-        continue;
-      }
-
-      // Interpolate elevations for all points
-      const allElevations = new Float64Array(points.length);
-      for (let i = 0; i < indices.length - 1; i++) {
-        const startIdx = indices[i];
-        const endIdx = indices[i + 1];
-        const startEle = elevations[i];
-        const endEle = elevations[i + 1];
-        for (let j = startIdx; j <= endIdx; j++) {
-          const t = endIdx === startIdx ? 0 : (j - startIdx) / (endIdx - startIdx);
-          allElevations[j] = startEle + t * (endEle - startEle);
-        }
-      }
-
-      // Write back as 3D coordinates [lng, lat, ele]
-      for (let i = 0; i < allCoords.length; i++) {
-        const { featureIdx, coordIdx } = allCoords[i];
-        const [lng, lat] = geojson.features[featureIdx].geometry.coordinates[coordIdx];
-        geojson.features[featureIdx].geometry.coordinates[coordIdx] = [lng, lat, Math.round(allElevations[i])];
-      }
-
-      fs.writeFileSync(filePath, JSON.stringify(geojson));
-      enriched++;
-      console.log(`  ${file}: enriched with elevation`);
-
-      // Delay between files to be polite to Open-Meteo
-      await new Promise(r => setTimeout(r, 500));
+  function slugSortKey(entry: BikePathEntry): string {
+    if (entry.osm_relations?.length) return `r${entry.osm_relations[0]}`;
+    if (entry.anchors?.length) {
+      const [x, y] = entry.anchors[0];
+      return `a${x.toFixed(6)},${y.toFixed(6)}`;
     }
+    return `n${entry.name}`;
+  }
 
-    console.log(`[path-geo] Elevation enrichment done. Enriched: ${enriched}/${needsElevation.length}`);
+  const sluggedEntries: Array<{ slug: string; entry: BikePathEntry }> = [];
+  for (const [base, group] of baseSlugMap) {
+    group.sort((a, b) => slugSortKey(a.entry).localeCompare(slugSortKey(b.entry)));
+    for (let i = 0; i < group.length; i++) {
+      const slug = group.length === 1 ? base : `${base}-${i + 1}`;
+      sluggedEntries.push({ slug, entry: group[i].entry });
+    }
+  }
+
+  const ymlBySlug = new Map(sluggedEntries.map(s => [s.slug, s.entry]));
+
+  // 2. Read markdown frontmatter to find featured paths and their includes
+  const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
+  const featuredYmlSlugs = new Set<string>();
+
+  if (fs.existsSync(bikePathsDir)) {
+    for (const file of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md'))) {
+      const content = fs.readFileSync(path.join(bikePathsDir, file), 'utf-8');
+      // Quick frontmatter check — no need for a full YAML parser
+      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!frontmatterMatch) continue;
+      const fm = frontmatterMatch[1];
+      if (!fm.includes('featured: true')) continue;
+
+      const mdSlug = file.replace(/\.md$/, '');
+
+      // Collect includes
+      const includes: string[] = [];
+      let inIncludes = false;
+      for (const line of fm.split('\n')) {
+        if (line.trim().startsWith('includes:')) { inIncludes = true; continue; }
+        if (inIncludes && line.trim().startsWith('- ')) {
+          includes.push(line.trim().slice(2).trim());
+        } else if (inIncludes && line.trim() !== '') {
+          inIncludes = false;
+        }
+      }
+
+      // Add the markdown slug itself + all includes
+      for (const slug of includes.length > 0 ? includes : [mdSlug]) {
+        featuredYmlSlugs.add(slug);
+      }
+    }
+  }
+
+  // 3. Collect cache filenames for featured entries
+  const featuredCacheFiles = new Set<string>();
+  for (const ymlSlug of featuredYmlSlugs) {
+    const entry = ymlBySlug.get(ymlSlug);
+    if (!entry) continue;
+    // Relation-based files
+    for (const relId of entry.osm_relations ?? []) {
+      featuredCacheFiles.add(`${relId}.geojson`);
+    }
+    // Name-based files
+    if ((!entry.osm_relations || entry.osm_relations.length === 0) && entry.osm_names?.length) {
+      featuredCacheFiles.add(`name-${slugify(entry.name)}.geojson`);
+    }
+    // Segment-based files
+    if (entry.segments?.length && (!entry.osm_relations || entry.osm_relations.length === 0)) {
+      featuredCacheFiles.add(`seg-${slugify(entry.name)}.geojson`);
+    }
+  }
+
+  if (featuredCacheFiles.size === 0) {
+    console.log('[path-geo] No featured paths need elevation enrichment');
   } else {
-    console.log(`[path-geo] All ${cachedFiles.length} files already have elevation data`);
+    // 4. Enrich only featured files that lack elevation
+    const toEnrich = [...featuredCacheFiles].filter(file => {
+      const filePath = path.join(CACHE_DIR, file);
+      if (!fs.existsSync(filePath)) return false;
+      const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return !hasElevation(geojson);
+    });
+
+    if (toEnrich.length === 0) {
+      console.log(`[path-geo] All ${featuredCacheFiles.size} featured geometry files already have elevation`);
+    } else {
+      console.log(`[path-geo] Enriching ${toEnrich.length}/${featuredCacheFiles.size} featured files with elevation...`);
+      let enriched = 0;
+
+      for (const file of toEnrich) {
+        const filePath = path.join(CACHE_DIR, file);
+        const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+        const allCoords: { featureIdx: number; coordIdx: number; point: GeoPoint }[] = [];
+        for (let fi = 0; fi < (geojson.features ?? []).length; fi++) {
+          const feature = geojson.features[fi];
+          if (feature.geometry?.type !== 'LineString') continue;
+          for (let ci = 0; ci < feature.geometry.coordinates.length; ci++) {
+            const [lng, lat] = feature.geometry.coordinates[ci];
+            allCoords.push({ featureIdx: fi, coordIdx: ci, point: { lon: lng, lat } });
+          }
+        }
+
+        if (allCoords.length === 0) continue;
+
+        const points = allCoords.map(c => c.point);
+        const { sampled, indices } = downsamplePoints(points, 500);
+        const elevations = await fetchElevations(sampled);
+
+        if (!elevations) {
+          console.log(`  ${file}: elevation fetch failed, skipping`);
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+
+        // Interpolate elevations for all points
+        const allElevations = new Float64Array(points.length);
+        for (let i = 0; i < indices.length - 1; i++) {
+          const startIdx = indices[i];
+          const endIdx = indices[i + 1];
+          const startEle = elevations[i];
+          const endEle = elevations[i + 1];
+          for (let j = startIdx; j <= endIdx; j++) {
+            const t = endIdx === startIdx ? 0 : (j - startIdx) / (endIdx - startIdx);
+            allElevations[j] = startEle + t * (endEle - startEle);
+          }
+        }
+
+        // Write back as 3D coordinates [lng, lat, ele]
+        for (let i = 0; i < allCoords.length; i++) {
+          const { featureIdx, coordIdx } = allCoords[i];
+          const [lng, lat] = geojson.features[featureIdx].geometry.coordinates[coordIdx];
+          geojson.features[featureIdx].geometry.coordinates[coordIdx] = [lng, lat, Math.round(allElevations[i])];
+        }
+
+        fs.writeFileSync(filePath, JSON.stringify(geojson));
+        enriched++;
+        console.log(`  ${file}: enriched with elevation`);
+
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      console.log(`[path-geo] Elevation enrichment done. Enriched: ${enriched}/${toEnrich.length}`);
+    }
   }
 }

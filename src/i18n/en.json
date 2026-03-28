@@ -569,6 +569,7 @@
   "paths.maintained_by": "Maintained by {operator}",
   "paths.osm_attribution": "Path data from",
   "paths.osm_edit": "Help improve it",
+  "paths.osm_search": "search on OpenStreetMap",
   "paths.click_to_explore": "Click to explore",
   "paths.close_map": "Close map",
   "paths.other_group": "Other",

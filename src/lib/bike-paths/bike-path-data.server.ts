@@ -23,6 +23,8 @@ export interface BikePathPage {
   ymlEntries: SluggedBikePathYml[];
   osmRelationIds: number[];
   osmNames: string[];
+  /** GeoJSON filenames for this path (e.g., "12345.geojson", "name-foo.geojson"). */
+  geoFiles: string[];
   /** Geographic points for this path — from YML anchors or sampled GeoJSON geometry. */
   points: Array<{ lat: number; lng: number }>;
   /** Number of routes that overlap this path (precomputed at build config time). */
@@ -123,6 +125,21 @@ function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: num
   return points;
 }
 
+/** Compute the GeoJSON filenames that a set of YML entries would produce. */
+function entryGeoFiles(entries: SluggedBikePathYml[]): string[] {
+  const files: string[] = [];
+  for (const e of entries) {
+    if (e.osm_relations?.length) {
+      for (const relId of e.osm_relations) files.push(`${relId}.geojson`);
+    } else if (e.osm_names?.length) {
+      files.push(`name-${e.slug}.geojson`);
+    } else if (e.segments?.length) {
+      files.push(`seg-${e.slug}.geojson`);
+    }
+  }
+  return files;
+}
+
 /** Load all bike path data, merge YML + markdown, score, and return pages to generate. */
 export async function loadBikePathData(): Promise<{
   pages: BikePathPage[];
@@ -197,6 +214,7 @@ export async function loadBikePathData(): Promise<{
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
+      geoFiles: entryGeoFiles(matchedEntries),
       points,
       routeCount: 0,
       overlappingRoutes: [],
@@ -235,6 +253,7 @@ export async function loadBikePathData(): Promise<{
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
+      geoFiles: entryGeoFiles([entry]),
       points: getPathPoints(entry),
       routeCount: 0,
       overlappingRoutes: [],

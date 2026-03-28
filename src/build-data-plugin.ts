@@ -941,6 +941,20 @@ function getPathPoints(entry) {
   return points;
 }
 
+function entryGeoFiles(entries) {
+  const files = [];
+  for (const e of entries) {
+    if (e.osm_relations?.length) {
+      for (const relId of e.osm_relations) files.push(relId + '.geojson');
+    } else if (e.osm_names?.length) {
+      files.push('name-' + e.slug + '.geojson');
+    } else if (e.segments?.length) {
+      files.push('seg-' + e.slug + '.geojson');
+    }
+  }
+  return files;
+}
+
 export async function loadBikePathData() {
   const allYmlEntries = _allYmlEntries;
   const markdownEntries = await getCollection('bike-paths');
@@ -1002,6 +1016,7 @@ export async function loadBikePathData() {
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
+      geoFiles: entryGeoFiles(matchedEntries),
       points,
       routeCount: Math.max(...matchedEntries.map(e => _routeOverlaps[e.slug]?.count ?? 0), 0),
       // Merge precomputed relations from all included entries, deduplicated by slug
@@ -1096,6 +1111,7 @@ export async function loadBikePathData() {
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
+      geoFiles: entryGeoFiles([entry]),
       points: getPathPoints(entry),
       routeCount: _routeOverlaps[entry.slug]?.count ?? 0,
       overlappingRoutes: _bikePathRelations[entry.slug]?.overlappingRoutes ?? [],

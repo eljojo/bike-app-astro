@@ -569,6 +569,7 @@
   "paths.maintained_by": "Mantenido por {operator}",
   "paths.osm_attribution": "Datos del sendero de",
   "paths.osm_edit": "Ayuda a mejorarlo",
+  "paths.osm_search": "buscar en OpenStreetMap",
   "paths.click_to_explore": "Clic para explorar",
   "paths.close_map": "Cerrar mapa",
   "paths.other_group": "Otros",

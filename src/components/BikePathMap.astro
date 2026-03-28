@@ -1,12 +1,12 @@
 ---
 interface Props {
-  osmRelationIds: number[];
+  geoFiles: string[];
   center?: [number, number];  // [lat, lng] from anchors
   fallbackCenter: [number, number];  // [lat, lng] from city config
   hintText: string;
   closeLabel: string;
 }
-const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.props;
+const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
 ---
 
 <div class="bike-path-map-wrapper">
@@ -14,7 +14,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
   <div
     class="bike-path-map-card"
     id="bike-path-map"
-    data-relation-ids={JSON.stringify(osmRelationIds)}
+    data-geo-files={JSON.stringify(geoFiles)}
     data-center={center ? JSON.stringify(center) : ''}
     data-fallback-center={JSON.stringify(fallbackCenter)}
     role="button"
@@ -44,7 +44,7 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
   const closeBtn = document.getElementById('bike-path-map-close');
 
   if (container && glEl) {
-    const relationIds: number[] = JSON.parse(container.dataset.relationIds || '[]');
+    const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
     const centerData = container.dataset.center ? JSON.parse(container.dataset.center) : null;
     const fallbackCenterData = JSON.parse(container.dataset.fallbackCenter || '[0,0]');
     const center: [number, number] = centerData || fallbackCenterData;
@@ -62,16 +62,16 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
     let geometryLoaded = false;
     let pathBounds: maplibregl.LngLatBounds | null = null;
 
-    // Load GeoJSON for each relation
+    // Load GeoJSON geometry files
     async function loadGeometry() {
-      if (geometryLoaded || relationIds.length === 0) return;
+      if (geometryLoaded || geoFiles.length === 0) return;
 
       const allFeatures: GeoJSON.Feature[] = [];
       const bounds = new maplibregl.LngLatBounds();
 
-      for (const relId of relationIds) {
+      for (const file of geoFiles) {
         try {
-          const res = await fetch(`/paths/geo/${relId}.geojson`);
+          const res = await fetch(`/paths/geo/${file}`);
           if (!res.ok) continue;
           const geojson = await res.json();
           for (const feature of geojson.features) {

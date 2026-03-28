@@ -7,8 +7,9 @@ import EditHistory from '../../components/admin/EditHistory.tsx';
 import { env } from '../../lib/env/env.service';
 import { CITY } from '../../lib/config/config';
 import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
-import { bikePathDetailFromCache } from '../../lib/models/bike-path-model';
+import { bikePathDetailFromCache, type BikePathDetail } from '../../lib/models/bike-path-model';
 import { getCityConfig } from '../../lib/config/city-config';
+import { loadBikePathData } from '../../lib/bike-paths/bike-path-data.server';
 
 const result = await loadDetailFromJson({
   contentType: 'bike-paths',
@@ -17,8 +18,27 @@ const result = await loadDetailFromJson({
   fromCache: bikePathDetailFromCache,
 });
 
-if (result.notFound) return new Response(null, { status: 404 });
-const bikePathData = result.data;
+let bikePathData: BikePathDetail;
+if (result.notFound) {
+  // No markdown file yet — look up the YML entry and create stub data for the editor.
+  // Saving will create the markdown file.
+  const { pages } = await loadBikePathData();
+  const page = pages.find(p => p.slug === Astro.params.id);
+  if (!page) return new Response(null, { status: 404 });
+  bikePathData = {
+    id: page.slug,
+    name: page.name,
+    name_fr: page.name_fr,
+    stub: true,
+    hidden: false,
+    featured: false,
+    includes: page.ymlEntries.length > 1 ? page.ymlEntries.map(e => e.slug) : [],
+    tags: [],
+    body: '',
+  };
+} else {
+  bikePathData = result.data;
+}
 const user = Astro.locals.user;
 const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));

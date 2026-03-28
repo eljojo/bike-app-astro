@@ -248,10 +248,39 @@ async function main() {
   if (fs.existsSync(geoDir)) {
     // Load bike path pages to know which relations belong to which slug
     const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml');
+    const { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } = await import('../src/lib/bike-paths/bike-path-scoring');
     const ymlPath = path.join(CONTENT_DIR, CITY, 'bikepaths.yml');
     if (fs.existsSync(ymlPath)) {
       const entries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
-      // Build slug → GeoJSON file paths map
+
+      // Collect markdown slugs and their includes — these always get pages
+      const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
+      const markdownSlugs = new Set<string>();
+      const claimedByMarkdown = new Set<string>();
+      const mdIncludesMap = new Map<string, string[]>();
+      if (fs.existsSync(bikePathsDir)) {
+        for (const file of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md'))) {
+          const mdSlug = file.replace(/\.md$/, '');
+          const { data } = matter(fs.readFileSync(path.join(bikePathsDir, file), 'utf-8'));
+          if (data.hidden) continue;
+          markdownSlugs.add(mdSlug);
+          const includes: string[] = data.includes ?? [];
+          mdIncludesMap.set(mdSlug, includes);
+          for (const inc of includes) claimedByMarkdown.add(inc);
+          if (includes.length === 0) claimedByMarkdown.add(mdSlug);
+        }
+      }
+
+      // Determine which YML slugs will become pages (not claimed by markdown, passes scoring)
+      const pageSlugs = new Set<string>(markdownSlugs);
+      for (const e of entries) {
+        if (claimedByMarkdown.has(e.slug)) continue;
+        if (isHardExcluded(e)) continue;
+        // Score with routeOverlapCount=0 (conservative — some paths score higher with overlaps)
+        if (scoreBikePath(e, 0) >= SCORE_THRESHOLD) pageSlugs.add(e.slug);
+      }
+
+      // Build slug → GeoJSON file paths map (only for entries that belong to page slugs)
       const slugGeoFiles = new Map<string, string[]>();
       for (const e of entries) {
         const files: string[] = [];
@@ -271,23 +300,22 @@ async function main() {
         }
       }
 
-      // Also read markdown includes to map merged slugs
-      const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
-      if (fs.existsSync(bikePathsDir)) {
-        for (const file of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md'))) {
-          const mdSlug = file.replace(/\.md$/, '');
-          const { data } = matter(fs.readFileSync(path.join(bikePathsDir, file), 'utf-8'));
-          const includes: string[] = data.includes ?? [];
-          const allFiles: string[] = [];
-          for (const inc of includes) {
-            const incFiles = slugGeoFiles.get(inc);
-            if (incFiles) allFiles.push(...incFiles);
-          }
-          if (allFiles.length > 0) slugGeoFiles.set(mdSlug, allFiles);
+      // Merge markdown includes into their parent slug's geo files
+      for (const [mdSlug, includes] of mdIncludesMap) {
+        const allFiles: string[] = [];
+        for (const inc of includes) {
+          const incFiles = slugGeoFiles.get(inc);
+          if (incFiles) allFiles.push(...incFiles);
         }
+        if (allFiles.length > 0) slugGeoFiles.set(mdSlug, allFiles);
       }
 
-      // Generate a map for each slug that has GeoJSON
+      // Remove entries that won't have pages
+      for (const slug of slugGeoFiles.keys()) {
+        if (!pageSlugs.has(slug)) slugGeoFiles.delete(slug);
+      }
+
+      // Generate a map for each slug that has a page and GeoJSON
       for (const [slug, geoFilePaths] of slugGeoFiles) {
         // Collect all coordinates from GeoJSON files
         const allPoints: [number, number][] = [];

@@ -140,7 +140,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
         </h1>
         {page.vibe && <p class="bike-path-vibe">{page.vibe}</p>}
 
-        {page.stub && (
+        {(page.stub || !page.hasMarkdown) && (
           <p class="bike-path-stub-cta">
             {t('paths.stub_cta', locale)} <a href={`/admin/paths/${page.slug}`}>{t('paths.stub_cta_link', locale)}</a>
           </p>
@@ -152,7 +152,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
       </div>
 
       <BikePathMap
-        osmRelationIds={page.osmRelationIds}
+        geoFiles={page.geoFiles}
         center={computeCenter(page.points)}
         fallbackCenter={fallbackCenter}
         hintText={t('paths.click_to_explore', locale)}
@@ -212,15 +212,21 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
       return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
     })()}
 
-    {page.osmRelationIds.length > 0 && (
+    {(page.osmRelationIds.length > 0 || page.osmNames.length > 0) && (
       <div class="bike-path-osm">
         <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
         {page.ymlEntries.map(entry => (
-          entry.osm_relations?.map(id => (
-            <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
-              {entry.name} — relation {id} ↗
-            </a>
-          ))
+          entry.osm_relations?.length
+            ? entry.osm_relations.map(id => (
+                <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
+                  {entry.name} — relation {id} ↗
+                </a>
+              ))
+            : entry.osm_names?.length
+              ? <a href={`https://openstreetmap.org/search?query=${encodeURIComponent(entry.osm_names[0])}`} target="_blank" rel="noopener">
+                  {entry.name} — {t('paths.osm_search', locale)} ↗
+                </a>
+              : null
         ))}
       </div>
     )}
