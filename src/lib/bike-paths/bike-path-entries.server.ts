@@ -38,7 +38,7 @@ export interface BikePathPage {
   /** Precomputed route cards for routes that overlap this path. */
   overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string }>;
   /** Geolocated photos taken near this path. */
-  nearbyPhotos: Array<{ key: string; routeSlug: string; caption?: string }>;
+  nearbyPhotos: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }>;
   /** Precomputed nearby places (within 300m). */
   nearbyPlaces: Array<{ name: string; category: string; lat: number; lng: number; distance_m: number }>;
   /** Precomputed nearby paths (within 2km). */

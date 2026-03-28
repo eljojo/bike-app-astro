@@ -1,12 +1,17 @@
 ---
+interface MapPhoto { key: string; lat: number; lng: number; routeSlug: string; caption?: string }
+interface MapPlace { name: string; lat: number; lng: number; category: string }
 interface Props {
   geoFiles: string[];
   center?: [number, number];  // [lat, lng] from anchors
   fallbackCenter: [number, number];  // [lat, lng] from city config
   hintText: string;
   closeLabel: string;
+  photos?: MapPhoto[];
+  places?: MapPlace[];
+  cdnUrl?: string;
 }
-const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
+const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '' } = Astro.props;
 ---
 
 <div class="bike-path-map-wrapper">
@@ -17,6 +22,9 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
     data-geo-files={JSON.stringify(geoFiles)}
     data-center={center ? JSON.stringify(center) : ''}
     data-fallback-center={JSON.stringify(fallbackCenter)}
+    data-photos={JSON.stringify(photos)}
+    data-places={JSON.stringify(places)}
+    data-cdn-url={cdnUrl}
     role="button"
     tabindex="0"
     aria-expanded="false"
@@ -29,7 +37,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
 </div>
 
 <script>
-  import { initMap } from '../lib/maps/map-init';
+  import { initMap, addPhotoMarkers, addMarkers, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
+  import { categoryEmoji } from '../lib/geo/place-categories';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import maplibregl from 'maplibre-gl';
   import { render, h } from 'preact';
@@ -48,6 +57,9 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
     const centerData = container.dataset.center ? JSON.parse(container.dataset.center) : null;
     const fallbackCenterData = JSON.parse(container.dataset.fallbackCenter || '[0,0]');
     const center: [number, number] = centerData || fallbackCenterData;
+    const photos: Array<{ key: string; lat: number; lng: number }> = JSON.parse(container.dataset.photos || '[]');
+    const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
+    const cdnUrl = container.dataset.cdnUrl || '';
 
     const styleKey = loadStylePreference();
     const map = initMap({ el: glEl, center, zoom: 12, styleUrl: getStyleUrl(styleKey) });
@@ -119,15 +131,41 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
     map.on('load', () => {
       loadGeometry();
 
+      // Add photo and place markers (off by default)
+      const hasPhotos = photos.length > 0;
+      const hasPlaces = places.length > 0;
+
+      function addOverlays(sk?: MapStyleKey) {
+        if (hasPhotos) {
+          addPhotoMarkers(map, photos.map((p, i) => ({
+            key: p.key, lat: p.lat, lng: p.lng, index: i,
+          })), cdnUrl, sk);
+          setPhotoLayersVisible(map, false);
+        }
+        if (hasPlaces) {
+          addMarkers(map, places.map(p => ({
+            lat: p.lat, lng: p.lng,
+            emoji: categoryEmoji[p.category] || '📌',
+            popup: `<div class="place-popup">${p.name}</div>`,
+          })));
+          setPlaceMarkersVisible(map, false);
+        }
+      }
+      addOverlays();
+
       // Render controls (hidden until expanded)
       const controlsEl = document.getElementById('bike-path-map-controls');
       if (controlsEl) {
         render(h(MapControls, {
-          hasPhotos: false,
-          hasPlaces: false,
+          hasPhotos,
+          hasPlaces,
           hasPaths: false,
+          defaultPhotos: false,
+          onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
+          onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
           onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
-            loadGeometry(); // replay layers after style switch
+            loadGeometry();
+            addOverlays(key);
           }),
         }), controlsEl);
       }
@@ -237,7 +275,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel } = Astro.props;
     .maplibregl-ctrl-attrib { display: none; }
     #bike-path-map-controls { display: none; }
     &.expanded .maplibregl-ctrl-attrib { display: block; }
-    &.expanded #bike-path-map-controls { display: block; position: absolute; bottom: 16px; left: 16px; z-index: 1; }
+    &.expanded #bike-path-map-controls { display: block; position: absolute; top: 16px; left: 16px; z-index: 1; }
 
     &.expanded {
       position: fixed;

@@ -206,6 +206,8 @@ interface RouteCard {
 
 interface NearbyPhoto {
   key: string;
+  lat: number;
+  lng: number;
   routeSlug: string;
   caption?: string;
 }
@@ -405,7 +407,7 @@ function computeBikePathRelations(
       if (nearbyPhotos.length >= 20) break; // cap at 20
       for (const pp of points) {
         if (haversineM(photo.lat, photo.lng, pp.lat, pp.lng) <= PHOTO_NEAR_M) {
-          nearbyPhotos.push({ key: photo.key, routeSlug: photo.routeSlug, caption: photo.caption });
+          nearbyPhotos.push({ key: photo.key, lat: photo.lat, lng: photo.lng, routeSlug: photo.routeSlug, caption: photo.caption });
           break;
         }
       }

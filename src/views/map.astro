@@ -24,24 +24,26 @@ const organizerMap = new Map(organizers.map(o => [o.id, o]));
 
 const { pages: bikePathPages, allYmlEntries, geoFiles } = await loadBikePathData();
 
-// Build relation ID → path info for map popups and colouring
-// Include ALL YML entries (not just pages) so every relation has a name
-const pageSlugs = new Set(bikePathPages.map(p => p.slug));
+// Build relation ID → path info for map popups and interactivity
+// Pages are interactive (clickable with popups). Hard-excluded entries render
+// but are non-interactive (thinner, no popup, no cursor change).
+import { isHardExcluded } from '../lib/bike-paths/bike-path-scoring';
+
 const pageRelIds = new Set(bikePathPages.flatMap(p => p.osmRelationIds.map(String)));
 
 const pathMapData = [
-  // Pages get slug links
+  // Pages: interactive, with slug links
   ...bikePathPages.flatMap(p =>
     p.osmRelationIds.map(relId => ({
       relId: String(relId),
       slug: p.slug,
       name: p.name,
       hasPage: true,
-      operator: p.operator,
+      interactive: true,
       surface: p.surface,
     }))
   ),
-  // YML entries without pages get OSM links
+  // YML entries without pages: interactive only if not hard-excluded
   ...allYmlEntries
     .filter(e => e.osm_relations?.some(id => !pageRelIds.has(String(id))))
     .flatMap(e => (e.osm_relations ?? [])
@@ -51,7 +53,7 @@ const pathMapData = [
         slug: '',
         name: e.name,
         hasPage: false,
-        operator: e.operator,
+        interactive: !isHardExcluded(e),
         surface: e.surface,
       }))
     ),

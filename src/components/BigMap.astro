@@ -91,7 +91,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
     const pathGeoFiles: string[] = JSON.parse(el.dataset.pathGeoFiles || '[]');
-    const pathMapData: Array<{ relId: string; slug: string; name: string; operator?: string; surface?: string }> =
+    const pathMapData: Array<{ relId: string; slug: string; name: string; interactive: boolean; surface?: string }> =
       JSON.parse(el.dataset.pathMapData || '[]');
 
     // --- Category filter from URL query param ---
@@ -138,6 +138,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
             feature.properties.name = info?.name || '';
             feature.properties.surface = info?.surface || '';
             feature.properties.hasPage = info?.hasPage ? 'true' : '';
+            feature.properties.interactive = info?.interactive !== false ? 'true' : '';
             feature.properties.relId = relationId;
             allFeatures.push(feature);
           }
@@ -168,14 +169,34 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         data: { type: 'FeatureCollection', features },
       });
 
+      // Non-interactive paths: thinner, no popup, no cursor change
+      map.addLayer({
+        id: 'paths-network-bg',
+        type: 'line',
+        source: 'paths-network',
+        filter: ['!=', ['get', 'interactive'], 'true'],
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          'visibility': 'none',
+        },
+        paint: {
+          'line-color': PATH_COLOR,
+          'line-width': Math.max(1, ROUTE_LINE_WIDTH - 2),
+          'line-opacity': 0.5,
+        },
+      });
+
+      // Interactive paths: normal width, clickable
       map.addLayer({
         id: 'paths-network-line',
         type: 'line',
         source: 'paths-network',
+        filter: ['==', ['get', 'interactive'], 'true'],
         layout: {
           'line-cap': 'round',
           'line-join': 'round',
-          'visibility': 'none', // hidden by default
+          'visibility': 'none',
         },
         paint: {
           'line-color': PATH_COLOR,
@@ -184,7 +205,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         },
       });
 
-      // Click popup on paths
+      // Click popup on interactive paths only
       function esc(s: string): string {
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
@@ -192,7 +213,8 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         if (!e.features?.length) return;
         const props = e.features[0].properties;
         if (!props) return;
-        const name = esc(props.name || props.slug || 'Unnamed path');
+        const name = esc(props.name || props.slug || '');
+        if (!name) return;
         let nameLink: string;
         if (props.hasPage === 'true' && props.slug) {
           nameLink = `<a href="/paths/${esc(props.slug)}">${name}</a>`;
@@ -212,8 +234,12 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
     }
 
     function setPathsVisible(visible: boolean) {
+      const vis = visible ? 'visible' : 'none';
+      if (map.getLayer('paths-network-bg')) {
+        map.setLayoutProperty('paths-network-bg', 'visibility', vis);
+      }
       if (map.getLayer('paths-network-line')) {
-        map.setLayoutProperty('paths-network-line', 'visibility', visible ? 'visible' : 'none');
+        map.setLayoutProperty('paths-network-line', 'visibility', vis);
       }
     }
 
