@@ -154,7 +154,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
         <h2>{t('paths.photos', locale)}</h2>
         <div class="bike-path-photo-grid">
           {overlappingRoutes.filter(r => r.coverKey).map(r => (
-            <a href={paths.route(r.slug, locale)} class="bike-path-photo">
+            <a href={`${paths.route(r.slug, locale)}#photos`} class="bike-path-photo">
               <img
                 src={imageUrl(r.coverKey!, { width: 300, height: 200, fit: 'cover' })}
                 srcset={`${imageUrl(r.coverKey!, { width: 600, height: 400, fit: 'cover' })} 2x`}
@@ -173,8 +173,6 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
       <NearbyPlaces nearby={nearbyPlaces} limit={8} />
     )}
 
-    <NearbyPaths nearbyPaths={nearbyPaths} locale={locale} />
-
     {connectedPaths.length > 0 && (
       <section class="connected-paths">
         <h2>{t('paths.connects_to', locale)}</h2>
@@ -188,6 +186,12 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
         </ul>
       </section>
     )}
+
+    {(() => {
+      const connectedSlugs = new Set(connectedPaths.map(p => p.slug));
+      const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug));
+      return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
+    })()}
 
     {page.osmRelationIds.length > 0 && (
       <div class="bike-path-osm">

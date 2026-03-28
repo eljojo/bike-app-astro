@@ -48,7 +48,7 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
 ---
 
 {allPhotos.length > 0 && (
-  <section class="route-photos">
+  <section class="route-photos" id="photos">
     <h2>{t('photos.title', locale)}</h2>
     <div class="photo-gallery">
       {allPhotos.map((photo, i) => (
