@@ -274,9 +274,44 @@
   @include muted-text;
 }
 
+// Connected paths
+.connected-paths {
+  margin-bottom: 1.5rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.connected-paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}
+
 // Nearby paths
 .nearby-paths {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 
   h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 }
@@ -348,37 +383,24 @@
   font-style: italic;
 }
 
-// Connected paths
-.connected-paths {
-  margin-bottom: 2rem;
-
-  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
-}
-
-.connected-paths-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
+// Wikipedia + OSM attribution at bottom of detail page
+.bike-path-wikipedia,
+.bike-path-osm {
+  font-size: 0.85rem;
+  @include muted-text;
+  margin-top: 1.5rem;
 
   a {
-    color: $color-text;
-    text-decoration: none;
-    font-weight: 500;
+    color: inherit;
     &:hover { text-decoration: underline; }
-    @include dark-mode { color: $color-text-dark; }
   }
+}
 
-  .path-meta {
-    font-size: 0.75rem;
-    @include muted-text;
+.bike-path-osm {
+  margin-top: 0.75rem;
+
+  a {
+    display: block;
+    font-size: 0.8rem;
   }
 }

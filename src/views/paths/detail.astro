@@ -176,7 +176,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
         <h2>{t('paths.photos', locale)}</h2>
         <div class="bike-path-photo-grid">
           {nearbyPhotos.map(photo => (
-            <a href={`${paths.route(photo.routeSlug, locale)}#photos`} class="bike-path-photo">
+            <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo">
               <img
                 src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
                 srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
