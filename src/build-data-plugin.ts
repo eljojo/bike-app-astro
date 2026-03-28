@@ -327,9 +327,11 @@ function computeBikePathRelations(
   function isNearPath(lat: number, lng: number, targetSlug: string, thresholdM: number): boolean {
     const cLat = Math.floor(lat / CELL_SIZE);
     const cLng = Math.floor(lng / CELL_SIZE);
-    const radius = Math.ceil(thresholdM / 111000 / CELL_SIZE); // cells to check
-    for (let dLat = -radius; dLat <= radius; dLat++) {
-      for (let dLng = -radius; dLng <= radius; dLng++) {
+    const rLat = Math.ceil(thresholdM / 111000 / CELL_SIZE);
+    // Longitude degrees are shorter at higher latitudes
+    const rLng = Math.ceil(thresholdM / (111000 * Math.cos(lat * Math.PI / 180)) / CELL_SIZE);
+    for (let dLat = -rLat; dLat <= rLat; dLat++) {
+      for (let dLng = -rLng; dLng <= rLng; dLng++) {
         const cell = pathGrid.get(`${cLat + dLat},${cLng + dLng}`);
         if (!cell) continue;
         for (const p of cell) {

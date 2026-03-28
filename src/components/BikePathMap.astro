@@ -74,57 +74,65 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     let geometryLoaded = false;
     let pathBounds: maplibregl.LngLatBounds | null = null;
 
-    // Load GeoJSON geometry files
+    let cachedFeatures: GeoJSON.Feature[] | null = null;
+
+    // Load GeoJSON geometry files. Fetches once, caches features for style switch replay.
     async function loadGeometry() {
-      if (geometryLoaded || geoFiles.length === 0) return;
+      if (geoFiles.length === 0) return;
 
-      const allFeatures: GeoJSON.Feature[] = [];
-      const bounds = new maplibregl.LngLatBounds();
-
-      for (const file of geoFiles) {
-        try {
-          const res = await fetch(`/paths/geo/${file}`);
-          if (!res.ok) continue;
-          const geojson = await res.json();
-          for (const feature of geojson.features) {
-            allFeatures.push(feature);
-            if (feature.geometry.type === 'LineString') {
-              for (const coord of feature.geometry.coordinates) {
-                bounds.extend(coord as [number, number]);
+      // Fetch once
+      if (!cachedFeatures) {
+        const features: GeoJSON.Feature[] = [];
+        const bounds = new maplibregl.LngLatBounds();
+        for (const file of geoFiles) {
+          try {
+            const res = await fetch(`/paths/geo/${file}`);
+            if (!res.ok) continue;
+            const geojson = await res.json();
+            for (const feature of geojson.features) {
+              features.push(feature);
+              if (feature.geometry.type === 'LineString') {
+                for (const coord of feature.geometry.coordinates) {
+                  bounds.extend(coord as [number, number]);
+                }
               }
             }
-          }
-        } catch {
-          // Geometry not cached yet — that's fine
+          } catch { /* geometry not cached yet */ }
         }
+        cachedFeatures = features;
+        if (!bounds.isEmpty()) pathBounds = bounds;
       }
 
-      if (allFeatures.length > 0) {
-        map.addSource('bike-path', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: allFeatures },
-        });
+      if (cachedFeatures.length === 0) return;
 
-        map.addLayer({
-          id: 'bike-path-line',
-          type: 'line',
-          source: 'bike-path',
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: {
-            'line-color': PATH_COLOR,
-            'line-width': PATH_WIDTH,
-            'line-opacity': 0.85,
-          },
-        });
-
-        // Fit to path bounds with padding
-        if (!bounds.isEmpty()) {
-          pathBounds = bounds;
-          map.fitBounds(bounds, { padding: 30, animate: false });
-        }
-
-        geometryLoaded = true;
+      // (Re-)add source and layer — idempotent for style switch replay
+      if (map.getSource('bike-path')) {
+        if (map.getLayer('bike-path-line')) map.removeLayer('bike-path-line');
+        map.removeSource('bike-path');
       }
+
+      map.addSource('bike-path', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: cachedFeatures },
+      });
+
+      map.addLayer({
+        id: 'bike-path-line',
+        type: 'line',
+        source: 'bike-path',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': PATH_COLOR,
+          'line-width': PATH_WIDTH,
+          'line-opacity': 0.85,
+        },
+      });
+
+      if (pathBounds && !pathBounds.isEmpty()) {
+        map.fitBounds(pathBounds, { padding: 30, animate: false });
+      }
+
+      geometryLoaded = true;
     }
 
     // Load geometry once map style is ready

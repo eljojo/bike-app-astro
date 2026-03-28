@@ -29,6 +29,8 @@ const bikePathUpdateSchema = z.object({
     includes: z.array(z.string()).default([]),
     photo_key: z.string().optional(),
     tags: z.array(z.string()).default([]),
+    wikipedia: z.string().optional(),
+    operator: z.string().optional(),
   }),
   body: z.string().default(''),
   contentHash: z.string().optional(),
@@ -45,6 +47,8 @@ export interface BikePathUpdate {
     includes: string[];
     photo_key?: string;
     tags: string[];
+    wikipedia?: string;
+    operator?: string;
   };
   body: string;
   contentHash?: string;

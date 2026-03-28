@@ -53,7 +53,7 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
       name: page.name,
       vibe: page.vibe,
       hidden: false, // hidden pages are filtered by loadBikePathEntries
-      includes: page.ymlEntries.length > 1 ? page.ymlEntries.map(e => e.slug) : [],
+      includes: page.ymlEntries.map(e => e.slug),
       tags: page.tags,
       contentHash,
     });
@@ -66,7 +66,7 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
       hidden: false,
       stub: page.stub,
       featured: page.featured,
-      includes: page.ymlEntries.length > 1 ? page.ymlEntries.map(e => e.slug) : [],
+      includes: page.ymlEntries.map(e => e.slug),
       photo_key: page.photo_key,
       tags: page.tags,
       body: page.body ?? '',

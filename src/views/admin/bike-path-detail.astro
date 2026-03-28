@@ -32,7 +32,7 @@ if (result.notFound) {
     stub: true,
     hidden: false,
     featured: false,
-    includes: page.ymlEntries.length > 1 ? page.ymlEntries.map(e => e.slug) : [],
+    includes: page.ymlEntries.map(e => e.slug),
     tags: [],
     body: '',
   };

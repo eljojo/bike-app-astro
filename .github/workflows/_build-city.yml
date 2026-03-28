@@ -127,7 +127,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .cache/bikepath-geometry
-          key: bikepath-geo-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/bikepaths.yml', inputs.city)) }}
+          key: bikepath-geo-${{ inputs.city }}-${{ github.run_id }}
           restore-keys: |
             bikepath-geo-${{ inputs.city }}-
 

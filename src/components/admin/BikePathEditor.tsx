@@ -29,6 +29,8 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   const [featured, setFeatured] = useState(initialData.featured ?? false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key ?? '');
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
+  const [wikipedia, setWikipedia] = useState(initialData.wikipedia ?? '');
+  const [operator, setOperator] = useState(initialData.operator ?? '');
   const [body, setBody] = useState(initialData.body);
 
   // Textarea hydration bug fix
@@ -39,7 +41,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, nameFr, vibe, hidden, stub, featured, photoKey, tags.length, body]);
+  }, [name, nameFr, vibe, hidden, stub, featured, photoKey, tags.length, wikipedia, operator, body]);
 
   const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/bike-paths',
@@ -57,6 +59,8 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
         includes: initialData.includes, // read-only, pass through
         ...(photoKey && { photo_key: photoKey }),
         tags,
+        ...(wikipedia && { wikipedia }),
+        ...(operator && { operator }),
       },
       body,
     }),
@@ -102,6 +106,20 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
             knownTags={knownTags}
             datalistId="bp-tag-suggestions"
           />
+        </div>
+
+        <div class="form-field">
+          <label for="bp-wikipedia">Wikipedia <span class="field-hint">(en:Article Title or fr:Titre)</span></label>
+          <input id="bp-wikipedia" type="text" value={wikipedia}
+            onInput={e => setWikipedia((e.target as HTMLInputElement).value)}
+            placeholder="en:Capital Pathway" />
+        </div>
+
+        <div class="form-field">
+          <label for="bp-operator">Operator <span class="field-hint">(overrides YML value)</span></label>
+          <input id="bp-operator" type="text" value={operator}
+            onInput={e => setOperator((e.target as HTMLInputElement).value)}
+            placeholder="NCC" />
         </div>
 
         <PhotoField
