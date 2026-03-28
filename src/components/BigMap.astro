@@ -34,15 +34,25 @@ interface MapPhoto {
   index: number;
 }
 
+interface PathOnMap {
+  relId: string;
+  slug: string;
+  name: string;
+  operator?: string;
+  surface?: string;
+}
+
 interface Props {
   routes: RouteOnMap[];
   places: PlaceOnMap[];
   photos?: MapPhoto[];
   center: [number, number];
+  pathGeoFiles?: string[];
+  pathMapData?: PathOnMap[];
 }
 
 import { getCityConfig } from '../lib/config/city-config';
-const { routes, places, photos = [], center } = Astro.props;
+const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = [] } = Astro.props;
 ---
 
 <div class="big-map">
@@ -54,17 +64,23 @@ const { routes, places, photos = [], center } = Astro.props;
     data-center={JSON.stringify(center)}
     data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
+    data-path-geo-files={JSON.stringify(pathGeoFiles)}
+    data-path-map-data={JSON.stringify(pathMapData)}
   ></div>
   <div id="big-map-controls"></div>
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible, TOUR_PALETTE } from '../lib/maps/map-init';
   import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
+  import maplibregl from 'maplibre-gl';
+
+  const PATH_WIDTH = 3;
+  const DEFAULT_PATH_COLOR = '#888888';
 
   const el = document.getElementById('big-map');
   const controlsEl = document.getElementById('big-map-controls');
@@ -74,6 +90,9 @@ const { routes, places, photos = [], center } = Astro.props;
     const allPhotos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
+    const pathGeoFiles: string[] = JSON.parse(el.dataset.pathGeoFiles || '[]');
+    const pathMapData: Array<{ relId: string; slug: string; name: string; operator?: string; surface?: string }> =
+      JSON.parse(el.dataset.pathMapData || '[]');
 
     // --- Category filter from URL query param ---
     const categoryFilter = new URLSearchParams(location.search).get('category');
@@ -97,6 +116,118 @@ const { routes, places, photos = [], center } = Astro.props;
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
+    // --- Bike paths layer ---
+    // Build lookup: relation ID → path info
+    const pathInfoByRelId = new Map(pathMapData.map(p => [p.relId, p]));
+    // Build operator → colour index
+    const operatorSet = new Set<string>();
+    for (const p of pathMapData) {
+      if (p.operator) operatorSet.add(p.operator);
+    }
+    const operatorList = [...operatorSet].sort();
+    const operatorColorMap = new Map(operatorList.map((op, i) => [op, i]));
+
+    let pathFeaturesCache: GeoJSON.Feature[] | null = null;
+
+    async function loadPathFeatures(): Promise<GeoJSON.Feature[]> {
+      if (pathFeaturesCache) return pathFeaturesCache;
+      const allFeatures: GeoJSON.Feature[] = [];
+      for (const file of pathGeoFiles) {
+        try {
+          const res = await fetch(`/paths/geo/${file}`);
+          if (!res.ok) continue;
+          const geojson = await res.json();
+          const relationId = file.replace(/\.geojson$/, '');
+          const info = pathInfoByRelId.get(relationId);
+          const opIdx = info?.operator ? operatorColorMap.get(info.operator) : undefined;
+          const color = opIdx !== undefined
+            ? TOUR_PALETTE[opIdx % TOUR_PALETTE.length]
+            : DEFAULT_PATH_COLOR;
+
+          for (const feature of geojson.features) {
+            feature.properties = feature.properties || {};
+            feature.properties.slug = info?.slug || relationId;
+            feature.properties.name = info?.name || '';
+            feature.properties.surface = info?.surface || '';
+            feature.properties.color = color;
+            allFeatures.push(feature);
+          }
+        } catch { /* skip missing files */ }
+      }
+      pathFeaturesCache = allFeatures;
+      return allFeatures;
+    }
+
+    function setupPathsLayer(features: GeoJSON.Feature[]) {
+      // Remove existing paths layer/source if present (for style switch replay)
+      const style = map.getStyle();
+      if (style?.layers) {
+        for (const layer of style.layers) {
+          if ('source' in layer && layer.source === 'paths-network' && map.getLayer(layer.id)) {
+            map.removeLayer(layer.id);
+          }
+        }
+      }
+      if (map.getSource('paths-network')) {
+        map.removeSource('paths-network');
+      }
+
+      if (features.length === 0) return;
+
+      map.addSource('paths-network', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features },
+      });
+
+      map.addLayer({
+        id: 'paths-network-line',
+        type: 'line',
+        source: 'paths-network',
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          'visibility': 'none', // hidden by default
+        },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': PATH_WIDTH,
+          'line-opacity': 0.8,
+        },
+      });
+
+      // Click popup on paths
+      map.on('click', 'paths-network-line', (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties;
+        if (!props) return;
+        const nameLink = props.slug
+          ? `<a href="/paths/${props.slug}">${props.name || props.slug}</a>`
+          : (props.name || '');
+        const surfaceInfo = props.surface ? `<br>${props.surface}` : '';
+        new maplibregl.Popup()
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="place-popup">${nameLink}${surfaceInfo}</div>`)
+          .addTo(map);
+      });
+      map.on('mouseenter', 'paths-network-line', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'paths-network-line', () => { map.getCanvas().style.cursor = ''; });
+    }
+
+    function setPathsVisible(visible: boolean) {
+      if (map.getLayer('paths-network-line')) {
+        map.setLayoutProperty('paths-network-line', 'visibility', visible ? 'visible' : 'none');
+      }
+    }
+
+    function setRoutePolylinesVisible(visible: boolean) {
+      const vis = visible ? 'visible' : 'none';
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if ('source' in layer && layer.source === 'route-polylines') {
+          map.setLayoutProperty(layer.id, 'visibility', vis);
+        }
+      }
+    }
+
     function setupWebGLLayers(sk: MapStyleKey) {
       addPolylines(map, routes.map((r: any) => {
         const photoHtml = r.photo_key && cdnUrl
@@ -113,9 +244,14 @@ const { routes, places, photos = [], center } = Astro.props;
       }
 
       addMarkers(map, placeData);
+
+      // Replay paths layer after style switch
+      if (pathFeaturesCache) {
+        setupPathsLayer(pathFeaturesCache);
+      }
     }
 
-    map.on('load', () => {
+    map.on('load', async () => {
       setupWebGLLayers(styleKey);
 
       // Hide photos by default on the big map (unless user previously enabled them)
@@ -123,14 +259,32 @@ const { routes, places, photos = [], center } = Astro.props;
         setPhotoLayersVisible(map, false);
       }
 
+      // Pre-load paths layer (hidden) so toggling is instant
+      const hasPaths = pathGeoFiles.length > 0;
+      if (hasPaths) {
+        const features = await loadPathFeatures();
+        setupPathsLayer(features);
+        // If user had paths mode saved, apply it now
+        const savedPathsState = loadToggleState('map-paths', false);
+        if (savedPathsState) {
+          setPathsVisible(true);
+          setRoutePolylinesVisible(false);
+        }
+      }
+
       // Render MapControls island
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
           hasPlaces: places.length > 0,
+          hasPaths,
           defaultPhotos: false,
           onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
           onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
+          onTogglePaths: (v: boolean) => {
+            setPathsVisible(v);
+            setRoutePolylinesVisible(!v);
+          },
           onToggleGps: (v: boolean) => {
             if (v) showUserLocation(map);
             else hideUserLocation();
@@ -139,6 +293,12 @@ const { routes, places, photos = [], center } = Astro.props;
             setupWebGLLayers(key);
             setPhotoLayersVisible(map, loadToggleState('map-photos', false));
             setPlaceMarkersVisible(map, loadToggleState('map-places', true));
+            // Restore paths visibility after style switch
+            const pathsOn = loadToggleState('map-paths', false);
+            if (pathsOn) {
+              setPathsVisible(true);
+              setRoutePolylinesVisible(false);
+            }
           }),
         }), controlsEl);
       }

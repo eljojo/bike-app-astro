@@ -12,6 +12,7 @@ import { paths, routeSlug } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import photoLocations from 'virtual:bike-app/media-locations';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '@/lib/geo/proximity';
+import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -20,6 +21,19 @@ const routes = await getCollection('routes');
 const places = await getCollection('places');
 const organizers = await getCollection('organizers');
 const organizerMap = new Map(organizers.map(o => [o.id, o]));
+
+const { pages: bikePathPages, geoFiles } = await loadBikePathData();
+
+// Build relation ID → path info for map popups and colouring
+const pathMapData = bikePathPages.flatMap(p =>
+  p.osmRelationIds.map(relId => ({
+    relId: String(relId),
+    slug: p.slug,
+    name: p.name,
+    operator: p.operator,
+    surface: p.surface,
+  }))
+);
 
 const published = routes.filter(r => r.data.status === 'published');
 
@@ -129,5 +143,5 @@ const jsonLd = webPageJsonLd({
 ---
 
 <Base title={mapTitle} description={mapDescription} jsonLd={jsonLd} ogImage={ogImage} fullbleed>
-  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} />
+  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} pathGeoFiles={geoFiles} pathMapData={pathMapData} />
 </Base>
