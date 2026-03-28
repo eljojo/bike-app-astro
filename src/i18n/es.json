@@ -592,5 +592,6 @@
   "paths.fact.maintained": "Mantenido por {operator}",
   "paths.fact.network_regional": "Parte de la red ciclista regional",
   "paths.fact.network_national": "Parte de la red ciclista nacional",
-  "paths.fact.network_local": "Parte de la red ciclista local"
+  "paths.fact.network_local": "Parte de la red ciclista local",
+  "paths.seo_description": "Explora {count} senderos ciclistas en {city} — tipos de superficie, distancias y rutas asociadas."
 }

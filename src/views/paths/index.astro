@@ -88,9 +88,10 @@ for (const [operator, pathsList] of sortedEntries) {
 }
 
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
+const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
 ---
 
-<Base title={`${t('paths.title', locale)} | ${config.display_name}`}>
+<Base title={`${t('paths.title', locale)} | ${config.display_name}`} description={seoDescription}>
   <div class="paths-index">
     {geoFiles.length > 0 && (
       <div

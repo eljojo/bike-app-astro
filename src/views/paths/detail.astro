@@ -193,9 +193,14 @@ function buildPathFacts(p: BikePathPage): string[] {
 }
 
 const pathFacts = buildPathFacts(page);
+
+// SEO
+const seoDescription = page.vibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${page.name} — cycling path`);
+const firstCoverKey = overlappingRoutes.find(r => r.coverKey)?.coverKey;
+const ogImage = firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 ---
 
-<Base title={`${page.name} | ${config.display_name}`}>
+<Base title={`${page.name} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
   <div class="bike-path-detail">
     <div class="bike-path-header">
       <div class="bike-path-info">

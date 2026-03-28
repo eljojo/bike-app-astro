@@ -592,5 +592,6 @@
   "paths.fact.maintained": "Maintained by {operator}",
   "paths.fact.network_regional": "Part of the regional cycling network",
   "paths.fact.network_national": "Part of the national cycling network",
-  "paths.fact.network_local": "Part of the local cycling network"
+  "paths.fact.network_local": "Part of the local cycling network",
+  "paths.seo_description": "Explore {count} cycling paths in {city} — surface types, distances, and which routes use each path."
 }
