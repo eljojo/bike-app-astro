@@ -22,18 +22,40 @@ const places = await getCollection('places');
 const organizers = await getCollection('organizers');
 const organizerMap = new Map(organizers.map(o => [o.id, o]));
 
-const { pages: bikePathPages, geoFiles } = await loadBikePathData();
+const { pages: bikePathPages, allYmlEntries, geoFiles } = await loadBikePathData();
 
 // Build relation ID → path info for map popups and colouring
-const pathMapData = bikePathPages.flatMap(p =>
-  p.osmRelationIds.map(relId => ({
-    relId: String(relId),
-    slug: p.slug,
-    name: p.name,
-    operator: p.operator,
-    surface: p.surface,
-  }))
-);
+// Include ALL YML entries (not just pages) so every relation has a name
+const pageSlugs = new Set(bikePathPages.map(p => p.slug));
+const pageRelIds = new Set(bikePathPages.flatMap(p => p.osmRelationIds.map(String)));
+
+const pathMapData = [
+  // Pages get slug links
+  ...bikePathPages.flatMap(p =>
+    p.osmRelationIds.map(relId => ({
+      relId: String(relId),
+      slug: p.slug,
+      name: p.name,
+      hasPage: true,
+      operator: p.operator,
+      surface: p.surface,
+    }))
+  ),
+  // YML entries without pages get OSM links
+  ...allYmlEntries
+    .filter(e => e.osm_relations?.some(id => !pageRelIds.has(String(id))))
+    .flatMap(e => (e.osm_relations ?? [])
+      .filter(id => !pageRelIds.has(String(id)))
+      .map(relId => ({
+        relId: String(relId),
+        slug: '',
+        name: e.name,
+        hasPage: false,
+        operator: e.operator,
+        surface: e.surface,
+      }))
+    ),
+];
 
 const published = routes.filter(r => r.data.status === 'published');
 

@@ -26,6 +26,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   const [vibe, setVibe] = useState(initialData.vibe ?? '');
   const [hidden, setHidden] = useState(initialData.hidden);
   const [stub, setStub] = useState(initialData.stub ?? false);
+  const [featured, setFeatured] = useState(initialData.featured ?? false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key ?? '');
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
   const [body, setBody] = useState(initialData.body);
@@ -38,7 +39,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, nameFr, vibe, hidden, stub, photoKey, tags.length, body]);
+  }, [name, nameFr, vibe, hidden, stub, featured, photoKey, tags.length, body]);
 
   const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/bike-paths',
@@ -52,6 +53,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
         ...(vibe && { vibe }),
         hidden,
         stub,
+        featured,
         includes: initialData.includes, // read-only, pass through
         ...(photoKey && { photo_key: photoKey }),
         tags,
@@ -108,6 +110,14 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
           onPhotoChange={(key) => setPhotoKey(key)}
           label="Hero Photo"
         />
+
+        <div class="form-field form-field--inline">
+          <label>
+            <input type="checkbox" checked={featured}
+              onChange={e => setFeatured((e.target as HTMLInputElement).checked)} />
+            {' '}Featured (show on the paths index page)
+          </label>
+        </div>
 
         <div class="form-field form-field--inline">
           <label>

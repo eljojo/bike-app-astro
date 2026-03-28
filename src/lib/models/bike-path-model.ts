@@ -7,6 +7,7 @@ export const bikePathDetailSchema = z.object({
   vibe: z.string().optional(),
   hidden: z.boolean().default(false),
   stub: z.boolean().default(false),
+  featured: z.boolean().default(false),
   includes: z.array(z.string()).default([]),
   photo_key: z.string().optional(),
   tags: z.array(z.string()).default([]),

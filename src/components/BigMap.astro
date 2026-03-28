@@ -38,6 +38,7 @@ interface PathOnMap {
   relId: string;
   slug: string;
   name: string;
+  hasPage: boolean;
   operator?: string;
   surface?: string;
 }
@@ -71,7 +72,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
+  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible, ROUTE_LINE_WIDTH } from '../lib/maps/map-init';
   import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
@@ -79,7 +80,6 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
   import MapControls, { loadToggleState } from './admin/MapControls';
   import maplibregl from 'maplibre-gl';
 
-  const PATH_WIDTH = 3;
   const PATH_COLOR = '#0077BB'; // Distinct from route colour (#350091) but same visual weight
 
   const el = document.getElementById('big-map');
@@ -134,9 +134,11 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
 
           for (const feature of geojson.features) {
             feature.properties = feature.properties || {};
-            feature.properties.slug = info?.slug || relationId;
+            feature.properties.slug = info?.slug || '';
             feature.properties.name = info?.name || '';
             feature.properties.surface = info?.surface || '';
+            feature.properties.hasPage = info?.hasPage ? 'true' : '';
+            feature.properties.relId = relationId;
             allFeatures.push(feature);
           }
         } catch { /* skip missing files */ }
@@ -177,7 +179,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         },
         paint: {
           'line-color': PATH_COLOR,
-          'line-width': PATH_WIDTH,
+          'line-width': ROUTE_LINE_WIDTH,
           'line-opacity': 0.8,
         },
       });
@@ -187,9 +189,14 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         if (!e.features?.length) return;
         const props = e.features[0].properties;
         if (!props) return;
-        const nameLink = props.slug
-          ? `<a href="/paths/${props.slug}">${props.name || props.slug}</a>`
-          : (props.name || '');
+        let nameLink: string;
+        if (props.hasPage === 'true' && props.slug) {
+          nameLink = `<a href="/paths/${props.slug}">${props.name || props.slug}</a>`;
+        } else if (props.relId && /^\d+$/.test(props.relId)) {
+          nameLink = `${props.name || 'Unnamed path'} <a href="https://openstreetmap.org/relation/${props.relId}" target="_blank" rel="noopener">OSM ↗</a>`;
+        } else {
+          nameLink = props.name || 'Unnamed path';
+        }
         const surfaceInfo = props.surface ? `<br>${props.surface}` : '';
         new maplibregl.Popup()
           .setLngLat(e.lngLat)

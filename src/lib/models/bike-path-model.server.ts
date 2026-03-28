@@ -30,6 +30,7 @@ export function bikePathDetailFromGit(
     vibe: frontmatter.vibe as string | undefined,
     hidden: (frontmatter.hidden as boolean) ?? false,
     stub: (frontmatter.stub as boolean) ?? false,
+    featured: (frontmatter.featured as boolean) ?? false,
     includes: (frontmatter.includes as string[]) ?? [],
     photo_key: frontmatter.photo_key as string | undefined,
     tags: (frontmatter.tags as string[]) ?? [],

@@ -19,6 +19,7 @@ export interface BikePathPage {
   score: number;
   hasMarkdown: boolean;
   stub: boolean;
+  featured: boolean;
   ymlEntries: SluggedBikePathYml[];
   osmRelationIds: number[];
   osmNames: string[];
@@ -28,6 +29,8 @@ export interface BikePathPage {
   routeCount: number;
   /** Precomputed route cards for routes that overlap this path. */
   overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string }>;
+  /** Geolocated photos taken near this path. */
+  nearbyPhotos: Array<{ key: string; routeSlug: string; caption?: string }>;
   /** Precomputed nearby places (within 300m). */
   nearbyPlaces: Array<{ name: string; category: string; lat: number; lng: number; distance_m: number }>;
   /** Precomputed nearby paths (within 2km). */
@@ -57,35 +60,56 @@ export function normalizeOperator(operator: string | undefined): string | undefi
 
 const SAMPLE_INTERVAL = 10;
 
-/** Get geographic points for a path entry: YML anchors, or sampled GeoJSON geometry as fallback. */
-function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: number }> {
-  const anchors = (entry.anchors ?? []).map(a =>
-    Array.isArray(a) ? { lat: a[1] as number, lng: a[0] as number } : a as { lat: number; lng: number }
-  );
-  if (anchors.length > 0) return anchors;
-
-  // Fall back to GeoJSON for relation-based paths
-  const geoDir = path.resolve('public/paths/geo');
-  const points: Array<{ lat: number; lng: number }> = [];
-  for (const relId of entry.osm_relations ?? []) {
-    const geoPath = path.join(geoDir, `${relId}.geojson`);
-    if (!fs.existsSync(geoPath)) continue;
-    try {
-      const geojson = JSON.parse(fs.readFileSync(geoPath, 'utf-8'));
-      for (const feature of geojson.features ?? []) {
-        if (feature.geometry?.type === 'LineString') {
-          const coords = feature.geometry.coordinates;
-          for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
-            points.push({ lat: coords[i][1], lng: coords[i][0] });
-          }
-          if (coords.length > 0) {
-            const last = coords[coords.length - 1];
-            points.push({ lat: last[1], lng: last[0] });
-          }
+/** Read sampled points from a GeoJSON file. */
+function readGeoPoints(filePath: string): Array<{ lat: number; lng: number }> {
+  if (!fs.existsSync(filePath)) return [];
+  try {
+    const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const points: Array<{ lat: number; lng: number }> = [];
+    for (const feature of geojson.features ?? []) {
+      if (feature.geometry?.type === 'LineString') {
+        const coords = feature.geometry.coordinates;
+        for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
+          points.push({ lat: coords[i][1], lng: coords[i][0] });
+        }
+        if (coords.length > 0) {
+          const last = coords[coords.length - 1];
+          points.push({ lat: last[1], lng: last[0] });
         }
       }
-    } catch { /* skip malformed */ }
+    }
+    return points;
+  } catch { return []; }
+}
+
+/** Get geographic points for a path: GeoJSON geometry first, YML anchors as fallback. */
+function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: number }> {
+  const geoDir = path.resolve('public/paths/geo');
+  const points: Array<{ lat: number; lng: number }> = [];
+
+  // Try GeoJSON for relation-based paths
+  for (const relId of entry.osm_relations ?? []) {
+    points.push(...readGeoPoints(path.join(geoDir, `${relId}.geojson`)));
   }
+
+  // Try GeoJSON for name-based paths
+  if (points.length === 0 && entry.osm_names?.length) {
+    points.push(...readGeoPoints(path.join(geoDir, `name-${entry.slug}.geojson`)));
+  }
+
+  // Try GeoJSON for segment-based paths
+  if (points.length === 0 && (entry as unknown as { segments?: unknown[] }).segments?.length) {
+    points.push(...readGeoPoints(path.join(geoDir, `seg-${entry.slug}.geojson`)));
+  }
+
+  // Fall back to YML anchors
+  if (points.length === 0) {
+    const anchors = (entry.anchors ?? []).map(a =>
+      Array.isArray(a) ? { lat: a[1] as number, lng: a[0] as number } : a as { lat: number; lng: number }
+    );
+    points.push(...anchors);
+  }
+
   return points;
 }
 
@@ -161,12 +185,14 @@ export async function loadBikePathData(): Promise<{
       score: bestChildScore,
       hasMarkdown: true,
       stub: md.data.stub ?? false,
+      featured: md.data.featured ?? false,
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
       points,
       routeCount: 0,
       overlappingRoutes: [],
+      nearbyPhotos: [],
       nearbyPlaces: [],
       nearbyPaths: [],
       connectedPaths: [],
@@ -197,12 +223,14 @@ export async function loadBikePathData(): Promise<{
       score,
       hasMarkdown: false,
       stub: false,
+      featured: false,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       points: getPathPoints(entry),
       routeCount: 0,
       overlappingRoutes: [],
+      nearbyPhotos: [],
       nearbyPlaces: [],
       nearbyPaths: [],
       connectedPaths: [],

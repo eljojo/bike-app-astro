@@ -36,27 +36,9 @@ for (const p of pages) {
   }
 }
 
-// Compute clip bounds from path anchors — prevents distant trails (e.g., Trans Canada to Montreal)
-// from stretching the map. Use a generous 0.3° padding around the anchor centroid.
-const allPoints = pages.flatMap(p => p.points);
-let clipBounds: { south: number; north: number; west: number; east: number } | null = null;
-if (allPoints.length > 0) {
-  const lats = allPoints.map(a => a.lat).sort((a, b) => a - b);
-  const lngs = allPoints.map(a => a.lng).sort((a, b) => a - b);
-  // Use 5th-95th percentile to exclude outliers, then pad
-  const p5 = Math.floor(lats.length * 0.05);
-  const p95 = Math.floor(lats.length * 0.95);
-  const pad = 0.15;
-  clipBounds = {
-    south: lats[p5] - pad,
-    north: lats[p95] + pad,
-    west: lngs[p5] - pad,
-    east: lngs[p95] + pad,
-  };
-}
 
 // Featured: paths with markdown descriptions
-const featured = pages.filter(p => p.hasMarkdown && p.body);
+const featured = pages.filter(p => p.featured);
 
 // Group by operator dynamically
 type OperatorGroup = { label: string; paths: typeof pages };
@@ -101,7 +83,6 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
         data-center={JSON.stringify(mapCenter)}
         data-slug-operators={JSON.stringify(slugOperatorMap)}
         data-relation-slugs={JSON.stringify(relationToSlug)}
-        data-clip-bounds={clipBounds ? JSON.stringify(clipBounds) : ''}
         style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
       ></div>
     )}
@@ -158,12 +139,10 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
 </Base>
 
 <script>
-  import { initMap, TOUR_PALETTE } from '../../lib/maps/map-init';
+  import { initMap, TOUR_PALETTE, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
-  import maplibregl from 'maplibre-gl';
 
-  const PATH_WIDTH = 3;
-  const PATH_WIDTH_HOVER = 6;
+  const PATH_WIDTH_HOVER = ROUTE_LINE_WIDTH + 3;
   const DEFAULT_COLOR = '#888888';
 
   const container = document.getElementById('paths-network-map');
@@ -172,8 +151,6 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
     const slugOperators: Record<string, number> = JSON.parse(container.dataset.slugOperators || '{}');
     const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
-    const clipBounds: { south: number; north: number; west: number; east: number } | null =
-      container.dataset.clipBounds ? JSON.parse(container.dataset.clipBounds) : null;
 
     if (geoFiles.length > 0) {
       const styleKey = loadStylePreference();
@@ -187,7 +164,6 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
 
       map.on('load', async () => {
         const allFeatures: GeoJSON.Feature[] = [];
-        const bounds = new maplibregl.LngLatBounds();
 
         for (const file of geoFiles) {
           try {
@@ -207,21 +183,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
               feature.properties.relationId = relationId;
               feature.properties.color = color;
 
-              // Clip coordinates to city bounds to avoid trails stretching to distant cities
-              if (clipBounds && feature.geometry.type === 'LineString') {
-                feature.geometry.coordinates = feature.geometry.coordinates.filter(
-                  (c: number[]) => c[0] >= clipBounds.west && c[0] <= clipBounds.east
-                    && c[1] >= clipBounds.south && c[1] <= clipBounds.north
-                );
-                if (feature.geometry.coordinates.length < 2) continue;
-              }
-
               allFeatures.push(feature);
-              if (feature.geometry.type === 'LineString') {
-                for (const coord of feature.geometry.coordinates) {
-                  bounds.extend(coord as [number, number]);
-                }
-              }
             }
           } catch {
             // Missing file — fine
@@ -241,14 +203,13 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
               'line-color': ['get', 'color'],
-              'line-width': PATH_WIDTH,
+              'line-width': ROUTE_LINE_WIDTH,
               'line-opacity': 0.8,
             },
           });
 
-          if (!bounds.isEmpty()) {
-            map.fitBounds(bounds, { padding: 40, animate: false });
-          }
+          // Don't fitBounds — use city center + zoom 11 (matching the big map)
+          // so distant paths (Trans Canada to Montreal) don't zoom the map out
 
           // --- Map ↔ list interaction ---
 
@@ -292,7 +253,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 0.4,
               ]);
             } else {
-              map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
+              map.setPaintProperty('paths-network-line', 'line-width', ROUTE_LINE_WIDTH);
               map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
             }
           }

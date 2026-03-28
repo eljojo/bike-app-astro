@@ -142,6 +142,13 @@ function loadGeoFiles(consumerRoot: string): string[] {
  * This provides geographic data for relation-based paths that lack anchors in the YML.
  * Sample every Nth point to keep the data small but geographically representative.
  */
+/**
+ * Load GeoJSON geometry files and extract sampled coordinates.
+ * Files are keyed by their identifier:
+ * - {relationId}.geojson → keyed by relation ID
+ * - name-{slug}.geojson → keyed by "name-{slug}"
+ * - seg-{slug}.geojson → keyed by "seg-{slug}"
+ */
 function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: number; lng: number }>> {
   const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
   if (!fs.existsSync(geoDir)) return {};
@@ -196,28 +203,6 @@ function bboxOverlap(
   return a.minLat <= b.maxLat && a.maxLat >= b.minLat && a.minLng <= b.maxLng && a.maxLng >= b.minLng;
 }
 
-/** Check if a route track passes near a set of path points (any point within threshold). */
-function trackPassesNearPoints(
-  trackPoints: Array<{ lat: number; lng: number }>,
-  trackBbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-  pathPoints: Array<{ lat: number; lng: number }>,
-  pathBbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-  thresholdM = 100,
-): boolean {
-  // Fast reject: if bounding boxes don't overlap, no point checking individual points
-  if (!bboxOverlap(trackBbox, pathBbox)) return false;
-
-  for (const pp of pathPoints) {
-    // Skip path points outside the track bbox
-    if (pp.lat < trackBbox.minLat || pp.lat > trackBbox.maxLat ||
-        pp.lng < trackBbox.minLng || pp.lng > trackBbox.maxLng) continue;
-    for (const tp of trackPoints) {
-      if (haversineM(tp.lat, tp.lng, pp.lat, pp.lng) <= thresholdM) return true;
-    }
-  }
-  return false;
-}
-
 interface RouteCard {
   slug: string;
   name: string;
@@ -225,8 +210,15 @@ interface RouteCard {
   coverKey?: string;
 }
 
+interface NearbyPhoto {
+  key: string;
+  routeSlug: string;
+  caption?: string;
+}
+
 interface PathRelations {
   overlappingRoutes: RouteCard[];
+  nearbyPhotos: NearbyPhoto[];
   nearbyPlaces: NearbyPlace[];
   nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
   connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
@@ -249,6 +241,7 @@ function computeBikePathRelations(
   geoCoords: Record<string, Array<{ lat: number; lng: number }>>,
   routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
   places: Array<{ name: string; category: string; lat: number; lng: number; status?: string }>,
+  mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }>,
 ): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }>; routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> } {
   const publishedPlaces = places.filter(p => !p.status || p.status === 'published');
   const relations: Record<string, PathRelations> = {};
@@ -291,15 +284,27 @@ function computeBikePathRelations(
   // Build points per entry slug
   const entryPoints = new Map<string, Array<{ lat: number; lng: number }>>();
   for (const entry of bikePaths) {
-    const anchors = (entry.anchors ?? []).map((a: unknown) =>
-      Array.isArray(a) ? { lat: (a as number[])[1], lng: (a as number[])[0] } : a as { lat: number; lng: number }
-    );
-    let points = anchors.length > 0 ? anchors : [] as Array<{ lat: number; lng: number }>;
+    let points: Array<{ lat: number; lng: number }> = [];
+    // GeoJSON for relations
+    for (const relId of entry.osm_relations ?? []) {
+      const coords = geoCoords[String(relId)];
+      if (coords) points = points.concat(coords);
+    }
+    // GeoJSON for named ways
+    if (points.length === 0 && entry.osm_names?.length) {
+      const coords = geoCoords[`name-${entry.slug}`];
+      if (coords) points = points.concat(coords);
+    }
+    // GeoJSON for segments
+    if (points.length === 0 && (entry as unknown as { segments?: unknown[] }).segments?.length) {
+      const coords = geoCoords[`seg-${entry.slug}`];
+      if (coords) points = points.concat(coords);
+    }
+    // Fall back to YML anchors
     if (points.length === 0) {
-      for (const relId of entry.osm_relations ?? []) {
-        const coords = geoCoords[String(relId)];
-        if (coords) points = points.concat(coords);
-      }
+      points = (entry.anchors ?? []).map((a: unknown) =>
+        Array.isArray(a) ? { lat: (a as number[])[1], lng: (a as number[])[0] } : a as { lat: number; lng: number }
+      );
     }
     entryPoints.set(entry.slug, points);
   }
@@ -309,19 +314,32 @@ function computeBikePathRelations(
     const points = entryPoints.get(entry.slug) ?? [];
     if (points.length === 0) {
       routeOverlaps[entry.slug] = { count: 0 };
-      relations[entry.slug] = { overlappingRoutes: [], nearbyPlaces: [], nearbyPaths: [], connectedPaths: [] };
+      relations[entry.slug] = { overlappingRoutes: [], nearbyPhotos: [], nearbyPlaces: [], nearbyPaths: [], connectedPaths: [] };
       continue;
     }
 
     const pathBbox = boundingBox(points);
 
-    // Route overlaps
+    // Route overlaps — require at least 5% of route points near the path
+    const ROUTE_OVERLAP_MIN_PCT = 5;
     const overlappingRoutes: RouteCard[] = [];
     for (const [routeSlug, trackPoints] of Object.entries(routeTracks)) {
       if (trackPoints.length === 0) continue;
       const trackBbox = routeBboxes.get(routeSlug);
       if (!trackBbox) continue;
-      if (trackPassesNearPoints(trackPoints, trackBbox, points, pathBbox)) {
+      if (!bboxOverlap(trackBbox, pathBbox)) continue;
+
+      let nearCount = 0;
+      for (const tp of trackPoints) {
+        if (tp.lat < pathBbox.minLat || tp.lat > pathBbox.maxLat ||
+            tp.lng < pathBbox.minLng || tp.lng > pathBbox.maxLng) continue;
+        for (const pp of points) {
+          if (haversineM(tp.lat, tp.lng, pp.lat, pp.lng) <= 100) { nearCount++; break; }
+        }
+      }
+
+      const routePct = nearCount / trackPoints.length * 100;
+      if (routePct >= ROUTE_OVERLAP_MIN_PCT) {
         const meta = routeMeta.get(routeSlug);
         if (meta) {
           overlappingRoutes.push({ slug: routeSlug, ...meta });
@@ -386,7 +404,20 @@ function computeBikePathRelations(
     }
     nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
 
-    relations[entry.slug] = { overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths };
+    // Photos near the path (within 300m, geolocated from route media)
+    const PHOTO_NEAR_M = 300;
+    const nearbyPhotos: NearbyPhoto[] = [];
+    for (const photo of mediaLocations) {
+      if (nearbyPhotos.length >= 20) break; // cap at 20
+      for (const pp of points) {
+        if (haversineM(photo.lat, photo.lng, pp.lat, pp.lng) <= PHOTO_NEAR_M) {
+          nearbyPhotos.push({ key: photo.key, routeSlug: photo.routeSlug, caption: photo.caption });
+          break;
+        }
+      }
+    }
+
+    relations[entry.slug] = { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths };
   }
 
   // Build reverse map: route slug → list of paths that overlap it
@@ -680,7 +711,24 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       }
     }
   }
-  const { relations: bikePathRelations, routeOverlaps, routeToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList);
+  // Load geolocated media for nearby-photo computation
+  const mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }> = [];
+  const routesDirForMedia = path.join(CITY_DIR, 'routes');
+  if (fs.existsSync(routesDirForMedia)) {
+    for (const slug of fs.readdirSync(routesDirForMedia)) {
+      const mediaPath = path.join(routesDirForMedia, slug, 'media.yml');
+      if (!fs.existsSync(mediaPath)) continue;
+      const media = yaml.load(fs.readFileSync(mediaPath, 'utf-8'));
+      if (!Array.isArray(media)) continue;
+      for (const m of media) {
+        if (m.lat != null && m.lng != null && m.key) {
+          mediaLocations.push({ key: m.key, lat: m.lat, lng: m.lng, routeSlug: slug, caption: m.caption });
+        }
+      }
+    }
+  }
+
+  const { relations: bikePathRelations, routeOverlaps, routeToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList, mediaLocations);
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -868,16 +916,30 @@ const _geoElevation = ${JSON.stringify(geoElevation)};
 let _routeToPaths = ${JSON.stringify(routeToPaths)};
 
 /** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
+/** Get geographic points: GeoJSON geometry first, YML anchors as fallback. */
 function getPathPoints(entry) {
-  const anchors = (entry.anchors ?? []).map(a =>
-    Array.isArray(a) ? { lat: a[1], lng: a[0] } : a
-  );
-  if (anchors.length > 0) return anchors;
-  // Fall back to GeoJSON-derived coordinates for relation-based paths
   const points = [];
+  // Try GeoJSON for relation-based paths
   for (const relId of entry.osm_relations ?? []) {
     const coords = _geoCoordinates[String(relId)];
     if (coords) points.push(...coords);
+  }
+  // Try GeoJSON for name-based paths
+  if (points.length === 0 && entry.osm_names?.length) {
+    const coords = _geoCoordinates['name-' + entry.slug];
+    if (coords) points.push(...coords);
+  }
+  // Try GeoJSON for segment-based paths
+  if (points.length === 0 && entry.segments?.length) {
+    const coords = _geoCoordinates['seg-' + entry.slug];
+    if (coords) points.push(...coords);
+  }
+  // Fall back to YML anchors
+  if (points.length === 0) {
+    const anchors = (entry.anchors ?? []).map(a =>
+      Array.isArray(a) ? { lat: a[1], lng: a[0] } : a
+    );
+    points.push(...anchors);
   }
   return points;
 }
@@ -939,6 +1001,7 @@ export async function loadBikePathData() {
       score: bestChildScore,
       hasMarkdown: true,
       stub: md.data.stub ?? false,
+      featured: md.data.featured ?? false,
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
@@ -954,6 +1017,16 @@ export async function loadBikePathData() {
           }
         }
         return routes;
+      })(),
+      nearbyPhotos: (() => {
+        const seen = new Set();
+        const photos = [];
+        for (const e of matchedEntries) {
+          for (const p of (_bikePathRelations[e.slug]?.nearbyPhotos ?? [])) {
+            if (!seen.has(p.key)) { seen.add(p.key); photos.push(p); }
+          }
+        }
+        return photos;
       })(),
       nearbyPlaces: (() => {
         const seen = new Set();
@@ -1022,12 +1095,14 @@ export async function loadBikePathData() {
       score,
       hasMarkdown: false,
       stub: false,
+      featured: false,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       points: getPathPoints(entry),
       routeCount: _routeOverlaps[entry.slug]?.count ?? 0,
       overlappingRoutes: _bikePathRelations[entry.slug]?.overlappingRoutes ?? [],
+      nearbyPhotos: _bikePathRelations[entry.slug]?.nearbyPhotos ?? [],
       nearbyPlaces: _bikePathRelations[entry.slug]?.nearbyPlaces ?? [],
       nearbyPaths: _bikePathRelations[entry.slug]?.nearbyPaths ?? [],
       connectedPaths: _bikePathRelations[entry.slug]?.connectedPaths ?? [],

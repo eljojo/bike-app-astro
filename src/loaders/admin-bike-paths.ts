@@ -70,6 +70,7 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
       vibe: fm.vibe as string | undefined,
       hidden: (fm.hidden as boolean) || false,
       stub: (fm.stub as boolean) || false,
+      featured: (fm.featured as boolean) || false,
       includes: (fm.includes as string[]) || [],
       photo_key: fm.photo_key as string | undefined,
       tags: (fm.tags as string[]) || [],

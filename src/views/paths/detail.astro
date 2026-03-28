@@ -23,7 +23,7 @@ export async function getStaticPaths() {
 
 interface Props { page: BikePathPage }
 const { page } = Astro.props;
-const { overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths } = page;
+const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
@@ -149,16 +149,16 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
 
     <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 
-    {overlappingRoutes.some(r => r.coverKey) && (
+    {nearbyPhotos.length > 0 && (
       <section class="bike-path-photos">
         <h2>{t('paths.photos', locale)}</h2>
         <div class="bike-path-photo-grid">
-          {overlappingRoutes.filter(r => r.coverKey).map(r => (
-            <a href={`${paths.route(r.slug, locale)}#photos`} class="bike-path-photo">
+          {nearbyPhotos.map(photo => (
+            <a href={`${paths.route(photo.routeSlug, locale)}#photos`} class="bike-path-photo">
               <img
-                src={imageUrl(r.coverKey!, { width: 300, height: 200, fit: 'cover' })}
-                srcset={`${imageUrl(r.coverKey!, { width: 600, height: 400, fit: 'cover' })} 2x`}
-                alt={r.name}
+                src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
+                srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                alt={photo.caption || ''}
                 width="300"
                 height="200"
                 loading="lazy"

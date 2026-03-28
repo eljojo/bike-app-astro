@@ -33,6 +33,9 @@ const OVERPASS_SERVERS = [
 interface BikePathEntry {
   name: string;
   osm_relations?: number[];
+  osm_names?: string[];
+  anchors?: Array<[number, number]>; // [lng, lat] tuples
+  segments?: Array<{ osm_way: number; [k: string]: unknown }>;
 }
 
 /**
@@ -82,17 +85,35 @@ async function queryOverpass(query: string): Promise<any> {
   throw new Error('Overpass API: all servers failed after retries');
 }
 
-function overpassToGeoJSON(data: any, relationId: number): GeoJSON.FeatureCollection {
+function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureCollection {
   const ways = data.elements.filter((e: any) => e.type === 'way' && e.geometry);
   const features = ways.map((way: any) => ({
     type: 'Feature' as const,
-    properties: { wayId: way.id, relationId },
+    properties: { wayId: way.id, sourceId: id },
     geometry: {
       type: 'LineString' as const,
       coordinates: way.geometry.map((p: any) => [p.lon, p.lat]),
     },
   }));
   return { type: 'FeatureCollection', features };
+}
+
+function slugify(name: string): string {
+  return name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/[\s-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** Build Overpass bbox from anchor coordinates: south,west,north,east */
+function anchorBbox(anchors: Array<[number, number]>): string {
+  const lngs = anchors.map(a => a[0]);
+  const lats = anchors.map(a => a[1]);
+  const pad = 0.005; // ~500m padding
+  return `${Math.min(...lats) - pad},${Math.min(...lngs) - pad},${Math.max(...lats) + pad},${Math.max(...lngs) + pad}`;
 }
 
 // --- Main ---
@@ -105,16 +126,19 @@ if (!fs.existsSync(ymlPath)) {
 }
 
 const raw = yaml.load(fs.readFileSync(ymlPath, 'utf-8')) as { bike_paths: BikePathEntry[] };
-const entries = raw.bike_paths.filter(e => e.osm_relations && e.osm_relations.length > 0);
+const relationEntries = raw.bike_paths.filter(e => e.osm_relations && e.osm_relations.length > 0);
+const nameEntries = raw.bike_paths.filter(e => (!e.osm_relations || e.osm_relations.length === 0) && e.osm_names && e.osm_names.length > 0 && e.anchors && e.anchors.length >= 2);
+const segmentEntries = raw.bike_paths.filter(e => e.segments && e.segments.length > 0 && (!e.osm_relations || e.osm_relations.length === 0));
 
-console.log(`[path-geo] ${entries.length} entries with OSM relations (${raw.bike_paths.length} total)`);
+console.log(`[path-geo] ${relationEntries.length} relations + ${nameEntries.length} named + ${segmentEntries.length} segmented (${raw.bike_paths.length} total)`);
 
 if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 let fetched = 0;
 let skipped = 0;
 
-for (const entry of entries) {
+// --- Pass 1: Relation-based entries ---
+for (const entry of relationEntries) {
   for (const relId of entry.osm_relations!) {
     const outPath = path.join(CACHE_DIR, `${relId}.geojson`);
 
@@ -138,6 +162,72 @@ for (const entry of entries) {
     } catch (err: any) {
       console.error(`  Error: ${err.message}`);
     }
+  }
+}
+
+// --- Pass 2: Name-based entries (query ways by name within anchor bbox) ---
+for (const entry of nameEntries) {
+  const slug = slugify(entry.name);
+  const outPath = path.join(CACHE_DIR, `name-${slug}.geojson`);
+
+  if (fs.existsSync(outPath)) {
+    skipped++;
+    continue;
+  }
+
+  if (dryRun) {
+    console.log(`  Would fetch by name: ${entry.osm_names![0]} (${entry.name})`);
+    continue;
+  }
+
+  console.log(`  Fetching by name: ${entry.osm_names![0]} (${entry.name})...`);
+  try {
+    const bbox = anchorBbox(entry.anchors!);
+    // Query all ways matching any of the osm_names within the bbox
+    const nameFilters = entry.osm_names!.map(n => `way["name"="${n}"](${bbox});`).join('\n');
+    const query = `[out:json][timeout:60];\n(\n${nameFilters}\n);\nout geom;`;
+    const data = await queryOverpass(query);
+    const geojson = overpassToGeoJSON(data, slug);
+    if (geojson.features.length > 0) {
+      fs.writeFileSync(outPath, JSON.stringify(geojson));
+      fetched++;
+    } else {
+      console.log(`  No ways found for ${entry.name}`);
+    }
+  } catch (err: any) {
+    console.error(`  Error: ${err.message}`);
+  }
+}
+
+// --- Pass 3: Segment-based entries (query individual ways by ID) ---
+for (const entry of segmentEntries) {
+  const slug = slugify(entry.name);
+  const outPath = path.join(CACHE_DIR, `seg-${slug}.geojson`);
+
+  if (fs.existsSync(outPath)) {
+    skipped++;
+    continue;
+  }
+
+  if (dryRun) {
+    console.log(`  Would fetch segments: ${entry.segments!.length} ways (${entry.name})`);
+    continue;
+  }
+
+  console.log(`  Fetching ${entry.segments!.length} segments (${entry.name})...`);
+  try {
+    const wayIds = entry.segments!.map(s => s.osm_way);
+    const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
+    const data = await queryOverpass(query);
+    const geojson = overpassToGeoJSON(data, slug);
+    if (geojson.features.length > 0) {
+      fs.writeFileSync(outPath, JSON.stringify(geojson));
+      fetched++;
+    } else {
+      console.log(`  No ways found for ${entry.name}`);
+    }
+  } catch (err: any) {
+    console.error(`  Error: ${err.message}`);
   }
 }
 
