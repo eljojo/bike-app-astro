@@ -595,5 +595,8 @@
   "paths.fact.network_local": "Parte de la red ciclista local",
   "paths.seo_description": "Explora {count} senderos ciclistas en {city} — tipos de superficie, distancias y rutas asociadas.",
   "paths.stub_cta": "Esta página necesita más información.",
-  "paths.stub_cta_link": "Ayuda a mejorarla"
+  "paths.stub_cta_link": "Ayuda a mejorarla",
+  "paths.fact.flat": "Plano",
+  "paths.fact.gentle_hills": "Suaves colinas ({meters}m de desnivel)",
+  "paths.fact.hilly": "Montañoso ({meters}m de desnivel)"
 }

@@ -392,6 +392,37 @@ function computeBikePathRelations(
   return { relations, routeOverlaps };
 }
 
+/**
+ * Load elevation stats per relation ID from enriched GeoJSON files.
+ * Returns elevation gain in meters (sum of positive deltas).
+ */
+function loadGeoElevation(consumerRoot: string): Record<string, { gain_m: number; loss_m: number }> {
+  const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
+  if (!fs.existsSync(geoDir)) return {};
+  const result: Record<string, { gain_m: number; loss_m: number }> = {};
+
+  for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
+    const relId = file.replace(/\.geojson$/, '');
+    try {
+      const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
+      let gain = 0;
+      let loss = 0;
+      for (const feature of geojson.features ?? []) {
+        if (feature.geometry?.type !== 'LineString') continue;
+        const coords = feature.geometry.coordinates;
+        for (let i = 1; i < coords.length; i++) {
+          if (coords[i].length < 3 || coords[i - 1].length < 3) continue;
+          const delta = coords[i][2] - coords[i - 1][2];
+          if (delta > 0) gain += delta;
+          else loss -= delta;
+        }
+      }
+      if (gain > 0 || loss > 0) result[relId] = { gain_m: Math.round(gain), loss_m: Math.round(loss) };
+    } catch { /* skip */ }
+  }
+  return result;
+}
+
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
@@ -622,6 +653,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const bikePaths = loadBikePaths();
   const geoFiles = loadGeoFiles(CONSUMER_ROOT);
   const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
+  const geoElevation = loadGeoElevation(CONSUMER_ROOT);
   const routeTracks = loadRouteTrackPoints();
   // Load places for nearby-places computation
   const placesDir = path.join(CITY_DIR, 'places');
@@ -818,6 +850,7 @@ const _allYmlEntries = ${JSON.stringify(bikePaths)};
 const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
 const _routeOverlaps = ${JSON.stringify(routeOverlaps)};
 const _bikePathRelations = ${JSON.stringify(bikePathRelations)};
+const _geoElevation = ${JSON.stringify(geoElevation)};
 
 /** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
 function getPathPoints(entry) {
@@ -946,6 +979,16 @@ export async function loadBikePathData() {
       operator: normalizeOperator(primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
+      elevation_gain_m: (() => {
+        let total = 0;
+        for (const e of matchedEntries) {
+          for (const relId of e.osm_relations ?? []) {
+            const ele = _geoElevation[String(relId)];
+            if (ele) total += ele.gain_m;
+          }
+        }
+        return total > 0 ? total : undefined;
+      })(),
     });
   }
 
@@ -981,6 +1024,14 @@ export async function loadBikePathData() {
       operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
+      elevation_gain_m: (() => {
+        let total = 0;
+        for (const relId of entry.osm_relations ?? []) {
+          const ele = _geoElevation[String(relId)];
+          if (ele) total += ele.gain_m;
+        }
+        return total > 0 ? total : undefined;
+      })(),
     });
   }
 

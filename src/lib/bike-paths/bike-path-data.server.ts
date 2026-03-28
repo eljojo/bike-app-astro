@@ -34,6 +34,8 @@ export interface BikePathPage {
   nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
   /** Precomputed connected paths (endpoints within 200m). */
   connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
+  /** Elevation gain in meters (from enriched GeoJSON, if available). */
+  elevation_gain_m?: number;
   surface?: string;
   width?: string;
   lit?: string;

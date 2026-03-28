@@ -595,5 +595,8 @@
   "paths.fact.network_local": "Fait partie du réseau cyclable local",
   "paths.seo_description": "Explorez {count} sentiers cyclables à {city} — types de surface, distances et parcours associés.",
   "paths.stub_cta": "Cette page a besoin de plus d'informations.",
-  "paths.stub_cta_link": "Aidez à l'améliorer"
+  "paths.stub_cta_link": "Aidez à l'améliorer",
+  "paths.fact.flat": "Plat",
+  "paths.fact.gentle_hills": "Légèrement vallonné ({meters}m de dénivelé)",
+  "paths.fact.hilly": "Vallonné ({meters}m de dénivelé)"
 }

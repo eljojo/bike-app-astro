@@ -76,6 +76,17 @@ function buildPathFacts(p: BikePathPage): string[] {
     facts.push(t('paths.fact.not_lit', locale));
   }
 
+  // Elevation
+  if (p.elevation_gain_m != null) {
+    if (p.elevation_gain_m < 20) {
+      facts.push(t('paths.fact.flat', locale));
+    } else if (p.elevation_gain_m < 80) {
+      facts.push(t('paths.fact.gentle_hills', locale, { meters: String(p.elevation_gain_m) }));
+    } else {
+      facts.push(t('paths.fact.hilly', locale, { meters: String(p.elevation_gain_m) }));
+    }
+  }
+
   // Operator
   if (p.operator) {
     facts.push(t('paths.fact.maintained', locale, { operator: p.operator }));

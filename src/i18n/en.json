@@ -595,5 +595,8 @@
   "paths.fact.network_local": "Part of the local cycling network",
   "paths.seo_description": "Explore {count} cycling paths in {city} — surface types, distances, and which routes use each path.",
   "paths.stub_cta": "This page needs more information.",
-  "paths.stub_cta_link": "Help improve it"
+  "paths.stub_cta_link": "Help improve it",
+  "paths.fact.flat": "Flat",
+  "paths.fact.gentle_hills": "Gentle hills ({meters}m gain)",
+  "paths.fact.hilly": "Hilly ({meters}m gain)"
 }
