@@ -9,6 +9,7 @@ interface RouteCard {
   name: string;
   distance_km: number;
   coverKey?: string;
+  distanceOnPathKm?: number;
 }
 
 interface Props {
@@ -38,6 +39,9 @@ const { routes, locale } = Astro.props;
             )}
             <span class="routes-on-path-card-name">{r.name}</span>
             <span class="routes-on-path-card-distance">{formatDistance([r.distance_km])}</span>
+            {r.distanceOnPathKm && r.distanceOnPathKm > 0 && (
+              <span class="routes-on-path-card-on-path">{t('paths.distance_on_path', locale, { distance: `${r.distanceOnPathKm} km` })}</span>
+            )}
           </a>
         </li>
       ))}

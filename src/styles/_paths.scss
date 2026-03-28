@@ -52,9 +52,23 @@
     @include dark-mode { background: $color-card-hover-dark; }
   }
 
+  .path-card-photo {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: $border-radius $border-radius 0 0;
+    margin-bottom: 0.5rem;
+  }
+
   h3 { margin: 0 0 0.25rem; font-size: 1rem; }
   .path-vibe { font-style: italic; font-size: 0.875rem; @include muted-text; margin: 0; }
+  .path-card-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
   .path-surface { font-size: 0.75rem; @include muted-text; }
+  .path-routes-count { font-size: 0.75rem; @include muted-text; }
 }
 
 .paths-group {
@@ -95,6 +109,18 @@
   .path-meta {
     font-size: 0.75rem;
     @include muted-text;
+  }
+
+  li[data-slug] {
+    cursor: pointer;
+    transition: background 0.15s ease;
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+  }
+
+  li.path-highlight {
+    background: rgba(230, 25, 75, 0.12);
+    @include dark-mode { background: rgba(230, 25, 75, 0.25); }
   }
 }
 
@@ -226,6 +252,80 @@
 }
 
 .nearby-paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}
+
+// Photo grid on detail page
+.bike-path-photos {
+  margin-bottom: 2rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.bike-path-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+
+  .bike-path-photo {
+    display: block;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transition: opacity 0.15s ease;
+    }
+
+    &:hover img {
+      opacity: 0.85;
+    }
+  }
+}
+
+// Distance on path (route cards)
+.routes-on-path-card-on-path {
+  display: block;
+  padding: 0 0.75rem 0.5rem;
+  font-size: 0.75rem;
+  @include muted-text;
+  font-style: italic;
+}
+
+// Connected paths
+.connected-paths {
+  margin-bottom: 2rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.connected-paths-list {
   list-style: none;
   padding: 0;
   margin: 0;

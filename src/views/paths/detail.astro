@@ -10,6 +10,8 @@ import RoutesOnPath from '@/components/RoutesOnPath.astro';
 import NearbyPaths from '@/components/NearbyPaths.astro';
 import type { SluggedBikePathYml } from '@/lib/bike-paths/bikepaths-yml';
 import { t } from '@/i18n';
+import { paths } from '@/lib/paths';
+import { imageUrl } from '@/lib/media/image-service';
 import { loadRouteData } from '@/lib/route-data';
 import { isPublished } from '@/lib/content/content-filters';
 import { haversineM, findNearbyPlaces } from '@/lib/geo/proximity';
@@ -23,6 +25,12 @@ interface RouteCard {
 }
 
 interface NearbyPathItem {
+  slug: string;
+  name: string;
+  surface?: string;
+}
+
+interface ConnectedPathItem {
   slug: string;
   name: string;
   surface?: string;
@@ -86,9 +94,36 @@ export async function getStaticPaths() {
         }).map(p => ({ slug: p.slug, name: p.name, surface: p.surface }))
       : [];
 
+    // Connected = another path's first or last anchor is within 200m of
+    // this path's first or last anchor (they meet at a junction)
+    const pathEndpoints = pathAnchors.length >= 2
+      ? [pathAnchors[0], pathAnchors[pathAnchors.length - 1]]
+      : pathAnchors.slice(0, 1);
+
+    const connectedPaths: ConnectedPathItem[] = pathEndpoints.length > 0
+      ? pages.filter(other => {
+          if (other.slug === page.slug) return false;
+          const otherAnchors = other.ymlEntries.flatMap(e =>
+            (e.anchors ?? []).map(a =>
+              Array.isArray(a) ? { lat: a[1] as number, lng: a[0] as number } : a,
+            ),
+          );
+          if (otherAnchors.length === 0) return false;
+          const otherEndpoints = otherAnchors.length >= 2
+            ? [otherAnchors[0], otherAnchors[otherAnchors.length - 1]]
+            : otherAnchors.slice(0, 1);
+          for (const ep of pathEndpoints) {
+            for (const oep of otherEndpoints) {
+              if (haversineM(ep.lat, ep.lng, oep.lat, oep.lng) < 200) return true;
+            }
+          }
+          return false;
+        }).map(p => ({ slug: p.slug, name: p.name, surface: p.surface }))
+      : [];
+
     return {
       params: { slug: page.slug },
-      props: { page, overlappingRoutes, nearbyPlaces, nearbyPaths: nearbyPathsList },
+      props: { page, overlappingRoutes, nearbyPlaces, nearbyPaths: nearbyPathsList, connectedPaths },
     };
   });
 }
@@ -98,8 +133,9 @@ interface Props {
   overlappingRoutes: RouteCard[];
   nearbyPlaces: NearbyPlace[];
   nearbyPaths: NearbyPathItem[];
+  connectedPaths: ConnectedPathItem[];
 }
-const { page, overlappingRoutes, nearbyPlaces, nearbyPaths } = Astro.props;
+const { page, overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths } = Astro.props;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
@@ -148,11 +184,45 @@ const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
     <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 
+    {overlappingRoutes.some(r => r.coverKey) && (
+      <section class="bike-path-photos">
+        <h2>{t('paths.photos', locale)}</h2>
+        <div class="bike-path-photo-grid">
+          {overlappingRoutes.filter(r => r.coverKey).map(r => (
+            <a href={paths.route(r.slug, locale)} class="bike-path-photo">
+              <img
+                src={imageUrl(r.coverKey!, { width: 300, height: 200, fit: 'cover' })}
+                srcset={`${imageUrl(r.coverKey!, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                alt={r.name}
+                width="300"
+                height="200"
+                loading="lazy"
+              />
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
     {nearbyPlaces.length > 0 && (
       <NearbyPlaces nearby={nearbyPlaces} limit={8} />
     )}
 
     <NearbyPaths nearbyPaths={nearbyPaths} locale={locale} />
+
+    {connectedPaths.length > 0 && (
+      <section class="connected-paths">
+        <h2>{t('paths.connects_to', locale)}</h2>
+        <ul class="connected-paths-list">
+          {connectedPaths.map(p => (
+            <li>
+              <a href={paths.bikePath(p.slug, locale)}>{p.name}</a>
+              {p.surface && <span class="path-meta">{p.surface}</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     {page.osmRelationIds.length > 0 && (
       <div class="bike-path-osm">

@@ -3,14 +3,67 @@ export const prerender = true;
 import fs from 'node:fs';
 import nodePath from 'node:path';
 import Base from '@/layouts/Base.astro';
-import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
+import { loadBikePathData, routePassesNearPath } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
 import { paths } from '@/lib/paths';
+import { imageUrl } from '@/lib/media/image-service';
 import { t } from '@/i18n';
+import { loadRouteData } from '@/lib/route-data';
+import { isPublished } from '@/lib/content/content-filters';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
-const { pages } = await loadBikePathData();
+const [{ pages }, { routes }] = await Promise.all([
+  loadBikePathData(),
+  loadRouteData(),
+]);
+const publishedRoutes = routes.filter(isPublished);
+
+// Compute route overlap counts and cover photos per path
+const pathRouteInfo = new Map<string, { count: number; coverKey?: string }>();
+for (const page of pages) {
+  const pathAnchors = page.ymlEntries.flatMap(e =>
+    (e.anchors ?? []).map(a =>
+      Array.isArray(a) ? { lat: a[1], lng: a[0] } : a,
+    ),
+  );
+  if (pathAnchors.length === 0) {
+    pathRouteInfo.set(page.slug, { count: 0 });
+    continue;
+  }
+  let count = 0;
+  let coverKey: string | undefined;
+  for (const r of publishedRoutes) {
+    const gpxKey = r.data.variants?.[0]?.gpx;
+    const track = gpxKey ? r.data.gpxTracks[gpxKey] : null;
+    if (!track?.points || track.points.length === 0) continue;
+    if (routePassesNearPath(track.points, pathAnchors)) {
+      count++;
+      if (!coverKey) {
+        const cover = r.data.media.find((m: { cover?: boolean }) => m.cover);
+        if (cover) coverKey = cover.key;
+      }
+    }
+  }
+  pathRouteInfo.set(page.slug, { count, coverKey: page.photo_key || coverKey });
+}
+
+// Build operator → colour mapping for the map
+const operatorSet = new Set<string>();
+for (const p of pages) {
+  if (p.operator) operatorSet.add(p.operator);
+}
+const operatorList = [...operatorSet].sort();
+const operatorColorMap: Record<string, number> = {};
+operatorList.forEach((op, i) => { operatorColorMap[op] = i; });
+
+// Build slug → operator index for the map script
+const slugOperatorMap: Record<string, number> = {};
+for (const p of pages) {
+  if (p.operator && operatorColorMap[p.operator] !== undefined) {
+    slugOperatorMap[p.slug] = operatorColorMap[p.operator];
+  }
+}
 
 // Featured: paths with markdown descriptions
 const featured = pages.filter(p => p.hasMarkdown && p.body);
@@ -61,6 +114,7 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
         id="paths-network-map"
         data-geo-files={JSON.stringify(geoFiles)}
         data-center={JSON.stringify(mapCenter)}
+        data-slug-operators={JSON.stringify(slugOperatorMap)}
         style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
       ></div>
     )}
@@ -69,13 +123,31 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
       <section class="paths-featured">
         <h2>{t('paths.featured', locale)}</h2>
         <div class="featured-cards">
-          {featured.map(p => (
-            <a href={paths.bikePath(p.slug, locale)} class="path-card">
-              <h3>{p.name}</h3>
-              {p.vibe && <p class="path-vibe">{p.vibe}</p>}
-              {p.surface && <span class="path-surface">{p.surface}</span>}
-            </a>
-          ))}
+          {featured.map(p => {
+            const info = pathRouteInfo.get(p.slug);
+            const photoKey = info?.coverKey;
+            return (
+              <a href={paths.bikePath(p.slug, locale)} class="path-card">
+                {photoKey && (
+                  <img
+                    src={imageUrl(photoKey, { width: 400, height: 200, fit: 'cover' })}
+                    srcset={`${imageUrl(photoKey, { width: 800, height: 400, fit: 'cover' })} 2x`}
+                    alt={p.name}
+                    width="400"
+                    height="200"
+                    loading="lazy"
+                    class="path-card-photo"
+                  />
+                )}
+                <h3>{p.name}</h3>
+                {p.vibe && <p class="path-vibe">{p.vibe}</p>}
+                <span class="path-card-meta">
+                  {p.surface && <span class="path-surface">{p.surface}</span>}
+                  {info && info.count > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: info.count })}</span>}
+                </span>
+              </a>
+            );
+          })}
         </div>
       </section>
     )}
@@ -84,14 +156,18 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
       <section class="paths-group">
         <h2>{group.label}</h2>
         <ul class="paths-list">
-          {group.paths.map(p => (
-            <li>
-              <a href={paths.bikePath(p.slug, locale)}>
-                {p.name}
-              </a>
-              {p.surface && <span class="path-meta">{p.surface}</span>}
-            </li>
-          ))}
+          {group.paths.map(p => {
+            const info = pathRouteInfo.get(p.slug);
+            return (
+              <li data-slug={p.slug} id={`path-${p.slug}`}>
+                <a href={paths.bikePath(p.slug, locale)}>
+                  {p.name}
+                </a>
+                {p.surface && <span class="path-meta">{p.surface}</span>}
+                {info && info.count > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: info.count })}</span>}
+              </li>
+            );
+          })}
         </ul>
       </section>
     ))}
@@ -99,25 +175,27 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 </Base>
 
 <script>
-  import { initMap } from '../../lib/maps/map-init';
+  import { initMap, TOUR_PALETTE } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
   import maplibregl from 'maplibre-gl';
 
-  const PATH_COLOR = '#E6194B';
   const PATH_WIDTH = 3;
+  const PATH_WIDTH_HOVER = 6;
+  const DEFAULT_COLOR = '#888888';
 
   const container = document.getElementById('paths-network-map');
   if (container) {
     const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+    const slugOperators: Record<string, number> = JSON.parse(container.dataset.slugOperators || '{}');
 
     if (geoFiles.length > 0) {
       const styleKey = loadStylePreference();
       const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
 
-      // Non-interactive overview
+      // Enable pan/zoom for interaction
       map.scrollZoom.disable();
-      map.dragPan.disable();
+      map.dragPan.enable();
       map.doubleClickZoom.disable();
       map.touchZoomRotate.disable();
 
@@ -130,7 +208,16 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
             const res = await fetch(`/paths/geo/${file}`);
             if (!res.ok) continue;
             const geojson = await res.json();
+            // Derive slug from filename (e.g., "my-path.geojson" → "my-path")
+            const slug = file.replace(/\.geojson$/, '');
             for (const feature of geojson.features) {
+              // Tag feature with slug and operator colour index
+              feature.properties = feature.properties || {};
+              feature.properties.slug = slug;
+              const opIdx = slugOperators[slug];
+              feature.properties.color = opIdx !== undefined
+                ? TOUR_PALETTE[opIdx % TOUR_PALETTE.length]
+                : DEFAULT_COLOR;
               allFeatures.push(feature);
               if (feature.geometry.type === 'LineString') {
                 for (const coord of feature.geometry.coordinates) {
@@ -155,7 +242,7 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
             source: 'paths-network',
             layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: {
-              'line-color': PATH_COLOR,
+              'line-color': ['get', 'color'],
               'line-width': PATH_WIDTH,
               'line-opacity': 0.8,
             },
@@ -164,6 +251,62 @@ const mapCenter: [number, number] = [config.center.lat, config.center.lng];
           if (!bounds.isEmpty()) {
             map.fitBounds(bounds, { padding: 40, animate: false });
           }
+
+          // --- Map ↔ list interaction ---
+
+          // Map click → scroll to list entry
+          map.on('click', 'paths-network-line', (e) => {
+            if (!e.features?.length) return;
+            const slug = e.features[0].properties?.slug;
+            if (!slug) return;
+            const listItem = document.getElementById(`path-${slug}`);
+            if (listItem) {
+              listItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              listItem.classList.add('path-highlight');
+              setTimeout(() => listItem.classList.remove('path-highlight'), 1500);
+            }
+          });
+
+          map.on('mouseenter', 'paths-network-line', () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+          map.on('mouseleave', 'paths-network-line', () => {
+            map.getCanvas().style.cursor = '';
+          });
+
+          // List hover → highlight path on map
+          let hoveredSlug: string | null = null;
+
+          function highlightPath(slug: string | null) {
+            if (hoveredSlug === slug) return;
+            hoveredSlug = slug;
+            if (slug) {
+              map.setPaintProperty('paths-network-line', 'line-width', [
+                'case',
+                ['==', ['get', 'slug'], slug],
+                PATH_WIDTH_HOVER,
+                PATH_WIDTH,
+              ]);
+              map.setPaintProperty('paths-network-line', 'line-opacity', [
+                'case',
+                ['==', ['get', 'slug'], slug],
+                1,
+                0.4,
+              ]);
+            } else {
+              map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
+              map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
+            }
+          }
+
+          document.querySelectorAll<HTMLElement>('.paths-list li[data-slug]').forEach(li => {
+            li.addEventListener('mouseenter', () => {
+              highlightPath(li.dataset.slug || null);
+            });
+            li.addEventListener('mouseleave', () => {
+              highlightPath(null);
+            });
+          });
         }
       });
     }
