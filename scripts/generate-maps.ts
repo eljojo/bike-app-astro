@@ -15,6 +15,7 @@ import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
+import polylineCodec from '@mapbox/polyline';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
 
@@ -238,6 +239,101 @@ async function main() {
         fs.writeFileSync(hashPath(tourSlug, langPrefix), combinedHash);
 
         generated++;
+      }
+    }
+  }
+
+  // --- Bike Paths: generate thumbnails from cached GeoJSON geometry ---
+  const geoDir = path.join('public', 'paths', 'geo');
+  if (fs.existsSync(geoDir)) {
+    // Load bike path pages to know which relations belong to which slug
+    const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml');
+    const ymlPath = path.join(CONTENT_DIR, CITY, 'bikepaths.yml');
+    if (fs.existsSync(ymlPath)) {
+      const entries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
+      // Build relation → slug map
+      const relToSlug = new Map<string, string>();
+      const slugRelations = new Map<string, number[]>();
+      for (const e of entries) {
+        for (const relId of e.osm_relations ?? []) {
+          relToSlug.set(String(relId), e.slug);
+          const existing = slugRelations.get(e.slug) ?? [];
+          existing.push(relId);
+          slugRelations.set(e.slug, existing);
+        }
+      }
+
+      // Also read markdown includes to map merged slugs
+      const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
+      if (fs.existsSync(bikePathsDir)) {
+        for (const file of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md'))) {
+          const mdSlug = file.replace(/\.md$/, '');
+          const { data } = matter(fs.readFileSync(path.join(bikePathsDir, file), 'utf-8'));
+          const includes: string[] = data.includes ?? [];
+          // Collect all relations from included entries
+          const allRels: number[] = [];
+          for (const inc of includes) {
+            const incEntry = entries.find(e => e.slug === inc);
+            if (incEntry?.osm_relations) allRels.push(...incEntry.osm_relations);
+          }
+          if (allRels.length > 0) slugRelations.set(mdSlug, allRels);
+        }
+      }
+
+      // Generate a map for each slug that has GeoJSON
+      for (const [slug, relIds] of slugRelations) {
+        // Collect all coordinates from GeoJSON files
+        const allPoints: [number, number][] = [];
+        const geoContents: string[] = [];
+        for (const relId of relIds) {
+          const geoPath = path.join(geoDir, `${relId}.geojson`);
+          if (!fs.existsSync(geoPath)) continue;
+          const content = fs.readFileSync(geoPath, 'utf-8');
+          geoContents.push(content);
+          const geojson = JSON.parse(content);
+          for (const feature of geojson.features ?? []) {
+            if (feature.geometry?.type === 'LineString') {
+              for (const coord of feature.geometry.coordinates) {
+                allPoints.push([coord[1], coord[0]]); // [lat, lng] for polyline encoding
+              }
+            }
+          }
+        }
+
+        if (allPoints.length < 2) continue;
+
+        const combinedHash = crypto.createHash('sha256')
+          .update(geoContents.join('\n'))
+          .digest('hex').slice(0, 16);
+        const mapSlug = `path-${slug}`;
+
+        for (const lang of languages) {
+          const langPrefix = lang === defaultLang ? undefined : lang;
+
+          if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {
+            skipped++;
+            continue;
+          }
+
+          const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
+          console.log(`[maps] ${label}: generating bike path map...`);
+
+          // Encode coordinates as polyline for the Google API
+          const encoded = polylineCodec.encode(allPoints as [number, number][]);
+          const url = buildStaticMapUrl(encoded, API_KEY!, lang);
+          const response = await fetch(url);
+          if (!response.ok) {
+            console.error(`[maps] ${label}: HTTP ${response.status}`);
+            continue;
+          }
+          const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+          const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
+          await generateMapImages(pngBuffer, thumbPaths);
+          fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
+
+          generated++;
+        }
       }
     }
   }
