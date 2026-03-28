@@ -205,6 +205,10 @@ const { osmRelationIds, center, fallbackCenter, hintText, closeLabel } = Astro.p
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
+    /* Hide attribution in compact card — too much space for a small preview */
+    .maplibregl-ctrl-attrib { display: none; }
+    &.expanded .maplibregl-ctrl-attrib { display: block; }
+
     &.expanded {
       position: fixed;
       inset: 20px;
