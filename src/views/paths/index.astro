@@ -20,12 +20,7 @@ const publishedRoutes = routes.filter(isPublished);
 // Compute route overlap counts and cover photos per path
 const pathRouteInfo = new Map<string, { count: number; coverKey?: string }>();
 for (const page of pages) {
-  const pathAnchors = page.ymlEntries.flatMap(e =>
-    (e.anchors ?? []).map(a =>
-      Array.isArray(a) ? { lat: a[1], lng: a[0] } : a,
-    ),
-  );
-  if (pathAnchors.length === 0) {
+  if (page.points.length === 0) {
     pathRouteInfo.set(page.slug, { count: 0 });
     continue;
   }
@@ -35,7 +30,7 @@ for (const page of pages) {
     const gpxKey = r.data.variants?.[0]?.gpx;
     const track = gpxKey ? r.data.gpxTracks[gpxKey] : null;
     if (!track?.points || track.points.length === 0) continue;
-    if (routePassesNearPath(track.points, pathAnchors)) {
+    if (routePassesNearPath(track.points, page.points)) {
       count++;
       if (!coverKey) {
         const cover = r.data.media.find((m: { cover?: boolean }) => m.cover);
@@ -73,15 +68,11 @@ for (const p of pages) {
 
 // Compute clip bounds from path anchors — prevents distant trails (e.g., Trans Canada to Montreal)
 // from stretching the map. Use a generous 0.3° padding around the anchor centroid.
-const allAnchors = pages.flatMap(p =>
-  p.ymlEntries.flatMap(e => (e.anchors ?? []).map(a =>
-    Array.isArray(a) ? { lat: a[1] as number, lng: a[0] as number } : a as { lat: number; lng: number }
-  ))
-);
+const allPoints = pages.flatMap(p => p.points);
 let clipBounds: { south: number; north: number; west: number; east: number } | null = null;
-if (allAnchors.length > 0) {
-  const lats = allAnchors.map(a => a.lat).sort((a, b) => a - b);
-  const lngs = allAnchors.map(a => a.lng).sort((a, b) => a - b);
+if (allPoints.length > 0) {
+  const lats = allPoints.map(a => a.lat).sort((a, b) => a - b);
+  const lngs = allPoints.map(a => a.lng).sort((a, b) => a - b);
   // Use 5th-95th percentile to exclude outliers, then pad
   const p5 = Math.floor(lats.length * 0.05);
   const p95 = Math.floor(lats.length * 0.95);

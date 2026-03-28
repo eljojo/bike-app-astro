@@ -21,6 +21,8 @@ export interface BikePathPage {
   ymlEntries: SluggedBikePathYml[];
   osmRelationIds: number[];
   osmNames: string[];
+  /** Geographic points for this path — from YML anchors or sampled GeoJSON geometry. */
+  points: Array<{ lat: number; lng: number }>;
   surface?: string;
   width?: string;
   lit?: string;
@@ -36,6 +38,40 @@ export function normalizeOperator(operator: string | undefined): string | undefi
   if (!operator) return undefined;
   if (NCC_NORMALIZE.test(operator)) return 'NCC';
   return operator;
+}
+
+const SAMPLE_INTERVAL = 10;
+
+/** Get geographic points for a path entry: YML anchors, or sampled GeoJSON geometry as fallback. */
+function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: number }> {
+  const anchors = (entry.anchors ?? []).map(a =>
+    Array.isArray(a) ? { lat: a[1] as number, lng: a[0] as number } : a as { lat: number; lng: number }
+  );
+  if (anchors.length > 0) return anchors;
+
+  // Fall back to GeoJSON for relation-based paths
+  const geoDir = path.resolve('public/paths/geo');
+  const points: Array<{ lat: number; lng: number }> = [];
+  for (const relId of entry.osm_relations ?? []) {
+    const geoPath = path.join(geoDir, `${relId}.geojson`);
+    if (!fs.existsSync(geoPath)) continue;
+    try {
+      const geojson = JSON.parse(fs.readFileSync(geoPath, 'utf-8'));
+      for (const feature of geojson.features ?? []) {
+        if (feature.geometry?.type === 'LineString') {
+          const coords = feature.geometry.coordinates;
+          for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
+            points.push({ lat: coords[i][1], lng: coords[i][0] });
+          }
+          if (coords.length > 0) {
+            const last = coords[coords.length - 1];
+            points.push({ lat: last[1], lng: last[0] });
+          }
+        }
+      }
+    } catch { /* skip malformed */ }
+  }
+  return points;
 }
 
 /** Load all bike path data, merge YML + markdown, score, and return pages to generate. */
@@ -95,6 +131,8 @@ export async function loadBikePathData(): Promise<{
       0,
     );
 
+    const points = matchedEntries.flatMap(e => getPathPoints(e));
+
     pages.push({
       slug: md.id,
       name: md.data.name ?? primary?.name ?? md.id,
@@ -108,6 +146,7 @@ export async function loadBikePathData(): Promise<{
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
+      points,
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
@@ -135,6 +174,7 @@ export async function loadBikePathData(): Promise<{
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
+      points: getPathPoints(entry),
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,

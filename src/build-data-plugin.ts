@@ -136,6 +136,43 @@ function loadGeoFiles(consumerRoot: string): string[] {
   return fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
 }
 
+/**
+ * Load GeoJSON geometry files and extract sampled coordinates per relation ID.
+ * This provides geographic data for relation-based paths that lack anchors in the YML.
+ * Sample every Nth point to keep the data small but geographically representative.
+ */
+function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: number; lng: number }>> {
+  const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
+  if (!fs.existsSync(geoDir)) return {};
+  const result: Record<string, Array<{ lat: number; lng: number }>> = {};
+  const SAMPLE_INTERVAL = 10; // keep every 10th point
+
+  for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
+    const relId = file.replace(/\.geojson$/, '');
+    try {
+      const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
+      const points: Array<{ lat: number; lng: number }> = [];
+      for (const feature of geojson.features ?? []) {
+        if (feature.geometry?.type === 'LineString') {
+          const coords = feature.geometry.coordinates;
+          for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
+            points.push({ lat: coords[i][1], lng: coords[i][0] });
+          }
+          // Always include the last point
+          if (coords.length > 0) {
+            const last = coords[coords.length - 1];
+            points.push({ lat: last[1], lng: last[0] });
+          }
+        }
+      }
+      if (points.length > 0) result[relId] = points;
+    } catch {
+      // Malformed file — skip
+    }
+  }
+  return result;
+}
+
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
@@ -365,6 +402,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const tagTranslations = loadTagTranslations();
   const bikePaths = loadBikePaths();
   const geoFiles = loadGeoFiles(CONSUMER_ROOT);
+  const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -545,6 +583,22 @@ export function normalizeOperator(operator) {
 }
 
 const _allYmlEntries = ${JSON.stringify(bikePaths)};
+const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
+
+/** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
+function getPathPoints(entry) {
+  const anchors = (entry.anchors ?? []).map(a =>
+    Array.isArray(a) ? { lat: a[1], lng: a[0] } : a
+  );
+  if (anchors.length > 0) return anchors;
+  // Fall back to GeoJSON-derived coordinates for relation-based paths
+  const points = [];
+  for (const relId of entry.osm_relations ?? []) {
+    const coords = _geoCoordinates[String(relId)];
+    if (coords) points.push(...coords);
+  }
+  return points;
+}
 
 export async function loadBikePathData() {
   const allYmlEntries = _allYmlEntries;
@@ -589,6 +643,9 @@ export async function loadBikePathData() {
       0,
     );
 
+    // Collect geographic points from all matched entries (anchors or GeoJSON fallback)
+    const points = matchedEntries.flatMap(e => getPathPoints(e));
+
     pages.push({
       slug: md.id,
       name: md.data.name ?? primary?.name ?? md.id,
@@ -602,6 +659,7 @@ export async function loadBikePathData() {
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
+      points,
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
@@ -628,6 +686,7 @@ export async function loadBikePathData() {
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
+      points: getPathPoints(entry),
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,

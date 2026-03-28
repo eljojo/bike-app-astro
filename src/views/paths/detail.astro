@@ -8,7 +8,6 @@ import BikePathMap from '@/components/BikePathMap.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import RoutesOnPath from '@/components/RoutesOnPath.astro';
 import NearbyPaths from '@/components/NearbyPaths.astro';
-import type { SluggedBikePathYml } from '@/lib/bike-paths/bikepaths-yml';
 import { t } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
@@ -45,20 +44,16 @@ export async function getStaticPaths() {
   const publishedRoutes = routes.filter(isPublished);
 
   return pages.map(page => {
-    // Extract anchors as { lat, lng } from all YML entries
-    const pathAnchors = page.ymlEntries.flatMap(e =>
-      (e.anchors ?? []).map(a =>
-        Array.isArray(a) ? { lat: a[1], lng: a[0] } : a,
-      ),
-    );
+    // page.points has geographic coordinates from YML anchors OR sampled GeoJSON geometry
+    const pts = page.points;
 
-    // Find routes that pass near this path's anchors
-    const overlappingRoutes: RouteCard[] = pathAnchors.length > 0
+    // Find routes that pass near this path
+    const overlappingRoutes: RouteCard[] = pts.length > 0
       ? publishedRoutes.filter(r => {
           const gpxKey = r.data.variants?.[0]?.gpx;
           const track = gpxKey ? r.data.gpxTracks[gpxKey] : null;
           if (!track?.points || track.points.length === 0) return false;
-          return routePassesNearPath(track.points, pathAnchors);
+          return routePassesNearPath(track.points, pts);
         }).map(r => {
           const cover = r.data.media.find((m: { cover?: boolean }) => m.cover);
           return {
@@ -70,23 +65,19 @@ export async function getStaticPaths() {
         })
       : [];
 
-    // Find nearby places using path anchors as approximate track points
-    const anchorPoints = pathAnchors.map(a => ({ lat: a.lat, lon: a.lng }));
-    const nearbyPlaces: NearbyPlace[] = anchorPoints.length >= 2
-      ? findNearbyPlaces(anchorPoints, placeData)
+    // Find nearby places
+    const trackPoints = pts.map(a => ({ lat: a.lat, lon: a.lng }));
+    const nearbyPlaces: NearbyPlace[] = trackPoints.length >= 2
+      ? findNearbyPlaces(trackPoints, placeData)
       : [];
 
-    // Find nearby paths: other pages whose anchors are within 2km
-    const nearbyPathsList: NearbyPathItem[] = pathAnchors.length > 0
+    // Find nearby paths: other pages whose points are within 2km
+    const nearbyPathsList: NearbyPathItem[] = pts.length > 0
       ? pages.filter(other => {
           if (other.slug === page.slug) return false;
-          const otherAnchors = other.ymlEntries.flatMap(e =>
-            (e.anchors ?? []).map(a =>
-              Array.isArray(a) ? { lat: a[1], lng: a[0] } : a,
-            ),
-          );
-          for (const a of pathAnchors) {
-            for (const b of otherAnchors) {
+          if (other.points.length === 0) return false;
+          for (const a of pts) {
+            for (const b of other.points) {
               if (haversineM(a.lat, a.lng, b.lat, b.lng) < 2000) return true;
             }
           }
@@ -94,24 +85,19 @@ export async function getStaticPaths() {
         }).map(p => ({ slug: p.slug, name: p.name, surface: p.surface }))
       : [];
 
-    // Connected = another path's first or last anchor is within 200m of
-    // this path's first or last anchor (they meet at a junction)
-    const pathEndpoints = pathAnchors.length >= 2
-      ? [pathAnchors[0], pathAnchors[pathAnchors.length - 1]]
-      : pathAnchors.slice(0, 1);
+    // Connected = another path's first or last point is within 200m of
+    // this path's first or last point (they meet at a junction)
+    const pathEndpoints = pts.length >= 2
+      ? [pts[0], pts[pts.length - 1]]
+      : pts.slice(0, 1);
 
     const connectedPaths: ConnectedPathItem[] = pathEndpoints.length > 0
       ? pages.filter(other => {
           if (other.slug === page.slug) return false;
-          const otherAnchors = other.ymlEntries.flatMap(e =>
-            (e.anchors ?? []).map(a =>
-              Array.isArray(a) ? { lat: a[1] as number, lng: a[0] as number } : a,
-            ),
-          );
-          if (otherAnchors.length === 0) return false;
-          const otherEndpoints = otherAnchors.length >= 2
-            ? [otherAnchors[0], otherAnchors[otherAnchors.length - 1]]
-            : otherAnchors.slice(0, 1);
+          if (other.points.length === 0) return false;
+          const otherEndpoints = other.points.length >= 2
+            ? [other.points[0], other.points[other.points.length - 1]]
+            : other.points.slice(0, 1);
           for (const ep of pathEndpoints) {
             for (const oep of otherEndpoints) {
               if (haversineM(ep.lat, ep.lng, oep.lat, oep.lng) < 200) return true;
@@ -140,15 +126,11 @@ const config = getCityConfig();
 const locale = Astro.currentLocale;
 const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
 
-function computeCenter(entries: SluggedBikePathYml[]): [number, number] | undefined {
-  const anchors = entries.flatMap(e => e.anchors ?? []);
-  if (anchors.length === 0) return undefined;
-  const lats = anchors.map(a => typeof a === 'object' && 'lat' in a ? a.lat : a[1]);
-  const lngs = anchors.map(a => typeof a === 'object' && 'lng' in a ? a.lng : a[0]);
-  return [
-    lats.reduce((s, v) => s + v, 0) / lats.length,
-    lngs.reduce((s, v) => s + v, 0) / lngs.length,
-  ];
+function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, number] | undefined {
+  if (pts.length === 0) return undefined;
+  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+  return [lat, lng];
 }
 
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
@@ -171,7 +153,7 @@ const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
       <BikePathMap
         osmRelationIds={page.osmRelationIds}
-        center={computeCenter(page.ymlEntries)}
+        center={computeCenter(page.points)}
         fallbackCenter={fallbackCenter}
         hintText={t('paths.click_to_explore', locale)}
         closeLabel={t('paths.close_map', locale)}
