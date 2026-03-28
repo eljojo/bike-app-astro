@@ -19,6 +19,8 @@ const generators = [
   { name: 'map-style', script: 'build-map-style.ts' },
   { name: 'icon-paths', script: 'build-icon-paths.ts' },
   { name: 'path-geo', script: 'copy-path-geometry.ts' },
+  { name: 'maps', script: 'generate-maps.ts' },
+  { name: 'contributors', script: 'build-contributors.ts' },
 ];
 
 for (const { name, script } of generators) {
