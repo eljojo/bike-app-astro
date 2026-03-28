@@ -41,6 +41,7 @@
   "places.nearby": "Lugares cercanos",
   "places.website": "sitio web",
   "places.summary_prefix": "pasa por",
+  "places.and_more": "y {count} más",
   "calendar.title": "Eventos ciclistas para {year}",
   "calendar.subscribe": "Suscribirse al feed iCal",
   "calendar.google": "Agregar a Google Calendar",
@@ -573,5 +574,11 @@
   "paths.other_group": "Otros",
   "paths.routes_on_path": "Rutas en este sendero",
   "paths.nearby_places": "Lugares cercanos",
-  "paths.nearby_paths": "Senderos cercanos"
+  "paths.nearby_paths": "Senderos cercanos",
+  "paths.connects_to": "Se conecta con",
+  "paths.distance_on_path": "{distance} en este sendero",
+  "paths.photos": "Fotos",
+  "paths.routes_count": "{count} rutas",
+  "paths.follows": "Esta ruta sigue el",
+  "paths.and": "y"
 }

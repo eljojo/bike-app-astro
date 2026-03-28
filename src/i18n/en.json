@@ -41,6 +41,7 @@
   "places.nearby": "Nearby Places",
   "places.website": "website",
   "places.summary_prefix": "passes",
+  "places.and_more": "and {count} more",
   "places.show_all": "Show all {count} places",
   "places.add_near_route": "Know a place near this route? Add it.",
   "places.add_near_route_long": "Know a cafe, park, or water stop near this route? Add it.",
@@ -573,5 +574,11 @@
   "paths.other_group": "Other",
   "paths.routes_on_path": "Routes on this path",
   "paths.nearby_places": "Places nearby",
-  "paths.nearby_paths": "Nearby paths"
+  "paths.nearby_paths": "Nearby paths",
+  "paths.connects_to": "Connects to",
+  "paths.distance_on_path": "{distance} on this path",
+  "paths.photos": "Photos",
+  "paths.routes_count": "{count} routes",
+  "paths.follows": "This route follows the",
+  "paths.and": "and"
 }

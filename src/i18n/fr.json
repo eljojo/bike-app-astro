@@ -41,6 +41,7 @@
   "places.nearby": "Lieux à proximité",
   "places.website": "site web",
   "places.summary_prefix": "passe par",
+  "places.and_more": "et {count} de plus",
   "places.show_all": "Afficher les {count} lieux",
   "places.add_near_route": "Vous connaissez un lieu près de cette route ? Ajoutez-le.",
   "places.add_near_route_long": "Vous connaissez un café, parc ou point d'eau près de ce parcours ? Ajoutez-le.",
@@ -573,5 +574,11 @@
   "paths.other_group": "Autres",
   "paths.routes_on_path": "Parcours sur ce sentier",
   "paths.nearby_places": "Lieux à proximité",
-  "paths.nearby_paths": "Sentiers à proximité"
+  "paths.nearby_paths": "Sentiers à proximité",
+  "paths.connects_to": "Se connecte à",
+  "paths.distance_on_path": "{distance} sur ce sentier",
+  "paths.photos": "Photos",
+  "paths.routes_count": "{count} parcours",
+  "paths.follows": "Ce parcours suit le",
+  "paths.and": "et"
 }
