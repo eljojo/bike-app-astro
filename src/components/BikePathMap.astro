@@ -179,13 +179,34 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       }
     });
 
+    let savedRect: DOMRect | null = null;
+
     function expand() {
       if (expanded) return;
       expanded = true;
-      container.classList.add('expanded');
-      container.setAttribute('aria-expanded', 'true');
+
+      // FLIP: capture current position, then animate to expanded
+      savedRect = container.getBoundingClientRect();
+      container.style.position = 'fixed';
+      container.style.top = `${savedRect.top}px`;
+      container.style.left = `${savedRect.left}px`;
+      container.style.width = `${savedRect.width}px`;
+      container.style.height = `${savedRect.height}px`;
+      container.style.zIndex = '1000';
+
       overlay!.classList.add('visible');
       closeBtn!.style.display = 'flex';
+      container.setAttribute('aria-expanded', 'true');
+
+      // Animate to full screen on next frame
+      requestAnimationFrame(() => {
+        container.classList.add('expanded');
+        container.style.top = '20px';
+        container.style.left = '20px';
+        container.style.width = 'calc(100vw - 40px)';
+        container.style.height = 'calc(100vh - 40px)';
+        container.style.borderRadius = '16px';
+      });
 
       // Enable interaction
       map.scrollZoom.enable();
@@ -205,10 +226,20 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     function collapse() {
       if (!expanded) return;
       expanded = false;
+
       container.classList.remove('expanded');
       container.setAttribute('aria-expanded', 'false');
       overlay!.classList.remove('visible');
       closeBtn!.style.display = 'none';
+
+      // Animate back to original position
+      if (savedRect) {
+        container.style.top = `${savedRect.top}px`;
+        container.style.left = `${savedRect.left}px`;
+        container.style.width = `${savedRect.width}px`;
+        container.style.height = `${savedRect.height}px`;
+        container.style.borderRadius = '12px';
+      }
 
       // Disable interaction
       map.scrollZoom.disable();
@@ -216,11 +247,18 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       map.doubleClickZoom.disable();
       map.touchZoomRotate.disable();
 
-      // Resize after CSS transition, then refit with wider padding
+      // After transition ends, reset to flow position
       setTimeout(() => {
+        container.style.position = '';
+        container.style.top = '';
+        container.style.left = '';
+        container.style.width = '';
+        container.style.height = '';
+        container.style.zIndex = '';
+        container.style.borderRadius = '';
         map.resize();
         if (pathBounds && !pathBounds.isEmpty()) {
-          map.fitBounds(pathBounds, { padding: 20, animate: true });
+          map.fitBounds(pathBounds, { padding: 20, animate: false });
         }
       }, 350);
     }
@@ -286,12 +324,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     &.expanded #bike-path-map-controls { display: block; position: absolute; top: 16px; left: 16px; z-index: 1; }
 
     &.expanded {
-      position: fixed;
-      inset: 20px;
-      width: auto;
-      height: auto;
-      z-index: 1000;
-      border-radius: 16px;
       cursor: default;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
@@ -355,9 +387,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       border-radius: 8px;
     }
 
-    .bike-path-map-card.expanded {
-      inset: 0;
-      border-radius: 0;
-    }
+    /* On mobile, JS sets inset to 0 via the expand function */
   }
 </style>

@@ -93,12 +93,12 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
         <div class="featured-cards">
           {featured.map(p => {
             const thumb = p.thumbnail_key;
-            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}.png` : undefined;
+            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}/map-750.webp` : undefined;
             const thumbSrc = thumb
-              ? imageUrl(thumb, { width: 400, height: 200, fit: 'cover' })
+              ? imageUrl(thumb, { width: 750, height: 375, fit: 'cover' })
               : mapThumb;
             const thumbSrcset = thumb
-              ? `${imageUrl(thumb, { width: 800, height: 400, fit: 'cover' })} 2x`
+              ? `${imageUrl(thumb, { width: 1500, height: 750, fit: 'cover' })} 2x`
               : undefined;
             return (
               <a href={paths.bikePath(p.slug, locale)} class="path-card">
@@ -107,8 +107,6 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                     src={thumbSrc}
                     srcset={thumbSrcset}
                     alt={p.name}
-                    width="400"
-                    height="200"
                     loading="lazy"
                     class="path-card-photo"
                   />
@@ -130,27 +128,15 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
       <section class="paths-group">
         <h2>{group.label}</h2>
         <ul class="paths-list">
-          {group.paths.map(p => {
-            const thumb = p.thumbnail_key;
-            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}.png` : undefined;
-            const thumbSrc = thumb
-              ? imageUrl(thumb, { width: 80, height: 60, fit: 'cover' })
-              : mapThumb;
-            return (
-              <li data-slug={p.slug} id={`path-${p.slug}`}>
-                <a href={paths.bikePath(p.slug, locale)} class="path-list-link">
-                  {thumbSrc && <img src={thumbSrc} alt="" width="80" height="60" loading="lazy" class="path-list-thumb" />}
-                  <span class="path-list-info">
-                    <span class="path-list-name">{p.name}</span>
-                    <span class="path-list-meta">
-                      {displaySurface(p.surface) && <span>{displaySurface(p.surface)}</span>}
-                      {p.routeCount > 0 && <span>{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
-                    </span>
-                  </span>
-                </a>
-              </li>
-            );
-          })}
+          {group.paths.map(p => (
+            <li data-slug={p.slug} id={`path-${p.slug}`}>
+              <a href={paths.bikePath(p.slug, locale)}>
+                {p.name}
+              </a>
+              {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+              {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
+            </li>
+          ))}
         </ul>
       </section>
     ))}
