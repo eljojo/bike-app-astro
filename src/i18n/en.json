@@ -611,5 +611,6 @@
   "paths.lit_yes": "Yes",
   "paths.lit_no": "No",
   "paths.go_back": "All bike paths",
-  "paths.heading": "All the bike paths in {city}"
+  "paths.heading": "All the bike paths in {city}",
+  "paths.page_title": "All Bike Paths in {city}"
 }

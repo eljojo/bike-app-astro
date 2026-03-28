@@ -611,5 +611,6 @@
   "paths.lit_yes": "Oui",
   "paths.lit_no": "Non",
   "paths.go_back": "Tous les sentiers cyclables",
-  "paths.heading": "Tous les sentiers cyclables de {city}"
+  "paths.heading": "Tous les sentiers cyclables de {city}",
+  "paths.page_title": "Sentiers cyclables de {city}"
 }

@@ -71,9 +71,10 @@ function displaySurface(raw?: string): string | undefined {
 
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
+const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 ---
 
-<Base title={`${t('paths.title', locale)} | ${config.display_name}`} description={seoDescription}>
+<Base title={`${t('paths.page_title', locale, { city: config.name })} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
     {geoFiles.length > 0 && (

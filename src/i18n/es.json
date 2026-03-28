@@ -611,5 +611,6 @@
   "paths.lit_yes": "Sí",
   "paths.lit_no": "No",
   "paths.go_back": "Todas las ciclovías",
-  "paths.heading": "Todas las ciclovías de {city}"
+  "paths.heading": "Todas las ciclovías de {city}",
+  "paths.page_title": "Ciclovías de {city}"
 }
