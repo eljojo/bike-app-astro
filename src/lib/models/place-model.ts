@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod/v4';
 import { type GitFiles } from './content-model';
 import { goodForEnum, socialLinkSchema } from '../../schemas/index';
 

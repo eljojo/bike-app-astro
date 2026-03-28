@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod/v4';
 import { bikePathSchema } from '../../schemas/bike-path-schema';
 
 export const bikePathDetailSchema = bikePathSchema.extend({

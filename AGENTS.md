@@ -170,7 +170,7 @@ NEVER write string literals like `'ottawa'` or `'fr'` in application code. Alway
 - **Virtual module types**: `src/virtual-modules.d.ts` is ambient — NO top-level imports or it breaks all declarations.
 - **No client-side navigation**: the site uses full page loads, not `<ClientRouter />`. Use `DOMContentLoaded`, not `astro:page-load`.
 - **Content model layer**: all code that reads or writes content data must go through model files in `src/lib/models/`. Never hand-roll `JSON.stringify`/`JSON.parse` for content types.
-- **Zod v4**: import from `astro/zod`, not `zod`.
+- **Zod v4**: import from `zod/v4`, not `zod` or `astro/zod`. This allows scripts outside Astro context to import from `src/lib/`.
 
 ### Platform Integration — AI Gets These Wrong
 

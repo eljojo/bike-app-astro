@@ -17,6 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
+import { slugifyBikePathName } from '../src/lib/bike-paths/bikepaths-yml';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
@@ -107,15 +108,7 @@ function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureColle
   return { type: 'FeatureCollection', features };
 }
 
-function slugify(name: string): string {
-  return name
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/[\s-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+const slugify = slugifyBikePathName;
 
 /** Build Overpass bbox from anchor coordinates: south,west,north,east */
 function anchorBbox(anchors: Array<[number, number]>): string {
@@ -261,34 +254,10 @@ if (!dryRun) {
 
   // --- Determine which cache files belong to featured paths ---
 
-  // 1. Compute slugs for all YML entries (same logic as bikepaths-yml.ts)
-  const baseSlugMap = new Map<string, Array<{ entry: BikePathEntry; index: number }>>();
-  for (let i = 0; i < raw.bike_paths.length; i++) {
-    const base = slugify(raw.bike_paths[i].name);
-    const list = baseSlugMap.get(base);
-    if (list) list.push({ entry: raw.bike_paths[i], index: i });
-    else baseSlugMap.set(base, [{ entry: raw.bike_paths[i], index: i }]);
-  }
-
-  function slugSortKey(entry: BikePathEntry): string {
-    if (entry.osm_relations?.length) return `r${entry.osm_relations[0]}`;
-    if (entry.anchors?.length) {
-      const [x, y] = entry.anchors[0];
-      return `a${x.toFixed(6)},${y.toFixed(6)}`;
-    }
-    return `n${entry.name}`;
-  }
-
-  const sluggedEntries: Array<{ slug: string; entry: BikePathEntry }> = [];
-  for (const [base, group] of baseSlugMap) {
-    group.sort((a, b) => slugSortKey(a.entry).localeCompare(slugSortKey(b.entry)));
-    for (let i = 0; i < group.length; i++) {
-      const slug = group.length === 1 ? base : `${base}-${i + 1}`;
-      sluggedEntries.push({ slug, entry: group[i].entry });
-    }
-  }
-
-  const ymlBySlug = new Map(sluggedEntries.map(s => [s.slug, s.entry]));
+  // 1. Parse YML entries with canonical slugs (single source of truth)
+  const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml');
+  const sluggedEntries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
+  const ymlBySlug = new Map(sluggedEntries.map(e => [e.slug, e]));
 
   // 2. Read markdown frontmatter to find featured paths and their includes
   const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
