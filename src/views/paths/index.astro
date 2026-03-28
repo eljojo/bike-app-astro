@@ -142,9 +142,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
       <section class="paths-group">
         <h2>{group.label}</h2>
         <ul class="paths-list">
-          {group.paths.map(p => {
-            const info = pathRouteInfo.get(p.slug);
-            return (
+          {group.paths.map(p => (
               <li data-slug={p.slug} id={`path-${p.slug}`}>
                 <a href={paths.bikePath(p.slug, locale)}>
                   {p.name}
@@ -152,8 +150,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
                 {p.surface && <span class="path-meta">{p.surface}</span>}
                 {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
               </li>
-            );
-          })}
+          ))}
         </ul>
       </section>
     ))}
