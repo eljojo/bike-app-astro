@@ -75,6 +75,7 @@ const seoDescription = t('paths.seo_description', locale, { count: String(pages.
 
 <Base title={`${t('paths.title', locale)} | ${config.display_name}`} description={seoDescription}>
   <div class="paths-index">
+    <h1>{t('paths.heading', locale, { city: config.name })}</h1>
     {geoFiles.length > 0 && (
       <div
         class="paths-map-hero"

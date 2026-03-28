@@ -609,5 +609,7 @@
   "paths.label.operator": "Operador",
   "paths.label.network": "Red",
   "paths.lit_yes": "Sí",
-  "paths.lit_no": "No"
+  "paths.lit_no": "No",
+  "paths.go_back": "Todas las ciclovías",
+  "paths.heading": "Todas las ciclovías de {city}"
 }

@@ -72,7 +72,8 @@
 
   .path-card-photo {
     width: 100%;
-    height: auto;
+    aspect-ratio: 2 / 1;
+    object-fit: cover;
     display: block;
     border-radius: $border-radius $border-radius 0 0;
     margin-bottom: 0.5rem;

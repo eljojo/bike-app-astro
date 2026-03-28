@@ -609,5 +609,7 @@
   "paths.label.operator": "Operator",
   "paths.label.network": "Network",
   "paths.lit_yes": "Yes",
-  "paths.lit_no": "No"
+  "paths.lit_no": "No",
+  "paths.go_back": "All bike paths",
+  "paths.heading": "All the bike paths in {city}"
 }

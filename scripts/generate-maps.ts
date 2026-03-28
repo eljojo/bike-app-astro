@@ -29,23 +29,24 @@ function shortLang(locale: string): string {
   return locale.split('-')[0];
 }
 
-async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof mapThumbPaths>) {
+async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof mapThumbPaths>, aspect: '1:1' | '2:1' = '1:1') {
   fs.mkdirSync(path.dirname(paths.thumb), { recursive: true });
 
   fs.writeFileSync(paths.full, pngBuffer);
 
+  const is2to1 = aspect === '2:1';
   await sharp(pngBuffer)
-    .resize(1500, 1500, { fit: 'cover' })
+    .resize(1500, is2to1 ? 750 : 1500, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumbLarge);
 
   await sharp(pngBuffer)
-    .resize(750, 750, { fit: 'cover' })
+    .resize(750, is2to1 ? 375 : 750, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumb);
 
   await sharp(pngBuffer)
-    .resize(375, 375, { fit: 'cover' })
+    .resize(375, is2to1 ? 188 : 375, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumbSmall);
 
@@ -360,7 +361,7 @@ async function main() {
 
           // Encode coordinates as polyline for the Google API
           const encoded = polylineCodec.encode(allPoints as [number, number][]);
-          const url = buildStaticMapUrl(encoded, API_KEY!, lang);
+          const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false });
           const response = await fetch(url);
           if (!response.ok) {
             console.error(`[maps] ${label}: HTTP ${response.status}`);
@@ -369,7 +370,7 @@ async function main() {
           const pngBuffer = Buffer.from(await response.arrayBuffer());
 
           const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
-          await generateMapImages(pngBuffer, thumbPaths);
+          await generateMapImages(pngBuffer, thumbPaths, '2:1');
           fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
 
           generated++;
