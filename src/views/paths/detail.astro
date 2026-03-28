@@ -121,6 +121,13 @@ function displaySurface(raw?: string): string | undefined {
 
 const pathFacts = buildPathFacts(page);
 
+const networkLabels: Record<string, string> = {
+  rcn: t('paths.fact.network_regional', locale),
+  ncn: t('paths.fact.network_national', locale),
+  lcn: t('paths.fact.network_local', locale),
+};
+const networkLabel = page.network ? (networkLabels[page.network] || page.network) : undefined;
+
 // SEO
 const seoDescription = page.vibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${page.name} — cycling path`);
 // Prefer generated map thumbnail (path-{slug}/map-social.jpg), fall back to route cover photo
@@ -203,15 +210,8 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
           {page.operator && (
             <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
           )}
-          {page.network && (
-            <tr><td>{t('paths.label.network', locale)}</td><td>{(() => {
-              const networkMap: Record<string, string> = {
-                rcn: t('paths.fact.network_regional', locale),
-                ncn: t('paths.fact.network_national', locale),
-                lcn: t('paths.fact.network_local', locale),
-              };
-              return networkMap[page.network] || page.network;
-            })()}</td></tr>
+          {networkLabel && (
+            <tr><td>{t('paths.label.network', locale)}</td><td>{networkLabel}</td></tr>
           )}
         </table>
 

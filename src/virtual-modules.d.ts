@@ -386,6 +386,7 @@ interface _HomepageFact {
   text?: string;
   link?: string;
   link_text?: string;
+  always?: boolean;
   link_from?: string;
   query?: {
     type: string;
