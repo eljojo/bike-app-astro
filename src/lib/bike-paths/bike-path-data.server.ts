@@ -94,6 +94,8 @@ export async function loadBikePathData(): Promise<{
   pages: BikePathPage[];
   allYmlEntries: SluggedBikePathYml[];
   geoFiles: string[];
+  /** Precomputed: route slug → bike paths that overlap it. */
+  routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>>;
 }> {
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
@@ -221,7 +223,7 @@ export async function loadBikePathData(): Promise<{
     ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
     : [];
 
-  return { pages, allYmlEntries, geoFiles };
+  return { pages, allYmlEntries, geoFiles, routeToPaths: {} };
 }
 
 /** Check if a GPX track passes near any of a bike path's anchor points. */

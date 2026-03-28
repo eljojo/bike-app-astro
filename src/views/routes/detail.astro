@@ -26,7 +26,7 @@ import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.serve
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
-import { loadBikePathData, routePassesNearPath } from '@/lib/bike-paths/bike-path-data.server';
+import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 import PathsOnRoute from '@/components/PathsOnRoute.astro';
 
 const config = getCityConfig();
@@ -36,7 +36,7 @@ export const prerender = true;
 export async function getStaticPaths() {
   const [
     { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix },
-    { pages: bikePathPages },
+    { routeToPaths },
   ] = await Promise.all([loadRouteData(), loadBikePathData()]);
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
@@ -54,11 +54,11 @@ export async function getStaticPaths() {
 
   return filtered.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, bikePathPages },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths },
   }));
 }
 
-const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, bikePathPages } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -119,12 +119,7 @@ for (const v of variants) {
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
 
-const nearbyBikePaths = primaryTrack
-  ? bikePathPages.filter(bp => {
-      if (bp.points.length === 0) return false;
-      return routePassesNearPath(primaryTrack.points, bp.points);
-    })
-  : [];
+const nearbyBikePaths = routeToPaths[route.id] ?? [];
 
 // Build place description — highlight the top few interesting categories, not all of them
 function buildPlaceDesc(categories: { category: string; count: number }[]): string | null {

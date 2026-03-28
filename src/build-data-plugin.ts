@@ -249,7 +249,7 @@ function computeBikePathRelations(
   geoCoords: Record<string, Array<{ lat: number; lng: number }>>,
   routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
   places: Array<{ name: string; category: string; lat: number; lng: number; status?: string }>,
-): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }> } {
+): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }>; routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> } {
   const publishedPlaces = places.filter(p => !p.status || p.status === 'published');
   const relations: Record<string, PathRelations> = {};
   const routeOverlaps: Record<string, { count: number }> = {};
@@ -389,7 +389,21 @@ function computeBikePathRelations(
     relations[entry.slug] = { overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths };
   }
 
-  return { relations, routeOverlaps };
+  // Build reverse map: route slug → list of paths that overlap it
+  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> = {};
+  for (const [pathSlug, rel] of Object.entries(relations)) {
+    const pathEntry = bikePaths.find(e => e.slug === pathSlug);
+    for (const route of rel.overlappingRoutes) {
+      if (!routeToPaths[route.slug]) routeToPaths[route.slug] = [];
+      routeToPaths[route.slug].push({
+        slug: pathSlug,
+        name: pathEntry?.name ?? pathSlug,
+        surface: pathEntry?.surface,
+      });
+    }
+  }
+
+  return { relations, routeOverlaps, routeToPaths };
 }
 
 /**
@@ -666,7 +680,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       }
     }
   }
-  const { relations: bikePathRelations, routeOverlaps } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList);
+  const { relations: bikePathRelations, routeOverlaps, routeToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList);
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -851,6 +865,7 @@ const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
 const _routeOverlaps = ${JSON.stringify(routeOverlaps)};
 const _bikePathRelations = ${JSON.stringify(bikePathRelations)};
 const _geoElevation = ${JSON.stringify(geoElevation)};
+const _routeToPaths = ${JSON.stringify(routeToPaths)};
 
 /** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
 function getPathPoints(entry) {
@@ -1035,7 +1050,7 @@ export async function loadBikePathData() {
     });
   }
 
-  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)} };
+  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: _routeToPaths };
 }
 
 /** Check if a GPX track passes near any of a bike path's anchor points. */
