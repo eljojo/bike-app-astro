@@ -42,6 +42,7 @@ export function normalizeOperator(operator: string | undefined): string | undefi
 export async function loadBikePathData(): Promise<{
   pages: BikePathPage[];
   allYmlEntries: SluggedBikePathYml[];
+  geoFiles: string[];
 }> {
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
@@ -143,7 +144,13 @@ export async function loadBikePathData(): Promise<{
     });
   }
 
-  return { pages, allYmlEntries };
+  // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)
+  const geoDir = path.resolve('public/paths/geo');
+  const geoFiles = fs.existsSync(geoDir)
+    ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
+    : [];
+
+  return { pages, allYmlEntries, geoFiles };
 }
 
 /** Check if a GPX track passes near any of a bike path's anchor points. */

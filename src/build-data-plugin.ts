@@ -130,6 +130,12 @@ function loadBikePaths() {
   return parseBikePathsYml(fs.readFileSync(filePath, 'utf-8'));
 }
 
+function loadGeoFiles(consumerRoot: string): string[] {
+  const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
+  if (!fs.existsSync(geoDir)) return [];
+  return fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
+}
+
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
@@ -358,6 +364,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
   const bikePaths = loadBikePaths();
+  const geoFiles = loadGeoFiles(CONSUMER_ROOT);
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -630,7 +637,7 @@ export async function loadBikePathData() {
     });
   }
 
-  return { pages, allYmlEntries };
+  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)} };
 }
 
 /** Check if a GPX track passes near any of a bike path's anchor points. */
