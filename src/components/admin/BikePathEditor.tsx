@@ -21,6 +21,7 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
   const [nameFr, setNameFr] = useState(initialData.name_fr ?? '');
   const [vibe, setVibe] = useState(initialData.vibe ?? '');
   const [hidden, setHidden] = useState(initialData.hidden);
+  const [stub, setStub] = useState(initialData.stub ?? false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key ?? '');
   const [tags, setTags] = useState(initialData.tags.join(', '));
   const [body, setBody] = useState(initialData.body);
@@ -33,7 +34,7 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, nameFr, vibe, hidden, photoKey, tags, body]);
+  }, [name, nameFr, vibe, hidden, stub, photoKey, tags, body]);
 
   const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/bike-paths',
@@ -46,6 +47,7 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
         ...(nameFr && { name_fr: nameFr }),
         ...(vibe && { vibe }),
         hidden,
+        stub,
         includes: initialData.includes, // read-only, pass through
         ...(photoKey && { photo_key: photoKey }),
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -97,6 +99,14 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
           <label for="bp-photo-key">Photo key</label>
           <input id="bp-photo-key" type="text" value={photoKey}
             onInput={e => setPhotoKey((e.target as HTMLInputElement).value)} />
+        </div>
+
+        <div class="form-field form-field--inline">
+          <label>
+            <input type="checkbox" checked={stub}
+              onChange={e => setStub((e.target as HTMLInputElement).checked)} />
+            {' '}Stub (needs more information — shows a CTA inviting people to edit)
+          </label>
         </div>
 
         <div class="form-field form-field--inline">

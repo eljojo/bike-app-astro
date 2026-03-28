@@ -1,128 +1,29 @@
 ---
 export const prerender = true;
 import Base from '@/layouts/Base.astro';
-import { loadBikePathData, routePassesNearPath, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
+import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import BikePathMap from '@/components/BikePathMap.astro';
-import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import RoutesOnPath from '@/components/RoutesOnPath.astro';
+import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import NearbyPaths from '@/components/NearbyPaths.astro';
 import { t } from '@/i18n';
 import { paths, assets } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { loadRouteData } from '@/lib/route-data';
-import { isPublished } from '@/lib/content/content-filters';
-import { haversineM, findNearbyPlaces } from '@/lib/geo/proximity';
-import type { NearbyPlace } from '@/lib/geo/proximity';
-
-interface RouteCard {
-  slug: string;
-  name: string;
-  distance_km: number;
-  coverKey?: string;
-}
-
-interface NearbyPathItem {
-  slug: string;
-  name: string;
-  surface?: string;
-}
-
-interface ConnectedPathItem {
-  slug: string;
-  name: string;
-  surface?: string;
-}
 
 export async function getStaticPaths() {
-  const [{ pages }, { routes, placeData }] = await Promise.all([
-    loadBikePathData(),
-    loadRouteData(),
-  ]);
-
-  const publishedRoutes = routes.filter(isPublished);
-
-  return pages.map(page => {
-    // page.points has geographic coordinates from YML anchors OR sampled GeoJSON geometry
-    const pts = page.points;
-
-    // Find routes that pass near this path
-    const overlappingRoutes: RouteCard[] = pts.length > 0
-      ? publishedRoutes.filter(r => {
-          const gpxKey = r.data.variants?.[0]?.gpx;
-          const track = gpxKey ? r.data.gpxTracks[gpxKey] : null;
-          if (!track?.points || track.points.length === 0) return false;
-          return routePassesNearPath(track.points, pts);
-        }).map(r => {
-          const cover = r.data.media.find((m: { cover?: boolean }) => m.cover);
-          return {
-            slug: r.id,
-            name: r.data.name,
-            distance_km: r.data.distance_km,
-            coverKey: cover?.key,
-          };
-        })
-      : [];
-
-    // Find nearby places
-    const trackPoints = pts.map(a => ({ lat: a.lat, lon: a.lng }));
-    const nearbyPlaces: NearbyPlace[] = trackPoints.length >= 2
-      ? findNearbyPlaces(trackPoints, placeData)
-      : [];
-
-    // Find nearby paths: other pages whose points are within 2km
-    const nearbyPathsList: NearbyPathItem[] = pts.length > 0
-      ? pages.filter(other => {
-          if (other.slug === page.slug) return false;
-          if (other.points.length === 0) return false;
-          for (const a of pts) {
-            for (const b of other.points) {
-              if (haversineM(a.lat, a.lng, b.lat, b.lng) < 2000) return true;
-            }
-          }
-          return false;
-        }).map(p => ({ slug: p.slug, name: p.name, surface: p.surface }))
-      : [];
-
-    // Connected = another path's first or last point is within 200m of
-    // this path's first or last point (they meet at a junction)
-    const pathEndpoints = pts.length >= 2
-      ? [pts[0], pts[pts.length - 1]]
-      : pts.slice(0, 1);
-
-    const connectedPaths: ConnectedPathItem[] = pathEndpoints.length > 0
-      ? pages.filter(other => {
-          if (other.slug === page.slug) return false;
-          if (other.points.length === 0) return false;
-          const otherEndpoints = other.points.length >= 2
-            ? [other.points[0], other.points[other.points.length - 1]]
-            : other.points.slice(0, 1);
-          for (const ep of pathEndpoints) {
-            for (const oep of otherEndpoints) {
-              if (haversineM(ep.lat, ep.lng, oep.lat, oep.lng) < 200) return true;
-            }
-          }
-          return false;
-        }).map(p => ({ slug: p.slug, name: p.name, surface: p.surface }))
-      : [];
-
-    return {
-      params: { slug: page.slug },
-      props: { page, overlappingRoutes, nearbyPlaces, nearbyPaths: nearbyPathsList, connectedPaths },
-    };
-  });
+  const { pages } = await loadBikePathData();
+  return pages.map(page => ({
+    params: { slug: page.slug },
+    props: { page },
+  }));
 }
 
-interface Props {
-  page: BikePathPage;
-  overlappingRoutes: RouteCard[];
-  nearbyPlaces: NearbyPlace[];
-  nearbyPaths: NearbyPathItem[];
-  connectedPaths: ConnectedPathItem[];
-}
-const { page, overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths } = Astro.props;
+interface Props { page: BikePathPage }
+const { page } = Astro.props;
+const { overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
@@ -210,6 +111,12 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
       <div class="bike-path-info">
         <h1>{page.name}</h1>
         {page.vibe && <p class="bike-path-vibe">{page.vibe}</p>}
+
+        {page.stub && (
+          <p class="bike-path-stub-cta">
+            {t('paths.stub_cta', locale)} <a href={`/admin/paths/${page.slug}`}>{t('paths.stub_cta_link', locale)}</a>
+          </p>
+        )}
 
         {pathFacts.length > 0 && (
           <p class="bike-path-facts">{pathFacts.join('. ')}.</p>

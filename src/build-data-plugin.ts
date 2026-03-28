@@ -18,6 +18,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
+import matter from 'gray-matter';
 import type { Plugin } from 'vite';
 import { CITY } from './lib/config/config';
 import { CONTENT_DIR, cityDir } from './lib/config/config.server';
@@ -173,15 +174,7 @@ function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: n
   return result;
 }
 
-/** Simple haversine distance in meters — used at config time for route overlap precomputation. */
-function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => d * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { haversineM, PLACE_NEAR_ROUTE_M } from './lib/geo/proximity';
 
 /** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
 function boundingBox(points: Array<{ lat: number; lng: number }>, padDeg = 0.001) {
@@ -225,24 +218,78 @@ function trackPassesNearPoints(
   return false;
 }
 
+interface RouteCard {
+  slug: string;
+  name: string;
+  distance_km: number;
+  coverKey?: string;
+}
+
+interface PathRelations {
+  overlappingRoutes: RouteCard[];
+  nearbyPlaces: NearbyPlace[];
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
+}
+
 /**
- * Precompute route overlap counts per bike path slug at config time.
- * This avoids expensive computation during Cloudflare workerd prerendering.
+ * Precompute ALL bike-path relationships at config time.
+ * This replaces the heavy computation that was happening in workerd prerendering.
  */
-function computeRouteOverlaps(
+interface NearbyPlace {
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  distance_m: number;
+}
+
+function computeBikePathRelations(
   bikePaths: ReturnType<typeof parseBikePathsYml>,
   geoCoords: Record<string, Array<{ lat: number; lng: number }>>,
   routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
-): Record<string, { count: number; coverSlug?: string }> {
-  const result: Record<string, { count: number; coverSlug?: string }> = {};
+  places: Array<{ name: string; category: string; lat: number; lng: number; status?: string }>,
+): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }> } {
+  const publishedPlaces = places.filter(p => !p.status || p.status === 'published');
+  const relations: Record<string, PathRelations> = {};
+  const routeOverlaps: Record<string, { count: number }> = {};
 
-  // Precompute route bounding boxes for fast rejection
-  const routeBboxes = new Map<string, { minLat: number; maxLat: number; minLng: number; maxLng: number }>();
+  // Load route metadata (name, distance_km, cover) from frontmatter
+  const routeMeta = new Map<string, { name: string; distance_km: number; coverKey?: string }>();
+  const routesDir = path.join(CITY_DIR, 'routes');
+  if (fs.existsSync(routesDir)) {
+    for (const slug of fs.readdirSync(routesDir)) {
+      const indexPath = path.join(routesDir, slug, 'index.md');
+      if (!fs.existsSync(indexPath)) continue;
+      const { data: fm } = matter(fs.readFileSync(indexPath, 'utf-8'));
+      if (fm.status !== 'published') continue;
+      // Find cover media key from media.yml
+      let coverKey: string | undefined;
+      const mediaPath = path.join(routesDir, slug, 'media.yml');
+      if (fs.existsSync(mediaPath)) {
+        const media = yaml.load(fs.readFileSync(mediaPath, 'utf-8'));
+        if (Array.isArray(media)) {
+          const cover = media.find((m: { cover?: boolean }) => m.cover);
+          if (cover?.key) coverKey = cover.key;
+          else if (media[0]?.key) coverKey = media[0].key;
+        }
+      }
+      routeMeta.set(slug, {
+        name: fm.name as string || slug,
+        distance_km: (fm.distance_km as number) || 0,
+        coverKey,
+      });
+    }
+  }
+
+  // Precompute route bounding boxes
+  const routeBboxes = new Map<string, ReturnType<typeof boundingBox>>();
   for (const [slug, pts] of Object.entries(routeTracks)) {
     if (pts.length > 0) routeBboxes.set(slug, boundingBox(pts));
   }
 
-  // Build path points per slug (same logic as getPathPoints in transform)
+  // Build points per entry slug
+  const entryPoints = new Map<string, Array<{ lat: number; lng: number }>>();
   for (const entry of bikePaths) {
     const anchors = (entry.anchors ?? []).map((a: unknown) =>
       Array.isArray(a) ? { lat: (a as number[])[1], lng: (a as number[])[0] } : a as { lat: number; lng: number }
@@ -254,27 +301,95 @@ function computeRouteOverlaps(
         if (coords) points = points.concat(coords);
       }
     }
+    entryPoints.set(entry.slug, points);
+  }
+
+  // For each entry, compute route overlaps
+  for (const entry of bikePaths) {
+    const points = entryPoints.get(entry.slug) ?? [];
     if (points.length === 0) {
-      result[entry.slug] = { count: 0 };
+      routeOverlaps[entry.slug] = { count: 0 };
+      relations[entry.slug] = { overlappingRoutes: [], nearbyPlaces: [], nearbyPaths: [], connectedPaths: [] };
       continue;
     }
 
     const pathBbox = boundingBox(points);
-    let count = 0;
-    let coverSlug: string | undefined;
+
+    // Route overlaps
+    const overlappingRoutes: RouteCard[] = [];
     for (const [routeSlug, trackPoints] of Object.entries(routeTracks)) {
       if (trackPoints.length === 0) continue;
       const trackBbox = routeBboxes.get(routeSlug);
       if (!trackBbox) continue;
       if (trackPassesNearPoints(trackPoints, trackBbox, points, pathBbox)) {
-        count++;
-        if (!coverSlug) coverSlug = routeSlug;
+        const meta = routeMeta.get(routeSlug);
+        if (meta) {
+          overlappingRoutes.push({ slug: routeSlug, ...meta });
+        }
       }
     }
-    result[entry.slug] = { count, coverSlug };
+    routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
+
+    // Nearby paths (within 2km)
+    const nearbyPaths: Array<{ slug: string; name: string; surface?: string }> = [];
+    for (const other of bikePaths) {
+      if (other.slug === entry.slug) continue;
+      const otherPts = entryPoints.get(other.slug) ?? [];
+      if (otherPts.length === 0) continue;
+      const otherBbox = boundingBox(otherPts, 0.02); // ~2km padding
+      if (!bboxOverlap(pathBbox, otherBbox)) continue;
+      let found = false;
+      for (const a of points) {
+        if (found) break;
+        for (const b of otherPts) {
+          if (haversineM(a.lat, a.lng, b.lat, b.lng) < 2000) { found = true; break; }
+        }
+      }
+      if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
+    }
+
+    // Connected paths (endpoints within 200m)
+    const endpoints = points.length >= 2
+      ? [points[0], points[points.length - 1]]
+      : points.slice(0, 1);
+    const connectedPaths: Array<{ slug: string; name: string; surface?: string }> = [];
+    for (const other of bikePaths) {
+      if (other.slug === entry.slug) continue;
+      const otherPts = entryPoints.get(other.slug) ?? [];
+      if (otherPts.length === 0) continue;
+      const otherEndpoints = otherPts.length >= 2
+        ? [otherPts[0], otherPts[otherPts.length - 1]]
+        : otherPts.slice(0, 1);
+      let found = false;
+      for (const ep of endpoints) {
+        if (found) break;
+        for (const oep of otherEndpoints) {
+          if (haversineM(ep.lat, ep.lng, oep.lat, oep.lng) < 200) { found = true; break; }
+        }
+      }
+      if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
+    }
+
+    // Nearby places (within threshold of any path point)
+    const PLACE_NEAR_M = PLACE_NEAR_ROUTE_M;
+    const nearbyPlaces: NearbyPlace[] = [];
+    for (const place of publishedPlaces) {
+      let minDist = Infinity;
+      for (const pp of points) {
+        const d = haversineM(pp.lat, pp.lng, place.lat, place.lng);
+        if (d < minDist) minDist = d;
+        if (d <= PLACE_NEAR_M) break; // early exit
+      }
+      if (minDist <= PLACE_NEAR_M) {
+        nearbyPlaces.push({ name: place.name, category: place.category, lat: place.lat, lng: place.lng, distance_m: Math.round(minDist) });
+      }
+    }
+    nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
+
+    relations[entry.slug] = { overlappingRoutes, nearbyPlaces, nearbyPaths, connectedPaths };
   }
 
-  return result;
+  return { relations, routeOverlaps };
 }
 
 function loadFontPreloads() {
@@ -508,7 +623,18 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const geoFiles = loadGeoFiles(CONSUMER_ROOT);
   const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
   const routeTracks = loadRouteTrackPoints();
-  const routeOverlaps = computeRouteOverlaps(bikePaths, geoCoordinates, routeTracks);
+  // Load places for nearby-places computation
+  const placesDir = path.join(CITY_DIR, 'places');
+  const placeList: Array<{ name: string; category: string; lat: number; lng: number; status?: string }> = [];
+  if (fs.existsSync(placesDir)) {
+    for (const file of fs.readdirSync(placesDir).filter(f => f.endsWith('.md') && !f.includes('.'))) {
+      const { data } = matter(fs.readFileSync(path.join(placesDir, file), 'utf-8'));
+      if (data.lat != null && data.lng != null) {
+        placeList.push({ name: data.name as string, category: data.category as string, lat: data.lat as number, lng: data.lng as number, status: data.status as string });
+      }
+    }
+  }
+  const { relations: bikePathRelations, routeOverlaps } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList);
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -691,6 +817,7 @@ export function normalizeOperator(operator) {
 const _allYmlEntries = ${JSON.stringify(bikePaths)};
 const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
 const _routeOverlaps = ${JSON.stringify(routeOverlaps)};
+const _bikePathRelations = ${JSON.stringify(bikePathRelations)};
 
 /** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
 function getPathPoints(entry) {
@@ -763,11 +890,54 @@ export async function loadBikePathData() {
       tags: md.data.tags ?? [],
       score: bestChildScore,
       hasMarkdown: true,
+      stub: md.data.stub ?? false,
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
       points,
       routeCount: Math.max(...matchedEntries.map(e => _routeOverlaps[e.slug]?.count ?? 0), 0),
+      // Merge precomputed relations from all included entries, deduplicated by slug
+      overlappingRoutes: (() => {
+        const seen = new Set();
+        const routes = [];
+        for (const e of matchedEntries) {
+          for (const r of (_bikePathRelations[e.slug]?.overlappingRoutes ?? [])) {
+            if (!seen.has(r.slug)) { seen.add(r.slug); routes.push(r); }
+          }
+        }
+        return routes;
+      })(),
+      nearbyPlaces: (() => {
+        const seen = new Set();
+        const places = [];
+        for (const e of matchedEntries) {
+          for (const p of (_bikePathRelations[e.slug]?.nearbyPlaces ?? [])) {
+            const key = p.name + p.lat + p.lng;
+            if (!seen.has(key)) { seen.add(key); places.push(p); }
+          }
+        }
+        return places.sort((a, b) => a.distance_m - b.distance_m);
+      })(),
+      nearbyPaths: (() => {
+        const seen = new Set();
+        const paths = [];
+        for (const e of matchedEntries) {
+          for (const p of (_bikePathRelations[e.slug]?.nearbyPaths ?? [])) {
+            if (!seen.has(p.slug) && p.slug !== md.id) { seen.add(p.slug); paths.push(p); }
+          }
+        }
+        return paths;
+      })(),
+      connectedPaths: (() => {
+        const seen = new Set();
+        const paths = [];
+        for (const e of matchedEntries) {
+          for (const p of (_bikePathRelations[e.slug]?.connectedPaths ?? [])) {
+            if (!seen.has(p.slug) && p.slug !== md.id) { seen.add(p.slug); paths.push(p); }
+          }
+        }
+        return paths;
+      })(),
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
@@ -793,11 +963,16 @@ export async function loadBikePathData() {
       tags: [],
       score,
       hasMarkdown: false,
+      stub: false,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       points: getPathPoints(entry),
       routeCount: _routeOverlaps[entry.slug]?.count ?? 0,
+      overlappingRoutes: _bikePathRelations[entry.slug]?.overlappingRoutes ?? [],
+      nearbyPlaces: _bikePathRelations[entry.slug]?.nearbyPlaces ?? [],
+      nearbyPaths: _bikePathRelations[entry.slug]?.nearbyPaths ?? [],
+      connectedPaths: _bikePathRelations[entry.slug]?.connectedPaths ?? [],
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,

@@ -18,6 +18,7 @@ export interface BikePathPage {
   tags: string[];
   score: number;
   hasMarkdown: boolean;
+  stub: boolean;
   ymlEntries: SluggedBikePathYml[];
   osmRelationIds: number[];
   osmNames: string[];
@@ -25,6 +26,14 @@ export interface BikePathPage {
   points: Array<{ lat: number; lng: number }>;
   /** Number of routes that overlap this path (precomputed at build config time). */
   routeCount: number;
+  /** Precomputed route cards for routes that overlap this path. */
+  overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string }>;
+  /** Precomputed nearby places (within 300m). */
+  nearbyPlaces: Array<{ name: string; category: string; lat: number; lng: number; distance_m: number }>;
+  /** Precomputed nearby paths (within 2km). */
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
+  /** Precomputed connected paths (endpoints within 200m). */
+  connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
   surface?: string;
   width?: string;
   lit?: string;
@@ -147,11 +156,16 @@ export async function loadBikePathData(): Promise<{
       tags: md.data.tags ?? [],
       score: bestChildScore,
       hasMarkdown: true,
+      stub: md.data.stub ?? false,
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
       points,
-      routeCount: 0, // precomputed in build-data-plugin; 0 in dev mode
+      routeCount: 0,
+      overlappingRoutes: [],
+      nearbyPlaces: [],
+      nearbyPaths: [],
+      connectedPaths: [],
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
@@ -178,11 +192,16 @@ export async function loadBikePathData(): Promise<{
       tags: [],
       score,
       hasMarkdown: false,
+      stub: false,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       points: getPathPoints(entry),
-      routeCount: 0, // precomputed in build-data-plugin; 0 in dev mode
+      routeCount: 0,
+      overlappingRoutes: [],
+      nearbyPlaces: [],
+      nearbyPaths: [],
+      connectedPaths: [],
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,

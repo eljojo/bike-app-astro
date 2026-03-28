@@ -154,6 +154,21 @@
   margin: 0.25rem 0 1rem;
 }
 
+.bike-path-stub-cta {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: $border-radius;
+  background: $color-warning-bg;
+  color: $color-warning;
+  margin-bottom: 1rem;
+
+  a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+}
+
 .bike-path-facts {
   font-size: 0.95rem;
   @include muted-text;
