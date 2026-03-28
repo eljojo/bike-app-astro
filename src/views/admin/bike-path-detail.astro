@@ -3,8 +3,12 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import BikePathEditor from '../../components/admin/BikePathEditor.tsx';
-import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
+import EditHistory from '../../components/admin/EditHistory.tsx';
+import { env } from '../../lib/env/env.service';
+import { CITY } from '../../lib/config/config';
+import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
 import { bikePathDetailFromCache } from '../../lib/models/bike-path-model';
+import { getCityConfig } from '../../lib/config/city-config';
 
 const result = await loadDetailFromJson({
   contentType: 'bike-paths',
@@ -16,8 +20,11 @@ const result = await loadDetailFromJson({
 if (result.notFound) return new Response(null, { status: 404 });
 const bikePathData = result.data;
 const user = Astro.locals.user;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
 ---
 
-<AdminEditorLayout title={`Edit: ${bikePathData.name || bikePathData.id}`} hideTitle user={user} currentTab="bike-paths">
-  <BikePathEditor client:load initialData={bikePathData} userRole={user?.role} />
+<AdminEditorLayout title={`Edit: ${bikePathData.name || bikePathData.id}`} viewLink={`/paths/${bikePathData.id}`} hideTitle user={user} currentTab="bike-paths">
+  <BikePathEditor client:load initialData={bikePathData} userRole={user?.role} cdnUrl={cdnUrl} knownTags={knownTags} />
+  <EditHistory client:load contentPath={`${CITY}/bike-paths/${bikePathData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

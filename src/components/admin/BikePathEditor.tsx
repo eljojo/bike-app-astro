@@ -5,14 +5,18 @@ import { useHydrated, useTextareaValue } from '../../lib/hooks';
 import { useEditorState } from './useEditorState';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import EditorActions from './EditorActions';
+import PhotoField from './PhotoField';
+import TagEditor from './TagEditor';
 import type { BikePathDetail } from '../../lib/models/bike-path-model';
 
 interface Props {
   initialData: BikePathDetail & { contentHash?: string };
   userRole?: string;
+  cdnUrl?: string;
+  knownTags?: string[];
 }
 
-export default function BikePathEditor({ initialData, userRole }: Props) {
+export default function BikePathEditor({ initialData, userRole, cdnUrl = '', knownTags = [] }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
@@ -23,7 +27,7 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
   const [hidden, setHidden] = useState(initialData.hidden);
   const [stub, setStub] = useState(initialData.stub ?? false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key ?? '');
-  const [tags, setTags] = useState(initialData.tags.join(', '));
+  const [tags, setTags] = useState<string[]>(initialData.tags || []);
   const [body, setBody] = useState(initialData.body);
 
   // Textarea hydration bug fix
@@ -34,7 +38,7 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, nameFr, vibe, hidden, stub, photoKey, tags, body]);
+  }, [name, nameFr, vibe, hidden, stub, photoKey, tags.length, body]);
 
   const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/bike-paths',
@@ -50,7 +54,7 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
         stub,
         includes: initialData.includes, // read-only, pass through
         ...(photoKey && { photo_key: photoKey }),
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags,
       },
       body,
     }),
@@ -89,17 +93,21 @@ export default function BikePathEditor({ initialData, userRole }: Props) {
         </div>
 
         <div class="form-field">
-          <label for="bp-tags">Tags</label>
-          <input id="bp-tags" type="text" value={tags}
-            onInput={e => setTags((e.target as HTMLInputElement).value)}
-            placeholder="comma, separated, tags" />
+          <label>Tags</label>
+          <TagEditor
+            tags={tags}
+            onTagsChange={setTags}
+            knownTags={knownTags}
+            datalistId="bp-tag-suggestions"
+          />
         </div>
 
-        <div class="form-field">
-          <label for="bp-photo-key">Photo key</label>
-          <input id="bp-photo-key" type="text" value={photoKey}
-            onInput={e => setPhotoKey((e.target as HTMLInputElement).value)} />
-        </div>
+        <PhotoField
+          photoKey={photoKey}
+          cdnUrl={cdnUrl}
+          onPhotoChange={(key) => setPhotoKey(key)}
+          label="Hero Photo"
+        />
 
         <div class="form-field form-field--inline">
           <label>

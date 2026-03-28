@@ -9,6 +9,7 @@ import { useFormValidation } from './useFormValidation';
 import MarkdownEditor from './MarkdownEditor';
 import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
+import TagEditor from './TagEditor';
 import type { MediaItem } from './MediaManager';
 import EventRouteSection from './EventRouteSection';
 import EventMediaSection from './EventMediaSection';
@@ -102,7 +103,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterWidth, setPosterWidth] = useState<number | undefined>(initialData.poster_width);
   const [posterHeight, setPosterHeight] = useState<number | undefined>(initialData.poster_height);
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
-  const [tagInput, setTagInput] = useState('');
   const [body, setBody] = useState(initialData.body);
 
   // Club-specific state
@@ -286,41 +286,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   const activeLocale = defaultLocale; // events don't have per-editor locale switching
 
-  function displayTag(tag: string): string {
-    return tagTranslations[tag]?.[activeLocale] ?? tag;
-  }
-
-  function resolveTag(input: string): string {
-    if (knownTags.includes(input)) return input;
-    for (const [key, locales] of Object.entries(tagTranslations)) {
-      for (const translated of Object.values(locales)) {
-        if (translated.toLowerCase() === input) return key;
-      }
-    }
-    return input;
-  }
-
-  function addTag() {
-    const raw = tagInput.trim().toLowerCase();
-    if (!raw) { setTagInput(''); return; }
-    const tag = resolveTag(raw);
-    if (!tags.includes(tag)) {
-      setTags([...tags, tag]);
-    }
-    setTagInput('');
-  }
-
-  function removeTag(tag: string) {
-    setTags(tags.filter(t => t !== tag));
-  }
-
-  function handleTagKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag();
-    }
-  }
-
   return (
     <fieldset class="event-editor" disabled={readOnly} ref={hydratedRef}>
         {userRole === 'guest' && guestLabel && (
@@ -335,38 +300,14 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
           <div class="form-field">
             <label>Tags</label>
-            <div class="tag-editor">
-              {tags.map((tag) => (
-                <span key={tag} class="tag-pill">
-                  {displayTag(tag)}
-                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-                </span>
-              ))}
-              <input
-                type="text"
-                class="tag-input"
-                list="event-tag-suggestions"
-                value={tagInput}
-                onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={addTag}
-                placeholder="Add tag..."
-              />
-              <datalist id="event-tag-suggestions">
-                {knownTags
-                  .filter(t => !tags.includes(t))
-                  .flatMap(tag => {
-                    const options = [<option key={tag} value={tag} />];
-                    const locales = tagTranslations[tag];
-                    if (locales) {
-                      for (const [locale, translated] of Object.entries(locales)) {
-                        options.push(<option key={`${tag}-${locale}`} value={translated} />);
-                      }
-                    }
-                    return options;
-                  })}
-              </datalist>
-            </div>
+            <TagEditor
+              tags={tags}
+              onTagsChange={setTags}
+              knownTags={knownTags}
+              tagTranslations={tagTranslations}
+              activeLocale={activeLocale}
+              datalistId="event-tag-suggestions"
+            />
           </div>
 
           {/* Normal / Series toggle */}

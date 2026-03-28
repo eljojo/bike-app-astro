@@ -6,6 +6,7 @@ import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
+import TagEditor from './TagEditor';
 import EditorActions from './EditorActions';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
@@ -45,7 +46,6 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
   const [tagline, setTagline] = useState(initialData.tagline || '');
   const [body, setBody] = useState(initialData.body || '');
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
-  const [tagInput, setTagInput] = useState('');
   const [featured, setFeatured] = useState(initialData.featured || false);
   const [hidden, setHidden] = useState(initialData.hidden || false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
@@ -109,41 +109,6 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     },
   });
 
-  function displayTag(tag: string): string {
-    return tagTranslations[tag]?.[defaultLocale] ?? tag;
-  }
-
-  function resolveTag(input: string): string {
-    if (knownTags.includes(input)) return input;
-    for (const [key, locales] of Object.entries(tagTranslations)) {
-      for (const translated of Object.values(locales)) {
-        if (translated.toLowerCase() === input) return key;
-      }
-    }
-    return input;
-  }
-
-  function addTag() {
-    const raw = tagInput.trim().toLowerCase();
-    if (!raw) { setTagInput(''); return; }
-    const tag = resolveTag(raw);
-    if (!tags.includes(tag)) {
-      setTags([...tags, tag]);
-    }
-    setTagInput('');
-  }
-
-  function removeTag(tag: string) {
-    setTags(tags.filter((t) => t !== tag));
-  }
-
-  function handleTagKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag();
-    }
-  }
-
   function addSocialLink() {
     setSocialLinks(prev => [...prev, { platform: 'instagram', url: '' }]);
   }
@@ -189,38 +154,14 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
 
         <div class="form-field">
           <label>Tags</label>
-          <div class="tag-editor">
-            {tags.map((tag) => (
-              <span key={tag} class="tag-pill">
-                {displayTag(tag)}
-                <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-              </span>
-            ))}
-            <input
-              type="text"
-              class="tag-input"
-              list="community-tag-suggestions"
-              value={tagInput}
-              onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-              onKeyDown={handleTagKeyDown}
-              onBlur={addTag}
-              placeholder="Add tag..."
-            />
-            <datalist id="community-tag-suggestions">
-              {knownTags
-                .filter(t => !tags.includes(t))
-                .flatMap(tag => {
-                  const options = [<option key={tag} value={tag} />];
-                  const locales = tagTranslations[tag];
-                  if (locales) {
-                    for (const [locale, translated] of Object.entries(locales)) {
-                      options.push(<option key={`${tag}-${locale}`} value={translated} />);
-                    }
-                  }
-                  return options;
-                })}
-            </datalist>
-          </div>
+          <TagEditor
+            tags={tags}
+            onTagsChange={setTags}
+            knownTags={knownTags}
+            tagTranslations={tagTranslations}
+            activeLocale={defaultLocale}
+            datalistId="community-tag-suggestions"
+          />
         </div>
 
         {userRole === 'admin' && (
