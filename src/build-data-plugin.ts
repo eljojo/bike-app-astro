@@ -1053,6 +1053,11 @@ export async function loadBikePathData() {
   return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: _routeToPaths };
 }
 
+/** Get precomputed route → paths mapping without loading the full bike path dataset. */
+export function getRouteToPaths() {
+  return _routeToPaths;
+}
+
 /** Check if a GPX track passes near any of a bike path's anchor points. */
 export function routePassesNearPath(trackPoints, pathAnchors, thresholdM = 100) {
   for (const anchor of pathAnchors) {

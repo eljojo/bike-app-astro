@@ -26,7 +26,7 @@ import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.serve
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
-import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
+import { getRouteToPaths } from '@/lib/bike-paths/bike-path-data.server';
 import PathsOnRoute from '@/components/PathsOnRoute.astro';
 
 const config = getCityConfig();
@@ -34,10 +34,8 @@ const locale = Astro.currentLocale;
 
 export const prerender = true;
 export async function getStaticPaths() {
-  const [
-    { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix },
-    { routeToPaths },
-  ] = await Promise.all([loadRouteData(), loadBikePathData()]);
+  const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix } = await loadRouteData();
+  const routeToPaths = getRouteToPaths();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
   // Build lightweight data for similar routes thumbnails

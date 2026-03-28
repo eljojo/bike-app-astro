@@ -226,6 +226,11 @@ export async function loadBikePathData(): Promise<{
   return { pages, allYmlEntries, geoFiles, routeToPaths: {} };
 }
 
+/** Get precomputed route → paths mapping without loading the full bike path dataset. */
+export function getRouteToPaths(): Record<string, Array<{ slug: string; name: string; surface?: string }>> {
+  return {}; // Precomputed in build-data-plugin; empty in dev mode
+}
+
 /** Check if a GPX track passes near any of a bike path's anchor points. */
 export function routePassesNearPath(
   trackPoints: GpxPoint[],
