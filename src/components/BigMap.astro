@@ -82,6 +82,15 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
 
   const PATH_COLOR = '#0077BB'; // Distinct from route colour (#350091) but same visual weight
 
+  interface PathFeatureProps {
+    slug: string;
+    name: string;
+    surface: string;
+    hasPage: 'true' | '';
+    interactive: 'true' | '';
+    relId: string;
+  }
+
   const el = document.getElementById('big-map');
   const controlsEl = document.getElementById('big-map-controls');
   if (el) {
@@ -211,8 +220,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
       }
       map.on('click', 'paths-network-line', (e) => {
         if (!e.features?.length) return;
-        const props = e.features[0].properties;
-        if (!props) return;
+        const props = e.features[0].properties as PathFeatureProps;
         const name = esc(props.name);
         let nameLink: string;
         if (props.hasPage === 'true' && props.slug) {
