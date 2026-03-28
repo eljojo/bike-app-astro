@@ -865,7 +865,7 @@ const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
 const _routeOverlaps = ${JSON.stringify(routeOverlaps)};
 const _bikePathRelations = ${JSON.stringify(bikePathRelations)};
 const _geoElevation = ${JSON.stringify(geoElevation)};
-const _routeToPaths = ${JSON.stringify(routeToPaths)};
+let _routeToPaths = ${JSON.stringify(routeToPaths)};
 
 /** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
 function getPathPoints(entry) {
@@ -1056,19 +1056,20 @@ export async function loadBikePathData() {
     page.nearbyPaths = page.nearbyPaths.filter(p => validSlugs.has(p.slug));
     page.connectedPaths = page.connectedPaths.filter(p => validSlugs.has(p.slug));
   }
-  // Build filtered routeToPaths
-  const filteredRouteToPaths = {};
+  // Filter routeToPaths to only valid page slugs
+  const filtered = {};
   for (const [routeSlug, pathList] of Object.entries(_routeToPaths)) {
-    const filtered = pathList.filter(p => validSlugs.has(p.slug));
-    if (filtered.length > 0) filteredRouteToPaths[routeSlug] = filtered;
+    const valid = pathList.filter(p => validSlugs.has(p.slug));
+    if (valid.length > 0) filtered[routeSlug] = valid;
   }
+  _routeToPaths = filtered;
 
-  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: filteredRouteToPaths };
+  return { pages, allYmlEntries, geoFiles: ${JSON.stringify(geoFiles)}, routeToPaths: _routeToPaths };
 }
 
 /** Get precomputed route → paths mapping without loading the full bike path dataset. */
 export function getRouteToPaths() {
-  return filteredRouteToPaths;
+  return _routeToPaths;
 }
 
 /** Check if a GPX track passes near any of a bike path's anchor points. */
