@@ -602,5 +602,12 @@
   "paths.fact.hilly": "Hilly ({meters}m gain)",
   "paths.edit_description": "Know this path? Help improve this page — every edit can be undone.",
   "paths.index_osm_attribution": "Path data on this page comes from",
-  "paths.index_osm_edit": "See something missing or wrong? You can fix it there — every edit helps cyclists in your city."
+  "paths.index_osm_edit": "See something missing or wrong? You can fix it there — every edit helps cyclists in your city.",
+  "paths.label.surface": "Surface",
+  "paths.label.separated": "Traffic",
+  "paths.label.lit": "Lighting",
+  "paths.label.operator": "Operator",
+  "paths.label.network": "Network",
+  "paths.lit_yes": "Yes",
+  "paths.lit_no": "No"
 }

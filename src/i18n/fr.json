@@ -602,5 +602,12 @@
   "paths.fact.hilly": "Vallonné ({meters}m de dénivelé)",
   "paths.edit_description": "Vous connaissez ce sentier ? Aidez à améliorer cette page — chaque modification peut être annulée.",
   "paths.index_osm_attribution": "Les données de cette page proviennent de",
-  "paths.index_osm_edit": "Quelque chose manque ou est incorrect ? Vous pouvez le corriger là-bas — chaque modification aide les cyclistes de votre ville."
+  "paths.index_osm_edit": "Quelque chose manque ou est incorrect ? Vous pouvez le corriger là-bas — chaque modification aide les cyclistes de votre ville.",
+  "paths.label.surface": "Surface",
+  "paths.label.separated": "Circulation",
+  "paths.label.lit": "Éclairage",
+  "paths.label.operator": "Gestionnaire",
+  "paths.label.network": "Réseau",
+  "paths.lit_yes": "Oui",
+  "paths.lit_no": "Non"
 }
