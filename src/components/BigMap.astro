@@ -138,7 +138,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
             feature.properties.name = info?.name || '';
             feature.properties.surface = info?.surface || '';
             feature.properties.hasPage = info?.hasPage ? 'true' : '';
-            feature.properties.interactive = info?.interactive !== false ? 'true' : '';
+            feature.properties.interactive = info?.interactive ? 'true' : '';
             feature.properties.relId = relationId;
             allFeatures.push(feature);
           }
@@ -213,8 +213,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         if (!e.features?.length) return;
         const props = e.features[0].properties;
         if (!props) return;
-        const name = esc(props.name || props.slug || '');
-        if (!name) return;
+        const name = esc(props.name);
         let nameLink: string;
         if (props.hasPage === 'true' && props.slug) {
           nameLink = `<a href="/paths/${esc(props.slug)}">${name}</a>`;
