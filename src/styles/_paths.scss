@@ -155,19 +155,10 @@
 }
 
 .bike-path-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-
-  .fact {
-    display: inline-block;
-    font-size: 0.8125rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    background: $color-card-bg;
-    @include dark-mode { background: $color-card-bg-dark; }
-  }
+  font-size: 0.95rem;
+  @include muted-text;
+  margin: 0.5rem 0 1rem;
+  line-height: 1.5;
 }
 
 .bike-path-osm {

@@ -580,5 +580,17 @@
   "paths.photos": "Photos",
   "paths.routes_count": "{count} routes",
   "paths.follows": "This route follows the",
-  "paths.and": "and"
+  "paths.and": "and",
+  "paths.fact.paved": "Paved",
+  "paths.fact.gravel": "Gravel",
+  "paths.fact.dirt": "Unpaved",
+  "paths.fact.wide": "wide",
+  "paths.fact.separated_cars": "Separated from cars",
+  "paths.fact.separated_peds": "Separated from pedestrians",
+  "paths.fact.lit": "Lit at night",
+  "paths.fact.not_lit": "Not lit",
+  "paths.fact.maintained": "Maintained by {operator}",
+  "paths.fact.network_regional": "Part of the regional cycling network",
+  "paths.fact.network_national": "Part of the national cycling network",
+  "paths.fact.network_local": "Part of the local cycling network"
 }

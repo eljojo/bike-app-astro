@@ -183,13 +183,41 @@ function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): num
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
+function boundingBox(points: Array<{ lat: number; lng: number }>, padDeg = 0.001) {
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const p of points) {
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+    if (p.lng < minLng) minLng = p.lng;
+    if (p.lng > maxLng) maxLng = p.lng;
+  }
+  return { minLat: minLat - padDeg, maxLat: maxLat + padDeg, minLng: minLng - padDeg, maxLng: maxLng + padDeg };
+}
+
+/** Check if two bounding boxes overlap. */
+function bboxOverlap(
+  a: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+  b: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+): boolean {
+  return a.minLat <= b.maxLat && a.maxLat >= b.minLat && a.minLng <= b.maxLng && a.maxLng >= b.minLng;
+}
+
 /** Check if a route track passes near a set of path points (any point within threshold). */
 function trackPassesNearPoints(
   trackPoints: Array<{ lat: number; lng: number }>,
+  trackBbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
   pathPoints: Array<{ lat: number; lng: number }>,
+  pathBbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
   thresholdM = 100,
 ): boolean {
+  // Fast reject: if bounding boxes don't overlap, no point checking individual points
+  if (!bboxOverlap(trackBbox, pathBbox)) return false;
+
   for (const pp of pathPoints) {
+    // Skip path points outside the track bbox
+    if (pp.lat < trackBbox.minLat || pp.lat > trackBbox.maxLat ||
+        pp.lng < trackBbox.minLng || pp.lng > trackBbox.maxLng) continue;
     for (const tp of trackPoints) {
       if (haversineM(tp.lat, tp.lng, pp.lat, pp.lng) <= thresholdM) return true;
     }
@@ -208,6 +236,12 @@ function computeRouteOverlaps(
 ): Record<string, { count: number; coverSlug?: string }> {
   const result: Record<string, { count: number; coverSlug?: string }> = {};
 
+  // Precompute route bounding boxes for fast rejection
+  const routeBboxes = new Map<string, { minLat: number; maxLat: number; minLng: number; maxLng: number }>();
+  for (const [slug, pts] of Object.entries(routeTracks)) {
+    if (pts.length > 0) routeBboxes.set(slug, boundingBox(pts));
+  }
+
   // Build path points per slug (same logic as getPathPoints in transform)
   for (const entry of bikePaths) {
     const anchors = (entry.anchors ?? []).map((a: unknown) =>
@@ -225,11 +259,14 @@ function computeRouteOverlaps(
       continue;
     }
 
+    const pathBbox = boundingBox(points);
     let count = 0;
     let coverSlug: string | undefined;
     for (const [routeSlug, trackPoints] of Object.entries(routeTracks)) {
       if (trackPoints.length === 0) continue;
-      if (trackPassesNearPoints(trackPoints, points)) {
+      const trackBbox = routeBboxes.get(routeSlug);
+      if (!trackBbox) continue;
+      if (trackPassesNearPoints(trackPoints, trackBbox, points, pathBbox)) {
         count++;
         if (!coverSlug) coverSlug = routeSlug;
       }
@@ -734,6 +771,8 @@ export async function loadBikePathData() {
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
+      segregated: primary?.segregated,
+      smoothness: primary?.smoothness,
       operator: normalizeOperator(primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
@@ -762,6 +801,8 @@ export async function loadBikePathData() {
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,
+      segregated: entry.segregated,
+      smoothness: entry.smoothness,
       operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,

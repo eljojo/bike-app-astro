@@ -28,6 +28,8 @@ export interface BikePathPage {
   surface?: string;
   width?: string;
   lit?: string;
+  segregated?: string;
+  smoothness?: string;
   operator?: string;
   network?: string;
   highway?: string;
@@ -153,6 +155,8 @@ export async function loadBikePathData(): Promise<{
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
+      segregated: primary?.segregated,
+      smoothness: primary?.smoothness,
       operator: normalizeOperator(primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
@@ -182,6 +186,8 @@ export async function loadBikePathData(): Promise<{
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,
+      segregated: entry.segregated,
+      smoothness: entry.smoothness,
       operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
