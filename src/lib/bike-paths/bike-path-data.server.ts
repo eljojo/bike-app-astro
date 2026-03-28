@@ -23,6 +23,8 @@ export interface BikePathPage {
   osmNames: string[];
   /** Geographic points for this path — from YML anchors or sampled GeoJSON geometry. */
   points: Array<{ lat: number; lng: number }>;
+  /** Number of routes that overlap this path (precomputed at build config time). */
+  routeCount: number;
   surface?: string;
   width?: string;
   lit?: string;
@@ -147,6 +149,7 @@ export async function loadBikePathData(): Promise<{
       osmRelationIds,
       osmNames,
       points,
+      routeCount: 0, // precomputed in build-data-plugin; 0 in dev mode
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
@@ -175,6 +178,7 @@ export async function loadBikePathData(): Promise<{
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       points: getPathPoints(entry),
+      routeCount: 0, // precomputed in build-data-plugin; 0 in dev mode
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,

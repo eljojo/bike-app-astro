@@ -173,6 +173,73 @@ function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: n
   return result;
 }
 
+/** Simple haversine distance in meters — used at config time for route overlap precomputation. */
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Check if a route track passes near a set of path points (any point within threshold). */
+function trackPassesNearPoints(
+  trackPoints: Array<{ lat: number; lng: number }>,
+  pathPoints: Array<{ lat: number; lng: number }>,
+  thresholdM = 100,
+): boolean {
+  for (const pp of pathPoints) {
+    for (const tp of trackPoints) {
+      if (haversineM(tp.lat, tp.lng, pp.lat, pp.lng) <= thresholdM) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Precompute route overlap counts per bike path slug at config time.
+ * This avoids expensive computation during Cloudflare workerd prerendering.
+ */
+function computeRouteOverlaps(
+  bikePaths: ReturnType<typeof parseBikePathsYml>,
+  geoCoords: Record<string, Array<{ lat: number; lng: number }>>,
+  routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
+): Record<string, { count: number; coverSlug?: string }> {
+  const result: Record<string, { count: number; coverSlug?: string }> = {};
+
+  // Build path points per slug (same logic as getPathPoints in transform)
+  for (const entry of bikePaths) {
+    const anchors = (entry.anchors ?? []).map((a: unknown) =>
+      Array.isArray(a) ? { lat: (a as number[])[1], lng: (a as number[])[0] } : a as { lat: number; lng: number }
+    );
+    let points = anchors.length > 0 ? anchors : [] as Array<{ lat: number; lng: number }>;
+    if (points.length === 0) {
+      for (const relId of entry.osm_relations ?? []) {
+        const coords = geoCoords[String(relId)];
+        if (coords) points = points.concat(coords);
+      }
+    }
+    if (points.length === 0) {
+      result[entry.slug] = { count: 0 };
+      continue;
+    }
+
+    let count = 0;
+    let coverSlug: string | undefined;
+    for (const [routeSlug, trackPoints] of Object.entries(routeTracks)) {
+      if (trackPoints.length === 0) continue;
+      if (trackPassesNearPoints(trackPoints, points)) {
+        count++;
+        if (!coverSlug) coverSlug = routeSlug;
+      }
+    }
+    result[entry.slug] = { count, coverSlug };
+  }
+
+  return result;
+}
+
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
@@ -403,6 +470,8 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const bikePaths = loadBikePaths();
   const geoFiles = loadGeoFiles(CONSUMER_ROOT);
   const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
+  const routeTracks = loadRouteTrackPoints();
+  const routeOverlaps = computeRouteOverlaps(bikePaths, geoCoordinates, routeTracks);
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -584,6 +653,7 @@ export function normalizeOperator(operator) {
 
 const _allYmlEntries = ${JSON.stringify(bikePaths)};
 const _geoCoordinates = ${JSON.stringify(geoCoordinates)};
+const _routeOverlaps = ${JSON.stringify(routeOverlaps)};
 
 /** Get geographic points for a path: anchors from YML, falling back to sampled GeoJSON geometry. */
 function getPathPoints(entry) {
@@ -660,6 +730,7 @@ export async function loadBikePathData() {
       osmRelationIds,
       osmNames,
       points,
+      routeCount: Math.max(...matchedEntries.map(e => _routeOverlaps[e.slug]?.count ?? 0), 0),
       surface: primary?.surface,
       width: primary?.width,
       lit: primary?.lit,
@@ -687,6 +758,7 @@ export async function loadBikePathData() {
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       points: getPathPoints(entry),
+      routeCount: _routeOverlaps[entry.slug]?.count ?? 0,
       surface: entry.surface,
       width: entry.width,
       lit: entry.lit,
