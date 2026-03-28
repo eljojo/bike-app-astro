@@ -12,6 +12,14 @@ const config = getCityConfig();
 const locale = Astro.currentLocale;
 const { pages, geoFiles } = await loadBikePathData();
 
+// Locale-aware accessors
+function pathName(p: typeof pages[0]): string {
+  return (locale && p.translations[locale]?.name) || p.name;
+}
+function pathVibe(p: typeof pages[0]): string | undefined {
+  return (locale && p.translations[locale]?.vibe) || p.vibe;
+}
+
 // Relation IDs that belong to pages are interactive (clickable with popups).
 // All other geo files render but are non-interactive (thinner, no popup).
 const interactiveRelIds = new Set<string>();
@@ -108,13 +116,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                   <img
                     src={thumbSrc}
                     srcset={thumbSrcset}
-                    alt={p.name}
+                    alt={pathName(p)}
                     loading="lazy"
                     class="path-card-photo"
                   />
                 )}
-                <h3>{p.name}</h3>
-                {p.vibe && <p class="path-vibe">{p.vibe}</p>}
+                <h3>{pathName(p)}</h3>
+                {pathVibe(p) && <p class="path-vibe">{pathVibe(p)}</p>}
                 <span class="path-card-meta">
                   {displaySurface(p.surface) && <span class="path-surface">{displaySurface(p.surface)}</span>}
                   {p.routeCount > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
@@ -133,7 +141,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           {group.paths.map(p => (
             <li data-slug={p.slug} id={`path-${p.slug}`}>
               <a href={paths.bikePath(p.slug, locale)}>
-                {p.name}
+                {pathName(p)}
               </a>
               {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
               {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}

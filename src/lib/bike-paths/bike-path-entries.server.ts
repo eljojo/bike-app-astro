@@ -12,6 +12,15 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml';
 import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
+
+/** Locale-specific content overrides for a bike path. */
+export interface BikePathTranslation {
+  slug?: string;
+  name?: string;
+  vibe?: string;
+  body?: string;
+}
 
 /** A bike path page to be generated — merged YML + markdown data. */
 export interface BikePathPage {
@@ -59,6 +68,8 @@ export interface BikePathPage {
   operator?: string;
   network?: string;
   highway?: string;
+  /** Locale-specific content overrides from .{locale}.md files + YML name_fr. */
+  translations: Record<string, BikePathTranslation>;
 }
 
 // TODO: move operator aliases to city config (operator_aliases field) so each
@@ -203,6 +214,48 @@ function readMarkdownEntries(): MarkdownEntry[] {
 }
 
 /**
+ * Read locale translations for a bike path from two sources:
+ * 1. .{locale}.md files (e.g., greenbelt-pathway.fr.md) — full translation with slug, name, vibe, body
+ * 2. YML name_{locale} fields (e.g., name_fr from OSM's name:fr tag) — fallback name only
+ *
+ * For each non-primary locale in the city config, checks both sources.
+ * .md file takes precedence over YML field for the name.
+ */
+function readBikePathTranslations(
+  slug: string,
+  ymlEntry: SluggedBikePathYml,
+): Record<string, BikePathTranslation> {
+  const bikePathsDir = path.join(cityDir, 'bike-paths');
+  const translations: Record<string, BikePathTranslation> = {};
+  const nonDefault = supportedLocales().filter(l => l !== defaultLocale());
+
+  for (const locale of nonDefault) {
+    // Source 1: .{locale}.md translation file
+    const filePath = path.join(bikePathsDir, `${slug}.${locale}.md`);
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const { data: fm, content: body } = matter(raw);
+      const trimmed = body.trim();
+      translations[locale] = {
+        ...(fm.slug ? { slug: fm.slug as string } : {}),
+        ...(fm.name ? { name: fm.name as string } : {}),
+        ...(fm.vibe ? { vibe: fm.vibe as string } : {}),
+        ...(trimmed ? { body: trimmed } : {}),
+      };
+    }
+
+    // Source 2: YML name_{locale} field (OSM name:xx tag) — fallback name
+    const ymlLocName = (ymlEntry as Record<string, unknown>)[`name_${locale}`];
+    if (typeof ymlLocName === 'string' && ymlLocName) {
+      if (!translations[locale]) translations[locale] = {};
+      if (!translations[locale].name) translations[locale].name = ymlLocName;
+    }
+  }
+
+  return translations;
+}
+
+/**
  * Load and merge bike path data from YML + markdown + geometry — synchronously.
  *
  * This is the canonical merge function. It reads bikepaths.yml and bike-paths/*.md
@@ -300,6 +353,7 @@ export function loadBikePathEntries(): {
       network: primary?.network,
       highway: primary?.highway,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
+      translations: primary ? readBikePathTranslations(md.id, primary) : {},
     });
   }
 
@@ -340,6 +394,7 @@ export function loadBikePathEntries(): {
       network: entry.network,
       highway: entry.highway,
       wikipedia: entry.wikipedia,
+      translations: readBikePathTranslations(entry.slug, entry),
     });
   }
 

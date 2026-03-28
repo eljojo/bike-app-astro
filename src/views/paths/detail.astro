@@ -27,7 +27,13 @@ const { page } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
-const descriptionHtml = page.body ? await renderMarkdownHtml(page.body) : null;
+
+// Locale-aware content: translation overrides default
+const trans = locale ? page.translations[locale] : undefined;
+const localeName = trans?.name || page.name;
+const localeVibe = trans?.vibe || page.vibe;
+const localeBody = trans?.body || page.body;
+const descriptionHtml = localeBody ? await renderMarkdownHtml(localeBody) : null;
 
 function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, number] | undefined {
   if (pts.length === 0) return undefined;
@@ -129,7 +135,7 @@ const networkLabels: Record<string, string> = {
 const networkLabel = page.network ? (networkLabels[page.network] || page.network) : undefined;
 
 // SEO
-const seoDescription = page.vibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${page.name} — cycling path`);
+const seoDescription = localeVibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${localeName} — cycling path`);
 // Prefer generated map thumbnail (path-{slug}/map-social.jpg), fall back to route cover photo
 const hasMapThumb = hasCachedMap(`path-${page.slug}`);
 const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
@@ -137,13 +143,13 @@ const firstCoverKey = overlappingRoutes.find(r => r.coverKey)?.coverKey;
 const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
 ---
 
-<Base title={`${page.name} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
+<Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
   <div class="bike-path-detail">
     <h1>
-      {page.name}
+      {localeName}
       <a href={`/admin/paths/${page.slug}`} class="admin-edit-link" aria-label="Edit this path">Edit</a>
     </h1>
-    {page.vibe && <p class="bike-path-vibe">{page.vibe}</p>}
+    {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
 
     <div class="bike-path-layout">
       {/* ===== Main column ===== */}
@@ -171,7 +177,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
                   <img
                     src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
                     srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
-                    alt={photo.caption || page.name}
+                    alt={photo.caption || localeName}
                     width="300"
                     height="200"
                     loading="lazy"
