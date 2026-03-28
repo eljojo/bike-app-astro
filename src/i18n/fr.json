@@ -598,5 +598,8 @@
   "paths.stub_cta_link": "Aidez à l'améliorer",
   "paths.fact.flat": "Plat",
   "paths.fact.gentle_hills": "Légèrement vallonné ({meters}m de dénivelé)",
-  "paths.fact.hilly": "Vallonné ({meters}m de dénivelé)"
+  "paths.fact.hilly": "Vallonné ({meters}m de dénivelé)",
+  "paths.edit_description": "Vous connaissez ce sentier ? Aidez à améliorer cette page — chaque modification peut être annulée.",
+  "paths.index_osm_attribution": "Les données de cette page proviennent de",
+  "paths.index_osm_edit": "Quelque chose manque ou est incorrect ? Vous pouvez le corriger là-bas — chaque modification aide les cyclistes de votre ville."
 }

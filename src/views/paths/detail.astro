@@ -12,6 +12,7 @@ import { t } from '@/i18n';
 import { paths, assets } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -120,7 +121,10 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
   <div class="bike-path-detail">
     <div class="bike-path-header">
       <div class="bike-path-info">
-        <h1>{page.name}</h1>
+        <h1>
+          {page.name}
+          <a href={`/admin/paths/${page.slug}`} class="admin-edit-link" aria-label="Edit this path">Edit</a>
+        </h1>
         {page.vibe && <p class="bike-path-vibe">{page.vibe}</p>}
 
         {page.stub && (
@@ -146,6 +150,8 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
     {descriptionHtml && (
       <div class="bike-path-description" set:html={descriptionHtml} />
     )}
+
+    <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/paths/${page.slug}`} />
 
     <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 

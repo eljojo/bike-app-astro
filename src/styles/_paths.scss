@@ -8,6 +8,24 @@
   padding: 0 1rem;
 }
 
+.paths-osm-attribution {
+  font-size: 0.875rem;
+  @include muted-text;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid $color-border;
+  line-height: 1.5;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}
+
 .paths-map-hero {
   border-radius: $border-radius;
   overflow: hidden;
