@@ -247,134 +247,68 @@ async function main() {
   // --- Bike Paths: generate thumbnails from cached GeoJSON geometry ---
   const geoDir = path.join('public', 'paths', 'geo');
   if (fs.existsSync(geoDir)) {
-    // Load bike path pages to know which relations belong to which slug
-    const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml');
-    const { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } = await import('../src/lib/bike-paths/bike-path-scoring');
-    const ymlPath = path.join(CONTENT_DIR, CITY, 'bikepaths.yml');
-    if (fs.existsSync(ymlPath)) {
-      const entries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
+    const { loadBikePathEntries } = await import('../src/lib/bike-paths/bike-path-entries.server');
+    const { pages } = loadBikePathEntries();
 
-      // Collect markdown slugs and their includes — these always get pages
-      const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
-      const markdownSlugs = new Set<string>();
-      const claimedByMarkdown = new Set<string>();
-      const mdIncludesMap = new Map<string, string[]>();
-      if (fs.existsSync(bikePathsDir)) {
-        for (const file of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md'))) {
-          const mdSlug = file.replace(/\.md$/, '');
-          const { data } = matter(fs.readFileSync(path.join(bikePathsDir, file), 'utf-8'));
-          if (data.hidden) continue;
-          markdownSlugs.add(mdSlug);
-          const includes: string[] = data.includes ?? [];
-          mdIncludesMap.set(mdSlug, includes);
-          for (const inc of includes) claimedByMarkdown.add(inc);
-          if (includes.length === 0) claimedByMarkdown.add(mdSlug);
-        }
-      }
+    for (const page of pages) {
+      if (page.geoFiles.length === 0) continue;
 
-      // Determine which YML slugs will become pages (not claimed by markdown, passes scoring)
-      const pageSlugs = new Set<string>(markdownSlugs);
-      for (const e of entries) {
-        if (claimedByMarkdown.has(e.slug)) continue;
-        if (isHardExcluded(e)) continue;
-        // Score with routeOverlapCount=0 (conservative — some paths score higher with overlaps)
-        if (scoreBikePath(e, 0) >= SCORE_THRESHOLD) pageSlugs.add(e.slug);
-      }
-
-      // Build slug → GeoJSON file paths map (only for entries that belong to page slugs)
-      const slugGeoFiles = new Map<string, string[]>();
-      for (const e of entries) {
-        const files: string[] = [];
-        for (const relId of e.osm_relations ?? []) {
-          files.push(path.join(geoDir, `${relId}.geojson`));
-        }
-        if (files.length === 0 && e.osm_names?.length) {
-          files.push(path.join(geoDir, `name-${e.slug}.geojson`));
-        }
-        if (files.length === 0 && e.segments?.length) {
-          files.push(path.join(geoDir, `seg-${e.slug}.geojson`));
-        }
-        if (files.length > 0) {
-          const existing = slugGeoFiles.get(e.slug) ?? [];
-          existing.push(...files);
-          slugGeoFiles.set(e.slug, existing);
-        }
-      }
-
-      // Merge markdown includes into their parent slug's geo files
-      for (const [mdSlug, includes] of mdIncludesMap) {
-        const allFiles: string[] = [];
-        for (const inc of includes) {
-          const incFiles = slugGeoFiles.get(inc);
-          if (incFiles) allFiles.push(...incFiles);
-        }
-        if (allFiles.length > 0) slugGeoFiles.set(mdSlug, allFiles);
-      }
-
-      // Remove entries that won't have pages
-      for (const slug of slugGeoFiles.keys()) {
-        if (!pageSlugs.has(slug)) slugGeoFiles.delete(slug);
-      }
-
-      // Generate a map for each slug that has a page and GeoJSON
-      for (const [slug, geoFilePaths] of slugGeoFiles) {
-        // Collect all coordinates from GeoJSON files
-        const allPoints: [number, number][] = [];
-        const geoContents: string[] = [];
-        for (const geoPath of geoFilePaths) {
-          if (!fs.existsSync(geoPath)) continue;
-          const content = fs.readFileSync(geoPath, 'utf-8');
-          geoContents.push(content);
-          const geojson = JSON.parse(content);
-          for (const feature of geojson.features ?? []) {
-            if (feature.geometry?.type === 'LineString') {
-              for (const coord of feature.geometry.coordinates) {
-                allPoints.push([coord[1], coord[0]]); // [lat, lng] for polyline encoding
-              }
-            } else if (feature.geometry?.type === 'MultiLineString') {
-              for (const line of feature.geometry.coordinates) {
-                for (const coord of line) {
-                  allPoints.push([coord[1], coord[0]]);
-                }
+      // Collect all coordinates from GeoJSON files
+      const allPoints: [number, number][] = [];
+      const geoContents: string[] = [];
+      for (const geoFile of page.geoFiles) {
+        const geoPath = path.join(geoDir, geoFile);
+        if (!fs.existsSync(geoPath)) continue;
+        const content = fs.readFileSync(geoPath, 'utf-8');
+        geoContents.push(content);
+        const geojson = JSON.parse(content);
+        for (const feature of geojson.features ?? []) {
+          if (feature.geometry?.type === 'LineString') {
+            for (const coord of feature.geometry.coordinates) {
+              allPoints.push([coord[1], coord[0]]); // [lat, lng] for polyline encoding
+            }
+          } else if (feature.geometry?.type === 'MultiLineString') {
+            for (const line of feature.geometry.coordinates) {
+              for (const coord of line) {
+                allPoints.push([coord[1], coord[0]]);
               }
             }
           }
         }
+      }
 
-        if (allPoints.length < 2) continue;
+      if (allPoints.length < 2) continue;
 
-        const combinedHash = crypto.createHash('sha256')
-          .update(geoContents.join('\n'))
-          .digest('hex').slice(0, 16);
-        const mapSlug = `path-${slug}`;
+      const combinedHash = crypto.createHash('sha256')
+        .update(geoContents.join('\n'))
+        .digest('hex').slice(0, 16);
+      const mapSlug = `path-${page.slug}`;
 
-        for (const lang of languages) {
-          const langPrefix = lang === defaultLang ? undefined : lang;
+      for (const lang of languages) {
+        const langPrefix = lang === defaultLang ? undefined : lang;
 
-          if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {
-            skipped++;
-            continue;
-          }
-
-          const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
-          console.log(`[maps] ${label}: generating bike path map...`);
-
-          // Encode coordinates as polyline for the Google API
-          const encoded = polylineCodec.encode(allPoints as [number, number][]);
-          const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false });
-          const response = await fetch(url);
-          if (!response.ok) {
-            console.error(`[maps] ${label}: HTTP ${response.status}`);
-            continue;
-          }
-          const pngBuffer = Buffer.from(await response.arrayBuffer());
-
-          const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
-          await generateMapImages(pngBuffer, thumbPaths, '2:1');
-          fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
-
-          generated++;
+        if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {
+          skipped++;
+          continue;
         }
+
+        const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
+        console.log(`[maps] ${label}: generating bike path map...`);
+
+        const encoded = polylineCodec.encode(allPoints as [number, number][]);
+        const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false });
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`[maps] ${label}: HTTP ${response.status}`);
+          continue;
+        }
+        const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+        const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
+        await generateMapImages(pngBuffer, thumbPaths, '2:1');
+        fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
+
+        generated++;
       }
     }
   }
