@@ -1,0 +1,49 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// Community signals sidebar — used on all content-type admin list pages.
+// Styles for the AdminListSidebar Preact island.
+
+.admin-sidebar {
+  font-size: 0.8rem;
+}
+
+.admin-sidebar-section {
+  @include sidebar-section;
+}
+
+.admin-sidebar-heading {
+  @include micro-label;
+}
+
+.admin-sidebar-list {
+  @include sidebar-list;
+}
+
+.admin-sidebar-item {
+  @include sidebar-item;
+}
+
+.admin-sidebar-value {
+  @include muted-text;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.admin-sidebar-trending {
+  color: $color-trending;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  @include dark-mode { color: $color-trending-dark; }
+}
+
+.admin-sidebar-hint {
+  @include sidebar-hint;
+}
+
+.admin-sidebar-loading {
+  @include muted-text;
+  font-size: 0.8rem;
+  font-style: italic;
+}
