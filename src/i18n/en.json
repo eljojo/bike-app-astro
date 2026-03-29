@@ -614,5 +614,20 @@
   "paths.lit_no": "No",
   "paths.go_back": "All bike paths",
   "paths.heading": "All the bike paths in {city}",
-  "paths.page_title": "All Bike Paths in {city}"
+  "paths.page_title": "All Bike Paths in {city}",
+  "admin.sidebar.most_viewed": "Most viewed",
+  "admin.sidebar.most_starred": "Most starred",
+  "admin.sidebar.trending": "Trending this month",
+  "admin.sidebar.overlooked": "Overlooked",
+  "admin.sidebar.still_visiting": "Still drawing visitors",
+  "admin.sidebar.no_photo": "no photo",
+  "admin.sidebar.short_description": "short description",
+  "admin.sidebar.no_description": "no description",
+  "admin.sidebar.no_geometry": "no map data",
+  "admin.sidebar.no_website": "no website",
+  "admin.sidebar.no_phone": "no phone",
+  "admin.sidebar.no_poster": "no poster",
+  "admin.sidebar.no_social": "no social links",
+  "admin.sidebar.draft": "draft",
+  "admin.sidebar.most_visited": "Most visited"
 }

@@ -614,5 +614,20 @@
   "paths.lit_no": "No",
   "paths.go_back": "Todas las ciclovías",
   "paths.heading": "Todas las ciclovías de {city}",
-  "paths.page_title": "Ciclovías de {city}"
+  "paths.page_title": "Ciclovías de {city}",
+  "admin.sidebar.most_viewed": "Más vistos",
+  "admin.sidebar.most_starred": "Más destacados",
+  "admin.sidebar.trending": "Tendencia este mes",
+  "admin.sidebar.overlooked": "Pasados por alto",
+  "admin.sidebar.still_visiting": "Siguen atrayendo visitas",
+  "admin.sidebar.no_photo": "sin foto",
+  "admin.sidebar.short_description": "descripción corta",
+  "admin.sidebar.no_description": "sin descripción",
+  "admin.sidebar.no_geometry": "sin mapa",
+  "admin.sidebar.no_website": "sin sitio web",
+  "admin.sidebar.no_phone": "sin teléfono",
+  "admin.sidebar.no_poster": "sin cartel",
+  "admin.sidebar.no_social": "sin redes sociales",
+  "admin.sidebar.draft": "borrador",
+  "admin.sidebar.most_visited": "Más visitados"
 }

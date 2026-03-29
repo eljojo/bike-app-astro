@@ -614,5 +614,20 @@
   "paths.lit_no": "Non",
   "paths.go_back": "Tous les sentiers cyclables",
   "paths.heading": "Tous les sentiers cyclables de {city}",
-  "paths.page_title": "Sentiers cyclables de {city}"
+  "paths.page_title": "Sentiers cyclables de {city}",
+  "admin.sidebar.most_viewed": "Les plus vus",
+  "admin.sidebar.most_starred": "Les plus aimés",
+  "admin.sidebar.trending": "En tendance ce mois",
+  "admin.sidebar.overlooked": "Négligés",
+  "admin.sidebar.still_visiting": "Toujours visités",
+  "admin.sidebar.no_photo": "pas de photo",
+  "admin.sidebar.short_description": "description courte",
+  "admin.sidebar.no_description": "pas de description",
+  "admin.sidebar.no_geometry": "pas de carte",
+  "admin.sidebar.no_website": "pas de site web",
+  "admin.sidebar.no_phone": "pas de téléphone",
+  "admin.sidebar.no_poster": "pas d'affiche",
+  "admin.sidebar.no_social": "pas de liens sociaux",
+  "admin.sidebar.draft": "brouillon",
+  "admin.sidebar.most_visited": "Les plus visités"
 }
