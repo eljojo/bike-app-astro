@@ -88,7 +88,7 @@ const sidebarLabels = {
         )}
 
         {grouped.map(({ key, label, emoji, places }) => (
-          <div class="place-category-group">
+          <div class="place-category-group" id={`cat-${key}`}>
             <h2 class="category-header">{emoji} {label} <span class="category-count">({places.length})</span></h2>
             <div class="place-list">
               {places.map(p => (
@@ -105,14 +105,27 @@ const sidebarLabels = {
 
         {adminPlaces.length === 0 && <p class="auth-message">No places found. Create one to get started.</p>}
       </div>
-      <AdminListSidebar
-        client:idle
-        contentType="places"
-        incomplete={incomplete}
-        nameMap={nameMap}
-        editPrefix="/admin/places"
-        labels={sidebarLabels}
-      />
+      <div class="places-sidebar">
+        <nav class="places-category-nav">
+          <h4 class="admin-sidebar-heading">Categories</h4>
+          <div class="admin-sidebar-list">
+            {grouped.map(({ key, emoji, label, places }) => (
+              <div class="admin-sidebar-item">
+                <a href={`#cat-${key}`}>{emoji} {label}</a>
+                <span class="admin-sidebar-value">{places.length}</span>
+              </div>
+            ))}
+          </div>
+        </nav>
+        <AdminListSidebar
+          client:idle
+          contentType="places"
+          incomplete={incomplete}
+          nameMap={nameMap}
+          editPrefix="/admin/places"
+          labels={sidebarLabels}
+        />
+      </div>
     </div>
   </div>
 </Base>
@@ -168,6 +181,16 @@ const sidebarLabels = {
 
   .admin-list-main {
     min-width: 0;
+  }
+
+  .places-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .places-category-nav {
+    font-size: 0.8rem;
   }
 
   .places-admin-map {
