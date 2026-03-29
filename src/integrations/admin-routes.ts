@@ -99,6 +99,7 @@ const routes = [
   { pattern: '/api/admin/stats/route/[...slug]', entrypoint: view('api/admin-stats-route.ts') },
   { pattern: '/api/admin/stats/event/[...slug]', entrypoint: view('api/admin-stats-event.ts') },
   { pattern: '/api/admin/stats/community/[...slug]', entrypoint: view('api/admin-stats-community.ts') },
+  { pattern: '/api/admin/stats/sidebar', entrypoint: view('api/admin-stats-sidebar.ts') },
   { pattern: '/api/settings', entrypoint: view('api/settings.ts') },
   { pattern: '/api/gpx/import', entrypoint: view('api/gpx/import.ts') },
   // Reactions (static _starred must precede parameterized to avoid matching as params)
