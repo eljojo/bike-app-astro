@@ -3,11 +3,14 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
+import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import { categoryEmoji } from '../../lib/geo/place-categories';
 import { getCityConfig } from '../../lib/config/city-config';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { t } from '../../i18n';
 import '../../styles/admin.scss';
 
+const locale = Astro.currentLocale;
 const adminPlaces = await fetchJson<_AdminPlace[]>(new URL('/admin/data/places.json', Astro.url));
 
 const user = Astro.locals.user;
@@ -39,42 +42,78 @@ function groupByCategory(places: typeof adminPlaces) {
 }
 
 const grouped = groupByCategory(adminPlaces);
+
+const incomplete = adminPlaces
+  .filter(p => {
+    if (!p.photo_key) return true;
+    const hasContact = p.social_links?.some(l => ['website', 'telephone'].includes(l.platform));
+    return !hasContact;
+  })
+  .map(p => ({
+    slug: p.id,
+    name: p.name,
+    hint: !p.photo_key ? t('admin.sidebar.no_photo', locale) : t('admin.sidebar.no_website', locale),
+    editUrl: `/admin/places/${p.id}`,
+  }))
+  .slice(0, 5);
+
+const nameMap: Record<string, string> = {};
+for (const p of adminPlaces) nameMap[p.id] = p.name;
+
+const sidebarLabels = {
+  mostViewed: t('admin.sidebar.most_visited', locale),
+  mostStarred: t('admin.sidebar.most_starred', locale),
+  trending: t('admin.sidebar.trending', locale),
+  overlooked: t('admin.sidebar.overlooked', locale),
+};
 ---
 
 <Base title="Places - Admin" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="places" subtitle="Recommended stops along routes — cafes, viewpoints, swimming spots, parks." ctaHref="/admin/places/new" ctaLabel="+ New place" />
 
-    <div class="place-actions-bar">
-      <span class="place-count">{adminPlaces.length} places</span>
-    </div>
-
-    {mapPlaces.length > 0 && (
-      <div
-        id="places-map"
-        class="places-admin-map"
-        data-places={JSON.stringify(mapPlaces)}
-        data-center={JSON.stringify([config.center.lat, config.center.lng])}
-      />
-    )}
-
-    {grouped.map(({ key, label, emoji, places }) => (
-      <div class="place-category-group">
-        <h2 class="category-header">{emoji} {label} <span class="category-count">({places.length})</span></h2>
-        <div class="place-list">
-          {places.map(p => (
-            <a href={`/admin/places/${p.id}`} class="place-list-item">
-              <span class="place-card-emoji">{categoryEmoji[p.category] || '📌'}</span>
-              <div class="place-card-info">
-                <span class="place-card-name">{p.name}</span>
-              </div>
-            </a>
-          ))}
+    <div class="admin-list-layout">
+      <div class="admin-list-main">
+        <div class="place-actions-bar">
+          <span class="place-count">{adminPlaces.length} places</span>
         </div>
-      </div>
-    ))}
 
-    {adminPlaces.length === 0 && <p class="auth-message">No places found. Create one to get started.</p>}
+        {mapPlaces.length > 0 && (
+          <div
+            id="places-map"
+            class="places-admin-map"
+            data-places={JSON.stringify(mapPlaces)}
+            data-center={JSON.stringify([config.center.lat, config.center.lng])}
+          />
+        )}
+
+        {grouped.map(({ key, label, emoji, places }) => (
+          <div class="place-category-group">
+            <h2 class="category-header">{emoji} {label} <span class="category-count">({places.length})</span></h2>
+            <div class="place-list">
+              {places.map(p => (
+                <a href={`/admin/places/${p.id}`} class="place-list-item">
+                  <span class="place-card-emoji">{categoryEmoji[p.category] || '📌'}</span>
+                  <div class="place-card-info">
+                    <span class="place-card-name">{p.name}</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {adminPlaces.length === 0 && <p class="auth-message">No places found. Create one to get started.</p>}
+      </div>
+      <AdminListSidebar
+        client:idle
+        contentType="places"
+        incomplete={incomplete}
+        nameMap={nameMap}
+        editPrefix="/admin/places"
+        labels={sidebarLabels}
+      />
+    </div>
   </div>
 </Base>
 
@@ -111,9 +150,24 @@ const grouped = groupByCategory(adminPlaces);
   @use '../../styles/mixins' as *;
 
   .admin-page {
-    max-width: 700px;
+    max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
+  }
+
+  .admin-list-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .admin-list-main {
+    min-width: 0;
   }
 
   .places-admin-map {

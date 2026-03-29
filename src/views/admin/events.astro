@@ -3,11 +3,14 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
+import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import { env } from '../../lib/env/env.service';
 import { loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { getCityConfig } from '../../lib/config/city-config';
 import { buildImageUrl, buildImageSrcSet2x } from '@/lib/media/image-service';
+import { t } from '../../i18n';
 import '../../styles/admin.scss';
+const locale = Astro.currentLocale;
 
 const { events: adminEvents, organizers: adminOrganizers } = await fetchJson<{ events: _AdminEvent[]; organizers: _AdminOrganizer[] }>(new URL('/admin/data/events.json', Astro.url));
 
@@ -43,50 +46,89 @@ function groupByMonth(evts: typeof events) {
 
 const grouped = groupByMonth(events);
 const user = Astro.locals.user;
+
+const incomplete = events
+  .filter(e => !e.poster_key || !e.hasBody)
+  .map(e => ({
+    slug: e.id,
+    name: e.name,
+    hint: !e.poster_key ? t('admin.sidebar.no_poster', locale) : t('admin.sidebar.short_description', locale),
+    editUrl: `/admin/events/${e.id}`,
+  }))
+  .slice(0, 5);
+
+const nameMap: Record<string, string> = {};
+for (const e of events) nameMap[e.id] = e.name;
+
+const now = new Date().toISOString().slice(0, 10);
+const pastEventSlugs = events
+  .filter(e => (e.end_date || e.start_date) < now)
+  .map(e => e.id);
+
+const sidebarLabels = {
+  mostViewed: t('admin.sidebar.most_viewed', locale),
+  mostStarred: t('admin.sidebar.most_starred', locale),
+  trending: t('admin.sidebar.trending', locale),
+  overlooked: t('admin.sidebar.overlooked', locale),
+  stillVisiting: t('admin.sidebar.still_visiting', locale),
+};
 ---
 
 <Base title="Events - Admin" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="events" subtitle="Upcoming cycling events in the area. Anyone can add or update event details." ctaHref="/admin/events/new" ctaLabel="+ New event" />
 
-    {grouped.map(({ label, events: monthEvents }) => (
-      <div class="event-month-group">
-        <h2 class="month-header">{label}</h2>
-        <div class="event-list">
-          {monthEvents.map(e => (
-            <div class="event-list-item">
-              <a href={`/admin/events/${e.id}`} class="event-list-link">
-                {e.poster_key && (
-                  <img
-                    src={buildImageUrl(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
-                    srcset={buildImageSrcSet2x(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
-                    alt=""
-                    loading="lazy"
-                    class="event-poster-thumb"
-                  />
-                )}
-                <div class="event-card-info">
-                  <span class="event-card-name">{e.name}</span>
-                  <span class="event-card-meta">
-                    {e.start_date}
-                    {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
-                    {pendingIds.has(e.id) && <span class="event-pending">pending</span>}
-                  </span>
+    <div class="admin-list-layout">
+      <div class="admin-list-main">
+        {grouped.map(({ label, events: monthEvents }) => (
+          <div class="event-month-group">
+            <h2 class="month-header">{label}</h2>
+            <div class="event-list">
+              {monthEvents.map(e => (
+                <div class="event-list-item">
+                  <a href={`/admin/events/${e.id}`} class="event-list-link">
+                    {e.poster_key && (
+                      <img
+                        src={buildImageUrl(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
+                        srcset={buildImageSrcSet2x(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
+                        alt=""
+                        loading="lazy"
+                        class="event-poster-thumb"
+                      />
+                    )}
+                    <div class="event-card-info">
+                      <span class="event-card-name">{e.name}</span>
+                      <span class="event-card-meta">
+                        {e.start_date}
+                        {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
+                        {pendingIds.has(e.id) && <span class="event-pending">pending</span>}
+                      </span>
+                    </div>
+                  </a>
+                  <a href={`/admin/events/new?copy=${e.id}`} class="event-copy-btn" title="Duplicate event">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  </a>
                 </div>
-              </a>
-              <a href={`/admin/events/new?copy=${e.id}`} class="event-copy-btn" title="Duplicate event">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-              </a>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-    ))}
+          </div>
+        ))}
 
-    {events.length === 0 && <p class="auth-message">No events found.</p>}
+        {events.length === 0 && <p class="auth-message">No events found.</p>}
+      </div>
+      <AdminListSidebar
+        client:idle
+        contentType="events"
+        incomplete={incomplete}
+        nameMap={nameMap}
+        editPrefix="/admin/events"
+        labels={sidebarLabels}
+        pastEventSlugs={pastEventSlugs}
+      />
+    </div>
   </div>
 </Base>
 
@@ -95,9 +137,24 @@ const user = Astro.locals.user;
   @use '../../styles/mixins' as *;
 
   .admin-page {
-    max-width: 700px;
+    max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
+  }
+
+  .admin-list-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .admin-list-main {
+    min-width: 0;
   }
 
   .event-month-group {
