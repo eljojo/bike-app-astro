@@ -182,31 +182,13 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 
     const TRANSITION_MS = 350;
 
-    // Capture a static snapshot of the map canvas to overlay during resize animation.
-    // CSS transitions stretch the canvas (causing jiggle); this image scales smoothly instead.
-    function showSnapshot() {
-      const canvas = map.getCanvas();
-      const snapshot = document.createElement('img');
-      snapshot.className = 'bike-path-map-snapshot';
-      snapshot.src = canvas.toDataURL();
-      snapshot.setAttribute('aria-hidden', 'true');
-      container.appendChild(snapshot);
-      glEl.style.visibility = 'hidden';
-      return snapshot;
-    }
-
-    function removeSnapshot(snapshot: HTMLImageElement) {
-      glEl.style.visibility = '';
-      snapshot.remove();
-    }
-
     function expand() {
       if (expanded) return;
       expanded = true;
 
-      const snapshot = showSnapshot();
+      // Fade out the map canvas while we reposition
+      glEl.classList.add('fading');
 
-      // FLIP: capture current position, then animate to expanded
       savedRect = container.getBoundingClientRect();
       container.style.position = 'fixed';
       container.style.top = `${savedRect.top}px`;
@@ -219,7 +201,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       closeBtn!.style.display = 'flex';
       container.setAttribute('aria-expanded', 'true');
 
-      // Animate to full screen on next frame
       const isMobile = window.matchMedia('(max-width: 768px)').matches;
       requestAnimationFrame(() => {
         container.classList.add('expanded');
@@ -244,13 +225,15 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       map.doubleClickZoom.enable();
       map.touchZoomRotate.enable();
 
-      // After transition: resize the real map, remove snapshot
+      // After position transition: resize map, then fade back in
       setTimeout(() => {
         map.resize();
-        removeSnapshot(snapshot);
         if (pathBounds && !pathBounds.isEmpty()) {
-          map.fitBounds(pathBounds, { padding: 60, animate: true });
+          map.fitBounds(pathBounds, { padding: 60, animate: false });
         }
+        requestAnimationFrame(() => {
+          glEl.classList.remove('fading');
+        });
       }, TRANSITION_MS);
     }
 
@@ -258,14 +241,14 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       if (!expanded) return;
       expanded = false;
 
-      const snapshot = showSnapshot();
+      // Fade out
+      glEl.classList.add('fading');
 
       container.classList.remove('expanded');
       container.setAttribute('aria-expanded', 'false');
       overlay!.classList.remove('visible');
       closeBtn!.style.display = 'none';
 
-      // Animate back to original position
       if (savedRect) {
         container.style.top = `${savedRect.top}px`;
         container.style.left = `${savedRect.left}px`;
@@ -281,7 +264,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       map.doubleClickZoom.disable();
       map.touchZoomRotate.disable();
 
-      // After transition ends, reset to flow position
+      // After position transition: reset layout, resize, fade in
       setTimeout(() => {
         container.style.position = '';
         container.style.top = '';
@@ -291,10 +274,12 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         container.style.zIndex = '';
         container.style.borderRadius = '';
         map.resize();
-        removeSnapshot(snapshot);
         if (pathBounds && !pathBounds.isEmpty()) {
           map.fitBounds(pathBounds, { padding: 20, animate: false });
         }
+        requestAnimationFrame(() => {
+          glEl.classList.remove('fading');
+        });
       }, TRANSITION_MS);
     }
 
@@ -367,16 +352,12 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
   .bike-path-map-gl {
     width: 100%;
     height: 100%;
-  }
+    opacity: 1;
+    transition: opacity 0.2s ease;
 
-  .bike-path-map-snapshot {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 0;
-    pointer-events: none;
+    &.fading {
+      opacity: 0;
+    }
   }
 
   .bike-path-map-close {
