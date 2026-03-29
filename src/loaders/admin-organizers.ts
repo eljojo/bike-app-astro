@@ -36,7 +36,7 @@ export async function loadAdminOrganizers(): Promise<{
     const slug = file.replace('.md', '');
     const raw = fs.readFileSync(path.join(orgDir, file), 'utf-8');
     const contentHash = computeOrganizerContentHash(raw);
-    const { data: fm } = matter(raw);
+    const { data: fm, content: body } = matter(raw);
 
     organizers.push({
       slug,
@@ -50,6 +50,8 @@ export async function loadAdminOrganizers(): Promise<{
       photo_content_type: fm.photo_content_type as string | undefined,
       photo_width: fm.photo_width as number | undefined,
       photo_height: fm.photo_height as number | undefined,
+      hasBody: body.trim().length > 50,
+      social_links: Array.isArray(fm.social_links) ? fm.social_links as Array<{ platform: string; url: string }> : undefined,
       contentHash,
     });
 

@@ -32,6 +32,7 @@ export interface AdminEvent {
   is_series?: boolean;
   meet_time?: string;
   series_label?: string;
+  hasBody: boolean;
   mediaCount: number;
   waypointCount: number;
   contentHash: string;
@@ -45,6 +46,8 @@ export interface AdminPlace {
   lng: number;
   vibe?: string;
   good_for: string[];
+  photo_key?: string;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash: string;
 }
 
@@ -60,6 +63,8 @@ export interface AdminOrganizer {
   photo_content_type?: string;
   photo_width?: number;
   photo_height?: number;
+  hasBody: boolean;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash: string;
 }
 
@@ -68,6 +73,8 @@ export interface AdminBikePath {
   name: string;
   vibe?: string;
   hidden: boolean;
+  stub: boolean;
+  hasGeometry: boolean;
   includes: string[];
   tags: string[];
   contentHash: string;
@@ -88,6 +95,7 @@ export interface AdminRide {
   country?: string;
   tour_slug?: string;
   highlight?: boolean;
+  status?: string;
   contentHash: string;
 }
 

@@ -189,6 +189,7 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
       start_date: cached.start_date ?? e.start_date,
       status: cached.status ?? e.status,
       routes: cached.routes ?? e.routes,
+      hasBody: (cached.body?.trim().length ?? 0) > 50,
       mediaCount: cached.media?.length ?? e.mediaCount,
       waypointCount: cached.waypoints?.length ?? e.waypointCount,
     }),
@@ -205,6 +206,7 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
         routes: cached.routes,
         organizer: cached.organizer,
         poster_key: cached.poster_key,
+        hasBody: (cached.body?.trim().length ?? 0) > 50,
         mediaCount: cached.media?.length ?? 0,
         waypointCount: cached.waypoints?.length ?? 0,
         contentHash: '',
@@ -304,6 +306,8 @@ export async function loadAdminOrganizerList(
       instagram: cached.instagram,
       photo_key: cached.photo_key,
       photo_content_type: cached.photo_content_type,
+      hasBody: (cached.body?.trim().length ?? 0) > 50,
+      social_links: cached.social_links?.length ? cached.social_links : undefined,
       contentHash: cached.contentHash ?? item.contentHash,
     }),
     freshItemFromCache: (id, cached) => ({
@@ -316,6 +320,8 @@ export async function loadAdminOrganizerList(
       instagram: cached.instagram,
       photo_key: cached.photo_key,
       photo_content_type: cached.photo_content_type,
+      hasBody: (cached.body?.trim().length ?? 0) > 50,
+      social_links: cached.social_links?.length ? cached.social_links : undefined,
       contentHash: cached.contentHash ?? '',
     }),
   });

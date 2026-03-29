@@ -54,6 +54,8 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
       name: page.name,
       vibe: page.vibe,
       hidden: false, // hidden pages are filtered by loadBikePathEntries
+      stub: page.stub || !page.body || page.body.length < 50,
+      hasGeometry: page.geoFiles.length > 0,
       includes: page.ymlEntries.map(e => e.slug),
       tags: page.tags,
       contentHash,
@@ -105,6 +107,8 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
         name: (fm.name as string) || id,
         vibe: fm.vibe as string | undefined,
         hidden: true,
+        stub: (fm.stub as boolean) || !body.trim() || body.trim().length < 50,
+        hasGeometry: false, // hidden pages are not in canonical entries, no geometry available
         includes: (fm.includes as string[]) || [],
         tags: (fm.tags as string[]) || [],
         contentHash,

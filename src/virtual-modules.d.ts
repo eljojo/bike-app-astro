@@ -77,6 +77,7 @@ interface _AdminEvent {
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
   tags?: string[];
+  hasBody: boolean;
   mediaCount: number;
   waypointCount: number;
   contentHash: string;
@@ -154,6 +155,8 @@ interface _AdminOrganizer {
   photo_content_type?: string;
   photo_width?: number;
   photo_height?: number;
+  hasBody: boolean;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash: string;
 }
 
@@ -183,6 +186,8 @@ interface _AdminPlace {
   category: string;
   lat: number;
   lng: number;
+  photo_key?: string;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash: string;
 }
 
@@ -220,6 +225,8 @@ interface _AdminBikePath {
   name: string;
   vibe?: string;
   hidden: boolean;
+  stub: boolean;
+  hasGeometry: boolean;
   includes: string[];
   tags: string[];
   contentHash: string;
