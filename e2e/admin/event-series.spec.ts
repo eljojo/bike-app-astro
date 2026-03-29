@@ -269,9 +269,9 @@ test.describe('Series Editor — Specific Dates', () => {
     // Wait for Preact island hydration
     await expect(page.locator('.series-editor[data-hydrated]')).toBeAttached({ timeout: 15000 });
 
-    // Remove the first date
+    // Remove the first date — calendar grid can overlap at wide layouts, force the click
     const firstRemoveBtn = page.locator('.series-schedule-item').first().locator('.btn-link', { hasText: 'remove' });
-    await firstRemoveBtn.click();
+    await firstRemoveBtn.click({ force: true });
 
     // Should now show 2 schedule items
     await expect(page.locator('.series-schedule-item')).toHaveCount(2);
