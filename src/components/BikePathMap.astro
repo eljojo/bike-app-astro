@@ -180,9 +180,31 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 
     let savedRect: DOMRect | null = null;
 
+    const TRANSITION_MS = 350;
+
+    // Capture a static snapshot of the map canvas to overlay during resize animation.
+    // CSS transitions stretch the canvas (causing jiggle); this image scales smoothly instead.
+    function showSnapshot() {
+      const canvas = map.getCanvas();
+      const snapshot = document.createElement('img');
+      snapshot.className = 'bike-path-map-snapshot';
+      snapshot.src = canvas.toDataURL();
+      snapshot.setAttribute('aria-hidden', 'true');
+      container.appendChild(snapshot);
+      glEl.style.visibility = 'hidden';
+      return snapshot;
+    }
+
+    function removeSnapshot(snapshot: HTMLImageElement) {
+      glEl.style.visibility = '';
+      snapshot.remove();
+    }
+
     function expand() {
       if (expanded) return;
       expanded = true;
+
+      const snapshot = showSnapshot();
 
       // FLIP: capture current position, then animate to expanded
       savedRect = container.getBoundingClientRect();
@@ -198,13 +220,22 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       container.setAttribute('aria-expanded', 'true');
 
       // Animate to full screen on next frame
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
       requestAnimationFrame(() => {
         container.classList.add('expanded');
-        container.style.top = '20px';
-        container.style.left = '20px';
-        container.style.width = 'calc(100vw - 40px)';
-        container.style.height = 'calc(100vh - 40px)';
-        container.style.borderRadius = '16px';
+        if (isMobile) {
+          container.style.top = '0';
+          container.style.left = '0';
+          container.style.width = '100vw';
+          container.style.height = '100vh';
+          container.style.borderRadius = '0';
+        } else {
+          container.style.top = '20px';
+          container.style.left = '20px';
+          container.style.width = 'calc(100vw - 40px)';
+          container.style.height = 'calc(100vh - 40px)';
+          container.style.borderRadius = '16px';
+        }
       });
 
       // Enable interaction
@@ -213,18 +244,21 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       map.doubleClickZoom.enable();
       map.touchZoomRotate.enable();
 
-      // Resize after CSS transition, then refit with tighter padding
+      // After transition: resize the real map, remove snapshot
       setTimeout(() => {
         map.resize();
+        removeSnapshot(snapshot);
         if (pathBounds && !pathBounds.isEmpty()) {
           map.fitBounds(pathBounds, { padding: 60, animate: true });
         }
-      }, 350);
+      }, TRANSITION_MS);
     }
 
     function collapse() {
       if (!expanded) return;
       expanded = false;
+
+      const snapshot = showSnapshot();
 
       container.classList.remove('expanded');
       container.setAttribute('aria-expanded', 'false');
@@ -237,7 +271,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         container.style.left = `${savedRect.left}px`;
         container.style.width = `${savedRect.width}px`;
         container.style.height = `${savedRect.height}px`;
-        container.style.borderRadius = '12px';
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        container.style.borderRadius = isMobile ? '8px' : '12px';
       }
 
       // Disable interaction
@@ -256,10 +291,11 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         container.style.zIndex = '';
         container.style.borderRadius = '';
         map.resize();
+        removeSnapshot(snapshot);
         if (pathBounds && !pathBounds.isEmpty()) {
           map.fitBounds(pathBounds, { padding: 20, animate: false });
         }
-      }, 350);
+      }, TRANSITION_MS);
     }
 
     container.addEventListener('click', (e) => {
@@ -331,6 +367,16 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
   .bike-path-map-gl {
     width: 100%;
     height: 100%;
+  }
+
+  .bike-path-map-snapshot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
   }
 
   .bike-path-map-close {

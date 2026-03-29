@@ -10,7 +10,9 @@ import { t } from '@/i18n';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
-const { pages, geoFiles } = await loadBikePathData();
+const { pages: allPages, geoFiles } = await loadBikePathData();
+// Filter out very short paths (< 1km) from the index listing
+const pages = allPages.filter(p => !p.length_km || p.length_km >= 1);
 
 // Locale-aware accessors
 function pathName(p: typeof pages[0]): string {
@@ -86,15 +88,20 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
     {geoFiles.length > 0 && (
-      <div
-        class="paths-map-hero"
-        id="paths-network-map"
-        data-geo-files={JSON.stringify(geoFiles)}
-        data-center={JSON.stringify(mapCenter)}
-        data-relation-slugs={JSON.stringify(relationToSlug)}
-        data-interactive-ids={JSON.stringify([...interactiveRelIds])}
-        style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
-      ></div>
+      <div class="paths-map-hero-wrapper">
+        <div
+          class="paths-map-hero"
+          id="paths-network-map"
+          data-geo-files={JSON.stringify(geoFiles)}
+          data-center={JSON.stringify(mapCenter)}
+          data-relation-slugs={JSON.stringify(relationToSlug)}
+          data-interactive-ids={JSON.stringify([...interactiveRelIds])}
+          style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
+        ></div>
+        <div class="paths-map-touch-lock" id="paths-map-touch-lock">
+          <span class="paths-map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+        </div>
+      </div>
     )}
 
     {featured.length > 0 && (
@@ -176,9 +183,48 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
       // Enable pan/zoom for interaction
       map.scrollZoom.disable();
-      map.dragPan.enable();
       map.doubleClickZoom.disable();
       map.touchZoomRotate.disable();
+
+      // On mobile: lock the map behind a touch overlay so scrolling works normally.
+      // On desktop: enable drag pan immediately (mouse users expect it).
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      const touchLock = document.getElementById('paths-map-touch-lock');
+
+      if (isMobile) {
+        map.dragPan.disable();
+        if (touchLock) {
+          let primed = false;
+
+          touchLock.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!primed) {
+              primed = true;
+              touchLock.classList.add('primed');
+            } else {
+              // Second tap: activate map, remove overlay
+              touchLock.classList.add('dismissed');
+              map.dragPan.enable();
+              map.touchZoomRotate.enable();
+            }
+          });
+
+          // Reset primed state when user scrolls away
+          let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+          window.addEventListener('scroll', () => {
+            if (primed && !touchLock.classList.contains('dismissed')) {
+              if (scrollTimer) clearTimeout(scrollTimer);
+              scrollTimer = setTimeout(() => {
+                primed = false;
+                touchLock.classList.remove('primed');
+              }, 300);
+            }
+          }, { passive: true });
+        }
+      } else {
+        map.dragPan.enable();
+        touchLock?.remove();
+      }
 
       map.on('load', async () => {
         const allFeatures: GeoJSON.Feature[] = [];
@@ -301,4 +347,5 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       });
     }
   }
+
 </script>

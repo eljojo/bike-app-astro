@@ -204,6 +204,9 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
 
         {/* Facts table */}
         <table class="bike-path-facts-table">
+          {page.length_km && (
+            <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
+          )}
           {page.surface && (
             <tr><td>{t('paths.label.surface', locale)}</td><td>{displaySurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
           )}

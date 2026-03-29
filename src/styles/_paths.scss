@@ -26,10 +26,51 @@
   }
 }
 
+.paths-map-hero-wrapper {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
 .paths-map-hero {
   border-radius: $border-radius;
   overflow: hidden;
-  margin-bottom: 2rem;
+}
+
+// Touch-lock overlay: sits on top of the map on mobile.
+// touch-action: pan-y lets vertical scrolling pass through to the page.
+.paths-map-touch-lock {
+  display: none;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    touch-action: pan-y;
+    cursor: pointer;
+    border-radius: $border-radius;
+
+    .paths-map-touch-label {
+      opacity: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    &.primed .paths-map-touch-label {
+      opacity: 1;
+    }
+
+    &.dismissed {
+      display: none;
+    }
+  }
 }
 
 .paths-featured {
@@ -169,6 +210,35 @@
 
   @media (max-width: $breakpoint-tablet) {
     grid-template-columns: 1fr;
+    gap: 1rem;
+
+    // Flatten both containers so children become direct grid items,
+    // allowing interleaved ordering: map+facts → description → nearby → routes
+    .bike-path-main,
+    .bike-path-sidebar {
+      display: contents;
+    }
+
+    // 1. Map + facts
+    .bike-path-map-wrapper { order: 1; }
+    .bike-path-facts-table { order: 2; }
+
+    // 2. Description / body content
+    .bike-path-stub-cta { order: 3; }
+    .bike-path-description { order: 4; }
+    .edit-entry-point { order: 5; }
+
+    // 3. Nearby places + paths
+    .nearby-places { order: 6; }
+    .connected-paths { order: 7; }
+    .nearby-paths { order: 8; }
+
+    // 4. Routes on path + photos
+    .routes-on-path { order: 9; }
+    .bike-path-photos { order: 10; }
+
+    // 5. Footer links
+    .bike-path-links { order: 11; }
   }
 }
 

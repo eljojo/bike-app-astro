@@ -12,6 +12,7 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml';
 import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { haversineM } from '../geo/proximity';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 
 /** Locale-specific content overrides for a bike path. */
@@ -58,6 +59,8 @@ export interface BikePathPage {
   wikipedia?: string;
   /** Resolved thumbnail key for index display (photo_key → route cover → map PNG). */
   thumbnail_key?: string;
+  /** Total path length in km, computed from GeoJSON geometry. */
+  length_km?: number;
   /** Elevation gain in meters (from enriched GeoJSON, if available). */
   elevation_gain_m?: number;
   surface?: string;
@@ -113,6 +116,44 @@ function readGeoPoints(filePath: string): Array<{ lat: number; lng: number }> {
     }
     return points;
   } catch { return []; }
+}
+
+/** Compute total length (km) of all LineString/MultiLineString features in a GeoJSON file. */
+function readGeoLengthKm(filePath: string): number {
+  if (!fs.existsSync(filePath)) return 0;
+  try {
+    const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    let totalM = 0;
+    for (const feature of geojson.features ?? []) {
+      const geomType = feature.geometry?.type;
+      const lineArrays: number[][][] =
+        geomType === 'LineString' ? [feature.geometry.coordinates] :
+        geomType === 'MultiLineString' ? feature.geometry.coordinates :
+        [];
+      for (const coords of lineArrays) {
+        for (let i = 1; i < coords.length; i++) {
+          totalM += haversineM(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+        }
+      }
+    }
+    return totalM / 1000;
+  } catch { return 0; }
+}
+
+/** Compute total length (km) for a path from all its GeoJSON files. */
+function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
+  const geoDir = path.resolve('public/paths/geo');
+  let totalKm = 0;
+  for (const relId of entry.osm_relations ?? []) {
+    totalKm += readGeoLengthKm(path.join(geoDir, `${relId}.geojson`));
+  }
+  if (totalKm === 0 && entry.osm_names?.length) {
+    totalKm = readGeoLengthKm(path.join(geoDir, `name-${entry.slug}.geojson`));
+  }
+  if (totalKm === 0 && entry.segments?.length) {
+    totalKm = readGeoLengthKm(path.join(geoDir, `seg-${entry.slug}.geojson`));
+  }
+  return totalKm > 0 ? Math.round(totalKm * 10) / 10 : undefined;
 }
 
 /** Get geographic points for a path: GeoJSON geometry first, YML anchors as fallback. */
@@ -321,6 +362,9 @@ export function loadBikePathEntries(): {
 
     const points = matchedEntries.flatMap(e => getPathPoints(e));
 
+    const lengthParts = matchedEntries.map(e => getPathLengthKm(e) ?? 0);
+    const totalLengthKm = lengthParts.reduce((s, v) => s + v, 0);
+
     pages.push({
       slug: md.id,
       name: md.data.name ?? primary?.name ?? md.id,
@@ -337,6 +381,7 @@ export function loadBikePathEntries(): {
       osmRelationIds,
       osmNames,
       geoFiles: entryGeoFiles(matchedEntries),
+      length_km: totalLengthKm > 0 ? Math.round(totalLengthKm * 10) / 10 : undefined,
       points,
       routeCount: 0,
       overlappingRoutes: [],
@@ -378,6 +423,7 @@ export function loadBikePathEntries(): {
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
       geoFiles: entryGeoFiles([entry]),
+      length_km: getPathLengthKm(entry),
       points: getPathPoints(entry),
       routeCount: 0,
       overlappingRoutes: [],
