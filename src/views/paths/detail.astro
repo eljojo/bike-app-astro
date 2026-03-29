@@ -195,7 +195,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
           geoFiles={page.geoFiles}
           center={computeCenter(page.points)}
           fallbackCenter={fallbackCenter}
-          hintText={t('paths.click_to_explore', locale)}
+          hintText={t('paths.tap_to_explore', locale)}
           closeLabel={t('paths.close_map', locale)}
           photos={nearbyPhotos.filter(p => p.lat && p.lng)}
           places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}

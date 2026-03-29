@@ -334,7 +334,8 @@
   @include muted-text;
   margin-top: 0.5rem;
 
-  a {
+  // Only relation/search links are block — the inline "OpenStreetMap" link stays inline
+  > a {
     display: block;
     margin-top: 0.15rem;
   }
