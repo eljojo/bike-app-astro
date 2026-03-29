@@ -87,7 +87,7 @@ const sidebarLabels = {
               {monthEvents.map(e => (
                 <div class="event-list-item">
                   <a href={`/admin/events/${e.id}`} class="event-list-link">
-                    {e.poster_key && (
+                    {e.poster_key ? (
                       <img
                         src={buildImageUrl(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
                         srcset={buildImageSrcSet2x(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
@@ -95,6 +95,8 @@ const sidebarLabels = {
                         loading="lazy"
                         class="event-poster-thumb"
                       />
+                    ) : (
+                      <span class="event-poster-placeholder">🚲</span>
                     )}
                     <div class="event-card-info">
                       <span class="event-card-name">{e.name}</span>
@@ -236,12 +238,29 @@ const sidebarLabels = {
     }
   }
 
-  .event-poster-thumb {
+  .event-poster-thumb,
+  .event-poster-placeholder {
     width: 40px;
     height: 40px;
     border-radius: $border-radius;
-    object-fit: cover;
     flex-shrink: 0;
+  }
+
+  .event-poster-thumb {
+    object-fit: cover;
+  }
+
+  .event-poster-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $color-card-bg;
+    font-size: 1.25rem;
+    text-decoration: none;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+    }
   }
 
   .event-card-info {
