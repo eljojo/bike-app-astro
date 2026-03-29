@@ -10,6 +10,7 @@ import MarkdownEditor from './MarkdownEditor';
 import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
 import TagEditor from './TagEditor';
+import EventPreview from './EventPreview';
 import type { MediaItem } from './MediaManager';
 import EventRouteSection from './EventRouteSection';
 import EventMediaSection from './EventMediaSection';
@@ -104,6 +105,9 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterHeight, setPosterHeight] = useState<number | undefined>(initialData.poster_height);
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
   const [body, setBody] = useState(initialData.body);
+
+  // Mobile tabs for edit/preview
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Club-specific state
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>(initialData.routes || []);
@@ -291,6 +295,24 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         {userRole === 'guest' && guestLabel && (
           <p class="editor-guest-label">{guestLabel}</p>
         )}
+
+        {/* Mobile tabs */}
+        <div class="route-editor-tabs">
+          <button
+            type="button"
+            class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+            onClick={() => setActiveTab('edit')}
+          >Edit</button>
+          <button
+            type="button"
+            class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+            onClick={() => setActiveTab('preview')}
+          >Preview</button>
+        </div>
+
+        <div class="route-editor-panes">
+        {/* LEFT PANE: Editor */}
+        <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
         <div class="auth-form">
           <div class="form-field">
             <label for="event-name">Name</label>
@@ -710,6 +732,29 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         licenseDocsUrl="https://whereto.bike/about/licensing/"
         disabled={readOnly}
       />
+        </div>
+
+        {/* RIGHT PANE: Preview */}
+        <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+          <EventPreview
+            name={name}
+            startDate={startDate}
+            startTime={startTime}
+            endDate={endDate}
+            endTime={endTime}
+            meetTime={meetTime}
+            location={location}
+            organizer={orgName}
+            distances={distances}
+            registrationUrl={registrationUrl}
+            eventUrl={eventUrl}
+            posterKey={posterKey}
+            tags={tags}
+            body={body}
+            cdnUrl={cdnUrl}
+          />
+        </div>
+        </div>
     </fieldset>
   );
 }
