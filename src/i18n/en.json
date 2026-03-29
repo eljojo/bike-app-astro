@@ -623,11 +623,11 @@
   "admin.sidebar.no_photo": "no photo",
   "admin.sidebar.short_description": "short description",
   "admin.sidebar.no_description": "no description",
-  "admin.sidebar.no_geometry": "no map data",
   "admin.sidebar.no_website": "no website",
   "admin.sidebar.no_phone": "no phone",
   "admin.sidebar.no_poster": "no poster",
   "admin.sidebar.no_social": "no social links",
   "admin.sidebar.draft": "draft",
-  "admin.sidebar.most_visited": "Most visited"
+  "admin.sidebar.most_visited": "Most visited",
+  "admin.sidebar.popular_tags": "Popular tags"
 }

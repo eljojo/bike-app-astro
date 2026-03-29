@@ -184,6 +184,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return finalize(response, context);
   }
 
+  // DEV_ADMIN: skip auth entirely in local dev — synthetic admin user
+  if (process.env.DEV_ADMIN === 'true') {
+    context.locals.user = {
+      id: 'dev-admin',
+      email: null,
+      username: 'dev',
+      role: 'admin',
+      bannedAt: null,
+      emailInCommits: false,
+      analyticsOptOut: true,
+      emailVerified: false,
+      hasPasskey: false,
+    };
+    return finalize(await next(), context);
+  }
+
   // Browsable admin pages: optionally load user, but don't require auth
   if (isBrowsableAdmin(pathname)) {
     const database = db();

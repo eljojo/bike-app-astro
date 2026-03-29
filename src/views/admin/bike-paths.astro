@@ -13,11 +13,11 @@ const bikePaths = await fetchJson<_AdminBikePath[]>(new URL('/admin/data/bike-pa
 const user = Astro.locals.user;
 
 const incomplete = bikePaths
-  .filter(p => !p.hidden && (p.stub || !p.hasGeometry))
+  .filter(p => !p.hidden && p.stub)
   .map(p => ({
     slug: p.id,
     name: p.name,
-    hint: p.stub ? t('admin.sidebar.no_description', locale) : t('admin.sidebar.no_geometry', locale),
+    hint: t('admin.sidebar.no_description', locale),
     editUrl: `/admin/paths/${p.id}`,
   }))
   .slice(0, 5);

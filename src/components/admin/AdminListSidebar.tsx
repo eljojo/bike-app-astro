@@ -11,9 +11,10 @@ interface OverlookedItem {
 interface SidebarStatsData {
   mostViewed: Array<{ slug: string; pageviews: number }>;
   mostStarred: Array<{ slug: string; stars: number }>;
-  trending: Array<{ slug: string; changePercent: number }>;
+  trending: Array<{ slug: string; changePercent: number; diff: number }>;
   overlooked: Array<{ slug: string }>;
   stillVisiting: Array<{ slug: string; pageviews: number }>;
+  popularTags: Array<{ tag: string; visitors: number }>;
 }
 
 interface Props {
@@ -30,6 +31,7 @@ interface Props {
     trending: string;
     overlooked: string;
     stillVisiting?: string;
+    popularTags?: string;
   };
   /** Past event slugs — used to filter "still visiting" API data (events only).
    *  Passed as string[] because Astro serializes Preact props via JSON (Set is lost). */
@@ -105,29 +107,36 @@ export default function AdminListSidebar({
             {stats.trending.map(item => (
               <div class="admin-sidebar-item" key={item.slug}>
                 <a href={editUrl(item.slug)}>{resolveName(item.slug)}</a>
-                <span class="admin-sidebar-trending">↑ {item.changePercent}%</span>
+                <span class="admin-sidebar-trending">
+                  {item.changePercent <= 200
+                    ? `↑ ${item.changePercent}%`
+                    : `+${item.diff} views`}
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Events-only: still drawing visitors */}
-      {stats?.stillVisiting && stats.stillVisiting.length > 0 && labels.stillVisiting && pastEventSlugs && (
-        <div class="admin-sidebar-section">
-          <h4 class="admin-sidebar-heading">{labels.stillVisiting}</h4>
-          <div class="admin-sidebar-list">
-            {stats.stillVisiting
-              .filter(item => pastEventSlugs.includes(item.slug))
-              .map(item => (
+      {/* Events-only: still drawing visitors (filter to past events, hide if empty) */}
+      {(() => {
+        if (!stats?.stillVisiting || !labels.stillVisiting || !pastEventSlugs) return null;
+        const filtered = stats.stillVisiting.filter(item => pastEventSlugs.includes(item.slug));
+        if (filtered.length === 0) return null;
+        return (
+          <div class="admin-sidebar-section">
+            <h4 class="admin-sidebar-heading">{labels.stillVisiting}</h4>
+            <div class="admin-sidebar-list">
+              {filtered.map(item => (
                 <div class="admin-sidebar-item" key={item.slug}>
                   <a href={editUrl(item.slug)}>{resolveName(item.slug)}</a>
                   <span class="admin-sidebar-value">{item.pageviews.toLocaleString()}</span>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {overlookedItems.length > 0 && (
         <div class="admin-sidebar-section">
@@ -139,6 +148,21 @@ export default function AdminListSidebar({
                   <a href={item.editUrl}>{item.name}</a>
                   {item.hint && <span class="admin-sidebar-hint">{item.hint}</span>}
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Routes-only: popular tag filters */}
+      {stats?.popularTags && stats.popularTags.length > 0 && labels.popularTags && (
+        <div class="admin-sidebar-section">
+          <h4 class="admin-sidebar-heading">{labels.popularTags}</h4>
+          <div class="admin-sidebar-list">
+            {stats.popularTags.map(item => (
+              <div class="admin-sidebar-item" key={item.tag}>
+                <span>{item.tag}</span>
+                <span class="admin-sidebar-value">{item.visitors}</span>
               </div>
             ))}
           </div>

@@ -4,16 +4,17 @@
  */
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import type { Database } from '../../db';
-import { contentEngagement, contentDailyMetrics, contentTotals } from '../../db/schema';
+import { contentEngagement, contentDailyMetrics, contentTotals, siteEventMetrics } from '../../db/schema';
 
 // ── Response shape ──────────────────────────────────────────────────
 
 export interface SidebarData {
   mostViewed: Array<{ slug: string; pageviews: number }>;
   mostStarred: Array<{ slug: string; stars: number }>;
-  trending: Array<{ slug: string; changePercent: number }>;
+  trending: Array<{ slug: string; changePercent: number; diff: number }>;
   overlooked: Array<{ slug: string }>;
   stillVisiting: Array<{ slug: string; pageviews: number }>;
+  popularTags: Array<{ tag: string; visitors: number }>;
 }
 
 // ── Queries ─────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ export async function querySidebarTrending(
   db: Database, city: string, contentType: string,
   currentStart: string, currentEnd: string,
   previousStart: string, previousEnd: string,
-): Promise<Array<{ slug: string; changePercent: number }>> {
+): Promise<Array<{ slug: string; changePercent: number; diff: number }>> {
   // Aggregate current and previous period pageviews per slug
   const [currentRows, previousRows] = await Promise.all([
     db.select({
@@ -87,19 +88,17 @@ export async function querySidebarTrending(
   ]);
 
   const prevMap = new Map(previousRows.map(r => [r.slug, r.total]));
-  const trending: Array<{ slug: string; changePercent: number }> = [];
+  const trending: Array<{ slug: string; changePercent: number; diff: number }> = [];
 
   for (const row of currentRows) {
     if (row.total < 20) continue;
     const prev = prevMap.get(row.slug) ?? 0;
-    if (prev === 0) {
-      // New item with enough views counts as trending
-      trending.push({ slug: row.slug, changePercent: 100 });
-      continue;
-    }
-    const change = Math.round(((row.total - prev) / prev) * 100);
-    if (change >= 30) {
-      trending.push({ slug: row.slug, changePercent: change });
+    // Require a meaningful base — otherwise it's "new", not "trending"
+    if (prev < 5) continue;
+    const changePercent = Math.round(((row.total - prev) / prev) * 100);
+    if (changePercent >= 30) {
+      const diff = row.total - prev;
+      trending.push({ slug: row.slug, changePercent, diff });
     }
   }
 
@@ -158,6 +157,24 @@ export async function querySidebarStillVisiting(
     .groupBy(contentDailyMetrics.contentSlug)
     .having(sql`SUM(${contentDailyMetrics.pageviews}) >= 10`)
     .orderBy(desc(sql`SUM(${contentDailyMetrics.pageviews})`))
+    .limit(5);
+  return rows;
+}
+
+/** Top tags by visitor count from "Routes: Tag Filter" Plausible events. */
+export async function querySidebarPopularTags(
+  db: Database, city: string,
+): Promise<Array<{ tag: string; visitors: number }>> {
+  const rows = await db.select({
+    tag: siteEventMetrics.dimensionValue,
+    visitors: sql<number>`SUM(${siteEventMetrics.visitors})`,
+  }).from(siteEventMetrics)
+    .where(and(
+      eq(siteEventMetrics.city, city),
+      eq(siteEventMetrics.eventName, 'tag_filter'),
+    ))
+    .groupBy(siteEventMetrics.dimensionValue)
+    .orderBy(desc(sql`SUM(${siteEventMetrics.visitors})`))
     .limit(5);
   return rows;
 }

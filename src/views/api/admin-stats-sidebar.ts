@@ -5,7 +5,7 @@ import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
 import {
   querySidebarMostViewed, querySidebarMostStarred, querySidebarTrending,
-  querySidebarOverlooked, querySidebarStillVisiting,
+  querySidebarOverlooked, querySidebarStillVisiting, querySidebarPopularTags,
   type SidebarData,
 } from '../../lib/stats/sidebar-queries.server';
 
@@ -23,7 +23,7 @@ const PLURAL_TO_SINGULAR: Record<string, string> = {
 const NO_STATS_TYPES = new Set(['places', 'rides']);
 
 function emptyResponse(): SidebarData {
-  return { mostViewed: [], mostStarred: [], trending: [], overlooked: [], stillVisiting: [] };
+  return { mostViewed: [], mostStarred: [], trending: [], overlooked: [], stillVisiting: [], popularTags: [] };
 }
 
 export async function GET(ctx: APIContext) {
@@ -60,8 +60,9 @@ export async function GET(ctx: APIContext) {
     const previousEnd = currentStart;
 
     const isEvents = pluralType === 'events';
+    const isRoutes = pluralType === 'routes';
 
-    const [mostViewed, mostStarred, trending, overlooked, stillVisiting] = await Promise.all([
+    const [mostViewed, mostStarred, trending, overlooked, stillVisiting, popularTags] = await Promise.all([
       querySidebarMostViewed(database, CITY, contentType),
       querySidebarMostStarred(database, CITY, contentType),
       querySidebarTrending(database, CITY, contentType, currentStart, currentEnd, previousStart, previousEnd),
@@ -69,9 +70,12 @@ export async function GET(ctx: APIContext) {
       isEvents
         ? querySidebarStillVisiting(database, CITY, currentStart, currentEnd)
         : Promise.resolve([]),
+      isRoutes
+        ? querySidebarPopularTags(database, CITY)
+        : Promise.resolve([]),
     ]);
 
-    const data: SidebarData = { mostViewed, mostStarred, trending, overlooked, stillVisiting };
+    const data: SidebarData = { mostViewed, mostStarred, trending, overlooked, stillVisiting, popularTags };
     return jsonResponse(data as unknown as Record<string, unknown>);
   } catch (err: unknown) {
     console.error('sidebar stats error:', err);

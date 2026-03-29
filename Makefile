@@ -7,7 +7,7 @@ install: ## Install npm dependencies
 	npm install
 
 dev: prebuild ## Start dev server (set DEV_HOST in .env for remote access)
-	RUNTIME=local npx astro dev
+	RUNTIME=local DEV_ADMIN=true npx astro dev
 
 build: prebuild ## Build static site to dist/
 	npx astro build
