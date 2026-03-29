@@ -8,6 +8,7 @@ import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
 import TagEditor from './TagEditor';
 import { localeLabel } from '../../lib/i18n/locale-utils';
+import BikePathPreview from './BikePathPreview';
 import type { BikePathDetail } from '../../lib/models/bike-path-model';
 
 interface Props {
@@ -45,6 +46,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   const [wikipedia, setWikipedia] = useState(initialData.wikipedia ?? '');
   const [operator, setOperator] = useState(initialData.operator ?? '');
   const [body, setBody] = useState(initialData.body);
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Textarea hydration bug fix
   const bodyRef = useTextareaValue(initialData.body);
@@ -88,6 +90,23 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
 
   return (
     <div class="bike-path-editor" ref={hydratedRef}>
+      {/* Mobile tabs */}
+      <div class="route-editor-tabs">
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('edit')}
+        >Edit</button>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('preview')}
+        >Preview</button>
+      </div>
+
+      <div class="route-editor-panes">
+      {/* LEFT PANE: Editor */}
+      <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
       <div class="auth-form">
         <div class="form-field">
           <label for="bp-name">Name</label>
@@ -188,6 +207,22 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
         viewLink="/admin/paths"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
+      </div>
+
+      {/* RIGHT PANE: Preview */}
+      <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+        <BikePathPreview
+          name={name}
+          vibe={vibe}
+          body={body}
+          tags={tags}
+          operator={operator}
+          wikipedia={wikipedia}
+          photoKey={photoKey}
+          cdnUrl={cdnUrl}
+        />
+      </div>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import TagEditor from './TagEditor';
 import EditorActions from './EditorActions';
+import CommunityPreview from './CommunityPreview';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
 
@@ -55,6 +56,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(
     initialData.social_links?.length ? initialData.social_links : [],
   );
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Textarea hydration workaround
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -123,11 +125,33 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     ));
   }
 
+  function displayTag(tag: string): string {
+    return tagTranslations[tag]?.[defaultLocale] ?? tag;
+  }
+
   return (
     <div ref={hydratedRef} class="community-editor">
       {userRole === 'guest' && guestLabel && (
         <p class="editor-guest-label">{guestLabel}</p>
       )}
+
+      {/* Mobile tabs */}
+      <div class="route-editor-tabs">
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('edit')}
+        >Edit</button>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('preview')}
+        >Preview</button>
+      </div>
+
+      <div class="route-editor-panes">
+      {/* LEFT PANE: Editor */}
+      <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
       <div class="auth-form">
         <div class="form-field">
           <label for="community-name">Name</label>
@@ -241,6 +265,22 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
         viewLink="/admin/communities"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
+      </div>
+
+      {/* RIGHT PANE: Preview */}
+      <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+        <CommunityPreview
+          name={name}
+          tagline={tagline}
+          body={body}
+          tags={tags}
+          photoKey={photoKey}
+          socialLinks={socialLinks}
+          cdnUrl={cdnUrl}
+          displayTag={displayTag}
+        />
+      </div>
+      </div>
     </div>
   );
 }
