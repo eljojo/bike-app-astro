@@ -25,6 +25,17 @@ export function liveUrl(contentType: string, contentSlug: string): string {
     case 'route': return `/routes/${contentSlug}`;
     case 'event': return `/events/${contentSlug}`;
     case 'organizer': return `/communities/${contentSlug}`;
+    case 'bike-path': return `/paths/${contentSlug}`;
+    default: return '#';
+  }
+}
+
+export function adminUrl(contentType: string, contentSlug: string): string {
+  switch (contentType) {
+    case 'route': return `/admin/routes/${contentSlug}`;
+    case 'event': return `/admin/events/${contentSlug}`;
+    case 'organizer': return `/admin/communities/${contentSlug}`;
+    case 'bike-path': return `/admin/paths/${contentSlug}`;
     default: return '#';
   }
 }

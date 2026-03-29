@@ -1,6 +1,6 @@
 /** Content identity resolved from a URL path. */
 export interface ContentIdentity {
-  contentType: 'route' | 'event' | 'organizer';
+  contentType: 'route' | 'event' | 'organizer' | 'bike-path';
   contentSlug: string;
   pageType: string; // 'detail', 'map', 'map:winter', etc.
 }
@@ -45,7 +45,7 @@ export interface SummaryCard {
 
 /** Leaderboard entry. */
 export interface LeaderboardEntry {
-  contentType: 'route' | 'event' | 'organizer';
+  contentType: 'route' | 'event' | 'organizer' | 'bike-path';
   contentSlug: string;
   name: string;
   thumbKey?: string;

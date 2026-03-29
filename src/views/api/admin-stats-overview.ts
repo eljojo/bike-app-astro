@@ -189,7 +189,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }));
 
     const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
-      contentType: r.contentType as 'route' | 'event' | 'organizer',
+      contentType: r.contentType as 'route' | 'event' | 'organizer' | 'bike-path',
       contentSlug: r.contentSlug,
       name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
       thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
@@ -200,7 +200,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     }));
 
     const engagementLeaderboard = topByEngagement.map(r => ({
-      contentType: r.contentType as 'route' | 'event' | 'organizer',
+      contentType: r.contentType as 'route' | 'event' | 'organizer' | 'bike-path',
       contentSlug: r.contentSlug,
       name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
       thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
