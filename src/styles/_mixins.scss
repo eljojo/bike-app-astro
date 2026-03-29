@@ -40,3 +40,58 @@
     color: $color-text-muted-dark;
   }
 }
+
+@mixin micro-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  @include muted-text;
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+@mixin sidebar-section {
+  padding-top: 1rem;
+  border-top: 1px solid $color-border;
+  margin-bottom: 1.25rem;
+
+  @include dark-mode {
+    border-top-color: $color-border-subtle-dark;
+  }
+
+  &:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+@mixin sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+@mixin sidebar-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover { text-decoration: underline; }
+
+    @include dark-mode { color: $color-text-dark; }
+  }
+}
+
+@mixin sidebar-hint {
+  font-size: 0.75rem;
+  color: $color-hint;
+  margin-left: 0.25rem;
+
+  @include dark-mode { color: $color-hint-dark; }
+}
