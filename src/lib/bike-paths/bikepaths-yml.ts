@@ -10,7 +10,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
   osm_names: z.array(z.string()).optional(),
   anchors: z.array(z.union([
     z.object({ lat: z.number(), lng: z.number() }),
-    z.tuple([z.number(), z.number()]),
+    z.tuple([z.number(), z.number()]), // [lng, lat] — GeoJSON coordinate order
   ])).optional(),
   surface: z.string().optional(),
   smoothness: z.string().optional(),

@@ -178,10 +178,9 @@
     border-radius: 3px;
   }
 
-  $path-highlight: #E6194B;
   li.path-highlight {
-    background: rgba($path-highlight, 0.12);
-    @include dark-mode { background: rgba($path-highlight, 0.25); }
+    background: rgba($color-path-highlight, 0.12);
+    @include dark-mode { background: rgba($color-path-highlight, 0.25); }
   }
 }
 

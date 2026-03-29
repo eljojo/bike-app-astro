@@ -592,6 +592,46 @@ good_for:
 `
   );
 
+  // --- Bike path fixtures ---
+  fs.writeFileSync(
+    path.join(CITY_DIR, 'bikepaths.yml'),
+    `bike_paths:
+  - name: Canal Pathway
+    osm_relations: [12345]
+    highway: cycleway
+    surface: asphalt
+    operator: NCC
+    network: rcn
+    name_en: Canal Pathway
+    name_fr: Sentier du Canal
+  - name: River Trail
+    highway: cycleway
+    surface: gravel
+    anchors:
+      - [−75.70, 45.42]
+      - [−75.68, 45.40]
+`
+  );
+
+  const bikePathsDir = path.join(CITY_DIR, 'bike-paths');
+  fs.mkdirSync(bikePathsDir, { recursive: true });
+
+  // bike-path-edit: owned by bike-path-admin.spec.ts
+  fs.writeFileSync(
+    path.join(bikePathsDir, 'canal-pathway.md'),
+    `---
+name: Canal Pathway
+includes:
+  - canal-pathway
+tags:
+  - scenic
+vibe: A beautiful ride along the canal
+---
+
+The canal pathway runs from downtown to the locks.
+`
+  );
+
   // Init git repo with user config so simple-git can commit during saves.
   // Use a fixed date for deterministic commit timestamps in screenshot tests.
   const FIXED_GIT_DATE = '2025-06-15T12:00:00-04:00';

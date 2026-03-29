@@ -37,6 +37,7 @@ import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { parseBikePathsYml } from './lib/bike-paths/bikepaths-yml';
 import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
 import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './lib/bike-paths/bike-path-scoring';
+import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from './lib/geo/geojson-sampling';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -145,30 +146,12 @@ function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: n
   const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
   if (!fs.existsSync(geoDir)) return {};
   const result: Record<string, Array<{ lat: number; lng: number }>> = {};
-  const SAMPLE_INTERVAL = 10; // keep every 10th point
 
   for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
     const relId = file.replace(/\.geojson$/, '');
     try {
       const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
-      const points: Array<{ lat: number; lng: number }> = [];
-      for (const feature of geojson.features ?? []) {
-        const geomType = feature.geometry?.type;
-        const lineArrays: number[][][] =
-          geomType === 'LineString' ? [feature.geometry.coordinates] :
-          geomType === 'MultiLineString' ? feature.geometry.coordinates :
-          [];
-        for (const coords of lineArrays) {
-          for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
-            points.push({ lat: coords[i][1], lng: coords[i][0] });
-          }
-          // Include the last point only if not already sampled
-          if (coords.length > 0 && coords.length % SAMPLE_INTERVAL !== 0) {
-            const last = coords[coords.length - 1];
-            points.push({ lat: last[1], lng: last[0] });
-          }
-        }
-      }
+      const points = sampleGeoJsonPoints(geojson, SAMPLE_INTERVAL);
       if (points.length > 0) result[relId] = points;
     } catch {
       // Malformed file — skip
@@ -404,8 +387,6 @@ function computeBikePathRelations(
       if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
     }
 
-
-
     // Connected paths (endpoints within 200m) — only check candidate entries
     const endpoints = points.length >= 2
       ? [points[0], points[points.length - 1]]
@@ -428,8 +409,6 @@ function computeBikePathRelations(
       if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
     }
 
-
-
     // Nearby places (within threshold of any path point)
     const PLACE_NEAR_M = PLACE_NEAR_ROUTE_M;
     const nearbyPlaces: NearbyPlace[] = [];
@@ -445,8 +424,6 @@ function computeBikePathRelations(
       }
     }
     nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
-
-
 
     // Photos near the path (within 300m, geolocated from route media)
     const PHOTO_NEAR_M = 300;
@@ -497,13 +474,18 @@ function loadGeoElevation(consumerRoot: string): Record<string, { gain_m: number
       let gain = 0;
       let loss = 0;
       for (const feature of geojson.features ?? []) {
-        if (feature.geometry?.type !== 'LineString') continue;
-        const coords = feature.geometry.coordinates;
-        for (let i = 1; i < coords.length; i++) {
-          if (coords[i].length < 3 || coords[i - 1].length < 3) continue;
-          const delta = coords[i][2] - coords[i - 1][2];
-          if (delta > 0) gain += delta;
-          else loss -= delta;
+        const geomType = feature.geometry?.type;
+        const lineArrays: number[][][] =
+          geomType === 'LineString' ? [feature.geometry.coordinates] :
+          geomType === 'MultiLineString' ? feature.geometry.coordinates :
+          [];
+        for (const coords of lineArrays) {
+          for (let i = 1; i < coords.length; i++) {
+            if (coords[i].length < 3 || coords[i - 1].length < 3) continue;
+            const delta = coords[i][2] - coords[i - 1][2];
+            if (delta > 0) gain += delta;
+            else loss -= delta;
+          }
         }
       }
       if (gain > 0 || loss > 0) result[relId] = { gain_m: Math.round(gain), loss_m: Math.round(loss) };
@@ -527,8 +509,10 @@ function enrichBikePathPages(
 ): import('./lib/bike-paths/bike-path-entries.server').BikePathPage[] {
   const result: import('./lib/bike-paths/bike-path-entries.server').BikePathPage[] = [];
 
-  for (const page of tier1Pages) {
-    const matchedEntries = page.ymlEntries;
+  for (const original of tier1Pages) {
+    const matchedEntries = original.ymlEntries;
+    // Create a shallow copy to avoid mutating the input array's elements
+    const page = { ...original };
 
     // Re-score YML-only pages with real route overlap count
     if (!page.hasMarkdown) {
@@ -603,11 +587,21 @@ function enrichBikePathPages(
     }
     page.connectedPaths = connectedPaths;
 
-    // Compute elevation_gain_m from all matched entries' relations
+    // Compute elevation_gain_m from all matched entries' geo files
+    // (relation-based, name-based, or segment-based)
     let totalElevation = 0;
     for (const e of matchedEntries) {
       for (const relId of e.osm_relations ?? []) {
         const ele = geoElevation[String(relId)];
+        if (ele) totalElevation += ele.gain_m;
+      }
+      // Also check name-based and segment-based geo files
+      if (totalElevation === 0 && e.osm_names?.length) {
+        const ele = geoElevation[`name-${e.slug}`];
+        if (ele) totalElevation += ele.gain_m;
+      }
+      if (totalElevation === 0 && e.segments?.length) {
+        const ele = geoElevation[`seg-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
     }

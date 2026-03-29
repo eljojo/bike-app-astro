@@ -11,9 +11,13 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml';
-import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from '../geo/geojson-sampling';
+import { scoreBikePath, isHardExcluded, TIER1_MIN_SCORE } from './bike-path-scoring';
 import { haversineM } from '../geo/proximity';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
+
+// Resolve project root from this file's location (src/lib/bike-paths/) — avoids CWD dependency
+const PROJECT_ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
 
 /** Locale-specific content overrides for a bike path. */
 export interface BikePathTranslation {
@@ -90,31 +94,12 @@ export function normalizeOperator(operator: string | undefined): string | undefi
   return operator;
 }
 
-const SAMPLE_INTERVAL = 10;
-
 /** Read sampled points from a GeoJSON file. */
 function readGeoPoints(filePath: string): Array<{ lat: number; lng: number }> {
   if (!fs.existsSync(filePath)) return [];
   try {
     const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    const points: Array<{ lat: number; lng: number }> = [];
-    for (const feature of geojson.features ?? []) {
-      const geomType = feature.geometry?.type;
-      const lineArrays: number[][][] =
-        geomType === 'LineString' ? [feature.geometry.coordinates] :
-        geomType === 'MultiLineString' ? feature.geometry.coordinates :
-        [];
-      for (const coords of lineArrays) {
-        for (let i = 0; i < coords.length; i += SAMPLE_INTERVAL) {
-          points.push({ lat: coords[i][1], lng: coords[i][0] });
-        }
-        if (coords.length > 0 && coords.length % SAMPLE_INTERVAL !== 0) {
-          const last = coords[coords.length - 1];
-          points.push({ lat: last[1], lng: last[0] });
-        }
-      }
-    }
-    return points;
+    return sampleGeoJsonPoints(geojson, SAMPLE_INTERVAL);
   } catch { return []; }
 }
 
@@ -142,7 +127,7 @@ function readGeoLengthKm(filePath: string): number {
 
 /** Compute total length (km) for a path from all its GeoJSON files. */
 function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
-  const geoDir = path.resolve('public/paths/geo');
+  const geoDir = path.join(PROJECT_ROOT, 'public', 'paths', 'geo');
   let totalKm = 0;
   for (const relId of entry.osm_relations ?? []) {
     totalKm += readGeoLengthKm(path.join(geoDir, `${relId}.geojson`));
@@ -158,7 +143,7 @@ function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
 
 /** Get geographic points for a path: GeoJSON geometry first, YML anchors as fallback. */
 function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: number }> {
-  const geoDir = path.resolve('public/paths/geo');
+  const geoDir = path.join(PROJECT_ROOT, 'public', 'paths', 'geo');
   const points: Array<{ lat: number; lng: number }> = [];
 
   for (const relId of entry.osm_relations ?? []) {
@@ -408,7 +393,9 @@ export function loadBikePathEntries(): {
     if (isHardExcluded(entry)) continue;
 
     const score = scoreBikePath(entry, 0);
-    if (score < SCORE_THRESHOLD) continue;
+    // Use TIER1_MIN_SCORE (not SCORE_THRESHOLD) — route overlaps (+3) aren't known yet.
+    // Entries that pass here will be re-scored with real overlap counts in Tier 2.
+    if (score < TIER1_MIN_SCORE) continue;
 
     pages.push({
       slug: entry.slug,
@@ -445,7 +432,7 @@ export function loadBikePathEntries(): {
   }
 
   // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)
-  const geoDir = path.resolve('public/paths/geo');
+  const geoDir = path.join(PROJECT_ROOT, 'public', 'paths', 'geo');
   const geoFiles = fs.existsSync(geoDir)
     ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
     : [];

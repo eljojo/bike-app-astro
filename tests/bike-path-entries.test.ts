@@ -204,11 +204,14 @@ describe('loadBikePathEntries', () => {
     expect(road).toBeUndefined();
   });
 
-  it('excludes low-scoring YML entries', () => {
+  it('includes low-scoring YML entries as Tier 1 candidates (route overlaps may rescue them)', () => {
     const { pages } = loadBikePathEntries();
-    // "Small Local Path" has highway: cycleway only -> score 1, below SCORE_THRESHOLD (4)
+    // "Small Local Path" has highway: cycleway only -> score 1, passes TIER1_MIN_SCORE (1)
+    // It's a Tier 1 candidate — Tier 2 in build-data-plugin will re-score with real overlap data
     const small = pages.find(p => p.slug === 'small-local-path');
-    expect(small).toBeUndefined();
+    expect(small).toBeDefined();
+    expect(small!.score).toBe(1);
+    expect(small!.hasMarkdown).toBe(false);
   });
 
   it('includes high-scoring unclaimed YML entries without markdown', () => {

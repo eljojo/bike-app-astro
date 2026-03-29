@@ -596,6 +596,7 @@
   "paths.fact.network_national": "Part of the national cycling network",
   "paths.fact.network_local": "Part of the local cycling network",
   "paths.seo_description": "Explore {count} cycling paths in {city} — surface types, distances, and which routes use each path.",
+  "paths.seo_fallback": "cycling path",
   "paths.stub_cta": "This page needs more information.",
   "paths.stub_cta_link": "Help improve it",
   "paths.fact.flat": "Flat",

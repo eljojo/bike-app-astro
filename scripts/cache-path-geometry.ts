@@ -11,6 +11,7 @@
  * Usage:
  *   npx tsx scripts/cache-path-geometry.ts
  *   npx tsx scripts/cache-path-geometry.ts --dry-run
+ *   npx tsx scripts/cache-path-geometry.ts --force    # re-fetch all, ignoring cache
  *
  * Env: CONTENT_DIR (default: ~/code/bike-routes), CITY (default: ottawa)
  */
@@ -23,6 +24,7 @@ const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
 const CACHE_DIR = path.resolve('.cache', 'bikepath-geometry', CITY);
 const dryRun = process.argv.includes('--dry-run');
+const forceRefresh = process.argv.includes('--force');
 
 // Server rotation — try our own server first, then public fallbacks.
 const OVERPASS_SERVERS = [
@@ -60,6 +62,7 @@ async function queryOverpass(query: string): Promise<any> {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: `data=${encodeURIComponent(query)}`,
+          signal: AbortSignal.timeout(90_000),
         });
       } catch (err: any) {
         console.log(`  [overpass] ${new URL(serverUrl).hostname} network error: ${err.message}, rotating...`);
@@ -144,17 +147,17 @@ for (const entry of relationEntries) {
   for (const relId of entry.osm_relations!) {
     const outPath = path.join(CACHE_DIR, `${relId}.geojson`);
 
-    if (fs.existsSync(outPath)) {
+    if (fs.existsSync(outPath) && !forceRefresh) {
       skipped++;
       continue;
     }
 
     if (dryRun) {
-      console.log(`  Would fetch: relation ${relId} (${entry.name})`);
+      console.log(`  Would fetch: relation ${relId} (${entry.name})${forceRefresh ? ' (force)' : ''}`);
       continue;
     }
 
-    console.log(`  Fetching relation ${relId} (${entry.name})...`);
+    console.log(`  Fetching relation ${relId} (${entry.name})${forceRefresh ? ' (force refresh)' : ''}...`);
     try {
       const query = `[out:json][timeout:60];relation(${relId});(._;>;);out geom;`;
       const data = await queryOverpass(query);
@@ -172,7 +175,7 @@ for (const entry of nameEntries) {
   const slug = slugify(entry.name);
   const outPath = path.join(CACHE_DIR, `name-${slug}.geojson`);
 
-  if (fs.existsSync(outPath)) {
+  if (fs.existsSync(outPath) && !forceRefresh) {
     skipped++;
     continue;
   }
@@ -186,7 +189,8 @@ for (const entry of nameEntries) {
   try {
     const bbox = anchorBbox(entry.anchors!);
     // Query all ways matching any of the osm_names within the bbox
-    const nameFilters = entry.osm_names!.map(n => `way["name"="${n}"](${bbox});`).join('\n');
+    // Escape double quotes in OSM names to prevent Overpass QL injection
+    const nameFilters = entry.osm_names!.map(n => `way["name"="${n.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"](${bbox});`).join('\n');
     const query = `[out:json][timeout:60];\n(\n${nameFilters}\n);\nout geom;`;
     const data = await queryOverpass(query);
     const geojson = overpassToGeoJSON(data, slug);
@@ -206,7 +210,7 @@ for (const entry of segmentEntries) {
   const slug = slugify(entry.name);
   const outPath = path.join(CACHE_DIR, `seg-${slug}.geojson`);
 
-  if (fs.existsSync(outPath)) {
+  if (fs.existsSync(outPath) && !forceRefresh) {
     skipped++;
     continue;
   }

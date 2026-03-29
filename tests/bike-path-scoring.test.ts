@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isHardExcluded, scoreBikePath } from '../src/lib/bike-paths/bike-path-scoring';
+import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD, TIER1_MIN_SCORE } from '../src/lib/bike-paths/bike-path-scoring';
 import { normalizeOperator } from '../src/lib/bike-paths/bike-path-data.server';
 import type { SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml';
 
@@ -114,5 +114,22 @@ describe('scoreBikePath', () => {
       operator: 'Parks Department',
     }), 0);
     expect(score2).toBe(2);
+  });
+
+  it('TIER1_MIN_SCORE accounts for max route overlap bonus', () => {
+    // TIER1_MIN_SCORE should be low enough that entries with score just below
+    // SCORE_THRESHOLD can be rescued by route overlap points (+3)
+    expect(TIER1_MIN_SCORE).toBe(SCORE_THRESHOLD - 3);
+    expect(TIER1_MIN_SCORE).toBe(1);
+
+    // A cycleway (score 1) below SCORE_THRESHOLD (4) but rescuable by overlaps
+    const score = scoreBikePath(entry({ name: 'Small Path', highway: 'cycleway' }), 0);
+    expect(score).toBe(1);
+    expect(score).toBeGreaterThanOrEqual(TIER1_MIN_SCORE); // passes Tier 1
+
+    // With overlaps, it passes SCORE_THRESHOLD
+    const withOverlaps = scoreBikePath(entry({ name: 'Small Path', highway: 'cycleway' }), 2);
+    expect(withOverlaps).toBe(4);
+    expect(withOverlaps).toBeGreaterThanOrEqual(SCORE_THRESHOLD);
   });
 });

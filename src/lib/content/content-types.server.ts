@@ -91,7 +91,7 @@ export const contentTypes: ContentTypeConfig[] = [
     name: 'bike-paths',
     singular: 'bike-path',
     label: 'Bike Paths',
-    featureGate: 'hasRoutes',
+    featureGate: 'hasPaths',
     ops: bikePathOps,
     adminListRoute: { pattern: '/admin/paths', entrypoint: 'admin/bike-paths.astro' },
     adminDetailRoutes: [

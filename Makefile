@@ -54,7 +54,7 @@ screenshots: prebuild ## Update all screenshot baselines (public + admin)
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
 
-prebuild: ## Run all code generators (map style, icon paths)
+prebuild: ## Run all code generators (map style, icons, maps, contributors, path geometry)
 	npx tsx scripts/prebuild.ts
 
 map-style: ## Generate cycling map style JSON

@@ -238,11 +238,15 @@ interface _AdminBikePathDetail {
   name_fr?: string;
   vibe?: string;
   hidden: boolean;
+  stub: boolean;
+  featured: boolean;
   includes: string[];
   photo_key?: string;
   tags: string[];
   body: string;
   contentHash?: string;
+  /** Dynamic locale name keys like name_fr, name_es etc. */
+  [key: `name_${string}`]: string | undefined;
 }
 
 declare module 'virtual:bike-app/admin-bike-paths' {

@@ -216,6 +216,7 @@ jobs:
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
           CITY: demo
+          PREBUILD_MINIMAL: ${{ matrix.suite != 'public' && '1' || '' }}
 
       - name: Fix corrupt PNG baselines
         if: matrix.suite == 'public'

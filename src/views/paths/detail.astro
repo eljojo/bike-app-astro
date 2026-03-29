@@ -44,20 +44,33 @@ function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, numbe
 
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
+// Shared label maps — used by both buildPathFacts() and the template below
+const surfaceLabels: Record<string, string> = {
+  asphalt: t('paths.fact.paved', locale),
+  concrete: t('paths.fact.paved', locale),
+  fine_gravel: t('paths.fact.gravel', locale),
+  gravel: t('paths.fact.gravel', locale),
+  ground: t('paths.fact.dirt', locale),
+  dirt: t('paths.fact.dirt', locale),
+  compacted: t('paths.fact.gravel', locale),
+};
+function displaySurface(raw?: string): string | undefined {
+  return raw ? surfaceLabels[raw] || raw : undefined;
+}
+
+const networkLabels: Record<string, string> = {
+  rcn: t('paths.fact.network_regional', locale),
+  ncn: t('paths.fact.network_national', locale),
+  lcn: t('paths.fact.network_local', locale),
+};
+const networkLabel = page.network ? (networkLabels[page.network] || page.network) : undefined;
+
 // Build factual prose from metadata — no opinions, just what the data says
 function buildPathFacts(p: BikePathPage): string[] {
   const facts: string[] = [];
 
   // Surface + width combined
-  const surfaceMap: Record<string, string> = {
-    asphalt: t('paths.fact.paved', locale),
-    concrete: t('paths.fact.paved', locale),
-    fine_gravel: t('paths.fact.gravel', locale),
-    gravel: t('paths.fact.gravel', locale),
-    ground: t('paths.fact.dirt', locale),
-    dirt: t('paths.fact.dirt', locale),
-  };
-  const surfaceLabel = p.surface ? surfaceMap[p.surface] || p.surface : null;
+  const surfaceLabel = p.surface ? surfaceLabels[p.surface] || p.surface : null;
   if (surfaceLabel && p.width) {
     facts.push(`${surfaceLabel}, ${p.width}m ${t('paths.fact.wide', locale)}`);
   } else if (surfaceLabel) {
@@ -100,42 +113,17 @@ function buildPathFacts(p: BikePathPage): string[] {
   }
 
   // Network
-  const networkMap: Record<string, string> = {
-    rcn: t('paths.fact.network_regional', locale),
-    ncn: t('paths.fact.network_national', locale),
-    lcn: t('paths.fact.network_local', locale),
-  };
-  if (p.network && networkMap[p.network]) {
-    facts.push(networkMap[p.network]);
+  if (p.network && networkLabels[p.network]) {
+    facts.push(networkLabels[p.network]);
   }
 
   return facts;
 }
 
-const surfaceLabels: Record<string, string> = {
-  asphalt: t('paths.fact.paved', locale),
-  concrete: t('paths.fact.paved', locale),
-  fine_gravel: t('paths.fact.gravel', locale),
-  gravel: t('paths.fact.gravel', locale),
-  ground: t('paths.fact.dirt', locale),
-  dirt: t('paths.fact.dirt', locale),
-  compacted: t('paths.fact.gravel', locale),
-};
-function displaySurface(raw?: string): string | undefined {
-  return raw ? surfaceLabels[raw] || raw : undefined;
-}
-
 const pathFacts = buildPathFacts(page);
 
-const networkLabels: Record<string, string> = {
-  rcn: t('paths.fact.network_regional', locale),
-  ncn: t('paths.fact.network_national', locale),
-  lcn: t('paths.fact.network_local', locale),
-};
-const networkLabel = page.network ? (networkLabels[page.network] || page.network) : undefined;
-
 // SEO
-const seoDescription = localeVibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${localeName} — cycling path`);
+const seoDescription = localeVibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`);
 // Prefer generated map thumbnail (path-{slug}/map-social.jpg), fall back to route cover photo
 const hasMapThumb = hasCachedMap(`path-${page.slug}`);
 const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
