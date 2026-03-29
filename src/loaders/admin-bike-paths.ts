@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config/config.server';
 import { loadBikePathEntries } from '../lib/bike-paths/bike-path-entries.server';
+import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import type { AdminBikePath } from '../types/admin';
 import type { BikePathDetail } from '../lib/models/bike-path-model';
 
@@ -58,10 +59,16 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
       contentHash,
     });
 
+    // Spread secondary locale names as name_{locale} keys (e.g. name_fr, name_nl)
+    const localeNames: Record<string, string> = {};
+    for (const [locale, trans] of Object.entries(page.translations)) {
+      if (trans.name) localeNames[`name_${locale}`] = trans.name;
+    }
+
     details[page.slug] = {
       id: page.slug,
       name: page.name,
-      name_fr: page.name_fr,
+      ...localeNames,
       vibe: page.vibe,
       hidden: false,
       stub: page.stub,
@@ -103,10 +110,17 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
         contentHash,
       });
 
+      // Spread secondary locale names from frontmatter
+      const hiddenLocaleNames: Record<string, string> = {};
+      for (const locale of supportedLocales().filter(l => l !== defaultLocale())) {
+        const val = fm[`name_${locale}`];
+        if (typeof val === 'string' && val) hiddenLocaleNames[`name_${locale}`] = val;
+      }
+
       details[id] = {
         id,
         name: fm.name as string | undefined,
-        name_fr: fm.name_fr as string | undefined,
+        ...hiddenLocaleNames,
         vibe: fm.vibe as string | undefined,
         hidden: true,
         stub: (fm.stub as boolean) || false,

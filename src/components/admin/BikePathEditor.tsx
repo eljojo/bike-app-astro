@@ -7,6 +7,7 @@ import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
 import TagEditor from './TagEditor';
+import { localeLabel } from '../../lib/i18n/locale-utils';
 import type { BikePathDetail } from '../../lib/models/bike-path-model';
 
 interface Props {
@@ -14,15 +15,27 @@ interface Props {
   userRole?: string;
   cdnUrl?: string;
   knownTags?: string[];
+  secondaryLocales?: string[];
 }
 
-export default function BikePathEditor({ initialData, userRole, cdnUrl = '', knownTags = [] }: Props) {
+export default function BikePathEditor({ initialData, userRole, cdnUrl = '', knownTags = [], secondaryLocales }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [dirty, setDirty] = useState(false);
   useUnsavedGuard(dirty);
 
   const [name, setName] = useState(initialData.name ?? '');
-  const [nameFr, setNameFr] = useState(initialData.name_fr ?? '');
+  const locales = secondaryLocales || [];
+  const [translations, setTranslations] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const locale of locales) {
+      const key = `name_${locale}`;
+      initial[locale] = (initialData as Record<string, unknown>)[key] as string || '';
+    }
+    return initial;
+  });
+  function setTranslation(locale: string, value: string) {
+    setTranslations(prev => ({ ...prev, [locale]: value }));
+  }
   const [vibe, setVibe] = useState(initialData.vibe ?? '');
   const [hidden, setHidden] = useState(initialData.hidden);
   const [stub, setStub] = useState(initialData.stub ?? false);
@@ -41,7 +54,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, nameFr, vibe, hidden, stub, featured, photoKey, tags.length, wikipedia, operator, body]);
+  }, [name, translations, vibe, hidden, stub, featured, photoKey, tags.length, wikipedia, operator, body]);
 
   const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/bike-paths',
@@ -51,7 +64,11 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
     buildPayload: () => ({
       frontmatter: {
         ...(name && { name }),
-        ...(nameFr && { name_fr: nameFr }),
+        ...Object.fromEntries(
+          locales
+            .filter(locale => translations[locale])
+            .map(locale => [`name_${locale}`, translations[locale]])
+        ),
         ...(vibe && { vibe }),
         hidden,
         stub,
@@ -79,11 +96,13 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
             placeholder={initialData.id} />
         </div>
 
-        <div class="form-field">
-          <label for="bp-name-fr">Name (French)</label>
-          <input id="bp-name-fr" type="text" value={nameFr}
-            onInput={e => setNameFr((e.target as HTMLInputElement).value)} />
-        </div>
+        {locales.map(locale => (
+          <div class="form-field" key={locale}>
+            <label for={`bp-name-${locale}`}>Name ({localeLabel(locale)})</label>
+            <input id={`bp-name-${locale}`} type="text" value={translations[locale] || ''}
+              onInput={e => setTranslation(locale, (e.target as HTMLInputElement).value)} />
+          </div>
+        ))}
 
         <div class="form-field">
           <label for="bp-vibe">Vibe <span class="field-hint">(one-sentence hook)</span></label>

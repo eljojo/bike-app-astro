@@ -21,7 +21,6 @@ export const prerender = false;
 const bikePathUpdateSchema = z.object({
   frontmatter: z.object({
     name: z.string().optional(),
-    name_fr: z.string().optional(),
     vibe: z.string().optional(),
     hidden: z.boolean().optional(),
     stub: z.boolean().optional(),
@@ -31,7 +30,7 @@ const bikePathUpdateSchema = z.object({
     tags: z.array(z.string()).default([]),
     wikipedia: z.string().optional(),
     operator: z.string().optional(),
-  }),
+  }).catchall(z.unknown()), // allows dynamic name_{locale} keys
   body: z.string().default(''),
   contentHash: z.string().optional(),
 });
@@ -39,7 +38,6 @@ const bikePathUpdateSchema = z.object({
 export interface BikePathUpdate {
   frontmatter: {
     name?: string;
-    name_fr?: string;
     vibe?: string;
     hidden?: boolean;
     stub?: boolean;
@@ -49,6 +47,7 @@ export interface BikePathUpdate {
     tags: string[];
     wikipedia?: string;
     operator?: string;
+    [key: string]: unknown; // dynamic name_{locale} keys
   };
   body: string;
   contentHash?: string;
