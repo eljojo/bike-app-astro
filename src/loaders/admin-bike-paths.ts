@@ -10,10 +10,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { cityDir } from '../lib/config/config.server';
 import { loadBikePathEntries } from '../lib/bike-paths/bike-path-entries.server';
+import { computeBikePathContentHash } from '../lib/models/bike-path-model.server';
 import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import type { AdminBikePath } from '../types/admin';
 import type { BikePathDetail } from '../lib/models/bike-path-model';
@@ -24,10 +24,6 @@ interface AdminBikePathData {
 }
 
 let cachedData: AdminBikePathData | null = null;
-
-function computeContentHash(raw: string): string {
-  return createHash('sha256').update(raw).digest('hex').slice(0, 16);
-}
 
 export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
   if (cachedData) return cachedData;
@@ -47,7 +43,7 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
     // Read raw file for content hash (conflict detection on save)
     const filePath = path.join(bikePathsDir, `${page.slug}.md`);
     const raw = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
-    const contentHash = computeContentHash(raw);
+    const contentHash = computeBikePathContentHash(raw);
 
     bikePaths.push({
       id: page.slug,
@@ -100,7 +96,7 @@ export async function loadAdminBikePathData(): Promise<AdminBikePathData> {
 
       if (!fm.hidden) continue; // not hidden = should have been in canonical pages
 
-      const contentHash = computeContentHash(raw);
+      const contentHash = computeBikePathContentHash(raw);
 
       bikePaths.push({
         id,

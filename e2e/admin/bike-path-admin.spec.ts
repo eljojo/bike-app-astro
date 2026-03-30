@@ -26,7 +26,7 @@ test.describe('Bike Path Admin — List (anonymous)', () => {
 
     // Page should load (not redirect to login) thanks to browsable admin paths
     await expect(page).toHaveURL(/\/admin\/paths/);
-    // Should see at least one bike path
+    // Should see the heading
     await expect(page.locator('h1')).toContainText('Bike Paths');
   });
 });
@@ -75,12 +75,10 @@ test.describe('Bike Path Admin — Detail', () => {
     await loginAs(page, token);
     await page.goto('/admin/paths/canal-pathway');
     await page.waitForLoadState('networkidle');
-
-    // Wait for Preact island to hydrate
     await waitForHydration(page);
 
-    // Verify name field is populated
-    await expect(page.locator('#bike-path-name')).toHaveValue('Canal Pathway');
+    // Verify name field is populated (BikePathEditor uses #bp-name)
+    await expect(page.locator('#bp-name')).toHaveValue('Canal Pathway', { timeout: 10000 });
 
     // Verify tags are visible
     const tagPills = page.locator('.tag-editor .tag-pill');
@@ -118,15 +116,25 @@ test.describe('Bike Path Admin — Edit', () => {
 
     const headBefore = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
 
-    // Edit name
-    await page.locator('#bike-path-name').fill('Updated Canal Pathway');
+    // Edit name (BikePathEditor uses #bp-name)
+    await page.locator('#bp-name').fill('Updated Canal Pathway');
 
-    // Save
-    const saveButton = page.getByRole('button', { name: /save/i });
+    // Intercept the save API call to verify it succeeds
+    const saveResponsePromise = page.waitForResponse(
+      resp => resp.url().includes('/api/bike-paths/') && resp.request().method() === 'POST',
+      { timeout: 15000 },
+    );
+
+    // Save using the same selector pattern as save.spec.ts
+    const saveButton = page.locator('button.btn-primary', { hasText: 'Save' });
     await saveButton.click();
 
-    // Wait for success
-    await expect(page.getByText('Saved')).toBeVisible({ timeout: 15000 });
+    const saveResponse = await saveResponsePromise;
+    expect(saveResponse.status()).toBe(200);
+
+    // Verify success toast appears
+    await expect(page.locator('.save-success')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.save-success')).toContainText('Saved');
 
     // Verify git commit
     const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();
