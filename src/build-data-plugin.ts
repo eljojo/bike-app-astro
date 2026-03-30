@@ -514,13 +514,14 @@ function enrichBikePathPages(
     // Create a shallow copy to avoid mutating the input array's elements
     const page = { ...original };
 
-    // Re-score YML-only pages with real route overlap count
+    // Re-score YML-only pages with real route overlap count and update listed status
     if (!page.hasMarkdown) {
       const entry = matchedEntries[0];
       const overlapCount = routeOverlaps[entry.slug]?.count ?? 0;
       const score = scoreBikePath(entry, overlapCount);
-      if (score < SCORE_THRESHOLD) continue;
       page.score = score;
+      page.listed = score >= SCORE_THRESHOLD;
+      page.stub = true; // all YML-only pages are stubs
       page.routeCount = overlapCount;
     } else {
       // For markdown pages, routeCount = max of all included entries

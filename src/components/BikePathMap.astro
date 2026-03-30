@@ -37,14 +37,14 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 </div>
 
 <script>
-  import { initMap, addPhotoMarkers, addMarkers, setPhotoLayersVisible, setPlaceMarkersVisible, ROUTE_COLOR } from '../lib/maps/map-init';
+  import { initMap, addPhotoMarkers, addMarkers, setPhotoLayersVisible, setPlaceMarkersVisible, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../lib/maps/map-init';
   import { categoryEmoji } from '../lib/geo/place-categories';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import maplibregl from 'maplibre-gl';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
 
-  const PATH_WIDTH = 4;
+  const PATH_WIDTH = ROUTE_LINE_WIDTH;
 
   const container = document.getElementById('bike-path-map');
   const glEl = document.getElementById('bike-path-map-gl');

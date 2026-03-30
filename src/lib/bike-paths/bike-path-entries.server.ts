@@ -12,7 +12,7 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml';
 import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from '../geo/geojson-sampling';
-import { scoreBikePath, isHardExcluded, TIER1_MIN_SCORE } from './bike-path-scoring';
+import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
 import { haversineM } from '../geo/proximity';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 
@@ -38,6 +38,8 @@ export interface BikePathPage {
   tags: string[];
   score: number;
   hasMarkdown: boolean;
+  /** Whether this path appears in the /paths directory listing. */
+  listed: boolean;
   stub: boolean;
   featured: boolean;
   ymlEntries: SluggedBikePathYml[];
@@ -360,6 +362,7 @@ export function loadBikePathEntries(): {
       tags: md.data.tags ?? [],
       score: bestChildScore,
       hasMarkdown: true,
+      listed: true,
       stub: md.data.stub ?? false,
       featured: md.data.featured ?? false,
       ymlEntries: matchedEntries,
@@ -387,15 +390,13 @@ export function loadBikePathEntries(): {
     });
   }
 
-  // 6. Process unclaimed YML entries that pass scoring
+  // 6. Process all unclaimed YML entries (non-hard-excluded).
+  // Every entry gets a page; `listed` is determined by score in Tier 2.
   for (const entry of allYmlEntries) {
     if (claimedSlugs.has(entry.slug)) continue;
     if (isHardExcluded(entry)) continue;
 
     const score = scoreBikePath(entry, 0);
-    // Use TIER1_MIN_SCORE (not SCORE_THRESHOLD) — route overlaps (+3) aren't known yet.
-    // Entries that pass here will be re-scored with real overlap counts in Tier 2.
-    if (score < TIER1_MIN_SCORE) continue;
 
     pages.push({
       slug: entry.slug,
@@ -404,7 +405,8 @@ export function loadBikePathEntries(): {
       tags: [],
       score,
       hasMarkdown: false,
-      stub: false,
+      listed: score >= SCORE_THRESHOLD,
+      stub: true, // all YML-only entries are stubs
       featured: false,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],

@@ -41,10 +41,3 @@ export function scoreBikePath(entry: SluggedBikePathYml, routeOverlapCount: numb
 }
 
 export const SCORE_THRESHOLD = 4;
-
-/**
- * Minimum score for Tier 1 pre-filtering (before route overlaps are known).
- * Route overlap adds up to +3, so entries scoring at least SCORE_THRESHOLD - 3
- * could pass after enrichment. We keep them as candidates to avoid false negatives.
- */
-export const TIER1_MIN_SCORE = Math.max(SCORE_THRESHOLD - 3, 1);

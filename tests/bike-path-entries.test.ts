@@ -204,21 +204,24 @@ describe('loadBikePathEntries', () => {
     expect(road).toBeUndefined();
   });
 
-  it('includes low-scoring YML entries as Tier 1 candidates (route overlaps may rescue them)', () => {
+  it('includes low-scoring YML entries as unlisted pages', () => {
     const { pages } = loadBikePathEntries();
-    // "Small Local Path" has highway: cycleway only -> score 1, passes TIER1_MIN_SCORE (1)
-    // It's a Tier 1 candidate — Tier 2 in build-data-plugin will re-score with real overlap data
+    // "Small Local Path" has highway: cycleway only -> score 1, below SCORE_THRESHOLD
+    // Gets a page but is unlisted; Tier 2 may promote it to listed if routes overlap
     const small = pages.find(p => p.slug === 'small-local-path');
     expect(small).toBeDefined();
     expect(small!.score).toBe(1);
+    expect(small!.listed).toBe(false);
+    expect(small!.stub).toBe(true);
     expect(small!.hasMarkdown).toBe(false);
   });
 
-  it('includes high-scoring unclaimed YML entries without markdown', () => {
+  it('includes high-scoring unclaimed YML entries as listed pages', () => {
     const { pages } = loadBikePathEntries();
     const ottawa = pages.find(p => p.slug === 'ottawa-river-pathway');
     expect(ottawa).toBeDefined();
     expect(ottawa!.hasMarkdown).toBe(false);
+    expect(ottawa!.listed).toBe(true);
     expect(ottawa!.score).toBeGreaterThanOrEqual(4);
     expect(ottawa!.osmRelationIds).toEqual([7174864]);
   });

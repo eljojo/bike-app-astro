@@ -50,19 +50,23 @@ for (const p of bikePathPages) {
   }
 }
 
-// YML entries without pages: interactive only if not hard-excluded
+// YML entries whose geo IDs weren't already covered by page geoFiles.
+// All non-hard-excluded entries now have pages, but some geo IDs may not
+// be mapped via the page's geoFiles list (e.g. unclaimed relations).
 for (const e of allYmlEntries) {
   const relIds = (e.osm_relations ?? []).map(String).filter(id => !mappedGeoIds.has(id));
   if (relIds.length === 0) continue;
-  const interactive = !isHardExcluded(e);
+  const excluded = isHardExcluded(e);
+  // Find the page for this entry (all non-excluded entries have pages now)
+  const page = !excluded ? bikePathPages.find(p => p.slug === e.slug) : undefined;
   for (const relId of relIds) {
     mappedGeoIds.add(relId);
     pathMapData.push({
       relId,
-      slug: '',
+      slug: page?.slug ?? '',
       name: e.name,
-      hasPage: false,
-      interactive,
+      hasPage: !!page,
+      interactive: !excluded,
       surface: e.surface,
     });
   }
