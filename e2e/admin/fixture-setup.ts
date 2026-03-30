@@ -608,8 +608,8 @@ good_for:
     highway: cycleway
     surface: gravel
     anchors:
-      - [−75.70, 45.42]
-      - [−75.68, 45.40]
+      - [-75.70, 45.42]
+      - [-75.68, 45.40]
 `
   );
 
