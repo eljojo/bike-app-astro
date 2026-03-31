@@ -27,7 +27,10 @@ describe('loadAdminRouteData routes', () => {
       expect(typeof route.status).toBe('string');
       expect(typeof route.contentHash).toBe('string');
       // Should not have extra fields
-      expect(Object.keys(route).sort()).toEqual(['contentHash', 'coverKey', 'difficultyScore', 'mediaCount', 'name', 'slug', 'status']);
+      // coverKey is optional — only present when the route has a cover photo
+      const expectedKeys = ['contentHash', 'difficultyScore', 'mediaCount', 'name', 'slug', 'status'];
+      if ('coverKey' in route) expectedKeys.push('coverKey');
+      expect(Object.keys(route).sort()).toEqual(expectedKeys.sort());
     }
   });
 

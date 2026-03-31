@@ -21,7 +21,7 @@ import {
 
 test.describe('Bike Path Admin — List (anonymous)', () => {
   test('loads admin bike paths list without login', async ({ page }) => {
-    await page.goto('/admin/paths');
+    await page.goto('/admin/bike-paths');
     await page.waitForLoadState('networkidle');
 
     // Page should load (not redirect to login) thanks to browsable admin paths
@@ -48,7 +48,7 @@ test.describe('Bike Path Admin — List', () => {
 
   test('loads bike paths list with content', async ({ page }) => {
     await loginAs(page, token);
-    await page.goto('/admin/paths');
+    await page.goto('/admin/bike-paths');
     await page.waitForLoadState('networkidle');
 
     // Canal Pathway should appear in the list
@@ -73,7 +73,7 @@ test.describe('Bike Path Admin — Detail', () => {
 
   test('loads bike path editor and verifies fields', async ({ page }) => {
     await loginAs(page, token);
-    await page.goto('/admin/paths/canal-pathway');
+    await page.goto('/admin/bike-paths/canal-pathway');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 
@@ -110,7 +110,7 @@ test.describe('Bike Path Admin — Edit', () => {
 
   test('edit bike path name and save', async ({ page }) => {
     await loginAs(page, token);
-    await page.goto('/admin/paths/canal-pathway');
+    await page.goto('/admin/bike-paths/canal-pathway');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 

@@ -21,7 +21,7 @@ import {
 // 1. Communities index — LBS section exists
 // ---------------------------------------------------------------------------
 
-test.describe('Communities Index — LBS Section', () => {
+test.describe('Bike Shops Page', () => {
   let token: string;
 
   test.beforeAll(() => {
@@ -32,24 +32,28 @@ test.describe('Communities Index — LBS Section', () => {
     cleanupSession(token);
   });
 
-  test('shows separate communities and local bike shops sections', async ({ page }) => {
+  test('shows bike shops on dedicated /bike-shops page', async ({ page }) => {
+    await loginAs(page, token);
+    await page.goto('/bike-shops');
+    await page.waitForLoadState('networkidle');
+
+    // The heading should be visible
+    await expect(page.locator('h1', { hasText: 'Local Bike Shops' })).toBeVisible();
+
+    // Both bike shops should appear
+    await expect(page.getByText('LBS Test Shop')).toBeVisible();
+    await expect(page.getByText('LBS Featured Shop')).toBeVisible();
+  });
+
+  test('communities page does not show bike shops', async ({ page }) => {
     await loginAs(page, token);
     await page.goto('/communities');
     await page.waitForLoadState('networkidle');
 
-    // The LBS section heading should be visible
-    await expect(page.locator('h2', { hasText: 'Local Bike Shops' })).toBeVisible();
-
-    // The bike shop should appear in the LBS section, not the main communities grid
-    const lbsSection = page.locator('.communities-lbs-section');
-    await expect(lbsSection.getByText('LBS Test Shop')).toBeVisible();
-
-    // The featured bike shop should appear in BOTH sections
-    // In the main communities section (because featured overrides demotion via isCommunity)
-    const mainSection = page.locator('.communities-grid').first();
-    await expect(mainSection.getByText('LBS Featured Shop')).toBeVisible();
-    // And also in the LBS section
-    await expect(lbsSection.getByText('LBS Featured Shop')).toBeVisible();
+    // Bike shops should NOT appear on the communities page
+    await expect(page.getByText('LBS Test Shop')).not.toBeVisible();
+    // Featured bike shops also should not appear on communities anymore
+    await expect(page.getByText('LBS Featured Shop')).not.toBeVisible();
   });
 });
 
