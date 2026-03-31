@@ -35,7 +35,7 @@ result
 public/maps/
 
 # bike path geometry (copied from data repo cache at build time)
-public/paths/
+public/bike-paths/
 
 # map style (generated from scripts/build-map-style.ts)
 public/map-style-*
