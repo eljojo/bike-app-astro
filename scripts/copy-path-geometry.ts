@@ -13,21 +13,33 @@ const CITY = process.env.CITY || 'ottawa';
 const cacheDir = path.resolve('.cache', 'bikepath-geometry', CITY);
 const outDir = path.join('public', 'bike-paths', 'geo');
 
-if (!fs.existsSync(cacheDir)) {
-  console.log(`[path-geo] No geometry cache at ${cacheDir} — skipping`);
-  process.exit(0);
-}
-
 fs.mkdirSync(outDir, { recursive: true });
 
-const files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.geojson'));
-if (files.length === 0) {
-  console.log('[path-geo] Cache directory empty — skipping');
-  process.exit(0);
+let copied = 0;
+
+// Copy from geometry cache (populated by cache-path-geometry.ts)
+if (fs.existsSync(cacheDir)) {
+  const files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.geojson'));
+  for (const file of files) {
+    fs.copyFileSync(path.join(cacheDir, file), path.join(outDir, file));
+  }
+  copied += files.length;
 }
 
-for (const file of files) {
-  fs.copyFileSync(path.join(cacheDir, file), path.join(outDir, file));
+// Demo city: also copy committed test fixtures from e2e/fixtures/overpass/
+if (CITY === 'demo') {
+  const fixtureDir = path.resolve('e2e', 'fixtures', 'overpass');
+  if (fs.existsSync(fixtureDir)) {
+    const fixtures = fs.readdirSync(fixtureDir).filter(f => f.endsWith('.geojson'));
+    for (const file of fixtures) {
+      fs.copyFileSync(path.join(fixtureDir, file), path.join(outDir, file));
+    }
+    copied += fixtures.length;
+  }
 }
 
-console.log(`[path-geo] Copied ${files.length} geometry files to ${outDir}/`);
+if (copied > 0) {
+  console.log(`[path-geo] Copied ${copied} geometry files to ${outDir}/`);
+} else {
+  console.log('[path-geo] No geometry files found — skipping');
+}
