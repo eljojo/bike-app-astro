@@ -1,11 +1,82 @@
 ---
 export const prerender = true;
-// Redirect to homepage (which is the routes listing)
+import Base from '@/layouts/Base.astro';
+import RouteCard from '@/components/RouteCard.astro';
+import TagFilter from '@/components/TagFilter.astro';
+import SubTabToggle from '@/components/SubTabToggle.astro';
+import { t, localePath } from '@/i18n';
+import { getCityConfig } from '@/lib/config/city-config';
+import { routeSlug, paths } from '@/lib/paths';
+import { loadHomepageData } from '@/lib/route-data';
+
+const locale = Astro.currentLocale;
+const config = getCityConfig();
+const { published, filterTags, routeTagsMap } = await loadHomepageData();
+
+const suggestKey = published.length < 5
+  ? 'home.suggest_route_few'
+  : published.length >= 50
+  ? 'home.suggest_route_many'
+  : 'home.suggest_route';
 ---
-<meta http-equiv="refresh" content="0; url=/" />
+
+<Base title={`${t('nav.routes', locale)} | ${config.display_name}`}>
+  <SubTabToggle items={[
+    { label: t('nav.routes', locale), href: localePath('/routes', locale), active: true },
+    { label: t('nav.bike_paths', locale), href: paths.bikePaths(locale), active: false },
+  ]} />
+
+  <TagFilter tags={filterTags} />
+  <ul class="routes-grid">
+    {published.map((route, i) => {
+      const cover = route.data.media.find(m => m.cover);
+      const trans = route.data.translations?.[locale!];
+      return (
+        <RouteCard
+          slug={route.id}
+          localeSlug={routeSlug(route, locale)}
+          name={trans?.name || route.data.name}
+          tagline={trans?.tagline || route.data.tagline}
+          distance_km={route.data.distance_km}
+          tags={routeTagsMap.get(route.id)!}
+          body={trans?.body || route.body}
+          coverKey={cover?.key}
+          lazy={i >= 5}
+          variants={route.data.variants}
+        />
+      );
+    })}
+  </ul>
+  <div class="suggest-route-cta">
+    <a href="/admin/routes/new" class="suggest-route-link">
+      {t(suggestKey, locale)}
+    </a>
+  </div>
+</Base>
+
 <script>
-  // meta refresh loses query params — preserve them via JS redirect
-  if (window.location.search) {
-    window.location.replace('/' + window.location.search);
-  }
+  // Reorder starred routes to top of the grid
+  (async () => {
+    try {
+      const res = await fetch('/api/reactions/route/_starred');
+      if (!res.ok) return;
+      const data = await res.json();
+      const starred: string[] = data.starredSlugs || [];
+      if (starred.length === 0) return;
+
+      const grid = document.querySelector('.routes-grid');
+      if (!grid) return;
+
+      const starredSet = new Set(starred);
+      const cards = [...grid.querySelectorAll<HTMLElement>('.route-card')];
+      const starredCards = cards.filter(c => starredSet.has(c.dataset.slug || ''));
+
+      // Move starred cards to the top, preserving their relative order
+      for (const card of starredCards.reverse()) {
+        grid.prepend(card);
+      }
+    } catch {
+      // Silently fail — starred reordering is progressive enhancement
+    }
+  })();
 </script>
