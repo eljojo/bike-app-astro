@@ -21,6 +21,7 @@ const generators = [
   { name: 'map-style', script: 'build-map-style.ts' },
   { name: 'icon-paths', script: 'build-icon-paths.ts' },
   { name: 'path-geo', script: 'copy-path-geometry.ts' },
+  { name: 'path-tiles', script: 'generate-path-tiles.ts' },
   ...(!minimal ? [
     { name: 'maps', script: 'generate-maps.ts' },
     { name: 'contributors', script: 'build-contributors.ts' },
