@@ -166,7 +166,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         render(h(MapControls, {
           hasPhotos,
           hasPlaces,
-          hasPaths: false,
           defaultPhotos: false,
           onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
           onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),

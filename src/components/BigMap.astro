@@ -49,13 +49,23 @@ interface Props {
   photos?: MapPhoto[];
   center: [number, number];
   pathMapData?: PathOnMap[];
+  routesLabel?: string;
+  pathsLabel?: string;
 }
 
 import { getCityConfig } from '../lib/config/city-config';
-const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
+import './SubTabToggle.scss';
+const { routes, places, photos = [], center, pathMapData = [], routesLabel, pathsLabel } = Astro.props;
+const hasPaths = pathMapData.length > 0;
 ---
 
 <div class="big-map">
+  {hasPaths && routesLabel && pathsLabel && (
+    <div class="sub-tab-toggle map-layer-toggle" id="map-layer-toggle">
+      <button type="button" class="sub-tab-btn active" data-map-view="routes">{routesLabel}</button>
+      <button type="button" class="sub-tab-btn" data-map-view="paths">{pathsLabel}</button>
+    </div>
+  )}
   <div
     id="big-map"
     style="width: 100%; height: 100%;"
@@ -76,7 +86,7 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import { createTileLoader, type TileManifestEntry, type TileLoader } from '../lib/maps/tile-loader';
   import { render, h } from 'preact';
-  import MapControls, { loadToggleState } from './admin/MapControls';
+  import MapControls, { loadToggleState, saveToggleState } from './admin/MapControls';
   import maplibregl from 'maplibre-gl';
 
   interface PathFeatureProps {
@@ -100,6 +110,26 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
       JSON.parse(el.dataset.pathMapData || '[]');
 
     const hasPaths = pathMapData.length > 0;
+
+    // --- Sub-tab toggle for routes/paths ---
+    const toggleEl = document.getElementById('map-layer-toggle');
+    const routesBtn = toggleEl?.querySelector('[data-map-view="routes"]');
+    const pathsBtn = toggleEl?.querySelector('[data-map-view="paths"]');
+
+    // Hash takes precedence over localStorage
+    const hashWantsPaths = location.hash === '#paths';
+    const savedPathsState = loadToggleState('map-paths', false);
+    const initialShowPaths = hasPaths && (hashWantsPaths || savedPathsState);
+
+    function updateToggleUI(showingPaths: boolean) {
+      if (!routesBtn || !pathsBtn) return;
+      routesBtn.classList.toggle('active', !showingPaths);
+      pathsBtn.classList.toggle('active', showingPaths);
+    }
+
+    if (initialShowPaths) {
+      updateToggleUI(true);
+    }
 
     // --- Category filter from URL query param ---
     const categoryFilter = new URLSearchParams(location.search).get('category');
@@ -276,6 +306,29 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
       }
     }
 
+    function switchToView(view: 'routes' | 'paths') {
+      const showingPaths = view === 'paths';
+      updateToggleUI(showingPaths);
+      saveToggleState('map-paths', showingPaths);
+      history.replaceState(null, '', showingPaths ? '#paths' : location.pathname);
+      if (showingPaths) {
+        showPaths().then(() => setRoutePolylinesVisible(false));
+      } else {
+        setPathsVisible(false);
+        setRoutePolylinesVisible(true);
+      }
+    }
+
+    // Wire up sub-tab toggle click handlers
+    if (toggleEl) {
+      toggleEl.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('[data-map-view]') as HTMLElement | null;
+        if (!btn) return;
+        const view = btn.dataset.mapView as 'routes' | 'paths';
+        switchToView(view);
+      });
+    }
+
     // Load more tiles when user pans (only while paths are visible)
     map.on('moveend', async () => {
       if (!pathsVisible || !tileLoader) return;
@@ -322,8 +375,8 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
         setPhotoLayersVisible(map, false);
       }
 
-      // If user had paths mode saved, load and show them now
-      if (hasPaths && loadToggleState('map-paths', false)) {
+      // If hash or localStorage wants paths mode, load and show them now
+      if (initialShowPaths) {
         showPaths().then(() => setRoutePolylinesVisible(false));
       }
 
@@ -332,18 +385,9 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
           hasPlaces: places.length > 0,
-          hasPaths,
           defaultPhotos: false,
           onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
           onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
-          onTogglePaths: (v: boolean) => {
-            if (v) {
-              showPaths().then(() => setRoutePolylinesVisible(false));
-            } else {
-              setPathsVisible(false);
-              setRoutePolylinesVisible(true);
-            }
-          },
           onToggleGps: (v: boolean) => {
             if (v) showUserLocation(map);
             else hideUserLocation();
