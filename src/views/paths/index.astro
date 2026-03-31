@@ -10,7 +10,7 @@ import { t } from '@/i18n';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
-const { pages: allPages, geoFiles } = await loadBikePathData();
+const { pages: allPages } = await loadBikePathData();
 // Directory listing: only listed paths (score >= threshold), excluding very short ones
 const pages = allPages.filter(p => p.listed && (!p.length_km || p.length_km >= 1));
 
@@ -96,7 +96,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 <Base title={`${t('paths.page_title', locale, { city: config.name })} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
-    {geoFiles.length > 0 && (
+    {allPages.length > 0 && (
       <div class="paths-map-hero-wrapper">
         <div
           class="paths-map-hero"
