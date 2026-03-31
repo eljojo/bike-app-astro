@@ -101,7 +101,6 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         <div
           class="paths-map-hero"
           id="paths-network-map"
-          data-geo-files={JSON.stringify(geoFiles)}
           data-center={JSON.stringify(mapCenter)}
           data-relation-slugs={JSON.stringify(relationToSlug)}
           data-interactive-ids={JSON.stringify([...interactiveRelIds])}
@@ -177,183 +176,222 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 <script>
   import { initMap, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
+  import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
+  import maplibregl from 'maplibre-gl';
+
   const PATH_WIDTH = ROUTE_LINE_WIDTH;
   const PATH_WIDTH_UNLISTED = Math.max(2, ROUTE_LINE_WIDTH - 2);
   const PATH_WIDTH_HOVER = ROUTE_LINE_WIDTH + 2;
 
   const container = document.getElementById('paths-network-map');
   if (container) {
-    const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
     const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
     const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
     const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
 
-    if (geoFiles.length > 0) {
-      const styleKey = loadStylePreference();
-      const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
+    const styleKey = loadStylePreference();
+    const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
 
-      // Enable pan/zoom for interaction
-      map.scrollZoom.disable();
-      map.doubleClickZoom.disable();
-      map.touchZoomRotate.disable();
+    // Enable pan/zoom for interaction
+    map.scrollZoom.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
 
-      // On mobile: lock the map behind a touch overlay so scrolling works normally.
-      // On desktop: enable drag pan immediately (mouse users expect it).
-      const isMobile = window.matchMedia('(max-width: 768px)').matches;
-      const touchLock = document.getElementById('paths-map-touch-lock');
+    // On mobile: lock the map behind a touch overlay so scrolling works normally.
+    // On desktop: enable drag pan immediately (mouse users expect it).
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const touchLock = document.getElementById('paths-map-touch-lock');
 
-      if (isMobile) {
-        map.dragPan.disable();
-        if (touchLock) {
-          let primed = false;
+    if (isMobile) {
+      map.dragPan.disable();
+      if (touchLock) {
+        let primed = false;
 
-          touchLock.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!primed) {
-              primed = true;
-              touchLock.classList.add('primed');
-            } else {
-              // Second tap: activate map, remove overlay
-              touchLock.classList.add('dismissed');
-              map.dragPan.enable();
-              map.touchZoomRotate.enable();
-            }
-          });
+        touchLock.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!primed) {
+            primed = true;
+            touchLock.classList.add('primed');
+          } else {
+            // Second tap: activate map, remove overlay
+            touchLock.classList.add('dismissed');
+            map.dragPan.enable();
+            map.touchZoomRotate.enable();
+          }
+        });
 
-          // Reset primed state when user scrolls away
-          let scrollTimer: ReturnType<typeof setTimeout> | null = null;
-          window.addEventListener('scroll', () => {
-            if (primed && !touchLock.classList.contains('dismissed')) {
-              if (scrollTimer) clearTimeout(scrollTimer);
-              scrollTimer = setTimeout(() => {
-                primed = false;
-                touchLock.classList.remove('primed');
-              }, 300);
-            }
-          }, { passive: true });
-        }
-      } else {
-        map.dragPan.enable();
-        touchLock?.remove();
+        // Reset primed state when user scrolls away
+        let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+        window.addEventListener('scroll', () => {
+          if (primed && !touchLock.classList.contains('dismissed')) {
+            if (scrollTimer) clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(() => {
+              primed = false;
+              touchLock.classList.remove('primed');
+            }, 300);
+          }
+        }, { passive: true });
       }
+    } else {
+      map.dragPan.enable();
+      touchLock?.remove();
 
-      map.on('load', async () => {
-        const allFeatures: GeoJSON.Feature[] = [];
-
-        for (const file of geoFiles) {
-          try {
-            const res = await fetch(`/paths/geo/${file}`);
-            if (!res.ok) continue;
-            const geojson = await res.json();
-            const relationId = file.replace(/\.geojson$/, '');
-            const slug = relationSlugs[relationId] || relationId;
-            const interactive = interactiveIds.has(relationId);
-
-            const listed = listedIds.has(relationId);
-            for (const feature of geojson.features) {
-              feature.properties = feature.properties || {};
-              feature.properties.slug = slug;
-              feature.properties.relationId = relationId;
-              feature.properties.interactive = interactive ? 'true' : '';
-              feature.properties.listed = listed ? 'true' : '';
-
-              allFeatures.push(feature);
-            }
-          } catch {
-            // Missing file — fine
-          }
-        }
-
-        if (allFeatures.length > 0) {
-          map.addSource('paths-network', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: allFeatures },
-          });
-
-          // Unlisted paths: thinner, lower opacity, but still clickable
-          map.addLayer({
-            id: 'paths-network-bg',
-            type: 'line',
-            source: 'paths-network',
-            filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'listed'], 'true']],
-            layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: {
-              'line-color': ROUTE_COLOR,
-              'line-width': PATH_WIDTH_UNLISTED,
-              'line-opacity': 0.5,
-            },
-          });
-
-          // Listed paths: full width, bold
-          map.addLayer({
-            id: 'paths-network-line',
-            type: 'line',
-            source: 'paths-network',
-            filter: ['==', ['get', 'listed'], 'true'],
-            layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: {
-              'line-color': ROUTE_COLOR,
-              'line-width': PATH_WIDTH,
-              'line-opacity': 0.8,
-            },
-          });
-
-          // Don't fitBounds — use city center + zoom 11 (matching the big map)
-          // so distant paths (Trans Canada to Montreal) don't zoom the map out
-
-          // --- Map interaction ---
-
-          // Click on any path → navigate to detail page
-          function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
-            if (!e.features?.length) return;
-            const slug = e.features[0].properties?.slug;
-            if (slug) window.location.href = `/paths/${slug}`;
-          }
-          map.on('click', 'paths-network-line', handlePathClick);
-          map.on('click', 'paths-network-bg', handlePathClick);
-
-          for (const layerId of ['paths-network-line', 'paths-network-bg']) {
-            map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
-            map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
-          }
-
-          // List hover → highlight path on map
-          let hoveredSlug: string | null = null;
-
-          function highlightPath(slug: string | null) {
-            if (hoveredSlug === slug) return;
-            hoveredSlug = slug;
-            if (slug) {
-              map.setPaintProperty('paths-network-line', 'line-width', [
-                'case',
-                ['==', ['get', 'slug'], slug],
-                PATH_WIDTH_HOVER,
-                PATH_WIDTH,
-              ]);
-              map.setPaintProperty('paths-network-line', 'line-opacity', [
-                'case',
-                ['==', ['get', 'slug'], slug],
-                1,
-                0.4,
-              ]);
-            } else {
-              map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
-              map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
-            }
-          }
-
-          document.querySelectorAll<HTMLElement>('.paths-list li[data-slug]').forEach(li => {
-            li.addEventListener('mouseenter', () => {
-              highlightPath(li.dataset.slug || null);
-            });
-            li.addEventListener('mouseleave', () => {
-              highlightPath(null);
-            });
-          });
-        }
+      // Desktop: enable scroll zoom and double-click zoom after first drag
+      map.on('dragstart', () => {
+        map.scrollZoom.enable();
+        map.doubleClickZoom.enable();
       });
     }
+
+    function enrichFeatures(features: GeoJSON.Feature[]) {
+      for (const f of features) {
+        const geoId = f.properties?._geoId;
+        if (!geoId) continue;
+        const slug = relationSlugs[geoId] || geoId;
+        const interactive = interactiveIds.has(geoId);
+        const listed = listedIds.has(geoId);
+        f.properties!.slug = slug;
+        f.properties!.relationId = geoId;
+        f.properties!.interactive = interactive ? 'true' : '';
+        f.properties!.listed = listed ? 'true' : '';
+      }
+    }
+
+    let layersSetUp = false;
+    let prevFeatureCount = 0;
+
+    function setupPathsLayers(features: GeoJSON.Feature[]) {
+      map.addSource('paths-network', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features },
+      });
+
+      // Unlisted paths: thinner, lower opacity, but still clickable
+      map.addLayer({
+        id: 'paths-network-bg',
+        type: 'line',
+        source: 'paths-network',
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'listed'], 'true']],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': PATH_WIDTH_UNLISTED,
+          'line-opacity': 0.5,
+        },
+      });
+
+      // Listed paths: full width, bold
+      map.addLayer({
+        id: 'paths-network-line',
+        type: 'line',
+        source: 'paths-network',
+        filter: ['==', ['get', 'listed'], 'true'],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': PATH_WIDTH,
+          'line-opacity': 0.8,
+        },
+      });
+
+      // --- Map interaction ---
+
+      // Click on any path → navigate to detail page
+      function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
+        if (!e.features?.length) return;
+        const slug = e.features[0].properties?.slug;
+        if (slug) window.location.href = `/paths/${slug}`;
+      }
+      map.on('click', 'paths-network-line', handlePathClick);
+      map.on('click', 'paths-network-bg', handlePathClick);
+
+      for (const layerId of ['paths-network-line', 'paths-network-bg']) {
+        map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
+      }
+
+      // List hover → highlight path on map
+      let hoveredSlug: string | null = null;
+
+      function highlightPath(slug: string | null) {
+        if (hoveredSlug === slug) return;
+        hoveredSlug = slug;
+        if (slug) {
+          map.setPaintProperty('paths-network-line', 'line-width', [
+            'case',
+            ['==', ['get', 'slug'], slug],
+            PATH_WIDTH_HOVER,
+            PATH_WIDTH,
+          ]);
+          map.setPaintProperty('paths-network-line', 'line-opacity', [
+            'case',
+            ['==', ['get', 'slug'], slug],
+            1,
+            0.4,
+          ]);
+        } else {
+          map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
+          map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
+        }
+      }
+
+      document.querySelectorAll<HTMLElement>('.paths-list li[data-slug]').forEach(li => {
+        li.addEventListener('mouseenter', () => {
+          highlightPath(li.dataset.slug || null);
+        });
+        li.addEventListener('mouseleave', () => {
+          highlightPath(null);
+        });
+      });
+
+      layersSetUp = true;
+    }
+
+    function getMapBounds(): [number, number, number, number] {
+      const b = map.getBounds();
+      return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    }
+
+    map.on('load', async () => {
+      let tileLoader: TileLoader;
+      try {
+        const res = await fetch('/paths/geo/tiles/manifest.json');
+        if (!res.ok) return;
+        const manifest = await res.json();
+        tileLoader = createTileLoader(manifest, '/paths/geo/tiles/');
+      } catch {
+        return;
+      }
+
+      // Load initial tiles immediately — this page is about paths
+      const features = await tileLoader.loadTilesForBounds(getMapBounds());
+      enrichFeatures(features);
+      prevFeatureCount = features.length;
+
+      if (features.length > 0) {
+        setupPathsLayers(features);
+      }
+
+      // On pan/zoom, load new tiles and update source if new features arrived
+      map.on('moveend', async () => {
+        const updated = await tileLoader.loadTilesForBounds(getMapBounds());
+        if (updated.length === prevFeatureCount) return;
+
+        enrichFeatures(updated);
+        prevFeatureCount = updated.length;
+
+        if (!layersSetUp) {
+          if (updated.length > 0) setupPathsLayers(updated);
+          return;
+        }
+
+        const source = map.getSource('paths-network') as maplibregl.GeoJSONSource;
+        if (source) {
+          source.setData({ type: 'FeatureCollection', features: updated });
+        }
+      });
+    });
   }
 
 </script>
