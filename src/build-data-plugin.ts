@@ -130,7 +130,7 @@ function loadTagTranslations() {
 }
 
 function loadGeoFiles(consumerRoot: string): string[] {
-  const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
+  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
   if (!fs.existsSync(geoDir)) return [];
   return fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
 }
@@ -143,7 +143,7 @@ function loadGeoFiles(consumerRoot: string): string[] {
  * - seg-{slug}.geojson → keyed by "seg-{slug}"
  */
 function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: number; lng: number }>> {
-  const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
+  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
   if (!fs.existsSync(geoDir)) return {};
   const result: Record<string, Array<{ lat: number; lng: number }>> = {};
 
@@ -463,7 +463,7 @@ function computeBikePathRelations(
  * Returns elevation gain in meters (sum of positive deltas).
  */
 function loadGeoElevation(consumerRoot: string): Record<string, { gain_m: number; loss_m: number }> {
-  const geoDir = path.join(consumerRoot, 'public', 'paths', 'geo');
+  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
   if (!fs.existsSync(geoDir)) return {};
   const result: Record<string, { gain_m: number; loss_m: number }> = {};
 
