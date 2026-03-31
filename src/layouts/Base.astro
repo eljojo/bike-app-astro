@@ -19,10 +19,7 @@ const cspNonce = Astro.locals.cspNonce;
 const features = getInstanceFeatures();
 const isWiki = features.hasRoutes && !features.hasRides && !features.hasEnrichedEvents;
 
-// Logo link: homepage → about, everywhere else → home
-const pathname = Astro.url.pathname.replace(/\/$/, '') || '/';
-const isHomepage = pathname === '/' || pathname === `/${locale}`;
-const logoHref = isHomepage ? localePath('/about', locale) : localePath('/', locale);
+const logoHref = localePath('/', locale);
 
 interface Props {
   title: string;
