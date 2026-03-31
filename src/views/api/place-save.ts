@@ -1,7 +1,7 @@
 // AGENTS.md: See src/views/api/AGENTS.md for save pipeline rules.
 // Key: always merge frontmatter, return new contentHash, cache stores blob SHAs (not commit SHAs).
 import type { APIContext } from 'astro';
-import { z } from 'zod/v4';
+import { z } from 'astro/zod';
 import { serializeMdFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
 import { env } from '../../lib/env/env.service';

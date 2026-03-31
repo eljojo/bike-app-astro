@@ -169,7 +169,6 @@ const locale = Astro.currentLocale;
           <h2>{t('home.did_you_know', locale)}</h2>
           <ul class="facts-list" data-show-random="3">
             {facts.map(fact => {
-              const attrs = fact.always ? { 'data-always': 'true' } : {};
               // If link_text is set, only that substring becomes the link
               if (fact.link && fact.link_text) {
                 const idx = fact.text.indexOf(fact.link_text);
@@ -177,7 +176,7 @@ const locale = Astro.currentLocale;
                   const before = fact.text.slice(0, idx);
                   const after = fact.text.slice(idx + fact.link_text.length);
                   return (
-                    <li class="fact-item" {...attrs}>
+                    <li class="fact-item">
                       <span class="fact-prefix">...</span>{' '}
                       {before}<a href={fact.link}>{fact.link_text}</a>{after}
                     </li>
@@ -185,7 +184,7 @@ const locale = Astro.currentLocale;
                 }
               }
               return (
-                <li class="fact-item" {...attrs}>
+                <li class="fact-item">
                   <span class="fact-prefix">...</span>{' '}
                   {fact.link ? (
                     <a href={fact.link}>{fact.text}</a>

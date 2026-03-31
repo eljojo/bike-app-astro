@@ -34,9 +34,6 @@ result
 # map cache (build-time generated)
 public/maps/
 
-# bike path geometry (copied from data repo cache at build time)
-public/paths/
-
 # map style (generated from scripts/build-map-style.ts)
 public/map-style-*
 
@@ -56,6 +53,3 @@ e2e/test-results-blog/
 
 # local dev data (uploads, SQLite, etc.)
 .data/
-
-# Overpass geometry cache (populated by scripts/cache-path-geometry.ts)
-.cache/

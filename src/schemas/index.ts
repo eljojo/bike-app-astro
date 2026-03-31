@@ -1,5 +1,4 @@
-import { z } from 'zod/v4';
-export { bikePathSchema } from './bike-path-schema';
+import { z } from 'astro/zod';
 import { baseMediaItemSchema } from '../lib/models/content-model';
 
 export const variantSchema = z.object({

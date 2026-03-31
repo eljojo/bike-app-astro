@@ -233,7 +233,5 @@ export async function loadHomepageFacts(): Promise<ResolvedFact[]> {
   const organizers = features.hasEvents ? await getCollection('organizers') : [];
   const events = features.hasEvents ? await getCollection('events') : [];
 
-  const { loadBikePathData } = await import('../lib/bike-paths/bike-path-data.server');
-  const { pages: bikePathPages } = await loadBikePathData();
-  return resolveHomepageFacts(routes, placeData, organizers, events, undefined, { count: bikePathPages.length });
+  return resolveHomepageFacts(routes, placeData, organizers, events);
 }

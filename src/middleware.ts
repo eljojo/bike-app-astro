@@ -20,7 +20,6 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/places',
   '/admin/events',
   '/admin/communities',
-  '/admin/paths',
   '/admin/history',
 ]);
 
@@ -30,7 +29,6 @@ const BROWSABLE_ADMIN_PREFIXES = [
   '/admin/events/',
   '/admin/places/',
   '/admin/communities/',
-  '/admin/paths/',
 ];
 
 /** API paths that support anonymous browsing (rate-limited in the endpoint). */
@@ -184,23 +182,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return context.rewrite(previewPath);
     }
     return finalize(response, context);
-  }
-
-  // DEV_ADMIN: skip auth entirely in local dev — synthetic admin user
-  // Gate on import.meta.env.DEV so this is tree-shaken in production builds
-  if (import.meta.env.DEV && process.env.DEV_ADMIN === 'true') {
-    context.locals.user = {
-      id: 'dev-admin',
-      email: null,
-      username: 'dev',
-      role: 'admin',
-      bannedAt: null,
-      emailInCommits: false,
-      analyticsOptOut: true,
-      emailVerified: false,
-      hasPasskey: false,
-    };
-    return finalize(await next(), context);
   }
 
   // Browsable admin pages: optionally load user, but don't require auth

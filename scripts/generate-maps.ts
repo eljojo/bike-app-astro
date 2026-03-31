@@ -15,7 +15,6 @@ import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
-import polylineCodec from '@mapbox/polyline';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
 
@@ -29,24 +28,23 @@ function shortLang(locale: string): string {
   return locale.split('-')[0];
 }
 
-async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof mapThumbPaths>, aspect: '1:1' | '2:1' = '1:1') {
+async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof mapThumbPaths>) {
   fs.mkdirSync(path.dirname(paths.thumb), { recursive: true });
 
   fs.writeFileSync(paths.full, pngBuffer);
 
-  const is2to1 = aspect === '2:1';
   await sharp(pngBuffer)
-    .resize(1500, is2to1 ? 750 : 1500, { fit: 'cover' })
+    .resize(1500, 1500, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumbLarge);
 
   await sharp(pngBuffer)
-    .resize(750, is2to1 ? 375 : 750, { fit: 'cover' })
+    .resize(750, 750, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumb);
 
   await sharp(pngBuffer)
-    .resize(375, is2to1 ? 188 : 375, { fit: 'cover' })
+    .resize(375, 375, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumbSmall);
 
@@ -238,75 +236,6 @@ async function main() {
         const tourPaths = mapThumbPaths(tourSlug, undefined, langPrefix);
         await generateMapImages(pngBuffer, tourPaths);
         fs.writeFileSync(hashPath(tourSlug, langPrefix), combinedHash);
-
-        generated++;
-      }
-    }
-  }
-
-  // --- Bike Paths: generate thumbnails from cached GeoJSON geometry ---
-  const geoDir = path.join('public', 'paths', 'geo');
-  if (fs.existsSync(geoDir)) {
-    const { loadBikePathEntries } = await import('../src/lib/bike-paths/bike-path-entries.server');
-    const { pages } = loadBikePathEntries();
-
-    for (const page of pages) {
-      if (page.geoFiles.length === 0) continue;
-
-      // Collect all coordinates from GeoJSON files
-      const allPoints: [number, number][] = [];
-      const geoContents: string[] = [];
-      for (const geoFile of page.geoFiles) {
-        const geoPath = path.join(geoDir, geoFile);
-        if (!fs.existsSync(geoPath)) continue;
-        const content = fs.readFileSync(geoPath, 'utf-8');
-        geoContents.push(content);
-        const geojson = JSON.parse(content);
-        for (const feature of geojson.features ?? []) {
-          if (feature.geometry?.type === 'LineString') {
-            for (const coord of feature.geometry.coordinates) {
-              allPoints.push([coord[1], coord[0]]); // [lat, lng] for polyline encoding
-            }
-          } else if (feature.geometry?.type === 'MultiLineString') {
-            for (const line of feature.geometry.coordinates) {
-              for (const coord of line) {
-                allPoints.push([coord[1], coord[0]]);
-              }
-            }
-          }
-        }
-      }
-
-      if (allPoints.length < 2) continue;
-
-      const combinedHash = crypto.createHash('sha256')
-        .update(geoContents.join('\n'))
-        .digest('hex').slice(0, 16);
-      const mapSlug = `path-${page.slug}`;
-
-      for (const lang of languages) {
-        const langPrefix = lang === defaultLang ? undefined : lang;
-
-        if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {
-          skipped++;
-          continue;
-        }
-
-        const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
-        console.log(`[maps] ${label}: generating bike path map...`);
-
-        const encoded = polylineCodec.encode(allPoints as [number, number][]);
-        const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false });
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.error(`[maps] ${label}: HTTP ${response.status}`);
-          continue;
-        }
-        const pngBuffer = Buffer.from(await response.arrayBuffer());
-
-        const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
-        await generateMapImages(pngBuffer, thumbPaths, '2:1');
-        fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
 
         generated++;
       }

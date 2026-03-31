@@ -60,8 +60,6 @@ export async function loadAdminPlaceData(): Promise<AdminPlaceData> {
       lng: fm.lng as number,
       vibe: fm.vibe as string | undefined,
       good_for: (fm.good_for as string[] | undefined) || [],
-      photo_key: fm.photo_key as string | undefined,
-      social_links: Array.isArray(fm.social_links) ? fm.social_links as Array<{ platform: string; url: string }> : undefined,
       contentHash,
     });
 

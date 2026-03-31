@@ -3,7 +3,6 @@ import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
-import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
 
 export const prerender = true;
 
@@ -57,7 +56,6 @@ export const GET: APIRoute = async () => {
   // Key sections
   const pageLines = [
     `- Routes: ${config.url}/routes`,
-    `- Bike paths: ${config.url}/paths`,
     `- Map: ${config.url}/map`,
   ];
   if (features.hasEvents) {
@@ -73,21 +71,6 @@ export const GET: APIRoute = async () => {
   if (routeFacts.length > 0) {
     const routeLines = routeFacts.map(routeLine);
     sections.push(`## Route Index\n\n${routeLines.join('\n')}\n`);
-  }
-
-  // Bike paths index
-  if (features.hasPaths) {
-    const { pages: bikePaths } = await loadBikePathData();
-    if (bikePaths.length > 0) {
-      const pathLines = bikePaths.map(bp => {
-        const parts: string[] = [];
-        if (bp.surface) parts.push(bp.surface);
-        if (bp.highway === 'cycleway') parts.push('separated from cars');
-        if (bp.operator) parts.push(bp.operator);
-        return `- [${bp.name}](${config.url}/paths/${bp.slug})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
-      });
-      sections.push(`## Bike Paths\n\n${pathLines.join('\n')}\n`);
-    }
   }
 
   // Upcoming events

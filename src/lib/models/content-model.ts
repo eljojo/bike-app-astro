@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import { z } from 'astro/zod';
 
 /** Base media item schema shared by all content types. */
 export const baseMediaItemSchema = z.object({

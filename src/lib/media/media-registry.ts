@@ -1,5 +1,5 @@
 export interface MediaUsage {
-  type: 'route' | 'place' | 'event' | 'organizer' | 'bike-path' | 'parked';
+  type: 'route' | 'place' | 'event' | 'organizer' | 'parked';
   slug: string;
 }
 
@@ -44,11 +44,6 @@ interface EventPosterData {
   poster_key?: string;
 }
 
-interface BikePathPhotoData {
-  slug: string;
-  photo_key?: string;
-}
-
 interface ParkedPhotoData {
   key: string;
 }
@@ -58,7 +53,6 @@ export function buildSharedKeysMap(
   places: PlacePhotoData[],
   events: EventPosterData[],
   parkedPhotos: ParkedPhotoData[],
-  bikePaths: BikePathPhotoData[] = [],
 ): SharedKeysMap {
   const map: SharedKeysMap = new Map();
 
@@ -77,12 +71,6 @@ export function buildSharedKeysMap(
   for (const event of events) {
     if (event.poster_key) {
       updateSharedKeys(map, event.poster_key, { type: 'event', slug: event.slug }, 'add');
-    }
-  }
-
-  for (const bp of bikePaths) {
-    if (bp.photo_key) {
-      updateSharedKeys(map, bp.photo_key, { type: 'bike-path', slug: bp.slug }, 'add');
     }
   }
 

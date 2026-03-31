@@ -71,7 +71,6 @@ export interface ResolvedFact {
   text: string;
   link?: string;
   link_text?: string;
-  always?: boolean;
 }
 
 export interface HomepageVideo {
@@ -371,10 +370,6 @@ function localeRouteSlug(route: RouteEntry, locale?: string): string {
   return route.id;
 }
 
-export interface BikePathFactData {
-  count: number;
-}
-
 function resolveFactQuery(
   query: FactQuery,
   routes: RouteEntry[],
@@ -382,15 +377,10 @@ function resolveFactQuery(
   organizers: OrganizerEntry[],
   events: EventEntry[],
   locale?: string,
-  bikePaths?: BikePathFactData,
 ): Record<string, string | number> | null {
   const order = query.order || query.direction || 'asc';
 
   switch (query.type) {
-    case 'bike_paths': {
-      if (!bikePaths || bikePaths.count === 0) return null;
-      return { count: bikePaths.count };
-    }
     case 'places': {
       let filtered = placeData;
       if (query.filter) {
@@ -556,7 +546,6 @@ export function resolveHomepageFacts(
   organizers: OrganizerEntry[],
   events: EventEntry[],
   locale?: string,
-  bikePaths?: BikePathFactData,
 ): ResolvedFact[] {
   const short = locale ? shortLocale(locale) : defaultLocale();
   const homepageFactEntries = homepageFactsByLocale[short] ?? homepageFactsByLocale[defaultLocale()] ?? [];
@@ -569,23 +558,21 @@ export function resolveHomepageFacts(
   const resolved: ResolvedFact[] = [];
 
   for (const fact of homepageFactEntries) {
-    const always = fact.always === true;
-
     // Pre-resolved text — always valid
     if (fact.text) {
-      resolved.push({ text: fact.text, link: fact.link, link_text: fact.link_text, always });
+      resolved.push({ text: fact.text, link: fact.link, link_text: fact.link_text });
       continue;
     }
 
     // Hand-written template without query — always valid
     if (fact.template && !fact.query) {
-      resolved.push({ text: fact.template, link: fact.link, link_text: fact.link_text, always });
+      resolved.push({ text: fact.template, link: fact.link, link_text: fact.link_text });
       continue;
     }
 
     // Template with query — resolve values
     if (fact.template && fact.query) {
-      const values = resolveFactQuery(fact.query, routes, placeData, organizers, events, locale, bikePaths);
+      const values = resolveFactQuery(fact.query, routes, placeData, organizers, events, locale);
       if (!values) continue; // skip facts with zero results
 
       const text = resolveTemplate(fact.template, values);
@@ -598,7 +585,7 @@ export function resolveHomepageFacts(
         link = paths.route(localeSlug, locale);
       }
       const link_text = fact.link_text ? resolveTemplate(fact.link_text, values) : undefined;
-      resolved.push({ text, link, link_text, always });
+      resolved.push({ text, link, link_text });
     }
   }
 
@@ -626,12 +613,7 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
   const todayFeaturedSlug = new Set(featuredRoute ? [featuredRoute.slug] : []);
   const exploreRoutes = getExploreRoutes(routes, todayFeaturedSlug, locale);
 
-  // Bike path count for homepage facts
-  const { loadBikePathData } = await import('./bike-paths/bike-path-data.server');
-  const { pages: bikePathPages } = await loadBikePathData();
-  const bikePathFactData: BikePathFactData = { count: bikePathPages.length };
-
-  const facts = resolveHomepageFacts(routes, placeData, organizers, events, locale, bikePathFactData);
+  const facts = resolveHomepageFacts(routes, placeData, organizers, events, locale);
   const video = findHomepageVideo(routes, allFeatured, locale);
 
   return {

@@ -4,15 +4,12 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import StagingSyncButton from '../../components/admin/StagingSyncButton.tsx';
-import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import type { AdminRoute } from '../../loaders/admin-routes';
 import { env } from '../../lib/env/env.service';
 import { loadAdminRouteList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { getCityConfig } from '../../lib/config/city-config';
 import { buildImageUrl, buildImageSrcSet2x } from '@/lib/media/image-service';
-import { t } from '../../i18n';
 import '../../styles/admin.scss';
-const locale = Astro.currentLocale;
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
 const isStaging = env.ENVIRONMENT === 'staging';
@@ -33,27 +30,6 @@ let routes = mergedRoutes.sort((a, b) => {
   }
   return a.name.localeCompare(b.name);
 });
-
-const incomplete = routes
-  .filter(r => !r.coverKey)
-  .map(r => ({
-    slug: r.slug,
-    name: r.name,
-    hint: t('admin.sidebar.no_photo', locale),
-    editUrl: `/admin/routes/${r.slug}`,
-  }))
-  .slice(0, 5);
-
-const nameMap: Record<string, string> = {};
-for (const r of routes) nameMap[r.slug] = r.name;
-
-const sidebarLabels = {
-  mostViewed: t('admin.sidebar.most_viewed', locale),
-  mostStarred: t('admin.sidebar.most_starred', locale),
-  trending: t('admin.sidebar.trending', locale),
-  overlooked: t('admin.sidebar.overlooked', locale),
-  popularTags: t('admin.sidebar.popular_tags', locale),
-};
 ---
 
 <Base title="Admin" admin>
@@ -67,61 +43,49 @@ const sidebarLabels = {
       ctaLabel="+ New route"
     />
 
-    <div class="admin-list-layout">
-      <div class="admin-list-main">
-        <div class="sort-controls">
-          <span class="sort-label">Sort:</span>
-          <a href="/admin/routes" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
-          <a href="/admin/routes?sort=score" class:list={['sort-option', { active: sortBy === 'score' }]}>Difficulty</a>
-          <label class="photo-toggle">
-            <input type="checkbox" id="photo-toggle" checked /> Photos
-          </label>
-        </div>
-
-        <div class="route-list" id="route-list">
-          {routes.map((route) => (
-            <a href={`/admin/routes/${route.slug}`} class="route-list-item">
-              {route.coverKey && (
-                <img
-                  src={buildImageUrl(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
-                  srcset={buildImageSrcSet2x(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
-                  alt=""
-                  loading="lazy"
-                  class="route-cover-thumb"
-                />
-              )}
-              <div class="route-card-info">
-                <span class="route-name">{route.name}</span>
-                <span class="route-meta">
-                  {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
-                  {route.mediaCount} media
-                  {route.status === 'draft' && <span class="route-draft">draft</span>}
-                  {pendingSlugs.has(route.slug) && <span class="route-pending">pending</span>}
-                </span>
-              </div>
-            </a>
-          ))}
-          {routes.length === 0 && (
-            <p class="auth-message">No routes found.</p>
-          )}
-        </div>
-
-        {isStaging && user.role === 'admin' && (
-          <div class="admin-section">
-            <h2>Sync from production</h2>
-            <StagingSyncButton client:load />
-          </div>
-        )}
-      </div>
-      <AdminListSidebar
-        client:idle
-        contentType="routes"
-        incomplete={incomplete}
-        nameMap={nameMap}
-        editPrefix="/admin/routes"
-        labels={sidebarLabels}
-      />
+    <div class="sort-controls">
+      <span class="sort-label">Sort:</span>
+      <a href="/admin/routes" class:list={['sort-option', { active: sortBy === 'alpha' }]}>A–Z</a>
+      <a href="/admin/routes?sort=score" class:list={['sort-option', { active: sortBy === 'score' }]}>Difficulty</a>
+      <label class="photo-toggle">
+        <input type="checkbox" id="photo-toggle" checked /> Photos
+      </label>
     </div>
+
+    <div class="route-list" id="route-list">
+      {routes.map((route) => (
+        <a href={`/admin/routes/${route.slug}`} class="route-list-item">
+          {route.coverKey && (
+            <img
+              src={buildImageUrl(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
+              srcset={buildImageSrcSet2x(cdnUrl, route.coverKey, { width: 80, height: 80, fit: 'cover' })}
+              alt=""
+              loading="lazy"
+              class="route-cover-thumb"
+            />
+          )}
+          <div class="route-card-info">
+            <span class="route-name">{route.name}</span>
+            <span class="route-meta">
+              {route.difficultyScore != null && <span class="route-score">{route.difficultyScore}</span>}
+              {route.mediaCount} media
+              {route.status === 'draft' && <span class="route-draft">draft</span>}
+              {pendingSlugs.has(route.slug) && <span class="route-pending">pending</span>}
+            </span>
+          </div>
+        </a>
+      ))}
+      {routes.length === 0 && (
+        <p class="auth-message">No routes found.</p>
+      )}
+    </div>
+
+    {isStaging && user.role === 'admin' && (
+      <div class="admin-section">
+        <h2>Sync from production</h2>
+        <StagingSyncButton client:load />
+      </div>
+    )}
   </div>
 </Base>
 
@@ -147,24 +111,9 @@ const sidebarLabels = {
   @use '../../styles/mixins' as *;
 
   .admin-page {
-    max-width: 1200px;
+    max-width: 700px;
     margin: 1rem auto;
     padding: 0 1rem;
-  }
-
-  .admin-list-layout {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 2rem;
-    align-items: start;
-
-    @media (max-width: $breakpoint-tablet) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .admin-list-main {
-    min-width: 0;
   }
 
   .sort-controls {

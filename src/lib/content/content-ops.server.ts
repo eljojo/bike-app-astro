@@ -13,7 +13,6 @@ import { buildFreshRouteData, computeRouteContentHashFromFiles } from '../models
 import { buildFreshEventData, computeEventContentHashFromFiles } from '../models/event-model.server';
 import { buildFreshPlaceData, computePlaceContentHashFromFiles } from '../models/place-model.server';
 import { buildFreshOrganizerData, computeOrganizerContentHashFromFiles } from '../models/organizer-model.server';
-import { buildFreshBikePathData, computeBikePathContentHashFromFiles } from '../models/bike-path-model.server';
 import type { ContentOps } from './content-types.server';
 
 export const routeOps: ContentOps = {
@@ -59,12 +58,4 @@ export const organizerOps: ContentOps = {
   },
   computeContentHash: computeOrganizerContentHashFromFiles,
   buildFreshData: buildFreshOrganizerData,
-};
-
-export const bikePathOps: ContentOps = {
-  getFilePaths(id: string) {
-    return { primary: `${CITY}/bike-paths/${id}.md` };
-  },
-  computeContentHash: computeBikePathContentHashFromFiles,
-  buildFreshData: buildFreshBikePathData,
 };

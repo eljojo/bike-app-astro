@@ -165,7 +165,7 @@ test.describe('Video Save — Key Annotation', () => {
     ];
     fs.writeFileSync(mediaPath, '---\n' + yaml.dump(existingMedia));
     // Commit the change so LocalGitService sees it
-    execSync('git add demo/routes/route-video/media.yml && git diff --cached --quiet || git commit -m "add video fixture"', {
+    execSync('git add -A && git commit -m "add video fixture"', {
       cwd: FIXTURE_DIR, stdio: 'pipe',
     });
 
