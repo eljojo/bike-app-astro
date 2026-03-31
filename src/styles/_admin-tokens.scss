@@ -1,0 +1,39 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// Shared design tokens for admin utilitarian minimalism.
+// Used by _admin-sidebar.scss, _admin-preview.scss, and admin list/editor pages.
+
+.admin-micro-label {
+  @include micro-label;
+}
+
+.admin-section-divider {
+  @include sidebar-section;
+}
+
+.admin-tight-list {
+  @include sidebar-list;
+}
+
+.admin-list-item {
+  @include sidebar-item;
+}
+
+.admin-value {
+  @include muted-text;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.admin-trending-value {
+  color: $color-trending;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  @include dark-mode { color: $color-trending-dark; }
+}
+
+.admin-hint {
+  @include sidebar-hint;
+}

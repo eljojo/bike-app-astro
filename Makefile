@@ -7,9 +7,9 @@ install: ## Install npm dependencies
 	npm install
 
 dev: prebuild ## Start dev server (set DEV_HOST in .env for remote access)
-	RUNTIME=local npx astro dev
+	RUNTIME=local DEV_ADMIN=true npx astro dev
 
-build: prebuild contributors maps ## Build static site to dist/
+build: prebuild ## Build static site to dist/
 	npx astro build
 
 preview: prebuild ## Preview built site locally
@@ -54,7 +54,7 @@ screenshots: prebuild ## Update all screenshot baselines (public + admin)
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
 
-prebuild: ## Run all code generators (map style, icon paths)
+prebuild: ## Run all code generators (map style, icons, maps, contributors, path geometry)
 	npx tsx scripts/prebuild.ts
 
 map-style: ## Generate cycling map style JSON

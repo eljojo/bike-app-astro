@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod/v4';
 
 export const VALID_CONTENT_TYPES = ['route', 'event'] as const;
 export const VALID_REACTION_TYPES = ['ridden', 'thumbs-up', 'star', 'attended'] as const;

@@ -38,8 +38,9 @@ test.describe('Community Admin — List', () => {
 
     // The list should contain our test organizers (4 fixture files)
     await expect(page.locator('.community-list-item')).toHaveCount(6, { timeout: 10000 });
-    await expect(page.getByText('Demo Cycling Club')).toBeVisible();
-    await expect(page.getByText('Community Admin Test Org')).toBeVisible();
+    const list = page.locator('.admin-list-main');
+    await expect(list.getByText('Demo Cycling Club')).toBeVisible();
+    await expect(list.getByText('Community Admin Test Org')).toBeVisible();
   });
 });
 

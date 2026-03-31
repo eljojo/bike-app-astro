@@ -1,0 +1,513 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// --- Index page ---
+.paths-index {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.paths-osm-attribution {
+  font-size: 0.875rem;
+  @include muted-text;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid $color-border;
+  line-height: 1.5;
+
+  @include dark-mode {
+    border-color: $color-border-subtle-dark;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}
+
+.paths-map-hero-wrapper {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.paths-map-hero {
+  border-radius: $border-radius;
+  overflow: hidden;
+}
+
+// Touch-lock overlay: sits on top of the map on mobile.
+// touch-action: pan-y lets vertical scrolling pass through to the page.
+.paths-map-touch-lock {
+  display: none;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    touch-action: pan-y;
+    cursor: pointer;
+    border-radius: $border-radius;
+
+    .paths-map-touch-label {
+      opacity: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    &.primed .paths-map-touch-label {
+      opacity: 1;
+    }
+
+    &.dismissed {
+      display: none;
+    }
+  }
+}
+
+.paths-featured {
+  margin-bottom: 2.5rem;
+
+  h2 {
+    font-family: $font-heading;
+    font-size: 1.25rem;
+    margin: 0 0 0.7rem 0;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid $color-accent;
+    display: inline-block;
+  }
+}
+
+.featured-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.2em;
+}
+
+.path-card {
+  display: block;
+  padding: 1rem;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  text-decoration: none;
+  color: $color-text;
+  transition: background 0.15s ease;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+  }
+
+  &:hover {
+    background: $color-card-hover;
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+
+  .path-card-photo {
+    width: 100%;
+    aspect-ratio: 2 / 1;
+    object-fit: cover;
+    display: block;
+    border-radius: $border-radius $border-radius 0 0;
+    margin-bottom: 0.5rem;
+  }
+
+  h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+  .path-vibe { font-style: italic; font-size: 0.875rem; @include muted-text; margin: 0; }
+  .path-card-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .path-surface { font-size: 0.75rem; @include muted-text; }
+  .path-routes-count { font-size: 0.75rem; @include muted-text; }
+}
+
+.paths-group {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid $color-border;
+    @include dark-mode { border-color: $color-border-subtle-dark; }
+  }
+}
+
+.paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+
+  li[data-slug] {
+    cursor: pointer;
+    transition: background 0.15s ease;
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+  }
+
+  li.path-highlight {
+    background: rgba($color-path-highlight, 0.12);
+    @include dark-mode { background: rgba($color-path-highlight, 0.25); }
+  }
+}
+
+// --- Detail page ---
+.bike-path-detail {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
+
+  h1 { margin: 0 0 0.25rem; }
+}
+
+.bike-path-vibe {
+  font-style: italic;
+  font-size: 1.05rem;
+  @include muted-text;
+  margin: 0.25rem 0 1rem;
+}
+
+// Two-column layout: main + sidebar
+.bike-path-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 2rem;
+  align-items: start;
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    // Flatten both containers so children become direct grid items,
+    // allowing interleaved ordering: map+facts → description → nearby → routes
+    .bike-path-main,
+    .bike-path-sidebar {
+      display: contents;
+    }
+
+    // 1. Map + facts
+    .bike-path-map-wrapper { order: 1; }
+    .bike-path-facts-table { order: 2; }
+
+    // 2. Description / body content
+    .bike-path-stub-cta { order: 3; }
+    .bike-path-description { order: 4; }
+    .edit-entry-point { order: 5; }
+
+    // 3. Nearby places + paths
+    .nearby-places { order: 6; }
+    .connected-paths { order: 7; }
+    .nearby-paths { order: 8; }
+
+    // 4. Routes on path + photos
+    .routes-on-path { order: 9; }
+    .bike-path-photos { order: 10; }
+
+    // 5. Footer links
+    .bike-path-links { order: 11; }
+  }
+}
+
+.bike-path-main {
+  min-width: 0; // prevent grid blowout
+}
+
+.bike-path-sidebar {
+  // On mobile, sidebar drops below main content (natural grid flow)
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bike-path-stub-cta {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: $border-radius;
+  background: $color-warning-bg;
+  color: $color-warning;
+  margin-bottom: 1rem;
+
+  @include dark-mode {
+    background: $color-warning-bg-dark;
+    color: $color-warning-dark;
+  }
+
+  a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+}
+
+// Facts table (sidebar infobox)
+.bike-path-facts-table {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  overflow: hidden;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+    @include dark-mode {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  td:first-child {
+    @include muted-text;
+    white-space: nowrap;
+    width: 40%;
+  }
+
+  td:last-child {
+    font-weight: 500;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+// External links section in sidebar
+.bike-path-links {
+  font-size: 0.8rem;
+  @include muted-text;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 0.75rem;
+
+  @include dark-mode {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  a {
+    display: block;
+    color: inherit;
+    margin-bottom: 0.25rem;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.bike-path-osm {
+  font-size: 0.8rem;
+  @include muted-text;
+  margin-top: 0.5rem;
+
+  // Only relation/search links are block — the inline "OpenStreetMap" link stays inline
+  > a {
+    display: block;
+    margin-top: 0.15rem;
+  }
+}
+
+.bike-path-description {
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+// Routes on this path
+.routes-on-path {
+  margin-bottom: 2rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.routes-on-path-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.routes-on-path-card {
+  a {
+    display: block;
+    text-decoration: none;
+    color: $color-text;
+    border-radius: $border-radius;
+    overflow: hidden;
+    background: $color-card-bg;
+    transition: background 0.15s ease;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+      color: $color-text-dark;
+    }
+
+    &:hover {
+      background: $color-card-hover;
+      @include dark-mode { background: $color-card-hover-dark; }
+    }
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  }
+}
+
+.routes-on-path-card-name {
+  display: block;
+  padding: 0.5rem 0.75rem 0.125rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.routes-on-path-card-distance {
+  display: block;
+  padding: 0 0.75rem 0.5rem;
+  font-size: 0.8rem;
+  @include muted-text;
+}
+
+// Connected paths
+.connected-paths {
+  margin-bottom: 1.5rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.connected-paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}
+
+// Nearby paths
+.nearby-paths {
+  margin-bottom: 1.5rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.nearby-paths-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover { text-decoration: underline; }
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-meta {
+    font-size: 0.75rem;
+    @include muted-text;
+  }
+}
+
+// Photo grid on detail page
+.bike-path-photos {
+  margin-bottom: 2rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.bike-path-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+
+  .bike-path-photo {
+    display: block;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transition: opacity 0.15s ease;
+    }
+
+    &:hover img {
+      opacity: 0.85;
+    }
+  }
+}
+
+// Distance on path (route cards)
+.routes-on-path-card-on-path {
+  display: block;
+  padding: 0 0.75rem 0.5rem;
+  font-size: 0.75rem;
+  @include muted-text;
+  font-style: italic;
+}

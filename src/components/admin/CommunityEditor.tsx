@@ -6,7 +6,9 @@ import { useEditorState } from './useEditorState';
 import { useFormValidation } from './useFormValidation';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
+import TagEditor from './TagEditor';
 import EditorActions from './EditorActions';
+import CommunityPreview from './CommunityPreview';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
 
@@ -45,7 +47,6 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
   const [tagline, setTagline] = useState(initialData.tagline || '');
   const [body, setBody] = useState(initialData.body || '');
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
-  const [tagInput, setTagInput] = useState('');
   const [featured, setFeatured] = useState(initialData.featured || false);
   const [hidden, setHidden] = useState(initialData.hidden || false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
@@ -55,6 +56,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(
     initialData.social_links?.length ? initialData.social_links : [],
   );
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Textarea hydration workaround
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -109,41 +111,6 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     },
   });
 
-  function displayTag(tag: string): string {
-    return tagTranslations[tag]?.[defaultLocale] ?? tag;
-  }
-
-  function resolveTag(input: string): string {
-    if (knownTags.includes(input)) return input;
-    for (const [key, locales] of Object.entries(tagTranslations)) {
-      for (const translated of Object.values(locales)) {
-        if (translated.toLowerCase() === input) return key;
-      }
-    }
-    return input;
-  }
-
-  function addTag() {
-    const raw = tagInput.trim().toLowerCase();
-    if (!raw) { setTagInput(''); return; }
-    const tag = resolveTag(raw);
-    if (!tags.includes(tag)) {
-      setTags([...tags, tag]);
-    }
-    setTagInput('');
-  }
-
-  function removeTag(tag: string) {
-    setTags(tags.filter((t) => t !== tag));
-  }
-
-  function handleTagKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag();
-    }
-  }
-
   function addSocialLink() {
     setSocialLinks(prev => [...prev, { platform: 'instagram', url: '' }]);
   }
@@ -158,11 +125,33 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     ));
   }
 
+  function displayTag(tag: string): string {
+    return tagTranslations[tag]?.[defaultLocale] ?? tag;
+  }
+
   return (
     <div ref={hydratedRef} class="community-editor">
       {userRole === 'guest' && guestLabel && (
         <p class="editor-guest-label">{guestLabel}</p>
       )}
+
+      {/* Mobile tabs */}
+      <div class="route-editor-tabs">
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('edit')}
+        >Edit</button>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('preview')}
+        >Preview</button>
+      </div>
+
+      <div class="route-editor-panes">
+      {/* LEFT PANE: Editor */}
+      <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
       <div class="auth-form">
         <div class="form-field">
           <label for="community-name">Name</label>
@@ -189,38 +178,14 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
 
         <div class="form-field">
           <label>Tags</label>
-          <div class="tag-editor">
-            {tags.map((tag) => (
-              <span key={tag} class="tag-pill">
-                {displayTag(tag)}
-                <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-              </span>
-            ))}
-            <input
-              type="text"
-              class="tag-input"
-              list="community-tag-suggestions"
-              value={tagInput}
-              onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-              onKeyDown={handleTagKeyDown}
-              onBlur={addTag}
-              placeholder="Add tag..."
-            />
-            <datalist id="community-tag-suggestions">
-              {knownTags
-                .filter(t => !tags.includes(t))
-                .flatMap(tag => {
-                  const options = [<option key={tag} value={tag} />];
-                  const locales = tagTranslations[tag];
-                  if (locales) {
-                    for (const [locale, translated] of Object.entries(locales)) {
-                      options.push(<option key={`${tag}-${locale}`} value={translated} />);
-                    }
-                  }
-                  return options;
-                })}
-            </datalist>
-          </div>
+          <TagEditor
+            tags={tags}
+            onTagsChange={setTags}
+            knownTags={knownTags}
+            tagTranslations={tagTranslations}
+            activeLocale={defaultLocale}
+            datalistId="community-tag-suggestions"
+          />
         </div>
 
         {userRole === 'admin' && (
@@ -300,6 +265,22 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
         viewLink="/admin/communities"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
+      </div>
+
+      {/* RIGHT PANE: Preview */}
+      <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+        <CommunityPreview
+          name={name}
+          tagline={tagline}
+          body={body}
+          tags={tags}
+          photoKey={photoKey}
+          socialLinks={socialLinks}
+          cdnUrl={cdnUrl}
+          displayTag={displayTag}
+        />
+      </div>
+      </div>
     </div>
   );
 }

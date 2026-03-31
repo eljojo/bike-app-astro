@@ -1,0 +1,43 @@
+---
+import { paths as urlPaths } from '@/lib/paths';
+import { t } from '@/i18n';
+
+interface NearbyPath {
+  slug: string;
+  name: string;
+  surface?: string;
+}
+
+interface Props {
+  nearbyPaths: NearbyPath[];
+  locale?: string;
+}
+
+const { nearbyPaths, locale } = Astro.props;
+const surfaceLabels: Record<string, string> = {
+  asphalt: t('paths.fact.paved', locale),
+  concrete: t('paths.fact.paved', locale),
+  fine_gravel: t('paths.fact.gravel', locale),
+  gravel: t('paths.fact.gravel', locale),
+  ground: t('paths.fact.dirt', locale),
+  dirt: t('paths.fact.dirt', locale),
+  compacted: t('paths.fact.gravel', locale),
+};
+function displaySurface(raw?: string): string | undefined {
+  return raw ? surfaceLabels[raw] || raw : undefined;
+}
+---
+
+{nearbyPaths.length > 0 && (
+  <section class="nearby-paths">
+    <h2>{t('paths.nearby_paths', locale)}</h2>
+    <ul class="nearby-paths-list">
+      {nearbyPaths.map(p => (
+        <li>
+          <a href={urlPaths.bikePath(p.slug, locale)}>{p.name}</a>
+          {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

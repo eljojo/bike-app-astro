@@ -7,6 +7,7 @@ import { useFormValidation } from './useFormValidation';
 import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
 import EditorActions from './EditorActions';
+import PlacePreview from './PlacePreview';
 import { categoryEmoji } from '../../lib/geo/place-categories';
 import { goodForEnum } from '../../schemas/index';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
@@ -117,6 +118,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   );
   const [prefilling, setPrefilling] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(!initialData.isNew);
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   const initialRender = useRef(true);
   useEffect(() => {
@@ -413,6 +415,24 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       {userRole === 'guest' && guestLabel && (
         <p class="editor-guest-label">{guestLabel}</p>
       )}
+
+      {/* Mobile tabs */}
+      <div class="route-editor-tabs">
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('edit')}
+        >Edit</button>
+        <button
+          type="button"
+          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
+          onClick={() => setActiveTab('preview')}
+        >Preview</button>
+      </div>
+
+      <div class="route-editor-panes">
+      {/* LEFT PANE: Editor */}
+      <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
       <div class="auth-form">
         {initialData.isNew && googleMapsField}
 
@@ -593,6 +613,26 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         viewLink="/admin/places"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
+      </div>
+
+      {/* RIGHT PANE: Preview */}
+      <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
+        <PlacePreview
+          name={name}
+          category={category}
+          vibe={vibe}
+          lat={lat}
+          lng={lng}
+          address={address}
+          website={website}
+          phone={phone}
+          goodFor={goodFor}
+          photoKey={photoKey}
+          socialLinks={socialLinks}
+          cdnUrl={cdnUrl}
+        />
+      </div>
+      </div>
     </div>
   );
 }

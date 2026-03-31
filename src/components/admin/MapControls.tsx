@@ -4,10 +4,12 @@ import { loadStylePreference, saveStylePreference, type MapStyleKey } from '../.
 interface Props {
   onTogglePhotos?: (visible: boolean) => void;
   onTogglePlaces?: (visible: boolean) => void;
+  onTogglePaths?: (visible: boolean) => void;
   onToggleGps?: (visible: boolean) => void;
   onToggleStyle?: (key: MapStyleKey) => void;
   hasPhotos?: boolean;
   hasPlaces?: boolean;
+  hasPaths?: boolean;
   defaultPhotos?: boolean;
 }
 
@@ -23,9 +25,10 @@ export function saveToggleState(key: string, value: boolean): void {
   localStorage.setItem(key, String(value));
 }
 
-export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGps, onToggleStyle, hasPhotos = true, hasPlaces = true, defaultPhotos = true }: Props) {
+export default function MapControls({ onTogglePhotos, onTogglePlaces, onTogglePaths, onToggleGps, onToggleStyle, hasPhotos = true, hasPlaces = true, hasPaths = false, defaultPhotos = true }: Props) {
   const [photos, setPhotos] = useState(defaultPhotos);
   const [places, setPlaces] = useState(true);
+  const [pathsMode, setPathsMode] = useState(false);
   const [gps, setGps] = useState(false);
   const [styleKey, setStyleKey] = useState<MapStyleKey>('default');
 
@@ -37,6 +40,10 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
     onTogglePhotos?.(p);
     onTogglePlaces?.(pl);
 
+    const pathsState = loadToggleState('map-paths', false);
+    setPathsMode(pathsState);
+    if (pathsState) onTogglePaths?.(true);
+
     const sk = loadStylePreference();
     setStyleKey(sk);
     if (sk !== 'default') {
@@ -44,7 +51,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
     }
   }, []);
 
-  function toggle(which: 'photos' | 'places' | 'gps') {
+  function toggle(which: 'photos' | 'places' | 'paths' | 'gps') {
     if (which === 'photos') {
       const next = !photos;
       setPhotos(next);
@@ -55,6 +62,11 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
       setPlaces(next);
       saveToggleState('map-places', next);
       onTogglePlaces?.(next);
+    } else if (which === 'paths') {
+      const next = !pathsMode;
+      setPathsMode(next);
+      saveToggleState('map-paths', next);
+      onTogglePaths?.(next);
     } else {
       const next = !gps;
       setGps(next);
@@ -82,6 +94,16 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
           aria-pressed={places}
         >
           {'📍'}
+        </button>
+      )}
+      {hasPaths && (
+        <button
+          class={`map-control-btn ${pathsMode ? 'active' : ''}`}
+          onClick={() => toggle('paths')}
+          title={pathsMode ? 'Show routes' : 'Show bike paths'}
+          aria-pressed={pathsMode}
+        >
+          {'\uD83D\uDEE4\uFE0F'}
         </button>
       )}
       <button

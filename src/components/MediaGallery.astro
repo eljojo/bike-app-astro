@@ -48,7 +48,7 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
 ---
 
 {allPhotos.length > 0 && (
-  <section class="route-photos">
+  <section class="route-photos" id="photos">
     <h2>{t('photos.title', locale)}</h2>
     <div class="photo-gallery">
       {allPhotos.map((photo, i) => (
@@ -57,6 +57,7 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
           data-pswp-width={photo.width}
           data-pswp-height={photo.height}
           data-cropped="true"
+          data-photo-key={photo.key}
           class={`photo-gallery--image${i >= VISIBLE_COUNT ? ' photo-hidden' : ''}`}
           target="_blank"
         >
@@ -144,6 +145,23 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
         window.BikeApp?.tE?.('click cover photo', { props: { page: window.location.pathname } });
         (firstPhoto as HTMLElement).click();
       });
+    }
+
+    // Deep-link: ?photo=KEY opens lightbox at that photo
+    const photoParam = new URLSearchParams(location.search).get('photo');
+    if (photoParam) {
+      const allLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.photo-gallery a.photo-gallery--image'));
+      const idx = allLinks.findIndex(a => a.dataset.photoKey === photoParam);
+      if (idx >= 0) {
+        // Reveal hidden photos first
+        document.querySelectorAll('.photo-hidden').forEach(el => {
+          (el as HTMLElement).classList.remove('photo-hidden');
+        });
+        const showBtn = document.getElementById('show-all-photos');
+        if (showBtn) showBtn.style.display = 'none';
+        // Open lightbox at the target photo
+        lightbox.loadAndOpen(idx);
+      }
     }
 
     const showAllBtn = document.getElementById('show-all-photos');
