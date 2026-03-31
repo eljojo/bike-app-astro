@@ -10,6 +10,7 @@ import MarkdownEditor from './MarkdownEditor';
 import NearbyMedia from './NearbyMedia';
 import EditorActions from './EditorActions';
 import RoutePreview from './RoutePreview';
+import TagEditor from './TagEditor';
 import EditorFocusWrapper from './EditorFocusWrapper';
 import { FocusHeader } from './EditorFocusWrapper';
 import { useEditorState } from './useEditorState';
@@ -47,7 +48,6 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [name, setName] = useState(initialData.name);
   const [tagline, setTagline] = useState(initialData.tagline);
   const [tags, setTags] = useState(initialData.tags);
-  const [tagInput, setTagInput] = useState('');
   const [status, setStatus] = useState(initialData.status);
   const [body, setBody] = useState(initialData.body);
   const [media, setMedia] = useState<MediaItem[]>(initialData.media);
@@ -170,39 +170,6 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     return tagTranslations[tag]?.[activeLocale] ?? tag;
   }
 
-  function resolveTag(input: string): string {
-    // If it matches a known tag directly, use it
-    if (knownTags.includes(input)) return input;
-    // Check if input matches a translation, reverse-map to the primary key
-    for (const [key, locales] of Object.entries(tagTranslations)) {
-      for (const translated of Object.values(locales)) {
-        if (translated.toLowerCase() === input) return key;
-      }
-    }
-    return input;
-  }
-
-  function addTag() {
-    const raw = tagInput.trim().toLowerCase();
-    if (!raw) { setTagInput(''); return; }
-    const tag = resolveTag(raw);
-    if (!tags.includes(tag)) {
-      setTags([...tags, tag]);
-    }
-    setTagInput('');
-  }
-
-  function removeTag(tag: string) {
-    setTags(tags.filter((t) => t !== tag));
-  }
-
-  function handleTagKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag();
-    }
-  }
-
   return (
     <div class="route-editor" ref={hydratedRef}>
       {dragging && (
@@ -291,46 +258,15 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
           <div class="form-field">
             <label>Tags</label>
-            <div class="tag-editor">
-              {tags.map((tag) => (
-                <span key={tag} class="tag-pill">
-                  {displayTag(tag)}
-                  <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-                </span>
-              ))}
-              <input
-                type="text"
-                class="tag-input"
-                list="tag-suggestions"
-                value={tagInput}
-                onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-                onKeyDown={handleTagKeyDown}
-                onBlur={addTag}
-                placeholder="Add tag..."
-              />
-              <datalist id="tag-suggestions">
-                {knownTags
-                  .filter(t => !tags.includes(t))
-                  .flatMap(tag => {
-                    const options = [<option key={tag} value={tag} />];
-                    if (activeLocale !== defaultLocale) {
-                      const translated = tagTranslations[tag]?.[activeLocale];
-                      if (translated) {
-                        options.push(<option key={`${tag}-${activeLocale}`} value={translated} />);
-                      }
-                    } else {
-                      // In default locale, also add non-default translations so users can search in any language
-                      const locales = tagTranslations[tag];
-                      if (locales) {
-                        for (const [locale, translated] of Object.entries(locales)) {
-                          options.push(<option key={`${tag}-${locale}`} value={translated} />);
-                        }
-                      }
-                    }
-                    return options;
-                  })}
-              </datalist>
-            </div>
+            <TagEditor
+              tags={tags}
+              onTagsChange={setTags}
+              knownTags={knownTags}
+              tagTranslations={tagTranslations}
+              activeLocale={activeLocale}
+              defaultLocale={defaultLocale}
+              datalistId="tag-suggestions"
+            />
           </div>
 
           {userRole === 'admin' && (

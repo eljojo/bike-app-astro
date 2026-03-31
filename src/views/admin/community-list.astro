@@ -3,57 +3,92 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
+import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import { fetchJson, loadAdminOrganizerList } from '../../lib/content/load-admin-content.server';
 import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
 import { getCityConfig } from '../../lib/config/city-config';
 import { organizerInitials } from '../../lib/models/organizer-model';
+import { t } from '../../i18n';
 import '../../styles/admin.scss';
 
+const locale = Astro.currentLocale;
 const buildTimeOrganizers = await fetchJson<_AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url));
 const { items: organizers, pendingIds } = await loadAdminOrganizerList(buildTimeOrganizers);
 
 const user = Astro.locals.user;
 const config = getCityConfig();
 const cdnUrl = (await import('../../lib/env/env.service')).env.R2_PUBLIC_URL || config.cdn_url;
+
+const incomplete = organizers
+  .filter(o => !o.photo_key || !o.hasBody || !o.social_links?.length)
+  .map(o => ({
+    slug: o.slug,
+    name: o.name,
+    hint: !o.photo_key ? t('admin.sidebar.no_photo', locale) : !o.hasBody ? t('admin.sidebar.no_description', locale) : t('admin.sidebar.no_social', locale),
+    editUrl: `/admin/communities/${o.slug}`,
+  }))
+  .slice(0, 5);
+
+const nameMap: Record<string, string> = {};
+for (const o of organizers) nameMap[o.slug] = o.name;
+
+const sidebarLabels = {
+  mostViewed: t('admin.sidebar.most_viewed', locale),
+  mostStarred: t('admin.sidebar.most_starred', locale),
+  trending: t('admin.sidebar.trending', locale),
+  overlooked: t('admin.sidebar.overlooked', locale),
+};
 ---
 
 <Base title="Communities - Admin" admin>
   <div class="admin-page">
     <AdminHeader user={user} currentTab="organizers" subtitle="Groups, clubs, and organizations that host rides and events." ctaHref="/admin/communities/new" ctaLabel="+ New community" />
 
-    <div class="community-actions-bar">
-      <span class="community-count">{organizers.length} communities</span>
-    </div>
+    <div class="admin-list-layout">
+      <div class="admin-list-main">
+        <div class="community-actions-bar">
+          <span class="community-count">{organizers.length} communities</span>
+        </div>
 
-    <div class="community-list">
-      {organizers.map(org => (
-        <a href={`/admin/communities/${org.slug}`} class="community-list-item">
-          {org.photo_key ? (
-            <img
-              src={buildImageUrl(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
-              srcset={buildImageSrcSet2x(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
-              alt=""
-              class="community-avatar"
-            />
-          ) : (
-            <div class="community-avatar community-avatar--initials">
-              {organizerInitials(org.name)}
-            </div>
-          )}
-          <div class="community-card-info">
-            <span class="community-card-name">
-              {org.name}
-              {pendingIds.has(org.slug) && <span class="community-badge community-badge--pending">Pending</span>}
-              {org.featured && <span class="community-badge community-badge--featured">Featured</span>}
-            </span>
-            {org.instagram && <span class="community-card-handle">@{org.instagram}</span>}
-            {org.tagline && <span class="community-card-tagline">{org.tagline}</span>}
-          </div>
-        </a>
-      ))}
-    </div>
+        <div class="community-list">
+          {organizers.map(org => (
+            <a href={`/admin/communities/${org.slug}`} class="community-list-item">
+              {org.photo_key ? (
+                <img
+                  src={buildImageUrl(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+                  srcset={buildImageSrcSet2x(cdnUrl, org.photo_key, { width: 80, height: 80, fit: 'cover' })}
+                  alt=""
+                  class="community-avatar"
+                />
+              ) : (
+                <div class="community-avatar community-avatar--initials">
+                  {organizerInitials(org.name)}
+                </div>
+              )}
+              <div class="community-card-info">
+                <span class="community-card-name">
+                  {org.name}
+                  {pendingIds.has(org.slug) && <span class="community-badge community-badge--pending">Pending</span>}
+                  {org.featured && <span class="community-badge community-badge--featured">Featured</span>}
+                </span>
+                {org.instagram && <span class="community-card-handle">@{org.instagram}</span>}
+                {org.tagline && <span class="community-card-tagline">{org.tagline}</span>}
+              </div>
+            </a>
+          ))}
+        </div>
 
-    {organizers.length === 0 && <p class="auth-message">No communities found. Create one to get started.</p>}
+        {organizers.length === 0 && <p class="auth-message">No communities found. Create one to get started.</p>}
+      </div>
+      <AdminListSidebar
+        client:idle
+        contentType="organizers"
+        incomplete={incomplete}
+        nameMap={nameMap}
+        editPrefix="/admin/communities"
+        labels={sidebarLabels}
+      />
+    </div>
   </div>
 </Base>
 
@@ -62,9 +97,24 @@ const cdnUrl = (await import('../../lib/env/env.service')).env.R2_PUBLIC_URL || 
   @use '../../styles/mixins' as *;
 
   .admin-page {
-    max-width: 700px;
+    max-width: 1200px;
     margin: 1rem auto;
     padding: 0 1rem;
+  }
+
+  .admin-list-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .admin-list-main {
+    min-width: 0;
   }
 
   .community-actions-bar {
@@ -121,6 +171,7 @@ const cdnUrl = (await import('../../lib/env/env.service')).env.R2_PUBLIC_URL || 
     border-radius: 50%;
     flex-shrink: 0;
     object-fit: cover;
+    background: #fff;
   }
 
   .community-avatar--initials {

@@ -1,0 +1,359 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
+import { getCityConfig } from '@/lib/config/city-config';
+import { paths } from '@/lib/paths';
+import { imageUrl } from '@/lib/media/image-service';
+import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import { t } from '@/i18n';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+const { pages: allPages, geoFiles } = await loadBikePathData();
+// Directory listing: only listed paths (score >= threshold), excluding very short ones
+const pages = allPages.filter(p => p.listed && (!p.length_km || p.length_km >= 1));
+
+// Locale-aware accessors
+function pathName(p: typeof pages[0]): string {
+  return (locale && p.translations[locale]?.name) || p.name;
+}
+function pathVibe(p: typeof pages[0]): string | undefined {
+  return (locale && p.translations[locale]?.vibe) || p.vibe;
+}
+
+// All paths are interactive (clickable → navigate to detail page).
+// Listed paths render bold; unlisted paths render subtle but still clickable.
+const interactiveRelIds = new Set<string>();
+const listedRelIds = new Set<string>();
+const relationToSlug: Record<string, string> = {};
+for (const p of allPages) {
+  for (const relId of p.osmRelationIds) {
+    relationToSlug[String(relId)] = p.slug;
+    interactiveRelIds.add(String(relId));
+    if (p.listed) listedRelIds.add(String(relId));
+  }
+  // Also map name-based and segment-based geo files
+  for (const gf of p.geoFiles) {
+    const geoId = gf.replace(/\.geojson$/, '');
+    relationToSlug[geoId] = p.slug;
+    interactiveRelIds.add(geoId);
+    if (p.listed) listedRelIds.add(geoId);
+  }
+}
+
+
+// Featured: paths with markdown descriptions
+const featured = pages.filter(p => p.featured);
+
+// Group by operator dynamically
+type OperatorGroup = { label: string; paths: typeof pages };
+const operatorMap = new Map<string, typeof pages>();
+
+for (const p of pages) {
+  const key = p.operator || '';
+  const list = operatorMap.get(key);
+  if (list) {
+    list.push(p);
+  } else {
+    operatorMap.set(key, [p]);
+  }
+}
+
+const groups: OperatorGroup[] = [];
+// Sort groups: largest first, "Other" (empty operator) last
+const sortedEntries = [...operatorMap.entries()].sort((a, b) => {
+  if (a[0] === '') return 1;
+  if (b[0] === '') return -1;
+  return b[1].length - a[1].length;
+});
+
+for (const [operator, pathsList] of sortedEntries) {
+  groups.push({
+    label: operator || t('paths.other_group', locale),
+    paths: pathsList,
+  });
+}
+
+const surfaceLabels: Record<string, string> = {
+  asphalt: t('paths.fact.paved', locale),
+  concrete: t('paths.fact.paved', locale),
+  fine_gravel: t('paths.fact.gravel', locale),
+  gravel: t('paths.fact.gravel', locale),
+  ground: t('paths.fact.dirt', locale),
+  dirt: t('paths.fact.dirt', locale),
+  compacted: t('paths.fact.gravel', locale),
+};
+function displaySurface(raw?: string): string | undefined {
+  return raw ? surfaceLabels[raw] || raw : undefined;
+}
+
+const mapCenter: [number, number] = [config.center.lat, config.center.lng];
+const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
+const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { width: 1200, height: 630, fit: 'cover' }) : undefined;
+---
+
+<Base title={`${t('paths.page_title', locale, { city: config.name })} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
+  <div class="paths-index">
+    <h1>{t('paths.heading', locale, { city: config.name })}</h1>
+    {geoFiles.length > 0 && (
+      <div class="paths-map-hero-wrapper">
+        <div
+          class="paths-map-hero"
+          id="paths-network-map"
+          data-geo-files={JSON.stringify(geoFiles)}
+          data-center={JSON.stringify(mapCenter)}
+          data-relation-slugs={JSON.stringify(relationToSlug)}
+          data-interactive-ids={JSON.stringify([...interactiveRelIds])}
+          data-listed-ids={JSON.stringify([...listedRelIds])}
+          style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
+        ></div>
+        <div class="paths-map-touch-lock" id="paths-map-touch-lock">
+          <span class="paths-map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+        </div>
+      </div>
+    )}
+
+    {featured.length > 0 && (
+      <section class="paths-featured">
+        <h2>{t('paths.featured', locale)}</h2>
+        <div class="featured-cards">
+          {featured.map(p => {
+            const thumb = p.thumbnail_key;
+            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}/map-750.webp` : undefined;
+            const thumbSrc = thumb
+              ? imageUrl(thumb, { width: 750, height: 375, fit: 'cover' })
+              : mapThumb;
+            const thumbSrcset = thumb
+              ? `${imageUrl(thumb, { width: 1500, height: 750, fit: 'cover' })} 2x`
+              : undefined;
+            return (
+              <a href={paths.bikePath(p.slug, locale)} class="path-card">
+                {thumbSrc && (
+                  <img
+                    src={thumbSrc}
+                    srcset={thumbSrcset}
+                    alt={pathName(p)}
+                    loading="lazy"
+                    class="path-card-photo"
+                  />
+                )}
+                <h3>{pathName(p)}</h3>
+                {pathVibe(p) && <p class="path-vibe">{pathVibe(p)}</p>}
+                <span class="path-card-meta">
+                  {displaySurface(p.surface) && <span class="path-surface">{displaySurface(p.surface)}</span>}
+                  {p.routeCount > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    {groups.map(group => (
+      <section class="paths-group">
+        <h2>{group.label}</h2>
+        <ul class="paths-list">
+          {group.paths.map(p => (
+            <li data-slug={p.slug} id={`path-${p.slug}`}>
+              <a href={paths.bikePath(p.slug, locale)}>
+                {pathName(p)}
+              </a>
+              {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+              {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    <p class="paths-osm-attribution">
+      {t('paths.index_osm_attribution', locale)} <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>. {t('paths.index_osm_edit', locale)}
+    </p>
+  </div>
+</Base>
+
+<script>
+  import { initMap, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
+  import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
+  const PATH_WIDTH = ROUTE_LINE_WIDTH;
+  const PATH_WIDTH_UNLISTED = Math.max(2, ROUTE_LINE_WIDTH - 2);
+  const PATH_WIDTH_HOVER = ROUTE_LINE_WIDTH + 2;
+
+  const container = document.getElementById('paths-network-map');
+  if (container) {
+    const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
+    const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+    const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
+    const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
+    const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
+
+    if (geoFiles.length > 0) {
+      const styleKey = loadStylePreference();
+      const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
+
+      // Enable pan/zoom for interaction
+      map.scrollZoom.disable();
+      map.doubleClickZoom.disable();
+      map.touchZoomRotate.disable();
+
+      // On mobile: lock the map behind a touch overlay so scrolling works normally.
+      // On desktop: enable drag pan immediately (mouse users expect it).
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      const touchLock = document.getElementById('paths-map-touch-lock');
+
+      if (isMobile) {
+        map.dragPan.disable();
+        if (touchLock) {
+          let primed = false;
+
+          touchLock.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!primed) {
+              primed = true;
+              touchLock.classList.add('primed');
+            } else {
+              // Second tap: activate map, remove overlay
+              touchLock.classList.add('dismissed');
+              map.dragPan.enable();
+              map.touchZoomRotate.enable();
+            }
+          });
+
+          // Reset primed state when user scrolls away
+          let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+          window.addEventListener('scroll', () => {
+            if (primed && !touchLock.classList.contains('dismissed')) {
+              if (scrollTimer) clearTimeout(scrollTimer);
+              scrollTimer = setTimeout(() => {
+                primed = false;
+                touchLock.classList.remove('primed');
+              }, 300);
+            }
+          }, { passive: true });
+        }
+      } else {
+        map.dragPan.enable();
+        touchLock?.remove();
+      }
+
+      map.on('load', async () => {
+        const allFeatures: GeoJSON.Feature[] = [];
+
+        for (const file of geoFiles) {
+          try {
+            const res = await fetch(`/paths/geo/${file}`);
+            if (!res.ok) continue;
+            const geojson = await res.json();
+            const relationId = file.replace(/\.geojson$/, '');
+            const slug = relationSlugs[relationId] || relationId;
+            const interactive = interactiveIds.has(relationId);
+
+            const listed = listedIds.has(relationId);
+            for (const feature of geojson.features) {
+              feature.properties = feature.properties || {};
+              feature.properties.slug = slug;
+              feature.properties.relationId = relationId;
+              feature.properties.interactive = interactive ? 'true' : '';
+              feature.properties.listed = listed ? 'true' : '';
+
+              allFeatures.push(feature);
+            }
+          } catch {
+            // Missing file — fine
+          }
+        }
+
+        if (allFeatures.length > 0) {
+          map.addSource('paths-network', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: allFeatures },
+          });
+
+          // Unlisted paths: thinner, lower opacity, but still clickable
+          map.addLayer({
+            id: 'paths-network-bg',
+            type: 'line',
+            source: 'paths-network',
+            filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'listed'], 'true']],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+              'line-color': ROUTE_COLOR,
+              'line-width': PATH_WIDTH_UNLISTED,
+              'line-opacity': 0.5,
+            },
+          });
+
+          // Listed paths: full width, bold
+          map.addLayer({
+            id: 'paths-network-line',
+            type: 'line',
+            source: 'paths-network',
+            filter: ['==', ['get', 'listed'], 'true'],
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+              'line-color': ROUTE_COLOR,
+              'line-width': PATH_WIDTH,
+              'line-opacity': 0.8,
+            },
+          });
+
+          // Don't fitBounds — use city center + zoom 11 (matching the big map)
+          // so distant paths (Trans Canada to Montreal) don't zoom the map out
+
+          // --- Map interaction ---
+
+          // Click on any path → navigate to detail page
+          function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
+            if (!e.features?.length) return;
+            const slug = e.features[0].properties?.slug;
+            if (slug) window.location.href = `/paths/${slug}`;
+          }
+          map.on('click', 'paths-network-line', handlePathClick);
+          map.on('click', 'paths-network-bg', handlePathClick);
+
+          for (const layerId of ['paths-network-line', 'paths-network-bg']) {
+            map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
+          }
+
+          // List hover → highlight path on map
+          let hoveredSlug: string | null = null;
+
+          function highlightPath(slug: string | null) {
+            if (hoveredSlug === slug) return;
+            hoveredSlug = slug;
+            if (slug) {
+              map.setPaintProperty('paths-network-line', 'line-width', [
+                'case',
+                ['==', ['get', 'slug'], slug],
+                PATH_WIDTH_HOVER,
+                PATH_WIDTH,
+              ]);
+              map.setPaintProperty('paths-network-line', 'line-opacity', [
+                'case',
+                ['==', ['get', 'slug'], slug],
+                1,
+                0.4,
+              ]);
+            } else {
+              map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
+              map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
+            }
+          }
+
+          document.querySelectorAll<HTMLElement>('.paths-list li[data-slug]').forEach(li => {
+            li.addEventListener('mouseenter', () => {
+              highlightPath(li.dataset.slug || null);
+            });
+            li.addEventListener('mouseleave', () => {
+              highlightPath(null);
+            });
+          });
+        }
+      });
+    }
+  }
+
+</script>

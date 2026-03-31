@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod/v4';
 import type { CollectionEntry } from 'astro:content';
 import { baseMediaItemSchema } from './content-model';
 import { socialLinkSchema } from '../../schemas';

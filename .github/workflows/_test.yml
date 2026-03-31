@@ -66,8 +66,12 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Run prebuild (map style, icon paths)
+      - name: Run prebuild
         run: npx tsx scripts/prebuild.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          PREBUILD_MINIMAL: '1'
 
       - name: Run unit tests
         run: npx vitest run
@@ -207,8 +211,12 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Run prebuild (map style, icon paths)
+      - name: Run prebuild
         run: npx tsx scripts/prebuild.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          PREBUILD_MINIMAL: ${{ matrix.suite != 'public' && '1' || '' }}
 
       - name: Fix corrupt PNG baselines
         if: matrix.suite == 'public'

@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod/v4';
 import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';

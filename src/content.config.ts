@@ -9,6 +9,7 @@ import { cityDir } from './lib/config/config.server';
 import {
   routeSchema, placeSchema, guideSchema,
   eventSchema, organizerSchema, pageSchema,
+  bikePathSchema,
 } from './schemas/index';
 
 const CITY_DIR = cityDir;
@@ -46,4 +47,9 @@ const pages = defineCollection({
   schema: pageSchema,
 });
 
-export const collections = { routes, places, guides, events, organizers, pages };
+const bikePaths = defineCollection({
+  loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/bike-paths` }),
+  schema: bikePathSchema,
+});
+
+export const collections = { routes, places, guides, events, organizers, pages, 'bike-paths': bikePaths };

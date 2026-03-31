@@ -35,6 +35,10 @@ You own the outcome, not just the task. A route description might be the only th
 
 - **You are an AI and you will be wrong.** Your confidence in tracing a mechanism is not evidence that the mechanism works. When debugging has gone through multiple rounds without finding the cause, stop tracing and question whether the mechanism should exist. AI defaults to "one more trace will find it" — that confidence is the failure mode, not a tool. When the user says previous attempts failed or your instinct is wrong, that's the most important signal — not background noise to push through. **When you're drifting:** if the user rejects your approach or corrects you more than twice in a row, assume you've lost context. Stop. Re-read this file and the current implementation plan before continuing. Don't argue from memory.
 
+- **The user's observations are ground truth.** When the user reports what they see — a blank page, a broken feature, a missing element — that IS what's happening. Do not respond with "it should work", "it might be a stale build", or "the logic looks correct." The user is looking at the real thing. Your mental model of what the code does is a theory; their observation is a fact. When the two conflict, your theory is wrong. Investigate why reality doesn't match your expectation — don't try to convince the user that reality is wrong. This applies equally to: bug reports ("the map doesn't show"), architectural claims ("CI has nothing to do with bike-routes"), and domain knowledge ("we have enough files"). If the user states something with confidence, accept it as true and work from there. Never make the user prove what they already told you.
+
+- **When the user says fix it, fix it.** Do not suggest deferring to another session. Do not minimize the scope. Do not propose "picking this up later." If the user identifies a problem and asks you to address it, that is your job right now. Saying "that's a bigger change" or "should we do this next time?" is avoidance — it shifts the burden back to the user to justify why their request matters. The user already decided it matters by asking. If the fix is genuinely complex, explain what's involved and start working on it — don't use complexity as a reason to not begin.
+
 - **Verify before claiming done.** After any change, grep for related terms, rebuild, run relevant tests. Show proof, not promises. A claim without evidence is a guess — and AI is especially prone to confident guesses. If you say it works, show the output. If you say it's fixed, show the test passing. If you can't demonstrate the test failing without your change, you can't be sure it's testing anything. Don't leave verification to others.
 
 - **Search before creating.** Before adding a constant, helper, or type, grep for where it might already exist. One source of truth. If you need a list of values, find the authoritative list and derive from it — don't create a second copy that will drift.
@@ -166,7 +170,7 @@ NEVER write string literals like `'ottawa'` or `'fr'` in application code. Alway
 - **Virtual module types**: `src/virtual-modules.d.ts` is ambient — NO top-level imports or it breaks all declarations.
 - **No client-side navigation**: the site uses full page loads, not `<ClientRouter />`. Use `DOMContentLoaded`, not `astro:page-load`.
 - **Content model layer**: all code that reads or writes content data must go through model files in `src/lib/models/`. Never hand-roll `JSON.stringify`/`JSON.parse` for content types.
-- **Zod v4**: import from `astro/zod`, not `zod`.
+- **Zod v4**: import from `zod/v4`, not `zod` or `astro/zod`. This allows scripts outside Astro context to import from `src/lib/`.
 
 ### Platform Integration — AI Gets These Wrong
 

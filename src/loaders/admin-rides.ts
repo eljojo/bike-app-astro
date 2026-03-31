@@ -255,6 +255,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
       country,
       tour_slug: tourSlug,
       highlight,
+      status,
       contentHash,
     };
 

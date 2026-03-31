@@ -88,9 +88,12 @@ describe('videoPosterUrl', () => {
     const url = videoPosterUrl('abc123');
     expect(url).toContain(`/${CITY}/abc123/abc123-poster.0000000.jpg`);
   });
-  it('uses videos CDN, not image CDN transforms', () => {
+  it('uses videos CDN with cdn-cgi/image transform (not a separate image CDN)', () => {
     const url = videoPosterUrl('abc123');
-    expect(url).not.toContain('cdn-cgi/image');
+    expect(url).toContain('cdn-cgi/image/format=auto');
+    // Must use the videos CDN, not a separate image CDN
+    const VIDEOS_CDN = url.split('/cdn-cgi/')[0];
+    expect(VIDEOS_CDN).not.toContain('images.');
   });
   it('uses embedded prefix for annotated keys', () => {
     const url = videoPosterUrl('ottawa-staging/abc12345');

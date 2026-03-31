@@ -32,6 +32,19 @@
     object-fit: cover;
     margin: 0;
   }
+
+  &--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    background: $color-card-bg;
+    text-decoration: none;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+    }
+  }
 }
 
 .event-card-featured-body {

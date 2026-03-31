@@ -127,6 +127,7 @@ function buildPagePaths(
     case 'route': prefix = '/routes'; break;
     case 'event': prefix = '/events'; break;
     case 'organizer': prefix = '/communities'; break;
+    case 'bike-path': prefix = '/paths'; break;
     default: return [];
   }
 
@@ -348,7 +349,7 @@ export async function ensureSiteEventData(
   toDate: string,
 ): Promise<number> {
   // Check which dates already exist for each event type
-  const [existingRepeat, existingSocial] = await Promise.all([
+  const [existingRepeat, existingSocial, existingTagFilter] = await Promise.all([
     db.select({ date: siteEventMetrics.date })
       .from(siteEventMetrics)
       .where(and(
@@ -365,16 +366,26 @@ export async function ensureSiteEventData(
         sql`${siteEventMetrics.date} >= ${fromDate}`,
         sql`${siteEventMetrics.date} <= ${toDate}`,
       )),
+    db.select({ date: siteEventMetrics.date })
+      .from(siteEventMetrics)
+      .where(and(
+        eq(siteEventMetrics.city, opts.city),
+        eq(siteEventMetrics.eventName, 'tag_filter'),
+        sql`${siteEventMetrics.date} >= ${fromDate}`,
+        sql`${siteEventMetrics.date} <= ${toDate}`,
+      )),
   ]);
 
   const allDates = buildDateSet(fromDate, toDate);
   const repeatExisting = new Set(existingRepeat.map(r => r.date));
   const socialExisting = new Set(existingSocial.map(r => r.date));
+  const tagFilterExisting = new Set(existingTagFilter.map(r => r.date));
 
   const repeatMissing = [...allDates].filter(d => !repeatExisting.has(d));
   const socialMissing = [...allDates].filter(d => !socialExisting.has(d));
+  const tagFilterMissing = [...allDates].filter(d => !tagFilterExisting.has(d));
 
-  if (repeatMissing.length === 0 && socialMissing.length === 0) return 0;
+  if (repeatMissing.length === 0 && socialMissing.length === 0 && tagFilterMissing.length === 0) return 0;
 
   // Fetch from Plausible — both event types in parallel
   const queries: Promise<EventMetricRow[]>[] = [];
@@ -415,6 +426,28 @@ export async function ensureSiteEventData(
         }).then(rows => rows.map(r => ({
           city: opts.city,
           eventName: 'social_referral',
+          date: r.dimensions[0],
+          dimensionValue: r.dimensions[1],
+          visitors: r.metrics[0],
+        }))).catch(() => [])
+      );
+    }
+  }
+
+  if (tagFilterMissing.length > 0) {
+    const ranges = findContiguousRanges(tagFilterMissing);
+    for (const [rangeFrom, rangeTo] of ranges) {
+      queries.push(
+        queryPlausible(opts.apiKey, {
+          siteId: opts.siteId,
+          metrics: ['visitors'],
+          dateRange: [rangeFrom, rangeTo],
+          dimensions: ['time:day', 'event:props:tagName'],
+          filters: [['is', 'event:goal', ['Routes: Tag Filter']]],
+          pagination: { limit: 10000 },
+        }).then(rows => rows.map(r => ({
+          city: opts.city,
+          eventName: 'tag_filter',
           date: r.dimensions[0],
           dimensionValue: r.dimensions[1],
           visitors: r.metrics[0],
