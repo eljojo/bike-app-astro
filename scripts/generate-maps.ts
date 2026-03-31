@@ -19,6 +19,63 @@ import polylineCodec from '@mapbox/polyline';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
 
+/**
+ * Merge segments whose endpoints are within `maxGapKm` into continuous chains.
+ * Greedy: for each unvisited segment, find the nearest unvisited segment whose
+ * start is close to the current chain's end, and append it.
+ * Returns the merged chains (each is an array of [lat, lng] points).
+ */
+function mergeAdjacentSegments(segments: [number, number][][], maxGapKm: number): [number, number][][] {
+  if (segments.length === 0) return [];
+  const used = new Set<number>();
+  const chains: [number, number][][] = [];
+
+  function dist(a: [number, number], b: [number, number]): number {
+    const R = 6371;
+    const dLat = (b[0] - a[0]) * Math.PI / 180;
+    const dLon = (b[1] - a[1]) * Math.PI / 180;
+    const s = Math.sin(dLat / 2) ** 2
+      + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    if (used.has(i)) continue;
+    used.add(i);
+    const chain = [...segments[i]];
+
+    // Greedily extend the chain
+    let extended = true;
+    while (extended) {
+      extended = false;
+      const tail = chain[chain.length - 1];
+      let bestIdx = -1;
+      let bestDist = maxGapKm;
+      let bestReverse = false;
+
+      for (let j = 0; j < segments.length; j++) {
+        if (used.has(j)) continue;
+        const seg = segments[j];
+        const dStart = dist(tail, seg[0]);
+        const dEnd = dist(tail, seg[seg.length - 1]);
+        if (dStart < bestDist) { bestDist = dStart; bestIdx = j; bestReverse = false; }
+        if (dEnd < bestDist) { bestDist = dEnd; bestIdx = j; bestReverse = true; }
+      }
+
+      if (bestIdx >= 0) {
+        used.add(bestIdx);
+        const seg = bestReverse ? [...segments[bestIdx]].reverse() : segments[bestIdx];
+        chain.push(...seg);
+        extended = true;
+      }
+    }
+
+    chains.push(chain);
+  }
+
+  return chains;
+}
+
 if (!API_KEY || API_KEY === 'your-key-here') {
   console.warn('[maps] GOOGLE_MAPS_STATIC_API_KEY not set — skipping map generation');
   process.exit(0);
@@ -253,8 +310,9 @@ async function main() {
     for (const page of pages) {
       if (page.geoFiles.length === 0) continue;
 
-      // Collect all coordinates from GeoJSON files
-      const allPoints: [number, number][] = [];
+      // Collect segments from GeoJSON files — one per feature to avoid
+      // drawing straight lines between disconnected path sections
+      const segments: [number, number][][] = [];
       const geoContents: string[] = [];
       for (const geoFile of page.geoFiles) {
         const geoPath = path.join(geoDir, geoFile);
@@ -264,20 +322,22 @@ async function main() {
         const geojson = JSON.parse(content);
         for (const feature of geojson.features ?? []) {
           if (feature.geometry?.type === 'LineString') {
-            for (const coord of feature.geometry.coordinates) {
-              allPoints.push([coord[1], coord[0]]); // [lat, lng] for polyline encoding
-            }
+            const coords: [number, number][] = feature.geometry.coordinates.map(
+              (c: number[]) => [c[1], c[0]] as [number, number],
+            );
+            if (coords.length >= 2) segments.push(coords);
           } else if (feature.geometry?.type === 'MultiLineString') {
             for (const line of feature.geometry.coordinates) {
-              for (const coord of line) {
-                allPoints.push([coord[1], coord[0]]);
-              }
+              const coords: [number, number][] = line.map(
+                (c: number[]) => [c[1], c[0]] as [number, number],
+              );
+              if (coords.length >= 2) segments.push(coords);
             }
           }
         }
       }
 
-      if (allPoints.length < 2) continue;
+      if (segments.length === 0) continue;
 
       const combinedHash = crypto.createHash('sha256')
         .update(geoContents.join('\n'))
@@ -295,8 +355,14 @@ async function main() {
         const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
         console.log(`[maps] ${label}: generating bike path map...`);
 
-        const encoded = polylineCodec.encode(allPoints as [number, number][]);
-        const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false });
+        // Merge adjacent segments that share endpoints (within 100m) into
+        // continuous chains, then encode as one polyline. buildStaticMapUrl
+        // splits at gaps > 0.15km, so genuinely disconnected sections render
+        // as separate &path= params (no straight connecting lines).
+        const merged = mergeAdjacentSegments(segments, 0.1);
+        const allPoints = merged.flatMap(seg => seg);
+        const encoded = polylineCodec.encode(allPoints);
+        const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false, gapKm: 0.15 });
         const response = await fetch(url);
         if (!response.ok) {
           console.error(`[maps] ${label}: HTTP ${response.status}`);

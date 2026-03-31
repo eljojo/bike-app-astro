@@ -92,10 +92,10 @@ export function buildStaticMapUrlMulti(polylines: string[], apiKey: string, lang
   return url;
 }
 
-export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string, options?: { size?: string; markers?: boolean }): string {
+export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string, options?: { size?: string; markers?: boolean; gapKm?: number }): string {
   const points = polylineCodec.decode(polyline);
-  // Split at GPS gaps (>10km) and render each continuous segment separately
-  const segments = splitAtGaps(points, 10);
+  // Split at GPS gaps and render each continuous segment separately
+  const segments = splitAtGaps(points, options?.gapKm ?? 10);
   if (segments.length === 0) return '';
 
   const allPoints = segments.flat();
