@@ -66,6 +66,9 @@ export const GET: APIRoute = async () => {
   if (communities.length > 0) {
     pageLines.push(`- Communities: ${config.url}/communities`);
   }
+  if (bikeShops.length > 0) {
+    pageLines.push(`- Local bike shops: ${config.url}/bike-shops`);
+  }
   pageLines.push(`- About: ${config.url}/about`);
   sections.push(`## Sections\n\n${pageLines.join('\n')}\n`);
 

@@ -38,6 +38,8 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
       <ul>
         <li><a href="/about">{t('nav.about', defLocale)} {config.display_name}</a></li>
         <li><a href="/calendar">{t('sitemap.cycling_calendar', defLocale)}</a></li>
+        <li><a href={paths.communities(defLocale)}>{t('nav.people', defLocale)}</a></li>
+        <li><a href={paths.bikeShops(defLocale)}>{t('bike_shops.heading', defLocale)}</a></li>
         <li><a href="/map">{t('sitemap.map_description', defLocale)}</a></li>
         <li><a href="/videos">{t('videos.title', defLocale)}</a>
           <ul>
