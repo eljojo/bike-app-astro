@@ -6,7 +6,8 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { t } from '@/i18n';
+import SubTabToggle from '@/components/SubTabToggle.astro';
+import { t, localePath } from '@/i18n';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -94,6 +95,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 ---
 
 <Base title={`${t('paths.page_title', locale, { city: config.name })} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
+  <SubTabToggle items={[
+    { label: t('nav.routes', locale), href: localePath('/routes', locale), active: false },
+    { label: t('nav.bike_paths', locale), href: paths.bikePaths(locale), active: true },
+  ]} />
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
     {allPages.length > 0 && (
