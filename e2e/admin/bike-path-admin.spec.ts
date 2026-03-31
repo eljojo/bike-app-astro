@@ -67,6 +67,11 @@ test.describe('Bike Path Admin — Detail', () => {
     token = seedSession();
   });
 
+  test.beforeEach(() => {
+    clearContentEdits('bike-paths', 'canal-pathway');
+    restoreFixtureFiles(['demo/bike-paths/canal-pathway.md']);
+  });
+
   test.afterAll(() => {
     cleanupSession(token);
   });
