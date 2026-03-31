@@ -59,6 +59,7 @@ export function buildSitemapEntries({ routes, guides, events, bikePaths }: {
     ...localizedEntry('/about', 0.6),
     ...localizedEntry('/videos', 0.5),
     ...localizedEntry('/guides', 0.8),
+    ...localizedEntry('/bike-shops', 0.6),
   ];
 
   // LLM-readable site description (not localized)
