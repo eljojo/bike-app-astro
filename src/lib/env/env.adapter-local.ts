@@ -47,7 +47,6 @@ export function createLocalEnv(): AppEnv {
     MEDIACONVERT_REGION: '',
     S3_ORIGINALS_BUCKET: '',
     WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || '',
-    PLAUSIBLE_API_KEY: process.env.PLAUSIBLE_API_KEY,
   };
 }
 

@@ -114,23 +114,19 @@ if (isWiki) {
         const count = isDesktop ? desktopCount : mobileCount;
         const items = Array.from(list.children) as HTMLElement[];
 
-        // Items with data-always are always shown, not part of the random pool
-        const alwaysItems = items.filter(el => el.dataset.always === 'true');
-        const poolItems = items.filter(el => el.dataset.always !== 'true');
-
-        // Weighted random selection without replacement from the pool
+        // Weighted random selection without replacement
         const picked = new Set<HTMLElement>();
-        const weights = poolItems.map(el => parseInt(el.dataset.weight || '1', 10));
-        for (let n = 0; n < Math.min(count, poolItems.length); n++) {
+        const weights = items.map(el => parseInt((el as HTMLElement).dataset.weight || '1', 10));
+        for (let n = 0; n < Math.min(count, items.length); n++) {
           let total = 0;
-          for (let i = 0; i < poolItems.length; i++) {
-            if (!picked.has(poolItems[i])) total += weights[i];
+          for (let i = 0; i < items.length; i++) {
+            if (!picked.has(items[i])) total += weights[i];
           }
           let r = seededRandom() * total;
-          for (let i = 0; i < poolItems.length; i++) {
-            if (picked.has(poolItems[i])) continue;
+          for (let i = 0; i < items.length; i++) {
+            if (picked.has(items[i])) continue;
             r -= weights[i];
-            if (r <= 0) { picked.add(poolItems[i]); break; }
+            if (r <= 0) { picked.add(items[i]); break; }
           }
         }
 
@@ -141,11 +137,9 @@ if (isWiki) {
           [pickedArr[i], pickedArr[j]] = [pickedArr[j], pickedArr[i]];
         }
         for (const el of pickedArr) list.appendChild(el);
-        // Always items go at the end
-        for (const el of alwaysItems) list.appendChild(el);
 
         for (const item of items) {
-          item.hidden = !picked.has(item) && !alwaysItems.includes(item);
+          item.hidden = !picked.has(item);
         }
         list.style.visibility = 'visible';
       }

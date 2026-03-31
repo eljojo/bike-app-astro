@@ -92,7 +92,7 @@ export function buildStaticMapUrlMulti(polylines: string[], apiKey: string, lang
   return url;
 }
 
-export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string, options?: { size?: string; markers?: boolean }): string {
+export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string): string {
   const points = polylineCodec.decode(polyline);
   // Split at GPS gaps (>10km) and render each continuous segment separately
   const segments = splitAtGaps(points, 10);
@@ -101,21 +101,18 @@ export function buildStaticMapUrl(polyline: string, apiKey: string, language?: s
   const allPoints = segments.flat();
   const start = allPoints[0];
   const end = allPoints[allPoints.length - 1];
-  const showMarkers = options?.markers !== false;
 
   const params = new URLSearchParams({
     maptype: 'roadmap',
-    size: options?.size || '800x800',
+    size: '800x800',
     scale: '2',
     key: apiKey,
     ...(language && { language }),
   });
 
-  let url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
-  if (showMarkers) {
-    url += `&markers=color:yellow|label:S|${start[0]},${start[1]}`
-      + `&markers=color:green|label:F|${end[0]},${end[1]}`;
-  }
+  let url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`
+    + `&markers=color:yellow|label:S|${start[0]},${start[1]}`
+    + `&markers=color:green|label:F|${end[0]},${end[1]}`;
 
   for (const segment of segments) {
     const remaining = 16384 - url.length - '&path=enc:'.length - 100;

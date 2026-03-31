@@ -6,7 +6,6 @@ import { buildImageUrl } from '../media/image-service';
 import type { MapStyleKey } from './map-style-switch';
 
 export const ROUTE_COLOR = '#350091';
-export const ROUTE_LINE_WIDTH = 6;
 const ROUTE_COLOR_HC = '#0077BB';
 
 /** Palette for multi-ride tour maps. 8 distinct, accessible colors. */
@@ -166,7 +165,7 @@ export function addPolylines(
       'line-color': hasPerPolylineColors
         ? ['coalesce', ['get', 'color'], getRouteColor(styleKey)]
         : getRouteColor(styleKey),
-      'line-width': ROUTE_LINE_WIDTH,
+      'line-width': 6,
       'line-opacity': 0.9,
     },
     layout: {

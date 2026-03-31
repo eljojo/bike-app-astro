@@ -691,7 +691,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                     loading="lazy"
                   />
                 ) : (
-                  <div class="edition-card-placeholder">🚲</div>
+                  <div class="edition-card-placeholder" />
                 )}
                 <div class="edition-card-info">
                   <span class="edition-card-date">{editionDateLabel(ed.start_date, locale)}</span>
@@ -717,7 +717,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 : card.distances;
               return (
                 <a href={paths.event(s.id, locale)} class={`event-similar-card${isPast ? ' is-past' : ''}`}>
-                  {card.poster_key ? (
+                  {card.poster_key && (
                     <img
                       src={imageUrl(card.poster_key, { width: 300, height: 200, fit: 'cover' })}
                       srcset={`${imageUrl(card.poster_key, { width: 600, height: 400, fit: 'cover' })} 2x`}
@@ -726,8 +726,6 @@ function editionDateLabel(startDate: string, loc?: string): string {
                       height="200"
                       loading="lazy"
                     />
-                  ) : (
-                    <div class="event-similar-card-placeholder">🚲</div>
                   )}
                   <span class="event-similar-card-name">{card.name}</span>
                   <span class="event-similar-card-meta">

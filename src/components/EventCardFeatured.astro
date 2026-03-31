@@ -67,7 +67,7 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
 ---
 
 <div class="event-card-featured" data-event-slug={event.id}>
-  {coverKey ? (
+  {coverKey && (
     <div class="event-card-featured-poster">
       <ResponsiveImage
         blobKey={coverKey}
@@ -76,8 +76,6 @@ const tagColor = tagLabel && data.tags?.[0] ? tagPillColor(data.tags[0]) : null;
         fit="cover"
       />
     </div>
-  ) : (
-    <div class="event-card-featured-poster event-card-featured-poster--placeholder">🚲</div>
   )}
   <div class="event-card-featured-body">
     {organizerName && <span class="event-card-featured-organizer">{organizerName}</span>}

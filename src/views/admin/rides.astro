@@ -3,7 +3,6 @@ export const prerender = false;
 
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
-import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import StravaImport from '../../components/admin/StravaImport.tsx';
 import type { AdminRide } from '../../loaders/admin-rides';
 import { loadAdminRideList, fetchJson } from '../../lib/content/load-admin-content.server';
@@ -11,9 +10,7 @@ import { formatDistance } from '../../lib/format';
 import { db } from '../../lib/get-db';
 import { stravaTokens } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { t } from '../../i18n';
 import '../../styles/admin.scss';
-const locale = Astro.currentLocale;
 
 const user = Astro.locals.user;
 const cspNonce = Astro.locals.cspNonce;
@@ -35,26 +32,6 @@ const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.dat
 
 // Extract unique years for year filter
 const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boolean))].sort((a, b) => b!.localeCompare(a!));
-
-const incomplete = rides
-  .filter(r => r.status === 'draft')
-  .map(r => ({
-    slug: r.slug,
-    name: r.name,
-    hint: t('admin.sidebar.draft', locale),
-    editUrl: `/admin/rides/${r.slug}`,
-  }))
-  .slice(0, 5);
-
-const nameMap: Record<string, string> = {};
-for (const r of rides) nameMap[r.slug] = r.name;
-
-const sidebarLabels = {
-  mostViewed: t('admin.sidebar.most_viewed', locale),
-  mostStarred: t('admin.sidebar.most_starred', locale),
-  trending: t('admin.sidebar.trending', locale),
-  overlooked: t('admin.sidebar.overlooked', locale),
-};
 ---
 
 <Base title="Rides" admin>
@@ -68,61 +45,49 @@ const sidebarLabels = {
       ctaLabel="+ New ride"
     />
 
-    <div class="admin-list-layout">
-      <div class="admin-list-main">
-        {user.role === 'admin' && stravaConnected && (
-          <div class="admin-actions">
-            <StravaImport client:load />
-          </div>
-        )}
-
-        <div class="admin-filters" id="ride-filters">
-          <button type="button" class="admin-filter-pill active" data-filter="all">All</button>
-          <button type="button" class="admin-filter-pill" data-filter="long">Long (50km+)</button>
-          <button type="button" class="admin-filter-pill" data-filter="century">Century (100km+)</button>
-          <button type="button" class="admin-filter-pill" data-filter="tours">Tours</button>
-          {years.length > 1 && (
-            <select class="admin-filter-year" id="year-filter">
-              <option value="">All years</option>
-              {years.map(year => (
-                <option value={year}>{year}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div class="route-list" id="ride-list">
-          {sortedRides.map((ride) => (
-            <a
-              href={`/admin/rides/${ride.slug}`}
-              class="route-list-item"
-              data-distance={ride.distance_km}
-              data-tour={ride.tour_slug || ''}
-              data-country={ride.country || ''}
-              data-date={ride.date || ''}
-            >
-              <span class="route-name">{ride.name}</span>
-              <span class="route-meta">
-                {ride.date && <span>{ride.date}</span>}
-                {ride.distance_km > 0 && <span>{formatDistance(ride.distance_km)}</span>}
-                {ride.country && <span>{ride.country}</span>}
-                {pendingSlugs.has(ride.slug) && <span class="route-pending">pending</span>}
-              </span>
-            </a>
-          ))}
-          {sortedRides.length === 0 && (
-            <p class="auth-message">No rides yet. Upload a GPX to get started.</p>
-          )}
-        </div>
+    {user.role === 'admin' && stravaConnected && (
+      <div class="admin-actions">
+        <StravaImport client:load />
       </div>
-      <AdminListSidebar
-        client:idle
-        contentType="rides"
-        incomplete={incomplete}
-        nameMap={nameMap}
-        editPrefix="/admin/rides"
-        labels={sidebarLabels}
-      />
+    )}
+
+    <div class="admin-filters" id="ride-filters">
+      <button type="button" class="admin-filter-pill active" data-filter="all">All</button>
+      <button type="button" class="admin-filter-pill" data-filter="long">Long (50km+)</button>
+      <button type="button" class="admin-filter-pill" data-filter="century">Century (100km+)</button>
+      <button type="button" class="admin-filter-pill" data-filter="tours">Tours</button>
+      {years.length > 1 && (
+        <select class="admin-filter-year" id="year-filter">
+          <option value="">All years</option>
+          {years.map(year => (
+            <option value={year}>{year}</option>
+          ))}
+        </select>
+      )}
+    </div>
+
+    <div class="route-list" id="ride-list">
+      {sortedRides.map((ride) => (
+        <a
+          href={`/admin/rides/${ride.slug}`}
+          class="route-list-item"
+          data-distance={ride.distance_km}
+          data-tour={ride.tour_slug || ''}
+          data-country={ride.country || ''}
+          data-date={ride.date || ''}
+        >
+          <span class="route-name">{ride.name}</span>
+          <span class="route-meta">
+            {ride.date && <span>{ride.date}</span>}
+            {ride.distance_km > 0 && <span>{formatDistance(ride.distance_km)}</span>}
+            {ride.country && <span>{ride.country}</span>}
+            {pendingSlugs.has(ride.slug) && <span class="route-pending">pending</span>}
+          </span>
+        </a>
+      ))}
+      {sortedRides.length === 0 && (
+        <p class="auth-message">No rides yet. Upload a GPX to get started.</p>
+      )}
     </div>
   </div>
 </Base>
@@ -199,24 +164,9 @@ const sidebarLabels = {
   @use '../../styles/mixins' as *;
 
   .admin-page {
-    max-width: 1200px;
+    max-width: 700px;
     margin: 1rem auto;
     padding: 0 1rem;
-  }
-
-  .admin-list-layout {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 2rem;
-    align-items: start;
-
-    @media (max-width: $breakpoint-tablet) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .admin-list-main {
-    min-width: 0;
   }
 
   .admin-actions {

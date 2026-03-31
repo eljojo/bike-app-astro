@@ -69,7 +69,7 @@ describe('Scenario 1: production wiki (CITY=montreal, VIDEO_PREFIX=montreal)', (
   // ── Poster frame ───────────────────────────────────────────────────────
   it('videoPosterUrl: correct poster URL', async () => {
     const { videoPosterUrl } = await import('../src/lib/media/video-service');
-    expect(videoPosterUrl(gitKey)).toBe(`${CDN}/cdn-cgi/image/format=auto/montreal/abcdef/abcdef-poster.0000000.jpg`);
+    expect(videoPosterUrl(gitKey)).toBe(`${CDN}/montreal/abcdef/abcdef-poster.0000000.jpg`);
   });
 
   // ── Fallback download ─────────────────────────────────────────────────
@@ -92,7 +92,7 @@ describe('Scenario 1: production wiki (CITY=montreal, VIDEO_PREFIX=montreal)', (
     const stagingKey = 'montreal-staging/xyz789';
     const sources = videoPlaybackSources(stagingKey);
     expect(sources[0].src).toBe(`${CDN}/montreal-staging/xyz789/xyz789.m3u8`);
-    expect(videoPosterUrl(stagingKey)).toBe(`${CDN}/cdn-cgi/image/format=auto/montreal-staging/xyz789/xyz789-poster.0000000.jpg`);
+    expect(videoPosterUrl(stagingKey)).toBe(`${CDN}/montreal-staging/xyz789/xyz789-poster.0000000.jpg`);
   });
 
   // ── Self-healing: video-status uses h264OutputKey with bare key ────────
@@ -152,7 +152,7 @@ describe('Scenario 2: staging wiki (CITY=montreal, VIDEO_PREFIX=montreal-staging
   // ── Poster frame ───────────────────────────────────────────────────────
   it('videoPosterUrl: staging prefix', async () => {
     const { videoPosterUrl } = await import('../src/lib/media/video-service');
-    expect(videoPosterUrl(gitKey)).toBe(`${CDN}/cdn-cgi/image/format=auto/montreal-staging/abcdef/abcdef-poster.0000000.jpg`);
+    expect(videoPosterUrl(gitKey)).toBe(`${CDN}/montreal-staging/abcdef/abcdef-poster.0000000.jpg`);
   });
 
   // ── Fallback ───────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ describe('Scenario 3: blog (CITY=blog, VIDEO_PREFIX=eljojo_bike-blog)', () => {
   // ── Poster frame ───────────────────────────────────────────────────────
   it('videoPosterUrl: VIDEO_PREFIX in poster URL', async () => {
     const { videoPosterUrl } = await import('../src/lib/media/video-service');
-    expect(videoPosterUrl(gitKey)).toBe(`${CDN}/cdn-cgi/image/format=auto/eljojo_bike-blog/abcdef/abcdef-poster.0000000.jpg`);
+    expect(videoPosterUrl(gitKey)).toBe(`${CDN}/eljojo_bike-blog/abcdef/abcdef-poster.0000000.jpg`);
   });
 
   // ── Fallback ───────────────────────────────────────────────────────────

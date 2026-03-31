@@ -7,7 +7,6 @@ export interface InstanceFeatures {
   hasEvents: boolean;
   hasPlaces: boolean;
   hasGuides: boolean;
-  hasPaths: boolean;
 
   /** Club-specific enriched events (waypoints, results, route references) */
   hasEnrichedEvents: boolean;
@@ -28,7 +27,6 @@ const WIKI_FEATURES: InstanceFeatures = {
   hasEvents: true,
   hasPlaces: true,
   hasGuides: true,
-  hasPaths: true,
   hasEnrichedEvents: false,
   allowsRegistration: true,
   allowsGuestAccess: true,
@@ -43,7 +41,6 @@ const BLOG_FEATURES: InstanceFeatures = {
   hasEvents: false,
   hasPlaces: false,
   hasGuides: false,
-  hasPaths: false,
   hasEnrichedEvents: false,
   allowsRegistration: false,
   allowsGuestAccess: false,
@@ -58,7 +55,6 @@ const CLUB_FEATURES: InstanceFeatures = {
   hasEvents: true,
   hasPlaces: true,
   hasGuides: false,
-  hasPaths: true,
   hasEnrichedEvents: true,
   allowsRegistration: true,
   allowsGuestAccess: true,

@@ -23,4 +23,4 @@ All save handlers update the media-shared-keys registry via `updateMediaRegistry
 
 ## Zod Imports
 
-Import from `zod/v4`, not `zod` or `astro/zod`. Key v4 differences: `z.record(z.string(), z.unknown())` (not single-arg), `z.looseObject()` (not `.passthrough()`).
+Import from `astro/zod`, not `zod` or `astro:content`. This project uses Zod v4 via Astro. Key v4 differences: `z.record(z.string(), z.unknown())` (not single-arg), `z.looseObject()` (not `.passthrough()`).

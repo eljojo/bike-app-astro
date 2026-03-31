@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { z } from 'zod/v4';
+import { z } from 'astro/zod';
 import polyline from '@mapbox/polyline';
 import type { RoutingWaypoint, RoutingResult, RoutingService } from './routing';
 

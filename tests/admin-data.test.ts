@@ -112,7 +112,7 @@ describe('loadAdminRouteData details', () => {
 });
 
 describe('buildDataPlugin virtual modules', () => {
-  it('resolves virtual:bike-app/admin-routes', { timeout: 15000 }, () => {
+  it('resolves virtual:bike-app/admin-routes', () => {
     const plugin = buildDataPlugin();
     const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/admin-routes');
     expect(resolved).toBe('\0virtual:bike-app/admin-routes');
