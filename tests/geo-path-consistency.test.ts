@@ -1,35 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { haversineM } from '../src/lib/geo/proximity';
 
 /**
- * Regression test: all functions in build-data-plugin that read bike path
- * GeoJSON files must reference the same directory (public/bike-paths/geo).
- *
- * A rename from /paths to /bike-paths left two functions pointing at the old
- * directory, silently breaking route overlap computation and cover photos.
+ * Regression test: the demo city must have GeoJSON geometry so that length_km
+ * is computed during the build. A prior rename from /paths to /bike-paths broke
+ * this silently. The E2E test in e2e/functional.spec.ts catches the rendered
+ * output; this test ensures the fixture data itself is valid.
  */
-describe('build-data-plugin geo directory references', () => {
-  const pluginSource = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'build-data-plugin.ts'),
-    'utf-8',
-  );
+describe('demo bike path GeoJSON fixture', () => {
+  const cacheDir = path.resolve('.cache', 'bikepath-geometry', 'demo');
+  const geoFile = path.join(cacheDir, 'name-ciclovia-avenida-ecuador.geojson');
 
-  it('all geo directory references use public/bike-paths/geo', () => {
-    // Find all lines that construct a path to a geo directory under public/
-    const geoPathRefs = pluginSource
-      .split('\n')
-      .filter(line => /public.*geo/.test(line) && /path\.join/.test(line));
-
-    expect(geoPathRefs.length).toBeGreaterThanOrEqual(3); // loadGeoFiles, loadGeoCoordinates, loadGeoElevation
-
-    for (const line of geoPathRefs) {
-      expect(line).toContain("'bike-paths'");
-      expect(line).not.toMatch(/['"]paths['"]\s*,\s*['"]geo['"]/);
-    }
+  it('fixture file exists', () => {
+    expect(fs.existsSync(geoFile)).toBe(true);
   });
 
-  it('no references to the old public/paths/geo directory', () => {
-    expect(pluginSource).not.toContain("'public', 'paths', 'geo'");
+  it('contains LineString features that produce the expected length', () => {
+    const geojson = JSON.parse(fs.readFileSync(geoFile, 'utf-8'));
+    expect(geojson.features.length).toBeGreaterThanOrEqual(1);
+
+    let totalM = 0;
+    for (const feature of geojson.features) {
+      const coords: number[][] = feature.geometry.coordinates;
+      for (let i = 1; i < coords.length; i++) {
+        totalM += haversineM(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+      }
+    }
+    const km = Math.round(totalM / 1000 * 10) / 10;
+    expect(km).toBe(3.1);
   });
 });

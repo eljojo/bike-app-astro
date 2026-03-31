@@ -6,7 +6,7 @@ const CONTENT_PREFIXES: Array<{ prefix: string; contentType: ContentIdentity['co
   { prefix: 'routes', contentType: 'route' },
   { prefix: 'events', contentType: 'event' },
   { prefix: 'communities', contentType: 'organizer' },
-  { prefix: 'paths', contentType: 'bike-path' },
+  { prefix: 'bike-paths', contentType: 'bike-path' },
 ];
 
 /** Non-content path prefixes to skip entirely (not content pages). */

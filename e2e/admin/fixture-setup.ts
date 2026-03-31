@@ -616,6 +616,24 @@ good_for:
   const bikePathsDir = path.join(CITY_DIR, 'bike-paths');
   fs.mkdirSync(bikePathsDir, { recursive: true });
 
+  // GeoJSON fixture for Canal Pathway (OSM relation 12345) — enables length_km computation.
+  const geoDir = path.join(PROJECT_ROOT, 'public', 'bike-paths', 'geo');
+  fs.mkdirSync(geoDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(geoDir, '12345.geojson'),
+    JSON.stringify({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [[-75.69, 45.42], [-75.68, 45.41], [-75.67, 45.40], [-75.66, 45.39], [-75.65, 45.38]],
+        },
+      }],
+    }),
+  );
+
   // bike-path-edit: owned by bike-path-admin.spec.ts
   fs.writeFileSync(
     path.join(bikePathsDir, 'canal-pathway.md'),

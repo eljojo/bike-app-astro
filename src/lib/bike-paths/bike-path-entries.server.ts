@@ -136,7 +136,7 @@ function readGeoLengthKm(filePath: string): number {
 
 /** Compute total length (km) for a path from all its GeoJSON files. */
 function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
-  const geoDir = path.join(getProjectRoot(), 'public', 'paths', 'geo');
+  const geoDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo');
   let totalKm = 0;
   for (const relId of entry.osm_relations ?? []) {
     totalKm += readGeoLengthKm(path.join(geoDir, `${relId}.geojson`));
@@ -152,7 +152,7 @@ function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
 
 /** Get geographic points for a path: GeoJSON geometry first, YML anchors as fallback. */
 function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: number }> {
-  const geoDir = path.join(getProjectRoot(), 'public', 'paths', 'geo');
+  const geoDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo');
   const points: Array<{ lat: number; lng: number }> = [];
 
   for (const relId of entry.osm_relations ?? []) {
@@ -441,7 +441,7 @@ export function loadBikePathEntries(): {
   }
 
   // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)
-  const geoDir = path.join(getProjectRoot(), 'public', 'paths', 'geo');
+  const geoDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo');
   const geoFiles = fs.existsSync(geoDir)
     ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
     : [];

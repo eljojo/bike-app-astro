@@ -50,3 +50,33 @@ test.describe('Magazine homepage translations', () => {
     await expect(featuredLink).toHaveAttribute('href', /\/fr\/parcours\/parcours-riviere-chillan/);
   });
 });
+
+// Bike path detail — verify facts table renders data computed from GeoJSON geometry.
+// Ciclovía Avenida Ecuador is a real bike path in Chillán (demo city), with geo data
+// from Overpass stored in .cache/bikepath-geometry/demo/. The facts table must show
+// length computed from the GeoJSON — this is the integration test for the full chain:
+// geo file → loadBikePathEntries() → virtual module → rendered HTML.
+test.describe('Bike path detail page', () => {
+  test('facts table shows length computed from geo file', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const factsTable = page.locator('.bike-path-facts-table');
+    await expect(factsTable).toBeVisible();
+    // 4 OSM way segments totaling ~3.1 km
+    await expect(factsTable).toContainText('3.1 km');
+  });
+
+  test('facts table shows surface type', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const factsTable = page.locator('.bike-path-facts-table');
+    await expect(factsTable).toContainText('paved');
+  });
+
+  test('facts table shows separation and lighting', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const factsTable = page.locator('.bike-path-facts-table');
+    // highway: cycleway → separated from traffic
+    await expect(factsTable).toContainText('Separado del tráfico');
+    // lit: yes
+    await expect(factsTable).toContainText('Sí');
+  });
+});

@@ -1,5 +1,5 @@
 /**
- * Copy cached bike path GeoJSON geometry to public/paths/geo/.
+ * Copy cached bike path GeoJSON geometry to public/bike-paths/geo/.
  *
  * The cache lives at .cache/bikepath-geometry/{city}/ in the astro repo,
  * populated by scripts/cache-path-geometry.ts (Overpass API fetch).
