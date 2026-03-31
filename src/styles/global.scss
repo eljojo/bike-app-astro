@@ -273,6 +273,11 @@ body.fullbleed {
       margin-bottom: 0;
       padding-bottom: 0.2rem;
     }
+
+    .nav-lang,
+    .nav-admin {
+      display: none;
+    }
   }
 
   @include dark-mode {
