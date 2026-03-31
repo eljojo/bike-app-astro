@@ -48,12 +48,11 @@ interface Props {
   places: PlaceOnMap[];
   photos?: MapPhoto[];
   center: [number, number];
-  pathGeoFiles?: string[];
   pathMapData?: PathOnMap[];
 }
 
 import { getCityConfig } from '../lib/config/city-config';
-const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = [] } = Astro.props;
+const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
 ---
 
 <div class="big-map">
@@ -65,7 +64,6 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
     data-center={JSON.stringify(center)}
     data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
-    data-path-geo-files={JSON.stringify(pathGeoFiles)}
     data-path-map-data={JSON.stringify(pathMapData)}
   ></div>
   <div id="big-map-controls"></div>
@@ -76,10 +74,10 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
   import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
+  import { createTileLoader, type TileManifestEntry, type TileLoader } from '../lib/maps/tile-loader';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState } from './admin/MapControls';
   import maplibregl from 'maplibre-gl';
-
 
   interface PathFeatureProps {
     slug: string;
@@ -98,9 +96,10 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
     const allPhotos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
-    const pathGeoFiles: string[] = JSON.parse(el.dataset.pathGeoFiles || '[]');
-    const pathMapData: Array<{ relId: string; slug: string; name: string; interactive: boolean; surface?: string }> =
+    const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string }> =
       JSON.parse(el.dataset.pathMapData || '[]');
+
+    const hasPaths = pathMapData.length > 0;
 
     // --- Category filter from URL query param ---
     const categoryFilter = new URLSearchParams(location.search).get('category');
@@ -124,52 +123,44 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    // --- Bike paths layer ---
-    const pathInfoByRelId = new Map(pathMapData.map(p => [p.relId, p]));
+    // --- Bike paths tile loader ---
+    const pathInfoByGeoId = new Map(pathMapData.map(p => [p.relId, p]));
 
-    let pathFeaturesCache: GeoJSON.Feature[] | null = null;
+    let tileLoader: TileLoader | null = null;
+    let pathsLayerCreated = false;
+    let pathsVisible = false;
 
-    async function loadPathFeatures(): Promise<GeoJSON.Feature[]> {
-      if (pathFeaturesCache) return pathFeaturesCache;
-      const allFeatures: GeoJSON.Feature[] = [];
-      for (const file of pathGeoFiles) {
-        try {
-          const res = await fetch(`/paths/geo/${file}`);
-          if (!res.ok) continue;
-          const geojson = await res.json();
-          const relationId = file.replace(/\.geojson$/, '');
-          const info = pathInfoByRelId.get(relationId);
+    // Eagerly fetch manifest so it's ready when user toggles paths
+    let manifestPromise: Promise<TileManifestEntry[]> | null = null;
+    if (hasPaths) {
+      manifestPromise = fetch('/paths/geo/tiles/manifest.json')
+        .then(res => res.ok ? res.json() : [])
+        .catch(() => []);
+    }
 
-          for (const feature of geojson.features) {
-            feature.properties = feature.properties || {};
-            feature.properties.slug = info?.slug || '';
-            feature.properties.name = info?.name || '';
-            feature.properties.surface = info?.surface || '';
-            feature.properties.hasPage = info?.hasPage ? 'true' : '';
-            feature.properties.interactive = info?.interactive ? 'true' : '';
-            feature.properties.relId = relationId;
-            allFeatures.push(feature);
-          }
-        } catch { /* skip missing files */ }
+    function enrichFeatures(features: GeoJSON.Feature[]): GeoJSON.Feature[] {
+      for (const f of features) {
+        const geoId = f.properties?._geoId;
+        if (!geoId) continue;
+        const info = pathInfoByGeoId.get(geoId);
+        if (info) {
+          f.properties!.slug = info.slug;
+          f.properties!.name = info.name;
+          f.properties!.surface = info.surface || '';
+          f.properties!.hasPage = info.hasPage ? 'true' : '';
+          f.properties!.interactive = info.interactive ? 'true' : '';
+          f.properties!.relId = geoId;
+        }
       }
-      pathFeaturesCache = allFeatures;
-      return allFeatures;
+      return features;
+    }
+
+    function getMapBounds(): [number, number, number, number] {
+      const b = map.getBounds();
+      return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
     }
 
     function setupPathsLayer(features: GeoJSON.Feature[]) {
-      // Remove existing paths layer/source if present (for style switch replay)
-      const style = map.getStyle();
-      if (style?.layers) {
-        for (const layer of style.layers) {
-          if ('source' in layer && layer.source === 'paths-network' && map.getLayer(layer.id)) {
-            map.removeLayer(layer.id);
-          }
-        }
-      }
-      if (map.getSource('paths-network')) {
-        map.removeSource('paths-network');
-      }
-
       if (features.length === 0) return;
 
       map.addSource('paths-network', {
@@ -177,17 +168,12 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         data: { type: 'FeatureCollection', features },
       });
 
-      // Non-interactive paths: thinner, no popup, no cursor change
       map.addLayer({
         id: 'paths-network-bg',
         type: 'line',
         source: 'paths-network',
         filter: ['!=', ['get', 'interactive'], 'true'],
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round',
-          'visibility': 'none',
-        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
           'line-width': Math.max(1, ROUTE_LINE_WIDTH - 2),
@@ -195,17 +181,12 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         },
       });
 
-      // Interactive paths: normal width, clickable
       map.addLayer({
         id: 'paths-network-line',
         type: 'line',
         source: 'paths-network',
         filter: ['==', ['get', 'interactive'], 'true'],
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round',
-          'visibility': 'none',
-        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
           'line-width': ROUTE_LINE_WIDTH,
@@ -213,7 +194,6 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         },
       });
 
-      // Click popup on interactive paths only
       function esc(s: string): string {
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
@@ -221,7 +201,6 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         if (!e.features?.length) return;
         const props = e.features[0].properties as PathFeatureProps;
         const name = esc(props.name);
-        // All interactive paths have pages — link directly
         const nameLink = props.slug
           ? `<a href="/paths/${esc(props.slug)}">${name}</a>`
           : name;
@@ -233,9 +212,52 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
       });
       map.on('mouseenter', 'paths-network-line', () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', 'paths-network-line', () => { map.getCanvas().style.cursor = ''; });
+
+      pathsLayerCreated = true;
+    }
+
+    function updatePathsSource() {
+      if (!tileLoader || !pathsLayerCreated) return;
+      const source = map.getSource('paths-network') as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData({ type: 'FeatureCollection', features: tileLoader.allLoadedFeatures() });
+      }
+    }
+
+    function removePathsLayers() {
+      const style = map.getStyle();
+      if (style?.layers) {
+        for (const layer of style.layers) {
+          if ('source' in layer && layer.source === 'paths-network' && map.getLayer(layer.id)) {
+            map.removeLayer(layer.id);
+          }
+        }
+      }
+      if (map.getSource('paths-network')) {
+        map.removeSource('paths-network');
+      }
+      pathsLayerCreated = false;
+    }
+
+    async function showPaths() {
+      if (!manifestPromise) return;
+      if (!tileLoader) {
+        const manifest = await manifestPromise;
+        tileLoader = createTileLoader(manifest, '/paths/geo/tiles/');
+      }
+      const features = await tileLoader.loadTilesForBounds(getMapBounds());
+      enrichFeatures(features);
+
+      if (!pathsLayerCreated) {
+        setupPathsLayer(features);
+      } else {
+        updatePathsSource();
+      }
+      setPathsVisible(true);
     }
 
     function setPathsVisible(visible: boolean) {
+      pathsVisible = visible;
       const vis = visible ? 'visible' : 'none';
       if (map.getLayer('paths-network-bg')) {
         map.setLayoutProperty('paths-network-bg', 'visibility', vis);
@@ -253,6 +275,17 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         }
       }
     }
+
+    // Load more tiles when user pans (only while paths are visible)
+    map.on('moveend', async () => {
+      if (!pathsVisible || !tileLoader) return;
+      const prevCount = tileLoader.allLoadedFeatures().length;
+      const features = await tileLoader.loadTilesForBounds(getMapBounds());
+      if (features.length > prevCount) {
+        enrichFeatures(features);
+        updatePathsSource();
+      }
+    });
 
     function setupWebGLLayers(sk: MapStyleKey) {
       addPolylines(map, routes.map((r: any) => {
@@ -272,12 +305,16 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
       addMarkers(map, placeData);
 
       // Replay paths layer after style switch
-      if (pathFeaturesCache) {
-        setupPathsLayer(pathFeaturesCache);
+      if (tileLoader && tileLoader.allLoadedFeatures().length > 0) {
+        removePathsLayers();
+        setupPathsLayer(tileLoader.allLoadedFeatures());
+        if (pathsVisible) {
+          setPathsVisible(true);
+        }
       }
     }
 
-    map.on('load', async () => {
+    map.on('load', () => {
       setupWebGLLayers(styleKey);
 
       // Hide photos by default on the big map (unless user previously enabled them)
@@ -285,17 +322,9 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
         setPhotoLayersVisible(map, false);
       }
 
-      // Pre-load paths layer (hidden) so toggling is instant
-      const hasPaths = pathGeoFiles.length > 0;
-      if (hasPaths) {
-        const features = await loadPathFeatures();
-        setupPathsLayer(features);
-        // If user had paths mode saved, apply it now
-        const savedPathsState = loadToggleState('map-paths', false);
-        if (savedPathsState) {
-          setPathsVisible(true);
-          setRoutePolylinesVisible(false);
-        }
+      // If user had paths mode saved, load and show them now
+      if (hasPaths && loadToggleState('map-paths', false)) {
+        showPaths().then(() => setRoutePolylinesVisible(false));
       }
 
       // Render MapControls island
@@ -308,8 +337,12 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
           onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
           onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
           onTogglePaths: (v: boolean) => {
-            setPathsVisible(v);
-            setRoutePolylinesVisible(!v);
+            if (v) {
+              showPaths().then(() => setRoutePolylinesVisible(false));
+            } else {
+              setPathsVisible(false);
+              setRoutePolylinesVisible(true);
+            }
           },
           onToggleGps: (v: boolean) => {
             if (v) showUserLocation(map);
@@ -319,10 +352,7 @@ const { routes, places, photos = [], center, pathGeoFiles = [], pathMapData = []
             setupWebGLLayers(key);
             setPhotoLayersVisible(map, loadToggleState('map-photos', false));
             setPlaceMarkersVisible(map, loadToggleState('map-places', true));
-            // Restore paths visibility after style switch
-            const pathsOn = loadToggleState('map-paths', false);
-            if (pathsOn) {
-              setPathsVisible(true);
+            if (pathsVisible) {
               setRoutePolylinesVisible(false);
             }
           }),

@@ -22,7 +22,7 @@ const places = await getCollection('places');
 const organizers = await getCollection('organizers');
 const organizerMap = new Map(organizers.map(o => [o.id, o]));
 
-const { pages: bikePathPages, allYmlEntries, geoFiles } = await loadBikePathData();
+const { pages: bikePathPages, allYmlEntries } = await loadBikePathData();
 
 // Build relation ID → path info for map popups and interactivity
 // Pages are interactive (clickable with popups). Hard-excluded entries render
@@ -180,5 +180,5 @@ const jsonLd = webPageJsonLd({
 ---
 
 <Base title={mapTitle} description={mapDescription} jsonLd={jsonLd} ogImage={ogImage} fullbleed>
-  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} pathGeoFiles={geoFiles} pathMapData={pathMapData} />
+  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} pathMapData={pathMapData} />
 </Base>
