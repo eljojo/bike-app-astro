@@ -25,7 +25,7 @@ test.describe('Bike Path Admin — List (anonymous)', () => {
     await page.waitForLoadState('networkidle');
 
     // Page should load (not redirect to login) thanks to browsable admin paths
-    await expect(page).toHaveURL(/\/admin\/paths/);
+    await expect(page).toHaveURL(/\/admin\/bike-paths/);
     // Should see the heading
     await expect(page.locator('h1')).toContainText('Bike Paths');
   });
