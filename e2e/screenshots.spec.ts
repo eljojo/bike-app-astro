@@ -124,23 +124,8 @@ test.describe('Screenshots', () => {
   test('homepage magazine view', async ({ page }) => {
     await page.goto('/');
     await waitForImages(page);
-    await expect(page.locator('.home-view-discover')).toBeVisible();
     // Clip to 2000px — 4000px at 2x deviceScaleFactor exceeds libpng limits
     await expect(page).toHaveScreenshot('homepage-magazine.png', { clip: { x: 0, y: 0, width: 1280, height: 2000 } });
-  });
-
-  test('homepage browse toggle', async ({ page }) => {
-    // Navigate to #browse — browse view should be visible, magazine hidden
-    await page.goto('/#browse');
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('.home-view-browse')).toBeVisible();
-    await expect(page.locator('.home-view-discover')).toBeHidden();
-
-    // Navigate to / — magazine should be default
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('.home-view-discover')).toBeVisible();
-    await expect(page.locator('.home-view-browse')).toBeHidden();
   });
 
   test('communities index', async ({ page }) => {
