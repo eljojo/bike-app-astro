@@ -31,6 +31,7 @@ const wikiPages: LocalePage[] = [
   { pattern: '/routes/[slug].json', entrypoint: view('routes/route-data.json.ts') },
   { pattern: '/bike-paths', entrypoint: view('paths/index.astro') },
   { pattern: '/bike-paths/[slug]', entrypoint: view('paths/detail.astro') },
+  { pattern: '/bike-shops', entrypoint: view('bike-shops.astro') },
   { pattern: '/guides', entrypoint: view('guides/index.astro') },
   { pattern: '/guides/[slug]', entrypoint: view('guides/detail.astro') },
   { pattern: '/videos', entrypoint: view('videos/index.astro') },
