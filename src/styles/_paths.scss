@@ -297,7 +297,12 @@
   @include muted-text;
   margin-top: 0.5rem;
 
-  // Only relation/search links are block — the inline "OpenStreetMap" link stays inline
+  // Override .bike-path-links a { display: block } — inline links stay inline
+  a {
+    display: inline;
+  }
+
+  // Relation/search links are block (direct children only)
   > a {
     display: block;
     margin-top: 0.15rem;
