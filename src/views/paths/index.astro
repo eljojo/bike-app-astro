@@ -112,8 +112,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           data-listed-ids={JSON.stringify([...listedRelIds])}
           style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
         ></div>
-        <div class="paths-map-touch-lock" id="paths-map-touch-lock">
-          <span class="paths-map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+        <div class="map-touch-lock" id="paths-map-touch-lock">
+          <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
         </div>
       </div>
     )}
@@ -181,6 +181,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 <script>
   import { initMap, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
+  import { setupMapTouchLock } from '../../lib/maps/map-touch-lock';
   import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
   import maplibregl from 'maplibre-gl';
 
@@ -198,56 +199,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const styleKey = loadStylePreference();
     const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
 
-    // Enable pan/zoom for interaction
-    map.scrollZoom.disable();
-    map.doubleClickZoom.disable();
-    map.touchZoomRotate.disable();
-
-    // On mobile: lock the map behind a touch overlay so scrolling works normally.
-    // On desktop: enable drag pan immediately (mouse users expect it).
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const touchLock = document.getElementById('paths-map-touch-lock');
-
-    if (isMobile) {
-      map.dragPan.disable();
-      if (touchLock) {
-        let primed = false;
-
-        touchLock.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (!primed) {
-            primed = true;
-            touchLock.classList.add('primed');
-          } else {
-            // Second tap: activate map, remove overlay
-            touchLock.classList.add('dismissed');
-            map.dragPan.enable();
-            map.touchZoomRotate.enable();
-          }
-        });
-
-        // Reset primed state when user scrolls away
-        let scrollTimer: ReturnType<typeof setTimeout> | null = null;
-        window.addEventListener('scroll', () => {
-          if (primed && !touchLock.classList.contains('dismissed')) {
-            if (scrollTimer) clearTimeout(scrollTimer);
-            scrollTimer = setTimeout(() => {
-              primed = false;
-              touchLock.classList.remove('primed');
-            }, 300);
-          }
-        }, { passive: true });
-      }
-    } else {
-      map.dragPan.enable();
-      touchLock?.remove();
-
-      // Desktop: enable scroll zoom and double-click zoom after first drag
-      map.on('dragstart', () => {
-        map.scrollZoom.enable();
-        map.doubleClickZoom.enable();
-      });
-    }
+    setupMapTouchLock(map, document.getElementById('paths-map-touch-lock'));
 
     function enrichFeatures(features: GeoJSON.Feature[]) {
       for (const f of features) {

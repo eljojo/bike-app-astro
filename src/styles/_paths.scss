@@ -27,7 +27,6 @@
 }
 
 .paths-map-hero-wrapper {
-  position: relative;
   margin-bottom: 2rem;
 }
 
@@ -36,42 +35,7 @@
   overflow: hidden;
 }
 
-// Touch-lock overlay: sits on top of the map on mobile.
-// touch-action: pan-y lets vertical scrolling pass through to the page.
-.paths-map-touch-lock {
-  display: none;
-
-  @media (max-width: $breakpoint-mobile) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    touch-action: pan-y;
-    cursor: pointer;
-    border-radius: $border-radius;
-
-    .paths-map-touch-label {
-      opacity: 0;
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      padding: 6px 16px;
-      border-radius: 16px;
-      font-size: 0.8rem;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-
-    &.primed .paths-map-touch-label {
-      opacity: 1;
-    }
-
-    &.dismissed {
-      display: none;
-    }
-  }
-}
+// Touch-lock overlay moved to global — see _map-touch-lock.scss
 
 .paths-featured {
   margin-bottom: 2.5rem;
