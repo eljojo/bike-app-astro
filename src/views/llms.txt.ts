@@ -57,7 +57,7 @@ export const GET: APIRoute = async () => {
   // Key sections
   const pageLines = [
     `- Routes: ${config.url}/routes`,
-    `- Bike paths: ${config.url}/paths`,
+    `- Bike paths: ${config.url}/bike-paths`,
     `- Map: ${config.url}/map`,
   ];
   if (features.hasEvents) {
@@ -84,7 +84,7 @@ export const GET: APIRoute = async () => {
         if (bp.surface) parts.push(bp.surface);
         if (bp.highway === 'cycleway') parts.push('separated from cars');
         if (bp.operator) parts.push(bp.operator);
-        return `- [${bp.name}](${config.url}/paths/${bp.slug})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
+        return `- [${bp.name}](${config.url}/bike-paths/${bp.slug})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
       });
       sections.push(`## Bike Paths\n\n${pathLines.join('\n')}\n`);
     }

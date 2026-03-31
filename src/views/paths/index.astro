@@ -301,7 +301,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
         if (!e.features?.length) return;
         const slug = e.features[0].properties?.slug;
-        if (slug) window.location.href = `/paths/${slug}`;
+        if (slug) window.location.href = `/bike-paths/${slug}`;
       }
       map.on('click', 'paths-network-line', handlePathClick);
       map.on('click', 'paths-network-bg', handlePathClick);
@@ -356,10 +356,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     map.on('load', async () => {
       let tileLoader: TileLoader;
       try {
-        const res = await fetch('/paths/geo/tiles/manifest.json');
+        const res = await fetch('/bike-paths/geo/tiles/manifest.json');
         if (!res.ok) return;
         const manifest = await res.json();
-        tileLoader = createTileLoader(manifest, '/paths/geo/tiles/');
+        tileLoader = createTileLoader(manifest, '/bike-paths/geo/tiles/');
       } catch {
         return;
       }

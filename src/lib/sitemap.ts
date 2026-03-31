@@ -83,7 +83,7 @@ export function buildSitemapEntries({ routes, guides, events, bikePaths }: {
   }
 
   if (bikePaths && bikePaths.length > 0) {
-    entries.push(...localizedEntry('/paths', 0.7));
+    entries.push(...localizedEntry('/bike-paths', 0.7));
     for (const bp of bikePaths) {
       entries.push(...localizedEntry(paths.bikePath(bp.slug), 0.6));
     }

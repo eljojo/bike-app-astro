@@ -18,7 +18,7 @@ const incomplete = bikePaths
     slug: p.id,
     name: p.name,
     hint: t('admin.sidebar.no_description', locale),
-    editUrl: `/admin/paths/${p.id}`,
+    editUrl: `/admin/bike-paths/${p.id}`,
   }))
   .slice(0, 5);
 
@@ -45,7 +45,7 @@ const sidebarLabels = {
 
         <div class="path-list">
           {bikePaths.map(p => (
-            <a href={`/admin/paths/${p.id}`} class="path-list-item">
+            <a href={`/admin/bike-paths/${p.id}`} class="path-list-item">
               <div class="path-card-info">
                 <span class="path-card-name">{p.name || p.id}</span>
                 {p.vibe && <span class="path-card-vibe">{p.vibe}</span>}
@@ -62,7 +62,7 @@ const sidebarLabels = {
         contentType="bike-paths"
         incomplete={incomplete}
         nameMap={nameMap}
-        editPrefix="/admin/paths"
+        editPrefix="/admin/bike-paths"
         labels={sidebarLabels}
       />
     </div>

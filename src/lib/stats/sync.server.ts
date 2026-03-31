@@ -127,7 +127,7 @@ function buildPagePaths(
     case 'route': prefix = '/routes'; break;
     case 'event': prefix = '/events'; break;
     case 'organizer': prefix = '/communities'; break;
-    case 'bike-path': prefix = '/paths'; break;
+    case 'bike-path': prefix = '/bike-paths'; break;
     default: return [];
   }
 

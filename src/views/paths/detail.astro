@@ -135,7 +135,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
   <div class="bike-path-detail">
     <h1>
       {localeName}
-      <a href={`/admin/paths/${page.slug}`} class="admin-edit-link" aria-label="Edit this path">Edit</a>
+      <a href={`/admin/bike-paths/${page.slug}`} class="admin-edit-link" aria-label="Edit this path">Edit</a>
     </h1>
     {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
 
@@ -144,7 +144,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
       <div class="bike-path-main">
         {(page.stub || !page.hasMarkdown) && (
           <p class="bike-path-stub-cta">
-            {t('paths.stub_cta', locale)} <a href={`/admin/paths/${page.slug}`}>{t('paths.stub_cta_link', locale)}</a>
+            {t('paths.stub_cta', locale)} <a href={`/admin/bike-paths/${page.slug}`}>{t('paths.stub_cta_link', locale)}</a>
           </p>
         )}
 
@@ -152,7 +152,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
           <div class="bike-path-description" set:html={descriptionHtml} />
         )}
 
-        <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/paths/${page.slug}`} />
+        <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
 
         <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 

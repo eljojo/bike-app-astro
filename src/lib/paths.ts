@@ -18,8 +18,8 @@ export const paths = {
   guide: (slug: string, locale?: string) => localize(`/guides/${slug}`, locale),
   video: (handle: string, locale?: string) => localize(`/videos/${handle}`, locale),
   // Bike path pages
-  bikePath: (slug: string, locale?: string) => localize(`/paths/${slug}`, locale),
-  bikePaths: (locale?: string) => localize('/paths', locale),
+  bikePath: (slug: string, locale?: string) => localize(`/bike-paths/${slug}`, locale),
+  bikePaths: (locale?: string) => localize('/bike-paths', locale),
   // Community paths
   community: (slug: string, locale?: string) => localize(`/communities/${slug}`, locale),
   communities: (locale?: string) => localize('/communities', locale),

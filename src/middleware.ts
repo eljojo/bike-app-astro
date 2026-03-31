@@ -20,7 +20,7 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/places',
   '/admin/events',
   '/admin/communities',
-  '/admin/paths',
+  '/admin/bike-paths',
   '/admin/history',
 ]);
 
@@ -30,7 +30,7 @@ const BROWSABLE_ADMIN_PREFIXES = [
   '/admin/events/',
   '/admin/places/',
   '/admin/communities/',
-  '/admin/paths/',
+  '/admin/bike-paths/',
 ];
 
 /** API paths that support anonymous browsing (rate-limited in the endpoint). */

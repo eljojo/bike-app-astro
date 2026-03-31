@@ -51,7 +51,7 @@ const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json
 const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
 ---
 
-<AdminEditorLayout title={`Edit: ${bikePathData.name || bikePathData.id}`} viewLink={`/paths/${bikePathData.id}`} hideTitle user={user} currentTab="bike-paths">
+<AdminEditorLayout title={`Edit: ${bikePathData.name || bikePathData.id}`} viewLink={`/bike-paths/${bikePathData.id}`} hideTitle user={user} currentTab="bike-paths">
   <BikePathEditor client:load initialData={bikePathData} userRole={user?.role} cdnUrl={cdnUrl} knownTags={knownTags} secondaryLocales={secondaryLocales} />
   <EditHistory client:load contentPath={`${CITY}/bike-paths/${bikePathData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
 </AdminEditorLayout>

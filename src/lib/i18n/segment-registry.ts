@@ -21,7 +21,7 @@ const segmentTranslations: Record<string, Record<string, string>> = {
   map: { fr: 'carte', es: 'mapa' },
   routes: { fr: 'parcours', es: 'rutas' },
   guides: { fr: 'guides', es: 'guias' },
-  paths: { fr: 'sentiers', es: 'senderos' },
+  'bike-paths': { fr: 'pistes-cyclables', es: 'ciclovias' },
   // club
   places: { fr: 'lieux', es: 'lugares' },
   // blog

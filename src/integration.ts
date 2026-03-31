@@ -276,6 +276,12 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           lines.push(...translatedRedirects);
         }
 
+        // Renamed URL redirects
+        lines.push('');
+        lines.push('# /paths renamed to /bike-paths');
+        lines.push('/paths  /bike-paths  301');
+        lines.push('/paths/:slug  /bike-paths/:slug  301');
+
         const content = lines.join('\n');
         if (content) {
           fs.writeFileSync(path.join(dir.pathname, '_redirects'), content);

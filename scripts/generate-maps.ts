@@ -245,7 +245,7 @@ async function main() {
   }
 
   // --- Bike Paths: generate thumbnails from cached GeoJSON geometry ---
-  const geoDir = path.join('public', 'paths', 'geo');
+  const geoDir = path.join('public', 'bike-paths', 'geo');
   if (fs.existsSync(geoDir)) {
     const { loadBikePathEntries } = await import('../src/lib/bike-paths/bike-path-entries.server');
     const { pages } = loadBikePathEntries();

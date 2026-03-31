@@ -25,7 +25,7 @@ export function liveUrl(contentType: string, contentSlug: string): string {
     case 'route': return `/routes/${contentSlug}`;
     case 'event': return `/events/${contentSlug}`;
     case 'organizer': return `/communities/${contentSlug}`;
-    case 'bike-path': return `/paths/${contentSlug}`;
+    case 'bike-path': return `/bike-paths/${contentSlug}`;
     default: return '#';
   }
 }
@@ -35,7 +35,7 @@ export function adminUrl(contentType: string, contentSlug: string): string {
     case 'route': return `/admin/routes/${contentSlug}`;
     case 'event': return `/admin/events/${contentSlug}`;
     case 'organizer': return `/admin/communities/${contentSlug}`;
-    case 'bike-path': return `/admin/paths/${contentSlug}`;
+    case 'bike-path': return `/admin/bike-paths/${contentSlug}`;
     default: return '#';
   }
 }

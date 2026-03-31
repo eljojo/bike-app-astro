@@ -11,7 +11,7 @@ import path from 'node:path';
 
 const CITY = process.env.CITY || 'ottawa';
 const cacheDir = path.resolve('.cache', 'bikepath-geometry', CITY);
-const outDir = path.join('public', 'paths', 'geo');
+const outDir = path.join('public', 'bike-paths', 'geo');
 
 if (!fs.existsSync(cacheDir)) {
   console.log(`[path-geo] No geometry cache at ${cacheDir} — skipping`);

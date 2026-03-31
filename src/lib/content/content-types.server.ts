@@ -93,9 +93,9 @@ export const contentTypes: ContentTypeConfig[] = [
     label: 'Bike Paths',
     featureGate: 'hasPaths',
     ops: bikePathOps,
-    adminListRoute: { pattern: '/admin/paths', entrypoint: 'admin/bike-paths.astro' },
+    adminListRoute: { pattern: '/admin/bike-paths', entrypoint: 'admin/bike-paths.astro' },
     adminDetailRoutes: [
-      { pattern: '/admin/paths/[id]', entrypoint: 'admin/bike-path-detail.astro' },
+      { pattern: '/admin/bike-paths/[id]', entrypoint: 'admin/bike-path-detail.astro' },
     ],
     apiRoutes: [
       { pattern: '/api/bike-paths/[id]', entrypoint: 'api/bike-path-save.ts' },

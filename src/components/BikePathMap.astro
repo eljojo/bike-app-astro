@@ -85,7 +85,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         const bounds = new maplibregl.LngLatBounds();
         for (const file of geoFiles) {
           try {
-            const res = await fetch(`/paths/geo/${file}`);
+            const res = await fetch(`/bike-paths/geo/${file}`);
             if (!res.ok) continue;
             const geojson = await res.json();
             for (const feature of geojson.features) {

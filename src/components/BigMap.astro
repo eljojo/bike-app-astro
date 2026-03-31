@@ -133,7 +133,7 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
     // Eagerly fetch manifest so it's ready when user toggles paths
     let manifestPromise: Promise<TileManifestEntry[]> | null = null;
     if (hasPaths) {
-      manifestPromise = fetch('/paths/geo/tiles/manifest.json')
+      manifestPromise = fetch('/bike-paths/geo/tiles/manifest.json')
         .then(res => res.ok ? res.json() : [])
         .catch(() => []);
     }
@@ -202,7 +202,7 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
         const props = e.features[0].properties as PathFeatureProps;
         const name = esc(props.name);
         const nameLink = props.slug
-          ? `<a href="/paths/${esc(props.slug)}">${name}</a>`
+          ? `<a href="/bike-paths/${esc(props.slug)}">${name}</a>`
           : name;
         const surfaceInfo = props.surface ? `<br>${esc(props.surface)}` : '';
         new maplibregl.Popup()
@@ -243,7 +243,7 @@ const { routes, places, photos = [], center, pathMapData = [] } = Astro.props;
       if (!manifestPromise) return;
       if (!tileLoader) {
         const manifest = await manifestPromise;
-        tileLoader = createTileLoader(manifest, '/paths/geo/tiles/');
+        tileLoader = createTileLoader(manifest, '/bike-paths/geo/tiles/');
       }
       const features = await tileLoader.loadTilesForBounds(getMapBounds());
       enrichFeatures(features);

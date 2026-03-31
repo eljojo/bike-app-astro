@@ -204,7 +204,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
       <EditorActions
         error={error} githubUrl={githubUrl} saved={saved} saving={saving}
         onSave={handleSave} onDismiss={dismissSaved} contentType="bike path" userRole={userRole}
-        viewLink="/admin/paths"
+        viewLink="/admin/bike-paths"
         licenseDocsUrl="https://whereto.bike/about/licensing/"
       />
       </div>
