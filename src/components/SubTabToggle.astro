@@ -1,0 +1,22 @@
+---
+import './SubTabToggle.scss';
+
+interface TabItem {
+  label: string;
+  href: string;
+  active: boolean;
+}
+
+interface Props {
+  items: TabItem[];
+}
+
+const { items } = Astro.props;
+---
+<div class="sub-tab-toggle">
+  {items.map(item => (
+    item.active
+      ? <span class="sub-tab-btn active">{item.label}</span>
+      : <a href={item.href} class="sub-tab-btn">{item.label}</a>
+  ))}
+</div>
