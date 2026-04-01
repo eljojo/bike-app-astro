@@ -32,6 +32,14 @@ lint: ## Run ESLint checks
 test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright screenshot tests
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
+	@node -e "\
+	  const fs = require('fs');\
+	  const f = 'dist/server/wrangler.json';\
+	  const c = JSON.parse(fs.readFileSync(f, 'utf8'));\
+	  c.vars = { ...c.vars, R2_ACCOUNT_ID: 'test-account-id' };\
+	  c.d1_databases = [{ binding: 'DB', database_name: 'test', database_id: 'local' }];\
+	  fs.writeFileSync(f, JSON.stringify(c));"
+	@for f in drizzle/migrations/*.sql; do npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$$f"; done
 	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots)
 
 test-update: prebuild ## Update screenshot baselines
