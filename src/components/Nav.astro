@@ -16,7 +16,7 @@ function isActive(path: string): boolean {
 
 const isWiki = features.hasRoutes && !features.hasRides && !features.hasEnrichedEvents;
 const rideActive = isWiki && (isActive('/routes') || isActive('/bike-paths'));
-const communityActive = isWiki && (isActive('/calendar') || isActive('/communities') || isActive('/bike-shops'));
+const communityActive = isWiki && (isActive('/calendar') || isActive('/communities') || isActive('/bike-shops') || isActive('/events'));
 
 // Link to the current sub-section so clicking "Ride" on a bike path page goes to /bike-paths
 const rideHref = isActive('/bike-paths') ? localePath('/bike-paths', locale) : localePath('/routes', locale);

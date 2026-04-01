@@ -75,6 +75,14 @@ test.describe('Nav contextual links', () => {
     const rideLink = page.locator('.top-nav a.nav-active');
     await expect(rideLink).toHaveAttribute('href', '/fr/pistes-cyclables');
   });
+
+  test('Community nav is active on event detail page and links to /calendar', async ({ page }) => {
+    await page.goto('/events/2026/demo-ride');
+    const communityLink = page.locator('.top-nav a.nav-active');
+    // Demo city default locale is es-CL: "Comunidad"
+    await expect(communityLink).toContainText('Comunidad');
+    await expect(communityLink).toHaveAttribute('href', '/calendar');
+  });
 });
 
 test.describe('Bike path detail page', () => {
