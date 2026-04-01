@@ -10,8 +10,8 @@ import { haversineM } from '../src/lib/geo/proximity';
  * output; this test ensures the fixture data itself is valid.
  */
 describe('demo bike path GeoJSON fixture', () => {
-  const cacheDir = path.resolve('.cache', 'bikepath-geometry', 'demo');
-  const geoFile = path.join(cacheDir, 'name-ciclovia-avenida-ecuador.geojson');
+  const fixtureDir = path.resolve('e2e', 'fixtures', 'overpass');
+  const geoFile = path.join(fixtureDir, 'name-ciclovia-avenida-ecuador.geojson');
 
   it('fixture file exists', () => {
     expect(fs.existsSync(geoFile)).toBe(true);
