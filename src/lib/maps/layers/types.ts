@@ -35,7 +35,8 @@ export interface MapSession {
   getLayer(id: string): MapLayer | undefined;
   /**
    * Start the session: wait for map load, run all layer setups, fit bounds.
-   * Call after all use() calls.
+   * Call after all use() calls. The optional onReady callback fires after
+   * all layer setups complete (including async ones).
    */
-  start(): void;
+  start(onReady?: () => void): void;
 }

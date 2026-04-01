@@ -9,6 +9,8 @@ export interface MapSessionOptions {
   el: HTMLElement;
   center: [number, number];
   zoom: number;
+  /** If false, skip auto-fitting bounds after layer setup. Default: true. */
+  fitBounds?: boolean;
 }
 
 export function createMapSession(opts: MapSessionOptions): MapSession & {
@@ -77,10 +79,11 @@ export function createMapSession(opts: MapSessionOptions): MapSession & {
       return layers.find(l => l.id === id);
     },
 
-    start() {
+    start(onReady?: () => void) {
       map.on('load', async () => {
         await setupAll(initialStyleKey);
-        fitAllBounds();
+        if (opts.fitBounds !== false) fitAllBounds();
+        onReady?.();
       });
     },
 

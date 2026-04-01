@@ -157,7 +157,7 @@ const hasPaths = pathMapData.length > 0;
       fetchPath: '/bike-paths/geo/tiles/',
     });
 
-    const session = createMapSession({ el, center, zoom: 11 })
+    const session = createMapSession({ el, center, zoom: 11, fitBounds: false })
       .use(polylineLayer)
       .use(photoLayer)
       .use(placeLayer)
@@ -165,14 +165,12 @@ const hasPaths = pathMapData.length > 0;
 
     if (hasPaths) session.use(tilePathLayer);
 
-    session.start();
-
     const { map } = session;
-
-    // After load: handle initial visibility and paths mode
     let pathsVisible = initialShowPaths;
 
-    map.on('load', () => {
+    session.start(() => {
+      // onReady: all layers (including async tile-path) are set up
+
       // Photos off by default on big map (unless user previously enabled)
       if (!loadToggleState('map-photos', false)) {
         photoLayer.setVisible!(map, false);
