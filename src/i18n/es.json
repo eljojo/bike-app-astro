@@ -617,6 +617,7 @@
   "paths.label.lit": "Iluminación",
   "paths.label.operator": "Operador",
   "paths.label.network": "Red",
+  "paths.label.alongside": "Junto a",
   "paths.lit_yes": "Sí",
   "paths.lit_no": "No",
   "paths.go_back": "Todas las ciclovías",

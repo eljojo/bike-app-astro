@@ -27,6 +27,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
   description: z.string().optional(),
   cycleway: z.string().optional(),
   ref: z.string().optional(),
+  parallel_to: z.string().optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
 });
 

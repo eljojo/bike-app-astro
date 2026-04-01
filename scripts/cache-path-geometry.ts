@@ -39,6 +39,7 @@ interface BikePathEntry {
   osm_names?: string[];
   anchors?: Array<[number, number]>; // [lng, lat] tuples
   segments?: Array<{ osm_way: number; [k: string]: unknown }>;
+  parallel_to?: string;
 }
 
 /**
@@ -237,6 +238,59 @@ for (const entry of segmentEntries) {
   }
 }
 
+// --- Pass 4: Parallel-to entries — unnamed cycleways alongside named roads ---
+const parallelEntries = raw.bike_paths.filter(
+  (e: BikePathEntry) => e.parallel_to && (!e.osm_relations || e.osm_relations.length === 0),
+);
+
+if (parallelEntries.length > 0) {
+  console.log(`\nPass 4: Fetching geometry for ${parallelEntries.length} parallel-to entries...`);
+
+  for (const entry of parallelEntries) {
+    const slug = slugify(entry.name);
+    const outFile = path.join(CACHE_DIR, `parallel-${slug}.geojson`);
+
+    if (!forceRefresh && fs.existsSync(outFile)) {
+      skipped++;
+      continue;
+    }
+
+    if (!entry.anchors || entry.anchors.length < 2) {
+      console.log(`  [skip] ${entry.name} — no anchors for bbox`);
+      continue;
+    }
+
+    const bbox = anchorBbox(entry.anchors as Array<[number, number]>);
+    const roadName = entry.parallel_to!.replace(/'/g, "\\'");
+
+    const q = `[out:json][timeout:60];
+way["name"="${roadName}"](${bbox}) -> .road;
+way["highway"="cycleway"][!"name"](around.road:30);
+(._;>;);
+out geom;`;
+
+    if (dryRun) {
+      console.log(`  [dry-run] parallel-${slug}: ${entry.parallel_to}`);
+      continue;
+    }
+
+    try {
+      const data = await queryOverpass(q);
+      const geojson = overpassToGeoJSON(data, `parallel-${slug}`);
+      if (geojson.features.length === 0) {
+        console.log(`  [empty] parallel-${slug}: no geometry found`);
+        continue;
+      }
+
+      fs.writeFileSync(outFile, JSON.stringify(geojson));
+      fetched++;
+      console.log(`  parallel-${slug}: ${geojson.features.length} features`);
+    } catch (err: any) {
+      console.error(`  [error] parallel-${slug}: ${err.message}`);
+    }
+  }
+}
+
 console.log(`[path-geo] Done. Fetched: ${fetched}, Cached: ${skipped}`);
 
 // --- Elevation enrichment (featured paths only) ---
@@ -313,6 +367,10 @@ if (!dryRun) {
     // Segment-based files
     if (entry.segments?.length && (!entry.osm_relations || entry.osm_relations.length === 0)) {
       featuredCacheFiles.add(`seg-${slugify(entry.name)}.geojson`);
+    }
+    // Parallel-to files
+    if (entry.parallel_to && (!entry.osm_relations || entry.osm_relations.length === 0)) {
+      featuredCacheFiles.add(`parallel-${slugify(entry.name)}.geojson`);
     }
   }
 

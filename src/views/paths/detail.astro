@@ -205,6 +205,9 @@ const breadcrumbs = breadcrumbJsonLd([
           {page.surface && (
             <tr><td>{t('paths.label.surface', locale)}</td><td>{displaySurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
           )}
+          {page.parallel_to && (
+            <tr><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
+          )}
           {page.highway === 'cycleway' && (
             <tr><td>{t('paths.label.separated', locale)}</td><td>{t('paths.fact.separated_cars', locale)}</td></tr>
           )}

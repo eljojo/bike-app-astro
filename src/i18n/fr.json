@@ -617,6 +617,7 @@
   "paths.label.lit": "Éclairage",
   "paths.label.operator": "Gestionnaire",
   "paths.label.network": "Réseau",
+  "paths.label.alongside": "Le long de",
   "paths.lit_yes": "Oui",
   "paths.lit_no": "Non",
   "paths.go_back": "Tous les sentiers cyclables",

@@ -617,6 +617,7 @@
   "paths.label.lit": "Lighting",
   "paths.label.operator": "Operator",
   "paths.label.network": "Network",
+  "paths.label.alongside": "Alongside",
   "paths.lit_yes": "Yes",
   "paths.lit_no": "No",
   "paths.go_back": "All bike paths",

@@ -84,6 +84,8 @@ export interface BikePathPage {
   operator?: string;
   network?: string;
   highway?: string;
+  /** Road name this path runs alongside (for parallel bike lanes). */
+  parallel_to?: string;
   /** Locale-specific content overrides from .{locale}.md files + YML name_fr. */
   translations: Record<string, BikePathTranslation>;
 }
@@ -147,6 +149,9 @@ function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
   if (totalKm === 0 && entry.segments?.length) {
     totalKm = readGeoLengthKm(path.join(geoDir, `seg-${entry.slug}.geojson`));
   }
+  if (totalKm === 0 && entry.parallel_to) {
+    totalKm = readGeoLengthKm(path.join(geoDir, `parallel-${entry.slug}.geojson`));
+  }
   return totalKm > 0 ? Math.round(totalKm * 10) / 10 : undefined;
 }
 
@@ -165,6 +170,10 @@ function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: num
 
   if (points.length === 0 && entry.segments?.length) {
     points.push(...readGeoPoints(path.join(geoDir, `seg-${entry.slug}.geojson`)));
+  }
+
+  if (points.length === 0 && entry.parallel_to) {
+    points.push(...readGeoPoints(path.join(geoDir, `parallel-${entry.slug}.geojson`)));
   }
 
   if (points.length === 0) {
@@ -187,6 +196,8 @@ function entryGeoFiles(entries: SluggedBikePathYml[]): string[] {
       files.push(`name-${e.slug}.geojson`);
     } else if (e.segments?.length) {
       files.push(`seg-${e.slug}.geojson`);
+    } else if (e.parallel_to) {
+      files.push(`parallel-${e.slug}.geojson`);
     }
   }
   return files;
@@ -392,6 +403,7 @@ export function loadBikePathEntries(): {
       operator: normalizeOperator(md.data.operator ?? primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
+      parallel_to: primary?.parallel_to,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
       translations: primary ? readBikePathTranslations(md.id, primary) : {},
     });
@@ -435,6 +447,7 @@ export function loadBikePathEntries(): {
       operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
+      parallel_to: entry.parallel_to,
       wikipedia: entry.wikipedia,
       translations: readBikePathTranslations(entry.slug, entry),
     });
