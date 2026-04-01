@@ -118,6 +118,34 @@ function computeContentHashes(): { hashes: Record<string, string>; tourMembershi
     });
   }
 
+  // Bike paths — hash bikepaths.yml + individual markdown files
+  const bikePathsYml = path.join(cityDir, 'bikepaths.yml');
+  if (fs.existsSync(bikePathsYml)) {
+    const ymlHash = createHash('md5').update(fs.readFileSync(bikePathsYml)).digest('hex');
+    const bikePathsMdDir = path.join(cityDir, 'bike-paths');
+    if (fs.existsSync(bikePathsMdDir)) {
+      // Track which base slugs we've already hashed (avoid duplicates from locale variants)
+      const hashedSlugs = new Set<string>();
+      for (const file of fs.readdirSync(bikePathsMdDir)) {
+        if (!file.endsWith('.md')) continue;
+        // Extract base slug: "canal-pathway.fr.md" → "canal-pathway", "canal-pathway.md" → "canal-pathway"
+        const slug = file.replace(/\.\w{2}\.md$/, '').replace(/\.md$/, '');
+        if (hashedSlugs.has(slug)) continue;
+        hashedSlugs.add(slug);
+
+        const hash = createHash('md5');
+        hash.update(ymlHash); // YML changes invalidate all bike paths
+        // Hash all locale variants for this slug
+        for (const mdFile of fs.readdirSync(bikePathsMdDir)) {
+          if (mdFile === `${slug}.md` || mdFile.match(new RegExp(`^${slug}\\.\\w{2}\\.md$`))) {
+            hash.update(fs.readFileSync(path.join(bikePathsMdDir, mdFile)));
+          }
+        }
+        hashes[`bike-path:${slug}`] = hash.digest('hex');
+      }
+    }
+  }
+
   return { hashes, tourMembership };
 }
 

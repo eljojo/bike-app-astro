@@ -18,7 +18,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import { slugifyBikePathName } from '../src/lib/bike-paths/bikepaths-yml';
+import { slugifyBikePathName } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
@@ -313,7 +313,7 @@ if (!dryRun) {
   // --- Determine which cache files belong to featured paths ---
 
   // 1. Parse YML entries with canonical slugs (single source of truth)
-  const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml');
+  const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml.server');
   const sluggedEntries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
   const ymlBySlug = new Map(sluggedEntries.map(e => [e.slug, e]));
 

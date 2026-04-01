@@ -11,19 +11,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Feature, FeatureCollection, Position } from 'geojson';
 
+import type { TileManifestEntry } from '../src/lib/maps/tile-types';
+export type { TileManifestEntry };
+
 export interface TileData {
   features: Feature[];
   minLng: number;
   minLat: number;
   maxLng: number;
   maxLat: number;
-}
-
-export interface TileManifestEntry {
-  id: string;
-  bounds: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
-  featureCount: number;
-  file: string;
 }
 
 /** Extract all coordinate positions from a feature's geometry. */

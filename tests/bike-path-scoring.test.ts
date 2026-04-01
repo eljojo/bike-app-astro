@@ -1,7 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD } from '../src/lib/bike-paths/bike-path-scoring';
+import { describe, it, expect, vi } from 'vitest';
+import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD } from '../src/lib/bike-paths/bike-path-scoring.server';
 import { normalizeOperator } from '../src/lib/bike-paths/bike-path-data.server';
-import type { SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml';
+import type { SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
+
+vi.mock('../src/lib/config/city-config', () => ({
+  getCityConfig: () => ({
+    locales: ['en-CA', 'fr-CA'],
+    operator_aliases: {
+      NCC: ['ncc', 'ccn', 'national capital commission', 'commission de la capitale nationale'],
+    },
+  }),
+}));
 
 function entry(overrides: Partial<SluggedBikePathYml> & { name: string }): SluggedBikePathYml {
   return { slug: 'test', ...overrides };
@@ -53,7 +62,7 @@ describe('isHardExcluded', () => {
 });
 
 describe('normalizeOperator', () => {
-  it('normalizes NCC variants to canonical name', () => {
+  it('normalizes operator variants to canonical name using city config', () => {
     expect(normalizeOperator('NCC')).toBe('NCC');
     expect(normalizeOperator('CCN NCC')).toBe('NCC');
     expect(normalizeOperator('NCC/CCN')).toBe('NCC');
@@ -61,7 +70,7 @@ describe('normalizeOperator', () => {
     expect(normalizeOperator('National Capital Commission')).toBe('NCC');
   });
 
-  it('passes through other operators unchanged', () => {
+  it('passes through operators with no matching alias unchanged', () => {
     expect(normalizeOperator('City of Ottawa')).toBe('City of Ottawa');
     expect(normalizeOperator('Russell Township')).toBe('Russell Township');
   });

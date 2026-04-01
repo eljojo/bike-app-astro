@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slugifyBikePathName, parseBikePathsYml } from '../src/lib/bike-paths/bikepaths-yml';
+import { slugifyBikePathName, parseBikePathsYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 describe('slugifyBikePathName', () => {
   it('converts path name to kebab-case slug', () => {

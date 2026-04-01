@@ -31,7 +31,7 @@ const { pages: bikePathPages, allYmlEntries } = features.hasPaths
 // Build relation ID → path info for map popups and interactivity
 // Pages are interactive (clickable with popups). Hard-excluded entries render
 // but are non-interactive (thinner, no popup, no cursor change).
-import { isHardExcluded } from '../lib/bike-paths/bike-path-scoring';
+import { isHardExcluded } from '../lib/bike-paths/bike-path-scoring.server';
 
 // Map geo file ID → metadata. IDs are relation IDs (e.g., "12345") or
 // prefixed slugs (e.g., "name-foo", "seg-bar") matching the .geojson filenames.

@@ -56,7 +56,7 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   useEffect(() => {
     if (initialRender.current) { initialRender.current = false; return; }
     setDirty(true);
-  }, [name, translations, vibe, hidden, stub, featured, photoKey, tags.length, wikipedia, operator, body]);
+  }, [name, translations, vibe, hidden, stub, featured, photoKey, tags, wikipedia, operator, body]);
 
   const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
     apiBase: '/api/bike-paths',

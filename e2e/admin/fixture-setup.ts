@@ -662,7 +662,7 @@ The canal pathway runs from downtown to the locks.
   ].join(' && '), {
     cwd: FIXTURE_DIR,
     stdio: 'pipe',
-    env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE },
+    env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE, GIT_CEILING_DIRECTORIES: path.dirname(FIXTURE_DIR) },
   });
 
   // Clean ALL Astro caches to prevent stale data from the main Cloudflare build.

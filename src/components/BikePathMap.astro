@@ -312,16 +312,16 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
   }
 
   .bike-path-map-overlay {
-    display: none;
+    visibility: hidden;
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s;
 
     &.visible {
-      display: block;
+      visibility: visible;
       opacity: 1;
     }
   }

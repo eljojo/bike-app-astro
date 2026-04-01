@@ -10,11 +10,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
-import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml';
+import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml.server';
 import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from '../geo/geojson-sampling';
-import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring';
+import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring.server';
 import { haversineM } from '../geo/proximity';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
+import { getCityConfig } from '../config/city-config';
 
 // Resolve project root from this file's location (src/lib/bike-paths/) — avoids CWD dependency.
 // Lazy: import.meta.dirname is undefined in workerd (Cloudflare prerender), but this code
@@ -90,16 +91,20 @@ export interface BikePathPage {
   translations: Record<string, BikePathTranslation>;
 }
 
-// TODO: move operator aliases to city config (operator_aliases field) so each
-// city can define its own normalization rules. Currently Ottawa-specific.
-const OPERATOR_ALIASES: Array<{ pattern: RegExp; canonical: string }> = [
-  { pattern: /\b(ncc|ccn|national capital commission|commission de la capitale nationale)\b/i, canonical: 'NCC' },
-];
+function buildOperatorAliases(): Array<{ pattern: RegExp; canonical: string }> {
+  const config = getCityConfig();
+  const aliases = (config as unknown as Record<string, unknown>).operator_aliases as Record<string, string[]> | undefined;
+  if (!aliases) return [];
+  return Object.entries(aliases).map(([canonical, variants]) => ({
+    pattern: new RegExp(`\\b(${variants.join('|')})\\b`, 'i'),
+    canonical,
+  }));
+}
 
 /** Normalize operator names — OSM has many variants for the same org. */
 export function normalizeOperator(operator: string | undefined): string | undefined {
   if (!operator) return undefined;
-  for (const alias of OPERATOR_ALIASES) {
+  for (const alias of buildOperatorAliases()) {
     if (alias.pattern.test(operator)) return alias.canonical;
   }
   return operator;

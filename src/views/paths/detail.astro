@@ -14,10 +14,16 @@ import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
-  return pages.map(page => ({
+  const filtered = filterByBuildPlan(
+    pages.map(p => ({ ...p, id: p.slug })),
+    loadBuildPlan(),
+    'bike-path',
+  );
+  return filtered.map(page => ({
     params: { slug: page.slug },
     props: { page },
   }));

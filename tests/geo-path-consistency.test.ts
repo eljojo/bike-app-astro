@@ -32,13 +32,3 @@ describe('demo bike path GeoJSON fixture', () => {
     expect(km).toBe(3.1);
   });
 });
-
-describe('parallel_to geo file resolution', () => {
-  it('bike-path-entries resolves parallel-{slug}.geojson files', () => {
-    const source = fs.readFileSync(
-      path.join(__dirname, '..', 'src', 'lib', 'bike-paths', 'bike-path-entries.server.ts'),
-      'utf-8',
-    );
-    expect(source).toContain('parallel-${entry.slug}.geojson');
-  });
-});

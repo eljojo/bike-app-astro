@@ -1,4 +1,5 @@
-import type { SluggedBikePathYml } from './bikepaths-yml';
+import type { SluggedBikePathYml } from './bikepaths-yml.server';
+import { supportedLocales } from '../i18n/locale-utils';
 
 const EXCLUDED_HIGHWAYS = new Set([
   'tertiary', 'secondary', 'primary', 'residential',
@@ -35,7 +36,9 @@ export function scoreBikePath(entry: SluggedBikePathYml, routeOverlapCount: numb
   if (entry.operator) score += 2;
   if (entry.website || entry.wikidata) score += 2;
   if (entry.highway === 'cycleway') score += 1;
-  if (entry.name_en && entry.name_fr) score += 1;
+  const locales = supportedLocales();
+  const translatedCount = locales.filter(loc => (entry as Record<string, unknown>)[`name_${loc}`]).length;
+  if (translatedCount >= 2) score += 1;
   if (entry.surface === 'asphalt') score += 1;
   return score;
 }

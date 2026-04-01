@@ -17,7 +17,7 @@ export type { BikePathPage } from './bike-path-entries.server';
 // Re-export the type for downstream consumers
 import { loadBikePathEntries } from './bike-path-entries.server';
 import type { BikePathPage } from './bike-path-entries.server';
-import type { SluggedBikePathYml } from './bikepaths-yml';
+import type { SluggedBikePathYml } from './bikepaths-yml.server';
 
 /** Load all bike path data — async wrapper that delegates to loadBikePathEntries(). */
 export async function loadBikePathData(): Promise<{

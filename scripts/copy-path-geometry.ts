@@ -15,6 +15,13 @@ const outDir = path.join('public', 'bike-paths', 'geo');
 
 fs.mkdirSync(outDir, { recursive: true });
 
+// Clean stale .geojson files before copying (prevents deleted entries from lingering)
+for (const file of fs.readdirSync(outDir)) {
+  if (file.endsWith('.geojson')) {
+    fs.unlinkSync(path.join(outDir, file));
+  }
+}
+
 let copied = 0;
 
 // Copy from geometry cache (populated by cache-path-geometry.ts)

@@ -8,12 +8,8 @@
 
 import type { Feature, FeatureCollection } from 'geojson';
 
-export interface TileManifestEntry {
-  id: string;
-  bounds: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
-  featureCount: number;
-  file: string;
-}
+import type { TileManifestEntry } from './tile-types';
+export type { TileManifestEntry };
 
 export interface TileLoader {
   loadTilesForBounds(bounds: [number, number, number, number]): Promise<Feature[]>;

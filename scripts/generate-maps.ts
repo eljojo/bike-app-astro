@@ -10,6 +10,7 @@ import {
   needsRegeneration,
 } from '../src/lib/maps/map-generation.server';
 import { variantKey } from '../src/lib/gpx/filenames';
+import { haversineKm } from '../src/lib/geo/proximity';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';
@@ -30,15 +31,6 @@ function mergeAdjacentSegments(segments: [number, number][][], maxGapKm: number)
   const used = new Set<number>();
   const chains: [number, number][][] = [];
 
-  function dist(a: [number, number], b: [number, number]): number {
-    const R = 6371;
-    const dLat = (b[0] - a[0]) * Math.PI / 180;
-    const dLon = (b[1] - a[1]) * Math.PI / 180;
-    const s = Math.sin(dLat / 2) ** 2
-      + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-  }
-
   for (let i = 0; i < segments.length; i++) {
     if (used.has(i)) continue;
     used.add(i);
@@ -56,8 +48,8 @@ function mergeAdjacentSegments(segments: [number, number][][], maxGapKm: number)
       for (let j = 0; j < segments.length; j++) {
         if (used.has(j)) continue;
         const seg = segments[j];
-        const dStart = dist(tail, seg[0]);
-        const dEnd = dist(tail, seg[seg.length - 1]);
+        const dStart = haversineKm(tail[0], tail[1], seg[0][0], seg[0][1]);
+        const dEnd = haversineKm(tail[0], tail[1], seg[seg.length - 1][0], seg[seg.length - 1][1]);
         if (dStart < bestDist) { bestDist = dStart; bestIdx = j; bestReverse = false; }
         if (dEnd < bestDist) { bestDist = dEnd; bestIdx = j; bestReverse = true; }
       }
