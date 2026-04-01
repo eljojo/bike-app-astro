@@ -6,7 +6,7 @@ MapLibre GL JS initialization, style management, polyline/marker rendering, and 
 
 | File | Role |
 |------|------|
-| `map-init.ts` | Core client-side map module: `initMap()`, `addPolylines()`, `addMarkers()` (clustered emoji places), `addPhotoMarkers()` (clustered photo bubbles), `addWaypointMarkers()`, `showUserLocation()`, layer visibility toggles, elevation cursor sync. Exports `ROUTE_COLOR`, `TOUR_PALETTE` |
+| `map-init.ts` | Core client-side map module: `initMap()`, `addPolylines()`, `addMarkers()` (clustered emoji places), `showPopup()` (shared single-popup-per-map), `removeSourceAndLayers()`. Pure helpers: `buildPolylineFeature()`, `decodeToGeoJson()`, `getRouteColor()`, `photoPopupMaxWidth()`. Constants: `ROUTE_COLOR`, `ROUTE_LINE_WIDTH`, `TOUR_PALETTE`. Most overlay logic moved to `layers/` — this file retains low-level functions used by admin maps and the layers themselves |
 | `map-style-switch.ts` | `switchStyle()` — swaps MapLibre base style and replays setup callback. `loadStylePreference()`/`saveStylePreference()` for localStorage persistence. Exports `MapStyleKey` type |
 | `map-style-url.ts` | Generated file (by `scripts/build-map-style.ts`) — exports content-hashed style JSON URLs. **Do not edit manually** |
 | `map-style-url.d.ts` | Type declaration for the generated style URL module |

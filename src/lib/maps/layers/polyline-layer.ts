@@ -4,6 +4,7 @@ import {
   buildPolylineFeature,
   getRouteColor,
   ROUTE_LINE_WIDTH,
+  showPopup,
 } from '../map-init';
 import type { MapLayer, LayerContext } from './types';
 import type { PolylineOptions } from '../map-init';
@@ -95,7 +96,7 @@ export function createPolylineLayer(opts: PolylineLayerOptions): PolylineLayer {
         if (!e.features?.length) return;
         const props = e.features[0].properties;
         if (props?.popup) {
-          new maplibregl.Popup().setLngLat(e.lngLat).setHTML(props.popup).addTo(map);
+          showPopup(map, new maplibregl.Popup().setLngLat(e.lngLat).setHTML(props.popup));
         }
       };
       map.on('click', LINE_LAYER_ID, clickHandler);

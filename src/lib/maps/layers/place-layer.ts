@@ -1,5 +1,6 @@
 // src/lib/maps/layers/place-layer.ts
 import maplibregl from 'maplibre-gl';
+import { showPopup } from '../map-init';
 import type { MapLayer, LayerContext } from './types';
 import type { MarkerOptions } from '../map-init';
 
@@ -20,27 +21,6 @@ export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
   let leaveHandler: (() => void) | null = null;
   const emojiMarkers = new Map<string, maplibregl.Marker>();
   let visible = defaultVisible;
-
-  let activePopup: maplibregl.Popup | null = null;
-
-  function showPopup(map: maplibregl.Map, popup: maplibregl.Popup) {
-    activePopup?.remove();
-    activePopup = popup;
-    popup.addTo(map);
-    requestAnimationFrame(() => {
-      const el = popup.getElement();
-      if (!el) return;
-      const mapRect = map.getContainer().getBoundingClientRect();
-      const popupRect = el.getBoundingClientRect();
-      const pad = 10;
-      let dx = 0, dy = 0;
-      if (popupRect.left < mapRect.left + pad) dx = popupRect.left - mapRect.left - pad;
-      if (popupRect.right > mapRect.right - pad) dx = popupRect.right - mapRect.right + pad;
-      if (popupRect.top < mapRect.top + pad) dy = popupRect.top - mapRect.top - pad;
-      if (popupRect.bottom > mapRect.bottom - pad) dy = popupRect.bottom - mapRect.bottom + pad;
-      if (dx || dy) map.panBy([dx, dy], { animate: true });
-    });
-  }
 
   function removeAllDomMarkers() {
     for (const [, marker] of emojiMarkers) marker.remove();

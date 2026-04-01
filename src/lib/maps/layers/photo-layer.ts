@@ -2,6 +2,7 @@
 import maplibregl from 'maplibre-gl';
 import { buildImageUrl } from '../../media/image-service';
 import { html, raw } from '../map-helpers';
+import { showPopup } from '../map-init';
 import type { MapLayer, LayerContext } from './types';
 import type { PhotoMarkerOptions } from '../map-init';
 
@@ -12,7 +13,7 @@ export interface PhotoLayerOptions {
 }
 
 const SOURCE_ID = 'photo-markers';
-const LAYER_IDS = ['photo-clusters', 'photo-cluster-count', 'photo-unclustered'];
+const LAYER_IDS = ['photo-clusters', 'photo-unclustered'];
 
 const preloadedUrls = new Set<string>();
 function preloadImage(url: string) {
@@ -84,7 +85,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
     const popup = new maplibregl.Popup({ maxWidth: `${photoPopupMaxWidth(map.getZoom())}px` })
       .setLngLat(coords)
       .setHTML(popupHtml);
-    popup.addTo(map);
+    showPopup(map, popup);
 
     const onZoom = () => popup.setMaxWidth(`${photoPopupMaxWidth(map.getZoom())}px`);
     map.on('zoom', onZoom);

@@ -1,6 +1,6 @@
 // src/lib/maps/layers/tile-path-layer.ts
 import maplibregl from 'maplibre-gl';
-import { ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../map-init';
+import { ROUTE_COLOR, ROUTE_LINE_WIDTH, showPopup } from '../map-init';
 import { createTileLoader, type TileLoader, type TileManifestEntry } from '../tile-loader';
 import type { MapLayer, LayerContext } from './types';
 
@@ -29,6 +29,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
 
   let tileLoader: TileLoader | null = null;
   let layersCreated = false;
+  let visible = true;
   let moveEndHandler: (() => void) | null = null;
   let clickHandler: ((e: maplibregl.MapLayerMouseEvent) => void) | null = null;
   let enterHandler: (() => void) | null = null;
@@ -122,10 +123,9 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
         ? `<a href="/bike-paths/${escHtml(props.slug)}">${name}</a>`
         : name;
       const surfaceInfo = props.surface ? `<br>${escHtml(props.surface)}` : '';
-      new maplibregl.Popup()
+      showPopup(map, new maplibregl.Popup()
         .setLngLat(e.lngLat)
-        .setHTML(`<div class="place-popup">${nameLink}${surfaceInfo}</div>`)
-        .addTo(map);
+        .setHTML(`<div class="place-popup">${nameLink}${surfaceInfo}</div>`));
     };
     map.on('click', 'paths-network-line', clickHandler);
 
@@ -158,7 +158,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       setupLayers(map, features);
 
       moveEndHandler = async () => {
-        if (!tileLoader || !layersCreated) return;
+        if (!visible || !tileLoader || !layersCreated) return;
         const prevCount = tileLoader.allLoadedFeatures().length;
         const bounds = map.getBounds();
         const newFeatures = await tileLoader.loadTilesForBounds([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]);
@@ -178,8 +178,9 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       removeSourceAndLayers(map);
     },
 
-    setVisible(map: maplibregl.Map, visible: boolean) {
-      const vis = visible ? 'visible' : 'none';
+    setVisible(map: maplibregl.Map, v: boolean) {
+      visible = v;
+      const vis = v ? 'visible' : 'none';
       if (map.getLayer('paths-network-bg')) map.setLayoutProperty('paths-network-bg', 'visibility', vis);
       if (map.getLayer('paths-network-line')) map.setLayoutProperty('paths-network-line', 'visibility', vis);
     },
