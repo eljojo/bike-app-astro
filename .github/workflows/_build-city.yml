@@ -148,12 +148,6 @@ jobs:
           restore-keys: |
             dist-${{ inputs.city }}-
 
-      - name: Fetch bike path geometry from OSM
-        run: npx tsx scripts/cache-path-geometry.ts
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: ${{ inputs.city }}
-
       - name: Record build start time
         if: inputs.deploy
         run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
