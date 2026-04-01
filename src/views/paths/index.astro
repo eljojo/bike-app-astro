@@ -101,22 +101,6 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   ]} />
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
-    {allPages.length > 0 && (
-      <div class="paths-map-hero-wrapper">
-        <div
-          class="paths-map-hero"
-          id="paths-network-map"
-          data-center={JSON.stringify(mapCenter)}
-          data-relation-slugs={JSON.stringify(relationToSlug)}
-          data-interactive-ids={JSON.stringify([...interactiveRelIds])}
-          data-listed-ids={JSON.stringify([...listedRelIds])}
-          style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
-        ></div>
-        <div class="map-touch-lock" id="paths-map-touch-lock">
-          <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
-        </div>
-      </div>
-    )}
 
     {featured.length > 0 && (
       <section class="paths-featured">
@@ -153,6 +137,23 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           })}
         </div>
       </section>
+    )}
+
+    {allPages.length > 0 && (
+      <div class="paths-map-hero-wrapper">
+        <div
+          class="paths-map-hero"
+          id="paths-network-map"
+          data-center={JSON.stringify(mapCenter)}
+          data-relation-slugs={JSON.stringify(relationToSlug)}
+          data-interactive-ids={JSON.stringify([...interactiveRelIds])}
+          data-listed-ids={JSON.stringify([...listedRelIds])}
+          style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
+        ></div>
+        <div class="map-touch-lock" id="paths-map-touch-lock">
+          <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+        </div>
+      </div>
     )}
 
     {groups.map(group => (
