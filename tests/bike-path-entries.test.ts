@@ -53,6 +53,14 @@ beforeAll(() => {
     network: rcn
     operator: City
     highway: cycleway
+  - name: Trail Network
+    grouped_from:
+      - small-local-path
+    osm_names: [Small Local Path]
+    highway: cycleway
+    anchors:
+      - [-75.69, 45.42]
+      - [-75.68, 45.43]
 `);
 
   // Markdown that matches a YML entry by slug
@@ -119,7 +127,7 @@ describe('loadBikePathEntries', () => {
 
   it('parses all YML entries', () => {
     const { allYmlEntries } = loadBikePathEntries();
-    expect(allYmlEntries.length).toBe(5);
+    expect(allYmlEntries.length).toBe(6);
     expect(allYmlEntries.map(e => e.name)).toContain('Ottawa River Pathway');
     expect(allYmlEntries.map(e => e.name)).toContain('Rideau Canal Pathway');
   });
@@ -204,16 +212,11 @@ describe('loadBikePathEntries', () => {
     expect(road).toBeUndefined();
   });
 
-  it('includes low-scoring YML entries as unlisted pages', () => {
+  it('absorbed member does not get its own page', () => {
     const { pages } = loadBikePathEntries();
-    // "Small Local Path" has highway: cycleway only -> score 1, below SCORE_THRESHOLD
-    // Gets a page but is unlisted; Tier 2 may promote it to listed if routes overlap
+    // "Small Local Path" is absorbed by "Trail Network" via grouped_from
     const small = pages.find(p => p.slug === 'small-local-path');
-    expect(small).toBeDefined();
-    expect(small!.score).toBe(1);
-    expect(small!.listed).toBe(false);
-    expect(small!.stub).toBe(true);
-    expect(small!.hasMarkdown).toBe(false);
+    expect(small).toBeUndefined();
   });
 
   it('includes high-scoring unclaimed YML entries as listed pages', () => {
@@ -233,5 +236,28 @@ describe('loadBikePathEntries', () => {
     expect(guide!.hasMarkdown).toBe(true);
     expect(guide!.stub).toBe(true);
     expect(guide!.ymlEntries.length).toBe(0);
+  });
+
+  it('grouped_from entry produces a single listed page', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'trail-network');
+    expect(network).toBeDefined();
+    expect(network!.listed).toBe(true);
+    expect(network!.hasMarkdown).toBe(false);
+  });
+
+  it('grouped_from page includes member in ymlEntries', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'trail-network');
+    expect(network!.ymlEntries.length).toBeGreaterThanOrEqual(2);
+    const memberNames = network!.ymlEntries.map(e => e.name);
+    expect(memberNames).toContain('Small Local Path');
+    expect(memberNames).toContain('Trail Network');
+  });
+
+  it('grouped page merges osmNames from all members', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'trail-network');
+    expect(network!.osmNames).toContain('Small Local Path');
   });
 });
