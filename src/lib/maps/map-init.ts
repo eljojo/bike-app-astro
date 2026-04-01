@@ -1,8 +1,6 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import polylineCodec from '@mapbox/polyline';
-import { html, raw } from './map-helpers';
-import { buildImageUrl } from '../media/image-service';
 import type { MapStyleKey } from './map-style-switch';
 
 export const ROUTE_COLOR = '#350091';
@@ -26,7 +24,7 @@ export function getRouteColor(style?: MapStyleKey): string {
 }
 
 /** Remove a source and all layers referencing it. Needed for style-switch replay. */
-function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
+export function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
   const style = map.getStyle();
   if (style?.layers) {
     for (const layer of style.layers) {
@@ -40,14 +38,10 @@ function removeSourceAndLayers(map: maplibregl.Map, sourceId: string) {
   }
 }
 
-/** Track photo bubble handlers per map so they can be removed on replay. */
-const photoBubbleSyncHandlers = new WeakMap<maplibregl.Map, () => void>();
-const photoBubbleZoomHandlers = new WeakMap<maplibregl.Map, () => void>();
-
 /** Single shared popup per map — opening one closes the previous. */
 const activePopups = new WeakMap<maplibregl.Map, maplibregl.Popup>();
 
-function showPopup(map: maplibregl.Map, popup: maplibregl.Popup): void {
+export function showPopup(map: maplibregl.Map, popup: maplibregl.Popup): void {
   activePopups.get(map)?.remove();
   activePopups.set(map, popup);
   popup.addTo(map);
@@ -101,6 +95,14 @@ export interface PhotoMarkerOptions {
   routeName?: string;
   routeUrl?: string;
   index: number;
+}
+
+export interface WaypointMarkerOptions {
+  lat: number;
+  lng: number;
+  type: string;
+  label: string;
+  popup?: string;
 }
 
 // --- Pure helpers (testable) ---
@@ -200,7 +202,6 @@ export function addPolylines(
 // --- Emoji markers (places, clustered) ---
 
 const placeBubbleSyncHandlers = new WeakMap<maplibregl.Map, () => void>();
-const PLACE_LAYER_IDS = ['place-clusters', 'place-cluster-count', 'place-unclustered'];
 
 export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void {
   removeSourceAndLayers(map, 'place-markers');
@@ -328,413 +329,10 @@ export function addMarkers(map: maplibregl.Map, markers: MarkerOptions[]): void 
   map.on('mouseleave', 'place-clusters', () => { map.getCanvas().style.cursor = ''; });
 }
 
-// --- Photo markers (clustered with thumbnail bubbles) ---
-
-const preloadedUrls = new Set<string>();
-const photosVisible = new WeakMap<maplibregl.Map, boolean>();
-
-function preloadImage(url: string): void {
-  if (preloadedUrls.has(url)) return;
-  preloadedUrls.add(url);
-  const img = new Image();
-  img.src = url;
-}
+// --- Photo popup utility ---
 
 export function photoPopupMaxWidth(zoom: number): number {
   // Exponential scaling: grows fast when zoomed in, tiny when zoomed out
   const t = Math.max(0, Math.min(1, (zoom - 8) / 8)); // 0 at z8, 1 at z16
   return Math.round(100 + 400 * t * t);
-}
-
-interface PhotoPopupProps {
-  key: string;
-  routeName?: string;
-  routeUrl?: string;
-  caption?: string;
-  width?: number;
-  height?: number;
-}
-
-function showPhotoPopup(
-  map: maplibregl.Map,
-  props: PhotoPopupProps,
-  coords: [number, number],
-  cdnUrl: string,
-): void {
-  const imgUrl = buildImageUrl(cdnUrl, props.key, { width: 800, fit: 'scale-down' });
-  const fullUrl = buildImageUrl(cdnUrl, props.key, { width: 1600 });
-
-  const routeLink = props.routeName && props.routeUrl
-    ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
-  const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
-
-  // Use fixed 800px width for the image transform; derive display height from aspect ratio
-  const imgWidth = 800;
-  const imgHeight = props.width && props.height ? Math.round(imgWidth * props.height / props.width) : undefined;
-  const sizeAttrs = imgHeight ? ` width="${imgWidth}" height="${imgHeight}"` : '';
-
-  const popupHtml = html`
-    <div class="photo-popup-content">
-      <a href="${raw(fullUrl)}" target="_blank">
-        <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
-      </a>
-      ${raw(captionBlock)}
-      ${raw(routeLink)}
-    </div>
-  `;
-
-  const popup = new maplibregl.Popup({ maxWidth: `${photoPopupMaxWidth(map.getZoom())}px` })
-    .setLngLat(coords)
-    .setHTML(popupHtml);
-  showPopup(map, popup);
-
-  const onZoom = () => {
-    popup.setMaxWidth(`${photoPopupMaxWidth(map.getZoom())}px`);
-  };
-  map.on('zoom', onZoom);
-  popup.on('close', () => map.off('zoom', onZoom));
-}
-
-export function addPhotoMarkers(
-  map: maplibregl.Map,
-  photos: PhotoMarkerOptions[],
-  cdnUrl: string,
-  styleKey?: MapStyleKey,
-): void {
-  // Clean up previous photo markers (idempotent for style-switch replay)
-  removeSourceAndLayers(map, 'photo-markers');
-  map.getContainer().querySelectorAll('.photo-bubble').forEach(el => el.remove());
-
-  const previousSync = photoBubbleSyncHandlers.get(map);
-  if (previousSync) {
-    map.off('idle', previousSync);
-    photoBubbleSyncHandlers.delete(map);
-  }
-  const previousZoom = photoBubbleZoomHandlers.get(map);
-  if (previousZoom) {
-    map.off('zoom', previousZoom);
-    photoBubbleZoomHandlers.delete(map);
-  }
-
-  const sourceId = 'photo-markers';
-
-  map.addSource(sourceId, {
-    type: 'geojson',
-    data: {
-      type: 'FeatureCollection',
-      features: photos.map((p) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-        properties: {
-          key: p.key, caption: p.caption || '', index: p.index,
-          routeName: p.routeName || '', routeUrl: p.routeUrl || '',
-          width: p.width || 0, height: p.height || 0,
-        },
-      })),
-    },
-    cluster: true,
-    clusterRadius: 80,
-    clusterMaxZoom: 15,
-  });
-
-  // Dynamic minzoom: many photos (city map) require zooming in, few photos (route/tour) show immediately
-  const minZoom = photos.length > 200 ? 11 : photos.length > 50 ? 8 : 0;
-
-  // Invisible cluster layer for queryRenderedFeatures detection
-  map.addLayer({
-    id: 'photo-clusters',
-    type: 'circle',
-    source: sourceId,
-    filter: ['has', 'point_count'],
-    minzoom: minZoom,
-    paint: { 'circle-radius': 1, 'circle-opacity': 0 },
-  });
-
-  // Invisible layer for unclustered feature detection
-  map.addLayer({
-    id: 'photo-unclustered',
-    type: 'circle',
-    source: sourceId,
-    filter: ['!', ['has', 'point_count']],
-    minzoom: minZoom,
-    paint: { 'circle-radius': 1, 'circle-opacity': 0 },
-  });
-
-  // --- DOM markers for both clusters (thumbnail + count badge) and individual photos ---
-  const bubbleMarkers = new Map<string, maplibregl.Marker>();
-  const clusterMarkers = new Map<number, maplibregl.Marker>();
-
-  async function syncPhotoBubbles() {
-    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
-    if (!source) return;
-
-    // --- Unclustered individual photos ---
-    const unclustered = map.queryRenderedFeatures({ layers: ['photo-unclustered'] });
-    const seenKeys = new Set<string>();
-
-    for (const f of unclustered) {
-      const key = f.properties!.key as string;
-      if (seenKeys.has(key)) continue;
-      seenKeys.add(key);
-
-      if (!bubbleMarkers.has(key)) {
-        const props = f.properties!;
-        const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
-        const thumbUrl = buildImageUrl(cdnUrl, props.key, { width: 80, height: 80, fit: 'cover' });
-
-        const el = document.createElement('div');
-        el.className = 'photo-bubble';
-        el.innerHTML = `<img src="${thumbUrl}" alt="" loading="lazy" />`;
-
-        el.addEventListener('mouseenter', () => {
-          if (photosVisible.get(map) === false) return;
-          preloadImage(buildImageUrl(cdnUrl, props.key, { width: 1000, fit: 'scale-down' }));
-        });
-
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          showPhotoPopup(map, props as unknown as PhotoPopupProps, coords, cdnUrl);
-        });
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat(coords)
-          .addTo(map);
-
-        bubbleMarkers.set(key, marker);
-      }
-    }
-
-    // Preload popup images for visible photos
-    if (photosVisible.get(map) !== false) {
-      for (const key of seenKeys) {
-        preloadImage(buildImageUrl(cdnUrl, key, { width: 1000, fit: 'scale-down' }));
-      }
-    }
-
-    // Remove individual markers no longer visible
-    for (const [key, marker] of bubbleMarkers) {
-      if (!seenKeys.has(key)) {
-        marker.remove();
-        bubbleMarkers.delete(key);
-      }
-    }
-
-    // --- Clustered photo thumbnails with count badge ---
-    const clusters = map.queryRenderedFeatures({ layers: ['photo-clusters'] });
-    const seenClusterIds = new Set<number>();
-
-    for (const f of clusters) {
-      const clusterId = f.properties?.cluster_id as number;
-      if (seenClusterIds.has(clusterId)) continue;
-      seenClusterIds.add(clusterId);
-
-      // Skip cluster if all its leaves are already visible as individual bubbles
-      try {
-        const count = f.properties?.point_count as number;
-        const allLeaves = await source.getClusterLeaves(clusterId, count, 0);
-        if (allLeaves.length > 0 && allLeaves.every(l => seenKeys.has(l.properties?.key as string))) {
-          // All children already shown individually — remove stale cluster marker if it exists
-          clusterMarkers.get(clusterId)?.remove();
-          clusterMarkers.delete(clusterId);
-          continue;
-        }
-      } catch {
-        // Cluster may have been removed between query and leaf fetch
-        continue;
-      }
-
-      if (!clusterMarkers.has(clusterId)) {
-        const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
-        const count = f.properties?.point_count as number;
-
-        // Get the first leaf to use as the cluster thumbnail
-        try {
-          const leaves = await source.getClusterLeaves(clusterId, 1, 0);
-          const leafKey = leaves[0]?.properties?.key as string | undefined;
-          if (!leafKey) continue;
-
-          const thumbUrl = buildImageUrl(cdnUrl, leafKey, { width: 80, height: 80, fit: 'cover' });
-
-          const el = document.createElement('div');
-          el.className = 'photo-bubble photo-bubble--cluster';
-          el.innerHTML = `<img src="${thumbUrl}" alt="" loading="lazy" /><span class="photo-bubble--count">${count}</span>`;
-
-          el.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const zoom = await source.getClusterExpansionZoom(clusterId);
-            map.easeTo({ center: coords, zoom });
-          });
-
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat(coords)
-            .addTo(map);
-
-          clusterMarkers.set(clusterId, marker);
-        } catch {
-          // Cluster may have been removed between query and leaf fetch
-        }
-      }
-    }
-
-    // Remove cluster markers no longer visible
-    for (const [id, marker] of clusterMarkers) {
-      if (!seenClusterIds.has(id)) {
-        marker.remove();
-        clusterMarkers.delete(id);
-      }
-    }
-  }
-
-  // Resize bubbles on zoom so they track smoothly during interaction
-  function resizeBubbles() {
-    const bubbleSize = Math.round(Math.min(48, Math.max(30, (map.getZoom() - 11) * 4.5 + 30)));
-    for (const [, marker] of bubbleMarkers) {
-      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
-      (el as HTMLElement).style.width = `${bubbleSize}px`;
-      (el as HTMLElement).style.height = `${bubbleSize}px`;
-    }
-    const clusterSize = Math.round(Math.min(52, Math.max(34, (map.getZoom() - 8) * 3 + 34)));
-    for (const [, marker] of clusterMarkers) {
-      const el = marker.getElement().querySelector('.photo-bubble') || marker.getElement();
-      (el as HTMLElement).style.width = `${clusterSize}px`;
-      (el as HTMLElement).style.height = `${clusterSize}px`;
-    }
-  }
-  map.on('zoom', resizeBubbles);
-  photoBubbleZoomHandlers.set(map, resizeBubbles);
-
-  map.on('idle', syncPhotoBubbles);
-  photoBubbleSyncHandlers.set(map, syncPhotoBubbles);
-}
-
-// --- Waypoint markers (checkpoints, danger, POI) ---
-
-export interface WaypointMarkerOptions {
-  lat: number;
-  lng: number;
-  type: string;
-  label: string;
-  popup?: string;
-}
-
-const waypointDomMarkers = new WeakMap<maplibregl.Map, maplibregl.Marker[]>();
-
-export function addWaypointMarkers(
-  map: maplibregl.Map,
-  waypoints: WaypointMarkerOptions[],
-): void {
-  // Remove previous waypoint markers
-  const prev = waypointDomMarkers.get(map);
-  if (prev) {
-    for (const m of prev) m.remove();
-  }
-
-  const markers: maplibregl.Marker[] = [];
-  waypoints.forEach(wp => {
-    const el = document.createElement('div');
-    el.className = `waypoint-marker waypoint-marker--${wp.type}`;
-
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat([wp.lng, wp.lat])
-      .addTo(map);
-
-    if (wp.popup) {
-      marker.setPopup(new maplibregl.Popup({ offset: 14, maxWidth: '300px' }).setHTML(wp.popup));
-    } else {
-      el.title = wp.label;
-    }
-
-    markers.push(marker);
-  });
-  waypointDomMarkers.set(map, markers);
-}
-
-// --- GPS location ---
-
-let gpsMarker: maplibregl.Marker | null = null;
-
-export function showUserLocation(map: maplibregl.Map): void {
-  if (!('geolocation' in navigator)) return;
-
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { longitude, latitude } = pos.coords;
-
-      if (!gpsMarker) {
-        const el = document.createElement('div');
-        el.className = 'gps-dot';
-        gpsMarker = new maplibregl.Marker({ element: el })
-          .setLngLat([longitude, latitude])
-          .addTo(map);
-      } else {
-        gpsMarker.setLngLat([longitude, latitude]);
-        gpsMarker.addTo(map);
-      }
-
-      map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 14) });
-    },
-    () => {}, // silently ignore denied/unavailable
-    { enableHighAccuracy: true, timeout: 10000 },
-  );
-}
-
-export function hideUserLocation(): void {
-  if (gpsMarker) {
-    gpsMarker.remove();
-  }
-}
-
-// --- Layer visibility helpers ---
-
-const PHOTO_LAYER_IDS = ['photo-clusters', 'photo-cluster-count', 'photo-unclustered'];
-
-export function setPhotoLayersVisible(map: maplibregl.Map, visible: boolean): void {
-  photosVisible.set(map, visible);
-  const vis = visible ? 'visible' : 'none';
-  for (const id of PHOTO_LAYER_IDS) {
-    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
-  }
-  // Also toggle DOM photo bubble markers
-  const bubbles = map.getContainer().querySelectorAll('.photo-bubble');
-  for (const el of bubbles) {
-    (el as HTMLElement).style.display = visible ? '' : 'none';
-  }
-}
-
-export function setPlaceMarkersVisible(map: maplibregl.Map, visible: boolean): void {
-  const vis = visible ? 'visible' : 'none';
-  for (const id of PLACE_LAYER_IDS) {
-    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
-  }
-  const markers = map.getContainer().querySelectorAll('.poi-marker');
-  for (const el of markers) {
-    (el as HTMLElement).style.display = visible ? '' : 'none';
-  }
-}
-
-// --- Elevation cursor sync ---
-
-/** Add a cursor dot that follows elevation:hover events on the map. */
-export function enableElevationCursorSync(map: maplibregl.Map): void {
-  let cursorMarker: maplibregl.Marker | null = null;
-
-  window.addEventListener('elevation:hover', ((e: CustomEvent) => {
-    const { lat, lng } = e.detail;
-    if (!cursorMarker) {
-      const el = document.createElement('div');
-      el.className = 'elevation-cursor-dot';
-      cursorMarker = new maplibregl.Marker({ element: el })
-        .setLngLat([lng, lat])
-        .addTo(map);
-    } else {
-      cursorMarker.setLngLat([lng, lat]);
-    }
-  }) as EventListener);
-
-  window.addEventListener('elevation:leave', () => {
-    if (cursorMarker) {
-      cursorMarker.remove();
-      cursorMarker = null;
-    }
-  });
 }
