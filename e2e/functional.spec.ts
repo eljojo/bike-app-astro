@@ -56,6 +56,27 @@ test.describe('Magazine homepage translations', () => {
 // from Overpass stored in .cache/bikepath-geometry/demo/. The facts table must show
 // length computed from the GeoJSON — this is the integration test for the full chain:
 // geo file → loadBikePathEntries() → virtual module → rendered HTML.
+// Nav links — "Ride" and "Community" link to the current sub-section.
+test.describe('Nav contextual links', () => {
+  test('Ride nav links to /bike-paths when on a bike path page', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const rideLink = page.locator('.top-nav a.nav-active');
+    await expect(rideLink).toHaveAttribute('href', '/bike-paths');
+  });
+
+  test('Ride nav links to /routes when on a route page', async ({ page }) => {
+    await page.goto('/routes/ruta-rio-chillan');
+    const rideLink = page.locator('.top-nav a.nav-active');
+    await expect(rideLink).toHaveAttribute('href', '/routes');
+  });
+
+  test('secondary locale: Ride nav links to translated bike-paths', async ({ page }) => {
+    await page.goto('/fr/pistes-cyclables/ciclovia-avenida-ecuador');
+    const rideLink = page.locator('.top-nav a.nav-active');
+    await expect(rideLink).toHaveAttribute('href', '/fr/pistes-cyclables');
+  });
+});
+
 test.describe('Bike path detail page', () => {
   test('facts table shows length computed from geo file', async ({ page }) => {
     await page.goto('/bike-paths/ciclovia-avenida-ecuador');
