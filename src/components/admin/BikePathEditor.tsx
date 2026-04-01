@@ -1,10 +1,9 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
-import { useHydrated, useTextareaValue } from '../../lib/hooks';
-import { useEditorState } from './useEditorState';
-import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
-import EditorActions from './EditorActions';
+import { useState } from 'preact/hooks';
+import { useEditorForm } from './useEditorForm';
+import EditorLayout from './EditorLayout';
+import { bindText, bindCheckbox, bindTextarea } from './field-helpers';
 import PhotoField from './PhotoField';
 import TagEditor from './TagEditor';
 import { localeLabel } from '../../lib/i18n/locale-utils';
@@ -20,10 +19,6 @@ interface Props {
 }
 
 export default function BikePathEditor({ initialData, userRole, cdnUrl = '', knownTags = [], secondaryLocales }: Props) {
-  const hydratedRef = useHydrated<HTMLDivElement>();
-  const [dirty, setDirty] = useState(false);
-  useUnsavedGuard(dirty);
-
   const [name, setName] = useState(initialData.name ?? '');
   const locales = secondaryLocales || [];
   const [translations, setTranslations] = useState<Record<string, string>>(() => {
@@ -46,23 +41,14 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
   const [wikipedia, setWikipedia] = useState(initialData.wikipedia ?? '');
   const [operator, setOperator] = useState(initialData.operator ?? '');
   const [body, setBody] = useState(initialData.body);
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
-  // Textarea hydration bug fix
-  const bodyRef = useTextareaValue(initialData.body);
-
-  // Track dirty state
-  const initialRender = useRef(true);
-  useEffect(() => {
-    if (initialRender.current) { initialRender.current = false; return; }
-    setDirty(true);
-  }, [name, translations, vibe, hidden, stub, featured, photoKey, tags, wikipedia, operator, body]);
-
-  const { saving, saved, error, githubUrl, save: handleSave, dismissSaved } = useEditorState({
+  const editor = useEditorForm({
     apiBase: '/api/bike-paths',
     contentId: initialData.id,
-    initialContentHash: initialData.contentHash,
+    contentHash: initialData.contentHash,
     userRole,
+    initialBody: initialData.body,
+    deps: [name, translations, vibe, hidden, stub, featured, photoKey, tags, wikipedia, operator, body],
     buildPayload: () => ({
       frontmatter: {
         ...(name && { name }),
@@ -83,35 +69,31 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
       },
       body,
     }),
-    onSuccess: () => {
-      setDirty(false);
-    },
   });
 
   return (
-    <div class="bike-path-editor" ref={hydratedRef}>
-      {/* Mobile tabs */}
-      <div class="route-editor-tabs">
-        <button
-          type="button"
-          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
-          onClick={() => setActiveTab('edit')}
-        >Edit</button>
-        <button
-          type="button"
-          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
-          onClick={() => setActiveTab('preview')}
-        >Preview</button>
-      </div>
-
-      <div class="route-editor-panes">
-      {/* LEFT PANE: Editor */}
-      <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
-      <div class="auth-form">
+    <EditorLayout
+      editor={editor}
+      className="bike-path-editor"
+      contentType="bike path"
+      userRole={userRole}
+      viewLink="/admin/bike-paths"
+      preview={
+        <BikePathPreview
+          name={name}
+          vibe={vibe}
+          body={body}
+          tags={tags}
+          operator={operator}
+          wikipedia={wikipedia}
+          photoKey={photoKey}
+          cdnUrl={cdnUrl}
+        />
+      }
+    >
         <div class="form-field">
           <label for="bp-name">Name</label>
-          <input id="bp-name" type="text" value={name}
-            onInput={e => setName((e.target as HTMLInputElement).value)}
+          <input id="bp-name" type="text" {...bindText(name, setName)}
             placeholder={initialData.id} />
         </div>
 
@@ -125,15 +107,13 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
 
         <div class="form-field">
           <label for="bp-vibe">Vibe <span class="field-hint">(one-sentence hook)</span></label>
-          <input id="bp-vibe" type="text" value={vibe}
-            onInput={e => setVibe((e.target as HTMLInputElement).value)}
+          <input id="bp-vibe" type="text" {...bindText(vibe, setVibe)}
             placeholder="One-liner description" />
         </div>
 
         <div class="form-field">
           <label for="bp-body">Description</label>
-          <textarea id="bp-body" ref={bodyRef} rows={10} value={body}
-            onInput={e => setBody((e.target as HTMLTextAreaElement).value)} />
+          <textarea id="bp-body" ref={editor.bodyRef} rows={10} {...bindTextarea(body, setBody)} />
         </div>
 
         <div class="form-field">
@@ -148,15 +128,13 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
 
         <div class="form-field">
           <label for="bp-wikipedia">Wikipedia <span class="field-hint">(en:Article Title or fr:Titre)</span></label>
-          <input id="bp-wikipedia" type="text" value={wikipedia}
-            onInput={e => setWikipedia((e.target as HTMLInputElement).value)}
+          <input id="bp-wikipedia" type="text" {...bindText(wikipedia, setWikipedia)}
             placeholder="en:Capital Pathway" />
         </div>
 
         <div class="form-field">
           <label for="bp-operator">Operator <span class="field-hint">(overrides YML value)</span></label>
-          <input id="bp-operator" type="text" value={operator}
-            onInput={e => setOperator((e.target as HTMLInputElement).value)}
+          <input id="bp-operator" type="text" {...bindText(operator, setOperator)}
             placeholder="NCC" />
         </div>
 
@@ -169,24 +147,21 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
 
         <div class="form-field form-field--inline">
           <label>
-            <input type="checkbox" checked={featured}
-              onChange={e => setFeatured((e.target as HTMLInputElement).checked)} />
+            <input type="checkbox" {...bindCheckbox(featured, setFeatured)} />
             {' '}Featured (show on the paths index page)
           </label>
         </div>
 
         <div class="form-field form-field--inline">
           <label>
-            <input type="checkbox" checked={stub}
-              onChange={e => setStub((e.target as HTMLInputElement).checked)} />
+            <input type="checkbox" {...bindCheckbox(stub, setStub)} />
             {' '}Stub (needs more information — shows a CTA inviting people to edit)
           </label>
         </div>
 
         <div class="form-field form-field--inline">
           <label>
-            <input type="checkbox" checked={hidden}
-              onChange={e => setHidden((e.target as HTMLInputElement).checked)} />
+            <input type="checkbox" {...bindCheckbox(hidden, setHidden)} />
             {' '}Hidden (suppress page generation)
           </label>
         </div>
@@ -199,30 +174,6 @@ export default function BikePathEditor({ initialData, userRole, cdnUrl = '', kno
             </ul>
           </div>
         )}
-      </div>
-
-      <EditorActions
-        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} onDismiss={dismissSaved} contentType="bike path" userRole={userRole}
-        viewLink="/admin/bike-paths"
-        licenseDocsUrl="https://whereto.bike/about/licensing/"
-      />
-      </div>
-
-      {/* RIGHT PANE: Preview */}
-      <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
-        <BikePathPreview
-          name={name}
-          vibe={vibe}
-          body={body}
-          tags={tags}
-          operator={operator}
-          wikipedia={wikipedia}
-          photoKey={photoKey}
-          cdnUrl={cdnUrl}
-        />
-      </div>
-      </div>
-    </div>
+    </EditorLayout>
   );
 }

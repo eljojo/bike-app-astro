@@ -1,13 +1,12 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useCallback, useState, useRef, useEffect } from 'preact/hooks';
-import { useHydrated } from '../../lib/hooks';
-import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
-import { useEditorState } from './useEditorState';
+import { useCallback, useState } from 'preact/hooks';
+import { useEditorForm } from './useEditorForm';
+import EditorLayout from './EditorLayout';
+import { bindText } from './field-helpers';
 import { useProgressiveDisclosure } from './useProgressiveDisclosure';
 import { useFormValidation } from './useFormValidation';
 import MarkdownEditor from './MarkdownEditor';
-import EditorActions from './EditorActions';
 import PhotoField from './PhotoField';
 import TagEditor from './TagEditor';
 import EventPreview from './EventPreview';
@@ -78,10 +77,6 @@ function resolveOrganizer(
 }
 
 export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel }: Props) {
-  const hydratedRef = useHydrated<HTMLFieldSetElement>();
-  const [dirty, setDirty] = useState(false);
-  useUnsavedGuard(dirty);
-
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -105,9 +100,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterHeight, setPosterHeight] = useState<number | undefined>(initialData.poster_height);
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
   const [body, setBody] = useState(initialData.body);
-
-  // Mobile tabs for edit/preview
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Club-specific state
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>(initialData.routes || []);
@@ -157,12 +149,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [orgPhotoHeight, setOrgPhotoHeight] = useState<number | undefined>(initOrg.photoHeight);
   const [isExistingRef, setIsExistingRef] = useState(initOrg.isRef);
 
-  const initialRender = useRef(true);
-  useEffect(() => {
-    if (initialRender.current) { initialRender.current = false; return; }
-    setDirty(true);
-  }, [name, startDate, startTime, meetTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey, seriesMode, seriesData]);
-
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
     time: !!(initialData.start_time || initialData.end_time || initialData.meet_time),
@@ -186,13 +172,13 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     { field: 'series-season-start', check: () => seriesMode && !seriesValid, message: 'Series needs at least one active occurrence' },
   ]);
 
-  // Save state
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
+  const editor = useEditorForm<HTMLFieldSetElement>({
     apiBase: '/api/events',
     contentId: initialData.isNew ? null : initialData.id,
-    initialContentHash: initialData.contentHash,
+    contentHash: initialData.contentHash,
     userRole,
     validate,
+    deps: [name, startDate, startTime, meetTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey, seriesMode, seriesData],
     buildPayload: () => {
       const payload: EventUpdate = {
         frontmatter: {
@@ -233,7 +219,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
-      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/events/${result.id}`;
       }
@@ -291,33 +276,136 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const activeLocale = defaultLocale; // events don't have per-editor locale switching
 
   return (
-    <fieldset class="event-editor" disabled={readOnly} ref={hydratedRef}>
-        {userRole === 'guest' && guestLabel && (
-          <p class="editor-guest-label">{guestLabel}</p>
-        )}
+    <EditorLayout
+      editor={editor}
+      className="event-editor"
+      contentType="event"
+      userRole={userRole}
+      guestLabel={guestLabel}
+      viewLink={`/events/${initialData.id}`}
+      showLicenseNotice={showLicenseNotice !== false}
+      disabled={readOnly}
+      as="fieldset"
+      preview={
+        <EventPreview
+          name={name}
+          startDate={startDate}
+          startTime={startTime}
+          endDate={endDate}
+          endTime={endTime}
+          meetTime={meetTime}
+          location={location}
+          organizer={orgName}
+          distances={distances}
+          registrationUrl={registrationUrl}
+          eventUrl={eventUrl}
+          posterKey={posterKey}
+          tags={tags}
+          body={body}
+          cdnUrl={cdnUrl}
+        />
+      }
+      afterForm={
+        <>
+          {isClub && routeOptions.length > 0 && (
+            <EventRouteSection
+              routeOptions={routeOptions}
+              selectedRoutes={selectedRoutes}
+              onRoutesChange={setSelectedRoutes}
+            />
+          )}
 
-        {/* Mobile tabs */}
-        <div class="route-editor-tabs">
-          <button
-            type="button"
-            class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
-            onClick={() => setActiveTab('edit')}
-          >Edit</button>
-          <button
-            type="button"
-            class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
-            onClick={() => setActiveTab('preview')}
-          >Preview</button>
-        </div>
+          <EventMediaSection
+            media={media}
+            onMediaChange={setMedia}
+            cdnUrl={cdnUrl}
+            userRole={userRole}
+          />
 
-        <div class="route-editor-panes">
-        {/* LEFT PANE: Editor */}
-        <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
-        <div class="auth-form">
+          {isClub && placeOptions.length > 0 && (
+            <section class="editor-section">
+              <h2>Waypoints</h2>
+              <WaypointEditor
+                waypoints={waypoints}
+                onChange={setWaypoints}
+                places={placeOptions}
+                routes={selectedRoutes.length > 1 ? selectedRoutes : undefined}
+              />
+            </section>
+          )}
+
+          {isClub && (
+            <section class="editor-section">
+              <h2>Results</h2>
+              <ResultsEditor
+                results={eventResults}
+                onChange={setEventResults}
+              />
+            </section>
+          )}
+
+          <section class="editor-section">
+            <h2>Organizer</h2>
+            <div class="auth-form">
+              <div class="form-field">
+                <label>Select organizer</label>
+                <div class="organizer-select-row">
+                  <select value={orgSlug || (disclosure.isOpen('orgForm') && orgName ? '__custom__' : '')}
+                    onChange={(e) => {
+                      const val = (e.target as HTMLSelectElement).value;
+                      if (val === '__custom__') return;
+                      selectOrganizer(val);
+                    }}>
+                    <option value="">-- None --</option>
+                    {disclosure.isOpen('orgForm') && orgName && !organizers.find(o => o.slug === orgSlug) && (
+                      <option value="__custom__">{orgName} (custom)</option>
+                    )}
+                    {organizers.map(o => (
+                      <option key={o.slug} value={o.slug}>{o.name}</option>
+                    ))}
+                  </select>
+                  <button type="button" class="btn-link" onClick={createNewOrganizer}>
+                    or create new
+                  </button>
+                </div>
+              </div>
+
+              {disclosure.isOpen('orgForm') && (
+                <div class="organizer-inline-form">
+                  <div class="form-field">
+                    <label for="org-name">Organizer Name</label>
+                    <input id="org-name" type="text" {...bindText(orgName, setOrgName)} />
+                  </div>
+                  <div class="form-field">
+                    <label for="org-website">Website</label>
+                    <input id="org-website" type="url" {...bindText(orgWebsite, setOrgWebsite)} />
+                  </div>
+                  <div class="form-field">
+                    <label for="org-instagram">Instagram handle</label>
+                    <input id="org-instagram" type="text" {...bindText(orgInstagram, setOrgInstagram)}
+                      placeholder="without @" />
+                  </div>
+                  <PhotoField
+                    photoKey={orgPhotoKey}
+                    cdnUrl={cdnUrl}
+                    label="Photo"
+                    onPhotoChange={(key, contentType, width, height) => {
+                      setOrgPhotoKey(key);
+                      setOrgPhotoContentType(contentType);
+                      setOrgPhotoWidth(width);
+                      setOrgPhotoHeight(height);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      }
+    >
           <div class="form-field">
             <label for="event-name">Name</label>
-            <input id="event-name" type="text" value={name}
-              onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+            <input id="event-name" type="text" {...bindText(name, setName)} />
           </div>
 
           <div class="form-field">
@@ -358,31 +446,27 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             <>
               <div class="form-field">
                 <label for="event-start-date">{disclosure.isOpen('endDate') ? 'Start date' : 'Date'}</label>
-                <input id="event-start-date" type="date" value={startDate}
-                  onInput={(e) => setStartDate((e.target as HTMLInputElement).value)} />
+                <input id="event-start-date" type="date" {...bindText(startDate, setStartDate)} />
               </div>
 
               {disclosure.isOpen('time') && (
                 <div class="form-field">
                   <label for="event-start-time">{disclosure.isOpen('endDate') ? 'Start time' : 'Time'}</label>
-                  <input id="event-start-time" type="time" value={startTime}
-                    onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
+                  <input id="event-start-time" type="time" {...bindText(startTime, setStartTime)} />
                 </div>
               )}
 
               {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
                 <div class="form-field">
                   <label for="event-meet-time">Meet time</label>
-                  <input id="event-meet-time" type="time" value={meetTime}
-                    onInput={(e) => setMeetTime((e.target as HTMLInputElement).value)} />
+                  <input id="event-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
                 </div>
               )}
 
               {disclosure.isOpen('endTime') && !disclosure.isOpen('endDate') && (
                 <div class="form-field">
                   <label for="event-end-time">End time</label>
-                  <input id="event-end-time" type="time" value={endTime}
-                    onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
+                  <input id="event-end-time" type="time" {...bindText(endTime, setEndTime)} />
                 </div>
               )}
 
@@ -390,14 +474,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 <>
                   <div class="form-field">
                     <label for="event-end-date">End date</label>
-                    <input id="event-end-date" type="date" value={endDate}
-                      onInput={(e) => setEndDate((e.target as HTMLInputElement).value)} />
+                    <input id="event-end-date" type="date" {...bindText(endDate, setEndDate)} />
                   </div>
                   {disclosure.isOpen('endTime') && (
                     <div class="form-field">
                       <label for="event-end-time">End time</label>
-                      <input id="event-end-time" type="time" value={endTime}
-                        onInput={(e) => setEndTime((e.target as HTMLInputElement).value)} />
+                      <input id="event-end-time" type="time" {...bindText(endTime, setEndTime)} />
                     </div>
                   )}
                 </>
@@ -439,8 +521,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               {disclosure.isOpen('time') && (
                 <div class="form-field">
                   <label for="event-start-time">Time</label>
-                  <input id="event-start-time" type="time" value={startTime}
-                    onInput={(e) => setStartTime((e.target as HTMLInputElement).value)} />
+                  <input id="event-start-time" type="time" {...bindText(startTime, setStartTime)} />
                 </div>
               )}
 
@@ -455,8 +536,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
                 <div class="form-field">
                   <label for="event-meet-time">Meet time</label>
-                  <input id="event-meet-time" type="time" value={meetTime}
-                    onInput={(e) => setMeetTime((e.target as HTMLInputElement).value)} />
+                  <input id="event-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
                 </div>
               )}
 
@@ -474,36 +554,32 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           {disclosure.isOpen('location') && (
             <div class="form-field">
               <label for="event-location">Location</label>
-              <input id="event-location" type="text" value={location}
-                placeholder="111 Wellington St, K1A 0A6"
-                onInput={(e) => setLocation((e.target as HTMLInputElement).value)} />
+              <input id="event-location" type="text" {...bindText(location, setLocation)}
+                placeholder="111 Wellington St, K1A 0A6" />
             </div>
           )}
 
           {disclosure.isOpen('distances') && (
             <div class="form-field">
               <label for="event-distances">Distances</label>
-              <input id="event-distances" type="text" value={distances}
-                placeholder="e.g. 10km loop, 25km and 50km options"
-                onInput={(e) => setDistances((e.target as HTMLInputElement).value)} />
+              <input id="event-distances" type="text" {...bindText(distances, setDistances)}
+                placeholder="e.g. 10km loop, 25km and 50km options" />
             </div>
           )}
 
           {disclosure.isOpen('registration') && (
             <div class="form-field">
               <label for="event-registration">Registration URL</label>
-              <input id="event-registration" type="url" value={registrationUrl}
-                placeholder="https://"
-                onInput={(e) => setRegistrationUrl((e.target as HTMLInputElement).value)} />
+              <input id="event-registration" type="url" {...bindText(registrationUrl, setRegistrationUrl)}
+                placeholder="https://" />
             </div>
           )}
 
           {disclosure.isOpen('review') && (
             <div class="form-field">
               <label for="event-review">Review URL</label>
-              <input id="event-review" type="url" value={reviewUrl}
-                placeholder="https://"
-                onInput={(e) => setReviewUrl((e.target as HTMLInputElement).value)} />
+              <input id="event-review" type="url" {...bindText(reviewUrl, setReviewUrl)}
+                placeholder="https://" />
             </div>
           )}
 
@@ -540,27 +616,24 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           {disclosure.isOpen('edition') && (
             <div class="form-field">
               <label for="event-edition">Edition</label>
-              <input id="event-edition" type="text" value={edition}
-                placeholder="e.g. 53rd, 2026"
-                onInput={(e) => setEdition((e.target as HTMLInputElement).value)} />
+              <input id="event-edition" type="text" {...bindText(edition, setEdition)}
+                placeholder="e.g. 53rd, 2026" />
             </div>
           )}
 
           {disclosure.isOpen('eventUrl') && (
             <div class="form-field">
               <label for="event-url">Event website</label>
-              <input id="event-url" type="url" value={eventUrl}
-                placeholder="https://"
-                onInput={(e) => setEventUrl((e.target as HTMLInputElement).value)} />
+              <input id="event-url" type="url" {...bindText(eventUrl, setEventUrl)}
+                placeholder="https://" />
             </div>
           )}
 
           {disclosure.isOpen('mapUrl') && (
             <div class="form-field">
               <label for="event-map-url">Map URL</label>
-              <input id="event-map-url" type="url" value={mapUrl}
-                placeholder="https://ridewithgps.com/..."
-                onInput={(e) => setMapUrl((e.target as HTMLInputElement).value)} />
+              <input id="event-map-url" type="url" {...bindText(mapUrl, setMapUrl)}
+                placeholder="https://ridewithgps.com/..." />
             </div>
           )}
 
@@ -625,136 +698,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               setPosterHeight(height);
             }}
           />
-        </div>
-
-      {isClub && routeOptions.length > 0 && (
-        <EventRouteSection
-          routeOptions={routeOptions}
-          selectedRoutes={selectedRoutes}
-          onRoutesChange={setSelectedRoutes}
-        />
-      )}
-
-      <EventMediaSection
-        media={media}
-        onMediaChange={setMedia}
-        cdnUrl={cdnUrl}
-        userRole={userRole}
-      />
-
-      {isClub && placeOptions.length > 0 && (
-        <section class="editor-section">
-          <h2>Waypoints</h2>
-          <WaypointEditor
-            waypoints={waypoints}
-            onChange={setWaypoints}
-            places={placeOptions}
-            routes={selectedRoutes.length > 1 ? selectedRoutes : undefined}
-          />
-        </section>
-      )}
-
-      {isClub && (
-        <section class="editor-section">
-          <h2>Results</h2>
-          <ResultsEditor
-            results={eventResults}
-            onChange={setEventResults}
-          />
-        </section>
-      )}
-
-      <section class="editor-section">
-        <h2>Organizer</h2>
-        <div class="auth-form">
-          <div class="form-field">
-            <label>Select organizer</label>
-            <div class="organizer-select-row">
-              <select value={orgSlug || (disclosure.isOpen('orgForm') && orgName ? '__custom__' : '')}
-                onChange={(e) => {
-                  const val = (e.target as HTMLSelectElement).value;
-                  if (val === '__custom__') return;
-                  selectOrganizer(val);
-                }}>
-                <option value="">-- None --</option>
-                {disclosure.isOpen('orgForm') && orgName && !organizers.find(o => o.slug === orgSlug) && (
-                  <option value="__custom__">{orgName} (custom)</option>
-                )}
-                {organizers.map(o => (
-                  <option key={o.slug} value={o.slug}>{o.name}</option>
-                ))}
-              </select>
-              <button type="button" class="btn-link" onClick={createNewOrganizer}>
-                or create new
-              </button>
-            </div>
-          </div>
-
-          {disclosure.isOpen('orgForm') && (
-            <div class="organizer-inline-form">
-              <div class="form-field">
-                <label for="org-name">Organizer Name</label>
-                <input id="org-name" type="text" value={orgName}
-                  onInput={(e) => setOrgName((e.target as HTMLInputElement).value)} />
-              </div>
-              <div class="form-field">
-                <label for="org-website">Website</label>
-                <input id="org-website" type="url" value={orgWebsite}
-                  onInput={(e) => setOrgWebsite((e.target as HTMLInputElement).value)} />
-              </div>
-              <div class="form-field">
-                <label for="org-instagram">Instagram handle</label>
-                <input id="org-instagram" type="text" value={orgInstagram}
-                  placeholder="without @"
-                  onInput={(e) => setOrgInstagram((e.target as HTMLInputElement).value)} />
-              </div>
-              <PhotoField
-                photoKey={orgPhotoKey}
-                cdnUrl={cdnUrl}
-                label="Photo"
-                onPhotoChange={(key, contentType, width, height) => {
-                  setOrgPhotoKey(key);
-                  setOrgPhotoContentType(contentType);
-                  setOrgPhotoWidth(width);
-                  setOrgPhotoHeight(height);
-                }}
-              />
-            </div>
-          )}
-        </div>
-      </section>
-
-      <EditorActions
-        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} onDismiss={dismissSaved} contentType="event" userRole={userRole} guestCreated={guestCreated}
-        viewLink={`/events/${initialData.id}`}
-        showLicenseNotice={showLicenseNotice !== false}
-        licenseDocsUrl="https://whereto.bike/about/licensing/"
-        disabled={readOnly}
-      />
-        </div>
-
-        {/* RIGHT PANE: Preview */}
-        <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
-          <EventPreview
-            name={name}
-            startDate={startDate}
-            startTime={startTime}
-            endDate={endDate}
-            endTime={endTime}
-            meetTime={meetTime}
-            location={location}
-            organizer={orgName}
-            distances={distances}
-            registrationUrl={registrationUrl}
-            eventUrl={eventUrl}
-            posterKey={posterKey}
-            tags={tags}
-            body={body}
-            cdnUrl={cdnUrl}
-          />
-        </div>
-        </div>
-    </fieldset>
+    </EditorLayout>
   );
 }

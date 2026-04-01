@@ -1,12 +1,11 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
-import { useHydrated } from '../../lib/hooks';
-import { useEditorState } from './useEditorState';
+import { useEditorForm } from './useEditorForm';
+import EditorLayout from './EditorLayout';
+import { bindText } from './field-helpers';
 import { useFormValidation } from './useFormValidation';
-import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import PhotoField from './PhotoField';
-import EditorActions from './EditorActions';
 import PlacePreview from './PlacePreview';
 import { categoryEmoji } from '../../lib/geo/place-categories';
 import { goodForEnum } from '../../schemas/index';
@@ -81,10 +80,7 @@ function isGoogleMapsUrl(text: string): boolean {
 }
 
 export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [], guestLabel, organizers }: Props) {
-  const hydratedRef = useHydrated<HTMLDivElement>();
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
-  const [dirty, setDirty] = useState(false);
-  useUnsavedGuard(dirty);
 
   const [name, setName] = useState(initialData.name || '');
 
@@ -118,13 +114,6 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   );
   const [prefilling, setPrefilling] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(!initialData.isNew);
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
-
-  const initialRender = useRef(true);
-  useEffect(() => {
-    if (initialRender.current) { initialRender.current = false; return; }
-    setDirty(true);
-  }, [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey, vibe, goodFor, organizer, socialLinks]);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
@@ -138,12 +127,13 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     { field: '', check: () => !lat && !lng, message: 'Click on the map to set a location' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, setError, dismissSaved } = useEditorState({
+  const editor = useEditorForm({
     apiBase: '/api/places',
     contentId: initialData.isNew ? null : initialData.id,
-    initialContentHash: initialData.contentHash,
+    contentHash: initialData.contentHash,
     userRole,
     validate,
+    deps: [name, translations, category, lat, lng, address, website, phone, googleMapsUrl, photoKey, vibe, goodFor, organizer, socialLinks],
     buildPayload: () => {
       const payload: PlaceUpdate = {
         frontmatter: {
@@ -170,7 +160,6 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
-      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/places/${result.id}`;
       }
@@ -223,7 +212,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     if (!query || query === lastPrefillQuery.current) return;
     lastPrefillQuery.current = query;
     setPrefilling(true);
-    setError('');
+    editor.setError('');
     try {
       const res = await fetch('/api/places/prefill', {
         method: 'POST',
@@ -232,7 +221,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Prefill failed');
+        editor.setError(data.error || 'Prefill failed');
         return;
       }
       if (data.name) setName(data.name);
@@ -250,7 +239,7 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
         }
       }
     } catch {
-      setError('Prefill request failed');
+      editor.setError('Prefill request failed');
     } finally {
       setPrefilling(false);
     }
@@ -411,35 +400,35 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   );
 
   return (
-    <div class="place-editor" ref={hydratedRef}>
-      {userRole === 'guest' && guestLabel && (
-        <p class="editor-guest-label">{guestLabel}</p>
-      )}
-
-      {/* Mobile tabs */}
-      <div class="route-editor-tabs">
-        <button
-          type="button"
-          class={`route-editor-tab ${activeTab === 'edit' ? 'route-editor-tab--active' : ''}`}
-          onClick={() => setActiveTab('edit')}
-        >Edit</button>
-        <button
-          type="button"
-          class={`route-editor-tab ${activeTab === 'preview' ? 'route-editor-tab--active' : ''}`}
-          onClick={() => setActiveTab('preview')}
-        >Preview</button>
-      </div>
-
-      <div class="route-editor-panes">
-      {/* LEFT PANE: Editor */}
-      <div class={`route-editor-edit ${activeTab !== 'edit' ? 'route-editor-pane--hidden' : ''}`}>
-      <div class="auth-form">
+    <EditorLayout
+      editor={editor}
+      className="place-editor"
+      contentType="place"
+      userRole={userRole}
+      guestLabel={guestLabel}
+      viewLink="/admin/places"
+      preview={
+        <PlacePreview
+          name={name}
+          category={category}
+          vibe={vibe}
+          lat={lat}
+          lng={lng}
+          address={address}
+          website={website}
+          phone={phone}
+          goodFor={goodFor}
+          photoKey={photoKey}
+          socialLinks={socialLinks}
+          cdnUrl={cdnUrl}
+        />
+      }
+    >
         {initialData.isNew && googleMapsField}
 
         <div class="form-field">
           <label for="place-name">Name</label>
-          <input id="place-name" type="text" value={name}
-            onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <input id="place-name" type="text" {...bindText(name, setName)} />
         </div>
 
         <div class="form-field">
@@ -481,28 +470,24 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
             <div class="form-field">
               <label for="place-address">Address</label>
-              <input id="place-address" type="text" value={address}
-                onInput={(e) => setAddress((e.target as HTMLInputElement).value)} />
+              <input id="place-address" type="text" {...bindText(address, setAddress)} />
             </div>
 
             <div class="form-field">
               <label for="place-website">Website</label>
-              <input id="place-website" type="url" value={website}
-                placeholder="https://"
-                onInput={(e) => setWebsite((e.target as HTMLInputElement).value)} />
+              <input id="place-website" type="url" {...bindText(website, setWebsite)}
+                placeholder="https://" />
             </div>
 
             <div class="form-field">
               <label for="place-phone">Phone</label>
-              <input id="place-phone" type="tel" value={phone}
-                onInput={(e) => setPhone((e.target as HTMLInputElement).value)} />
+              <input id="place-phone" type="tel" {...bindText(phone, setPhone)} />
             </div>
 
             <div class="form-field">
               <label for="place-vibe">Vibe <span class="field-hint">(one-sentence hook)</span></label>
-              <input id="place-vibe" type="text" value={vibe}
-                placeholder="What makes this place worth visiting"
-                onInput={(e) => setVibe((e.target as HTMLInputElement).value)} />
+              <input id="place-vibe" type="text" {...bindText(vibe, setVibe)}
+                placeholder="What makes this place worth visiting" />
             </div>
 
             <div class="form-field">
@@ -605,34 +590,6 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
             </div>
           </div>
         )}
-      </div>
-
-      <EditorActions
-        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} onDismiss={dismissSaved} contentType="place" userRole={userRole} guestCreated={guestCreated}
-        viewLink="/admin/places"
-        licenseDocsUrl="https://whereto.bike/about/licensing/"
-      />
-      </div>
-
-      {/* RIGHT PANE: Preview */}
-      <div class={`route-editor-preview ${activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>
-        <PlacePreview
-          name={name}
-          category={category}
-          vibe={vibe}
-          lat={lat}
-          lng={lng}
-          address={address}
-          website={website}
-          phone={phone}
-          goodFor={goodFor}
-          photoKey={photoKey}
-          socialLinks={socialLinks}
-          cdnUrl={cdnUrl}
-        />
-      </div>
-      </div>
-    </div>
+    </EditorLayout>
   );
 }
