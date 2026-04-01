@@ -8,8 +8,9 @@ import BikePathMap from '@/components/BikePathMap.astro';
 import RoutesOnPath from '@/components/RoutesOnPath.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import NearbyPaths from '@/components/NearbyPaths.astro';
-import { t } from '@/i18n';
+import { t, localePath } from '@/i18n';
 import { paths, assets } from '@/lib/paths';
+import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
@@ -129,9 +130,15 @@ const hasMapThumb = hasCachedMap(`path-${page.slug}`);
 const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
 const firstCoverKey = overlappingRoutes.find(r => r.coverKey)?.coverKey;
 const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('nav.bike_paths', locale), url: `${config.url}${paths.bikePaths(locale)}` },
+  { name: localeName, url: `${config.url}${paths.bikePath(page.slug, locale)}` },
+]);
 ---
 
-<Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
+<Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage} breadcrumbs={breadcrumbs}>
   <div class="bike-path-detail">
     <h1>
       {localeName}

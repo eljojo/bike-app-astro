@@ -155,6 +155,7 @@ const seoTitle = (() => {
 
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('nav.routes', locale), url: `${config.url}${localePath('/routes', locale)}` },
   { name: localeName, url: `${config.url}${paths.route(slug, locale)}` },
 ]);
 
@@ -328,7 +329,7 @@ const jsonLd = [
     )}
 
     <p class="route-similar">
-      <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
+      <a href={localePath('/routes', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
 </Base>
