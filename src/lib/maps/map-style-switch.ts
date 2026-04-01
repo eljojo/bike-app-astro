@@ -33,7 +33,7 @@ export function saveStylePreference(key: MapStyleKey): void {
 export function switchStyle(
   map: import('maplibre-gl').Map,
   key: MapStyleKey,
-  replaySetup: () => void,
+  replaySetup: () => void | Promise<void>,
 ): void {
   const url = getStyleUrl(key);
   map.setStyle(url);
