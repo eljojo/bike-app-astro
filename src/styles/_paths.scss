@@ -191,16 +191,20 @@
     .bike-path-description { order: 4; }
     .edit-entry-point { order: 5; }
 
-    // 3. Nearby places + paths
-    .nearby-places { order: 6; }
-    .connected-paths { order: 7; }
-    .nearby-paths { order: 8; }
+    // 3. Routes on this path
+    .routes-on-path { order: 6; }
 
-    // 4. Routes on path + photos
-    .routes-on-path { order: 9; }
-    .bike-path-photos { order: 10; }
+    // 4. Nearby places
+    .nearby-places { order: 7; }
 
-    // 5. Footer links
+    // 5. Photos
+    .bike-path-photos { order: 8; }
+
+    // 6. Nearby paths + connects to
+    .nearby-paths { order: 9; }
+    .connected-paths { order: 10; }
+
+    // 7. Footer links
     .bike-path-links { order: 11; }
   }
 }
