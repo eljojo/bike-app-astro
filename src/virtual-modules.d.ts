@@ -1,6 +1,9 @@
 /** Build-time constant: true when RUNTIME=local (Node.js adapter). */
 declare const __RUNTIME_LOCAL__: boolean;
 
+/** Build-time constant: true unless ENABLE_BIKE_PATHS=false. Gates bike-path pages, sitemap, nav, map layer. */
+declare const __ENABLE_BIKE_PATHS__: boolean;
+
 /**
  * Ambient module declarations for Vite virtual modules.
  *

@@ -1,6 +1,7 @@
 import type { AstroIntegration } from 'astro';
 import { translatePath } from '../lib/i18n/path-translations';
 import { isBlogInstance, isClubInstance } from '../lib/config/city-config';
+import { getInstanceFeatures } from '../lib/config/instance-features';
 
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
@@ -29,8 +30,10 @@ const wikiPages: LocalePage[] = [
   { pattern: '/routes/[slug]/map/[variant]', entrypoint: view('routes/map-variant.astro') },
   { pattern: '/routes.json', entrypoint: view('routes/routes-index.json.ts') },
   { pattern: '/routes/[slug].json', entrypoint: view('routes/route-data.json.ts') },
-  { pattern: '/bike-paths', entrypoint: view('paths/index.astro') },
-  { pattern: '/bike-paths/[slug]', entrypoint: view('paths/detail.astro') },
+  ...(getInstanceFeatures().hasPaths ? [
+    { pattern: '/bike-paths', entrypoint: view('paths/index.astro') },
+    { pattern: '/bike-paths/[slug]', entrypoint: view('paths/detail.astro') },
+  ] : []),
   { pattern: '/bike-shops', entrypoint: view('bike-shops.astro') },
   { pattern: '/guides', entrypoint: view('guides/index.astro') },
   { pattern: '/guides/[slug]', entrypoint: view('guides/detail.astro') },

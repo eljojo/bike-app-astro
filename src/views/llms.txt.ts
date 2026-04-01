@@ -57,9 +57,11 @@ export const GET: APIRoute = async () => {
   // Key sections
   const pageLines = [
     `- Routes: ${config.url}/routes`,
-    `- Bike paths: ${config.url}/bike-paths`,
     `- Map: ${config.url}/map`,
   ];
+  if (features.hasPaths) {
+    pageLines.splice(1, 0, `- Bike paths: ${config.url}/bike-paths`);
+  }
   if (features.hasEvents) {
     pageLines.push(`- Event calendar: ${config.url}/calendar`);
   }

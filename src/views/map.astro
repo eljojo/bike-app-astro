@@ -13,8 +13,10 @@ import { imageUrl } from '@/lib/media/image-service';
 import photoLocations from 'virtual:bike-app/media-locations';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '@/lib/geo/proximity';
 import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 
 const config = getCityConfig();
+const features = getInstanceFeatures();
 const locale = Astro.currentLocale;
 
 const routes = await getCollection('routes');
@@ -22,7 +24,9 @@ const places = await getCollection('places');
 const organizers = await getCollection('organizers');
 const organizerMap = new Map(organizers.map(o => [o.id, o]));
 
-const { pages: bikePathPages, allYmlEntries } = await loadBikePathData();
+const { pages: bikePathPages, allYmlEntries } = features.hasPaths
+  ? await loadBikePathData()
+  : { pages: [], allYmlEntries: [] };
 
 // Build relation ID → path info for map popups and interactivity
 // Pages are interactive (clickable with popups). Hard-excluded entries render
@@ -180,5 +184,5 @@ const jsonLd = webPageJsonLd({
 ---
 
 <Base title={mapTitle} description={mapDescription} jsonLd={jsonLd} ogImage={ogImage} fullbleed>
-  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} pathMapData={pathMapData} routesLabel={t('nav.routes', locale)} pathsLabel={t('nav.bike_paths', locale)} />
+  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} pathMapData={features.hasPaths ? pathMapData : []} routesLabel={features.hasPaths ? t('nav.routes', locale) : undefined} pathsLabel={features.hasPaths ? t('nav.bike_paths', locale) : undefined} />
 </Base>

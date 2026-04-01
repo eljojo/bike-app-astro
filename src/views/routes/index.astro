@@ -8,6 +8,9 @@ import { t, localePath } from '@/i18n';
 import { getCityConfig } from '@/lib/config/city-config';
 import { routeSlug, paths } from '@/lib/paths';
 import { loadHomepageData } from '@/lib/route-data';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
+
+const features = getInstanceFeatures();
 
 const locale = Astro.currentLocale;
 const config = getCityConfig();
@@ -21,10 +24,12 @@ const suggestKey = published.length < 5
 ---
 
 <Base title={`${t('nav.routes', locale)} | ${config.display_name}`}>
-  <SubTabToggle items={[
-    { label: t('nav.routes', locale), href: localePath('/routes', locale), active: true },
-    { label: t('nav.bike_paths', locale), href: paths.bikePaths(locale), active: false },
-  ]} />
+  {features.hasPaths && (
+    <SubTabToggle items={[
+      { label: t('nav.routes', locale), href: localePath('/routes', locale), active: true },
+      { label: t('nav.bike_paths', locale), href: paths.bikePaths(locale), active: false },
+    ]} />
+  )}
 
   <TagFilter tags={filterTags} />
   <ul class="routes-grid">

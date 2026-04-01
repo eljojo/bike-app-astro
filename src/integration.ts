@@ -157,6 +157,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
               __CITY__: JSON.stringify(CITY),
               __VIDEO_PREFIX__: JSON.stringify(process.env.VIDEO_PREFIX || CITY),
               __RUNTIME_LOCAL__: JSON.stringify(process.env.RUNTIME === 'local'),
+              __ENABLE_BIKE_PATHS__: JSON.stringify(process.env.ENABLE_BIKE_PATHS !== 'false'),
             },
             plugins: [buildDataPlugin({ consumerRoot })],
             build: {
