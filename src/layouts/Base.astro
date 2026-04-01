@@ -5,7 +5,8 @@ import Footer from '../components/Footer.astro';
 import SEO from '../components/SEO.astro';
 import { getCityConfig } from '../lib/config/city-config';
 import { getFontPreloads } from '../lib/fonts.server';
-import { fullLocale, defaultLocale } from '../lib/i18n/locale-utils';
+import { fullLocale, defaultLocale, supportedLocales } from '../lib/i18n/locale-utils';
+import { switchLocalePath as computeSwitchPath } from '../lib/i18n/locale-switcher';
 import { t, localePath } from '../i18n';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 import LocaleRedirect from '../components/LocaleRedirect.astro';
@@ -36,6 +37,11 @@ interface Props {
 }
 
 const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadcrumbs, alternateUrls, admin, fullbleed } = Astro.props;
+
+const locales = supportedLocales();
+const showSwitcher = locales.length > 1;
+const otherLocale = locales.find(l => l !== locale) || locales[0];
+const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 ---
 <!DOCTYPE html>
 <html lang={htmlLang}>
@@ -61,6 +67,11 @@ const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadc
     <header class="site-header">
       <a href={logoHref} class="site-title" set:html={config.site_title_html} />
       {isWiki && <p class="site-subtitle">{t('home.subtitle', locale)}</p>}
+      {showSwitcher && (
+        <a href={switchPath} class="lang-switcher" data-locale={otherLocale}>
+          {otherLocale.toUpperCase()}
+        </a>
+      )}
     </header>
     {!admin && <Nav alternateUrls={alternateUrls} />}
     <main>
