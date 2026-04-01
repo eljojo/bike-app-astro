@@ -189,6 +189,7 @@ jobs:
           CITY: ${{ inputs.city }}
           VIDEO_PREFIX: ${{ steps.video-prefix.outputs.value }}
           DISABLE_ANALYTICS: ${{ inputs.disable-analytics && 'true' || '' }}
+          ENABLE_BIKE_PATHS: ${{ inputs.environment != 'production' }}
           NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Merge incremental build
