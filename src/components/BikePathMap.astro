@@ -37,14 +37,11 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 </div>
 
 <script>
-  import { initMap, addPhotoMarkers, addMarkers, setPhotoLayersVisible, setPlaceMarkersVisible, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../lib/maps/map-init';
+  import { createMapSession, createGeojsonLineLayer, createPhotoLayer, createPlaceLayer } from '../lib/maps/layers';
   import { categoryEmoji } from '../lib/geo/place-categories';
-  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
-  import maplibregl from 'maplibre-gl';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
-
-  const PATH_WIDTH = ROUTE_LINE_WIDTH;
+  import type { MapStyleKey } from '../lib/maps/map-style-switch';
 
   const container = document.getElementById('bike-path-map');
   const glEl = document.getElementById('bike-path-map-gl');
@@ -60,134 +57,59 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
     const cdnUrl = container.dataset.cdnUrl || '';
 
-    const styleKey = loadStylePreference();
-    const map = initMap({ el: glEl, center, zoom: 12, styleUrl: getStyleUrl(styleKey) });
+    const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
+    const placeData = places.map(p => ({
+      lat: p.lat, lng: p.lng,
+      emoji: categoryEmoji[p.category] || '📌',
+      popup: `<div class="place-popup">${p.name}</div>`,
+    }));
+
+    const geojsonLayer = createGeojsonLineLayer({ geoFiles, fetchPath: '/bike-paths/geo/' });
+    const photoLayer = createPhotoLayer({ photos: photoData, cdnUrl, defaultVisible: false });
+    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
+
+    const session = createMapSession({ el: glEl, center, zoom: 12 })
+      .use(geojsonLayer)
+      .use(photoLayer)
+      .use(placeLayer);
 
     // Disable interaction in card mode
+    const { map } = session;
     map.scrollZoom.disable();
     map.dragPan.disable();
     map.doubleClickZoom.disable();
     map.touchZoomRotate.disable();
 
-    let expanded = false;
-    let geometryLoaded = false;
-    let pathBounds: maplibregl.LngLatBounds | null = null;
+    session.start();
 
-    let cachedFeatures: GeoJSON.Feature[] | null = null;
-
-    // Load GeoJSON geometry files. Fetches once, caches features for style switch replay.
-    async function loadGeometry() {
-      if (geoFiles.length === 0) return;
-
-      // Fetch once
-      if (!cachedFeatures) {
-        const features: GeoJSON.Feature[] = [];
-        const bounds = new maplibregl.LngLatBounds();
-        for (const file of geoFiles) {
-          try {
-            const res = await fetch(`/bike-paths/geo/${file}`);
-            if (!res.ok) continue;
-            const geojson = await res.json();
-            for (const feature of geojson.features) {
-              features.push(feature);
-              if (feature.geometry.type === 'LineString') {
-                for (const coord of feature.geometry.coordinates) {
-                  bounds.extend(coord as [number, number]);
-                }
-              }
-            }
-          } catch { /* geometry not cached yet */ }
-        }
-        cachedFeatures = features;
-        if (!bounds.isEmpty()) pathBounds = bounds;
-      }
-
-      if (cachedFeatures.length === 0) return;
-
-      // (Re-)add source and layer — idempotent for style switch replay
-      if (map.getSource('bike-path')) {
-        if (map.getLayer('bike-path-line')) map.removeLayer('bike-path-line');
-        map.removeSource('bike-path');
-      }
-
-      map.addSource('bike-path', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: cachedFeatures },
-      });
-
-      map.addLayer({
-        id: 'bike-path-line',
-        type: 'line',
-        source: 'bike-path',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': PATH_WIDTH,
-          'line-opacity': 0.85,
-        },
-      });
-
-      if (pathBounds && !pathBounds.isEmpty()) {
-        map.fitBounds(pathBounds, { padding: 30, animate: false });
-      }
-
-      geometryLoaded = true;
-    }
-
-    // Load geometry once map style is ready
+    // Render controls after load (hidden until expanded via CSS)
     map.on('load', () => {
-      loadGeometry();
-
-      // Add photo and place markers (off by default)
-      const hasPhotos = photos.length > 0;
-      const hasPlaces = places.length > 0;
-
-      function addOverlays(sk?: MapStyleKey) {
-        if (hasPhotos) {
-          addPhotoMarkers(map, photos.map((p, i) => ({
-            key: p.key, lat: p.lat, lng: p.lng, index: i,
-          })), cdnUrl, sk);
-          setPhotoLayersVisible(map, false);
-        }
-        if (hasPlaces) {
-          addMarkers(map, places.map(p => ({
-            lat: p.lat, lng: p.lng,
-            emoji: categoryEmoji[p.category] || '📌',
-            popup: `<div class="place-popup">${p.name}</div>`,
-          })));
-          setPlaceMarkersVisible(map, false);
-        }
-      }
-      addOverlays();
-
-      // Render controls (hidden until expanded)
       const controlsEl = document.getElementById('bike-path-map-controls');
       if (controlsEl) {
         render(h(MapControls, {
-          hasPhotos,
-          hasPlaces,
+          hasPhotos: photos.length > 0,
+          hasPlaces: places.length > 0,
           defaultPhotos: false,
-          onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
-          onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
-          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
-            loadGeometry();
-            addOverlays(key);
-          }),
+          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
+          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
+          onToggleStyle: (key: MapStyleKey) => session.switchStyle(key),
         }), controlsEl);
       }
     });
 
+    // --- Expand / collapse modal ---
+    let expanded = false;
     let savedRect: DOMRect | null = null;
-
     const TRANSITION_MS = 350;
+
+    function getBounds() {
+      return geojsonLayer.getBounds?.() ?? null;
+    }
 
     function expand() {
       if (expanded) return;
       expanded = true;
-
-      // Fade out the map canvas while we reposition
       glEl.classList.add('fading');
-
       savedRect = container.getBoundingClientRect();
       container.style.position = 'fixed';
       container.style.top = `${savedRect.top}px`;
@@ -195,11 +117,9 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       container.style.width = `${savedRect.width}px`;
       container.style.height = `${savedRect.height}px`;
       container.style.zIndex = '1000';
-
       overlay!.classList.add('visible');
       closeBtn!.style.display = 'flex';
       container.setAttribute('aria-expanded', 'true');
-
       const isMobile = window.matchMedia('(max-width: 800px)').matches;
       requestAnimationFrame(() => {
         container.classList.add('expanded');
@@ -217,37 +137,26 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
           container.style.borderRadius = '16px';
         }
       });
-
-      // Enable interaction
       map.scrollZoom.enable();
       map.dragPan.enable();
       map.doubleClickZoom.enable();
       map.touchZoomRotate.enable();
-
-      // After position transition: resize map, then fade back in
       setTimeout(() => {
         map.resize();
-        if (pathBounds && !pathBounds.isEmpty()) {
-          map.fitBounds(pathBounds, { padding: 60, animate: false });
-        }
-        requestAnimationFrame(() => {
-          glEl.classList.remove('fading');
-        });
+        const b = getBounds();
+        if (b && !b.isEmpty()) map.fitBounds(b, { padding: 60, animate: false });
+        requestAnimationFrame(() => glEl.classList.remove('fading'));
       }, TRANSITION_MS);
     }
 
     function collapse() {
       if (!expanded) return;
       expanded = false;
-
-      // Fade out
       glEl.classList.add('fading');
-
       container.classList.remove('expanded');
       container.setAttribute('aria-expanded', 'false');
       overlay!.classList.remove('visible');
       closeBtn!.style.display = 'none';
-
       if (savedRect) {
         container.style.top = `${savedRect.top}px`;
         container.style.left = `${savedRect.left}px`;
@@ -256,14 +165,10 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         const isMobile = window.matchMedia('(max-width: 800px)').matches;
         container.style.borderRadius = isMobile ? '8px' : '12px';
       }
-
-      // Disable interaction
       map.scrollZoom.disable();
       map.dragPan.disable();
       map.doubleClickZoom.disable();
       map.touchZoomRotate.disable();
-
-      // After position transition: reset layout, resize, fade in
       setTimeout(() => {
         container.style.position = '';
         container.style.top = '';
@@ -273,36 +178,19 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
         container.style.zIndex = '';
         container.style.borderRadius = '';
         map.resize();
-        if (pathBounds && !pathBounds.isEmpty()) {
-          map.fitBounds(pathBounds, { padding: 20, animate: false });
-        }
-        requestAnimationFrame(() => {
-          glEl.classList.remove('fading');
-        });
+        const b = getBounds();
+        if (b && !b.isEmpty()) map.fitBounds(b, { padding: 20, animate: false });
+        requestAnimationFrame(() => glEl.classList.remove('fading'));
       }, TRANSITION_MS);
     }
 
-    container.addEventListener('click', (e) => {
-      if (!expanded) expand();
-    });
-
+    container.addEventListener('click', () => { if (!expanded) expand(); });
     container.addEventListener('keydown', (e) => {
-      if (!expanded && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        expand();
-      }
+      if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
     });
-
-    closeBtn!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      collapse();
-    });
-
+    closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
     overlay!.addEventListener('click', collapse);
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && expanded) collapse();
-    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
   }
 </script>
 
