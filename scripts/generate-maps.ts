@@ -10,7 +10,7 @@ import {
   needsRegeneration,
 } from '../src/lib/maps/map-generation.server';
 import { variantKey } from '../src/lib/gpx/filenames';
-import { haversineKm } from '../src/lib/geo/proximity';
+import { mergeAdjacentSegments } from '../src/lib/geo/merge-segments';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';
@@ -20,53 +20,6 @@ import polylineCodec from '@mapbox/polyline';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
 
-/**
- * Merge segments whose endpoints are within `maxGapKm` into continuous chains.
- * Greedy: for each unvisited segment, find the nearest unvisited segment whose
- * start is close to the current chain's end, and append it.
- * Returns the merged chains (each is an array of [lat, lng] points).
- */
-function mergeAdjacentSegments(segments: [number, number][][], maxGapKm: number): [number, number][][] {
-  if (segments.length === 0) return [];
-  const used = new Set<number>();
-  const chains: [number, number][][] = [];
-
-  for (let i = 0; i < segments.length; i++) {
-    if (used.has(i)) continue;
-    used.add(i);
-    const chain = [...segments[i]];
-
-    // Greedily extend the chain
-    let extended = true;
-    while (extended) {
-      extended = false;
-      const tail = chain[chain.length - 1];
-      let bestIdx = -1;
-      let bestDist = maxGapKm;
-      let bestReverse = false;
-
-      for (let j = 0; j < segments.length; j++) {
-        if (used.has(j)) continue;
-        const seg = segments[j];
-        const dStart = haversineKm(tail[0], tail[1], seg[0][0], seg[0][1]);
-        const dEnd = haversineKm(tail[0], tail[1], seg[seg.length - 1][0], seg[seg.length - 1][1]);
-        if (dStart < bestDist) { bestDist = dStart; bestIdx = j; bestReverse = false; }
-        if (dEnd < bestDist) { bestDist = dEnd; bestIdx = j; bestReverse = true; }
-      }
-
-      if (bestIdx >= 0) {
-        used.add(bestIdx);
-        const seg = bestReverse ? [...segments[bestIdx]].reverse() : segments[bestIdx];
-        chain.push(...seg);
-        extended = true;
-      }
-    }
-
-    chains.push(chain);
-  }
-
-  return chains;
-}
 
 if (!API_KEY || API_KEY === 'your-key-here') {
   console.warn('[maps] GOOGLE_MAPS_STATIC_API_KEY not set — skipping map generation');
