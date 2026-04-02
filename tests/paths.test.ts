@@ -32,6 +32,41 @@ describe('paths', () => {
   });
 });
 
+describe('paths.bikePath', () => {
+  it('returns flat URL for standalone path (no network)', () => {
+    expect(paths.bikePath('rideau-canal-pathway')).toBe('/bike-paths/rideau-canal-pathway');
+  });
+
+  it('returns nested URL for network member', () => {
+    expect(paths.bikePath('ottawa-river-pathway', 'capital-pathway'))
+      .toBe('/bike-paths/capital-pathway/ottawa-river-pathway');
+  });
+
+  it('returns flat URL when networkSlug is undefined', () => {
+    expect(paths.bikePath('some-path', undefined)).toBe('/bike-paths/some-path');
+  });
+
+  it('translates segments for French locale', () => {
+    expect(paths.bikePath('rideau-canal-pathway', undefined, 'fr'))
+      .toBe('/fr/pistes-cyclables/rideau-canal-pathway');
+  });
+
+  it('translates nested network URL for French locale', () => {
+    expect(paths.bikePath('ottawa-river-pathway', 'capital-pathway', 'fr'))
+      .toBe('/fr/pistes-cyclables/capital-pathway/ottawa-river-pathway');
+  });
+
+  it('returns English URL with default locale', () => {
+    expect(paths.bikePath('test', undefined, 'en'))
+      .toBe('/bike-paths/test');
+  });
+
+  it('bikePaths index returns correct path', () => {
+    expect(paths.bikePaths()).toBe('/bike-paths');
+    expect(paths.bikePaths('fr')).toBe('/fr/pistes-cyclables');
+  });
+});
+
 describe('routeSlug()', () => {
   const routeWithFrSlug = {
     id: 'greenbelt',

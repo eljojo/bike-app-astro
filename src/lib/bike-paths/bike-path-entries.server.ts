@@ -555,7 +555,18 @@ export function loadBikePathEntries(): {
     if (isHardExcluded(entry)) continue;
 
     const memberSlugs = entry.members ?? [];
-    const memberPages = memberSlugs.map(s => pageBySlug.get(s)).filter((p): p is BikePathPage => !!p);
+    // Guard: warn about network→network references (should be fixed in the data pipeline)
+    const networkMemberSlugs = memberSlugs.filter(s => {
+      const yml = ymlBySlug.get(s);
+      return yml?.type === 'network';
+    });
+    if (networkMemberSlugs.length > 0) {
+      console.warn(`Network "${entry.slug}" references other networks as members: ${networkMemberSlugs.join(', ')} — skipped`);
+    }
+    const memberPages = memberSlugs
+      .filter(s => !networkMemberSlugs.includes(s))
+      .map(s => pageBySlug.get(s))
+      .filter((p): p is BikePathPage => !!p);
     const memberRefs: MemberRef[] = memberPages.map(p => ({
       slug: p.slug,
       name: p.name,

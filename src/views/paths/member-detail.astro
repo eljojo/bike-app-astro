@@ -25,14 +25,18 @@ export async function getStaticPaths() {
     loadBuildPlan(),
     'bike-path',
   );
+  // Pre-resolve network pages so the template doesn't need a second data load
+  const networksBySlug = new Map(
+    pages.filter(p => p.memberRefs).map(p => [p.slug, p]),
+  );
   return filtered.map(page => ({
     params: { network: page.memberOf!, slug: page.slug },
-    props: { page },
+    props: { page, networkPage: networksBySlug.get(page.memberOf!) },
   }));
 }
 
-interface Props { page: BikePathPage }
-const { page } = Astro.props;
+interface Props { page: BikePathPage; networkPage?: BikePathPage }
+const { page, networkPage } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -43,9 +47,7 @@ const localeVibe = (locale && page.translations[locale]?.vibe) || page.vibe;
 const localeBody = (locale && page.translations[locale]?.body) || page.body;
 const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
 
-// Look up network page for "Part of" badge
-const { pages: allPages } = await loadBikePathData();
-const networkPage = allPages.find(p => p.slug === page.memberOf && p.memberRefs);
+// Network page for "Part of" badge (passed from getStaticPaths — no second data load)
 const networkName = networkPage
   ? ((locale && networkPage.translations[locale]?.name) || networkPage.name)
   : page.memberOf;
@@ -110,7 +112,7 @@ const breadcrumbs = breadcrumbJsonLd([
       </section>
     )}
 
-    <RoutesOnPath overlappingRoutes={overlappingRoutes} locale={locale} />
+    <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 
     <NearbyPlaces nearbyPlaces={nearbyPlaces} locale={locale} />
 

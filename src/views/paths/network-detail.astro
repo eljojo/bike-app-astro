@@ -38,10 +38,13 @@ const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
 const memberRefs = page.memberRefs ?? [];
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
-// SEO
+// SEO — pick wikidata description for current locale, fallback to default locale
+const wikidataDesc = wikidataMeta
+  ? (wikidataMeta as Record<string, unknown>)[`description_${locale}`] as string | undefined
+    ?? wikidataMeta.description_en
+  : undefined;
 const seoDescription = localeVibe
-  || (wikidataMeta?.description_en && locale !== 'fr' ? wikidataMeta.description_en : undefined)
-  || (wikidataMeta?.description_fr && locale === 'fr' ? wikidataMeta.description_fr : undefined)
+  || wikidataDesc
   || `${localeName} — cycling network with ${memberRefs.length} pathways`;
 
 const hasMapThumb = hasCachedMap(`path-${page.slug}`);
@@ -103,7 +106,7 @@ const breadcrumbs = breadcrumbJsonLd([
       </section>
     )}
 
-    <RoutesOnPath overlappingRoutes={overlappingRoutes} locale={locale} />
+    <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 
     <NearbyPlaces nearbyPlaces={nearbyPlaces} locale={locale} />
   </div>

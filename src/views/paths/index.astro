@@ -47,8 +47,9 @@ for (const p of allPages) {
 }
 
 
-// Featured: paths with markdown descriptions (including network pages)
-const featured = pages.filter(p => p.featured || (p.memberRefs && p.memberRefs.length > 0));
+// Featured: paths with markdown descriptions, or networks with some content
+const featured = pages.filter(p => p.featured
+  || (p.memberRefs && p.memberRefs.length > 0 && (p.body || p.vibe || p.thumbnail_key)));
 
 // Separate network pages, member paths, and standalone paths
 const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
