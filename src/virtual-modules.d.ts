@@ -1,6 +1,9 @@
 /** Build-time constant: true when RUNTIME=local (Node.js adapter). */
 declare const __RUNTIME_LOCAL__: boolean;
 
+/** Build-time constant: true unless ENABLE_BIKE_PATHS=false. Gates bike-path pages, sitemap, nav, map layer. */
+declare const __ENABLE_BIKE_PATHS__: boolean;
+
 /**
  * Ambient module declarations for Vite virtual modules.
  *
@@ -77,6 +80,7 @@ interface _AdminEvent {
   organizer?: string | { name: string; website?: string; instagram?: string };
   poster_key?: string;
   tags?: string[];
+  hasBody: boolean;
   mediaCount: number;
   waypointCount: number;
   contentHash: string;
@@ -154,6 +158,8 @@ interface _AdminOrganizer {
   photo_content_type?: string;
   photo_width?: number;
   photo_height?: number;
+  hasBody: boolean;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash: string;
 }
 
@@ -183,6 +189,8 @@ interface _AdminPlace {
   category: string;
   lat: number;
   lng: number;
+  photo_key?: string;
+  social_links?: Array<{ platform: string; url: string }>;
   contentHash: string;
 }
 
@@ -212,6 +220,44 @@ declare module 'virtual:bike-app/admin-places' {
 
 declare module 'virtual:bike-app/admin-place-detail' {
   const details: Record<string, _AdminPlaceDetail>;
+  export default details;
+}
+
+interface _AdminBikePath {
+  id: string;
+  name: string;
+  vibe?: string;
+  hidden: boolean;
+  stub: boolean;
+  hasGeometry: boolean;
+  includes: string[];
+  tags: string[];
+  contentHash: string;
+}
+
+interface _AdminBikePathDetail {
+  id: string;
+  name?: string;
+  vibe?: string;
+  hidden: boolean;
+  stub: boolean;
+  featured: boolean;
+  includes: string[];
+  photo_key?: string;
+  tags: string[];
+  body: string;
+  contentHash?: string;
+  /** Dynamic locale name keys like name_fr, name_es etc. */
+  [key: `name_${string}`]: string | undefined;
+}
+
+declare module 'virtual:bike-app/admin-bike-paths' {
+  const bikePaths: _AdminBikePath[];
+  export default bikePaths;
+}
+
+declare module 'virtual:bike-app/admin-bike-path-detail' {
+  const details: Record<string, _AdminBikePathDetail>;
   export default details;
 }
 
@@ -353,6 +399,7 @@ interface _HomepageFact {
   text?: string;
   link?: string;
   link_text?: string;
+  always?: boolean;
   link_from?: string;
   query?: {
     type: string;
@@ -370,4 +417,12 @@ interface _HomepageFact {
 declare module 'virtual:bike-app/homepage-facts' {
   const facts: Record<string, _HomepageFact[]>;
   export default facts;
+}
+
+declare module 'virtual:bike-app/bike-path-pages' {
+  const pages: import('./lib/bike-paths/bike-path-entries.server').BikePathPage[];
+  const allYmlEntries: import('./lib/bike-paths/bikepaths-yml.server').SluggedBikePathYml[];
+  const geoFiles: string[];
+  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>>;
+  export { pages, allYmlEntries, geoFiles, routeToPaths };
 }

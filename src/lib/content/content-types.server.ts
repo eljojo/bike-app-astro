@@ -1,6 +1,6 @@
 import { getInstanceFeatures } from '../config/instance-features';
 import type { CurrentFiles } from './content-save';
-import { routeOps, eventOps, placeOps, organizerOps } from './content-ops.server';
+import { routeOps, eventOps, placeOps, organizerOps, bikePathOps } from './content-ops.server';
 
 export interface ContentTypeRoute {
   pattern: string;
@@ -85,6 +85,20 @@ export const contentTypes: ContentTypeConfig[] = [
     apiRoutes: [
       { pattern: '/api/places/prefill', entrypoint: 'api/places-prefill.ts' },
       { pattern: '/api/places/[id]', entrypoint: 'api/place-save.ts' },
+    ],
+  },
+  {
+    name: 'bike-paths',
+    singular: 'bike-path',
+    label: 'Bike Paths',
+    featureGate: 'hasPaths',
+    ops: bikePathOps,
+    adminListRoute: { pattern: '/admin/bike-paths', entrypoint: 'admin/bike-paths.astro' },
+    adminDetailRoutes: [
+      { pattern: '/admin/bike-paths/[id]', entrypoint: 'admin/bike-path-detail.astro' },
+    ],
+    apiRoutes: [
+      { pattern: '/api/bike-paths/[id]', entrypoint: 'api/bike-path-save.ts' },
     ],
   },
   {

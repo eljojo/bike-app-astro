@@ -1,0 +1,314 @@
+---
+interface MapPhoto { key: string; lat: number; lng: number; routeSlug: string; caption?: string }
+interface MapPlace { name: string; lat: number; lng: number; category: string }
+interface Props {
+  geoFiles: string[];
+  center?: [number, number];  // [lat, lng] from anchors
+  fallbackCenter: [number, number];  // [lat, lng] from city config
+  hintText: string;
+  closeLabel: string;
+  photos?: MapPhoto[];
+  places?: MapPlace[];
+  cdnUrl?: string;
+}
+const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '' } = Astro.props;
+---
+
+<div class="bike-path-map-wrapper">
+  <div class="bike-path-map-overlay" id="bike-path-map-overlay"></div>
+  <div
+    class="bike-path-map-card"
+    id="bike-path-map"
+    data-geo-files={JSON.stringify(geoFiles)}
+    data-center={center ? JSON.stringify(center) : ''}
+    data-fallback-center={JSON.stringify(fallbackCenter)}
+    data-photos={JSON.stringify(photos)}
+    data-places={JSON.stringify(places)}
+    data-cdn-url={cdnUrl}
+    role="button"
+    tabindex="0"
+    aria-expanded="false"
+  >
+    <div class="bike-path-map-gl" id="bike-path-map-gl"></div>
+    <div id="bike-path-map-controls"></div>
+    <button class="bike-path-map-close" id="bike-path-map-close" aria-label={closeLabel}>✕</button>
+    <div class="bike-path-map-expand-hint">{hintText}</div>
+  </div>
+</div>
+
+<script>
+  import { createMapSession, createGeojsonLineLayer, createPhotoLayer, createPlaceLayer } from '../lib/maps/layers';
+  import { categoryEmoji } from '../lib/geo/place-categories';
+  import { render, h } from 'preact';
+  import MapControls from './admin/MapControls';
+  import type { MapStyleKey } from '../lib/maps/map-style-switch';
+
+  const container = document.getElementById('bike-path-map');
+  const glEl = document.getElementById('bike-path-map-gl');
+  const overlay = document.getElementById('bike-path-map-overlay');
+  const closeBtn = document.getElementById('bike-path-map-close');
+
+  if (container && glEl) {
+    const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
+    const centerData = container.dataset.center ? JSON.parse(container.dataset.center) : null;
+    const fallbackCenterData = JSON.parse(container.dataset.fallbackCenter || '[0,0]');
+    const center: [number, number] = centerData || fallbackCenterData;
+    const photos: Array<{ key: string; lat: number; lng: number }> = JSON.parse(container.dataset.photos || '[]');
+    const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
+    const cdnUrl = container.dataset.cdnUrl || '';
+
+    const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
+    const placeData = places.map(p => ({
+      lat: p.lat, lng: p.lng,
+      emoji: categoryEmoji[p.category] || '📌',
+      popup: `<div class="place-popup">${p.name}</div>`,
+    }));
+
+    const geojsonLayer = createGeojsonLineLayer({ geoFiles, fetchPath: '/bike-paths/geo/' });
+    const photoLayer = createPhotoLayer({ photos: photoData, cdnUrl, defaultVisible: false });
+    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
+
+    const session = createMapSession({ el: glEl, center, zoom: 12 })
+      .use(geojsonLayer)
+      .use(photoLayer)
+      .use(placeLayer);
+
+    // Disable interaction in card mode
+    const { map } = session;
+    map.scrollZoom.disable();
+    map.dragPan.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
+
+    session.start();
+
+    // Render controls after load (hidden until expanded via CSS)
+    map.on('load', () => {
+      const controlsEl = document.getElementById('bike-path-map-controls');
+      if (controlsEl) {
+        render(h(MapControls, {
+          hasPhotos: photos.length > 0,
+          hasPlaces: places.length > 0,
+          defaultPhotos: false,
+          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
+          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
+          onToggleStyle: (key: MapStyleKey) => session.switchStyle(key),
+        }), controlsEl);
+      }
+    });
+
+    // --- Expand / collapse modal ---
+    let expanded = false;
+    let savedRect: DOMRect | null = null;
+    const TRANSITION_MS = 350;
+
+    function getBounds() {
+      return geojsonLayer.getBounds?.() ?? null;
+    }
+
+    function expand() {
+      if (expanded) return;
+      expanded = true;
+      glEl.classList.add('fading');
+      savedRect = container.getBoundingClientRect();
+      container.style.position = 'fixed';
+      container.style.top = `${savedRect.top}px`;
+      container.style.left = `${savedRect.left}px`;
+      container.style.width = `${savedRect.width}px`;
+      container.style.height = `${savedRect.height}px`;
+      container.style.zIndex = '1000';
+      overlay!.classList.add('visible');
+      closeBtn!.style.display = 'flex';
+      container.setAttribute('aria-expanded', 'true');
+      const isMobile = window.matchMedia('(max-width: 800px)').matches;
+      requestAnimationFrame(() => {
+        container.classList.add('expanded');
+        if (isMobile) {
+          container.style.top = '0';
+          container.style.left = '0';
+          container.style.width = '100vw';
+          container.style.height = '100vh';
+          container.style.borderRadius = '0';
+        } else {
+          container.style.top = '20px';
+          container.style.left = '20px';
+          container.style.width = 'calc(100vw - 40px)';
+          container.style.height = 'calc(100vh - 40px)';
+          container.style.borderRadius = '16px';
+        }
+      });
+      map.scrollZoom.enable();
+      map.dragPan.enable();
+      map.doubleClickZoom.enable();
+      map.touchZoomRotate.enable();
+      setTimeout(() => {
+        map.resize();
+        const b = getBounds();
+        if (b && !b.isEmpty()) map.fitBounds(b, { padding: 60, animate: false });
+        requestAnimationFrame(() => glEl.classList.remove('fading'));
+      }, TRANSITION_MS);
+    }
+
+    function collapse() {
+      if (!expanded) return;
+      expanded = false;
+      glEl.classList.add('fading');
+      container.classList.remove('expanded');
+      container.setAttribute('aria-expanded', 'false');
+      overlay!.classList.remove('visible');
+      closeBtn!.style.display = 'none';
+      if (savedRect) {
+        container.style.top = `${savedRect.top}px`;
+        container.style.left = `${savedRect.left}px`;
+        container.style.width = `${savedRect.width}px`;
+        container.style.height = `${savedRect.height}px`;
+        const isMobile = window.matchMedia('(max-width: 800px)').matches;
+        container.style.borderRadius = isMobile ? '8px' : '12px';
+      }
+      map.scrollZoom.disable();
+      map.dragPan.disable();
+      map.doubleClickZoom.disable();
+      map.touchZoomRotate.disable();
+      setTimeout(() => {
+        container.style.position = '';
+        container.style.top = '';
+        container.style.left = '';
+        container.style.width = '';
+        container.style.height = '';
+        container.style.zIndex = '';
+        container.style.borderRadius = '';
+        map.resize();
+        const b = getBounds();
+        if (b && !b.isEmpty()) map.fitBounds(b, { padding: 20, animate: false });
+        requestAnimationFrame(() => glEl.classList.remove('fading'));
+      }, TRANSITION_MS);
+    }
+
+    container.addEventListener('click', () => { if (!expanded) expand(); });
+    container.addEventListener('keydown', (e) => {
+      if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
+    });
+    closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
+    overlay!.addEventListener('click', collapse);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
+  }
+</script>
+
+<style is:global>
+  .bike-path-map-wrapper {
+    position: relative;
+  }
+
+  .bike-path-map-overlay {
+    visibility: hidden;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s;
+
+    &.visible {
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+
+  .bike-path-map-card {
+    width: 100%;
+    height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    /* Hide attribution in compact card — too much space for a small preview */
+    .maplibregl-ctrl-attrib { display: none; }
+    #bike-path-map-controls { display: none; }
+    &.expanded .maplibregl-ctrl-attrib { display: block; }
+    &.expanded #bike-path-map-controls { display: block; position: absolute; top: 16px; left: 16px; z-index: 1; }
+
+    &.expanded {
+      cursor: default;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  .bike-path-map-gl {
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+
+    &.fading {
+      opacity: 0;
+    }
+  }
+
+  .bike-path-map-close {
+    display: none;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    color: #000;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .bike-path-map-close {
+      background: #222;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  .bike-path-map-expand-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    .bike-path-map-card:hover & {
+      opacity: 1;
+    }
+
+    .bike-path-map-card.expanded & {
+      display: none;
+    }
+  }
+
+  @media (max-width: 800px) {
+    .bike-path-map-card {
+      width: 100%;
+      height: 200px;
+      border-radius: 8px;
+    }
+
+    /* On mobile, JS sets inset to 0 via the expand function */
+  }
+</style>

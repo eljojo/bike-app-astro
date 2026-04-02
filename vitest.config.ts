@@ -17,8 +17,13 @@ if (!existsSync(mapStyleUrlPath)) {
 
 export default defineConfig({
   plugins: [buildDataPlugin()],
+  resolve: {
+    alias: {
+      'astro:content': resolve(import.meta.dirname, 'tests/astro-content-mock.ts'),
+    },
+  },
   test: {
-    exclude: ['e2e/**', 'node_modules/**', 'docs/**', 'aws/**'],
+    exclude: ['e2e/**', 'node_modules/**', 'docs/**', 'aws/**', 'bike-routes/**'],
     setupFiles: ['./tests/setup.ts'],
   },
 });

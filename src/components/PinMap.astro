@@ -3,7 +3,11 @@
  * Reusable map component for showing labeled pins on a MapLibre map.
  * Use anywhere you need to show a few markers — shop locations, meeting points,
  * event venues, etc. Handles single or multiple pins with auto-fit bounds.
+ *
+ * On mobile, a touch-lock overlay prevents accidental map interactions
+ * while scrolling — tap once to prime, tap again to activate.
  */
+import { t } from '../i18n';
 
 export interface Pin {
   lat: number;
@@ -19,21 +23,31 @@ interface Props {
 
 const { pins, class: className } = Astro.props;
 const mapId = `pin-map-${Math.random().toString(36).slice(2, 8)}`;
+const lockId = `${mapId}-lock`;
+const locale = Astro.currentLocale;
 ---
 
-<div
-  class:list={['pin-map', className]}
-  id={mapId}
-  data-pins={JSON.stringify(pins)}
-></div>
+<div class:list={['pin-map-wrapper', className]}>
+  <div
+    class="pin-map"
+    id={mapId}
+    data-pins={JSON.stringify(pins)}
+  ></div>
+  <div class="map-touch-lock" id={lockId}>
+    <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+  </div>
+</div>
 
 <script>
   import { initMap } from '../lib/maps/map-init';
   import { getStyleUrl, loadStylePreference } from '../lib/maps/map-style-switch';
+  import { setupMapTouchLock } from '../lib/maps/map-touch-lock';
   import maplibregl from 'maplibre-gl';
 
   document.addEventListener('DOMContentLoaded', () => {
-    for (const el of document.querySelectorAll<HTMLElement>('.pin-map')) {
+    for (const wrapper of document.querySelectorAll<HTMLElement>('.pin-map-wrapper')) {
+      const el = wrapper.querySelector<HTMLElement>('.pin-map');
+      if (!el) continue;
       const pins = JSON.parse(el.dataset.pins || '[]');
       if (!pins.length) continue;
 
@@ -51,6 +65,9 @@ const mapId = `pin-map-${Math.random().toString(36).slice(2, 8)}`;
         zoom: pins.length === 1 ? 14 : 11,
         styleUrl: getStyleUrl(loadStylePreference()),
       });
+
+      const lockEl = wrapper.querySelector<HTMLElement>('.map-touch-lock');
+      setupMapTouchLock(map, lockEl);
 
       map.on('load', () => {
         if (pins.length > 1) {

@@ -26,6 +26,8 @@ import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.serve
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import { getRouteToPaths } from '@/lib/bike-paths/bike-path-data.server';
+import PathsOnRoute from '@/components/PathsOnRoute.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -33,6 +35,7 @@ const locale = Astro.currentLocale;
 export const prerender = true;
 export async function getStaticPaths() {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix } = await loadRouteData();
+  const routeToPaths = getRouteToPaths();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
   // Build lightweight data for similar routes thumbnails
@@ -49,11 +52,11 @@ export async function getStaticPaths() {
 
   return filtered.map(route => ({
     params: { slug: route.id },
-    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths },
   }));
 }
 
-const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths } = Astro.props;
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -114,11 +117,18 @@ for (const v of variants) {
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
 const nearbyCategories = placeCounts(nearbyPlaces);
 
-// Build place description using new i18n functions
+const nearbyBikePaths = routeToPaths[route.id] ?? [];
+
+// Build place description — highlight the top few interesting categories, not all of them
 function buildPlaceDesc(categories: { category: string; count: number }[]): string | null {
   if (categories.length === 0) return null;
-  const parts = categories.map(p => `${p.count} ${tCategory(p.category, p.count, locale)}`);
-  return t('places.summary_prefix', locale) + ' ' + parts.join(', ');
+  // Show up to 4 categories to keep it readable
+  const shown = categories.slice(0, 4);
+  const parts = shown.map(p => `${p.count} ${tCategory(p.category, p.count, locale)}`);
+  const extra = categories.length - shown.length;
+  let desc = t('places.summary_prefix', locale) + ' ' + parts.join(', ');
+  if (extra > 0) desc += ` ${t('places.and_more', locale, { count: String(extra) })}`;
+  return desc;
 }
 const placeDesc = buildPlaceDesc(nearbyCategories);
 
@@ -145,6 +155,7 @@ const seoTitle = (() => {
 
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('nav.routes', locale), url: `${config.url}${localePath('/routes', locale)}` },
   { name: localeName, url: `${config.url}${paths.route(slug, locale)}` },
 ]);
 
@@ -260,8 +271,8 @@ const jsonLd = [
         )}
       </div>
 
-      {hasMap && (
-        <div class="route-detail--static-map">
+      <div class="route-detail--static-map">
+        {hasMap && (
           <a href={paths.routeMap(slug, locale)} title={t('route.view_map', locale, { name: localeName })}>
             <img
               src={assets.mapThumbnail(route.id, 750, mapLang)}
@@ -269,12 +280,13 @@ const jsonLd = [
               alt={t('route.map_of', locale, { name: localeName })}
             />
           </a>
-          {nearbyPlaces.length > 0 && (
-            <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
-          )}
-          {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
-        </div>
-      )}
+        )}
+        {nearbyPlaces.length > 0 && (
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
+        )}
+        {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
+        <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+      </div>
     </div>
 
     <MediaGallery media={media} name={localeName} />
@@ -317,7 +329,7 @@ const jsonLd = [
     )}
 
     <p class="route-similar">
-      <a href={localePath('/', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
+      <a href={localePath('/routes', locale)} class="go-back-button">&#x21A9; {t('route.go_back', locale)}</a>
     </p>
   </div>
 </Base>

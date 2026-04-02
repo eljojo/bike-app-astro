@@ -8,6 +8,9 @@
 @use 'community-editor';
 @use 'place-editor-extras';
 @use 'stats-overview';
+@use 'bike-path-admin';
+@use 'admin-sidebar';
+@use 'admin-preview';
 
 .auth-page {
   max-width: 420px;

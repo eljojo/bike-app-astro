@@ -15,9 +15,18 @@ import path from 'node:path';
 
 const scripts = path.resolve(import.meta.dirname);
 
+const minimal = process.env.PREBUILD_MINIMAL === '1';
+
 const generators = [
   { name: 'map-style', script: 'build-map-style.ts' },
   { name: 'icon-paths', script: 'build-icon-paths.ts' },
+  { name: 'path-geo-cache', script: 'cache-path-geometry.ts' },
+  { name: 'path-geo', script: 'copy-path-geometry.ts' },
+  { name: 'path-tiles', script: 'generate-path-tiles.ts' },
+  ...(!minimal ? [
+    { name: 'maps', script: 'generate-maps.ts' },
+    { name: 'contributors', script: 'build-contributors.ts' },
+  ] : []),
 ];
 
 for (const { name, script } of generators) {

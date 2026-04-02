@@ -50,3 +50,62 @@ test.describe('Magazine homepage translations', () => {
     await expect(featuredLink).toHaveAttribute('href', /\/fr\/parcours\/parcours-riviere-chillan/);
   });
 });
+
+// Bike path detail — verify facts table renders data computed from GeoJSON geometry.
+// Ciclovía Avenida Ecuador is a real bike path in Chillán (demo city), with geo data
+// from Overpass stored in .cache/bikepath-geometry/demo/. The facts table must show
+// length computed from the GeoJSON — this is the integration test for the full chain:
+// geo file → loadBikePathEntries() → virtual module → rendered HTML.
+// Nav links — "Ride" and "Community" link to the current sub-section.
+test.describe('Nav contextual links', () => {
+  test('Ride nav links to /bike-paths when on a bike path page', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const rideLink = page.locator('.top-nav a.nav-active');
+    await expect(rideLink).toHaveAttribute('href', '/bike-paths');
+  });
+
+  test('Ride nav links to /routes when on a route page', async ({ page }) => {
+    await page.goto('/routes/ruta-rio-chillan');
+    const rideLink = page.locator('.top-nav a.nav-active');
+    await expect(rideLink).toHaveAttribute('href', '/routes');
+  });
+
+  test('secondary locale: Ride nav links to translated bike-paths', async ({ page }) => {
+    await page.goto('/fr/pistes-cyclables/ciclovia-avenida-ecuador');
+    const rideLink = page.locator('.top-nav a.nav-active');
+    await expect(rideLink).toHaveAttribute('href', '/fr/pistes-cyclables');
+  });
+
+  test('Community nav is active on event detail page and links to /calendar', async ({ page }) => {
+    await page.goto('/events/2026/demo-ride');
+    const communityLink = page.locator('.top-nav a.nav-active');
+    // Demo city default locale is es-CL: "Comunidad"
+    await expect(communityLink).toContainText('Comunidad');
+    await expect(communityLink).toHaveAttribute('href', '/calendar');
+  });
+});
+
+test.describe('Bike path detail page', () => {
+  test('facts table shows length computed from geo file', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const factsTable = page.locator('.bike-path-facts-table');
+    await expect(factsTable).toBeVisible();
+    // 4 OSM way segments totaling ~3.1 km
+    await expect(factsTable).toContainText('3.1 km');
+  });
+
+  test('facts table shows surface type', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const factsTable = page.locator('.bike-path-facts-table');
+    await expect(factsTable).toContainText('paved');
+  });
+
+  test('facts table shows separation and lighting', async ({ page }) => {
+    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    const factsTable = page.locator('.bike-path-facts-table');
+    // highway: cycleway → separated from traffic
+    await expect(factsTable).toContainText('Separado del tráfico');
+    // lit: yes
+    await expect(factsTable).toContainText('Sí');
+  });
+});

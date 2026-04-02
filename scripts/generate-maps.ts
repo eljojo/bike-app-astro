@@ -10,13 +10,16 @@ import {
   needsRegeneration,
 } from '../src/lib/maps/map-generation.server';
 import { variantKey } from '../src/lib/gpx/filenames';
+import { mergeAdjacentSegments } from '../src/lib/geo/merge-segments';
 import { getCityConfig } from '../src/lib/config/city-config';
 import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
+import polylineCodec from '@mapbox/polyline';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
+
 
 if (!API_KEY || API_KEY === 'your-key-here') {
   console.warn('[maps] GOOGLE_MAPS_STATIC_API_KEY not set — skipping map generation');
@@ -28,23 +31,24 @@ function shortLang(locale: string): string {
   return locale.split('-')[0];
 }
 
-async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof mapThumbPaths>) {
+async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof mapThumbPaths>, aspect: '1:1' | '2:1' = '1:1') {
   fs.mkdirSync(path.dirname(paths.thumb), { recursive: true });
 
   fs.writeFileSync(paths.full, pngBuffer);
 
+  const is2to1 = aspect === '2:1';
   await sharp(pngBuffer)
-    .resize(1500, 1500, { fit: 'cover' })
+    .resize(1500, is2to1 ? 750 : 1500, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumbLarge);
 
   await sharp(pngBuffer)
-    .resize(750, 750, { fit: 'cover' })
+    .resize(750, is2to1 ? 375 : 750, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumb);
 
   await sharp(pngBuffer)
-    .resize(375, 375, { fit: 'cover' })
+    .resize(375, is2to1 ? 188 : 375, { fit: 'cover' })
     .webp({ quality: 80 })
     .toFile(paths.thumbSmall);
 
@@ -236,6 +240,84 @@ async function main() {
         const tourPaths = mapThumbPaths(tourSlug, undefined, langPrefix);
         await generateMapImages(pngBuffer, tourPaths);
         fs.writeFileSync(hashPath(tourSlug, langPrefix), combinedHash);
+
+        generated++;
+      }
+    }
+  }
+
+  // --- Bike Paths: generate thumbnails from cached GeoJSON geometry ---
+  const geoDir = path.join('public', 'bike-paths', 'geo');
+  if (fs.existsSync(geoDir)) {
+    const { loadBikePathEntries } = await import('../src/lib/bike-paths/bike-path-entries.server');
+    const { pages } = loadBikePathEntries();
+
+    for (const page of pages) {
+      if (page.geoFiles.length === 0) continue;
+
+      // Collect segments from GeoJSON files — one per feature to avoid
+      // drawing straight lines between disconnected path sections
+      const segments: [number, number][][] = [];
+      const geoContents: string[] = [];
+      for (const geoFile of page.geoFiles) {
+        const geoPath = path.join(geoDir, geoFile);
+        if (!fs.existsSync(geoPath)) continue;
+        const content = fs.readFileSync(geoPath, 'utf-8');
+        geoContents.push(content);
+        const geojson = JSON.parse(content);
+        for (const feature of geojson.features ?? []) {
+          if (feature.geometry?.type === 'LineString') {
+            const coords: [number, number][] = feature.geometry.coordinates.map(
+              (c: number[]) => [c[1], c[0]] as [number, number],
+            );
+            if (coords.length >= 2) segments.push(coords);
+          } else if (feature.geometry?.type === 'MultiLineString') {
+            for (const line of feature.geometry.coordinates) {
+              const coords: [number, number][] = line.map(
+                (c: number[]) => [c[1], c[0]] as [number, number],
+              );
+              if (coords.length >= 2) segments.push(coords);
+            }
+          }
+        }
+      }
+
+      if (segments.length === 0) continue;
+
+      const combinedHash = crypto.createHash('sha256')
+        .update(geoContents.join('\n'))
+        .digest('hex').slice(0, 16);
+      const mapSlug = `path-${page.slug}`;
+
+      for (const lang of languages) {
+        const langPrefix = lang === defaultLang ? undefined : lang;
+
+        if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {
+          skipped++;
+          continue;
+        }
+
+        const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
+        console.log(`[maps] ${label}: generating bike path map...`);
+
+        // Merge adjacent segments that share endpoints (within 100m) into
+        // continuous chains, then encode as one polyline. buildStaticMapUrl
+        // splits at gaps > 0.15km, so genuinely disconnected sections render
+        // as separate &path= params (no straight connecting lines).
+        const merged = mergeAdjacentSegments(segments, 0.1);
+        const allPoints = merged.flatMap(seg => seg);
+        const encoded = polylineCodec.encode(allPoints);
+        const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false, gapKm: 0.15 });
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`[maps] ${label}: HTTP ${response.status}`);
+          continue;
+        }
+        const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+        const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
+        await generateMapImages(pngBuffer, thumbPaths, '2:1');
+        fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
 
         generated++;
       }

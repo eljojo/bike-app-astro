@@ -3,6 +3,7 @@ import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
+import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
 
 export const prerender = true;
 
@@ -58,11 +59,17 @@ export const GET: APIRoute = async () => {
     `- Routes: ${config.url}/routes`,
     `- Map: ${config.url}/map`,
   ];
+  if (features.hasPaths) {
+    pageLines.splice(1, 0, `- Bike paths: ${config.url}/bike-paths`);
+  }
   if (features.hasEvents) {
     pageLines.push(`- Event calendar: ${config.url}/calendar`);
   }
   if (communities.length > 0) {
     pageLines.push(`- Communities: ${config.url}/communities`);
+  }
+  if (bikeShops.length > 0) {
+    pageLines.push(`- Local bike shops: ${config.url}/bike-shops`);
   }
   pageLines.push(`- About: ${config.url}/about`);
   sections.push(`## Sections\n\n${pageLines.join('\n')}\n`);
@@ -71,6 +78,21 @@ export const GET: APIRoute = async () => {
   if (routeFacts.length > 0) {
     const routeLines = routeFacts.map(routeLine);
     sections.push(`## Route Index\n\n${routeLines.join('\n')}\n`);
+  }
+
+  // Bike paths index
+  if (features.hasPaths) {
+    const { pages: bikePaths } = await loadBikePathData();
+    if (bikePaths.length > 0) {
+      const pathLines = bikePaths.map(bp => {
+        const parts: string[] = [];
+        if (bp.surface) parts.push(bp.surface);
+        if (bp.highway === 'cycleway') parts.push('separated from cars');
+        if (bp.operator) parts.push(bp.operator);
+        return `- [${bp.name}](${config.url}/bike-paths/${bp.slug})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
+      });
+      sections.push(`## Bike Paths\n\n${pathLines.join('\n')}\n`);
+    }
   }
 
   // Upcoming events

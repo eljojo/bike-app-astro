@@ -157,6 +157,7 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
               __CITY__: JSON.stringify(CITY),
               __VIDEO_PREFIX__: JSON.stringify(process.env.VIDEO_PREFIX || CITY),
               __RUNTIME_LOCAL__: JSON.stringify(process.env.RUNTIME === 'local'),
+              __ENABLE_BIKE_PATHS__: JSON.stringify(process.env.ENABLE_BIKE_PATHS !== 'false'),
             },
             plugins: [buildDataPlugin({ consumerRoot })],
             build: {
@@ -275,6 +276,12 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           lines.push('# Translated slug rewrites and redirects');
           lines.push(...translatedRedirects);
         }
+
+        // Renamed URL redirects
+        lines.push('');
+        lines.push('# /paths renamed to /bike-paths');
+        lines.push('/paths  /bike-paths  301');
+        lines.push('/paths/:slug  /bike-paths/:slug  301');
 
         const content = lines.join('\n');
         if (content) {

@@ -1,0 +1,96 @@
+---
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import AdminHeader from '../../components/AdminHeader.astro';
+import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { t } from '../../i18n';
+import '../../styles/admin.scss';
+
+const locale = Astro.currentLocale;
+const bikePaths = await fetchJson<_AdminBikePath[]>(new URL('/admin/data/bike-paths.json', Astro.url));
+const user = Astro.locals.user;
+
+const incomplete = bikePaths
+  .filter(p => !p.hidden && p.stub)
+  .map(p => ({
+    slug: p.id,
+    name: p.name,
+    hint: t('admin.sidebar.no_description', locale),
+    editUrl: `/admin/bike-paths/${p.id}`,
+  }))
+  .slice(0, 5);
+
+const nameMap: Record<string, string> = {};
+for (const p of bikePaths) nameMap[p.id] = p.name;
+
+const sidebarLabels = {
+  mostViewed: t('admin.sidebar.most_viewed', locale),
+  mostStarred: t('admin.sidebar.most_starred', locale),
+  trending: t('admin.sidebar.trending', locale),
+  overlooked: t('admin.sidebar.overlooked', locale),
+};
+---
+
+<Base title="Bike Paths - Admin" admin>
+  <div class="admin-page">
+    <AdminHeader user={user} currentTab="bike-paths" subtitle="Named cycling corridors — collections of routes that share a path." />
+
+    <div class="admin-list-layout">
+      <div class="admin-list-main">
+        <div class="path-actions-bar">
+          <span class="path-count">{bikePaths.length} paths</span>
+        </div>
+
+        <div class="path-list">
+          {bikePaths.map(p => (
+            <a href={`/admin/bike-paths/${p.id}`} class="path-list-item">
+              <div class="path-card-info">
+                <span class="path-card-name">{p.name || p.id}</span>
+                {p.vibe && <span class="path-card-vibe">{p.vibe}</span>}
+                {p.hidden && <span class="path-badge path-badge--hidden">Hidden</span>}
+              </div>
+            </a>
+          ))}
+        </div>
+
+        {bikePaths.length === 0 && <p class="auth-message">No paths found. Save a bike path to see it here.</p>}
+      </div>
+      <AdminListSidebar
+        client:idle
+        contentType="bike-paths"
+        incomplete={incomplete}
+        nameMap={nameMap}
+        editPrefix="/admin/bike-paths"
+        labels={sidebarLabels}
+      />
+    </div>
+  </div>
+</Base>
+
+<style lang="scss">
+  @use '../../styles/variables' as *;
+
+  .admin-page {
+    max-width: 1200px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+
+  .admin-list-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 2rem;
+    align-items: start;
+
+    @media (max-width: $breakpoint-tablet) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .admin-list-main {
+    min-width: 0;
+  }
+</style>
+

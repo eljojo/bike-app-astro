@@ -1,32 +1,28 @@
 ---
 // src/components/Nav.astro
 import { t, localePath } from '../i18n';
-import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
-import { switchLocalePath as computeSwitchPath } from '../lib/i18n/locale-switcher';
+import { defaultLocale } from '../lib/i18n/locale-utils';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 
-interface Props {
-  alternateUrls?: Record<string, string>;
-}
-
-const { alternateUrls } = Astro.props;
 const locale = Astro.currentLocale || defaultLocale();
-const locales = supportedLocales();
-const showSwitcher = locales.length > 1;
 const features = getInstanceFeatures();
-
-const otherLocale = locales.find(l => l !== locale) || locales[0];
-const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 
 // Determine active nav item from current URL path
 const pathname = Astro.url.pathname;
 function isActive(path: string): boolean {
-  if (path === '/' || path.endsWith('#browse')) {
-    return pathname === '/' || pathname === `/${locale}` || pathname === `/${locale}/`;
-  }
   const resolved = localePath(path, locale);
   return pathname.startsWith(resolved);
 }
+
+const isWiki = features.hasRoutes && !features.hasRides && !features.hasEnrichedEvents;
+const rideActive = isWiki && (isActive('/routes') || (features.hasPaths && isActive('/bike-paths')));
+const communityActive = isWiki && (isActive('/calendar') || isActive('/communities') || isActive('/bike-shops') || isActive('/events'));
+
+// Link to the current sub-section so clicking "Ride" on a bike path page goes to /bike-paths
+const rideHref = features.hasPaths && isActive('/bike-paths') ? localePath('/bike-paths', locale) : localePath('/routes', locale);
+const communityHref = isActive('/communities') ? localePath('/communities', locale)
+  : isActive('/bike-shops') ? localePath('/bike-shops', locale)
+  : localePath('/calendar', locale);
 ---
 <nav class="top-nav">
   <ul>
@@ -45,18 +41,10 @@ function isActive(path: string): boolean {
       </>
     ) : (
       <>
-        <li><a href={`${localePath('/', locale)}#browse`} class={isActive('/') ? 'nav-active' : ''}>{t('nav.routes', locale)}</a></li>
-        <li><a href={localePath('/calendar', locale)} class={isActive('/calendar') ? 'nav-active' : ''}>{t('nav.calendar', locale)}</a></li>
+        <li><a href={rideHref} class={rideActive ? 'nav-active' : ''}>{t('nav.ride', locale)}</a></li>
         <li><a href={localePath('/map', locale)} class={isActive('/map') ? 'nav-active' : ''}>{t('nav.map', locale)}</a></li>
-        <li><a href={localePath('/communities', locale)} class={isActive('/communities') ? 'nav-active' : ''}>{t('nav.communities', locale)}</a></li>
+        <li><a href={communityHref} class={communityActive ? 'nav-active' : ''}>{t('nav.community', locale)}</a></li>
       </>
-    )}
-    {showSwitcher && (
-      <li class="nav-lang">
-        <a href={switchPath} data-locale={otherLocale}>
-          {otherLocale.toUpperCase()}
-        </a>
-      </li>
     )}
     <li class="nav-admin"><a href="/admin">Admin</a></li>
   </ul>

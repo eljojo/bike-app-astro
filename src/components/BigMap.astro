@@ -34,18 +34,38 @@ interface MapPhoto {
   index: number;
 }
 
+interface PathOnMap {
+  relId: string;
+  slug: string;
+  name: string;
+  hasPage: boolean;
+  operator?: string;
+  surface?: string;
+}
+
 interface Props {
   routes: RouteOnMap[];
   places: PlaceOnMap[];
   photos?: MapPhoto[];
   center: [number, number];
+  pathMapData?: PathOnMap[];
+  routesLabel?: string;
+  pathsLabel?: string;
 }
 
 import { getCityConfig } from '../lib/config/city-config';
-const { routes, places, photos = [], center } = Astro.props;
+import './SubTabToggle.scss';
+const { routes, places, photos = [], center, pathMapData = [], routesLabel, pathsLabel } = Astro.props;
+const hasPaths = pathMapData.length > 0;
 ---
 
 <div class="big-map">
+  {hasPaths && routesLabel && pathsLabel && (
+    <div class="sub-tab-toggle map-layer-toggle" id="map-layer-toggle">
+      <button type="button" class="sub-tab-btn active" data-map-view="routes">{routesLabel}</button>
+      <button type="button" class="sub-tab-btn" data-map-view="paths">{pathsLabel}</button>
+    </div>
+  )}
   <div
     id="big-map"
     style="width: 100%; height: 100%;"
@@ -54,17 +74,17 @@ const { routes, places, photos = [], center } = Astro.props;
     data-center={JSON.stringify(center)}
     data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
+    data-path-map-data={JSON.stringify(pathMapData)}
   ></div>
   <div id="big-map-controls"></div>
 </div>
 
 <script>
-  import { initMap, addPolylines, addMarkers, addPhotoMarkers, showUserLocation, hideUserLocation, setPhotoLayersVisible, setPlaceMarkersVisible } from '../lib/maps/map-init';
+  import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createTilePathLayer, createGpsLayer, type PathInfo } from '../lib/maps/layers';
   import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
-  import { loadStylePreference, getStyleUrl, switchStyle, type MapStyleKey } from '../lib/maps/map-style-switch';
   import { render, h } from 'preact';
-  import MapControls, { loadToggleState } from './admin/MapControls';
+  import MapControls, { loadToggleState, saveToggleState } from './admin/MapControls';
 
   const el = document.getElementById('big-map');
   const controlsEl = document.getElementById('big-map-controls');
@@ -74,14 +94,31 @@ const { routes, places, photos = [], center } = Astro.props;
     const allPhotos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
+    const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string }> =
+      JSON.parse(el.dataset.pathMapData || '[]');
 
-    // --- Category filter from URL query param ---
+    const hasPaths = pathMapData.length > 0;
+
+    // Sub-tab toggle
+    const toggleEl = document.getElementById('map-layer-toggle');
+    const routesBtn = toggleEl?.querySelector('[data-map-view="routes"]');
+    const pathsBtn = toggleEl?.querySelector('[data-map-view="paths"]');
+    const hashWantsPaths = location.hash === '#paths';
+    const savedPathsState = loadToggleState('map-paths', false);
+    const initialShowPaths = hasPaths && (hashWantsPaths || savedPathsState);
+
+    function updateToggleUI(showingPaths: boolean) {
+      if (!routesBtn || !pathsBtn) return;
+      routesBtn.classList.toggle('active', !showingPaths);
+      pathsBtn.classList.toggle('active', showingPaths);
+    }
+    if (initialShowPaths) updateToggleUI(true);
+
+    // Category filter
     const categoryFilter = new URLSearchParams(location.search).get('category');
-
     let places = allPlaces;
     let routes = allRoutes;
     let photos = allPhotos;
-
     if (categoryFilter) {
       const filtered = filterMapByCategory(allPlaces, allRoutes, categoryFilter);
       places = filtered.places;
@@ -89,59 +126,109 @@ const { routes, places, photos = [], center } = Astro.props;
       photos = [];
     }
 
-    const styleKey = loadStylePreference();
-    const map = initMap({ el, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
+    const polylineData = routes.map((r: any) => {
+      const photoHtml = r.photo_key && cdnUrl
+        ? html`<a href="${r.url}"><img class="place-popup-photo" src="${raw(buildImageUrl(cdnUrl, r.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" /></a>`
+        : '';
+      return {
+        encoded: r.polyline,
+        popup: html`<div class="place-popup">${raw(photoHtml)}<a href="${r.url}">${r.name}</a><br>${r.distance_km} km</div>`,
+      };
+    });
 
     const placeData = places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    function setupWebGLLayers(sk: MapStyleKey) {
-      addPolylines(map, routes.map((r: any) => {
-        const photoHtml = r.photo_key && cdnUrl
-          ? html`<a href="${r.url}"><img class="place-popup-photo" src="${raw(buildImageUrl(cdnUrl, r.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" /></a>`
-          : '';
-        return {
-          encoded: r.polyline,
-          popup: html`<div class="place-popup">${raw(photoHtml)}<a href="${r.url}">${r.name}</a><br>${r.distance_km} km</div>`,
-        };
-      }), sk);
+    const polylineLayer = createPolylineLayer({ polylines: polylineData });
+    const photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: false });
+    const placeLayer = createPlaceLayer({ places: placeData });
+    const gpsLayer = createGpsLayer();
 
-      if (photos.length > 0) {
-        addPhotoMarkers(map, photos, cdnUrl, sk);
-      }
+    // Tile path layer (lazy-load manifest eagerly)
+    const pathInfoMap = new Map<string, PathInfo>(pathMapData.map(p => [p.relId, p]));
+    const manifestPromise = hasPaths
+      ? fetch('/bike-paths/geo/tiles/manifest.json').then(r => r.ok ? r.json() : []).catch(() => [])
+      : Promise.resolve([]);
+    const tilePathLayer = createTilePathLayer({
+      manifestPromise,
+      pathInfo: pathInfoMap,
+      fetchPath: '/bike-paths/geo/tiles/',
+    });
 
-      addMarkers(map, placeData);
-    }
+    const session = createMapSession({ el, center, zoom: 11, fitBounds: false })
+      .use(polylineLayer)
+      .use(photoLayer)
+      .use(placeLayer)
+      .use(gpsLayer);
 
-    map.on('load', () => {
-      setupWebGLLayers(styleKey);
+    if (hasPaths) session.use(tilePathLayer);
 
-      // Hide photos by default on the big map (unless user previously enabled them)
+    const { map } = session;
+    let pathsVisible = initialShowPaths;
+
+    session.start(() => {
+      // onReady: all layers (including async tile-path) are set up
+
+      // Photos off by default on big map (unless user previously enabled)
       if (!loadToggleState('map-photos', false)) {
-        setPhotoLayersVisible(map, false);
+        photoLayer.setVisible!(map, false);
       }
 
-      // Render MapControls island
+      // If initial state wants paths, show them and hide routes
+      if (initialShowPaths) {
+        polylineLayer.setVisible!(map, false);
+      } else if (hasPaths) {
+        tilePathLayer.setVisible!(map, false);
+      }
+
+      // Controls
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
           hasPlaces: places.length > 0,
           defaultPhotos: false,
-          onTogglePhotos: (v: boolean) => setPhotoLayersVisible(map, v),
-          onTogglePlaces: (v: boolean) => setPlaceMarkersVisible(map, v),
-          onToggleGps: (v: boolean) => {
-            if (v) showUserLocation(map);
-            else hideUserLocation();
-          },
-          onToggleStyle: (key: MapStyleKey) => switchStyle(map, key, () => {
-            setupWebGLLayers(key);
-            setPhotoLayersVisible(map, loadToggleState('map-photos', false));
-            setPlaceMarkersVisible(map, loadToggleState('map-places', true));
+          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
+          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
+          onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v),
+          onToggleStyle: (key) => session.switchStyle(key, () => {
+            photoLayer.setVisible!(map, loadToggleState('map-photos', false));
+            placeLayer.setVisible!(map, loadToggleState('map-places', true));
+            // Preserve current view mode after style switch
+            if (pathsVisible) {
+              polylineLayer.setVisible!(map, false);
+            } else if (hasPaths) {
+              tilePathLayer.setVisible!(map, false);
+            }
           }),
         }), controlsEl);
       }
     });
+
+    // Sub-tab toggle
+    function switchToView(view: 'routes' | 'paths') {
+      const showingPaths = view === 'paths';
+      pathsVisible = showingPaths;
+      updateToggleUI(showingPaths);
+      saveToggleState('map-paths', showingPaths);
+      history.replaceState(null, '', showingPaths ? '#paths' : location.pathname);
+
+      if (showingPaths) {
+        tilePathLayer.setVisible!(map, true);
+        polylineLayer.setVisible!(map, false);
+      } else {
+        tilePathLayer.setVisible!(map, false);
+        polylineLayer.setVisible!(map, true);
+      }
+    }
+
+    if (toggleEl) {
+      toggleEl.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('[data-map-view]') as HTMLElement | null;
+        if (!btn) return;
+        switchToView(btn.dataset.mapView as 'routes' | 'paths');
+      });
+    }
   }
 </script>

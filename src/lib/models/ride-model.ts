@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod/v4';
 import { baseMediaItemSchema, type GitFiles } from './content-model';
 
 export const rideMediaItemSchema = baseMediaItemSchema.extend({

@@ -76,7 +76,8 @@
     "preact": "^10.28.4",
     "sass": "^1.97.3",
     "sharp": "^0.34.5",
-    "simple-git": "^3.32.3"
+    "simple-git": "^3.32.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -87,6 +88,7 @@
     "@types/mapbox__polyline": "^1.0.5",
     "drizzle-kit": "^0.31.9",
     "eslint": "^10.0.3",
+    "happy-dom": "^20.8.9",
     "tsx": "^4.21.0",
     "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"

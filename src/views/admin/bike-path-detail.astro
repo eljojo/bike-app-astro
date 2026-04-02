@@ -1,0 +1,57 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import BikePathEditor from '../../components/admin/BikePathEditor.tsx';
+import EditHistory from '../../components/admin/EditHistory.tsx';
+import { env } from '../../lib/env/env.service';
+import { CITY } from '../../lib/config/config';
+import { loadDetailFromJson, fetchJson } from '../../lib/content/load-admin-content.server';
+import { bikePathDetailFromCache, type BikePathDetail } from '../../lib/models/bike-path-model';
+import { getCityConfig } from '../../lib/config/city-config';
+import { loadBikePathData } from '../../lib/bike-paths/bike-path-data.server';
+import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
+
+const result = await loadDetailFromJson({
+  contentType: 'bike-paths',
+  id: Astro.params.id,
+  jsonUrl: new URL(`/admin/data/bike-paths/${Astro.params.id}.json`, Astro.url),
+  fromCache: bikePathDetailFromCache,
+});
+
+let bikePathData: BikePathDetail;
+if (result.notFound) {
+  // No markdown file yet — look up the YML entry and create stub data for the editor.
+  // Saving will create the markdown file.
+  const { pages } = await loadBikePathData();
+  const page = pages.find(p => p.slug === Astro.params.id);
+  if (!page) return new Response(null, { status: 404 });
+  // Spread secondary locale names from page translations (e.g. name_fr, name_nl)
+  const localeNames: Record<string, string> = {};
+  for (const [locale, trans] of Object.entries(page.translations)) {
+    if (trans.name) localeNames[`name_${locale}`] = trans.name;
+  }
+  bikePathData = {
+    id: page.slug,
+    name: page.name,
+    ...localeNames,
+    stub: true,
+    hidden: false,
+    featured: false,
+    includes: page.ymlEntries.map(e => e.slug),
+    tags: [],
+    body: '',
+  };
+} else {
+  bikePathData = result.data;
+}
+const user = Astro.locals.user;
+const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
+const secondaryLocales = supportedLocales().filter(l => l !== defaultLocale());
+---
+
+<AdminEditorLayout title={`Edit: ${bikePathData.name || bikePathData.id}`} viewLink={`/bike-paths/${bikePathData.id}`} hideTitle user={user} currentTab="bike-paths">
+  <BikePathEditor client:load initialData={bikePathData} userRole={user?.role} cdnUrl={cdnUrl} knownTags={knownTags} secondaryLocales={secondaryLocales} />
+  <EditHistory client:load contentPath={`${CITY}/bike-paths/${bikePathData.id}.md`} gitRepo={`${env.GIT_OWNER}/${env.GIT_DATA_REPO}`} userRole={user?.role} />
+</AdminEditorLayout>

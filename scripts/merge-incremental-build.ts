@@ -94,6 +94,8 @@ function getDeletePatterns(type: string, slug: string): string[] {
       return [`events/${slug}/`, `events/${slug}.html`];
     case 'place':
       return [`places/${slug}/`, `places/${slug}.html`];
+    case 'bike-path':
+      return [`bike-paths/${slug}/`, `bike-paths/${slug}.html`];
     default:
       return [];
   }

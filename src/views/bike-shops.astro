@@ -1,0 +1,90 @@
+---
+export const prerender = true;
+import './CommunitiesIndex.scss';
+import Base from '@/layouts/Base.astro';
+import SubTabToggle from '@/components/SubTabToggle.astro';
+import PinMap from '@/components/PinMap.astro';
+import { imageUrl, imageSrcSet2x } from '@/lib/media/image-service';
+import { getCollection } from 'astro:content';
+import { getCityConfig } from '@/lib/config/city-config';
+import { t, localePath } from '@/i18n';
+import { paths } from '@/lib/paths';
+import { organizerLink, organizerInitials, hasDetailPage, isBikeShop } from '@/lib/models/organizer-model';
+import { tTag } from '@/lib/i18n/tag-translations.server';
+
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+const allOrganizers = await getCollection('organizers');
+const bikeShops = allOrganizers
+  .filter(o => isBikeShop(o) && !o.data.hidden && hasDetailPage(o))
+  .sort((a, b) => {
+    if (a.data.featured && !b.data.featured) return -1;
+    if (!a.data.featured && b.data.featured) return 1;
+    return a.data.name.localeCompare(b.data.name);
+  });
+
+// Load places with bike-shop category for map pins
+const allPlaces = await getCollection('places');
+const shopPlaces = allPlaces.filter(p =>
+  p.data.category === 'bike-shop' && p.data.lat && p.data.lng
+);
+
+const pins = shopPlaces.map(p => ({
+  lat: p.data.lat,
+  lng: p.data.lng,
+  label: '🔧',
+  popup: p.data.name,
+}));
+
+const seoDescription = t('bike_shops.seo_description', locale, { city: config.name });
+---
+
+<Base title={`${t('bike_shops.page_title', locale)} | ${config.display_name}`} description={seoDescription}>
+  <SubTabToggle items={[
+    { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
+    { label: t('nav.people', locale), href: paths.communities(locale), active: false },
+    { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: true },
+  ]} />
+  <h1>{t('bike_shops.heading', locale)}</h1>
+
+  {pins.length > 0 && (
+    <PinMap pins={pins} class="bike-shops-map" />
+  )}
+
+  <div class="communities-grid">
+    {bikeShops.map(org => {
+      const specialties = org.data.tags.filter(tag => tag !== 'bike-shop');
+      return (
+        <a href={organizerLink(org, locale)} class="community-card">
+          <div class="community-card-avatar">
+            {org.data.photo_key ? (
+              <img
+                src={imageUrl(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
+                srcset={imageSrcSet2x(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
+                alt={org.data.name}
+                width="64" height="64" loading="lazy"
+                class="community-card-photo"
+              />
+            ) : (
+              <div class="community-card-initials">{organizerInitials(org.data.name)}</div>
+            )}
+          </div>
+          <div class="community-card-info">
+            <span class="community-card-name">{org.data.name}</span>
+            {org.data.tagline && (
+              <span class="community-card-tagline">{org.data.tagline}</span>
+            )}
+            {specialties.length > 0 && (
+              <span class="community-card-specialties">
+                {specialties.map(tag => (
+                  <span class="specialty-pill">{tTag(tag, locale)}</span>
+                ))}
+              </span>
+            )}
+          </div>
+        </a>
+      );
+    })}
+  </div>
+</Base>

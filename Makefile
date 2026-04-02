@@ -7,9 +7,9 @@ install: ## Install npm dependencies
 	npm install
 
 dev: prebuild ## Start dev server (set DEV_HOST in .env for remote access)
-	RUNTIME=local npx astro dev
+	RUNTIME=local DEV_ADMIN=true npx astro dev
 
-build: prebuild contributors maps ## Build static site to dist/
+build: prebuild ## Build static site to dist/
 	npx astro build
 
 preview: prebuild ## Preview built site locally
@@ -32,6 +32,14 @@ lint: ## Run ESLint checks
 test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright screenshot tests
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
+	@node -e "\
+	  const fs = require('fs');\
+	  const f = 'dist/server/wrangler.json';\
+	  const c = JSON.parse(fs.readFileSync(f, 'utf8'));\
+	  c.vars = { ...c.vars, R2_ACCOUNT_ID: 'test-account-id' };\
+	  c.d1_databases = [{ binding: 'DB', database_name: 'test', database_id: 'local' }];\
+	  fs.writeFileSync(f, JSON.stringify(c));"
+	@for f in drizzle/migrations/*.sql; do npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$$f"; done
 	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots)
 
 test-update: prebuild ## Update screenshot baselines
@@ -54,7 +62,7 @@ screenshots: prebuild ## Update all screenshot baselines (public + admin)
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
 
-prebuild: ## Run all code generators (map style, icon paths)
+prebuild: ## Run all code generators (map style, icons, maps, contributors, path geometry)
 	npx tsx scripts/prebuild.ts
 
 map-style: ## Generate cycling map style JSON

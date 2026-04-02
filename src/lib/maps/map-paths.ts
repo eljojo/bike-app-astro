@@ -4,6 +4,7 @@
  * so scripts can use these without Vite.
  */
 import polylineCodec from '@mapbox/polyline';
+import { haversineKm } from '../geo/proximity';
 
 export interface MapThumbPaths {
   thumbLarge: string;
@@ -31,15 +32,6 @@ function splitAtGaps(points: number[][], maxGapKm: number): number[][][] {
     segments[segments.length - 1].push(points[i]);
   }
   return segments.filter(s => s.length >= 2).sort((a, b) => b.length - a.length);
-}
-
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 /** Adaptively sample points until the encoded polyline fits within maxChars. */
@@ -92,27 +84,30 @@ export function buildStaticMapUrlMulti(polylines: string[], apiKey: string, lang
   return url;
 }
 
-export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string): string {
+export function buildStaticMapUrl(polyline: string, apiKey: string, language?: string, options?: { size?: string; markers?: boolean; gapKm?: number }): string {
   const points = polylineCodec.decode(polyline);
-  // Split at GPS gaps (>10km) and render each continuous segment separately
-  const segments = splitAtGaps(points, 10);
+  // Split at GPS gaps and render each continuous segment separately
+  const segments = splitAtGaps(points, options?.gapKm ?? 10);
   if (segments.length === 0) return '';
 
   const allPoints = segments.flat();
   const start = allPoints[0];
   const end = allPoints[allPoints.length - 1];
+  const showMarkers = options?.markers !== false;
 
   const params = new URLSearchParams({
     maptype: 'roadmap',
-    size: '800x800',
+    size: options?.size || '800x800',
     scale: '2',
     key: apiKey,
     ...(language && { language }),
   });
 
-  let url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`
-    + `&markers=color:yellow|label:S|${start[0]},${start[1]}`
-    + `&markers=color:green|label:F|${end[0]},${end[1]}`;
+  let url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+  if (showMarkers) {
+    url += `&markers=color:yellow|label:S|${start[0]},${start[1]}`
+      + `&markers=color:green|label:F|${end[0]},${end[1]}`;
+  }
 
   for (const segment of segments) {
     const remaining = 16384 - url.length - '&path=enc:'.length - 100;

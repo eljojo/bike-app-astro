@@ -592,6 +592,64 @@ good_for:
 `
   );
 
+  // --- Bike path fixtures ---
+  fs.writeFileSync(
+    path.join(CITY_DIR, 'bikepaths.yml'),
+    `bike_paths:
+  - name: Canal Pathway
+    osm_relations: [12345]
+    highway: cycleway
+    surface: asphalt
+    operator: NCC
+    network: rcn
+    name_en: Canal Pathway
+    name_fr: Sentier du Canal
+  - name: River Trail
+    highway: cycleway
+    surface: gravel
+    anchors:
+      - [-75.70, 45.42]
+      - [-75.68, 45.40]
+`
+  );
+
+  const bikePathsDir = path.join(CITY_DIR, 'bike-paths');
+  fs.mkdirSync(bikePathsDir, { recursive: true });
+
+  // GeoJSON fixture for Canal Pathway (OSM relation 12345) — enables length_km computation.
+  const geoDir = path.join(PROJECT_ROOT, 'public', 'bike-paths', 'geo');
+  fs.mkdirSync(geoDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(geoDir, '12345.geojson'),
+    JSON.stringify({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [[-75.69, 45.42], [-75.68, 45.41], [-75.67, 45.40], [-75.66, 45.39], [-75.65, 45.38]],
+        },
+      }],
+    }),
+  );
+
+  // bike-path-edit: owned by bike-path-admin.spec.ts
+  fs.writeFileSync(
+    path.join(bikePathsDir, 'canal-pathway.md'),
+    `---
+name: Canal Pathway
+includes:
+  - canal-pathway
+tags:
+  - scenic
+vibe: A beautiful ride along the canal
+---
+
+The canal pathway runs from downtown to the locks.
+`
+  );
+
   // Init git repo with user config so simple-git can commit during saves.
   // Use a fixed date for deterministic commit timestamps in screenshot tests.
   const FIXED_GIT_DATE = '2025-06-15T12:00:00-04:00';
@@ -604,7 +662,7 @@ good_for:
   ].join(' && '), {
     cwd: FIXTURE_DIR,
     stdio: 'pipe',
-    env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE },
+    env: { ...process.env, GIT_AUTHOR_DATE: FIXED_GIT_DATE, GIT_COMMITTER_DATE: FIXED_GIT_DATE, GIT_CEILING_DIRECTORIES: path.dirname(FIXTURE_DIR) },
   });
 
   // Clean ALL Astro caches to prevent stale data from the main Cloudflare build.

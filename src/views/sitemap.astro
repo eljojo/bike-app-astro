@@ -11,9 +11,12 @@ const config = getCityConfig();
 const locales = supportedLocales();
 const defLocale = defaultLocale();
 
+import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
+
 const routes = await getCollection('routes');
 const guides = await getCollection('guides');
 const events = await getCollection('events').catch(() => []);
+const { pages: bikePaths } = await loadBikePathData();
 
 const publishedRoutes = routes
   .filter(r => r.data.status === 'published')
@@ -35,6 +38,8 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
       <ul>
         <li><a href="/about">{t('nav.about', defLocale)} {config.display_name}</a></li>
         <li><a href="/calendar">{t('sitemap.cycling_calendar', defLocale)}</a></li>
+        <li><a href={paths.communities(defLocale)}>{t('nav.people', defLocale)}</a></li>
+        <li><a href={paths.bikeShops(defLocale)}>{t('bike_shops.heading', defLocale)}</a></li>
         <li><a href="/map">{t('sitemap.map_description', defLocale)}</a></li>
         <li><a href="/videos">{t('videos.title', defLocale)}</a>
           <ul>
@@ -53,6 +58,15 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
         </ul>
       </li>
     ))}
+    {bikePaths.length > 0 && (
+      <li><a href={paths.bikePaths(defLocale)}>{t('paths.title', defLocale)}</a>
+        <ul>
+          {bikePaths.map(bp => (
+            <li><a href={paths.bikePath(bp.slug, defLocale)}>{bp.name}</a></li>
+          ))}
+        </ul>
+      </li>
+    )}
     <li><a href="/guides">{t('guides.title', defLocale)}</a>
       <ul>
         {publishedGuides.map(guide => (
@@ -96,6 +110,15 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
           </ul>
         </li>
       ))}
+      {bikePaths.length > 0 && (
+        <li><a href={paths.bikePaths(locale)}>{t('paths.title', locale)}</a>
+          <ul>
+            {bikePaths.map(bp => (
+              <li><a href={paths.bikePath(bp.slug, locale)}>{bp.name}</a></li>
+            ))}
+          </ul>
+        </li>
+      )}
       <li><a href={localePath('/guides', locale)}>{t('guides.title', locale)}</a>
         <ul>
           {publishedGuides.map(guide => (

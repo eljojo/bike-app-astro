@@ -1,12 +1,13 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: textarea hydration workaround required, contentHash must sync after save, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
-import { useHydrated } from '../../lib/hooks';
-import { useEditorState } from './useEditorState';
+import { useState } from 'preact/hooks';
+import { useEditorForm } from './useEditorForm';
 import { useFormValidation } from './useFormValidation';
-import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
+import EditorLayout from './EditorLayout';
+import { bindText, bindCheckbox, bindTextarea } from './field-helpers';
 import PhotoField from './PhotoField';
-import EditorActions from './EditorActions';
+import TagEditor from './TagEditor';
+import CommunityPreview from './CommunityPreview';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
 
@@ -37,15 +38,10 @@ interface Props {
 
 // eslint-disable-next-line bike-app/no-hardcoded-city-locale -- fallback default for prop
 export default function CommunityEditor({ initialData, cdnUrl, tagTranslations = {}, knownTags = [], defaultLocale = 'en', userRole, guestLabel, locations }: Props) {
-  const hydratedRef = useHydrated<HTMLDivElement>();
-  const [dirty, setDirty] = useState(false);
-  useUnsavedGuard(dirty);
-
   const [name, setName] = useState(initialData.name || '');
   const [tagline, setTagline] = useState(initialData.tagline || '');
   const [body, setBody] = useState(initialData.body || '');
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
-  const [tagInput, setTagInput] = useState('');
   const [featured, setFeatured] = useState(initialData.featured || false);
   const [hidden, setHidden] = useState(initialData.hidden || false);
   const [photoKey, setPhotoKey] = useState(initialData.photo_key || '');
@@ -56,30 +52,18 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     initialData.social_links?.length ? initialData.social_links : [],
   );
 
-  // Textarea hydration workaround
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (bodyRef.current && body && !bodyRef.current.value) {
-      bodyRef.current.value = body;
-    }
-  }, []);
-
-  const initialRender = useRef(true);
-  useEffect(() => {
-    if (initialRender.current) { initialRender.current = false; return; }
-    setDirty(true);
-  }, [name, tagline, body, tags, featured, hidden, photoKey, socialLinks]);
-
   const { validate } = useFormValidation([
     { field: 'community-name', check: () => !name.trim(), message: 'Name is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
+  const editor = useEditorForm({
     apiBase: '/api/organizers',
     contentId: initialData.isNew ? null : (initialData.slug || null),
-    initialContentHash: initialData.contentHash,
+    contentHash: initialData.contentHash,
     userRole,
     validate,
+    initialBody: initialData.body || '',
+    deps: [name, tagline, body, tags, featured, hidden, photoKey, socialLinks],
     buildPayload: () => {
       const payload: OrganizerUpdate = {
         frontmatter: {
@@ -102,47 +86,11 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
       return payload as unknown as Record<string, unknown>;
     },
     onSuccess: (result) => {
-      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/communities/${result.id}`;
       }
     },
   });
-
-  function displayTag(tag: string): string {
-    return tagTranslations[tag]?.[defaultLocale] ?? tag;
-  }
-
-  function resolveTag(input: string): string {
-    if (knownTags.includes(input)) return input;
-    for (const [key, locales] of Object.entries(tagTranslations)) {
-      for (const translated of Object.values(locales)) {
-        if (translated.toLowerCase() === input) return key;
-      }
-    }
-    return input;
-  }
-
-  function addTag() {
-    const raw = tagInput.trim().toLowerCase();
-    if (!raw) { setTagInput(''); return; }
-    const tag = resolveTag(raw);
-    if (!tags.includes(tag)) {
-      setTags([...tags, tag]);
-    }
-    setTagInput('');
-  }
-
-  function removeTag(tag: string) {
-    setTags(tags.filter((t) => t !== tag));
-  }
-
-  function handleTagKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTag();
-    }
-  }
 
   function addSocialLink() {
     setSocialLinks(prev => [...prev, { platform: 'instagram', url: '' }]);
@@ -158,81 +106,73 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     ));
   }
 
+  function displayTag(tag: string): string {
+    return tagTranslations[tag]?.[defaultLocale] ?? tag;
+  }
+
   return (
-    <div ref={hydratedRef} class="community-editor">
-      {userRole === 'guest' && guestLabel && (
-        <p class="editor-guest-label">{guestLabel}</p>
-      )}
-      <div class="auth-form">
+    <EditorLayout
+      editor={editor}
+      className="community-editor"
+      contentType="community"
+      userRole={userRole}
+      guestLabel={guestLabel}
+      viewLink="/admin/communities"
+      preview={
+        <CommunityPreview
+          name={name}
+          tagline={tagline}
+          body={body}
+          tags={tags}
+          photoKey={photoKey}
+          socialLinks={socialLinks}
+          cdnUrl={cdnUrl}
+          displayTag={displayTag}
+        />
+      }
+    >
         <div class="form-field">
           <label for="community-name">Name</label>
-          <input id="community-name" type="text" value={name}
-            onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <input id="community-name" type="text" {...bindText(name, setName)} />
         </div>
 
         <div class="form-field">
           <label for="community-tagline">Tagline</label>
-          <input id="community-tagline" type="text" value={tagline}
+          <input id="community-tagline" type="text"
             placeholder="A short description"
-            onInput={(e) => setTagline((e.target as HTMLInputElement).value)} />
+            {...bindText(tagline, setTagline)} />
         </div>
 
         <div class="form-field">
           <label for="community-body">Bio</label>
           <textarea
             id="community-body"
-            ref={bodyRef}
+            ref={editor.bodyRef}
             rows={6}
-            onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
+            {...bindTextarea(body, setBody)}
           />
         </div>
 
         <div class="form-field">
           <label>Tags</label>
-          <div class="tag-editor">
-            {tags.map((tag) => (
-              <span key={tag} class="tag-pill">
-                {displayTag(tag)}
-                <button type="button" onClick={() => removeTag(tag)}>{'×'}</button>
-              </span>
-            ))}
-            <input
-              type="text"
-              class="tag-input"
-              list="community-tag-suggestions"
-              value={tagInput}
-              onInput={(e) => setTagInput((e.target as HTMLInputElement).value)}
-              onKeyDown={handleTagKeyDown}
-              onBlur={addTag}
-              placeholder="Add tag..."
-            />
-            <datalist id="community-tag-suggestions">
-              {knownTags
-                .filter(t => !tags.includes(t))
-                .flatMap(tag => {
-                  const options = [<option key={tag} value={tag} />];
-                  const locales = tagTranslations[tag];
-                  if (locales) {
-                    for (const [locale, translated] of Object.entries(locales)) {
-                      options.push(<option key={`${tag}-${locale}`} value={translated} />);
-                    }
-                  }
-                  return options;
-                })}
-            </datalist>
-          </div>
+          <TagEditor
+            tags={tags}
+            onTagsChange={setTags}
+            knownTags={knownTags}
+            tagTranslations={tagTranslations}
+            activeLocale={defaultLocale}
+            datalistId="community-tag-suggestions"
+          />
         </div>
 
         {userRole === 'admin' && (
           <div class="form-field">
             <label class="checkbox-label">
-              <input type="checkbox" checked={featured}
-                onChange={(e) => setFeatured((e.target as HTMLInputElement).checked)} />
+              <input type="checkbox" {...bindCheckbox(featured, setFeatured)} />
               Featured community
             </label>
             <label class="checkbox-label">
-              <input type="checkbox" checked={hidden}
-                onChange={(e) => setHidden((e.target as HTMLInputElement).checked)} />
+              <input type="checkbox" {...bindCheckbox(hidden, setHidden)} />
               Hide from public pages
             </label>
           </div>
@@ -292,14 +232,6 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
             </div>
           </div>
         )}
-      </div>
-
-      <EditorActions
-        error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-        onSave={handleSave} onDismiss={dismissSaved} contentType="community" userRole={userRole} guestCreated={guestCreated}
-        viewLink="/admin/communities"
-        licenseDocsUrl="https://whereto.bike/about/licensing/"
-      />
-    </div>
+    </EditorLayout>
   );
 }

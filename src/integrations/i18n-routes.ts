@@ -29,6 +29,14 @@ const wikiPages: LocalePage[] = [
   { pattern: '/routes/[slug]/map/[variant]', entrypoint: view('routes/map-variant.astro') },
   { pattern: '/routes.json', entrypoint: view('routes/routes-index.json.ts') },
   { pattern: '/routes/[slug].json', entrypoint: view('routes/route-data.json.ts') },
+  // Bike-paths routes gated by ENABLE_BIKE_PATHS env var (read directly from
+  // process.env because this runs during Astro config setup, before Vite define
+  // constants are available — __ENABLE_BIKE_PATHS__ would be undefined here).
+  ...(process.env.ENABLE_BIKE_PATHS !== 'false' ? [
+    { pattern: '/bike-paths', entrypoint: view('paths/index.astro') },
+    { pattern: '/bike-paths/[slug]', entrypoint: view('paths/detail.astro') },
+  ] : []),
+  { pattern: '/bike-shops', entrypoint: view('bike-shops.astro') },
   { pattern: '/guides', entrypoint: view('guides/index.astro') },
   { pattern: '/guides/[slug]', entrypoint: view('guides/detail.astro') },
   { pattern: '/videos', entrypoint: view('videos/index.astro') },

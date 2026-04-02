@@ -9,7 +9,8 @@ import OrganizerSpotlight from '@/components/OrganizerSpotlight.astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate } from '@/lib/date-utils';
 import { getCityConfig } from '@/lib/config/city-config';
-import { t, formatLocale, eventNoun, calendarUpcomingLabel } from '@/i18n';
+import { t, formatLocale, eventNoun, calendarUpcomingLabel, localePath } from '@/i18n';
+import SubTabToggle from '@/components/SubTabToggle.astro';
 import { paths } from '@/lib/paths';
 import { classifyEvent } from '@/lib/event-tags';
 import { tTag } from '@/lib/i18n/tag-translations.server';
@@ -215,6 +216,11 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
 ---
 
 <Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`} description={calendarDescription} ogImage={ogImage}>
+  <SubTabToggle items={[
+    { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: true },
+    { label: t('nav.people', locale), href: paths.communities(locale), active: false },
+    { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: false },
+  ]} />
   <div class="calendar-header">
     <h1>{t('calendar.title', locale, { year: currentYear })}</h1>
     <a href="/admin/events/new" class="action-button">{t('calendar.add_event', locale)}</a>

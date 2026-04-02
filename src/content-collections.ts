@@ -9,6 +9,7 @@ import { pageLoader } from './loaders/pages';
 import {
   routeSchema, placeSchema, guideSchema,
   eventSchema, organizerSchema, pageSchema,
+  bikePathSchema,
 } from './schemas/index';
 
 // This file is exclusively for blog/club consumer repos. Default to 'blog'
@@ -24,4 +25,8 @@ export const collections = {
   events: defineCollection({ loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/events` }), schema: eventSchema }),
   organizers: defineCollection({ loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/organizers` }), schema: organizerSchema }),
   pages: defineCollection({ loader: pageLoader(), schema: pageSchema }),
+  'bike-paths': defineCollection({
+    loader: glob({ pattern: mdPattern, base: `${CITY_DIR}/bike-paths` }),
+    schema: bikePathSchema,
+  }),
 };

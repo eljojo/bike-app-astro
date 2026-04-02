@@ -18,6 +18,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
+import matter from 'gray-matter';
 import type { Plugin } from 'vite';
 import { CITY } from './lib/config/config';
 import { CONTENT_DIR, cityDir } from './lib/config/config.server';
@@ -26,11 +27,15 @@ import { loadAdminEventData } from './loaders/admin-events';
 import { loadAdminOrganizers } from './loaders/admin-organizers';
 import { loadAdminPlaceData } from './loaders/admin-places';
 import { loadAdminRideData } from './loaders/admin-rides';
+import { loadAdminBikePathData } from './loaders/admin-bike-paths';
 import { buildMediaLocations, buildNearbyMediaMap, type ParkedMedia } from './loaders/media-locations';
 import { buildSharedKeysMap, serializeSharedKeys } from './lib/media/media-registry';
 import { isBlogInstance } from './lib/config/city-config';
 import { getContentTypes } from './lib/content/content-types.server';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
+import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
+import { computeBikePathRelations, enrichBikePathPages } from './lib/bike-paths/bike-path-relations.server';
+import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from './lib/geo/geojson-sampling';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -41,6 +46,7 @@ export { loadAdminEventData };
 export { loadAdminOrganizers };
 export { loadAdminPlaceData };
 export { loadAdminRideData };
+export { loadAdminBikePathData };
 
 const CITY_DIR = cityDir;
 
@@ -121,6 +127,73 @@ function loadTagTranslations() {
   return yaml.load(fs.readFileSync(filePath, 'utf-8')) || {};
 }
 
+function loadGeoFiles(consumerRoot: string): string[] {
+  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
+  if (!fs.existsSync(geoDir)) return [];
+  return fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
+}
+
+/**
+ * Load GeoJSON geometry files and extract sampled coordinates.
+ * Files are keyed by their identifier:
+ * - {relationId}.geojson → keyed by relation ID
+ * - name-{slug}.geojson → keyed by "name-{slug}"
+ * - seg-{slug}.geojson → keyed by "seg-{slug}"
+ */
+function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: number; lng: number }>> {
+  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
+  if (!fs.existsSync(geoDir)) return {};
+  const result: Record<string, Array<{ lat: number; lng: number }>> = {};
+
+  for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
+    const relId = file.replace(/\.geojson$/, '');
+    try {
+      const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
+      const points = sampleGeoJsonPoints(geojson, SAMPLE_INTERVAL);
+      if (points.length > 0) result[relId] = points;
+    } catch {
+      // Malformed file — skip
+    }
+  }
+  return result;
+}
+
+/**
+ * Load elevation stats per relation ID from enriched GeoJSON files.
+ * Returns elevation gain in meters (sum of positive deltas).
+ */
+function loadGeoElevation(consumerRoot: string): Record<string, { gain_m: number; loss_m: number }> {
+  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
+  if (!fs.existsSync(geoDir)) return {};
+  const result: Record<string, { gain_m: number; loss_m: number }> = {};
+
+  for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
+    const relId = file.replace(/\.geojson$/, '');
+    try {
+      const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
+      let gain = 0;
+      let loss = 0;
+      for (const feature of geojson.features ?? []) {
+        const geomType = feature.geometry?.type;
+        const lineArrays: number[][][] =
+          geomType === 'LineString' ? [feature.geometry.coordinates] :
+          geomType === 'MultiLineString' ? feature.geometry.coordinates :
+          [];
+        for (const coords of lineArrays) {
+          for (let i = 1; i < coords.length; i++) {
+            if (coords[i].length < 3 || coords[i - 1].length < 3) continue;
+            const delta = coords[i][2] - coords[i - 1][2];
+            if (delta > 0) gain += delta;
+            else loss -= delta;
+          }
+        }
+      }
+      if (gain > 0 || loss > 0) result[relId] = { gain_m: Math.round(gain), loss_m: Math.round(loss) };
+    } catch { /* skip */ }
+  }
+  return result;
+}
+
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
   const regex = /\/\* latin \*\/\s*@font-face\s*\{[^}]*url\('([^']+)'\)/g;
@@ -184,7 +257,7 @@ interface AdminModuleConfig {
 // All admin module names that any view might dynamically import.
 // Inactive modules (e.g. admin-events on a blog instance) get empty stubs
 // so Rollup can resolve them even when the content type isn't registered.
-const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places', 'organizers'];
+const ALL_ADMIN_MODULE_NAMES = ['routes', 'events', 'places', 'organizers', 'bike-paths'];
 
 function registerAdminModules(configs: AdminModuleConfig[]) {
   const promises = new Map<string, Promise<{ list: unknown; details: unknown }>>();
@@ -226,6 +299,20 @@ function registerAdminModules(configs: AdminModuleConfig[]) {
 
 // --- Virtual module builders (complex data composition) ---
 
+function loadBikePathPhotoKeys(): Array<{ slug: string; photo_key?: string }> {
+  const bikePathsDir = path.join(CITY_DIR, 'bike-paths');
+  if (!fs.existsSync(bikePathsDir)) return [];
+  return fs.readdirSync(bikePathsDir)
+    .filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))
+    .map(f => {
+      const content = fs.readFileSync(path.join(bikePathsDir, f), 'utf-8');
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) return { slug: f.replace('.md', '') };
+      const fm = yaml.load(fmMatch[1]) as Record<string, unknown>;
+      return { slug: f.replace('.md', ''), photo_key: fm.photo_key as string | undefined };
+    });
+}
+
 function buildMediaSharedKeysModule(
   routeDetails: Record<string, { media: Array<{ key: string }> }>,
 ): string {
@@ -236,7 +323,8 @@ function buildMediaSharedKeysModule(
   const parked = loadParkedMedia();
   const places = loadPlacePhotoKeys();
   const events = loadEventPosterKeys();
-  const map = buildSharedKeysMap(routeData, places, events, parked);
+  const bikePaths = loadBikePathPhotoKeys();
+  const map = buildSharedKeysMap(routeData, places, events, parked, bikePaths);
   return `export default ${serializeSharedKeys(map)};`;
 }
 
@@ -333,6 +421,58 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const CONSUMER_ROOT = options?.consumerRoot || PROJECT_ROOT;
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
+  // Tier 1: canonical merge of bikepaths.yml + markdown entries + geometry
+  const bikePathBase = loadBikePathEntries();
+  const bikePaths = bikePathBase.allYmlEntries;
+  const geoFiles = loadGeoFiles(CONSUMER_ROOT);
+  const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
+  const geoElevation = loadGeoElevation(CONSUMER_ROOT);
+  const routeTracks = loadRouteTrackPoints();
+  // Load places for nearby-places computation
+  const placesDir = path.join(CITY_DIR, 'places');
+  const placeList: Array<{ name: string; category: string; lat: number; lng: number; status?: string }> = [];
+  if (fs.existsSync(placesDir)) {
+    for (const file of fs.readdirSync(placesDir).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
+      const { data } = matter(fs.readFileSync(path.join(placesDir, file), 'utf-8'));
+      if (data.lat != null && data.lng != null) {
+        placeList.push({ name: data.name as string, category: data.category as string, lat: data.lat as number, lng: data.lng as number, status: data.status as string });
+      }
+    }
+  }
+  // Load geolocated media for nearby-photo computation
+  const mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }> = [];
+  const routesDirForMedia = path.join(CITY_DIR, 'routes');
+  if (fs.existsSync(routesDirForMedia)) {
+    for (const slug of fs.readdirSync(routesDirForMedia)) {
+      const mediaPath = path.join(routesDirForMedia, slug, 'media.yml');
+      if (!fs.existsSync(mediaPath)) continue;
+      const media = yaml.load(fs.readFileSync(mediaPath, 'utf-8'));
+      if (!Array.isArray(media)) continue;
+      for (const m of media) {
+        if (m.lat != null && m.lng != null && m.key) {
+          mediaLocations.push({ key: m.key, lat: m.lat, lng: m.lng, routeSlug: slug, caption: m.caption });
+        }
+      }
+    }
+  }
+
+  // Tier 2: compute relations per YML slug (overlapping routes, nearby photos/places/paths, connected paths)
+  const { relations: bikePathRelations, routeOverlaps, routeToPaths: rawRouteToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList, mediaLocations);
+
+  // Enrich Tier 1 pages with Tier 2 relations at config time
+  const enrichedPages = enrichBikePathPages(bikePathBase.pages, bikePathRelations, routeOverlaps, geoElevation);
+  // Filter all path references to only include slugs that have generated pages
+  const validSlugs = new Set(enrichedPages.map(p => p.slug));
+  for (const page of enrichedPages) {
+    page.nearbyPaths = page.nearbyPaths.filter(p => validSlugs.has(p.slug));
+    page.connectedPaths = page.connectedPaths.filter(p => validSlugs.has(p.slug));
+  }
+  // Filter routeToPaths to only valid page slugs
+  const enrichedRouteToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> = {};
+  for (const [routeSlug, pathList] of Object.entries(rawRouteToPaths)) {
+    const valid = pathList.filter(p => validSlugs.has(p.slug));
+    if (valid.length > 0) enrichedRouteToPaths[routeSlug] = valid;
+  }
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
   const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
@@ -346,6 +486,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const adminEventDataPromise = loadAdminEventData();
   const adminPlaceDataPromise = loadAdminPlaceData();
   const adminOrganizersPromise = loadAdminOrganizers();
+  const adminBikePathDataPromise = loadAdminBikePathData();
 
   // Helper: resolve route/ride details (used by multiple virtual modules)
   async function getRouteDetails() {
@@ -365,6 +506,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     events: async () => { const d = await adminEventDataPromise; return { list: d.events, details: d.details }; },
     places: async () => { const d = await adminPlaceDataPromise; return { list: d.places, details: d.details }; },
     organizers: async () => { const d = await adminOrganizersPromise; return { list: d.list, details: d.details }; },
+    'bike-paths': async () => { const d = await adminBikePathDataPromise; return { list: d.bikePaths, details: d.details }; },
   };
 
   // Build admin modules from the content type registry, using the loader map
@@ -402,7 +544,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       const details = await getRouteDetails();
       const parked = loadParkedMedia();
       const locations = buildMediaLocations(details, parked);
-      const tracks = loadRouteTrackPoints();
+      const tracks = routeTracks;
       return `export default ${JSON.stringify(buildNearbyMediaMap(locations, tracks))};`;
     },
 
@@ -436,6 +578,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
     'homepage-facts': async () =>
       `export default ${JSON.stringify(homepageFacts)};`,
+
+    'bike-path-pages': async () => {
+      return `
+export const pages = ${JSON.stringify(enrichedPages)};
+export const allYmlEntries = ${JSON.stringify(bikePathBase.allYmlEntries)};
+export const geoFiles = ${JSON.stringify(geoFiles)};
+export const routeToPaths = ${JSON.stringify(enrichedRouteToPaths)};
+`;
+    },
   };
 
   return {
@@ -492,6 +643,31 @@ export function tTag(tag, locale) {
           code: `
 const _data = ${JSON.stringify(fontPreloads)};
 export function getFontPreloads() { return _data; }
+`,
+          map: null,
+        };
+      }
+      if (id.endsWith('src/lib/bike-paths/bike-path-data.server.ts')) {
+        return {
+          code: `
+import { pages as _pages, allYmlEntries as _allYml, geoFiles as _geoFiles, routeToPaths as _rtp } from 'virtual:bike-app/bike-path-pages';
+import { haversineM } from '../geo/proximity';
+export { normalizeOperator } from './bike-path-entries.server';
+
+export async function loadBikePathData() {
+  return { pages: _pages, allYmlEntries: _allYml, geoFiles: _geoFiles, routeToPaths: _rtp };
+}
+
+export function getRouteToPaths() { return _rtp; }
+
+export function routePassesNearPath(trackPoints, pathAnchors, thresholdM = 100) {
+  for (const anchor of pathAnchors) {
+    for (const tp of trackPoints) {
+      if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) return true;
+    }
+  }
+  return false;
+}
 `,
           map: null,
         };

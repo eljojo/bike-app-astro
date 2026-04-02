@@ -15,6 +15,8 @@ Disallow: /
   const config = getCityConfig();
   return new Response(`User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api
 
 # LLM-readable site description
 # See https://llmstxt.org/ for the specification

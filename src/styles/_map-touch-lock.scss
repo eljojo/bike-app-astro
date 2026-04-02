@@ -1,0 +1,52 @@
+@use 'variables' as *;
+
+// Touch-lock overlay for embedded maps.
+// Sits on top of the map on mobile to prevent accidental interactions while scrolling.
+// touch-action: pan-y lets vertical scrolling pass through to the page.
+// Used by PinMap component and the paths index hero map.
+
+// Wrapper needs position: relative for the overlay to position against.
+.pin-map-wrapper,
+.paths-map-hero-wrapper {
+  position: relative;
+}
+
+.pin-map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-touch-lock {
+  display: none;
+
+  @media (max-width: $breakpoint-mobile) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    touch-action: pan-y;
+    cursor: pointer;
+    border-radius: $border-radius;
+
+    .map-touch-label {
+      opacity: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    &.primed .map-touch-label {
+      opacity: 1;
+    }
+
+    &.dismissed {
+      display: none;
+    }
+  }
+}

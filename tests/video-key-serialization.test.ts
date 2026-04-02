@@ -103,7 +103,7 @@ describe('Scenario 1: production wiki (CITY=montreal, VIDEO_PREFIX=montreal)', (
   describe('videoPosterUrl', () => {
     it('bare key produces CITY-prefixed poster URL', async () => {
       const { videoPosterUrl } = await import('../src/lib/media/video-service');
-      expect(videoPosterUrl('abcdef')).toBe(`${CDN}/montreal/abcdef/abcdef-poster.0000000.jpg`);
+      expect(videoPosterUrl('abcdef')).toBe(`${CDN}/cdn-cgi/image/format=auto/montreal/abcdef/abcdef-poster.0000000.jpg`);
     });
   });
 
@@ -205,7 +205,7 @@ describe('Scenario 2: staging wiki (CITY=montreal, VIDEO_PREFIX=montreal-staging
     it('staging-prefixed key produces correct poster URL', async () => {
       const { videoPosterUrl } = await import('../src/lib/media/video-service');
       expect(videoPosterUrl('montreal-staging/abcdef')).toBe(
-        `${CDN}/montreal-staging/abcdef/abcdef-poster.0000000.jpg`,
+        `${CDN}/cdn-cgi/image/format=auto/montreal-staging/abcdef/abcdef-poster.0000000.jpg`,
       );
     });
   });
@@ -291,7 +291,7 @@ describe('Scenario 3: blog (CITY=blog, VIDEO_PREFIX=eljojo_bike-blog)', () => {
     it('bare key produces VIDEO_PREFIX-prefixed poster URL', async () => {
       const { videoPosterUrl } = await import('../src/lib/media/video-service');
       expect(videoPosterUrl('abcdef')).toBe(
-        `${CDN}/eljojo_bike-blog/abcdef/abcdef-poster.0000000.jpg`,
+        `${CDN}/cdn-cgi/image/format=auto/eljojo_bike-blog/abcdef/abcdef-poster.0000000.jpg`,
       );
     });
   });

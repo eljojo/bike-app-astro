@@ -5,6 +5,7 @@ import { getCityConfig } from '../lib/config/city-config';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement, formatCategory } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
+import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
 
 export const prerender = true;
 
@@ -120,6 +121,31 @@ export const GET: APIRoute = async () => {
     });
 
     sections.push(`## Upcoming Events\n\n${eventBlocks.join('\n\n---\n\n')}\n`);
+  }
+
+  // Bike Paths
+  if (features.hasPaths) {
+    const { pages: bikePaths } = await loadBikePathData();
+    if (bikePaths.length > 0) {
+      const pathBlocks = bikePaths.map(bp => {
+        const lines: string[] = [];
+        lines.push(`### ${bp.name}\n`);
+        const facts: string[] = [];
+        if (bp.surface) facts.push(`**Surface:** ${bp.surface}`);
+        if (bp.width) facts.push(`**Width:** ${bp.width}m`);
+        if (bp.highway === 'cycleway') facts.push('Separated from cars');
+        if (bp.lit === 'yes') facts.push('Lit at night');
+        if (bp.operator) facts.push(`**Maintained by:** ${bp.operator}`);
+        if (bp.network === 'rcn') facts.push('Part of regional cycling network');
+        if (bp.network === 'ncn') facts.push('Part of national cycling network');
+        if (facts.length > 0) lines.push(facts.map(f => `- ${f}`).join('\n'));
+        if (bp.vibe) lines.push(`\n${bp.vibe}`);
+        if (bp.body) lines.push(`\n${bp.body}`);
+        lines.push(`- **More info:** ${config.url}/bike-paths/${bp.slug}`);
+        return lines.join('\n');
+      });
+      sections.push(`## Bike Paths\n\n${pathBlocks.join('\n\n---\n\n')}\n`);
+    }
   }
 
   // Places
