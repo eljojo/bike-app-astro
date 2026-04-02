@@ -25,14 +25,19 @@ export async function getStaticPaths() {
     loadBuildPlan(),
     'bike-path',
   );
+  // Build network slug → name lookup for "Connects to" display
+  const networkNames: Record<string, string> = {};
+  for (const p of pages) {
+    if (p.memberRefs && p.memberRefs.length > 0) networkNames[p.slug] = p.name;
+  }
   return filtered.map(page => ({
     params: { slug: page.slug },
-    props: { page },
+    props: { page, networkNames },
   }));
 }
 
-interface Props { page: BikePathPage }
-const { page } = Astro.props;
+interface Props { page: BikePathPage; networkNames: Record<string, string> }
+const { page, networkNames } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -237,19 +242,35 @@ const breadcrumbs = breadcrumbJsonLd([
           <NearbyPlaces nearby={nearbyPlaces} limit={8} />
         )}
 
-        {connectedPaths.length > 0 && (
-          <section class="connected-paths">
-            <h2>{t('paths.connects_to', locale)}</h2>
-            <ul class="connected-paths-list">
-              {connectedPaths.map(p => (
-                <li>
-                  <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-                  {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {connectedPaths.length > 0 && (() => {
+          // Group connected paths: show network name instead of individual trails when they belong to one
+          const standalone = connectedPaths.filter(p => !p.memberOf);
+          const byNetwork = new Map<string, typeof connectedPaths>();
+          for (const p of connectedPaths) {
+            if (!p.memberOf) continue;
+            const list = byNetwork.get(p.memberOf);
+            if (list) list.push(p); else byNetwork.set(p.memberOf, [p]);
+          }
+          return (
+            <section class="connected-paths">
+              <h2>{t('paths.connects_to', locale)}</h2>
+              <ul class="connected-paths-list">
+                {[...byNetwork.entries()].map(([netSlug, members]) => (
+                  <li>
+                    <a href={paths.bikePath(netSlug, undefined, locale)}>{networkNames[netSlug] || netSlug}</a>
+                    {members.length > 1 && <span class="path-meta">{members.length} {t('paths.pathways', locale)}</span>}
+                  </li>
+                ))}
+                {standalone.map(p => (
+                  <li>
+                    <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
+                    {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })()}
 
         {(() => {
           const connectedSlugs = new Set(connectedPaths.map(p => p.slug));
