@@ -11,6 +11,7 @@ import { formatDistance } from '../../lib/format';
 import { db } from '../../lib/get-db';
 import { stravaTokens } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { isRideIncomplete } from '../../lib/content/content-completeness';
 import { t } from '../../i18n';
 import '../../styles/admin.scss';
 const locale = Astro.currentLocale;
@@ -37,13 +38,11 @@ const sortedRides = [...rides].sort((a, b) => (b.date || '').localeCompare(a.dat
 const years = [...new Set(sortedRides.map(r => r.date?.slice(0, 4)).filter(Boolean))].sort((a, b) => b!.localeCompare(a!));
 
 const incomplete = rides
-  .filter(r => r.status === 'draft')
-  .map(r => ({
-    slug: r.slug,
-    name: r.name,
-    hint: t('admin.sidebar.draft', locale),
-    editUrl: `/admin/rides/${r.slug}`,
-  }))
+  .map(r => {
+    const hint = isRideIncomplete(r);
+    return hint ? { slug: r.slug, name: r.name, hint: t(`admin.sidebar.${hint}`, locale), editUrl: `/admin/rides/${r.slug}` } : null;
+  })
+  .filter((x): x is NonNullable<typeof x> => x !== null)
   .slice(0, 5);
 
 const nameMap: Record<string, string> = {};

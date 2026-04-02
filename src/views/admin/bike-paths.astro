@@ -5,6 +5,7 @@ import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { isBikePathIncomplete } from '../../lib/content/content-completeness';
 import { t } from '../../i18n';
 import '../../styles/admin.scss';
 
@@ -13,13 +14,11 @@ const bikePaths = await fetchJson<_AdminBikePath[]>(new URL('/admin/data/bike-pa
 const user = Astro.locals.user;
 
 const incomplete = bikePaths
-  .filter(p => !p.hidden && p.stub)
-  .map(p => ({
-    slug: p.id,
-    name: p.name,
-    hint: t('admin.sidebar.no_description', locale),
-    editUrl: `/admin/bike-paths/${p.id}`,
-  }))
+  .map(p => {
+    const hint = isBikePathIncomplete(p);
+    return hint ? { slug: p.id, name: p.name, hint: t(`admin.sidebar.${hint}`, locale), editUrl: `/admin/bike-paths/${p.id}` } : null;
+  })
+  .filter((x): x is NonNullable<typeof x> => x !== null)
   .slice(0, 5);
 
 const nameMap: Record<string, string> = {};

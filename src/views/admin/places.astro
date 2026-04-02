@@ -7,6 +7,7 @@ import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
 import { categoryEmoji } from '../../lib/geo/place-categories';
 import { getCityConfig } from '../../lib/config/city-config';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { isPlaceIncomplete } from '../../lib/content/content-completeness';
 import { t } from '../../i18n';
 import '../../styles/admin.scss';
 
@@ -44,17 +45,11 @@ function groupByCategory(places: typeof adminPlaces) {
 const grouped = groupByCategory(adminPlaces);
 
 const incomplete = adminPlaces
-  .filter(p => {
-    if (!p.photo_key) return true;
-    const hasContact = p.social_links?.some(l => ['website', 'telephone'].includes(l.platform));
-    return !hasContact;
+  .map(p => {
+    const hint = isPlaceIncomplete(p);
+    return hint ? { slug: p.id, name: p.name, hint: t(`admin.sidebar.${hint}`, locale), editUrl: `/admin/places/${p.id}` } : null;
   })
-  .map(p => ({
-    slug: p.id,
-    name: p.name,
-    hint: !p.photo_key ? t('admin.sidebar.no_photo', locale) : t('admin.sidebar.no_website', locale),
-    editUrl: `/admin/places/${p.id}`,
-  }))
+  .filter((x): x is NonNullable<typeof x> => x !== null)
   .slice(0, 5);
 
 const nameMap: Record<string, string> = {};
