@@ -97,7 +97,7 @@ test.describe('Bike path detail page (member of network)', () => {
   test('facts table shows surface type', async ({ page }) => {
     await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
     const factsTable = page.locator('.bike-path-facts-table');
-    await expect(factsTable).toContainText('paved');
+    await expect(factsTable).toContainText('Pavimentado');
   });
 
   test('facts table shows separation and lighting', async ({ page }) => {
