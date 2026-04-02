@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
@@ -26,10 +27,10 @@
 
   @media (min-width: $breakpoint-desktop) {
     &:hover .organizer-spotlight-item {
-      background: darken($color-card-bg, 3%);
+      background: color.adjust($color-card-bg, $lightness: -3%);
 
       @include dark-mode {
-        background: lighten($color-card-bg-dark, 5%);
+        background: color.adjust($color-card-bg-dark, $lightness: 5%);
       }
     }
   }
@@ -85,10 +86,10 @@
   }
 
   @media (min-width: $breakpoint-desktop) {
-    background: darken($color-card-bg, 5%);
+    background: color.adjust($color-card-bg, $lightness: -5%);
 
     @include dark-mode {
-      background: lighten($color-card-bg-dark, 5%);
+      background: color.adjust($color-card-bg-dark, $lightness: 5%);
     }
   }
 }

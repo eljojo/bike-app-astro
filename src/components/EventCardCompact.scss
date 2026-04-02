@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
@@ -13,14 +14,14 @@
   transition: background-color 0.15s;
 
   &:hover {
-    background: darken($color-card-bg, 3%);
+    background: color.adjust($color-card-bg, $lightness: -3%);
   }
 
   @include dark-mode {
     background: $color-card-bg-dark;
 
     &:hover {
-      background: lighten($color-card-bg-dark, 5%);
+      background: color.adjust($color-card-bg-dark, $lightness: 5%);
     }
   }
 
