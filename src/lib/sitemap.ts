@@ -50,7 +50,7 @@ export function buildSitemapEntries({ routes, guides, events, bikePaths }: {
   routes: { id: string; data: { status: string; updated_at: string; variants?: { name: string; gpx: string; [k: string]: unknown }[]; translations?: Record<string, { slug?: string; [k: string]: unknown }>; [k: string]: unknown } }[];
   guides: { id: string; data: { status: string; [k: string]: unknown } }[];
   events?: { id: string }[];
-  bikePaths?: { slug: string; memberOf?: string }[];
+  bikePaths?: { slug: string; memberOf?: string; standalone: boolean }[];
 }): SitemapEntry[] {
   const entries: SitemapEntry[] = [
     ...localizedEntry('/', 1.0),
@@ -85,7 +85,7 @@ export function buildSitemapEntries({ routes, guides, events, bikePaths }: {
 
   if (bikePaths && bikePaths.length > 0) {
     entries.push(...localizedEntry('/bike-paths', 0.7));
-    for (const bp of bikePaths) {
+    for (const bp of bikePaths.filter(p => p.standalone)) {
       entries.push(...localizedEntry(paths.bikePath(bp.slug, bp.memberOf), 0.6));
     }
   }

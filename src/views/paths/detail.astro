@@ -18,8 +18,10 @@ import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.serve
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
+  // Only standalone pages (destination rule) get their own route — not network pages
+  const standalonePaths = pages.filter(p => p.standalone && p.memberOf === undefined && !p.memberRefs);
   const filtered = filterByBuildPlan(
-    pages.map(p => ({ ...p, id: p.slug })),
+    standalonePaths.map(p => ({ ...p, id: p.slug })),
     loadBuildPlan(),
     'bike-path',
   );

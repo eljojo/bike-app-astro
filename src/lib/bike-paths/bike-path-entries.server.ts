@@ -12,7 +12,7 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml.server';
 import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from '../geo/geojson-sampling';
-import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring.server';
+import { scoreBikePath, isHardExcluded, isDestination, SCORE_THRESHOLD } from './bike-path-scoring.server';
 import { haversineM } from '../geo/proximity';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
@@ -510,7 +510,7 @@ export function loadBikePathEntries(): {
       score,
       hasMarkdown: false,
       listed: score >= SCORE_THRESHOLD,
-      standalone: true,
+      standalone: isDestination(entry, getPathLengthKm(entry), false),
       stub: true, // all YML-only entries are stubs
       featured: false,
       ymlEntries: [entry],
