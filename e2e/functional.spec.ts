@@ -119,16 +119,16 @@ test.describe('Network pages', () => {
 
   test('network page shows member list with 2 members', async ({ page }) => {
     await page.goto('/bike-paths/red-de-ciclovias');
-    const memberList = page.locator('.member-list');
+    const memberList = page.locator('.network-members-list');
     await expect(memberList).toBeVisible();
     await expect(memberList.locator('li')).toHaveCount(2);
   });
 
-  test('network page shows wikidata stats', async ({ page }) => {
+  test('network page shows stats in facts table', async ({ page }) => {
     await page.goto('/bike-paths/red-de-ciclovias');
-    const stats = page.locator('.network-stats');
-    await expect(stats).toContainText('8 km');
-    await expect(stats).toContainText('Municipalidad');
+    const facts = page.locator('.bike-path-facts-table');
+    await expect(facts).toContainText('8 km');
+    await expect(facts).toContainText('Municipalidad');
   });
 
   test('member detail page renders at nested URL', async ({ page }) => {
