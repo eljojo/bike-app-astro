@@ -7,6 +7,7 @@ import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import BikePathMap from '@/components/BikePathMap.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import RoutesOnPath from '@/components/RoutesOnPath.astro';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { t, localePath } from '@/i18n';
 import { paths, assets } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
@@ -15,7 +16,6 @@ import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
-  // Only network pages (those with memberRefs)
   const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
   return networkPages.map(page => ({
     params: { network: page.slug },
@@ -36,16 +36,25 @@ const localeBody = (locale && page.translations[locale]?.body) || page.body;
 const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
 
 const memberRefs = page.memberRefs ?? [];
+const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
-// SEO — pick wikidata description for current locale, fallback to default locale
+function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, number] | undefined {
+  if (pts.length === 0) return undefined;
+  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+  return [lat, lng];
+}
+const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
+
+// SEO
 const wikidataDesc = wikidataMeta
   ? (wikidataMeta as Record<string, unknown>)[`description_${locale}`] as string | undefined
     ?? wikidataMeta.description_en
   : undefined;
 const seoDescription = localeVibe
   || wikidataDesc
-  || `${localeName} — cycling network with ${memberRefs.length} pathways`;
+  || `${localeName} — ${standaloneMemberCount} ${t('paths.pathways', locale)}`;
 
 const hasMapThumb = hasCachedMap(`path-${page.slug}`);
 const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
@@ -59,55 +68,100 @@ const breadcrumbs = breadcrumbJsonLd([
 ---
 
 <Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage} breadcrumbs={breadcrumbs}>
-  <div class="bike-path-detail network-detail">
-    <h1>
-      <a href={paths.bikePaths(locale)} class="go-back-button">
-        <span aria-hidden="true">&larr;</span>
-      </a>
-      {localeName}
-    </h1>
+  <div class="bike-path-detail">
+    <h1>{localeName}</h1>
+    {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
 
-    {localeVibe && <p class="vibe">{localeVibe}</p>}
+    <div class="bike-path-layout">
+      <div class="bike-path-main">
+        {bodyHtml ? (
+          <div class="bike-path-description" set:html={bodyHtml} />
+        ) : (
+          <p class="bike-path-stub-cta">
+            {t('paths.stub_cta', locale)} <a href={`/admin/bike-paths/${page.slug}`}>{t('paths.stub_cta_link', locale)}</a>
+          </p>
+        )}
 
-    <div class="network-stats">
-      {page.length_km && <span class="stat">{page.length_km} km</span>}
-      {memberRefs.length > 0 && <span class="stat">{memberRefs.length} {t('paths.pathways', locale)}</span>}
-      {page.operator && <span class="stat">{page.operator}</span>}
-    </div>
+        <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
 
-    {wikidataMeta && (
-      <div class="network-meta">
-        {wikidataMeta.inception && <p class="fact">{t('paths.fact.established', locale)}: {wikidataMeta.inception}</p>}
-        {wikidataMeta.website && <p class="fact"><a href={wikidataMeta.website} target="_blank" rel="noopener">{t('paths.fact.website', locale)}</a></p>}
+        {memberRefs.length > 0 && (
+          <section class="network-members">
+            <h2>{t('paths.member_paths', locale)}</h2>
+            <ul class="network-members-list">
+              {memberRefs.map(m => (
+                <li>
+                  {m.standalone ? (
+                    <a href={paths.bikePath(m.slug, page.slug, locale)} class="network-member-link">
+                      <span class="network-member-name">{m.name}</span>
+                      {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                    </a>
+                  ) : (
+                    <span class="network-member-no-page">
+                      <span class="network-member-name">{m.name}</span>
+                      {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <RoutesOnPath routes={overlappingRoutes} locale={locale} />
+
+        {nearbyPhotos.length > 0 && (
+          <section class="bike-path-photos">
+            <h2>{t('paths.photos', locale)}</h2>
+            <div class="bike-path-photo-grid">
+              {nearbyPhotos.slice(0, 8).map(photo => (
+                <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo">
+                  <img
+                    src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
+                    srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                    alt={photo.caption || localeName}
+                    width="300"
+                    height="200"
+                    loading="lazy"
+                  />
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
-    )}
 
-    {page.geoFiles.length > 0 && (
-      <BikePathMap geoFiles={page.geoFiles} points={page.points} />
-    )}
+      <aside class="bike-path-sidebar">
+        <BikePathMap
+          geoFiles={page.geoFiles}
+          center={computeCenter(page.points)}
+          fallbackCenter={fallbackCenter}
+          hintText={t('paths.tap_to_explore', locale)}
+          closeLabel={t('paths.close_map', locale)}
+          photos={nearbyPhotos.filter(p => p.lat && p.lng)}
+          places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
+          cdnUrl={config.cdn_url}
+        />
 
-    {bodyHtml && <div class="body" set:html={bodyHtml} />}
+        <table class="bike-path-facts-table">
+          {page.length_km && (
+            <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
+          )}
+          <tr><td>{t('paths.pathways', locale)}</td><td>{standaloneMemberCount}</td></tr>
+          {page.operator && (
+            <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
+          )}
+          {wikidataMeta?.inception && (
+            <tr><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
+          )}
+          {wikidataMeta?.website && (
+            <tr><td>{t('paths.fact.website', locale)}</td><td><a href={wikidataMeta.website} target="_blank" rel="noopener">{new URL(wikidataMeta.website).hostname}</a></td></tr>
+          )}
+        </table>
 
-    {memberRefs.length > 0 && (
-      <section class="network-members">
-        <h2>{t('paths.member_paths', locale)}</h2>
-        <ul class="member-list">
-          {memberRefs.map(m => (
-            <li>
-              {m.standalone ? (
-                <a href={paths.bikePath(m.slug, page.slug, locale)}>{m.name}</a>
-              ) : (
-                <span>{m.name}</span>
-              )}
-              {m.length_km && <span class="member-length">{m.length_km} km</span>}
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
-
-    <RoutesOnPath routes={overlappingRoutes} locale={locale} />
-
-    <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+        {nearbyPlaces.length > 0 && (
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+        )}
+      </aside>
+    </div>
   </div>
 </Base>
