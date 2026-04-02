@@ -203,7 +203,7 @@ describe('loadBikePathEntries', () => {
     expect(rideau).toBeDefined();
     expect(rideau!.hasMarkdown).toBe(true);
     expect(rideau!.name).toBe('Rideau Canal Pathway');
-    expect(rideau!.name_fr).toBe('Sentier du canal Rideau');
+    expect(rideau!.translations.fr?.name).toBe('Sentier du canal Rideau');
     expect(rideau!.vibe).toBe('A gentle ride along the canal');
     expect(rideau!.tags).toEqual(['scenic', 'flat']);
     expect(rideau!.photo_key).toBe('rideau-canal-photo');

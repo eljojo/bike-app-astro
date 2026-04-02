@@ -51,7 +51,6 @@ export interface MemberRef {
 export interface BikePathPage {
   slug: string;
   name: string;
-  name_fr?: string;
   vibe?: string;
   body?: string;
   photo_key?: string;
@@ -108,7 +107,7 @@ export interface BikePathPage {
   parallel_to?: string;
   /** Mountain bike trail (not road-bike-friendly). Set by detect-mtb in the data pipeline. */
   mtb?: boolean;
-  /** Locale-specific content overrides from .{locale}.md files + YML name_fr. */
+  /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
 }
 
@@ -234,7 +233,6 @@ interface MarkdownEntry {
   id: string;
   data: {
     name?: string;
-    name_fr?: string;
     vibe?: string;
     hidden: boolean;
     stub: boolean;
@@ -245,6 +243,8 @@ interface MarkdownEntry {
     wikipedia?: string;
     operator?: string;
   };
+  /** Raw frontmatter object — used to pass dynamic name_{locale} keys to readBikePathTranslations. */
+  rawFrontmatter: Record<string, unknown>;
   body: string;
 }
 
@@ -268,7 +268,6 @@ function readMarkdownEntries(): MarkdownEntry[] {
       id,
       data: {
         name: fm.name as string | undefined,
-        name_fr: fm.name_fr as string | undefined,
         vibe: fm.vibe as string | undefined,
         hidden: (fm.hidden as boolean) || false,
         stub: (fm.stub as boolean) || false,
@@ -279,6 +278,7 @@ function readMarkdownEntries(): MarkdownEntry[] {
         wikipedia: fm.wikipedia as string | undefined,
         operator: fm.operator as string | undefined,
       },
+      rawFrontmatter: fm as Record<string, unknown>,
       body: body.trim(),
     });
   }
@@ -286,16 +286,20 @@ function readMarkdownEntries(): MarkdownEntry[] {
 }
 
 /**
- * Read locale translations for a bike path from two sources:
+ * Read locale translations for a bike path from three sources (highest to lowest priority):
  * 1. .{locale}.md files (e.g., greenbelt-pathway.fr.md) — full translation with slug, name, vibe, body
- * 2. YML name_{locale} fields (e.g., name_fr from OSM's name:fr tag) — fallback name only
+ * 2. Main markdown frontmatter name_{locale} fields (e.g., name_fr in rideau-canal-pathway.md)
+ * 3. YML name_{locale} fields (e.g., name_fr from OSM's name:fr tag) — fallback name only
  *
- * For each non-primary locale in the city config, checks both sources.
- * .md file takes precedence over YML field for the name.
+ * This is the single source of truth for locale-specific names on bike paths.
+ *
+ * For each non-primary locale in the city config, checks all three sources.
+ * .md file takes precedence over frontmatter, which takes precedence over YML.
  */
 function readBikePathTranslations(
   slug: string,
   ymlEntry: SluggedBikePathYml,
+  markdownFrontmatter?: Record<string, unknown>,
 ): Record<string, BikePathTranslation> {
   const bikePathsDir = path.join(cityDir, 'bike-paths');
   const translations: Record<string, BikePathTranslation> = {};
@@ -316,7 +320,16 @@ function readBikePathTranslations(
       };
     }
 
-    // Source 2: YML name_{locale} field (OSM name:xx tag) — fallback name
+    // Source 2: Main markdown frontmatter name_{locale} field
+    if (markdownFrontmatter) {
+      const mdLocName = markdownFrontmatter[`name_${locale}`];
+      if (typeof mdLocName === 'string' && mdLocName) {
+        if (!translations[locale]) translations[locale] = {};
+        if (!translations[locale].name) translations[locale].name = mdLocName;
+      }
+    }
+
+    // Source 3: YML name_{locale} field (OSM name:xx tag) — fallback name
     const ymlLocName = (ymlEntry as Record<string, unknown>)[`name_${locale}`];
     if (typeof ymlLocName === 'string' && ymlLocName) {
       if (!translations[locale]) translations[locale] = {};
@@ -400,7 +413,6 @@ export function loadBikePathEntries(): {
     pages.push({
       slug: md.id,
       name: md.data.name ?? primary?.name ?? md.id,
-      name_fr: md.data.name_fr ?? primary?.name_fr,
       vibe: md.data.vibe,
       body: md.body,
       photo_key: md.data.photo_key,
@@ -435,7 +447,7 @@ export function loadBikePathEntries(): {
       parallel_to: primary?.parallel_to,
       mtb: primary?.mtb,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
-      translations: primary ? readBikePathTranslations(md.id, primary) : {},
+      translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
   }
 
@@ -454,7 +466,6 @@ export function loadBikePathEntries(): {
     pages.push({
       slug: entry.slug,
       name: entry.name,
-      name_fr: entry.name_fr,
       tags: [],
       score,
       hasMarkdown: false,
@@ -550,7 +561,6 @@ export function loadBikePathEntries(): {
     pages.push({
       slug: entry.slug,
       name: entry.name,
-      name_fr: entry.name_fr,
       tags: [],
       score,
       hasMarkdown: false,
