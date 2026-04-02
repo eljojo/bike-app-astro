@@ -170,7 +170,7 @@
   &:hover { text-decoration: underline; }
 
   @include dark-mode {
-    background: $color-tag-bg-dark;
+    background: $color-card-bg-dark;
     color: $color-text-dark;
   }
 }
