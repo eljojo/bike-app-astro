@@ -502,6 +502,9 @@ export function loadBikePathEntries(): {
       continue;
     }
 
+    // Skip network entries — they're processed after all paths
+    if (entry.type === 'network') continue;
+
     pages.push({
       slug: entry.slug,
       name: entry.name,
@@ -513,6 +516,7 @@ export function loadBikePathEntries(): {
       standalone: isDestination(entry, getPathLengthKm(entry), false),
       stub: true, // all YML-only entries are stubs
       featured: false,
+      memberOf: entry.member_of,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
@@ -534,6 +538,78 @@ export function loadBikePathEntries(): {
       network: entry.network,
       highway: entry.highway,
       parallel_to: entry.parallel_to,
+      wikipedia: entry.wikipedia,
+      translations: readBikePathTranslations(entry.slug, entry),
+    });
+  }
+
+  // 7. Process type: network entries — build network pages with lightweight memberRefs.
+  // Network pages aggregate metadata from members. memberRefs are lightweight —
+  // slug, name, length, thumbnail, standalone — NOT full BikePathPage objects.
+  // The virtual module (build-data-plugin.ts) serializes all pages into a JS bundle;
+  // embedding full page objects inside network pages would duplicate large relation arrays.
+  const pageBySlug = new Map(pages.map(p => [p.slug, p]));
+  for (const entry of allYmlEntries) {
+    if (entry.type !== 'network') continue;
+    if (claimedSlugs.has(entry.slug)) continue;
+    if (isHardExcluded(entry)) continue;
+
+    const memberSlugs = entry.members ?? [];
+    const memberPages = memberSlugs.map(s => pageBySlug.get(s)).filter((p): p is BikePathPage => !!p);
+    const memberRefs: MemberRef[] = memberPages.map(p => ({
+      slug: p.slug,
+      name: p.name,
+      length_km: p.length_km,
+      thumbnail_key: p.thumbnail_key,
+      standalone: p.standalone,
+    }));
+
+    // Aggregate geometry from all members
+    const allMemberEntries = memberPages.flatMap(p => p.ymlEntries);
+    const allEntries = [entry, ...allMemberEntries];
+    const osmRelationIds = [...new Set(allEntries.flatMap(e => e.osm_relations ?? []))];
+    const osmNames = [...new Set(allEntries.flatMap(e => e.osm_names ?? []))];
+    const points = memberPages.flatMap(p => p.points);
+
+    // Network length: prefer wikidata_meta.length_km, fallback to sum of member lengths
+    const wikidataLength = entry.wikidata_meta?.length_km;
+    const sumLength = memberPages.reduce((sum, p) => sum + (p.length_km ?? 0), 0);
+    const totalLengthKm = wikidataLength ?? (sumLength > 0 ? Math.round(sumLength * 10) / 10 : undefined);
+
+    const score = scoreBikePath(entry, 0);
+
+    pages.push({
+      slug: entry.slug,
+      name: entry.name,
+      name_fr: entry.name_fr,
+      tags: [],
+      score,
+      hasMarkdown: false,
+      listed: true,
+      standalone: true,
+      stub: true,
+      featured: false,
+      memberRefs,
+      ymlEntries: [entry],
+      osmRelationIds,
+      osmNames,
+      geoFiles: entryGeoFiles(allEntries),
+      length_km: totalLengthKm,
+      points,
+      routeCount: 0,
+      overlappingRoutes: [],
+      nearbyPhotos: [],
+      nearbyPlaces: [],
+      nearbyPaths: [],
+      connectedPaths: [],
+      surface: entry.surface,
+      width: entry.width,
+      lit: entry.lit,
+      segregated: entry.segregated,
+      smoothness: entry.smoothness,
+      operator: normalizeOperator(entry.operator),
+      network: entry.network,
+      highway: entry.highway,
       wikipedia: entry.wikipedia,
       translations: readBikePathTranslations(entry.slug, entry),
     });

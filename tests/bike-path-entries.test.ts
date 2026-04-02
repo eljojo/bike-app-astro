@@ -61,6 +61,22 @@ beforeAll(() => {
     anchors:
       - [-75.69, 45.42]
       - [-75.68, 45.43]
+  - name: Capital Pathway
+    type: network
+    members:
+      - ottawa-river-pathway
+    osm_relations: [10990511]
+    operator: NCC
+    highway: cycleway
+    wikidata_meta:
+      description_en: Multi-use pathway network
+      length_km: 220
+      inception: 1970s
+  - name: Aviation Pathway
+    member_of: capital-pathway
+    osm_relations: [7174865]
+    highway: cycleway
+    surface: asphalt
 `);
 
   // Markdown that matches a YML entry by slug
@@ -127,7 +143,7 @@ describe('loadBikePathEntries', () => {
 
   it('parses all YML entries', () => {
     const { allYmlEntries } = loadBikePathEntries();
-    expect(allYmlEntries.length).toBe(6);
+    expect(allYmlEntries.length).toBe(8);
     expect(allYmlEntries.map(e => e.name)).toContain('Ottawa River Pathway');
     expect(allYmlEntries.map(e => e.name)).toContain('Rideau Canal Pathway');
   });
@@ -145,6 +161,7 @@ describe('loadBikePathEntries', () => {
       expect(Array.isArray(page.points)).toBe(true);
       expect(typeof page.score).toBe('number');
       expect(typeof page.hasMarkdown).toBe('boolean');
+      expect(typeof page.standalone).toBe('boolean');
       expect(typeof page.stub).toBe('boolean');
       expect(typeof page.featured).toBe('boolean');
     }
@@ -259,5 +276,37 @@ describe('loadBikePathEntries', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'trail-network');
     expect(network!.osmNames).toContain('Small Local Path');
+  });
+
+  it('constructs network page with memberRefs', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'capital-pathway');
+    expect(network).toBeDefined();
+    expect(network!.memberRefs).toBeDefined();
+    expect(network!.memberRefs!.length).toBe(1);
+    expect(network!.memberRefs![0].slug).toBe('ottawa-river-pathway');
+    expect(network!.standalone).toBe(true);
+    expect(network!.listed).toBe(true);
+  });
+
+  it('network page uses wikidata_meta.length_km when available', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'capital-pathway');
+    expect(network!.length_km).toBe(220);
+  });
+
+  it('member path has memberOf set', () => {
+    const { pages } = loadBikePathEntries();
+    const aviation = pages.find(p => p.slug === 'aviation-pathway');
+    expect(aviation).toBeDefined();
+    expect(aviation!.memberOf).toBe('capital-pathway');
+  });
+
+  it('network page aggregates osm_relations from self and members', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'capital-pathway');
+    // Network's own relation + ottawa-river-pathway's relation
+    expect(network!.osmRelationIds).toContain(10990511);
+    expect(network!.osmRelationIds).toContain(7174864);
   });
 });

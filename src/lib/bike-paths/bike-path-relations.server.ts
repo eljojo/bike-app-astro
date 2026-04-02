@@ -441,6 +441,47 @@ export function enrichBikePathPages(
       }
     }
 
+    // For network pages: aggregate relations from member pages
+    if (page.memberRefs && page.memberRefs.length > 0) {
+      const memberSlugs = new Set(page.memberRefs.map(m => m.slug));
+      const memberPagesInResult = result.filter(p => memberSlugs.has(p.slug));
+
+      // Aggregate overlapping routes from members (deduplicated)
+      const netSeenRoutes = new Set(overlappingRoutes.map(r => r.slug));
+      for (const mp of memberPagesInResult) {
+        for (const r of mp.overlappingRoutes) {
+          if (!netSeenRoutes.has(r.slug)) { netSeenRoutes.add(r.slug); page.overlappingRoutes.push(r); }
+        }
+      }
+
+      // Aggregate nearby photos from members
+      const netSeenPhotos = new Set(nearbyPhotos.map(p => p.key));
+      for (const mp of memberPagesInResult) {
+        for (const p of mp.nearbyPhotos) {
+          if (!netSeenPhotos.has(p.key)) { netSeenPhotos.add(p.key); page.nearbyPhotos.push(p); }
+        }
+      }
+
+      // Aggregate nearby places from members
+      const netSeenPlaces = new Set(nearbyPlaces.map(p => p.name + p.lat + p.lng));
+      for (const mp of memberPagesInResult) {
+        for (const p of mp.nearbyPlaces) {
+          const key = p.name + p.lat + p.lng;
+          if (!netSeenPlaces.has(key)) { netSeenPlaces.add(key); page.nearbyPlaces.push(p); }
+        }
+      }
+      page.nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
+
+      // Route count = count of all unique routes across members
+      page.routeCount = page.overlappingRoutes.length;
+
+      // Update memberRefs with resolved thumbnails now that Tier 2 data is available
+      for (const ref of page.memberRefs) {
+        const mp = memberPagesInResult.find(p => p.slug === ref.slug);
+        if (mp?.thumbnail_key) ref.thumbnail_key = mp.thumbnail_key;
+      }
+    }
+
     result.push(page);
   }
 
