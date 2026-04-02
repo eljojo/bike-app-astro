@@ -411,6 +411,24 @@
   }
 }
 
+// Network detail — full-width map above the two-column layout
+.network-map-full {
+  margin: 0 -1rem 1.5rem;
+
+  .bike-path-map-card {
+    border-radius: 0;
+  }
+
+  @media (min-width: $breakpoint-tablet) {
+    margin: 0 0 2rem;
+
+    .bike-path-map-card {
+      border-radius: $border-radius;
+      min-height: 350px;
+    }
+  }
+}
+
 // Network member list
 .network-members {
   margin-bottom: 2rem;

@@ -68,9 +68,22 @@ const breadcrumbs = breadcrumbJsonLd([
 ---
 
 <Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage} breadcrumbs={breadcrumbs}>
-  <div class="bike-path-detail">
+  <div class="bike-path-detail network-detail">
     <h1>{localeName}</h1>
     {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
+
+    <div class="network-map-full">
+      <BikePathMap
+        geoFiles={page.geoFiles}
+        center={computeCenter(page.points)}
+        fallbackCenter={fallbackCenter}
+        hintText={t('paths.tap_to_explore', locale)}
+        closeLabel={t('paths.close_map', locale)}
+        photos={nearbyPhotos.filter(p => p.lat && p.lng)}
+        places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
+        cdnUrl={config.cdn_url}
+      />
+    </div>
 
     <div class="bike-path-layout">
       <div class="bike-path-main">
@@ -131,17 +144,6 @@ const breadcrumbs = breadcrumbJsonLd([
       </div>
 
       <aside class="bike-path-sidebar">
-        <BikePathMap
-          geoFiles={page.geoFiles}
-          center={computeCenter(page.points)}
-          fallbackCenter={fallbackCenter}
-          hintText={t('paths.tap_to_explore', locale)}
-          closeLabel={t('paths.close_map', locale)}
-          photos={nearbyPhotos.filter(p => p.lat && p.lng)}
-          places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
-          cdnUrl={config.cdn_url}
-        />
-
         <table class="bike-path-facts-table">
           {page.length_km && (
             <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
