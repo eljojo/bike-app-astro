@@ -35,6 +35,16 @@ export interface BikePathTranslation {
   body?: string;
 }
 
+/** Lightweight reference to a member path — used in network pages to avoid
+ * embedding full BikePathPage objects in the virtual module bundle. */
+export interface MemberRef {
+  slug: string;
+  name: string;
+  length_km?: number;
+  thumbnail_key?: string;
+  standalone: boolean;
+}
+
 /** A bike path page to be generated — merged YML + markdown data. */
 export interface BikePathPage {
   slug: string;
@@ -48,8 +58,15 @@ export interface BikePathPage {
   hasMarkdown: boolean;
   /** Whether this path appears in the /paths directory listing. */
   listed: boolean;
+  /** Whether this path gets its own standalone page (single source of truth).
+   * Every consumer (sitemap, map popups, nearby paths) checks this. */
+  standalone: boolean;
   stub: boolean;
   featured: boolean;
+  /** Slug of the primary network this path belongs to, if any. */
+  memberOf?: string;
+  /** For network pages: lightweight refs to member paths. */
+  memberRefs?: MemberRef[];
   ymlEntries: SluggedBikePathYml[];
   osmRelationIds: number[];
   osmNames: string[];
@@ -386,6 +403,7 @@ export function loadBikePathEntries(): {
       score: bestChildScore,
       hasMarkdown: true,
       listed: true,
+      standalone: true,
       stub: md.data.stub ?? false,
       featured: md.data.featured ?? false,
       ymlEntries: matchedEntries,
@@ -454,6 +472,7 @@ export function loadBikePathEntries(): {
         score,
         hasMarkdown: false,
         listed: true, // grouped entries are always listed
+        standalone: true,
         stub: true,
         featured: false,
         ymlEntries: allEntriesToMerge,
@@ -491,6 +510,7 @@ export function loadBikePathEntries(): {
       score,
       hasMarkdown: false,
       listed: score >= SCORE_THRESHOLD,
+      standalone: true,
       stub: true, // all YML-only entries are stubs
       featured: false,
       ymlEntries: [entry],

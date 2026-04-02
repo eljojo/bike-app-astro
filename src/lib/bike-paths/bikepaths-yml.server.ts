@@ -30,6 +30,22 @@ export const bikePathYmlEntrySchema = z.looseObject({
   parallel_to: z.string().optional(),
   grouped_from: z.array(z.string()).optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
+  /** 'network' = OSM superroute grouping multiple route relations. */
+  type: z.enum(['network']).optional(),
+  /** For networks: slugs of member paths. */
+  members: z.array(z.string()).optional(),
+  /** Slug of the primary network this path belongs to. */
+  member_of: z.string().optional(),
+  /** OSM cycle_network tag (e.g., "National Capital Region"). */
+  cycle_network: z.string().optional(),
+  /** Metadata enriched from Wikidata. */
+  wikidata_meta: z.object({
+    description_en: z.string().optional(),
+    description_fr: z.string().optional(),
+    length_km: z.number().optional(),
+    inception: z.string().optional(),
+    website: z.string().optional(),
+  }).optional(),
 });
 
 export type BikePathYmlEntry = z.infer<typeof bikePathYmlEntrySchema>;
