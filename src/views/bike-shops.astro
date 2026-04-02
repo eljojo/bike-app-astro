@@ -38,9 +38,15 @@ const pins = shopPlaces.map(p => ({
 }));
 
 const seoDescription = t('bike_shops.seo_description', locale, { city: config.name });
+
+import { breadcrumbJsonLd } from '@/lib/json-ld';
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('bike_shops.heading', locale), url: `${config.url}${paths.bikeShops(locale)}` },
+]);
 ---
 
-<Base title={`${t('bike_shops.page_title', locale)} | ${config.display_name}`} description={seoDescription}>
+<Base title={`${t('bike_shops.page_title', locale)} | ${config.display_name}`} description={seoDescription} breadcrumbs={breadcrumbs}>
   <SubTabToggle items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
     { label: t('nav.people', locale), href: paths.communities(locale), active: false },

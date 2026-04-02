@@ -46,15 +46,18 @@ function localizedEntryPerLocale(pathFn: (locale: string) => string, priority: n
   }));
 }
 
-export function buildSitemapEntries({ routes, guides, events, bikePaths }: {
+export function buildSitemapEntries({ routes, guides, events, bikePaths, communities }: {
   routes: { id: string; data: { status: string; updated_at: string; variants?: { name: string; gpx: string; [k: string]: unknown }[]; translations?: Record<string, { slug?: string; [k: string]: unknown }>; [k: string]: unknown } }[];
   guides: { id: string; data: { status: string; [k: string]: unknown } }[];
   events?: { id: string }[];
   bikePaths?: { slug: string; memberOf?: string; standalone: boolean }[];
+  communities?: { slug: string }[];
 }): SitemapEntry[] {
   const entries: SitemapEntry[] = [
     ...localizedEntry('/', 1.0),
+    ...localizedEntry('/routes', 0.9),
     ...localizedEntry('/calendar', 1.0),
+    ...localizedEntry('/communities', 0.7),
     ...localizedEntry('/map', 0.2),
     ...localizedEntry('/about', 0.6),
     ...localizedEntry('/videos', 0.5),
@@ -87,6 +90,12 @@ export function buildSitemapEntries({ routes, guides, events, bikePaths }: {
     entries.push(...localizedEntry('/bike-paths', 0.7));
     for (const bp of bikePaths.filter(p => p.standalone)) {
       entries.push(...localizedEntry(paths.bikePath(bp.slug, bp.memberOf), 0.6));
+    }
+  }
+
+  if (communities) {
+    for (const c of communities) {
+      entries.push(...localizedEntry(paths.community(c.slug), 0.5));
     }
   }
 

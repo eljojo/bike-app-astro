@@ -36,9 +36,15 @@ const sorted = organizers
   });
 
 const communities = sorted.filter(org => !isBikeShop(org));
+
+import { breadcrumbJsonLd } from '@/lib/json-ld';
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('communities.title', locale), url: `${config.url}${paths.communities(locale)}` },
+]);
 ---
 
-<Base title={`${t('communities.title', locale)} | ${config.display_name}`}>
+<Base title={`${t('communities.title', locale)} | ${config.display_name}`} breadcrumbs={breadcrumbs}>
   <SubTabToggle items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
     { label: t('nav.people', locale), href: paths.communities(locale), active: true },
