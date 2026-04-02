@@ -226,6 +226,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   import { initMap, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
   import { setupMapTouchLock } from '../../lib/maps/map-touch-lock';
+  import { setupPathHighlight } from '../../lib/maps/path-highlight';
   import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
   import maplibregl from 'maplibre-gl';
 
@@ -314,37 +315,12 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       }
 
       // List hover → highlight path on map
-      let hoveredSlug: string | null = null;
-
-      function highlightPath(slug: string | null) {
-        if (hoveredSlug === slug) return;
-        hoveredSlug = slug;
-        if (slug) {
-          map.setPaintProperty('paths-network-line', 'line-width', [
-            'case',
-            ['==', ['get', 'slug'], slug],
-            PATH_WIDTH_HOVER,
-            PATH_WIDTH,
-          ]);
-          map.setPaintProperty('paths-network-line', 'line-opacity', [
-            'case',
-            ['==', ['get', 'slug'], slug],
-            1,
-            0.4,
-          ]);
-        } else {
-          map.setPaintProperty('paths-network-line', 'line-width', PATH_WIDTH);
-          map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
-        }
-      }
-
-      document.querySelectorAll<HTMLElement>('.paths-list li[data-slug]').forEach(li => {
-        li.addEventListener('mouseenter', () => {
-          highlightPath(li.dataset.slug || null);
-        });
-        li.addEventListener('mouseleave', () => {
-          highlightPath(null);
-        });
+      setupPathHighlight(map, {
+        listSelector: '.paths-list li[data-slug]',
+        layerIds: ['paths-network-line'],
+        lineWidth: PATH_WIDTH,
+        lineWidthHover: PATH_WIDTH_HOVER,
+        lineOpacity: 0.8,
       });
 
       layersSetUp = true;

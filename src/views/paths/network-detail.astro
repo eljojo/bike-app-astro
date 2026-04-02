@@ -23,14 +23,25 @@ export async function getStaticPaths() {
   for (const p of pages) {
     if (p.memberRefs && p.memberRefs.length > 0) networkNames[p.slug] = p.name;
   }
-  return networkPages.map(page => ({
-    params: { network: page.slug },
-    props: { page, networkNames },
-  }));
+  // Build member slug → geoFiles lookup for map hover highlight
+  const pageBySlug = new Map(pages.map(p => [p.slug, p]));
+  return networkPages.map(page => {
+    const memberGeoMap: Record<string, string> = {};
+    for (const m of page.memberRefs ?? []) {
+      const memberPage = pageBySlug.get(m.slug);
+      if (memberPage) {
+        for (const gf of memberPage.geoFiles) memberGeoMap[gf] = m.slug;
+      }
+    }
+    return {
+      params: { network: page.slug },
+      props: { page, networkNames, memberGeoMap },
+    };
+  });
 }
 
-interface Props { page: BikePathPage; networkNames: Record<string, string> }
-const { page, networkNames } = Astro.props;
+interface Props { page: BikePathPage; networkNames: Record<string, string>; memberGeoMap: Record<string, string> }
+const { page, networkNames, memberGeoMap } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -95,6 +106,8 @@ const breadcrumbs = breadcrumbJsonLd([
         photos={nearbyPhotos.filter(p => p.lat && p.lng)}
         places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
         cdnUrl={config.cdn_url}
+        slugMap={memberGeoMap}
+        highlightSelector=".network-members-list li[data-slug]"
       />
     </div>
 
@@ -115,7 +128,7 @@ const breadcrumbs = breadcrumbJsonLd([
             <h2>{t('paths.member_paths', locale)}</h2>
             <ul class="network-members-list">
               {memberRefs.map(m => (
-                <li>
+                <li data-slug={m.slug}>
                   {m.standalone ? (
                     <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
                       <span class="network-member-name">{m.name}</span>

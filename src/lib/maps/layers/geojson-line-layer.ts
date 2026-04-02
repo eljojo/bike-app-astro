@@ -8,13 +8,15 @@ export interface GeojsonLineLayerOptions {
   geoFiles: string[];
   /** Base URL path, e.g. '/bike-paths/geo/' */
   fetchPath: string;
+  /** Optional mapping from geo filename to slug — enriches features for highlight */
+  slugMap?: Record<string, string>;
 }
 
 const SOURCE_ID = 'bike-path';
 const LINE_LAYER_ID = 'bike-path-line';
 
 export function createGeojsonLineLayer(opts: GeojsonLineLayerOptions): MapLayer {
-  const { geoFiles, fetchPath } = opts;
+  const { geoFiles, fetchPath, slugMap } = opts;
 
   let cachedFeatures: GeoJSON.Feature[] | null = null;
   let bounds: maplibregl.LngLatBounds | null = null;
@@ -43,7 +45,11 @@ export function createGeojsonLineLayer(opts: GeojsonLineLayerOptions): MapLayer 
             if (!res.ok) continue;
             const geojson = await res.json();
             if (!ctx.isCurrent()) return;
+            const fileSlug = slugMap?.[file];
             for (const feature of geojson.features) {
+              if (fileSlug) {
+                feature.properties = { ...feature.properties, slug: fileSlug };
+              }
               features.push(feature);
               if (feature.geometry.type === 'LineString') {
                 for (const coord of feature.geometry.coordinates) {

@@ -10,8 +10,12 @@ interface Props {
   photos?: MapPhoto[];
   places?: MapPlace[];
   cdnUrl?: string;
+  /** Optional mapping from geo filename to slug — enables list↔map hover highlight */
+  slugMap?: Record<string, string>;
+  /** CSS selector for list items with data-slug to wire up hover highlight */
+  highlightSelector?: string;
 }
-const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '' } = Astro.props;
+const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '', slugMap, highlightSelector } = Astro.props;
 ---
 
 <div class="bike-path-map-wrapper">
@@ -25,6 +29,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     data-photos={JSON.stringify(photos)}
     data-places={JSON.stringify(places)}
     data-cdn-url={cdnUrl}
+    data-slug-map={slugMap ? JSON.stringify(slugMap) : ''}
+    data-highlight-selector={highlightSelector || ''}
     role="button"
     tabindex="0"
     aria-expanded="false"
@@ -39,6 +45,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 <script>
   import { createMapSession, createGeojsonLineLayer, createPhotoLayer, createPlaceLayer } from '../lib/maps/layers';
   import { categoryEmoji } from '../lib/geo/place-categories';
+  import { setupPathHighlight } from '../lib/maps/path-highlight';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
   import type { MapStyleKey } from '../lib/maps/map-style-switch';
@@ -56,6 +63,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     const photos: Array<{ key: string; lat: number; lng: number }> = JSON.parse(container.dataset.photos || '[]');
     const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
     const cdnUrl = container.dataset.cdnUrl || '';
+    const slugMap: Record<string, string> = container.dataset.slugMap ? JSON.parse(container.dataset.slugMap) : {};
+    const highlightSelector = container.dataset.highlightSelector || '';
 
     const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
     const placeData = places.map(p => ({
@@ -64,7 +73,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       popup: `<div class="place-popup">${p.name}</div>`,
     }));
 
-    const geojsonLayer = createGeojsonLineLayer({ geoFiles, fetchPath: '/bike-paths/geo/' });
+    const hasSlugMap = Object.keys(slugMap).length > 0;
+    const geojsonLayer = createGeojsonLineLayer({ geoFiles, fetchPath: '/bike-paths/geo/', ...(hasSlugMap && { slugMap }) });
     const photoLayer = createPhotoLayer({ photos: photoData, cdnUrl, defaultVisible: false });
     const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
 
@@ -80,7 +90,15 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     map.doubleClickZoom.disable();
     map.touchZoomRotate.disable();
 
-    session.start();
+    session.start(() => {
+      // Wire up list↔map hover highlight if configured
+      if (highlightSelector && hasSlugMap) {
+        setupPathHighlight(map, {
+          listSelector: highlightSelector,
+          layerIds: ['bike-path-line'],
+        });
+      }
+    });
 
     // Render controls after load (hidden until expanded via CSS)
     map.on('load', () => {
