@@ -53,7 +53,7 @@ const localeBody = (locale && page.translations[locale]?.body) || page.body;
 const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
 
 const MIN_DISPLAY_KM = 0.5;
-const memberRefs = (page.memberRefs ?? []).filter(m => !m.length_km || m.length_km >= MIN_DISPLAY_KM);
+const memberRefs = (page.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
