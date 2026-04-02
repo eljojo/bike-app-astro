@@ -65,6 +65,7 @@ beforeAll(() => {
     type: network
     members:
       - ottawa-river-pathway
+      - aviation-pathway
     osm_relations: [10990511]
     operator: NCC
     highway: cycleway
@@ -283,8 +284,9 @@ describe('loadBikePathEntries', () => {
     const network = pages.find(p => p.slug === 'capital-pathway');
     expect(network).toBeDefined();
     expect(network!.memberRefs).toBeDefined();
-    expect(network!.memberRefs!.length).toBe(1);
-    expect(network!.memberRefs![0].slug).toBe('ottawa-river-pathway');
+    expect(network!.memberRefs!.length).toBe(2);
+    expect(network!.memberRefs!.map(m => m.slug)).toContain('ottawa-river-pathway');
+    expect(network!.memberRefs!.map(m => m.slug)).toContain('aviation-pathway');
     expect(network!.standalone).toBe(true);
     expect(network!.listed).toBe(true);
   });
@@ -305,8 +307,9 @@ describe('loadBikePathEntries', () => {
   it('network page aggregates osm_relations from self and members', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'capital-pathway');
-    // Network's own relation + ottawa-river-pathway's relation
+    // Network's own relation + ottawa-river-pathway's relation + aviation-pathway's
     expect(network!.osmRelationIds).toContain(10990511);
     expect(network!.osmRelationIds).toContain(7174864);
+    expect(network!.osmRelationIds).toContain(7174865);
   });
 });

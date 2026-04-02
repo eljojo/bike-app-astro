@@ -568,6 +568,16 @@ export function loadBikePathEntries(): {
       .filter(s => !networkMemberSlugs.includes(s))
       .map(s => pageBySlug.get(s))
       .filter((p): p is BikePathPage => !!p);
+
+    // A network with fewer than 2 resolved members doesn't warrant its own page —
+    // clear memberOf on the sole member so it stays at its flat URL.
+    if (memberPages.length < 2) {
+      for (const mp of memberPages) {
+        mp.memberOf = undefined;
+      }
+      continue;
+    }
+
     const memberRefs: MemberRef[] = memberPages.map(p => ({
       slug: p.slug,
       name: p.name,
