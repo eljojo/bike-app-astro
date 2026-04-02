@@ -245,5 +245,11 @@ const breadcrumbs = breadcrumbJsonLd([
         </div>
       </aside>
     </div>
+
+    {networkPage ? (
+      <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="go-back-button">&#x21A9; {networkName}</a>
+    ) : (
+      <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
+    )}
   </div>
 </Base>
