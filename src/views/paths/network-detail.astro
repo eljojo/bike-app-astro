@@ -18,15 +18,20 @@ import { computeCenter } from '@/lib/bike-paths/bike-path-facts';
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
   const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
+  // Build network slug → name lookup for "Connects to" display
+  const networkNames: Record<string, string> = {};
+  for (const p of pages) {
+    if (p.memberRefs && p.memberRefs.length > 0) networkNames[p.slug] = p.name;
+  }
   return networkPages.map(page => ({
     params: { network: page.slug },
-    props: { page },
+    props: { page, networkNames },
   }));
 }
 
-interface Props { page: BikePathPage }
-const { page } = Astro.props;
-const { overlappingRoutes, nearbyPhotos, nearbyPlaces } = page;
+interface Props { page: BikePathPage; networkNames: Record<string, string> }
+const { page, networkNames } = Astro.props;
+const { overlappingRoutes, nearbyPhotos, nearbyPlaces, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
@@ -36,9 +41,22 @@ const localeVibe = (locale && page.translations[locale]?.vibe) || page.vibe;
 const localeBody = (locale && page.translations[locale]?.body) || page.body;
 const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
 
-const memberRefs = page.memberRefs ?? [];
+const MIN_DISPLAY_KM = 0.5;
+const memberRefs = (page.memberRefs ?? []).filter(m => !m.length_km || m.length_km >= MIN_DISPLAY_KM);
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
+
+// Connected paths: exclude this network's own members
+const memberSlugs = new Set(memberRefs.map(m => m.slug));
+const externalConnected = connectedPaths.filter(p => !memberSlugs.has(p.slug) && p.memberOf !== page.slug);
+const standaloneConnected = externalConnected.filter(p => !p.memberOf);
+const connectedByNetwork = new Map<string, typeof externalConnected>();
+for (const p of externalConnected) {
+  if (!p.memberOf) continue;
+  const list = connectedByNetwork.get(p.memberOf);
+  if (list) list.push(p); else connectedByNetwork.set(p.memberOf, [p]);
+}
+const connectedNetworkEntries = [...connectedByNetwork.entries()];
 
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
@@ -157,6 +175,25 @@ const breadcrumbs = breadcrumbJsonLd([
 
         {nearbyPlaces.length > 0 && (
           <NearbyPlaces nearby={nearbyPlaces} limit={8} />
+        )}
+
+        {externalConnected.length > 0 && (
+          <section class="connected-paths">
+            <h2>{t('paths.connects_to', locale)}</h2>
+            <ul class="connected-paths-list">
+              {connectedNetworkEntries.map(([netSlug, members]) => (
+                <li>
+                  <a href={paths.bikePath(netSlug, undefined, locale)}>{networkNames[netSlug] || netSlug}</a>
+                  {members.length > 1 && <span class="path-meta">{members.length} {t('paths.pathways', locale)}</span>}
+                </li>
+              ))}
+              {standaloneConnected.map(p => (
+                <li>
+                  <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </aside>
     </div>
