@@ -37,7 +37,7 @@ describe('parseBikePathsYml', () => {
     network: rcn
     operator: NCC`;
 
-    const entries = parseBikePathsYml(yml);
+    const { entries } = parseBikePathsYml(yml);
     expect(entries).toHaveLength(2);
     expect(entries[0].slug).toBe('sentier-des-voyageurs-pathway');
     expect(entries[0].surface).toBe('asphalt');
@@ -52,7 +52,7 @@ describe('parseBikePathsYml', () => {
   - name: Trail 50
     network: rcn`;
 
-    const entries = parseBikePathsYml(yml);
+    const { entries } = parseBikePathsYml(yml);
     expect(entries[0].slug).toBe('trail-50-1');
     expect(entries[1].slug).toBe('trail-50-2');
   });
@@ -66,7 +66,7 @@ describe('parseBikePathsYml', () => {
     osm_relations:
       - 1111`;
 
-    const entries = parseBikePathsYml(yml);
+    const { entries } = parseBikePathsYml(yml);
     // Entry with relation 1111 sorts first (r1111 < r9999)
     // But original YAML order is preserved in the output
     expect(entries[0].slug).toBe('river-path-2'); // rel 9999 → sorted second

@@ -46,6 +46,7 @@ beforeAll(() => {
     surface: asphalt
   - name: Small Local Path
     highway: cycleway
+    member_of: trail-network
   - name: Some Random Road
     highway: tertiary
   - name: Claimed By Includes
@@ -54,8 +55,10 @@ beforeAll(() => {
     operator: City
     highway: cycleway
   - name: Trail Network
-    grouped_from:
+    type: network
+    members:
       - small-local-path
+      - ottawa-river-pathway
     osm_names: [Small Local Path]
     highway: cycleway
     anchors:
@@ -230,11 +233,11 @@ describe('loadBikePathEntries', () => {
     expect(road).toBeUndefined();
   });
 
-  it('absorbed member does not get its own page', () => {
+  it('network members keep their own pages with memberOf set', () => {
     const { pages } = loadBikePathEntries();
-    // "Small Local Path" is absorbed by "Trail Network" via grouped_from
     const small = pages.find(p => p.slug === 'small-local-path');
-    expect(small).toBeUndefined();
+    expect(small).toBeDefined();
+    expect(small!.memberOf).toBe('trail-network');
   });
 
   it('includes high-scoring unclaimed YML entries as listed pages', () => {
@@ -256,27 +259,21 @@ describe('loadBikePathEntries', () => {
     expect(guide!.ymlEntries.length).toBe(0);
   });
 
-  it('grouped_from entry produces a single listed page', () => {
+  it('type: network entry produces a network page with memberRefs', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'trail-network');
     expect(network).toBeDefined();
     expect(network!.listed).toBe(true);
-    expect(network!.hasMarkdown).toBe(false);
+    expect(network!.memberRefs).toBeDefined();
+    expect(network!.memberRefs!.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('grouped_from page includes member in ymlEntries', () => {
+  it('network memberRefs contain member slugs', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'trail-network');
-    expect(network!.ymlEntries.length).toBeGreaterThanOrEqual(2);
-    const memberNames = network!.ymlEntries.map(e => e.name);
-    expect(memberNames).toContain('Small Local Path');
-    expect(memberNames).toContain('Trail Network');
-  });
-
-  it('grouped page merges osmNames from all members', () => {
-    const { pages } = loadBikePathEntries();
-    const network = pages.find(p => p.slug === 'trail-network');
-    expect(network!.osmNames).toContain('Small Local Path');
+    const memberSlugs = network!.memberRefs!.map(m => m.slug);
+    expect(memberSlugs).toContain('small-local-path');
+    expect(memberSlugs).toContain('ottawa-river-pathway');
   });
 
   it('constructs network page with memberRefs', () => {

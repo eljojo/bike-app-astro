@@ -7,8 +7,8 @@
  *
  * A YML entry can end up on a page in three ways:
  * 1. A markdown file with matching slug (or `includes` listing it)
- * 2. A `grouped_from` parent that absorbed it
- * 3. Its own YML-only page (if not absorbed)
+ * 2. A network page that lists it as a member
+ * 3. Its own standalone page
  *
  * The resolver checks all three via the page's ymlEntries array.
  */

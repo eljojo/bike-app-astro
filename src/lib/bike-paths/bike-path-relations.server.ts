@@ -12,7 +12,7 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
 import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD } from './bike-path-scoring.server';
-import type { parseBikePathsYml } from './bikepaths-yml.server';
+import type { SluggedBikePathYml } from './bikepaths-yml.server';
 import type { BikePathPage } from './bike-path-entries.server';
 
 const CITY_DIR = cityDir;
@@ -73,7 +73,7 @@ function bboxOverlap(
  * This replaces the heavy computation that was happening in workerd prerendering.
  */
 export function computeBikePathRelations(
-  bikePaths: ReturnType<typeof parseBikePathsYml>,
+  bikePaths: SluggedBikePathYml[],
   geoCoords: Record<string, Array<{ lat: number; lng: number }>>,
   routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
   places: Array<{ name: string; category: string; lat: number; lng: number; status?: string }>,

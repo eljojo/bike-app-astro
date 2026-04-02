@@ -314,7 +314,7 @@ if (!dryRun) {
 
   // 1. Parse YML entries with canonical slugs (single source of truth)
   const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml.server');
-  const sluggedEntries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
+  const { entries: sluggedEntries } = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
   const ymlBySlug = new Map(sluggedEntries.map(e => [e.slug, e]));
 
   // 2. Read markdown frontmatter to find featured paths and their includes

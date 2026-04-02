@@ -338,9 +338,10 @@ export function loadBikePathEntries(): {
 } {
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
-  const allYmlEntries = fs.existsSync(ymlPath)
+  const parsed = fs.existsSync(ymlPath)
     ? parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'))
-    : [];
+    : { entries: [] as SluggedBikePathYml[], superNetworks: [] };
+  const allYmlEntries = parsed.entries;
 
   // 2. Load markdown files directly from filesystem
   const markdownEntries = readMarkdownEntries();
@@ -433,75 +434,14 @@ export function loadBikePathEntries(): {
     });
   }
 
-  // Collect slugs absorbed by grouped_from entries
-  const absorbedSlugs = new Set<string>();
-  for (const entry of allYmlEntries) {
-    if (entry.grouped_from) {
-      for (const slug of entry.grouped_from) absorbedSlugs.add(slug);
-    }
-  }
-
   // 6. Process all unclaimed YML entries (non-hard-excluded).
   // Every entry gets a page; `listed` is determined by score in Tier 2.
+  // Member entries stay in the file and get their own pages.
   for (const entry of allYmlEntries) {
     if (claimedSlugs.has(entry.slug)) continue;
-    if (absorbedSlugs.has(entry.slug)) continue;
     if (isHardExcluded(entry)) continue;
 
     const score = scoreBikePath(entry, 0);
-
-    // Grouped entries: merge member geometry like markdown includes
-    if (entry.grouped_from && entry.grouped_from.length > 0) {
-      const memberEntries: SluggedBikePathYml[] = [];
-      for (const memberSlug of entry.grouped_from) {
-        const member = ymlBySlug.get(memberSlug);
-        if (member) memberEntries.push(member);
-      }
-
-      const allEntriesToMerge = [entry, ...memberEntries];
-      const osmRelationIds = [...new Set(allEntriesToMerge.flatMap(e => e.osm_relations ?? []))];
-      const osmNames = [...new Set(allEntriesToMerge.flatMap(e => e.osm_names ?? []))];
-      const lengthParts = allEntriesToMerge.map(e => getPathLengthKm(e) ?? 0);
-      const totalLengthKm = lengthParts.reduce((s, v) => s + v, 0);
-      const points = allEntriesToMerge.flatMap(e => getPathPoints(e));
-
-      pages.push({
-        slug: entry.slug,
-        name: entry.name,
-        name_fr: entry.name_fr,
-        tags: [],
-        score,
-        hasMarkdown: false,
-        listed: true, // grouped entries are always listed
-        standalone: true,
-        stub: true,
-        featured: false,
-        ymlEntries: allEntriesToMerge,
-        osmRelationIds,
-        osmNames,
-        geoFiles: entryGeoFiles(allEntriesToMerge),
-        length_km: totalLengthKm > 0 ? Math.round(totalLengthKm * 10) / 10 : undefined,
-        points,
-        routeCount: 0,
-        overlappingRoutes: [],
-        nearbyPhotos: [],
-        nearbyPlaces: [],
-        nearbyPaths: [],
-        connectedPaths: [],
-        surface: entry.surface,
-        width: entry.width,
-        lit: entry.lit,
-        segregated: entry.segregated,
-        smoothness: entry.smoothness,
-        operator: normalizeOperator(entry.operator),
-        network: entry.network,
-        highway: entry.highway,
-        parallel_to: entry.parallel_to,
-        wikipedia: entry.wikipedia,
-        translations: readBikePathTranslations(entry.slug, entry),
-      });
-      continue;
-    }
 
     // Skip network entries — they're processed after all paths
     if (entry.type === 'network') continue;
