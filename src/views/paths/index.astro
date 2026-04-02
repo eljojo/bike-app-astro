@@ -47,14 +47,19 @@ for (const p of allPages) {
 }
 
 
-// Featured: paths with markdown descriptions
-const featured = pages.filter(p => p.featured);
+// Featured: paths with markdown descriptions (including network pages)
+const featured = pages.filter(p => p.featured || (p.memberRefs && p.memberRefs.length > 0));
 
-// Group by operator dynamically
-type OperatorGroup = { label: string; paths: typeof pages };
+// Separate network pages, member paths, and standalone paths
+const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
+const memberSlugs = new Set(networkPages.flatMap(n => (n.memberRefs ?? []).map(m => m.slug)));
+const standalonePaths = pages.filter(p => !p.memberRefs && !memberSlugs.has(p.slug));
+
+// Group standalone paths by operator
+type PathGroup = { label: string; paths: typeof pages; isNetwork?: boolean; networkSlug?: string; memberRefs?: typeof pages[0]['memberRefs'] };
 const operatorMap = new Map<string, typeof pages>();
 
-for (const p of pages) {
+for (const p of standalonePaths) {
   const key = p.operator || '';
   const list = operatorMap.get(key);
   if (list) {
@@ -64,8 +69,20 @@ for (const p of pages) {
   }
 }
 
-const groups: OperatorGroup[] = [];
-// Sort groups: largest first, "Other" (empty operator) last
+const groups: PathGroup[] = [];
+
+// Networks first — as expandable sections
+for (const net of networkPages) {
+  groups.push({
+    label: net.name,
+    paths: [net],
+    isNetwork: true,
+    networkSlug: net.slug,
+    memberRefs: net.memberRefs,
+  });
+}
+
+// Then operator groups for standalone paths
 const sortedEntries = [...operatorMap.entries()].sort((a, b) => {
   if (a[0] === '') return 1;
   if (b[0] === '') return -1;
@@ -161,19 +178,42 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     )}
 
     {groups.map(group => (
-      <section class="paths-group">
-        <h2>{group.label}</h2>
-        <ul class="paths-list">
-          {group.paths.map(p => (
-            <li data-slug={p.slug} id={`path-${p.slug}`}>
-              <a href={paths.bikePath(p.slug, p.memberOf, locale)}>
-                {pathName(p)}
-              </a>
-              {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
-              {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
-            </li>
-          ))}
-        </ul>
+      <section class={`paths-group ${group.isNetwork ? 'paths-group--network' : ''}`}>
+        {group.isNetwork ? (
+          <h2>
+            <a href={paths.bikePath(group.networkSlug!, undefined, locale)}>{group.label}</a>
+            {group.paths[0]?.length_km && <span class="path-meta">{group.paths[0].length_km} km</span>}
+            {group.paths[0]?.operator && <span class="path-meta">{group.paths[0].operator}</span>}
+          </h2>
+        ) : (
+          <h2>{group.label}</h2>
+        )}
+        {group.isNetwork && group.memberRefs ? (
+          <ul class="paths-list paths-list--members">
+            {group.memberRefs.map(m => (
+              <li>
+                {m.standalone ? (
+                  <a href={paths.bikePath(m.slug, group.networkSlug, locale)}>{m.name}</a>
+                ) : (
+                  <span class="non-standalone">{m.name}</span>
+                )}
+                {m.length_km && <span class="path-meta">{m.length_km} km</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul class="paths-list">
+            {group.paths.map(p => (
+              <li data-slug={p.slug} id={`path-${p.slug}`}>
+                <a href={paths.bikePath(p.slug, p.memberOf, locale)}>
+                  {pathName(p)}
+                </a>
+                {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+                {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     ))}
 
