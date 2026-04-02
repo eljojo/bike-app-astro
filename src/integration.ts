@@ -283,6 +283,32 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
         lines.push('/paths  /bike-paths  301');
         lines.push('/paths/:slug  /bike-paths/:slug  301');
 
+        // Network member redirects: flat /bike-paths/slug → nested /bike-paths/network/slug
+        if (process.env.ENABLE_BIKE_PATHS !== 'false') {
+          try {
+            const { loadBikePathEntries } = await import('./lib/bike-paths/bike-path-entries.server');
+            const { translatePath } = await import('./lib/i18n/path-translations');
+            const { pages } = loadBikePathEntries();
+            const members = pages.filter(p => p.memberOf && p.standalone);
+            if (members.length > 0) {
+              lines.push('');
+              lines.push('# Network member redirects: flat → nested');
+              for (const p of members) {
+                lines.push(`/bike-paths/${p.slug}  /bike-paths/${p.memberOf}/${p.slug}  301`);
+              }
+              // Non-default locale equivalents
+              for (const locale of locales) {
+                if (locale === defaultLoc) continue;
+                for (const p of members) {
+                  const from = translatePath(`/bike-paths/${p.slug}`, locale);
+                  const to = translatePath(`/bike-paths/${p.memberOf}/${p.slug}`, locale);
+                  lines.push(`/${locale}${from}  /${locale}${to}  301`);
+                }
+              }
+            }
+          } catch { /* bike paths not available — skip */ }
+        }
+
         const content = lines.join('\n');
         if (content) {
           fs.writeFileSync(path.join(dir.pathname, '_redirects'), content);
