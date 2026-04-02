@@ -611,6 +611,8 @@
   "paths.edit_description": "Know this path? Help improve this page — every edit can be undone.",
   "paths.index_osm_attribution": "Path data on this page comes from",
   "paths.index_osm_edit": "See something missing or wrong? You can fix it there — every edit helps cyclists in your city.",
+  "paths.label.trail_type": "Trail type",
+  "paths.fact.mtb": "Mountain bike trail",
   "paths.label.length": "Length",
   "paths.label.surface": "Surface",
   "paths.label.separated": "Traffic",

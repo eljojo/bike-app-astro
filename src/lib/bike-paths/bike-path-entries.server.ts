@@ -104,6 +104,8 @@ export interface BikePathPage {
   highway?: string;
   /** Road name this path runs alongside (for parallel bike lanes). */
   parallel_to?: string;
+  /** Mountain bike trail (not road-bike-friendly). Set by detect-mtb in the data pipeline. */
+  mtb?: boolean;
   /** Locale-specific content overrides from .{locale}.md files + YML name_fr. */
   translations: Record<string, BikePathTranslation>;
 }
@@ -429,6 +431,7 @@ export function loadBikePathEntries(): {
       network: primary?.network,
       highway: primary?.highway,
       parallel_to: primary?.parallel_to,
+      mtb: primary?.mtb,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
       translations: primary ? readBikePathTranslations(md.id, primary) : {},
     });
@@ -479,6 +482,7 @@ export function loadBikePathEntries(): {
       network: entry.network,
       highway: entry.highway,
       parallel_to: entry.parallel_to,
+      mtb: entry.mtb,
       wikipedia: entry.wikipedia,
       translations: readBikePathTranslations(entry.slug, entry),
     });

@@ -611,6 +611,8 @@
   "paths.edit_description": "¿Conoces este sendero? Ayuda a mejorar esta página — cada edición se puede deshacer.",
   "paths.index_osm_attribution": "Los datos de esta página provienen de",
   "paths.index_osm_edit": "¿Falta algo o hay un error? Puedes corregirlo allí — cada edición ayuda a los ciclistas de tu ciudad.",
+  "paths.label.trail_type": "Tipo de sendero",
+  "paths.fact.mtb": "Sendero de bicicleta de monta\u00f1a",
   "paths.label.length": "Longitud",
   "paths.label.surface": "Superficie",
   "paths.label.separated": "Tráfico",
