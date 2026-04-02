@@ -77,10 +77,24 @@ jobs:
       DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
       GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
-  # Deploy Ottawa to staging (fresh build with full credentials)
+  # Build Ottawa in parallel with tests (warms dist cache)
+  build-ottawa:
+    if: needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: [changes]
+    uses: ./.github/workflows/_build-city.yml
+    with:
+      city: ottawa
+      deploy: false
+      data-ref: staging
+      disable-analytics: true
+    secrets:
+      DATA_REPO_DEPLOY_KEY: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
+      GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+
+  # Deploy only after both build and tests pass
   deploy-ottawa-staging:
     if: needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: [changes, test]
+    needs: [changes, test, build-ottawa]
     uses: ./.github/workflows/_build-city.yml
     with:
       city: ottawa
