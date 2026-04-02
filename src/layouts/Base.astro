@@ -39,7 +39,7 @@ interface Props {
 const { title, description, ogImage, ogImageAlt, ogType, ogVideo, jsonLd, breadcrumbs, alternateUrls, admin, fullbleed } = Astro.props;
 
 const locales = supportedLocales();
-const showSwitcher = locales.length > 1;
+const showSwitcher = locales.length > 1 && !admin;
 const otherLocale = locales.find(l => l !== locale) || locales[0];
 const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, alternateUrls?.[otherLocale]);
 ---
