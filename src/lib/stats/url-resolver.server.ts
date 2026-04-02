@@ -64,6 +64,15 @@ export function resolveUrl(
       return { contentType, contentSlug: eventSlug, pageType };
     }
 
+    // Bike paths can be nested: /bike-paths/network-slug/member-slug
+    // Use the deepest meaningful slug as the content slug.
+    if (contentType === 'bike-path' && segments.length >= 3 && segments[2] !== 'map') {
+      let slug = segments[2];
+      if (slugAliases[slug]) slug = slugAliases[slug];
+      if (redirects[slug]) slug = redirects[slug];
+      return { contentType, contentSlug: slug, pageType: 'detail' };
+    }
+
     let slug = segments[1];
     if (slugAliases[slug]) slug = slugAliases[slug];
     if (redirects[slug]) slug = redirects[slug];

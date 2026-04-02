@@ -140,7 +140,7 @@ const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width:
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
   { name: t('nav.bike_paths', locale), url: `${config.url}${paths.bikePaths(locale)}` },
-  { name: localeName, url: `${config.url}${paths.bikePath(page.slug, locale)}` },
+  { name: localeName, url: `${config.url}${paths.bikePath(page.slug, page.memberOf, locale)}` },
 ]);
 ---
 
@@ -238,7 +238,7 @@ const breadcrumbs = breadcrumbJsonLd([
             <ul class="connected-paths-list">
               {connectedPaths.map(p => (
                 <li>
-                  <a href={paths.bikePath(p.slug, locale)}>{p.name}</a>
+                  <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
                   {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
                 </li>
               ))}

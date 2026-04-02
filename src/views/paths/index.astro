@@ -28,7 +28,10 @@ function pathVibe(p: typeof pages[0]): string | undefined {
 const interactiveRelIds = new Set<string>();
 const listedRelIds = new Set<string>();
 const relationToSlug: Record<string, string> = {};
+// Pre-compute slug → URL so client-side click handlers use correct (potentially nested) URLs
+const slugToUrl: Record<string, string> = {};
 for (const p of allPages) {
+  slugToUrl[p.slug] = paths.bikePath(p.slug, p.memberOf, locale);
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;
     interactiveRelIds.add(String(relId));
@@ -116,7 +119,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               ? `${imageUrl(thumb, { width: 1500, height: 750, fit: 'cover' })} 2x`
               : undefined;
             return (
-              <a href={paths.bikePath(p.slug, locale)} class="path-card">
+              <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-card">
                 {thumbSrc && (
                   <img
                     src={thumbSrc}
@@ -146,6 +149,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           id="paths-network-map"
           data-center={JSON.stringify(mapCenter)}
           data-relation-slugs={JSON.stringify(relationToSlug)}
+          data-slug-urls={JSON.stringify(slugToUrl)}
           data-interactive-ids={JSON.stringify([...interactiveRelIds])}
           data-listed-ids={JSON.stringify([...listedRelIds])}
           style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
@@ -162,7 +166,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         <ul class="paths-list">
           {group.paths.map(p => (
             <li data-slug={p.slug} id={`path-${p.slug}`}>
-              <a href={paths.bikePath(p.slug, locale)}>
+              <a href={paths.bikePath(p.slug, p.memberOf, locale)}>
                 {pathName(p)}
               </a>
               {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
@@ -194,6 +198,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   if (container) {
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
     const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
+    const slugUrls: Record<string, string> = JSON.parse(container.dataset.slugUrls || '{}');
     const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
     const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
 
@@ -259,7 +264,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
         if (!e.features?.length) return;
         const slug = e.features[0].properties?.slug;
-        if (slug) window.location.href = `/bike-paths/${slug}`;
+        if (slug) window.location.href = slugUrls[slug] || `/bike-paths/${slug}`;
       }
       map.on('click', 'paths-network-line', handlePathClick);
       map.on('click', 'paths-network-bg', handlePathClick);

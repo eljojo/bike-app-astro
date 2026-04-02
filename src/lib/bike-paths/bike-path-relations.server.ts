@@ -44,8 +44,8 @@ export interface PathRelations {
   overlappingRoutes: RouteCard[];
   nearbyPhotos: NearbyPhoto[];
   nearbyPlaces: NearbyPlace[];
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
-  connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
 }
 
 /** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
@@ -78,7 +78,7 @@ export function computeBikePathRelations(
   routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
   places: Array<{ name: string; category: string; lat: number; lng: number; status?: string }>,
   mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }>,
-): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }>; routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> } {
+): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }>; routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string; memberOf?: string }>> } {
   const publishedPlaces = places.filter(p => !p.status || p.status === 'published');
   const relations: Record<string, PathRelations> = {};
   const routeOverlaps: Record<string, { count: number }> = {};
@@ -227,7 +227,7 @@ export function computeBikePathRelations(
     routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
 
     // Nearby paths (within 2km) — bbox pre-filter + sample points for speed
-    const nearbyPaths: Array<{ slug: string; name: string; surface?: string }> = [];
+    const nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }> = [];
     for (const other of candidateEntries) {
       if (other.slug === entry.slug) continue;
       const otherPts = entryPoints.get(other.slug) ?? [];
@@ -241,14 +241,14 @@ export function computeBikePathRelations(
           if (haversineM(points[i].lat, points[i].lng, otherPts[j].lat, otherPts[j].lng) < 2000) { found = true; break; }
         }
       }
-      if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
+      if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface, memberOf: other.member_of });
     }
 
     // Connected paths (endpoints within 200m) — only check candidate entries
     const endpoints = points.length >= 2
       ? [points[0], points[points.length - 1]]
       : points.slice(0, 1);
-    const connectedPaths: Array<{ slug: string; name: string; surface?: string }> = [];
+    const connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }> = [];
     for (const other of candidateEntries) {
       if (other.slug === entry.slug) continue;
       const otherPts = entryPoints.get(other.slug) ?? [];
@@ -263,7 +263,7 @@ export function computeBikePathRelations(
           if (haversineM(ep.lat, ep.lng, oep.lat, oep.lng) < 200) { found = true; break; }
         }
       }
-      if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
+      if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface, memberOf: other.member_of });
     }
 
     // Nearby places (within threshold of any path point)
@@ -299,7 +299,7 @@ export function computeBikePathRelations(
   }
 
   // Build reverse map: route slug → list of paths that overlap it
-  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> = {};
+  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string; memberOf?: string }>> = {};
   for (const [pathSlug, rel] of Object.entries(relations)) {
     const pathEntry = bikePaths.find(e => e.slug === pathSlug);
     for (const route of rel.overlappingRoutes) {
@@ -308,6 +308,7 @@ export function computeBikePathRelations(
         slug: pathSlug,
         name: pathEntry?.name ?? pathSlug,
         surface: pathEntry?.surface,
+        memberOf: pathEntry?.member_of,
       });
     }
   }

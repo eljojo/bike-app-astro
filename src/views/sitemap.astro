@@ -66,7 +66,7 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
       <li><a href={paths.bikePaths(defLocale)}>{t('paths.title', defLocale)}</a>
         <ul>
           {bikePaths.map(bp => (
-            <li><a href={paths.bikePath(bp.slug, defLocale)}>{bp.name}</a></li>
+            <li><a href={paths.bikePath(bp.slug, bp.memberOf, defLocale)}>{bp.name}</a></li>
           ))}
         </ul>
       </li>
@@ -118,7 +118,7 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
         <li><a href={paths.bikePaths(locale)}>{t('paths.title', locale)}</a>
           <ul>
             {bikePaths.map(bp => (
-              <li><a href={paths.bikePath(bp.slug, locale)}>{bp.name}</a></li>
+              <li><a href={paths.bikePath(bp.slug, bp.memberOf, locale)}>{bp.name}</a></li>
             ))}
           </ul>
         </li>

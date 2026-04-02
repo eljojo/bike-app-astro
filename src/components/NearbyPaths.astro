@@ -6,6 +6,7 @@ interface NearbyPath {
   slug: string;
   name: string;
   surface?: string;
+  memberOf?: string;
 }
 
 interface Props {
@@ -34,7 +35,7 @@ function displaySurface(raw?: string): string | undefined {
     <ul class="nearby-paths-list">
       {nearbyPaths.map(p => (
         <li>
-          <a href={urlPaths.bikePath(p.slug, locale)}>{p.name}</a>
+          <a href={urlPaths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
           {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
         </li>
       ))}

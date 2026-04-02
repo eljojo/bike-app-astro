@@ -3,7 +3,7 @@ import { paths as urlPaths } from '@/lib/paths';
 import { t } from '@/i18n';
 
 interface Props {
-  bikePaths: Array<{ slug: string; name: string }>;
+  bikePaths: Array<{ slug: string; name: string; memberOf?: string }>;
   locale?: string;
 }
 
@@ -15,7 +15,7 @@ const { bikePaths, locale } = Astro.props;
     &#x1F6B2; {t('paths.follows', locale)}{' '}
     {bikePaths.map((bp, i) => (
       <>
-        <a href={urlPaths.bikePath(bp.slug, locale)}>{bp.name}</a>{i < bikePaths.length - 1 ? (i === bikePaths.length - 2 ? ` ${t('paths.and', locale)} ` : ', ') : ''}
+        <a href={urlPaths.bikePath(bp.slug, bp.memberOf, locale)}>{bp.name}</a>{i < bikePaths.length - 1 ? (i === bikePaths.length - 2 ? ` ${t('paths.and', locale)} ` : ', ') : ''}
       </>
     ))}
   </p>

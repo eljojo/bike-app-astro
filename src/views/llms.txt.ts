@@ -4,6 +4,7 @@ import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
+import { paths } from '../lib/paths';
 
 export const prerender = true;
 
@@ -89,7 +90,7 @@ export const GET: APIRoute = async () => {
         if (bp.surface) parts.push(bp.surface);
         if (bp.highway === 'cycleway') parts.push('separated from cars');
         if (bp.operator) parts.push(bp.operator);
-        return `- [${bp.name}](${config.url}/bike-paths/${bp.slug})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
+        return `- [${bp.name}](${config.url}${paths.bikePath(bp.slug, bp.memberOf)})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
       });
       sections.push(`## Bike Paths\n\n${pathLines.join('\n')}\n`);
     }

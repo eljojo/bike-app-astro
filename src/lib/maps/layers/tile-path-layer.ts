@@ -11,6 +11,7 @@ export interface PathInfo {
   hasPage: boolean;
   surface?: string;
   interactive?: boolean;
+  memberOf?: string;
 }
 
 export interface TilePathLayerOptions {
@@ -46,6 +47,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
         f.properties!.surface = info.surface || '';
         f.properties!.hasPage = info.hasPage ? 'true' : '';
         f.properties!.interactive = info.interactive ? 'true' : '';
+        f.properties!.memberOf = info.memberOf || '';
         f.properties!.relId = geoId;
       }
     }
@@ -119,8 +121,12 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       if (!e.features?.length) return;
       const props = e.features[0].properties!;
       const name = escHtml(props.name);
-      const nameLink = props.slug
-        ? `<a href="/bike-paths/${escHtml(props.slug)}">${name}</a>`
+      const memberOf = props.memberOf ? escHtml(props.memberOf) : '';
+      const pathUrl = props.slug
+        ? (memberOf ? `/bike-paths/${memberOf}/${escHtml(props.slug)}` : `/bike-paths/${escHtml(props.slug)}`)
+        : '';
+      const nameLink = pathUrl
+        ? `<a href="${pathUrl}">${name}</a>`
         : name;
       const surfaceInfo = props.surface ? `<br>${escHtml(props.surface)}` : '';
       showPopup(map, new maplibregl.Popup()
