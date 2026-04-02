@@ -34,6 +34,11 @@ const wikiPages: LocalePage[] = [
   // constants are available — __ENABLE_BIKE_PATHS__ would be undefined here).
   ...(process.env.ENABLE_BIKE_PATHS !== 'false' ? [
     { pattern: '/bike-paths', entrypoint: view('paths/index.astro') },
+    // Network routes: /bike-paths/network-slug and /bike-paths/network-slug/member-slug
+    // Specific nested route before generic catch-all
+    { pattern: '/bike-paths/[network]/[slug]', entrypoint: view('paths/member-detail.astro') },
+    { pattern: '/bike-paths/[network]', entrypoint: view('paths/network-detail.astro') },
+    // Flat path route for standalone paths (no network)
     { pattern: '/bike-paths/[slug]', entrypoint: view('paths/detail.astro') },
   ] : []),
   { pattern: '/bike-shops', entrypoint: view('bike-shops.astro') },

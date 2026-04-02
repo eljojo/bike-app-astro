@@ -1,0 +1,119 @@
+---
+export const prerender = true;
+import Base from '@/layouts/Base.astro';
+import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
+import { getCityConfig } from '@/lib/config/city-config';
+import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
+import BikePathMap from '@/components/BikePathMap.astro';
+import RoutesOnPath from '@/components/RoutesOnPath.astro';
+import NearbyPlaces from '@/components/NearbyPlaces.astro';
+import NearbyPaths from '@/components/NearbyPaths.astro';
+import { t, localePath } from '@/i18n';
+import { paths, assets } from '@/lib/paths';
+import { breadcrumbJsonLd } from '@/lib/json-ld';
+import { imageUrl } from '@/lib/media/image-service';
+import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import EditEntryPoint from '@/components/EditEntryPoint.astro';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
+
+export async function getStaticPaths() {
+  const { pages } = await loadBikePathData();
+  // Member paths: standalone pages that belong to a network
+  const memberPaths = pages.filter(p => p.standalone && p.memberOf);
+  const filtered = filterByBuildPlan(
+    memberPaths.map(p => ({ ...p, id: p.slug })),
+    loadBuildPlan(),
+    'bike-path',
+  );
+  return filtered.map(page => ({
+    params: { network: page.memberOf!, slug: page.slug },
+    props: { page },
+  }));
+}
+
+interface Props { page: BikePathPage }
+const { page } = Astro.props;
+const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
+const config = getCityConfig();
+const locale = Astro.currentLocale;
+
+// Locale-aware content
+const localeName = (locale && page.translations[locale]?.name) || page.name;
+const localeVibe = (locale && page.translations[locale]?.vibe) || page.vibe;
+const localeBody = (locale && page.translations[locale]?.body) || page.body;
+const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
+
+// Look up network page for "Part of" badge
+const { pages: allPages } = await loadBikePathData();
+const networkPage = allPages.find(p => p.slug === page.memberOf && p.memberRefs);
+const networkName = networkPage
+  ? ((locale && networkPage.translations[locale]?.name) || networkPage.name)
+  : page.memberOf;
+
+// SEO
+const seoDescription = localeVibe || `${localeName} — ${page.length_km ? `${page.length_km} km` : ''} cycling path`;
+const hasMapThumb = hasCachedMap(`path-${page.slug}`);
+const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
+const firstCoverKey = overlappingRoutes.find(r => r.coverKey)?.coverKey;
+const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
+
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('nav.bike_paths', locale), url: `${config.url}${paths.bikePaths(locale)}` },
+  ...(networkPage ? [{ name: networkName!, url: `${config.url}${paths.bikePath(networkPage.slug, undefined, locale)}` }] : []),
+  { name: localeName, url: `${config.url}${paths.bikePath(page.slug, page.memberOf, locale)}` },
+]);
+---
+
+<Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage} breadcrumbs={breadcrumbs}>
+  <div class="bike-path-detail">
+    <h1>
+      <a href={networkPage ? paths.bikePath(networkPage.slug, undefined, locale) : paths.bikePaths(locale)} class="go-back-button">
+        <span aria-hidden="true">&larr;</span>
+      </a>
+      {localeName}
+    </h1>
+
+    {page.memberOf && networkPage && (
+      <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="network-badge">
+        {t('paths.part_of', locale)} {networkName}
+      </a>
+    )}
+
+    {localeVibe && <p class="vibe">{localeVibe}</p>}
+
+    <div class="path-facts">
+      {page.length_km && <span class="fact">{page.length_km} km</span>}
+      {page.surface && <span class="fact">{page.surface}</span>}
+      {page.lit === 'yes' && <span class="fact">{t('paths.fact.lit', locale)}</span>}
+      {page.operator && <span class="fact">{page.operator}</span>}
+    </div>
+
+    <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
+
+    {page.geoFiles.length > 0 && (
+      <BikePathMap geoFiles={page.geoFiles} points={page.points} />
+    )}
+
+    {bodyHtml && <div class="body" set:html={bodyHtml} />}
+
+    {connectedPaths.length > 0 && (
+      <section class="connected-paths">
+        <h2>{t('paths.connected_paths', locale)}</h2>
+        <ul>
+          {connectedPaths.map(p => (
+            <li>
+              <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <RoutesOnPath overlappingRoutes={overlappingRoutes} locale={locale} />
+
+    <NearbyPlaces nearbyPlaces={nearbyPlaces} locale={locale} />
+
+    <NearbyPaths nearbyPaths={nearbyPaths} locale={locale} />
+  </div>
+</Base>
