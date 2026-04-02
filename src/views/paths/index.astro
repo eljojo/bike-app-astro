@@ -8,6 +8,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
+import { displaySurface } from '@/lib/bike-paths/bike-path-facts';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -97,17 +98,13 @@ for (const [operator, pathsList] of sortedEntries) {
   });
 }
 
-const surfaceLabels: Record<string, string> = {
-  asphalt: t('paths.fact.paved', locale),
-  concrete: t('paths.fact.paved', locale),
-  fine_gravel: t('paths.fact.gravel', locale),
-  gravel: t('paths.fact.gravel', locale),
-  ground: t('paths.fact.dirt', locale),
-  dirt: t('paths.fact.dirt', locale),
-  compacted: t('paths.fact.gravel', locale),
-};
-function displaySurface(raw?: string): string | undefined {
-  return raw ? surfaceLabels[raw] || raw : undefined;
+// Localize a surface category key into a translated string
+function localizeSurface(raw?: string): string | undefined {
+  const cat = displaySurface(raw);
+  if (!cat) return undefined;
+  const i18nKey = `paths.fact.${cat}`;
+  const translated = t(i18nKey, locale);
+  return translated !== i18nKey ? translated : cat;
 }
 
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
@@ -150,7 +147,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                 <h3>{pathName(p)}</h3>
                 {pathVibe(p) && <p class="path-vibe">{pathVibe(p)}</p>}
                 <span class="path-card-meta">
-                  {displaySurface(p.surface) && <span class="path-surface">{displaySurface(p.surface)}</span>}
+                  {localizeSurface(p.surface) && <span class="path-surface">{localizeSurface(p.surface)}</span>}
                   {p.routeCount > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
                 </span>
               </a>
@@ -210,7 +207,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                 <a href={paths.bikePath(p.slug, p.memberOf, locale)}>
                   {pathName(p)}
                 </a>
-                {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+                {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
                 {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
               </li>
             ))}

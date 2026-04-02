@@ -15,6 +15,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
+import { computeCenter, displaySurface, NETWORK_LABELS, buildPathFacts, type PathFact } from '@/lib/bike-paths/bike-path-facts';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -49,92 +50,48 @@ const localeVibe = trans?.vibe || page.vibe;
 const localeBody = trans?.body || page.body;
 const descriptionHtml = localeBody ? await renderMarkdownHtml(localeBody) : null;
 
-function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, number] | undefined {
-  if (pts.length === 0) return undefined;
-  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
-  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
-  return [lat, lng];
-}
-
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
-// Shared label maps — used by both buildPathFacts() and the template below
-const surfaceLabels: Record<string, string> = {
-  asphalt: t('paths.fact.paved', locale),
-  concrete: t('paths.fact.paved', locale),
-  fine_gravel: t('paths.fact.gravel', locale),
-  gravel: t('paths.fact.gravel', locale),
-  ground: t('paths.fact.dirt', locale),
-  dirt: t('paths.fact.dirt', locale),
-  compacted: t('paths.fact.gravel', locale),
-};
-function displaySurface(raw?: string): string | undefined {
-  return raw ? surfaceLabels[raw] || raw : undefined;
+// Localize a surface category key (from displaySurface) into a translated string
+function localizeSurface(raw?: string): string | undefined {
+  const cat = displaySurface(raw);
+  if (!cat) return undefined;
+  const i18nKey = `paths.fact.${cat}`;
+  const translated = t(i18nKey, locale);
+  return translated !== i18nKey ? translated : cat;
 }
 
-const networkLabels: Record<string, string> = {
-  rcn: t('paths.fact.network_regional', locale),
-  ncn: t('paths.fact.network_national', locale),
-  lcn: t('paths.fact.network_local', locale),
-};
-const networkLabel = page.network ? (networkLabels[page.network] || page.network) : undefined;
+const networkLabel = page.network
+  ? (NETWORK_LABELS[page.network] ? t(`paths.fact.${NETWORK_LABELS[page.network]}`, locale) : page.network)
+  : undefined;
 
-// Build factual prose from metadata — no opinions, just what the data says
-function buildPathFacts(p: BikePathPage): string[] {
-  const facts: string[] = [];
-
-  // Surface + width combined
-  const surfaceLabel = p.surface ? surfaceLabels[p.surface] || p.surface : null;
-  if (surfaceLabel && p.width) {
-    facts.push(`${surfaceLabel}, ${p.width}m ${t('paths.fact.wide', locale)}`);
-  } else if (surfaceLabel) {
-    facts.push(surfaceLabel);
-  } else if (p.width) {
-    facts.push(`${p.width}m ${t('paths.fact.wide', locale)}`);
-  }
-
-  // Separated from cars (cycleway = dedicated infrastructure)
-  if (p.highway === 'cycleway') {
-    facts.push(t('paths.fact.separated_cars', locale));
-  }
-
-  // Separated from pedestrians
-  if (p.segregated === 'yes') {
-    facts.push(t('paths.fact.separated_peds', locale));
-  }
-
-  // Lit
-  if (p.lit === 'yes') {
-    facts.push(t('paths.fact.lit', locale));
-  } else if (p.lit === 'no') {
-    facts.push(t('paths.fact.not_lit', locale));
-  }
-
-  // Elevation
-  if (p.elevation_gain_m != null) {
-    if (p.elevation_gain_m < 20) {
-      facts.push(t('paths.fact.flat', locale));
-    } else if (p.elevation_gain_m < 80) {
-      facts.push(t('paths.fact.gentle_hills', locale, { meters: String(p.elevation_gain_m) }));
-    } else {
-      facts.push(t('paths.fact.hilly', locale, { meters: String(p.elevation_gain_m) }));
+// Build localized fact strings from structured PathFact[]
+function renderFact(fact: PathFact): string {
+  switch (fact.key) {
+    case 'surface_width': {
+      const [cat, width] = (fact.value || '').split(':');
+      const i18nKey = `paths.fact.${cat}`;
+      const surfaceStr = t(i18nKey, locale) !== i18nKey ? t(i18nKey, locale) : cat;
+      return `${surfaceStr}, ${width}m ${t('paths.fact.wide', locale)}`;
     }
+    case 'surface': {
+      const i18nKey = `paths.fact.${fact.value}`;
+      return t(i18nKey, locale) !== i18nKey ? t(i18nKey, locale) : (fact.value || '');
+    }
+    case 'width':
+      return `${fact.value}m ${t('paths.fact.wide', locale)}`;
+    case 'operator':
+      return t('paths.fact.maintained', locale, { operator: fact.value || '' });
+    case 'gentle_hills':
+      return t('paths.fact.gentle_hills', locale, { meters: fact.value || '' });
+    case 'hilly':
+      return t('paths.fact.hilly', locale, { meters: fact.value || '' });
+    default:
+      return t(`paths.fact.${fact.key}`, locale);
   }
-
-  // Operator
-  if (p.operator) {
-    facts.push(t('paths.fact.maintained', locale, { operator: p.operator }));
-  }
-
-  // Network
-  if (p.network && networkLabels[p.network]) {
-    facts.push(networkLabels[p.network]);
-  }
-
-  return facts;
 }
 
-const pathFacts = buildPathFacts(page);
+const pathFacts = buildPathFacts(page).map(renderFact);
 
 // SEO
 const seoDescription = localeVibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`);
@@ -226,7 +183,7 @@ const connectedNetworkEntries = [...connectedByNetwork.entries()];
             <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
           )}
           {page.surface && (
-            <tr><td>{t('paths.label.surface', locale)}</td><td>{displaySurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
+            <tr><td>{t('paths.label.surface', locale)}</td><td>{localizeSurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
           )}
           {page.parallel_to && (
             <tr><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
@@ -265,7 +222,7 @@ const connectedNetworkEntries = [...connectedByNetwork.entries()];
               {standaloneConnected.map(p => (
                 <li>
                   <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-                  {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+                  {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
                 </li>
               ))}
             </ul>

@@ -1,6 +1,7 @@
 ---
 import { paths as urlPaths } from '@/lib/paths';
 import { t } from '@/i18n';
+import { displaySurface } from '@/lib/bike-paths/bike-path-facts';
 
 interface NearbyPath {
   slug: string;
@@ -15,17 +16,14 @@ interface Props {
 }
 
 const { nearbyPaths, locale } = Astro.props;
-const surfaceLabels: Record<string, string> = {
-  asphalt: t('paths.fact.paved', locale),
-  concrete: t('paths.fact.paved', locale),
-  fine_gravel: t('paths.fact.gravel', locale),
-  gravel: t('paths.fact.gravel', locale),
-  ground: t('paths.fact.dirt', locale),
-  dirt: t('paths.fact.dirt', locale),
-  compacted: t('paths.fact.gravel', locale),
-};
-function displaySurface(raw?: string): string | undefined {
-  return raw ? surfaceLabels[raw] || raw : undefined;
+
+// Localize a surface category key into a translated string
+function localizeSurface(raw?: string): string | undefined {
+  const cat = displaySurface(raw);
+  if (!cat) return undefined;
+  const i18nKey = `paths.fact.${cat}`;
+  const translated = t(i18nKey, locale);
+  return translated !== i18nKey ? translated : cat;
 }
 ---
 
@@ -36,7 +34,7 @@ function displaySurface(raw?: string): string | undefined {
       {nearbyPaths.map(p => (
         <li>
           <a href={urlPaths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-          {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+          {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
         </li>
       ))}
     </ul>

@@ -19,6 +19,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
+import { computeCenter, displaySurface, NETWORK_LABELS } from '@/lib/bike-paths/bike-path-facts';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -57,34 +58,20 @@ const networkName = networkPage
   ? ((locale && networkPage.translations[locale]?.name) || networkPage.name)
   : page.memberOf;
 
-function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, number] | undefined {
-  if (pts.length === 0) return undefined;
-  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
-  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
-  return [lat, lng];
-}
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
-// Surface label map (same as detail.astro)
-const surfaceLabels: Record<string, string> = {
-  asphalt: t('paths.fact.paved', locale),
-  concrete: t('paths.fact.paved', locale),
-  fine_gravel: t('paths.fact.gravel', locale),
-  gravel: t('paths.fact.gravel', locale),
-  ground: t('paths.fact.dirt', locale),
-  dirt: t('paths.fact.dirt', locale),
-  compacted: t('paths.fact.gravel', locale),
-};
-function displaySurface(raw?: string): string | undefined {
-  return raw ? surfaceLabels[raw] || raw : undefined;
+// Localize a surface category key into a translated string
+function localizeSurface(raw?: string): string | undefined {
+  const cat = displaySurface(raw);
+  if (!cat) return undefined;
+  const i18nKey = `paths.fact.${cat}`;
+  const translated = t(i18nKey, locale);
+  return translated !== i18nKey ? translated : cat;
 }
 
-const networkLabels: Record<string, string> = {
-  rcn: t('paths.fact.network_regional', locale),
-  ncn: t('paths.fact.network_national', locale),
-  lcn: t('paths.fact.network_local', locale),
-};
-const networkLabel = page.network ? networkLabels[page.network] : undefined;
+const networkLabel = page.network
+  ? (NETWORK_LABELS[page.network] ? t(`paths.fact.${NETWORK_LABELS[page.network]}`, locale) : undefined)
+  : undefined;
 
 // SEO
 const seoDescription = localeVibe || `${localeName} — ${page.length_km ? `${page.length_km} km` : ''} cycling path`;
@@ -182,7 +169,7 @@ const connectedNetworkEntries = [...connectedByNetwork.entries()];
             <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
           )}
           {page.surface && (
-            <tr><td>{t('paths.label.surface', locale)}</td><td>{displaySurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
+            <tr><td>{t('paths.label.surface', locale)}</td><td>{localizeSurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
           )}
           {page.parallel_to && (
             <tr><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
@@ -221,7 +208,7 @@ const connectedNetworkEntries = [...connectedByNetwork.entries()];
               {standaloneConnected.map(p => (
                 <li>
                   <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-                  {displaySurface(p.surface) && <span class="path-meta">{displaySurface(p.surface)}</span>}
+                  {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
                 </li>
               ))}
             </ul>

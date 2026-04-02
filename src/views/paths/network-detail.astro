@@ -13,6 +13,7 @@ import { paths, assets } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import { computeCenter } from '@/lib/bike-paths/bike-path-facts';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -39,12 +40,6 @@ const memberRefs = page.memberRefs ?? [];
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
-function computeCenter(pts: Array<{ lat: number; lng: number }>): [number, number] | undefined {
-  if (pts.length === 0) return undefined;
-  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
-  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
-  return [lat, lng];
-}
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
 // SEO
