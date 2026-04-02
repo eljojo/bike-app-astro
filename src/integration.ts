@@ -22,20 +22,6 @@ import { CITY } from './lib/config/config';
 import { CONTENT_DIR } from './lib/config/config.server';
 import { sharedCspDirectives } from './lib/csp';
 import { slugRedirectLines } from './lib/slug-redirects';
-import { translatePath } from './lib/i18n/path-translations';
-import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
-
-// Compute network member data at import time (Node.js, before Vite shuts down).
-// astro:build:done can't do dynamic imports — Vite's module runner is closed by then.
-let bikePathMembers: Array<{ slug: string; memberOf: string }> = [];
-try {
-  if (process.env.ENABLE_BIKE_PATHS !== 'false') {
-    const { pages } = loadBikePathEntries();
-    bikePathMembers = pages
-      .filter(p => p.memberOf && p.standalone)
-      .map(p => ({ slug: p.slug, memberOf: p.memberOf! }));
-  }
-} catch { /* bikepaths not available (e.g. blog instance) */ }
 import { buildDataPlugin } from './build-data-plugin';
 import { i18nRoutes } from './integrations/i18n-routes';
 import { appRoutesIntegration } from './integrations/admin-routes';
@@ -297,29 +283,8 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
         lines.push('/paths  /bike-paths  301');
         lines.push('/paths/:slug  /bike-paths/:slug  301');
 
-        // Network member redirects: flat /bike-paths/slug → nested /bike-paths/network/slug
-        // Uses direct import (not dynamic) because astro:build:done runs after Vite shuts down.
-        if (process.env.ENABLE_BIKE_PATHS !== 'false') {
-          try {
-            const members = bikePathMembers;
-            if (members.length > 0) {
-              lines.push('');
-              lines.push('# Network member redirects: flat → nested');
-              for (const p of members) {
-                lines.push(`/bike-paths/${p.slug}  /bike-paths/${p.memberOf}/${p.slug}  301`);
-              }
-              // Non-default locale equivalents
-              for (const locale of locales) {
-                if (locale === defaultLoc) continue;
-                for (const p of members) {
-                  const from = translatePath(`/bike-paths/${p.slug}`, locale);
-                  const to = translatePath(`/bike-paths/${p.memberOf}/${p.slug}`, locale);
-                  lines.push(`/${locale}${from}  /${locale}${to}  301`);
-                }
-              }
-            }
-          } catch { /* bike paths not available — skip */ }
-        }
+        // Network member redirects are handled via SSR middleware (contentRedirects
+        // virtual module) to avoid hitting Cloudflare's 100 dynamic _redirects limit.
 
         const content = lines.join('\n');
         if (content) {

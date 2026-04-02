@@ -36,6 +36,8 @@ import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
 import { computeBikePathRelations, enrichBikePathPages } from './lib/bike-paths/bike-path-relations.server';
 import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from './lib/geo/geojson-sampling';
+import { supportedLocales, defaultLocale as getDefaultLocale } from './lib/i18n/locale-utils';
+import { translatePath } from './lib/i18n/path-translations';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -387,6 +389,29 @@ function buildContentRedirectsModule(): string {
         }
       }
     }
+  }
+
+  // Network member redirects: flat /bike-paths/slug → nested /bike-paths/network/slug
+  // Also handles locale-prefixed variants (e.g. /fr/pistes-cyclables/slug → .../network/slug)
+  if (process.env.ENABLE_BIKE_PATHS !== 'false') {
+    try {
+      const { pages } = loadBikePathEntries();
+      const members = pages.filter(p => p.memberOf && p.standalone);
+      for (const p of members) {
+        map[`/bike-paths/${p.slug}`] = `/bike-paths/${p.memberOf}/${p.slug}`;
+      }
+      // Non-default locale variants
+      const locales = supportedLocales();
+      const defLocale = getDefaultLocale();
+      for (const locale of locales) {
+        if (locale === defLocale) continue;
+        for (const p of members) {
+          const from = translatePath(`/bike-paths/${p.slug}`, locale);
+          const to = translatePath(`/bike-paths/${p.memberOf}/${p.slug}`, locale);
+          map[`/${locale}${from}`] = `/${locale}${to}`;
+        }
+      }
+    } catch { /* bike paths not available */ }
   }
 
   return `export default ${JSON.stringify(map)};`;
