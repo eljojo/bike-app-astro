@@ -157,6 +157,24 @@
   h1 { margin: 0 0 0.25rem; }
 }
 
+.network-badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: $color-text;
+  text-decoration: none;
+  background: $color-tag-bg;
+  padding: 0.2em 0.6em;
+  border-radius: $border-radius;
+  margin-bottom: 0.5rem;
+
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode {
+    background: $color-tag-bg-dark;
+    color: $color-text-dark;
+  }
+}
+
 .bike-path-vibe {
   font-style: italic;
   font-size: 1.05rem;
