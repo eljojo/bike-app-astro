@@ -604,12 +604,27 @@ good_for:
     network: rcn
     name_en: Canal Pathway
     name_fr: Sentier du Canal
+    member_of: demo-network
   - name: River Trail
     highway: cycleway
     surface: gravel
+    member_of: demo-network
     anchors:
       - [-75.70, 45.42]
       - [-75.68, 45.40]
+  - name: Demo Network
+    type: network
+    operator: NCC
+    highway: cycleway
+    network: rcn
+    members:
+      - canal-pathway
+      - river-trail
+    wikidata_meta:
+      description_en: A test cycling network
+      length_km: 25
+      inception: 2020s
+      website: https://example.com/network
 `
   );
 

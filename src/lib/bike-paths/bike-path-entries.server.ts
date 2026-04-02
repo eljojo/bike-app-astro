@@ -406,6 +406,7 @@ export function loadBikePathEntries(): {
       standalone: true,
       stub: md.data.stub ?? false,
       featured: md.data.featured ?? false,
+      memberOf: primary?.member_of,
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,

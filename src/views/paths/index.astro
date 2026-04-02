@@ -179,7 +179,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     )}
 
     {groups.map(group => (
-      <section class={`paths-group ${group.isNetwork ? 'paths-group--network' : ''}`}>
+      <section class:list={['paths-group', { 'paths-group--network': group.isNetwork }]}>
         {group.isNetwork ? (
           <h2>
             <a href={paths.bikePath(group.networkSlug!, undefined, locale)}>{group.label}</a>

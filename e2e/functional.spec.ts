@@ -59,7 +59,7 @@ test.describe('Magazine homepage translations', () => {
 // Nav links — "Ride" and "Community" link to the current sub-section.
 test.describe('Nav contextual links', () => {
   test('Ride nav links to /bike-paths when on a bike path page', async ({ page }) => {
-    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
     const rideLink = page.locator('.top-nav a.nav-active');
     await expect(rideLink).toHaveAttribute('href', '/bike-paths');
   });
@@ -71,7 +71,7 @@ test.describe('Nav contextual links', () => {
   });
 
   test('secondary locale: Ride nav links to translated bike-paths', async ({ page }) => {
-    await page.goto('/fr/pistes-cyclables/ciclovia-avenida-ecuador');
+    await page.goto('/fr/pistes-cyclables/red-de-ciclovias/ciclovia-avenida-ecuador');
     const rideLink = page.locator('.top-nav a.nav-active');
     await expect(rideLink).toHaveAttribute('href', '/fr/pistes-cyclables');
   });
@@ -87,7 +87,7 @@ test.describe('Nav contextual links', () => {
 
 test.describe('Bike path detail page', () => {
   test('facts table shows length computed from geo file', async ({ page }) => {
-    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
     const factsTable = page.locator('.bike-path-facts-table');
     await expect(factsTable).toBeVisible();
     // 4 OSM way segments totaling ~3.1 km
@@ -95,17 +95,73 @@ test.describe('Bike path detail page', () => {
   });
 
   test('facts table shows surface type', async ({ page }) => {
-    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
     const factsTable = page.locator('.bike-path-facts-table');
     await expect(factsTable).toContainText('paved');
   });
 
   test('facts table shows separation and lighting', async ({ page }) => {
-    await page.goto('/bike-paths/ciclovia-avenida-ecuador');
+    await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
     const factsTable = page.locator('.bike-path-facts-table');
     // highway: cycleway → separated from traffic
     await expect(factsTable).toContainText('Separado del tráfico');
     // lit: yes
     await expect(factsTable).toContainText('Sí');
+  });
+});
+
+test.describe('Network pages', () => {
+  test('network detail page renders at /bike-paths/red-de-ciclovias', async ({ page }) => {
+    const response = await page.goto('/bike-paths/red-de-ciclovias');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('h1')).toContainText('Red de Ciclovías');
+  });
+
+  test('network page shows member list', async ({ page }) => {
+    await page.goto('/bike-paths/red-de-ciclovias');
+    const memberList = page.locator('.member-list');
+    await expect(memberList).toBeVisible();
+    await expect(memberList.locator('li')).toHaveCount(2);
+  });
+
+  test('network page shows wikidata stats', async ({ page }) => {
+    await page.goto('/bike-paths/red-de-ciclovias');
+    const stats = page.locator('.network-stats');
+    await expect(stats).toContainText('8 km');
+    await expect(stats).toContainText('Municipalidad');
+  });
+
+  test('member detail page renders at nested URL', async ({ page }) => {
+    const response = await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('h1')).toContainText('Ciclovía Avenida Ecuador');
+  });
+
+  test('member page shows "Part of" badge linking to network', async ({ page }) => {
+    await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
+    const badge = page.locator('.network-badge');
+    await expect(badge).toBeVisible();
+    await expect(badge).toContainText('Red de Ciclovías');
+    await expect(badge).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias$/);
+  });
+
+  test('index page shows network group with link', async ({ page }) => {
+    await page.goto('/bike-paths');
+    // Network should appear as a section with a link to its detail page
+    const networkSection = page.locator('.paths-group--network');
+    await expect(networkSection).toBeVisible();
+    const networkLink = networkSection.locator('h2 a');
+    await expect(networkLink).toContainText('Red de Ciclovías');
+    await expect(networkLink).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias$/);
+  });
+
+  test('breadcrumbs on member page include network', async ({ page }) => {
+    await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
+    // JSON-LD breadcrumb should have 4 items: Home → Bike Paths → Network → Member
+    const jsonLd = await page.locator('script[type="application/ld+json"]').textContent();
+    const breadcrumbs = JSON.parse(jsonLd || '{}');
+    if (breadcrumbs.itemListElement) {
+      expect(breadcrumbs.itemListElement.length).toBe(4);
+    }
   });
 });

@@ -84,12 +84,23 @@ const breadcrumbs = breadcrumbJsonLd([
 
     {localeVibe && <p class="vibe">{localeVibe}</p>}
 
-    <div class="path-facts">
-      {page.length_km && <span class="fact">{page.length_km} km</span>}
-      {page.surface && <span class="fact">{page.surface}</span>}
-      {page.lit === 'yes' && <span class="fact">{t('paths.fact.lit', locale)}</span>}
-      {page.operator && <span class="fact">{page.operator}</span>}
-    </div>
+    <table class="bike-path-facts-table">
+      {page.length_km && (
+        <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
+      )}
+      {page.surface && (
+        <tr><td>{t('paths.label.surface', locale)}</td><td>{page.surface}</td></tr>
+      )}
+      {page.highway === 'cycleway' && (
+        <tr><td>{t('paths.label.separated', locale)}</td><td>{t('paths.fact.separated_cars', locale)}</td></tr>
+      )}
+      {page.lit && (
+        <tr><td>{t('paths.label.lit', locale)}</td><td>{page.lit === 'yes' ? t('paths.lit_yes', locale) : t('paths.lit_no', locale)}</td></tr>
+      )}
+      {page.operator && (
+        <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
+      )}
+    </table>
 
     <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
 
@@ -114,7 +125,7 @@ const breadcrumbs = breadcrumbJsonLd([
 
     <RoutesOnPath routes={overlappingRoutes} locale={locale} />
 
-    <NearbyPlaces nearbyPlaces={nearbyPlaces} locale={locale} />
+    <NearbyPlaces nearby={nearbyPlaces} limit={8} />
 
     <NearbyPaths nearbyPaths={nearbyPaths} locale={locale} />
   </div>
