@@ -114,7 +114,7 @@ jobs:
   #     GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
   deploy-santiago-production:
-    if: needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     needs: [changes, test]
     uses: ./.github/workflows/_build-city.yml
     with:
@@ -130,7 +130,7 @@ jobs:
       GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
   deploy-brevet-production:
-    if: needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     needs: [changes, test]
     uses: ./.github/workflows/_build-city.yml
     with:
