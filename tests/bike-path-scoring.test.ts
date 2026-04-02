@@ -143,26 +143,31 @@ describe('scoreBikePath', () => {
 });
 
 describe('isDestination', () => {
-  it('paths with markdown always get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Short', slug: 'short' }), 0.5, true)).toBe(true);
-    expect(isDestination(entry({ name: 'Short', slug: 'short' }), undefined, true)).toBe(true);
+  it('non-hidden paths with markdown get standalone pages', () => {
+    expect(isDestination(entry({ name: 'Short', slug: 'short' }), 0.5, true, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Short', slug: 'short' }), undefined, true, false)).toBe(true);
+  });
+
+  it('hidden markdown entries do not get standalone pages', () => {
+    expect(isDestination(entry({ name: 'Hidden Path', slug: 'hidden' }), 5.0, true, true)).toBe(false);
+    expect(isDestination(entry({ name: 'Hidden Short', slug: 'hidden-short' }), 0.5, true, true)).toBe(false);
   });
 
   it('networks always get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Capital Pathway', slug: 'capital-pathway', type: 'network' }), undefined, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Capital Pathway', slug: 'capital-pathway', type: 'network' }), undefined, false, false)).toBe(true);
   });
 
   it('paths under 1km without markdown do not get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Short Connector', slug: 'short-connector' }), 0.5, false)).toBe(false);
-    expect(isDestination(entry({ name: 'Tiny Path', slug: 'tiny' }), 0.1, false)).toBe(false);
+    expect(isDestination(entry({ name: 'Short Connector', slug: 'short-connector' }), 0.5, false, false)).toBe(false);
+    expect(isDestination(entry({ name: 'Tiny Path', slug: 'tiny' }), 0.1, false, false)).toBe(false);
   });
 
   it('paths >= 1km get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Long Path', slug: 'long' }), 1.0, false)).toBe(true);
-    expect(isDestination(entry({ name: 'Longer', slug: 'longer' }), 5.0, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Long Path', slug: 'long' }), 1.0, false, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Longer', slug: 'longer' }), 5.0, false, false)).toBe(true);
   });
 
   it('paths with no length data default to standalone', () => {
-    expect(isDestination(entry({ name: 'Unknown', slug: 'unknown' }), undefined, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Unknown', slug: 'unknown' }), undefined, false, false)).toBe(true);
   });
 });

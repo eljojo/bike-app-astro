@@ -459,7 +459,7 @@ export function loadBikePathEntries(): {
       score,
       hasMarkdown: false,
       listed: score >= SCORE_THRESHOLD,
-      standalone: isDestination(entry, getPathLengthKm(entry), false),
+      standalone: isDestination(entry, getPathLengthKm(entry), false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,
       memberOf: entry.member_of,

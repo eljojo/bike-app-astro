@@ -60,7 +60,9 @@ export function isDestination(
   entry: SluggedBikePathYml,
   lengthKm: number | undefined,
   hasMarkdown: boolean,
+  hidden: boolean,
 ): boolean {
+  if (hidden) return false;
   if (hasMarkdown) return true;
   if (entry.type === 'network') return true;
   if (lengthKm !== undefined && lengthKm < DESTINATION_LENGTH_KM) return false;
