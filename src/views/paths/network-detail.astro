@@ -104,7 +104,7 @@ const breadcrumbs = breadcrumbJsonLd([
               {memberRefs.map(m => (
                 <li>
                   {m.standalone ? (
-                    <a href={paths.bikePath(m.slug, page.slug, locale)} class="network-member-link">
+                    <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
                       <span class="network-member-name">{m.name}</span>
                       {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
                     </a>

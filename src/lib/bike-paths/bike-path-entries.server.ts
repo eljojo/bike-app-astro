@@ -43,6 +43,8 @@ export interface MemberRef {
   length_km?: number;
   thumbnail_key?: string;
   standalone: boolean;
+  /** The member's actual memberOf value — may differ from the network page slug. */
+  memberOf?: string;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
@@ -528,6 +530,7 @@ export function loadBikePathEntries(): {
       length_km: p.length_km,
       thumbnail_key: p.thumbnail_key,
       standalone: p.standalone,
+      memberOf: p.memberOf,
     }));
 
     // Aggregate geometry from all members
