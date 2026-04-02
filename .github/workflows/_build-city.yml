@@ -51,6 +51,11 @@ on:
         type: string
         required: false
         default: ''
+      deploy-only:
+        description: 'Skip prebuild+build, deploy from dist artifact uploaded by a prior build job'
+        type: boolean
+        required: false
+        default: false
     secrets:
       DATA_REPO_DEPLOY_KEY:
         required: true
@@ -152,6 +157,7 @@ jobs:
         run: echo "BUILD_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Run prebuild
+        if: ${{ !inputs.deploy-only }}
         run: npx tsx scripts/prebuild.ts
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
@@ -161,6 +167,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Prepare build plan
+        if: ${{ !inputs.deploy-only }}
         run: npx tsx scripts/prepare-build-plan.ts
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
@@ -168,6 +175,7 @@ jobs:
           BUILD_TRIGGER: ${{ inputs.build-trigger }}
 
       - name: Resolve VIDEO_PREFIX from wrangler config
+        if: ${{ !inputs.deploy-only }}
         id: video-prefix
         run: |
           if [ -n "${{ inputs.wrangler-env }}" ]; then
@@ -176,6 +184,7 @@ jobs:
           echo "value=${PREFIX:-${{ inputs.city }}}" >> "$GITHUB_OUTPUT"
 
       - name: Build site
+        if: ${{ !inputs.deploy-only }}
         run: npx astro build
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
@@ -186,8 +195,23 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Merge incremental build
-        if: inputs.deploy
+        if: ${{ !inputs.deploy-only }}
         run: npx tsx scripts/merge-incremental-build.ts
+
+      - name: Upload dist artifact
+        if: ${{ !inputs.deploy-only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ inputs.city }}
+          path: dist/
+          retention-days: 1
+
+      - name: Download dist artifact
+        if: ${{ inputs.deploy-only }}
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ inputs.city }}
+          path: dist/
 
       - name: Prepare wrangler config for deploy
         if: inputs.deploy

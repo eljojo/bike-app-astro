@@ -93,7 +93,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
-  # Deploy only after both build and tests pass
+  # Deploy only after both build and tests pass — uses dist artifact from build-ottawa
   deploy-ottawa-staging:
     if: needs.changes.outputs.app == 'true' && github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     needs: [changes, test, build-ottawa]
@@ -103,6 +103,7 @@ jobs:
       environment: staging
       wrangler-env: staging
       deploy: true
+      deploy-only: true
       run-migrations: true
       data-ref: staging
       disable-analytics: true
