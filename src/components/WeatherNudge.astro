@@ -1,0 +1,73 @@
+---
+import { localePath } from '@/i18n';
+
+interface Props {
+  locale?: string;
+}
+
+const { locale } = Astro.props;
+---
+
+<section id="weather-card" class="magazine-weather" hidden data-locale={locale} data-chill-href={`${localePath('/', locale)}?tags=chill`}>
+  <div class="weather-card-link">
+    <span id="weather-icon"></span>
+    <span id="weather-text"></span>
+  </div>
+</section>
+
+<script>
+  (async () => {
+    const ICONS: Record<string, string> = {
+      'sun': '<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/>',
+      'cloud-sun': '<path d="M164,72a76.2,76.2,0,0,0-20.26,2.73,55.63,55.63,0,0,0-9.41-11.54l9.51-13.57a8,8,0,1,0-13.11-9.18L121.22,54A55.9,55.9,0,0,0,96,48c-.58,0-1.16,0-1.74,0L91.37,31.71a8,8,0,1,0-15.75,2.77L78.5,50.82A56.1,56.1,0,0,0,55.23,65.67L41.61,56.14a8,8,0,1,0-9.17,13.11L46,78.77A55.55,55.55,0,0,0,40,104c0,.57,0,1.15,0,1.72L23.71,108.6a8,8,0,0,0,1.38,15.88,8.24,8.24,0,0,0,1.39-.12l16.32-2.88a55.74,55.74,0,0,0,5.86,12.42A52,52,0,0,0,84,224h80a76,76,0,0,0,0-152ZM56,104a40,40,0,0,1,72.54-23.24,76.26,76.26,0,0,0-35.62,40,52.14,52.14,0,0,0-31,4.17A40,40,0,0,1,56,104ZM164,208H84a36,36,0,1,1,4.78-71.69c-.37,2.37-.63,4.79-.77,7.23a8,8,0,0,0,16,.92,58.91,58.91,0,0,1,1.88-11.81c0-.16.09-.32.12-.48A60.06,60.06,0,1,1,164,208Z"/>',
+      'cloud': '<path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Z"/>',
+      'moon-stars': '<path d="M240,96a8,8,0,0,1-8,8H216v16a8,8,0,0,1-16,0V104H184a8,8,0,0,1,0-16h16V72a8,8,0,0,1,16,0V88h16A8,8,0,0,1,240,96ZM144,56h8v8a8,8,0,0,0,16,0V56h8a8,8,0,0,0,0-16h-8V32a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16Zm72.77,97a8,8,0,0,1,1.43,8A96,96,0,1,1,95.07,37.8a8,8,0,0,1,10.6,9.06A88.07,88.07,0,0,0,209.14,150.33,8,8,0,0,1,216.77,153Zm-19.39,14.88c-1.79.09-3.59.14-5.38.14A104.11,104.11,0,0,1,88,64c0-1.79,0-3.59.14-5.38A80,80,0,1,0,197.38,167.86Z"/>',
+      'face-mask': '<path d="M176,104a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,104Zm-8,24H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16Zm88-24v24a32,32,0,0,1-32,32h-5.19c-7.19,15.8-21.79,29.43-43.23,40.16a191.16,191.16,0,0,1-46.15,15.71,7.93,7.93,0,0,1-2.86,0,191.16,191.16,0,0,1-46.15-15.71C59,189.43,44.38,175.8,37.19,160H32A32,32,0,0,1,0,128V104A32,32,0,0,1,32,72h.85a16,16,0,0,1,9.68-10l80-29.09a16.06,16.06,0,0,1,10.94,0l80,29.09a16,16,0,0,1,9.68,10H224A32,32,0,0,1,256,104ZM32.55,144a58.74,58.74,0,0,1-.55-8V88a16,16,0,0,0-16,16v24a16,16,0,0,0,16,16ZM208,136V77.09L128,48,48,77.09V136c0,45,69.09,61.52,80,63.84C138.89,197.52,208,181,208,136Zm32-32a16,16,0,0,0-16-16v48a58.74,58.74,0,0,1-.55,8H224a16,16,0,0,0,16-16Z"/>',
+    };
+    try {
+      const card = document.getElementById('weather-card');
+      const span = document.getElementById('weather-text');
+      const iconSpan = document.getElementById('weather-icon');
+      if (!card || !span) return;
+
+      const locale = card.dataset.locale || '';
+      const res = await fetch(`/api/weather${locale ? `?locale=${locale}` : ''}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.text) return;
+
+      if (iconSpan && data.icon && ICONS[data.icon]) {
+        iconSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" style="vertical-align:-0.125em">${ICONS[data.icon]}</svg>`;
+      }
+      const parts = [data.text];
+      if (data.sunscreen) parts.push(data.sunscreen);
+      if (data.airWarning) parts.push(data.airWarning);
+      span.textContent = parts.join('. ');
+
+      // Wrap in a link to chill routes when rideable
+      if (data.rideable && card.dataset.chillHref) {
+        const wrapper = card.querySelector('.weather-card-link') as HTMLElement;
+        if (wrapper) {
+          const link = document.createElement('a');
+          link.href = card.dataset.chillHref;
+          link.className = 'weather-card-link';
+          link.innerHTML = wrapper.innerHTML;
+          wrapper.replaceWith(link);
+        }
+      }
+
+      // Move to top of main column when prominence is high
+      if (data.prominence === 'high') {
+        const main = document.querySelector('.magazine-main');
+        if (main) {
+          main.prepend(card);
+          card.classList.add('weather-prominent');
+        }
+      }
+
+      card.removeAttribute('hidden');
+    } catch {
+      // Silently fail — weather card is progressive enhancement
+    }
+  })();
+</script>
