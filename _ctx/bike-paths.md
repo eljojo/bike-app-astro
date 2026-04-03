@@ -76,10 +76,19 @@ Two paths "connect" if their endpoints are within 200m. On a page, connected pat
 
 ## Page Types and Views
 
-| Condition | View | URL |
-|-----------|------|-----|
+All three page types render through a single shared component (`src/views/paths/BikePathDetail.astro`). Three thin route shells handle `getStaticPaths()` and pass props:
+
+| Condition | Route Shell | URL |
+|-----------|-------------|-----|
 | Standalone, no network | `detail.astro` | `/bike-paths/{slug}` |
 | Network page | `network-detail.astro` | `/bike-paths/{network}` |
 | Member of network, standalone | `member-detail.astro` | `/bike-paths/{network}/{slug}` |
+
+`BikePathDetail` derives the page type from the data itself:
+- `page.memberRefs?.length > 0` → network layout (full-width map, member list, wikidata facts)
+- `page.memberOf` → member layout (network badge, breadcrumb to parent)
+- Neither → standalone layout
+
+Route shells own data loading and param shapes. The shared component owns all rendering.
 
 All three routes are registered via `injectRoute()` in `i18n-routes.ts`. Route ordering matters — the member route (two segments) must precede the network route (one segment) which must precede the standalone route (one segment).
