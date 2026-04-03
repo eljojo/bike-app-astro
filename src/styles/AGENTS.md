@@ -2,24 +2,24 @@
 
 ## Dark Mode — Every Color Needs Both Variants
 
-Every color change MUST have both light and dark variants using the `dark-mode` mixin from `_mixins.scss`. This is a recurring bug source (white text on white backgrounds, invisible icons in dark mode). Never add a color rule without its dark mode counterpart.
+Every color change MUST have both light and dark variants using the `dark-mode` mixin from `_mixins.scss`. This is a recurring bug source. Never add a color rule without its dark mode counterpart.
 
 ## SCSS Modern Compiler
 
-Don't use deprecated Sass functions (`darken()`, `lighten()`, `adjust-hue()`, etc.). The project uses `api: 'modern-compiler'`. Use `color.scale()` or `color.adjust()` from `sass:color` if needed.
+Don't use deprecated Sass functions (`darken()`, `lighten()`, etc.). Use `color.scale()` or `color.adjust()` from `sass:color`.
 
 ## Style Colocation
 
-Styles live close to their components. Only reusable or truly global styles belong in shared files.
+- **Astro components**: `.scss` file next to the component, imported in frontmatter.
+- **Preact islands**: underscore-prefixed partial in `src/styles/`, `@use`'d from `admin.scss`.
+- **`global.scss`**: only truly shared public styles (nav, footer, layout).
+- **`admin.scss`**: only shared admin styles. Component-specific go in partials.
+- **`_variables.scss`**: design token source of truth. Never hardcode colors or breakpoints.
 
-- **Astro components**: Create a `.scss` file next to the component (e.g., `MagazineHome.scss` next to `MagazineHome.astro`) and import it in the frontmatter with `import './MagazineHome.scss'`. Use `@use '../styles/variables' as *` and `@use '../styles/mixins' as *` at the top.
-- **Preact islands**: Scoped CSS does NOT reach Preact islands. Create an underscore-prefixed partial in `src/styles/` (e.g., `_community-editor.scss`) and `@use` it from `admin.scss`. This keeps the styles colocated conceptually while ensuring they reach the island.
-- **`global.scss`**: Only for styles shared across many public pages (nav, footer, layout, `.admin-only` visibility toggle). Not for component-specific styles.
-- **`admin.scss`**: Only for shared admin styles (auth, editor layout, modals). Component-specific admin styles go in partials `@use`'d from admin.scss.
-- **`_variables.scss` / `_mixins.scss`**: Design tokens and shared mixins.
+## Admin Visibility Toggle
 
-Use SCSS variables from `_variables.scss` — never hardcode colors or breakpoints. Key variables: `$color-card-bg`, `$color-tag-bg`, `$color-btn-*`, `$border-radius`, `$breakpoint-*`, `$font-*`.
+`.admin-edit-link` and `.nav-admin` are hidden by CSS, revealed by `admin-visible` class on `<body>` via the `logged_in` cookie. Never replace with server-side rendering — breaks static caching.
 
-## Admin Visibility Toggle — `logged_in` Cookie Pattern
+## Detailed Context
 
-Admin-only links on static pages (`.admin-edit-link`, `.nav-admin`) are hidden by default via CSS and revealed by adding the `admin-visible` class to `<body>`. This class is toggled by JavaScript reading the `logged_in` cookie (a non-httpOnly cookie set alongside the httpOnly `session_token`). This avoids server-rendering conditional logic on prerendered static pages. Never replace this with server-side conditional rendering — it would break static page caching.
+- [CSS styling](../../_ctx/css-styling.md)
