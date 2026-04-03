@@ -3,7 +3,7 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
-import { paths } from '@/lib/paths';
+import { paths, assets } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import SubTabToggle from '@/components/SubTabToggle.astro';
@@ -190,28 +190,65 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         )}
         {group.isNetwork && group.memberRefs ? (
           <ul class="paths-list paths-list--members">
-            {group.memberRefs.map(m => (
-              <li>
-                {m.standalone ? (
-                  <a href={paths.bikePath(m.slug, group.networkSlug, locale)}>{m.name}</a>
-                ) : (
-                  <span class="non-standalone">{m.name}</span>
-                )}
-                {m.length_km && <span class="path-meta">{m.length_km} km</span>}
-              </li>
-            ))}
+            {group.memberRefs.map(m => {
+              const hasThumb = m.standalone && hasCachedMap(`path-${m.slug}`);
+              return (
+                <li>
+                  {m.standalone ? (
+                    <a href={paths.bikePath(m.slug, group.networkSlug, locale)} class:list={['path-link', { 'has-thumb': hasThumb }]}>
+                      {hasThumb && (
+                        <img
+                          class="path-thumb"
+                          src={assets.mapThumbnail(`path-${m.slug}`, 375)}
+                          srcset={assets.mapThumbnailSrcset(`path-${m.slug}`)}
+                          alt=""
+                          width="120"
+                          height="60"
+                          loading="lazy"
+                        />
+                      )}
+                      <span class="path-link-text">
+                        <span class="path-link-name">{m.name}</span>
+                        {m.length_km && <span class="path-meta">{m.length_km} km</span>}
+                      </span>
+                    </a>
+                  ) : (
+                    <span class="non-standalone">{m.name}</span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <ul class="paths-list">
-            {group.paths.map(p => (
-              <li data-slug={p.slug} id={`path-${p.slug}`}>
-                <a href={paths.bikePath(p.slug, p.memberOf, locale)}>
-                  {pathName(p)}
-                </a>
-                {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
-                {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
-              </li>
-            ))}
+            {group.paths.map(p => {
+              const hasThumb = hasCachedMap(`path-${p.slug}`);
+              return (
+                <li data-slug={p.slug} id={`path-${p.slug}`}>
+                  <a href={paths.bikePath(p.slug, p.memberOf, locale)} class:list={['path-link', { 'has-thumb': hasThumb }]}>
+                    {hasThumb && (
+                      <img
+                        class="path-thumb"
+                        src={assets.mapThumbnail(`path-${p.slug}`, 375)}
+                        srcset={assets.mapThumbnailSrcset(`path-${p.slug}`)}
+                        alt=""
+                        width="120"
+                        height="60"
+                        loading="lazy"
+                      />
+                    )}
+                    <span class="path-link-text">
+                      <span class="path-link-name">{pathName(p)}</span>
+                      <span class="path-link-meta">
+                        {p.length_km && <span class="path-meta">{p.length_km} km</span>}
+                        {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
+                        {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

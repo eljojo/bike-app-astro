@@ -114,7 +114,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 
   li {
     display: flex;
@@ -128,6 +128,40 @@
     font-weight: 500;
     &:hover { text-decoration: underline; }
     @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    &:hover .path-link-name { text-decoration: underline; }
+  }
+
+  .path-thumb {
+    width: 80px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .path-link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .path-link-name {
+    font-weight: 500;
+    color: $color-text;
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  .path-link-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .path-meta {
