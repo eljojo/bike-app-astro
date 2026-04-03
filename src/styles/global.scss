@@ -11,7 +11,9 @@ body {
   font-family: $font-body;
   font-weight: 400;
   color: $color-text;
-  background: $color-bg;
+  background: linear-gradient(180deg, $color-bg 0%, $color-bg-bottom 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 
   @media (min-width: $breakpoint-mobile) {
     width: $content-width; // route card image placeholder height (calc(85vw/2 - 8px)) depends on this value
@@ -113,7 +115,11 @@ a.go-back-button {
 }
 
 @include dark-mode {
-  body { background: $color-bg-dark; color: $color-text-dark; }
+  body {
+    background: linear-gradient(180deg, $color-bg-dark 0%, $color-bg-bottom-dark 100%);
+    background-attachment: fixed;
+    color: $color-text-dark;
+  }
   a, a:visited { color: white; }
   .site-header img { filter: invert(1); }
   .tag-pill { background: gray; color: white; }
