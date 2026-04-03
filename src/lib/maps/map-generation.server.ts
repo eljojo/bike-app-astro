@@ -9,7 +9,7 @@ import { MAP_CACHE_DIR, mapThumbPaths } from './map-paths.server';
 import path from 'node:path';
 
 export { mapThumbPaths };
-export { buildStaticMapUrl, buildStaticMapUrlMulti } from './map-paths';
+export { buildStaticMapUrl, buildStaticMapUrlMulti, buildStaticMapUrlFromSegments } from './map-paths';
 export type { MapThumbPaths } from './map-paths';
 
 export function gpxHash(gpxContent: string): string {

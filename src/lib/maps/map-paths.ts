@@ -119,6 +119,65 @@ export function buildStaticMapUrl(polyline: string, apiKey: string, language?: s
 }
 
 /**
+ * Build a static map URL from pre-split segments (no encode/decode round-trip).
+ * Each segment becomes its own &path= parameter. Budget is distributed across
+ * segments proportionally by point count, so short park paths and long trails
+ * both render correctly.
+ */
+export function buildStaticMapUrlFromSegments(
+  segments: [number, number][][],
+  apiKey: string,
+  language?: string,
+  options?: { size?: string; markers?: boolean },
+): string {
+  // Filter to segments with 2+ points
+  const valid = segments.filter(s => s.length >= 2);
+  if (valid.length === 0) return '';
+
+  const showMarkers = options?.markers !== false;
+
+  const params = new URLSearchParams({
+    maptype: 'roadmap',
+    size: options?.size || '800x800',
+    scale: '2',
+    key: apiKey,
+    ...(language && { language }),
+  });
+
+  let url = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+  if (showMarkers) {
+    const allPoints = valid.flat();
+    const start = allPoints[0];
+    const end = allPoints[allPoints.length - 1];
+    url += `&markers=color:yellow|label:S|${start[0]},${start[1]}`
+      + `&markers=color:green|label:F|${end[0]},${end[1]}`;
+  }
+
+  const MAX_URL = 16384;
+  const BUFFER = 200;
+  const PATH_PREFIX = '&path=enc:';
+  const totalPoints = valid.reduce((s, seg) => s + seg.length, 0);
+
+  // Sort longest first so the most important segments get priority
+  const sorted = [...valid].sort((a, b) => b.length - a.length);
+
+  for (const segment of sorted) {
+    const available = MAX_URL - url.length - PATH_PREFIX.length - BUFFER;
+    if (available < 50) break;
+
+    // Give this segment a budget proportional to its share of total points,
+    // but at least enough for a minimal encoding
+    const share = segment.length / totalPoints;
+    const budget = Math.max(50, Math.min(available, Math.ceil(share * (MAX_URL - url.length) * 0.8)));
+    const capped = Math.min(budget, available);
+
+    url += `${PATH_PREFIX}${sampleToFit(segment as number[][], capped)}`;
+  }
+
+  return url;
+}
+
+/**
  * Simplify an encoded polyline to a schema.org GeoShape.line string.
  * Returns "lat,lng lat,lng ..." with ~maxPoints coordinate pairs.
  */

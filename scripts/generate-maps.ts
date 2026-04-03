@@ -5,7 +5,7 @@ import matter from 'gray-matter';
 import sharp from 'sharp';
 import { parseGpx } from '../src/lib/gpx/parse';
 import {
-  mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti,
+  mapThumbPaths, buildStaticMapUrl, buildStaticMapUrlMulti, buildStaticMapUrlFromSegments,
   gpxHash, hashPath,
   needsRegeneration,
 } from '../src/lib/maps/map-generation.server';
@@ -16,7 +16,6 @@ import { CITY } from '../src/lib/config/config';
 import { CONTENT_DIR } from '../src/lib/config/config.server';
 import { findGpxFiles, extractDateFromPath, buildSlug, detectTours } from '../src/loaders/rides';
 import crypto from 'node:crypto';
-import polylineCodec from '@mapbox/polyline';
 const API_KEY = process.env.GOOGLE_MAPS_STATIC_API_KEY;
 const FORCE = process.argv.includes('--force');
 
@@ -301,13 +300,14 @@ async function main() {
         console.log(`[maps] ${label}: generating bike path map...`);
 
         // Merge adjacent segments that share endpoints (within 100m) into
-        // continuous chains, then encode as one polyline. buildStaticMapUrl
-        // splits at gaps > 0.15km, so genuinely disconnected sections render
-        // as separate &path= params (no straight connecting lines).
+        // continuous chains, then pass directly to the URL builder. This avoids
+        // the encode→decode→re-split round-trip that dropped small park paths.
         const merged = mergeAdjacentSegments(segments, 0.1);
-        const allPoints = merged.flatMap(seg => seg);
-        const encoded = polylineCodec.encode(allPoints);
-        const url = buildStaticMapUrl(encoded, API_KEY!, lang, { size: '800x400', markers: false, gapKm: 0.15 });
+        const url = buildStaticMapUrlFromSegments(merged, API_KEY!, lang, { size: '800x400', markers: false });
+        if (!url) {
+          console.warn(`[maps] WARNING: ${label} — no renderable geometry, skipping`);
+          continue;
+        }
         const response = await fetch(url);
         if (!response.ok) {
           console.error(`[maps] ${label}: HTTP ${response.status}`);
