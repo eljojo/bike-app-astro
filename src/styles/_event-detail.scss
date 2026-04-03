@@ -255,7 +255,7 @@
       content: '\203A';
       font-size: 1.2em;
       margin-left: auto;
-      transition: transform 0.2s;
+      transition: transform $transition-state;
     }
 
     &::-webkit-details-marker {
@@ -308,7 +308,7 @@
     &::after {
       content: '\203A';
       font-size: 1.2em;
-      transition: transform 0.2s;
+      transition: transform $transition-state;
     }
 
     &::-webkit-details-marker {

@@ -53,7 +53,7 @@ img { max-width: 100%; height: auto; }
   border-radius: 3px;
   border: 1px solid $color-btn-border;
   margin-right: 0.5em;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color $transition-state, border-color $transition-state;
 }
 
 a.action-button {
@@ -525,7 +525,7 @@ body.fullbleed {
   to { opacity: 1; }
 }
 .maplibregl-popup-content {
-  animation: popup-content-enter 0.2s ease-out;
+  animation: popup-content-enter $transition-enter;
 }
 @keyframes popup-content-enter {
   from { transform: translateY(4px) scale(0.97); }

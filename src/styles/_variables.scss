@@ -83,3 +83,10 @@ $color-hint-dark: #666;
 
 // Bike paths — map/list highlight
 $color-path-highlight: #E6194B;
+
+// Transition timing language
+$transition-state: 0.15s ease;
+$transition-enter: 0.2s ease-out;
+$transition-exit: 0.15s ease-in;
+$transition-move: 0.35s ease-out;
+$transition-toggle: 0.15s ease-in-out;
