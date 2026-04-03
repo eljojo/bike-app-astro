@@ -105,9 +105,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     map.doubleClickZoom.disable();
     map.touchZoomRotate.disable();
 
-    // Track whether a path feature was just clicked (suppresses expand)
-    let pathClickedAt = 0;
-
     session.start(() => {
       // Wire up list↔map hover highlight if configured
       if (highlightSelector && hasSlugMap) {
@@ -115,10 +112,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
           listSelector: highlightSelector,
           layerIds: ['bike-path-line'],
         });
-      }
-      // When a path popup opens, mark it so the container click doesn't expand
-      if (hasNameMap) {
-        map.on('click', 'bike-path-line', () => { pathClickedAt = Date.now(); });
       }
     });
 
@@ -224,8 +217,18 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       }, TRANSITION_MS);
     }
 
-    container.addEventListener('click', () => {
-      if (!expanded && Date.now() - pathClickedAt > 100) expand();
+    // Suppress expand when interacting with popups.
+    // A path click opens a popup synchronously before this handler runs,
+    // so we can check if a popup exists. For popup close clicks, the popup's
+    // close button is a child of .maplibregl-popup — check event target ancestry.
+    container.addEventListener('click', (e) => {
+      if (expanded) return;
+      const target = e.target as HTMLElement;
+      // Click was on/inside a popup (e.g. close button, link)
+      if (target.closest('.maplibregl-popup')) return;
+      // A path line click just created a popup (target is the canvas, popup is now in DOM)
+      if (container.querySelector('.maplibregl-popup')) return;
+      expand();
     });
     container.addEventListener('keydown', (e) => {
       if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
