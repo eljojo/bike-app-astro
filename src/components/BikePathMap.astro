@@ -12,10 +12,14 @@ interface Props {
   cdnUrl?: string;
   /** Optional mapping from geo filename to slug — enables list↔map hover highlight */
   slugMap?: Record<string, string>;
+  /** Optional mapping from slug to display name — enables click popups */
+  nameMap?: Record<string, string>;
+  /** Optional mapping from slug to URL — enables click-through links */
+  urlMap?: Record<string, string>;
   /** CSS selector for list items with data-slug to wire up hover highlight */
   highlightSelector?: string;
 }
-const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '', slugMap, highlightSelector } = Astro.props;
+const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '', slugMap, nameMap, urlMap, highlightSelector } = Astro.props;
 ---
 
 <div class="bike-path-map-wrapper">
@@ -30,6 +34,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     data-places={JSON.stringify(places)}
     data-cdn-url={cdnUrl}
     data-slug-map={slugMap ? JSON.stringify(slugMap) : ''}
+    data-name-map={nameMap ? JSON.stringify(nameMap) : ''}
+    data-url-map={urlMap ? JSON.stringify(urlMap) : ''}
     data-highlight-selector={highlightSelector || ''}
     role="button"
     tabindex="0"
@@ -64,6 +70,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
     const cdnUrl = container.dataset.cdnUrl || '';
     const slugMap: Record<string, string> = container.dataset.slugMap ? JSON.parse(container.dataset.slugMap) : {};
+    const nameMap: Record<string, string> = container.dataset.nameMap ? JSON.parse(container.dataset.nameMap) : {};
+    const urlMap: Record<string, string> = container.dataset.urlMap ? JSON.parse(container.dataset.urlMap) : {};
     const highlightSelector = container.dataset.highlightSelector || '';
 
     const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
@@ -74,7 +82,14 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     }));
 
     const hasSlugMap = Object.keys(slugMap).length > 0;
-    const geojsonLayer = createGeojsonLineLayer({ geoFiles, fetchPath: '/bike-paths/geo/', ...(hasSlugMap && { slugMap }) });
+    const hasNameMap = Object.keys(nameMap).length > 0;
+    const geojsonLayer = createGeojsonLineLayer({
+      geoFiles,
+      fetchPath: '/bike-paths/geo/',
+      ...(hasSlugMap && { slugMap }),
+      ...(hasNameMap && { nameMap }),
+      ...(Object.keys(urlMap).length > 0 && { urlMap }),
+    });
     const photoLayer = createPhotoLayer({ photos: photoData, cdnUrl, defaultVisible: false });
     const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
 

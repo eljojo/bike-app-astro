@@ -53,9 +53,20 @@ const localeBody = (locale && page.translations[locale]?.body) || page.body;
 const bodyHtml = localeBody ? renderMarkdownHtml(localeBody) : '';
 
 const MIN_DISPLAY_KM = 0.5;
-const memberRefs = (page.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
+const allMemberRefs = page.memberRefs ?? [];
+const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
+
+// Maps for clickable paths on the map
+const memberNameMap: Record<string, string> = {};
+const memberUrlMap: Record<string, string> = {};
+for (const m of allMemberRefs) {
+  memberNameMap[m.slug] = m.name;
+  if (m.standalone) {
+    memberUrlMap[m.slug] = paths.bikePath(m.slug, m.memberOf ?? page.slug, locale);
+  }
+}
 
 // Connected paths: exclude this network's own members
 const memberSlugs = new Set(memberRefs.map(m => m.slug));
@@ -107,6 +118,8 @@ const breadcrumbs = breadcrumbJsonLd([
         places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
         cdnUrl={config.cdn_url}
         slugMap={memberGeoMap}
+        nameMap={memberNameMap}
+        urlMap={memberUrlMap}
         highlightSelector=".network-members-list li[data-slug]"
       />
     </div>
