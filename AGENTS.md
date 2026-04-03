@@ -119,7 +119,8 @@ This repo uses a two-tier context system. The rules and mindset above are always
 - [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
 
 ### Guides
-- [admin-design-language](_ctx/admin-design-language.md) — utilitarian minimalism (Linear/Notion), function over form
+- [public-design-language](_ctx/public-design-language.md) — the iPod for cycling; restraint and warmth, progressive revelation, physical metaphors
+- [admin-design-language](_ctx/admin-design-language.md) — Keynote not Numbers; inevitability with personality, warm darks
 - [stats-philosophy](_ctx/stats-philosophy.md) — "this is liked" not "this performs"; community relationship, not metrics
 - [voice-and-feel](_ctx/voice-and-feel.md) — friend showing you around; no exclamation marks, no absolute fitness language
 - [brand-framing](_ctx/brand-framing.md) — whereto.bike umbrella, instance types, positioning
