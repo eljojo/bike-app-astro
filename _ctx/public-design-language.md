@@ -23,9 +23,13 @@ The site should make you curious. You should want to scroll, to click a route, t
 
 ## Design Principles
 
+### Care through craft
+
+The site should make people feel that we care, even if they can't put their finger on why. This means grounding visual decisions in color science and perceptual research, not in "what feels right" or AI-generated aesthetic clichés. Subliminal attention to gradients, depth cues, and spatial light is how you show care without announcing it.
+
 ### Restraint and warmth in equal measure
 
-One accent color (orange). One animation speed (0.15s). One tiny border radius (3px). A serif/sans typography pairing that says "edited magazine" not "software dashboard." The restraint creates a canvas where the content — real photos from real rides, real routes ridden by real people — is the star.
+One accent color (orange). One transition timing language (five pairs, each for a purpose). One border radius (6px public, 3px tags). A serif/sans typography pairing that says "edited magazine" not "software dashboard." The restraint creates a canvas where the content — real photos from real rides, real routes ridden by real people — is the star.
 
 But restraint doesn't mean cold. Orange is warm and energetic. The site title shimmers with a blue-to-green gradient. Emoji serve as place markers. The weather card appears on good days as a gentle nudge. Warmth lives in the details.
 
@@ -53,13 +57,14 @@ This is a community noticeboard maintained by people who ride these roads, not a
 
 ## The Palette
 
-The palette is evolving. The current black-on-white foundation is functional but doesn't yet have the warmth the site deserves. The direction:
+The palette is grounded in CIELAB color science, not vibes. The "warm cream/sepia" direction (high positive b* axis) is an AI design cliché — physically repulsive when overused. Our warmth comes from a different axis entirely.
 
-- **Warm foundations, not stark ones.** The site should feel like paper that's been in the sun, not like a screen. Light mode wants warmth — not white, but something with life. Dark mode wants depth — not black, but the sky just after sunset when you're riding home. The current `#000`/`#fff` is a starting point, not the destination.
-- **Orange as the single accent.** Active tags, distance badges, nav highlights, seasonal banners, section underlines. Orange says "look here" without screaming. This is settled and works well.
+- **Dusk-shift foundations.** Slight cool (negative b*) combined with a whisper of rose (a* +0.5). This is the color of twilight — technically cool but perceptually soft. Light mode: `#fbfbfc` → `#f6f6f8`. Dark mode: `#0c0c0f` → `#08080b` (indigo-black, the sky 20 minutes after sunset).
+- **Body backgrounds are vertical gradients** — lighter at top, deeper at bottom (2-3 CIELAB L* units). This mimics how natural light falls on a wall: brighter near the ceiling, settling into depth below. On a long page, the shift is imperceptible per screen but accumulates into a feeling of place. The gradient is the care.
+- **Orange as the single accent.** Active tags, distance badges, nav highlights, seasonal banners, section underlines, active toggle states. Orange says "look here" without screaming. This is settled and works well.
 - **Deep purple on maps.** `#350091` — unexpected, distinctive, slightly mysterious. Routes feel special against the terrain. This is a signature.
 - **The gradient brand mark.** 45-degree blue-to-green on the site title. The one moment of visual flamboyance. Blue and green evoke water and nature — cycling territory.
-- **Warm darks, not cold ones.** Dark mode should feel like evening, not like a void. Cards at `#141414` are close but could be warmer. The goal: both modes feel equally considered, equally alive.
+- **Dusk darks, not cold ones.** Dark mode should feel like evening, not like a void. Cards at `#17171c` with a slight indigo tint. The indigo connects to the map's purple route lines. Both modes feel equally considered, equally alive.
 
 ## Typography
 
@@ -70,18 +75,43 @@ The palette is evolving. The current black-on-white foundation is functional but
 
 ## Interactions
 
-- **0.15 seconds** is the universal transition speed. Card hovers, button states, photo opacity, popup entrances. Fast enough to feel instant, slow enough for the eye to register. Consistency creates a unified feel — the whole site has one speed of responsiveness.
-- **0.35 seconds** for large movements (map card expansion) — big movements need more time to track visually.
+### Transition timing language
+
+Duration scales with distance. Easing matches the physics of the motion. Based on animation perception research (Card, Mack, & Robertson) and Disney's "slow in, slow out" principle.
+
+- **State changes** (0.15s ease) — color, opacity, hover. State change, not motion.
+- **Entrances** (0.2s ease-out) — popups appearing, elements revealing. Fast start = responsive, slow end = settles into place.
+- **Exits** (0.15s ease-in) — elements leaving, closing. Don't make the user wait for something to leave.
+- **Large movements** (0.35s ease-out) — map expansion, card transitions. Distance needs time to track visually.
+- **Toggles** (0.15s ease-in-out) — tab switches, symmetric state changes between equal states.
+
+### Card depth
+
+Cards use `inset box-shadow` for pressed-in tactility — exploiting the light-from-above perceptual prior (Mamassian & Goutcher, 2001). Light: `inset 0 0 0 1px rgba(255,255,255,0.5)`. Dark: `inset 0 0 0 1px rgba(255,255,255,0.04)`. Images inside cards get `outline: 1px solid rgba(0,0,0,0.08); outline-offset: -1px` for a subtle inner frame. The combination creates a layered edge that reads as "crafted."
+
+### Other patterns
+
 - **Hover reveals.** The map card whispers "Tap to explore" on hover. It teaches the interaction without a tutorial.
 - **Silent reordering.** Bookmarked routes and events float to the top without any "favorites mode" toggle. The site remembers what you cared about.
 - **Daily rotation.** Homepage facts and community cards shuffle daily via seeded PRNG. Each visit feels slightly different — a living, breathing homepage — but within a day it's stable.
+
+## Links
+
+Four link types, each with clear affordance. Based on NNGroup research and WCAG 1.4.1: links in reading context must be visually self-evident without interaction.
+
+- **Prose links** (in body text, markdown) — blue (`$color-link`) + styled underline (thin, offset, semi-transparent; thickens on hover). Always visible as links.
+- **Sidebar/list links** (nearby places, paths, similar) — blue, no underline; underline appears on hover. Context (being in a list) provides affordance.
+- **Action links** (view all, read more) — blue + `font-weight: 600`; underline on hover.
+- **Navigation links** (top nav, breadcrumbs) — styled by context, no underline needed. Active state uses accent color.
+
+No `:visited` color change — the site is a community noticeboard, not a research tool.
 
 ## Layout
 
 - **85% content width** with auto margins. The 15% breathing room creates generous whitespace without a visible container.
 - **Magazine grid** (3:2) for the wiki homepage. Featured content gets prominent real estate. Sidebar provides quick-scan supplementary content. Section headings have 2px orange underlines — visual anchors without full-width rules.
 - **Mobile reordering via `display: contents`.** On mobile, two-column layouts flatten and interleave content in scroll-optimised order: map context first, then description, then actions. The order feels intentional, not like a sidebar dumped below.
-- **Cards defined by background shift, never by borders.** Barely-gray cards create containment without boxing things in. Hover shifts the background. No visible borders.
+- **Cards defined by subtle borders and background shift.** A thin border creates gentle containment; hover shifts the background or border color. The border should feel like a crease in paper, not a wireframe — `1px solid` in a muted tone, never heavy or dark.
 
 ## Photography
 
