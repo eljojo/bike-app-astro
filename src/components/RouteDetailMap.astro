@@ -1,5 +1,6 @@
 ---
-import './RouteDetailMap.scss';
+import { getCityConfig } from '@/lib/config/city-config';
+import { t } from '@/i18n';
 
 interface Props {
   polylines: { name: string; encoded: string; key?: string }[];
@@ -9,19 +10,16 @@ interface Props {
   locale?: string;
 }
 
-import { getCityConfig } from '@/lib/config/city-config';
-import { t } from '@/i18n';
-
-const { polylines, places = [], photos = [], initialVariant, locale } = Astro.props;
+const { polylines, places = [], photos = [], locale } = Astro.props;
 const hintText = t('paths.tap_to_explore', locale);
 const closeLabel = t('paths.close_map', locale);
 const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 ---
 
-<div class="route-detail-map-wrapper">
-  <div class="route-detail-map-overlay" id="route-detail-map-overlay"></div>
+<div class="expandable-map-wrapper">
+  <div class="expandable-map-overlay" id="route-detail-map-overlay"></div>
   <div
-    class="route-detail-map-card"
+    class="expandable-map-card"
     id="route-detail-map"
     data-polylines={JSON.stringify(polylines)}
     data-places={JSON.stringify(places)}
@@ -31,10 +29,10 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     tabindex="0"
     aria-expanded="false"
   >
-    <div class="route-detail-map-gl" id="route-detail-map-gl"></div>
-    <div id="route-detail-map-controls"></div>
-    <button class="route-detail-map-close" id="route-detail-map-close" aria-label={closeLabel}>✕</button>
-    <div class="route-detail-map-expand-hint">{hintText}</div>
+    <div class="expandable-map-gl" id="route-detail-map-gl"></div>
+    <div class="expandable-map-controls" id="route-detail-map-controls"></div>
+    <button class="expandable-map-close" id="route-detail-map-close" aria-label={closeLabel}>✕</button>
+    <div class="expandable-map-hint">{hintText}</div>
   </div>
 </div>
 
@@ -42,21 +40,22 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createElevationSyncLayer } from '../lib/maps/layers';
   import { buildPlacePopup } from '../lib/maps/map-helpers';
   import { buildPolylineFeature } from '../lib/maps/map-init';
+  import { createExpandableMap } from '../lib/maps/expandable-map';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
   import polylineCodec from '@mapbox/polyline';
 
-  const container = document.getElementById('route-detail-map');
+  const card = document.getElementById('route-detail-map');
   const glEl = document.getElementById('route-detail-map-gl');
   const overlay = document.getElementById('route-detail-map-overlay');
   const closeBtn = document.getElementById('route-detail-map-close');
   const controlsEl = document.getElementById('route-detail-map-controls');
 
-  if (container && glEl) {
-    const polylines: { name: string; encoded: string; key?: string }[] = JSON.parse(container.dataset.polylines || '[]');
-    const places: any[] = JSON.parse(container.dataset.places || '[]');
-    const photos: any[] = JSON.parse(container.dataset.photos || '[]');
-    const cdnUrl = container.dataset.cdnUrl || '';
+  if (card && glEl && overlay && closeBtn) {
+    const polylines: { name: string; encoded: string; key?: string }[] = JSON.parse(card.dataset.polylines || '[]');
+    const places: any[] = JSON.parse(card.dataset.places || '[]');
+    const photos: any[] = JSON.parse(card.dataset.photos || '[]');
+    const cdnUrl = card.dataset.cdnUrl || '';
 
     // Compute center from first polyline
     let center: [number, number] = [0, 0];
@@ -73,26 +72,14 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    // ================================================================
-    // MAP MODE: compact | expanded
-    //
-    // compact: polyline only, no interaction, no controls, no layers
-    // expanded: full map — interactions, controls, photo/place layers
-    //
-    // The mode is the single source of truth. Everything flows from it.
-    // ================================================================
-
-    type MapMode = 'compact' | 'expanded';
-    let mode: MapMode = 'compact';
-
-    // Create session with polyline only — the baseline for both modes
+    // Session with polyline only — photo/place layers added on expand
     const polylineLayer = createPolylineLayer({ polylines: initialPolylineData });
     const session = createMapSession({ el: glEl, center, zoom: 12 })
       .use(polylineLayer)
       .use(createElevationSyncLayer());
     const { map } = session;
 
-    // Photo/place layers — created once on first expand, then toggled
+    // Photo/place layers — created lazily on first expand
     let photoLayer: ReturnType<typeof createPhotoLayer> | null = null;
     let placeLayer: ReturnType<typeof createPlaceLayer> | null = null;
 
@@ -107,127 +94,13 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       }
     }
 
-    // ---- The mode switch — everything flows from here ----
-    function setMode(newMode: MapMode) {
-      mode = newMode;
-
-      if (mode === 'compact') {
-        // Interactions off
-        map.scrollZoom.disable();
-        map.dragPan.disable();
-        map.doubleClickZoom.disable();
-        map.touchZoomRotate.disable();
-        // Layers off
-        if (photoLayer) photoLayer.setVisible!(map, false);
-        if (placeLayer) placeLayer.setVisible!(map, false);
-        // Controls hidden
-        closeBtn!.style.display = 'none';
-      } else {
-        // Interactions on
-        map.scrollZoom.enable();
-        map.dragPan.enable();
-        map.doubleClickZoom.enable();
-        map.touchZoomRotate.enable();
-        // Layers on (lazy init)
-        ensureExpandedLayers();
-        if (photoLayer) photoLayer.setVisible!(map, true);
-        if (placeLayer) placeLayer.setVisible!(map, true);
-        // Close button visible
-        closeBtn!.style.display = 'flex';
-      }
-    }
-
-    // Start in compact mode
-    setMode('compact');
-
-    // ---- Expand / collapse animation (visual only — mode handles the rest) ----
-    let savedRect: DOMRect | null = null;
-    const TRANSITION_MS = 350;
-
-    function expand() {
-      if (mode === 'expanded') return;
-      savedRect = container!.getBoundingClientRect();
-      container!.style.position = 'fixed';
-      container!.style.top = `${savedRect.top}px`;
-      container!.style.left = `${savedRect.left}px`;
-      container!.style.width = `${savedRect.width}px`;
-      container!.style.height = `${savedRect.height}px`;
-      container!.style.zIndex = '1000';
-      overlay!.classList.add('visible');
-      container!.setAttribute('aria-expanded', 'true');
-      const isMobile = window.matchMedia('(max-width: 800px)').matches;
-      requestAnimationFrame(() => {
-        container!.classList.add('expanded');
-        if (isMobile) {
-          container!.style.top = '0';
-          container!.style.left = '0';
-          container!.style.width = '100vw';
-          container!.style.height = '100vh';
-          container!.style.borderRadius = '0';
-        } else {
-          container!.style.top = '20px';
-          container!.style.left = '20px';
-          container!.style.width = 'calc(100vw - 40px)';
-          container!.style.height = 'calc(100vh - 40px)';
-          container!.style.borderRadius = '16px';
-        }
-      });
-      setMode('expanded');
-      setTimeout(() => {
-        map.resize();
-        const bounds = boundsFromEncoded(allPolylineData[currentVariantIdx].encoded);
-        if (bounds) map.fitBounds(bounds, { padding: 60, animate: false });
-      }, TRANSITION_MS);
-    }
-
-    function collapse() {
-      if (mode === 'compact') return;
-      setMode('compact');
-      container!.classList.remove('expanded');
-      container!.setAttribute('aria-expanded', 'false');
-      overlay!.classList.remove('visible');
-      if (savedRect) {
-        container!.style.top = `${savedRect.top}px`;
-        container!.style.left = `${savedRect.left}px`;
-        container!.style.width = `${savedRect.width}px`;
-        container!.style.height = `${savedRect.height}px`;
-        container!.style.borderRadius = '';
-      }
-      setTimeout(() => {
-        container!.style.position = '';
-        container!.style.top = '';
-        container!.style.left = '';
-        container!.style.width = '';
-        container!.style.height = '';
-        container!.style.zIndex = '';
-        container!.style.borderRadius = '';
-        map.resize();
-        const bounds = boundsFromEncoded(allPolylineData[currentVariantIdx].encoded);
-        if (bounds) map.fitBounds(bounds, { padding: 20, animate: false });
-      }, TRANSITION_MS);
-    }
-
-    // ---- Events ----
-    container.addEventListener('click', (e) => {
-      if (mode === 'expanded') return;
-      if ((e.target as HTMLElement).closest('.maplibregl-popup')) return;
-      expand();
-    });
-    container.addEventListener('keydown', (e) => {
-      if (mode === 'compact' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
-    });
-    closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
-    overlay!.addEventListener('click', collapse);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mode === 'expanded') collapse(); });
-
-    // ---- Variant switching ----
+    // Bounds from encoded polyline
     let currentVariantIdx = 0;
-
-    function boundsFromEncoded(encoded: string): maplibregl.LngLatBounds | null {
+    function currentBounds(): [[number, number], [number, number]] | null {
+      const encoded = allPolylineData[currentVariantIdx]?.encoded;
+      if (!encoded) return null;
       const points = polylineCodec.decode(encoded);
       if (points.length === 0) return null;
-      const bounds = new (map as any).constructor.prototype.constructor.LngLatBounds
-        ? null : null; // Can't construct — use manual approach
       let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
       for (const [lat, lng] of points) {
         if (lng < minLng) minLng = lng;
@@ -235,9 +108,25 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
         if (lat < minLat) minLat = lat;
         if (lat > maxLat) maxLat = lat;
       }
-      return [[minLng, minLat], [maxLng, maxLat]] as any;
+      return [[minLng, minLat], [maxLng, maxLat]];
     }
 
+    // Expandable map — mode handles interactions, layers, close button
+    createExpandableMap(map, { card, overlay, closeBtn }, {
+      onModeChange(mode) {
+        if (mode === 'expanded') {
+          ensureExpandedLayers();
+          if (photoLayer) photoLayer.setVisible!(map, true);
+          if (placeLayer) placeLayer.setVisible!(map, true);
+        } else {
+          if (photoLayer) photoLayer.setVisible!(map, false);
+          if (placeLayer) placeLayer.setVisible!(map, false);
+        }
+      },
+      getBounds: currentBounds,
+    });
+
+    // Variant switching
     window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
       const key = e.detail.key;
       const idx = polylines.findIndex(p => p.key === key);
@@ -246,12 +135,12 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
         const selected = allPolylineData[idx];
         const feature = buildPolylineFeature(selected.encoded, selected.popup);
         polylineLayer.updateData([feature]);
-        const bounds = boundsFromEncoded(selected.encoded);
+        const bounds = currentBounds();
         if (bounds) map.fitBounds(bounds, { padding: 20, animate: true });
       }
     }) as EventListener);
 
-    // ---- Start ----
+    // Start session + render controls
     session.start(() => {
       if (controlsEl) {
         render(h(MapControls, {

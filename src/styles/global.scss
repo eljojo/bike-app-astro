@@ -6,6 +6,7 @@
 @use 'paths';
 @use 'map-touch-lock';
 @use 'variant-selector';
+@use 'expandable-map';
 
 * { box-sizing: border-box; }
 body {
