@@ -1,0 +1,48 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.route-facts-table {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  overflow: hidden;
+  @include card-depth;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+
+  td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+    @include dark-mode {
+      border-bottom-color: rgba(255, 255, 255, 0.04);
+    }
+  }
+
+  td:first-child {
+    white-space: nowrap;
+    width: 40%;
+    color: $color-text-muted;
+
+    @include dark-mode {
+      color: $color-text-muted-dark;
+    }
+  }
+
+  td:last-child {
+    font-weight: 600;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  .facts-yes { color: green; @include dark-mode { color: $color-success-dark; } }
+  .facts-no { color: $color-text-muted; @include dark-mode { color: $color-text-muted-dark; } }
+}
