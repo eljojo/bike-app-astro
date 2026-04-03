@@ -526,9 +526,10 @@ export function loadBikePathEntries(): {
       .map(s => pageBySlug.get(s))
       .filter((p): p is BikePathPage => !!p);
 
-    // A network with fewer than 2 resolved members doesn't warrant its own page —
-    // clear memberOf on the sole member so it stays at its flat URL.
-    if (memberPages.length < 2) {
+    // A network needs ≥2 resolved members with at least one standalone page.
+    // Otherwise clear memberOf so members stay at flat URLs.
+    const standaloneCount = memberPages.filter(p => p.standalone).length;
+    if (memberPages.length < 2 || standaloneCount === 0) {
       for (const mp of memberPages) {
         mp.memberOf = undefined;
       }
