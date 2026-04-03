@@ -105,6 +105,9 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     map.doubleClickZoom.disable();
     map.touchZoomRotate.disable();
 
+    // Track whether a path feature was just clicked (suppresses expand)
+    let pathClickedAt = 0;
+
     session.start(() => {
       // Wire up list↔map hover highlight if configured
       if (highlightSelector && hasSlugMap) {
@@ -112,6 +115,10 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
           listSelector: highlightSelector,
           layerIds: ['bike-path-line'],
         });
+      }
+      // When a path popup opens, mark it so the container click doesn't expand
+      if (hasNameMap) {
+        map.on('click', 'bike-path-line', () => { pathClickedAt = Date.now(); });
       }
     });
 
@@ -217,7 +224,9 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       }, TRANSITION_MS);
     }
 
-    container.addEventListener('click', () => { if (!expanded) expand(); });
+    container.addEventListener('click', () => {
+      if (!expanded && Date.now() - pathClickedAt > 100) expand();
+    });
     container.addEventListener('keydown', (e) => {
       if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
     });
