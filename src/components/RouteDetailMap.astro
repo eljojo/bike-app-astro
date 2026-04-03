@@ -42,7 +42,6 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createElevationSyncLayer } from '../lib/maps/layers';
   import { buildPlacePopup } from '../lib/maps/map-helpers';
   import { buildPolylineFeature } from '../lib/maps/map-init';
-  import { loadToggleState } from './admin/MapControls';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
   import polylineCodec from '@mapbox/polyline';
@@ -67,45 +66,82 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       center = [mid[0], mid[1]];
     }
 
-    // Build polyline data for all variants
-    const allPolylineData = polylines.map(pl => ({
-      encoded: pl.encoded,
-      popup: pl.name,
-    }));
-
-    // Start with only the first variant visible
+    const allPolylineData = polylines.map(pl => ({ encoded: pl.encoded, popup: pl.name }));
     const initialPolylineData = allPolylineData.length > 0 ? [allPolylineData[0]] : [];
-
     const placeData = places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    const polylineLayer = createPolylineLayer({ polylines: initialPolylineData });
-    const photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: false });
-    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
+    // ================================================================
+    // MAP MODE: compact | expanded
+    //
+    // compact: polyline only, no interaction, no controls, no layers
+    // expanded: full map — interactions, controls, photo/place layers
+    //
+    // The mode is the single source of truth. Everything flows from it.
+    // ================================================================
 
+    type MapMode = 'compact' | 'expanded';
+    let mode: MapMode = 'compact';
+
+    // Create session with polyline only — the baseline for both modes
+    const polylineLayer = createPolylineLayer({ polylines: initialPolylineData });
     const session = createMapSession({ el: glEl, center, zoom: 12 })
       .use(polylineLayer)
-      .use(photoLayer)
-      .use(placeLayer)
       .use(createElevationSyncLayer());
-
     const { map } = session;
 
-    // Disable interaction in compact card mode
-    map.scrollZoom.disable();
-    map.dragPan.disable();
-    map.doubleClickZoom.disable();
-    map.touchZoomRotate.disable();
+    // Photo/place layers — created once on first expand, then toggled
+    let photoLayer: ReturnType<typeof createPhotoLayer> | null = null;
+    let placeLayer: ReturnType<typeof createPlaceLayer> | null = null;
 
-    let expanded = false;
+    function ensureExpandedLayers() {
+      if (!photoLayer && photos.length > 0) {
+        photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: true });
+        photoLayer.setup({ map, isCurrent: () => true });
+      }
+      if (!placeLayer && placeData.length > 0) {
+        placeLayer = createPlaceLayer({ places: placeData, defaultVisible: true });
+        placeLayer.setup({ map, isCurrent: () => true });
+      }
+    }
+
+    // ---- The mode switch — everything flows from here ----
+    function setMode(newMode: MapMode) {
+      mode = newMode;
+
+      if (mode === 'compact') {
+        // Interactions off
+        map.scrollZoom.disable();
+        map.dragPan.disable();
+        map.doubleClickZoom.disable();
+        map.touchZoomRotate.disable();
+        // Layers off
+        if (photoLayer) photoLayer.setVisible!(map, false);
+        if (placeLayer) placeLayer.setVisible!(map, false);
+      } else {
+        // Interactions on
+        map.scrollZoom.enable();
+        map.dragPan.enable();
+        map.doubleClickZoom.enable();
+        map.touchZoomRotate.enable();
+        // Layers on (lazy init)
+        ensureExpandedLayers();
+        if (photoLayer) photoLayer.setVisible!(map, true);
+        if (placeLayer) placeLayer.setVisible!(map, true);
+      }
+    }
+
+    // Start in compact mode
+    setMode('compact');
+
+    // ---- Expand / collapse animation (visual only — mode handles the rest) ----
     let savedRect: DOMRect | null = null;
     const TRANSITION_MS = 350;
 
     function expand() {
-      if (expanded) return;
-      expanded = true;
+      if (mode === 'expanded') return;
       savedRect = container!.getBoundingClientRect();
       container!.style.position = 'fixed';
       container!.style.top = `${savedRect.top}px`;
@@ -132,29 +168,20 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
           container!.style.borderRadius = '16px';
         }
       });
-      map.scrollZoom.enable();
-      map.dragPan.enable();
-      map.doubleClickZoom.enable();
-      map.touchZoomRotate.enable();
-      // Show photos + places when expanded
-      if (photos.length > 0) photoLayer.setVisible!(map, loadToggleState('map-photos', true));
-      if (places.length > 0) placeLayer.setVisible!(map, loadToggleState('map-places', true));
+      setMode('expanded');
       setTimeout(() => {
         map.resize();
-        const bounds = polylineLayer.getBounds?.();
+        const bounds = boundsFromEncoded(allPolylineData[currentVariantIdx].encoded);
         if (bounds) map.fitBounds(bounds, { padding: 60, animate: false });
       }, TRANSITION_MS);
     }
 
     function collapse() {
-      if (!expanded) return;
-      expanded = false;
+      if (mode === 'compact') return;
+      setMode('compact');
       container!.classList.remove('expanded');
       container!.setAttribute('aria-expanded', 'false');
       overlay!.classList.remove('visible');
-      // Hide photos + places in compact mode
-      photoLayer.setVisible!(map, false);
-      placeLayer.setVisible!(map, false);
       if (savedRect) {
         container!.style.top = `${savedRect.top}px`;
         container!.style.left = `${savedRect.left}px`;
@@ -162,10 +189,6 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
         container!.style.height = `${savedRect.height}px`;
         container!.style.borderRadius = '';
       }
-      map.scrollZoom.disable();
-      map.dragPan.disable();
-      map.doubleClickZoom.disable();
-      map.touchZoomRotate.disable();
       setTimeout(() => {
         container!.style.position = '';
         container!.style.top = '';
@@ -175,65 +198,66 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
         container!.style.zIndex = '';
         container!.style.borderRadius = '';
         map.resize();
-        const bounds = polylineLayer.getBounds?.();
+        const bounds = boundsFromEncoded(allPolylineData[currentVariantIdx].encoded);
         if (bounds) map.fitBounds(bounds, { padding: 20, animate: false });
       }, TRANSITION_MS);
     }
 
-    // Click to expand (suppress on popup clicks)
+    // ---- Events ----
     container.addEventListener('click', (e) => {
-      if (expanded) return;
-      const target = e.target as HTMLElement;
-      if (target.closest('.maplibregl-popup')) return;
+      if (mode === 'expanded') return;
+      if ((e.target as HTMLElement).closest('.maplibregl-popup')) return;
       expand();
     });
     container.addEventListener('keydown', (e) => {
-      if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
+      if (mode === 'compact' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
     });
     closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
     overlay!.addEventListener('click', collapse);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mode === 'expanded') collapse(); });
 
-    // Compute bounds from an encoded polyline
+    // ---- Variant switching ----
+    let currentVariantIdx = 0;
+
     function boundsFromEncoded(encoded: string): maplibregl.LngLatBounds | null {
-      const maplibregl = (window as any).maplibregl;
-      if (!maplibregl) return null;
       const points = polylineCodec.decode(encoded);
       if (points.length === 0) return null;
-      const bounds = new maplibregl.LngLatBounds();
+      const bounds = new (map as any).constructor.prototype.constructor.LngLatBounds
+        ? null : null; // Can't construct — use manual approach
+      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
       for (const [lat, lng] of points) {
-        bounds.extend([lng, lat]);
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
       }
-      return bounds.isEmpty() ? null : bounds;
+      return [[minLng, minLat], [maxLng, maxLat]] as any;
     }
 
-    // Variant switching — swap visible polyline and re-fit bounds
     window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
       const key = e.detail.key;
       const idx = polylines.findIndex(p => p.key === key);
       if (idx >= 0) {
+        currentVariantIdx = idx;
         const selected = allPolylineData[idx];
         const feature = buildPolylineFeature(selected.encoded, selected.popup);
         polylineLayer.updateData([feature]);
-        // Compute new bounds from the polyline directly
         const bounds = boundsFromEncoded(selected.encoded);
         if (bounds) map.fitBounds(bounds, { padding: 20, animate: true });
       }
     }) as EventListener);
 
-    // Start the map session
+    // ---- Start ----
     session.start(() => {
-      // Render MapControls after map loads
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
           hasPlaces: places.length > 0,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
-          onToggleStyle: (key) => session.switchStyle(key, () => {
-            photoLayer.setVisible!(map, loadToggleState('map-photos', true));
-            placeLayer.setVisible!(map, loadToggleState('map-places', true));
-          }),
+          defaultPhotos: false,
+          defaultPlaces: false,
+          onTogglePhotos: (v: boolean) => { if (photoLayer) photoLayer.setVisible!(map, v); },
+          onTogglePlaces: (v: boolean) => { if (placeLayer) placeLayer.setVisible!(map, v); },
+          onToggleStyle: (key) => session.switchStyle(key),
         }), controlsEl);
       }
     });
