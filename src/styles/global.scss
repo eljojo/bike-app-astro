@@ -5,6 +5,7 @@
 @use 'event-detail';
 @use 'paths';
 @use 'map-touch-lock';
+@use 'variant-selector';
 
 * { box-sizing: border-box; }
 body {

@@ -1,0 +1,59 @@
+---
+import Icon from './Icon.astro';
+import { getCityConfig } from '@/lib/config/city-config';
+import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
+import { t } from '@/i18n';
+import { paths } from '@/lib/paths';
+
+interface Props {
+  routeSlug: string;
+  variant: {
+    gpx: string;
+    strava_url?: string;
+    rwgps_url?: string;
+    komoot_url?: string;
+  };
+  locale?: string;
+  variantKey?: string;
+}
+
+const { routeSlug, variant, locale, variantKey } = Astro.props;
+const siteUrl = getCityConfig().url;
+const vKey = variantKeyFromGpx(variant.gpx);
+const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, vKey)}`;
+const exploreUrl = `https://gpx.studio/app?files=%5B%22${encodeURIComponent(gpxUrl)}%22%5D`;
+---
+
+<div class="route-downloads" data-variant={variantKey || undefined}>
+  <a href={gpxUrl} class="action-button" download>
+    <Icon name="download-simple" size={16} /> {t('map.download_gpx', locale)}
+  </a>
+  {' '}
+  <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
+    <Icon name="map-trifold" size={16} /> {t('map.explore_gpx', locale)}
+  </a>
+  {variant.strava_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.strava_url} class="action-button --light --logo" target="_blank" rel="noopener">
+        <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+      </a>
+    </Fragment>
+  )}
+  {variant.rwgps_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.rwgps_url} class="action-button --light --logo" target="_blank" rel="noopener">
+        <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
+      </a>
+    </Fragment>
+  )}
+  {variant.komoot_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener">
+        <img src="/komoot.svg" width="80" alt={t('komoot.open', locale)} />
+      </a>
+    </Fragment>
+  )}
+</div>
