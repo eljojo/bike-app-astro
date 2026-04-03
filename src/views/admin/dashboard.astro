@@ -427,6 +427,9 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
           var changesMatch = c.message.match(/^Changes:\s*(.+)$/m);
           var contentType = null;
           var editorUrl = null;
+          var headline = firstLine;
+          var detail = '';
+
           if (changesMatch) {
             var pathParts = changesMatch[1].trim().split('/');
             if (pathParts[0] === city && pathParts.length >= 3) {
@@ -434,26 +437,23 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
               var slug = pathParts.slice(2).join('/');
               editorUrl = '/admin/' + contentType + '/' + slug;
             }
-          }
 
-          // Parse headline
-          var headline = firstLine
-            .replace(/^(?:Create|Update)\s+(?:event|place|ride)\s+/, '')
-            .replace(/^(?:Create|Update)\s+/, '')
-            .replace(/\s*\([^)]*\)\s*$/, '');
-          var forMatch = firstLine.match(/for\s+(?:ride|route|event|place)\s+(.+?)(?:\s*\(.*\))?$/);
-          if (forMatch) headline = forMatch[1];
+            // Only strip Create/Update prefixes for content edits (have Changes: trailer)
+            var forMatch = firstLine.match(/^.+\s+for\s+(?:ride|route|event|place)\s+(.+?)(?:\s*\(.*\))?$/);
+            var prefixMatch = firstLine.match(/^(?:Create|Update)\s+(?:event|place|ride)\s+(.+?)(?:\s*\(.*\))?$/);
+            var simpleMatch = firstLine.match(/^(?:Create|Update)\s+(.+?)(?:\s*\(.*\))?$/);
+            headline = (forMatch && forMatch[1]) || (prefixMatch && prefixMatch[1]) || (simpleMatch && simpleMatch[1]) || firstLine;
 
-          // Parse detail
-          var detail = '';
-          var detailMatch = firstLine.match(/\(([^)]+)\)/);
-          if (detailMatch) {
-            detail = detailMatch[1];
-            var mediaMatch = detail.match(/(\d+)\s+media/);
-            if (mediaMatch) {
-              var rest = detail.replace(/\d+\s+media,?\s*/, '').trim();
-              detail = 'added ' + mediaMatch[1] + ' photos';
-              if (rest) detail += ', ' + rest;
+            // Parse detail from parenthetical
+            var detailMatch = firstLine.match(/\(([^)]+)\)/);
+            if (detailMatch) {
+              detail = detailMatch[1];
+              var mediaMatch = detail.match(/(\d+)\s+media/);
+              if (mediaMatch) {
+                var rest = detail.replace(/\d+\s+media,?\s*/, '').trim();
+                detail = 'added ' + mediaMatch[1] + ' photos';
+                if (rest) detail += ', ' + rest;
+              }
             }
           }
 
@@ -475,11 +475,14 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
 
           div.innerHTML =
             '<div class="change-info">' +
-              '<strong class="change-author">' + escapeHtml(username) + '</strong> ' +
-              '<span class="change-headline">' + headlineHtml + (detail ? ' \u2014 ' + escapeHtml(detail) : '') + '</span>' +
-              badgeHtml +
+              '<strong class="change-author">' + escapeHtml(username) + '</strong>' +
+              ' <span class="change-headline">' +
+                headlineHtml +
+                (detail ? ' \u2014 ' + escapeHtml(detail) : '') +
+              '</span>' +
+              (badgeHtml ? ' ' + badgeHtml : '') +
             '</div>' +
-            '<time class="change-time">' + escapeHtml(timeStr) + '</time>';
+            ' <time class="change-time">' + escapeHtml(timeStr) + '</time>';
 
           container.appendChild(div);
         });
@@ -794,7 +797,9 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
     }
   }
 
-  .change-item {
+  // :global() because these elements are inserted by JS after hydration,
+  // so they don't have Astro's scoped data attributes.
+  :global(.change-item) {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -803,19 +808,19 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
     gap: 1rem;
   }
 
-  .change-author {
+  :global(.change-author) {
     white-space: nowrap;
     flex-shrink: 0;
   }
 
-  .change-info {
+  :global(.change-info) {
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
     min-width: 0;
   }
 
-  .change-headline {
+  :global(.change-headline) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -828,7 +833,7 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
     }
   }
 
-  .change-badge {
+  :global(.change-badge) {
     font-size: 0.6875rem;
     padding: 0.0625rem 0.375rem;
     border-radius: $border-radius;
@@ -838,7 +843,7 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
     flex-shrink: 0;
   }
 
-  .change-time {
+  :global(.change-time) {
     font-size: 0.75rem;
     @include muted-text;
     white-space: nowrap;
