@@ -29,10 +29,11 @@ function pathVibe(p: typeof pages[0]): string | undefined {
 const interactiveRelIds = new Set<string>();
 const listedRelIds = new Set<string>();
 const relationToSlug: Record<string, string> = {};
-// Pre-compute slug → URL so client-side click handlers use correct (potentially nested) URLs
+// Pre-compute slug → URL so client-side click handlers use correct (potentially nested) URLs.
+// Only include paths that have a page (standalone) — prevents dead links on the map.
 const slugToUrl: Record<string, string> = {};
 for (const p of allPages) {
-  slugToUrl[p.slug] = paths.bikePath(p.slug, p.memberOf, locale);
+  if (p.standalone) slugToUrl[p.slug] = paths.bikePath(p.slug, p.memberOf, locale);
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;
     interactiveRelIds.add(String(relId));
@@ -304,7 +305,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
         if (!e.features?.length) return;
         const slug = e.features[0].properties?.slug;
-        if (slug) window.location.href = slugUrls[slug] || `/bike-paths/${slug}`;
+        const url = slug ? slugUrls[slug] : undefined;
+        if (url) window.location.href = url;
       }
       map.on('click', 'paths-network-line', handlePathClick);
       map.on('click', 'paths-network-bg', handlePathClick);
