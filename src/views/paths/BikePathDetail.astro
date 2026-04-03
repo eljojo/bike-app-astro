@@ -82,7 +82,9 @@ function localizeSurface(raw?: string): string | undefined {
 }
 
 const networkLabel = page.network
-  ? (NETWORK_LABELS[page.network] ? t(`paths.fact.${NETWORK_LABELS[page.network]}`, locale) : page.network)
+  ? (NETWORK_LABELS[page.network]
+      ? t(`paths.fact.${NETWORK_LABELS[page.network]}`, locale)
+      : isMember ? undefined : page.network)
   : undefined;
 
 // --- Standalone-specific: pathFacts ---
@@ -417,10 +419,12 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
       </aside>
     </div>
 
-    {/* Back link */}
+    {/* Back link — member goes to network, network is bare <a>, standalone wraps in <p> */}
     {isMember && networkPage ? (
       <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="go-back-button">&#x21A9; {networkName}</a>
     ) : isMember ? (
+      <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
+    ) : isNetwork ? (
       <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
     ) : (
       <p style="margin-top: 2em;">
