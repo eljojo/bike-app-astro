@@ -87,10 +87,12 @@ const breadcrumbs = breadcrumbJsonLd([
   { name: localeName, url: `${config.url}${paths.bikePath(page.slug, page.memberOf, locale)}` },
 ]);
 
-// Group connected paths by network (computed here, not in IIFE — esbuild can't handle for/if in JSX)
-const standaloneConnected = connectedPaths.filter(p => !p.memberOf);
+// Group connected paths by network, excluding the current path's own network
+const ownNetwork = page.memberOf;
+const externalConnected = connectedPaths.filter(p => p.memberOf !== ownNetwork || !ownNetwork);
+const standaloneConnected = externalConnected.filter(p => !p.memberOf);
 const connectedByNetwork = new Map<string, typeof connectedPaths>();
-for (const p of connectedPaths) {
+for (const p of externalConnected) {
   if (!p.memberOf) continue;
   const list = connectedByNetwork.get(p.memberOf);
   if (list) list.push(p); else connectedByNetwork.set(p.memberOf, [p]);
@@ -195,7 +197,7 @@ const connectedNetworkEntries = [...connectedByNetwork.entries()];
           <NearbyPlaces nearby={nearbyPlaces} limit={8} />
         )}
 
-        {connectedPaths.length > 0 && (
+        {externalConnected.length > 0 && (
           <section class="connected-paths">
             <h2>{t('paths.connects_to', locale)}</h2>
             <ul class="connected-paths-list">
