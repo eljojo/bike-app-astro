@@ -627,9 +627,12 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
   const exploreRoutes = getExploreRoutes(routes, todayFeaturedSlug, locale);
 
   // Bike path count for homepage facts
-  const { loadBikePathData } = await import('./bike-paths/bike-path-data.server');
-  const { pages: bikePathPages } = await loadBikePathData();
-  const bikePathFactData: BikePathFactData = { count: bikePathPages.length };
+  let bikePathFactData: BikePathFactData | undefined;
+  if (features.hasPaths) {
+    const { loadBikePathData } = await import('./bike-paths/bike-path-data.server');
+    const { pages: bikePathPages } = await loadBikePathData();
+    bikePathFactData = { count: bikePathPages.length };
+  }
 
   const facts = resolveHomepageFacts(routes, placeData, organizers, events, locale, bikePathFactData);
   const video = findHomepageVideo(routes, allFeatured, locale);

@@ -8,10 +8,7 @@ import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { getCityConfig } from '../../lib/config/city-config';
 import { buildImageUrl, buildImageSrcSet2x } from '../../lib/media/image-service';
 import { env } from '../../lib/env/env.service';
-import { createGitService } from '../../lib/git/git-factory';
 import { CITY } from '../../lib/config/config';
-import { toRecentCommits, type RecentCommit } from '../../lib/history-data.server';
-import { formatAdminDateTime } from '../../lib/date-utils';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 
 const user = Astro.locals.user;
@@ -20,51 +17,41 @@ const features = getInstanceFeatures();
 const cityConfig = getCityConfig();
 const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
 
-// Content counts and card data from virtual modules (build-time snapshots)
-// Each module imported once and reused for both counts and card items.
-let routeCount = 0;
-let placeCount = 0;
-let eventCount = 0;
-let communityCount = 0;
-let routesWithoutPhotos = 0;
-let draftRouteCount = 0;
-let totalPhotos = 0;
-let routeItems: _AdminRoute[] = [];
-let placeItems: _AdminPlace[] = [];
-let eventItems: _AdminEvent[] = [];
-let communityItems: _AdminOrganizer[] = [];
+// Fetch all dashboard data in parallel — routes, places, events, organizers, git history.
+// These are independent and were previously sequential, adding up to ~20s wall time on cold start.
+const [adminRoutes, adminPlaces, adminEventsRaw, adminOrganizers] = await Promise.all([
+  (features.hasRoutes || features.hasRides)
+    ? fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url))
+    : Promise.resolve([] as _AdminRoute[]),
+  features.hasPlaces
+    ? fetchJson<_AdminPlace[]>(new URL('/admin/data/places.json', Astro.url))
+    : Promise.resolve([] as _AdminPlace[]),
+  features.hasEvents
+    ? fetchJson<{ events: _AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url)).then(d => d.events)
+    : Promise.resolve([] as _AdminEvent[]),
+  features.hasEvents
+    ? fetchJson<_AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url))
+    : Promise.resolve([] as _AdminOrganizer[]),
+]);
 
-if (features.hasRoutes || features.hasRides) {
-  const adminRoutes = await fetchJson<_AdminRoute[]>(new URL('/admin/data/routes.json', Astro.url));
-  routeCount = adminRoutes.length;
-  routeItems = adminRoutes.slice(0, 6);
-  totalPhotos = adminRoutes.reduce((sum: number, r: _AdminRoute) => sum + (r.mediaCount ?? 0), 0);
+// Derive counts and card items from parallel results
+const routeCount = adminRoutes.length;
+const routeItems = adminRoutes.slice(0, 6);
+const totalPhotos = adminRoutes.reduce((sum: number, r: _AdminRoute) => sum + (r.mediaCount ?? 0), 0);
+const routesWithoutPhotos = features.hasRoutes ? adminRoutes.filter((r: _AdminRoute) => !r.mediaCount || r.mediaCount === 0).length : 0;
+const draftRouteCount = features.hasRoutes ? adminRoutes.filter((r: _AdminRoute) => r.status === 'draft').length : 0;
 
-  if (features.hasRoutes) {
-    routesWithoutPhotos = adminRoutes.filter((r: _AdminRoute) => !r.mediaCount || r.mediaCount === 0).length;
-    draftRouteCount = adminRoutes.filter((r: _AdminRoute) => r.status === 'draft').length;
-  }
-}
+const placeCount = adminPlaces.length;
+const placeItems = adminPlaces.slice(0, 4);
 
-if (features.hasPlaces) {
-  const adminPlaces = await fetchJson<_AdminPlace[]>(new URL('/admin/data/places.json', Astro.url));
-  placeCount = adminPlaces.length;
-  placeItems = adminPlaces.slice(0, 4);
-}
-
-if (features.hasEvents) {
-  const adminEvents = await fetchJson<{ events: _AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url)).then(d => d.events);
-  const now = new Date().toISOString().slice(0, 10);
-  eventCount = adminEvents.filter((e: _AdminEvent) => e.start_date >= now).length;
-  eventItems = adminEvents
-    .filter((e: _AdminEvent) => e.start_date >= now)
-    .sort((a: _AdminEvent, b: _AdminEvent) => a.start_date.localeCompare(b.start_date))
-    .slice(0, 4);
-
-  const adminOrganizers = await fetchJson<_AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url));
-  communityCount = adminOrganizers.length;
-  communityItems = adminOrganizers.slice(0, 4);
-}
+const now = new Date().toISOString().slice(0, 10);
+const eventCount = adminEventsRaw.filter((e: _AdminEvent) => e.start_date >= now).length;
+const eventItems = adminEventsRaw
+  .filter((e: _AdminEvent) => e.start_date >= now)
+  .sort((a: _AdminEvent, b: _AdminEvent) => a.start_date.localeCompare(b.start_date))
+  .slice(0, 4);
+const communityCount = adminOrganizers.length;
+const communityItems = adminOrganizers.slice(0, 4);
 
 // Contextual nudge — first applicable wins
 let nudge = '';
@@ -77,22 +64,6 @@ if (features.hasRoutes) {
 }
 
 const contentLabel = features.hasRides ? 'rides' : 'routes';
-
-// Recent changes — last 10 commits from history API
-const git = createGitService({
-  token: env.GITHUB_TOKEN,
-  owner: env.GIT_OWNER,
-  repo: env.GIT_DATA_REPO,
-  branch: env.GIT_BRANCH || 'main',
-});
-
-let recentCommits: RecentCommit[] = [];
-try {
-  const commits = await git.listCommits({ perPage: 10, page: 1 });
-  recentCommits = toRecentCommits(commits, CITY);
-} catch {
-  // GitHub API unavailable (local dev without token) — show empty
-}
 ---
 
 <Base title="Admin" admin>
@@ -269,24 +240,8 @@ try {
           <span class="card-label">RECENT CHANGES</span>
           <a href="/admin/history" class="card-viewall">View full history &rarr;</a>
         </div>
-        <div class="card-items">
-          {recentCommits.map((c) => (
-            <div class="change-item">
-              <div class="change-info">
-                <strong class="change-author">{c.username}</strong>
-                <span class="change-headline">
-                  {c.editorUrl
-                    ? <a href={c.editorUrl}>{c.headline}</a>
-                    : c.headline
-                  }
-                  {c.detail && ` \u2014 ${c.detail}`}
-                </span>
-                {c.contentType && <span class={`change-badge change-badge--${c.contentType}`}>{c.contentType.replace(/s$/, '')}</span>}
-              </div>
-              <time class="change-time">{formatAdminDateTime(c.date)}</time>
-            </div>
-          ))}
-          {recentCommits.length === 0 && <p class="card-empty">No recent changes.</p>}
+        <div class="card-items" id="recent-changes" data-city={CITY}>
+          <p class="card-empty" id="recent-changes-loading">Loading recent changes...</p>
         </div>
       </section>
 
@@ -442,6 +397,108 @@ try {
     }
     poll();
   }
+</script>
+
+<script is:inline nonce={cspNonce}>
+  (function() {
+    var container = document.getElementById('recent-changes');
+    var loading = document.getElementById('recent-changes-loading');
+    if (!container) return;
+
+    var city = container.dataset.city;
+
+    fetch('/api/admin/history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ perPage: 10, page: 1 }),
+    })
+      .then(function(res) { return res.ok ? res.json() : null; })
+      .then(function(data) {
+        if (!data || !data.commits || data.commits.length === 0) {
+          if (loading) loading.textContent = 'No recent changes.';
+          return;
+        }
+        container.innerHTML = '';
+        data.commits.forEach(function(c) {
+          var firstLine = c.message.split('\n')[0];
+          var username = c.resolvedUser ? c.resolvedUser.username : c.author.name;
+
+          // Parse content path from Changes: trailer
+          var changesMatch = c.message.match(/^Changes:\s*(.+)$/m);
+          var contentType = null;
+          var editorUrl = null;
+          if (changesMatch) {
+            var pathParts = changesMatch[1].trim().split('/');
+            if (pathParts[0] === city && pathParts.length >= 3) {
+              contentType = pathParts[1];
+              var slug = pathParts.slice(2).join('/');
+              editorUrl = '/admin/' + contentType + '/' + slug;
+            }
+          }
+
+          // Parse headline
+          var headline = firstLine
+            .replace(/^(?:Create|Update)\s+(?:event|place|ride)\s+/, '')
+            .replace(/^(?:Create|Update)\s+/, '')
+            .replace(/\s*\([^)]*\)\s*$/, '');
+          var forMatch = firstLine.match(/for\s+(?:ride|route|event|place)\s+(.+?)(?:\s*\(.*\))?$/);
+          if (forMatch) headline = forMatch[1];
+
+          // Parse detail
+          var detail = '';
+          var detailMatch = firstLine.match(/\(([^)]+)\)/);
+          if (detailMatch) {
+            detail = detailMatch[1];
+            var mediaMatch = detail.match(/(\d+)\s+media/);
+            if (mediaMatch) {
+              var rest = detail.replace(/\d+\s+media,?\s*/, '').trim();
+              detail = 'added ' + mediaMatch[1] + ' photos';
+              if (rest) detail += ', ' + rest;
+            }
+          }
+
+          var timeStr = new Date(c.date).toLocaleDateString('en-CA', {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          });
+
+          var avatarUrl = c.gravatarHash
+            ? 'https://www.gravatar.com/avatar/' + c.gravatarHash + '?d=mp&s=32'
+            : 'https://www.gravatar.com/avatar/?d=mp&s=32';
+
+          var div = document.createElement('div');
+          div.className = 'change-item';
+
+          var headlineHtml = editorUrl
+            ? '<a href="' + editorUrl + '">' + escapeHtml(headline) + '</a>'
+            : escapeHtml(headline);
+
+          var badgeHtml = contentType
+            ? ' <span class="change-badge change-badge--' + contentType + '">' + contentType.replace(/s$/, '') + '</span>'
+            : '';
+
+          div.innerHTML =
+            '<img src="' + avatarUrl + '" alt="" class="change-avatar" loading="lazy" />' +
+            '<div class="change-info">' +
+              '<strong class="change-author">' + escapeHtml(username) + '</strong>' +
+              '<span class="change-headline">' + headlineHtml + (detail ? ' \u2014 ' + escapeHtml(detail) : '') + '</span>' +
+              badgeHtml +
+            '</div>' +
+            '<time class="change-time">' + escapeHtml(timeStr) + '</time>';
+
+          container.appendChild(div);
+        });
+      })
+      .catch(function() {
+        if (loading) loading.textContent = 'Could not load recent changes.';
+      });
+
+    function escapeHtml(str) {
+      var el = document.createElement('span');
+      el.textContent = str;
+      return el.innerHTML;
+    }
+  })();
 </script>
 
 <style lang="scss">
@@ -744,11 +801,17 @@ try {
 
   .change-item {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     padding: 0.5rem;
     font-size: 0.875rem;
-    gap: 1rem;
+    gap: 0.5rem;
+  }
+
+  .change-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   .change-author {
@@ -791,6 +854,7 @@ try {
     @include muted-text;
     white-space: nowrap;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   .card-empty {

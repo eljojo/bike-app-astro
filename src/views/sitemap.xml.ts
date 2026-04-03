@@ -12,7 +12,7 @@ export const GET: APIRoute = async () => {
   const events = await getCollection('events').catch(() => []);
   const features = getInstanceFeatures();
   const bikePaths = features.hasPaths
-    ? (await loadBikePathData()).pages
+    ? (await loadBikePathData()).pages.filter(bp => bp.standalone)
     : undefined;
   const entries = buildSitemapEntries({ routes, guides, events, bikePaths });
   const xml = renderSitemapXml(entries);
