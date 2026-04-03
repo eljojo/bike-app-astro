@@ -10,9 +10,10 @@ interface Props {
   nearby: NearbyPlace[];
   limit?: number;
   routeSlug?: string;
+  headingKey?: string;
 }
 
-const { nearby, limit, routeSlug } = Astro.props;
+const { nearby, limit, routeSlug, headingKey } = Astro.props;
 const locale = Astro.currentLocale;
 const hasMore = limit != null && nearby.length > limit;
 const features = getInstanceFeatures();
@@ -20,7 +21,7 @@ const features = getInstanceFeatures();
 
 {nearby.length > 0 && (
   <section class="nearby-places">
-    <h2>{t('places.nearby', locale)}</h2>
+    <h2>{t(headingKey || 'places.nearby', locale)}</h2>
     <ul>
       {nearby.map((place, i) => {
         const placeName = (locale !== defaultLocale() && place.name_fr) ? place.name_fr : place.name;
