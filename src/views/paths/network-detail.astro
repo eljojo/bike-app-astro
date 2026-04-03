@@ -166,7 +166,13 @@ const breadcrumbs = breadcrumbJsonLd([
             <h2>{t('paths.photos', locale)}</h2>
             <div class="bike-path-photo-grid">
               {nearbyPhotos.slice(0, 8).map(photo => (
-                <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo">
+                <button
+                  type="button"
+                  class="bike-path-photo"
+                  data-photo-key={photo.key}
+                  data-photo-lat={photo.lat}
+                  data-photo-lng={photo.lng}
+                >
                   <img
                     src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
                     srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
@@ -175,7 +181,7 @@ const breadcrumbs = breadcrumbJsonLd([
                     height="200"
                     loading="lazy"
                   />
-                </a>
+                </button>
               ))}
             </div>
           </section>
@@ -227,3 +233,14 @@ const breadcrumbs = breadcrumbJsonLd([
     <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
   </div>
 </Base>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.bike-path-photo[data-photo-key]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.photoKey!;
+      const lat = Number(btn.dataset.photoLat);
+      const lng = Number(btn.dataset.photoLng);
+      document.dispatchEvent(new CustomEvent('map:show-photo', { detail: { key, lat, lng } }));
+    });
+  });
+</script>

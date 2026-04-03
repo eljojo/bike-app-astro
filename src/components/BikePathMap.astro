@@ -224,6 +224,33 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
     overlay!.addEventListener('click', collapse);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
+
+    // Listen for "show photo on map" events from the photo grid
+    document.addEventListener('map:show-photo', ((e: CustomEvent<{ key: string; lat: number; lng: number }>) => {
+      const { key, lat, lng } = e.detail;
+      // Expand the map
+      expand();
+      // Enable photo layer
+      photoLayer.setVisible!(map, true);
+      // Fly to location after expand animation
+      setTimeout(() => {
+        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+        // After fly completes, find and click the photo bubble
+        map.once('moveend', () => {
+          // Wait for idle so DOM bubbles are synced
+          map.once('idle', () => {
+            const bubbles = map.getContainer().querySelectorAll('.photo-bubble img');
+            for (const img of bubbles) {
+              const src = (img as HTMLImageElement).src;
+              if (src.includes(key)) {
+                (img.closest('.photo-bubble') as HTMLElement)?.click();
+                break;
+              }
+            }
+          });
+        });
+      }, 400);
+    }) as EventListener);
   }
 </script>
 

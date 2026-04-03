@@ -567,6 +567,13 @@
     display: block;
     border-radius: $border-radius;
     overflow: hidden;
+    cursor: pointer;
+    // Reset button styles when used as <button>
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: inherit;
+    font: inherit;
 
     img {
       width: 100%;
