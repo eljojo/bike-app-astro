@@ -244,13 +244,6 @@ const variantElevationData = variants.map(v => {
           );
         })}
 
-        {/* Elevation profile (one per variant, data-variant for show/hide) */}
-        {variantElevationData.map(ed => (
-          <div class="route-elevation" data-variant={ed.key}>
-            <InteractiveElevation client:visible points={ed.points} />
-          </div>
-        ))}
-
         {/* Reactions */}
         {getInstanceFeatures().allowsReactions && (
           <div class="route-reactions-zone">
@@ -274,6 +267,13 @@ const variantElevationData = variants.map(v => {
         {mapPolylines.length > 0 && (
           <RouteDetailMap polylines={mapPolylines} places={mapPlaces} photos={mapPhotos} locale={locale} />
         )}
+
+        {/* Elevation profile (one per variant, collapsible) */}
+        {variantElevationData.map(ed => (
+          <div class="route-elevation" data-variant={ed.key}>
+            <InteractiveElevation client:visible points={ed.points} collapsed={true} />
+          </div>
+        ))}
 
         {/* Facts table (one per variant, data-variant for show/hide) */}
         {variantFacts.map(vf => (
