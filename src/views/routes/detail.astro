@@ -248,7 +248,7 @@ const variantElevationData = variants.map(v => {
 
         {/* Elevation profile (one per variant, data-variant for show/hide) */}
         {variantElevationData.map(ed => (
-          <div data-variant={ed.key}>
+          <div class="route-elevation" data-variant={ed.key}>
             <InteractiveElevation client:visible points={ed.points} />
           </div>
         ))}

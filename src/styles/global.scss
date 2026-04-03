@@ -835,6 +835,21 @@ body.fullbleed {
   }
 }
 
+// Mobile reordering — when display:contents flattens both columns into the grid,
+// assign explicit order so map + facts float to the top.
+@media (max-width: $breakpoint-tablet) {
+  .route-detail-map-wrapper { order: 1; }
+  .route-facts-table { order: 2; }
+  .route-description { order: 3; }
+  .route-videos { order: 4; }
+  .nearby-places { order: 5; }
+  .route-downloads { order: 6; }
+  .route-elevation { order: 7; }
+  .route-reactions-zone { order: 9; }
+  .edit-entry-point { order: 10; }
+  .route-place-summary { order: 11; }
+}
+
 .route-detail-hero {
   @media (min-width: $breakpoint-tablet + 1) { display: none; }
   img { width: 100%; height: auto; border-radius: $border-radius; }
