@@ -356,6 +356,8 @@ export function loadBikePathEntries(): {
   // 4. Track which YML slugs are claimed by markdown `includes`
   const claimedSlugs = new Set<string>();
   const pages: BikePathPage[] = [];
+  // Markdown overlays for network entries — stashed here, applied in step 7
+  const networkMarkdownOverlays = new Map<string, typeof markdownEntries[0]>();
 
   // 5. Process markdown files first (they have priority)
   for (const md of markdownEntries) {
@@ -376,6 +378,12 @@ export function loadBikePathEntries(): {
       const entry = ymlBySlug.get(md.id);
       if (entry) {
         matchedEntries.push(entry);
+        // If this YML entry is a network, don't claim it — stash the markdown
+        // overlay for step 7 so the network page gets built with markdown content.
+        if (entry.type === 'network') {
+          networkMarkdownOverlays.set(md.id, md);
+          continue;
+        }
         claimedSlugs.add(md.id);
       }
     }
@@ -543,16 +551,22 @@ export function loadBikePathEntries(): {
 
     const score = scoreBikePath(entry, 0);
 
+    // Apply markdown overlay if a markdown file matches this network
+    const mdOverlay = networkMarkdownOverlays.get(entry.slug);
+
     pages.push({
       slug: entry.slug,
-      name: entry.name,
-      tags: [],
+      name: mdOverlay?.data.name ?? entry.name,
+      vibe: mdOverlay?.data.vibe,
+      body: mdOverlay?.body,
+      photo_key: mdOverlay?.data.photo_key,
+      tags: mdOverlay?.data.tags ?? [],
       score,
-      hasMarkdown: false,
+      hasMarkdown: !!mdOverlay,
       listed: true,
       standalone: true,
-      stub: true,
-      featured: false,
+      stub: !mdOverlay,
+      featured: mdOverlay?.data.featured ?? false,
       memberRefs,
       ymlEntries: [entry],
       osmRelationIds,
@@ -571,11 +585,11 @@ export function loadBikePathEntries(): {
       lit: entry.lit,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
-      operator: normalizeOperator(entry.operator),
+      operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator),
       network: entry.network,
       highway: entry.highway,
-      wikipedia: entry.wikipedia,
-      translations: readBikePathTranslations(entry.slug, entry),
+      wikipedia: mdOverlay?.data.wikipedia ?? entry.wikipedia,
+      translations: readBikePathTranslations(entry.slug, entry, mdOverlay?.rawFrontmatter),
     });
   }
 

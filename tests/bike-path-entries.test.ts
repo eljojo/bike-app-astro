@@ -108,6 +108,18 @@ tags:
 This page combines multiple YML entries.
 `);
 
+  // Markdown that matches a type: network YML entry — should overlay, not replace
+  fs.writeFileSync(path.join(bikePathsDir, 'trail-network.md'), `---
+name: Trail Network Park
+vibe: A network of trails through the forest
+tags:
+  - park
+  - family
+photo_key: trail-network-photo
+---
+A lovely network of trails.
+`);
+
   // Hidden markdown (should be excluded)
   fs.writeFileSync(path.join(bikePathsDir, 'hidden-path.md'), `---
 name: Hidden Path
@@ -308,5 +320,21 @@ describe('loadBikePathEntries', () => {
     expect(network!.osmRelationIds).toContain(10990511);
     expect(network!.osmRelationIds).toContain(7174864);
     expect(network!.osmRelationIds).toContain(7174865);
+  });
+
+  it('markdown overlaying a network entry produces a network page, not a standalone page', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'trail-network');
+    expect(network).toBeDefined();
+    // Must be a network page with memberRefs — not a standalone page
+    expect(network!.memberRefs).toBeDefined();
+    expect(network!.memberRefs!.length).toBeGreaterThanOrEqual(2);
+    // Markdown content should overlay onto the network page
+    expect(network!.hasMarkdown).toBe(true);
+    expect(network!.name).toBe('Trail Network Park');
+    expect(network!.vibe).toBe('A network of trails through the forest');
+    expect(network!.body).toContain('A lovely network of trails');
+    expect(network!.tags).toEqual(['park', 'family']);
+    expect(network!.photo_key).toBe('trail-network-photo');
   });
 });

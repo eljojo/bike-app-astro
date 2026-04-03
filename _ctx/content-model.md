@@ -2,7 +2,7 @@
 description: Model schemas as source of truth, content type registry, ContentOps, GitFiles
 type: pattern
 triggers: [adding content types, modifying schemas, changing content pipeline, working with models]
-related: [save-pipeline, adding-new-things, virtual-modules]
+related: [save-pipeline, adding-new-things, virtual-modules, bike-paths]
 ---
 
 # Content Model
