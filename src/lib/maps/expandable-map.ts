@@ -87,8 +87,8 @@ export function createExpandableMap(
     setMode('expanded');
     setTimeout(() => {
       map.resize();
-      // Wait for resize to take effect, then fit bounds
-      requestAnimationFrame(() => {
+      // fitBounds after map has re-rendered at new size
+      map.once('render', () => {
         const bounds = callbacks.getBounds();
         if (bounds) map.fitBounds(bounds, { padding: 60, animate: false });
       });
@@ -117,8 +117,10 @@ export function createExpandableMap(
       card.style.zIndex = '';
       card.style.borderRadius = '';
       map.resize();
-      const bounds = callbacks.getBounds();
-      if (bounds) map.fitBounds(bounds, { padding: 20, animate: false });
+      map.once('render', () => {
+        const bounds = callbacks.getBounds();
+        if (bounds) map.fitBounds(bounds, { padding: 20, animate: false });
+      });
     }, TRANSITION_MS);
   }
 
