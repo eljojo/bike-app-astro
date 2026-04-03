@@ -202,22 +202,22 @@ const variantElevationData = variants.map(v => {
 
 <Base title={seoTitle} description={localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`} ogImage={coverUrl} ogImageAlt={ogImageAlt} ogType="article" jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
   <div class="route-detail">
-    {/* HOOK: Title + tagline + tags */}
-    <h1>
-      {localeName}
-      <a href={`/admin/routes/${route.id}`} class="admin-edit-link" aria-label="Edit this route">Edit</a>
-    </h1>
-    {localeTagline && <p class="route-detail-tagline">{localeTagline}</p>}
-
-    {displayTags.length > 0 && (
-      <ul class="route--tags">
-        {displayTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
-      </ul>
-    )}
-
-    {/* TWO COLUMNS: main + sidebar */}
+    {/* TWO COLUMNS: main + sidebar — grid starts at title level so sidebar aligns */}
     <div class="route-detail-layout">
       <div class="route-detail-main">
+        {/* HOOK: Title + tagline + tags */}
+        <h1>
+          {localeName}
+          <a href={`/admin/routes/${route.id}`} class="admin-edit-link" aria-label="Edit this route">Edit</a>
+        </h1>
+        {localeTagline && <p class="route-detail-tagline">{localeTagline}</p>}
+
+        {displayTags.length > 0 && (
+          <ul class="route--tags">
+            {displayTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+          </ul>
+        )}
+
         {/* Description (shared across variants) */}
         <div class="route-description" set:html={localeBody} />
 
