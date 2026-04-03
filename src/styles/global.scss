@@ -881,6 +881,7 @@ body.fullbleed {
   border-radius: $border-radius;
   padding: 0.75rem 0;
   margin: 1rem 0;
+  @include card-depth;
 
   @include dark-mode {
     background: $color-card-bg-dark;
@@ -1047,6 +1048,7 @@ body.fullbleed {
 
 .route-similar--card {
   width: calc(50% - 0.375em);
+  @include card-depth;
 
   @media (min-width: $breakpoint-desktop) {
     width: calc(33.333% - 0.5em);

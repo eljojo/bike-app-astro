@@ -95,3 +95,20 @@
 
   @include dark-mode { color: $color-hint-dark; }
 }
+
+@mixin card-depth {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+
+  @include dark-mode {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+}
+
+@mixin image-frame {
+  outline: 1px solid rgba(0, 0, 0, 0.08);
+  outline-offset: -1px;
+
+  @include dark-mode {
+    outline-color: rgba(255, 255, 255, 0.06);
+  }
+}

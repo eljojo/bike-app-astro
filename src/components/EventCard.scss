@@ -9,6 +9,7 @@
   flex-direction: column;
   gap: 0.3em;
   position: relative;
+  @include card-depth;
 }
 
 .event-card--linked {

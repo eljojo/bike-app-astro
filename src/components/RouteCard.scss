@@ -12,6 +12,7 @@
   text-decoration: none;
   color: inherit;
   background-color: $color-card-bg;
+  @include card-depth;
   &:hover { background-color: $color-card-hover; }
   @media (max-width: $breakpoint-desktop) {
     flex-direction: column;
