@@ -27,7 +27,7 @@ const rawHtml = translation?.renderedBody || aboutPage.data.renderedBody;
 // Variable replacement on the full rendered HTML
 const contentHtml = rawHtml
   .replace(/\{author_email\}/g, config.author.email)
-  .replace(/\{author_photo_url\}/g, config.author.photo_url)
+  .replace(/\{author_photo_url\}/g, config.author.photo_url || '')
   .replace(/\{author_name\}/g, config.author.name)
   .replace(/\{display_name\}/g, config.display_name);
 

@@ -27,8 +27,8 @@ export const cityConfigSchema = z.looseObject({
     name: z.string(),
     email: z.string(),
     url: z.string(),
-    twitter: z.string(),
-    photo_url: z.string(),
+    twitter: z.string().optional(),
+    photo_url: z.string().optional(),
   }),
   plausible_domain: z.string().optional(),
   site_title_html: z.string().optional(),
@@ -70,8 +70,8 @@ export interface CityConfig {
     name: string;
     email: string;
     url: string;
-    twitter: string;
-    photo_url: string;
+    twitter?: string;
+    photo_url?: string;
   };
   plausible_domain: string;
   site_title_html: string;
