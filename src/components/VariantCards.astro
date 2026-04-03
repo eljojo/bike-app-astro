@@ -53,7 +53,7 @@ const multiVariant = variants.length > 1;
             </div>
           )}
           <div class="variant-card-actions">
-            <a href={multiVariant ? paths.routeVariantMap(slug, vKey, locale) : paths.routeMap(slug, locale)} class="action-button --primary">
+            <a href={paths.route(slug, locale)} class="action-button --primary">
               &#x1F5FA;&#xFE0F; {t('route.view_map', locale, { name: multiVariant ? v.name : localeName })}
             </a>
             <span class="variant-card-external">

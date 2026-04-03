@@ -72,7 +72,6 @@ export function buildSitemapEntries({ routes, guides, events, bikePaths, communi
   const published = routes.filter(r => r.data.status === 'published');
   for (const r of published) {
     entries.push(...localizedEntryPerLocale(l => paths.route(routeSlug(r, l)), 0.8, r.data.updated_at));
-    entries.push(...localizedEntryPerLocale(l => paths.routeMap(routeSlug(r, l)), 0.2, r.data.updated_at));
   }
 
   const pubGuides = guides.filter(g => g.data.status === 'published');

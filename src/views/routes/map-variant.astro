@@ -1,73 +1,31 @@
 ---
-import Base from '@/layouts/Base.astro';
-import MapPage from '@/components/MapPage.astro';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
-import { elevationConclusion } from '@/lib/geo/elevation';
-import { findNearbyPlaces } from '@/lib/geo/proximity';
-import { toMapPlaces } from '@/lib/geo/places';
-import { loadRouteData } from '@/lib/route-data';
-import { getCityConfig } from '@/lib/config/city-config';
 import { paths, routeSlug } from '@/lib/paths';
-import { t } from '@/i18n';
-import { supportedLocales } from '@/lib/i18n/locale-utils';
+import { loadRouteData } from '@/lib/route-data';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
-
-const config = getCityConfig();
-const locale = Astro.currentLocale;
 
 export const prerender = true;
 export async function getStaticPaths() {
-  const { routes, allElevations, placeData } = await loadRouteData();
+  const { routes } = await loadRouteData();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
   const results: { params: { slug: string; variant: string }; props: Record<string, unknown> }[] = [];
 
   for (const route of filtered) {
     for (const v of route.data.variants) {
       const variantKey = variantKeyFromGpx(v.gpx);
-      const track = route.data.gpxTracks[v.gpx];
-      if (!track) continue;
+      if (!route.data.gpxTracks[v.gpx]) continue;
 
       results.push({
         params: { slug: route.id, variant: variantKey },
-        props: { route, variant: v, track, allElevations, placeData },
+        props: { route },
       });
     }
   }
   return results;
 }
 
-const { route, variant, track, allElevations, placeData } = Astro.props;
-const { name } = route.data;
-const elevation = track?.elevation_gain_m;
-const conclusion = elevation ? elevationConclusion(elevation, allElevations) : null;
-
-const nearby = findNearbyPlaces(track.points, placeData);
-const mapPlaces = toMapPlaces(nearby, locale);
-
-const photos = route.data.media
-  .filter((m: any) => m.type === 'photo' && m.lat != null && m.lng != null)
-  .map((m: any, i: number) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
-
-const variantKey = variantKeyFromGpx(variant.gpx);
-const alternateUrls: Record<string, string> = {};
-for (const loc of supportedLocales()) {
-  alternateUrls[loc] = paths.routeVariantMap(routeSlug(route, loc), variantKey, loc);
-}
+const { route } = Astro.props;
+const locale = Astro.currentLocale;
+const slug = routeSlug(route, locale);
+return Astro.redirect(paths.route(slug, locale), 301);
 ---
-
-<Base title={`${t('map.title', locale, { name: `${name} — ${variant.name}` })} | ${config.display_name}`} alternateUrls={alternateUrls}>
-  <MapPage
-    routeSlug={route.id}
-    routeLocaleSlug={routeSlug(route, locale)}
-    routeName={name}
-    variant={variant}
-    polyline={track.polyline}
-    variantLabel={variant.name}
-    elevationGain={elevation}
-    elevationConclusion={conclusion}
-    places={mapPlaces}
-    photos={photos}
-    trackPoints={track.points}
-    trackDistanceM={track.distance_m}
-  />
-</Base>

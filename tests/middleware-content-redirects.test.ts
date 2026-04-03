@@ -92,13 +92,13 @@ describe('content redirects', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('redirects /map sub-path to target /map', async () => {
+  it('redirects /map sub-path to route detail (route map pages are deprecated)', async () => {
     const context = makeContext('/rides/riding-around-the-greenbelt/map');
     const next = vi.fn();
     const res = await onRequest(context as any, next) as Response;
 
     expect(res.status).toBe(301);
-    expect(res.headers.get('Location')).toBe('/routes/greenbelt/map');
+    expect(res.headers.get('Location')).toBe('/routes/greenbelt');
     expect(next).not.toHaveBeenCalled();
   });
 
