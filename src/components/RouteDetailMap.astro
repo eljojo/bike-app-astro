@@ -1,0 +1,211 @@
+---
+import './RouteDetailMap.scss';
+
+interface Props {
+  polylines: { name: string; encoded: string; key?: string }[];
+  places?: { name: string; emoji: string; lat: number; lng: number; description?: string; link?: string; google_maps_url?: string }[];
+  photos?: { key: string; lat: number; lng: number; caption?: string; width?: number; height?: number; index: number }[];
+  initialVariant?: string;
+  locale?: string;
+}
+
+import RouteMap from './RouteMap.astro';
+import { t } from '@/i18n';
+
+const { polylines, places = [], photos = [], initialVariant, locale } = Astro.props;
+const hintText = t('paths.tap_to_explore', locale);
+const closeLabel = t('paths.close_map', locale);
+---
+
+<div class="route-detail-map-wrapper">
+  <div class="route-detail-map-overlay" id="route-detail-map-overlay"></div>
+  <div
+    class="route-detail-map-card"
+    id="route-detail-map"
+    role="button"
+    tabindex="0"
+    aria-expanded="false"
+  >
+    <div class="route-detail-map-gl" id="route-detail-map-gl">
+      <RouteMap polylines={polylines} places={places} photos={photos} />
+    </div>
+    <div id="route-detail-map-controls"></div>
+    <button class="route-detail-map-close" id="route-detail-map-close" aria-label={closeLabel}>✕</button>
+    <div class="route-detail-map-expand-hint">{hintText}</div>
+  </div>
+</div>
+
+<script>
+  const container = document.getElementById('route-detail-map');
+  const glEl = document.getElementById('route-detail-map-gl');
+  const overlay = document.getElementById('route-detail-map-overlay');
+  const closeBtn = document.getElementById('route-detail-map-close');
+
+  if (container && glEl) {
+    // RouteMap's script initialises the map on #route-map inside our gl wrapper.
+    // We need to wait for it, then wire up expand/collapse.
+    const mapEl = glEl.querySelector('#route-map') as HTMLElement | null;
+    if (!mapEl) throw new Error('RouteDetailMap: #route-map not found inside wrapper');
+
+    // The map instance is created by RouteMap's own <script>.
+    // We poll briefly for the maplibregl map instance attached to the element.
+    function getMapInstance(): any {
+      // maplibre-gl attaches the map to the container element
+      const canvas = mapEl!.querySelector('.maplibregl-canvas-container');
+      if (!canvas) return null;
+      // Access via the internal reference — maplibre stores it on the container
+      return (mapEl as any)._map ?? null;
+    }
+
+    function waitForMap(): Promise<any> {
+      return new Promise((resolve) => {
+        const m = getMapInstance();
+        if (m) { resolve(m); return; }
+        // MutationObserver to detect when maplibre initialises
+        const observer = new MutationObserver(() => {
+          const m = getMapInstance();
+          if (m) { observer.disconnect(); resolve(m); }
+        });
+        observer.observe(mapEl!, { childList: true, subtree: true });
+        // Safety timeout
+        setTimeout(() => { observer.disconnect(); resolve(getMapInstance()); }, 5000);
+      });
+    }
+
+    waitForMap().then((map) => {
+      if (!map) return;
+
+      // Disable interaction in compact card mode
+      map.scrollZoom.disable();
+      map.dragPan.disable();
+      map.doubleClickZoom.disable();
+      map.touchZoomRotate.disable();
+
+      let expanded = false;
+      let savedRect: DOMRect | null = null;
+      const TRANSITION_MS = 350;
+
+      function getBounds() {
+        // Get bounds from the map's source data
+        const source = map.getSource('route-lines');
+        if (!source) return null;
+        try {
+          const data = (source as any)._data;
+          if (!data?.features?.length) return null;
+          const maplibregl = (window as any).maplibregl;
+          if (!maplibregl) return null;
+          const bounds = new maplibregl.LngLatBounds();
+          for (const feature of data.features) {
+            if (feature.geometry?.type === 'LineString') {
+              for (const coord of feature.geometry.coordinates) {
+                bounds.extend(coord as [number, number]);
+              }
+            }
+          }
+          return bounds.isEmpty() ? null : bounds;
+        } catch {
+          return null;
+        }
+      }
+
+      function expand() {
+        if (expanded) return;
+        expanded = true;
+        glEl!.classList.add('fading');
+        savedRect = container!.getBoundingClientRect();
+        container!.style.position = 'fixed';
+        container!.style.top = `${savedRect.top}px`;
+        container!.style.left = `${savedRect.left}px`;
+        container!.style.width = `${savedRect.width}px`;
+        container!.style.height = `${savedRect.height}px`;
+        container!.style.zIndex = '1000';
+        overlay!.classList.add('visible');
+        closeBtn!.style.display = 'flex';
+        container!.setAttribute('aria-expanded', 'true');
+        const isMobile = window.matchMedia('(max-width: 800px)').matches;
+        requestAnimationFrame(() => {
+          container!.classList.add('expanded');
+          if (isMobile) {
+            container!.style.top = '0';
+            container!.style.left = '0';
+            container!.style.width = '100vw';
+            container!.style.height = '100vh';
+            container!.style.borderRadius = '0';
+          } else {
+            container!.style.top = '20px';
+            container!.style.left = '20px';
+            container!.style.width = 'calc(100vw - 40px)';
+            container!.style.height = 'calc(100vh - 40px)';
+            container!.style.borderRadius = '16px';
+          }
+        });
+        map.scrollZoom.enable();
+        map.dragPan.enable();
+        map.doubleClickZoom.enable();
+        map.touchZoomRotate.enable();
+        setTimeout(() => {
+          map.resize();
+          const b = getBounds();
+          if (b) map.fitBounds(b, { padding: 60, animate: false });
+          requestAnimationFrame(() => glEl!.classList.remove('fading'));
+        }, TRANSITION_MS);
+      }
+
+      function collapse() {
+        if (!expanded) return;
+        expanded = false;
+        glEl!.classList.add('fading');
+        container!.classList.remove('expanded');
+        container!.setAttribute('aria-expanded', 'false');
+        overlay!.classList.remove('visible');
+        closeBtn!.style.display = 'none';
+        if (savedRect) {
+          container!.style.top = `${savedRect.top}px`;
+          container!.style.left = `${savedRect.left}px`;
+          container!.style.width = `${savedRect.width}px`;
+          container!.style.height = `${savedRect.height}px`;
+          const isMobile = window.matchMedia('(max-width: 800px)').matches;
+          container!.style.borderRadius = isMobile ? '8px' : '12px';
+        }
+        map.scrollZoom.disable();
+        map.dragPan.disable();
+        map.doubleClickZoom.disable();
+        map.touchZoomRotate.disable();
+        setTimeout(() => {
+          container!.style.position = '';
+          container!.style.top = '';
+          container!.style.left = '';
+          container!.style.width = '';
+          container!.style.height = '';
+          container!.style.zIndex = '';
+          container!.style.borderRadius = '';
+          map.resize();
+          const b = getBounds();
+          if (b) map.fitBounds(b, { padding: 20, animate: false });
+          requestAnimationFrame(() => glEl!.classList.remove('fading'));
+        }, TRANSITION_MS);
+      }
+
+      // Suppress expand when interacting with popups
+      container!.addEventListener('click', (e) => {
+        if (expanded) return;
+        const target = e.target as HTMLElement;
+        if (target.closest('.maplibregl-popup')) return;
+        if (container!.querySelector('.maplibregl-popup')) return;
+        expand();
+      });
+      container!.addEventListener('keydown', (e) => {
+        if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
+      });
+      closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
+      overlay!.addEventListener('click', collapse);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
+
+      // Listen for variant:change events (future — swap visible polyline)
+      document.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
+        // Future: filter visible polylines by variant key
+        void e;
+      }) as EventListener);
+    });
+  }
+</script>
