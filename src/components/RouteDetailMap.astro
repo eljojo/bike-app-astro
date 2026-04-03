@@ -120,6 +120,8 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
         // Layers off
         if (photoLayer) photoLayer.setVisible!(map, false);
         if (placeLayer) placeLayer.setVisible!(map, false);
+        // Controls hidden
+        closeBtn!.style.display = 'none';
       } else {
         // Interactions on
         map.scrollZoom.enable();
@@ -130,6 +132,8 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
         ensureExpandedLayers();
         if (photoLayer) photoLayer.setVisible!(map, true);
         if (placeLayer) placeLayer.setVisible!(map, true);
+        // Close button visible
+        closeBtn!.style.display = 'flex';
       }
     }
 
