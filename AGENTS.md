@@ -106,6 +106,7 @@ This repo uses a two-tier context system. The rules and mindset above are always
 
 ### Patterns
 - [save-pipeline](_ctx/save-pipeline.md) — SaveHandlers factory, conflict detection, D1 cache overlay
+- [domain-model](_ctx/domain-model.md) — the cycling domain: entities, relationships, why truthful modelling matters
 - [content-model](_ctx/content-model.md) — model schemas as source of truth, content type registry
 - [virtual-modules](_ctx/virtual-modules.md) — build-data-plugin, ambient types, how to add new ones
 - [instance-types](_ctx/instance-types.md) — wiki/blog/club, feature flags vs identity checks
@@ -115,6 +116,7 @@ This repo uses a two-tier context system. The rules and mindset above are always
 - [i18n](_ctx/i18n.md) — three layers (UI strings, URL paths, content sidecars)
 - [config-layers](_ctx/config-layers.md) — build-time vs runtime config, city config, AppEnv
 - [blog-instance](_ctx/blog-instance.md) — blog city is always blog/, CITY=blog, consumer repo, sync.js
+- [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
 
 ### Guides
 - [admin-design-language](_ctx/admin-design-language.md) — utilitarian minimalism (Linear/Notion), function over form
