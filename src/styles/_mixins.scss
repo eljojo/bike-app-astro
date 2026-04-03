@@ -112,3 +112,46 @@
     outline-color: rgba(255, 255, 255, 0.06);
   }
 }
+
+@mixin prose-link {
+  color: $color-link;
+  text-decoration: underline;
+  text-decoration-color: rgba($color-link, 0.4);
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+
+  &:hover {
+    text-decoration-color: rgba($color-link, 0.8);
+    text-decoration-thickness: 2px;
+  }
+
+  @include dark-mode {
+    color: $color-link-dark;
+    text-decoration-color: rgba($color-link-dark, 0.4);
+
+    &:hover {
+      text-decoration-color: rgba($color-link-dark, 0.8);
+    }
+  }
+}
+
+@mixin sidebar-link {
+  color: $color-link;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+}
+
+@mixin action-link {
+  color: $color-link;
+  font-weight: 600;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode {
+    color: $color-link-dark;
+  }
+}

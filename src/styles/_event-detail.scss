@@ -12,8 +12,6 @@
   }
 
   p { line-height: 1.5; }
-  a { color: inherit; text-decoration: underline; }
-
   .event-similar-card,
   .edition-card {
     text-decoration: none;
@@ -196,6 +194,8 @@
 .event-detail-body {
   font-size: 1.05em;
   margin-top: 0.75rem;
+
+  a { @include prose-link; }
 }
 
 // Past event state

@@ -60,6 +60,7 @@ a.action-button {
   border-radius: 5px;
   padding: 5px;
   line-height: 26px;
+  color: $color-text;
 
   &.--logo {
     display: inline-flex;
@@ -83,6 +84,8 @@ a.action-button {
     }
   }
   @include dark-mode {
+    color: $color-text-dark;
+
     &:hover, &.--primary {
       background-color: #333;
     }
@@ -101,18 +104,17 @@ button.action-button {
 a.go-back-button {
   text-decoration: none;
   padding: 5px 0;
+  color: $color-text;
 
   @media (prefers-color-scheme: light) {
     border-top: 1px solid black;
   }
   @include dark-mode {
+    color: $color-text-dark;
     border-top: 1px solid white;
   }
 }
 
-@media (prefers-color-scheme: light) {
-  a, a:visited { color: black; }
-}
 
 @include dark-mode {
   body {
@@ -120,7 +122,6 @@ a.go-back-button {
     background-attachment: fixed;
     color: $color-text-dark;
   }
-  a, a:visited { color: white; }
   .site-header img { filter: invert(1); }
   .tag-pill { background: gray; color: white; }
   .action-button {
@@ -595,7 +596,7 @@ body.fullbleed {
     color: $color-text-muted-dark;
   }
   .place-popup-links a {
-    color: $color-accent;
+    color: $color-link-dark;
   }
   .photo-popup-caption {
     color: $color-text-muted-dark;
@@ -607,7 +608,7 @@ body.fullbleed {
     color: $color-text-muted-dark;
   }
   .waypoint-popup-links a {
-    color: $color-accent;
+    color: $color-link-dark;
   }
 }
 
@@ -728,6 +729,14 @@ body.fullbleed {
   display: block;
   font-size: 1.4em;
   font-weight: 600;
+  color: $color-text;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
 }
 .guide--tagline {
   display: block;
@@ -743,7 +752,7 @@ body.fullbleed {
   line-height: 1.7;
   h2, h3 { margin-top: 1.5em; }
   p { margin: 0.8em 0; }
-  a { color: inherit; text-decoration: underline; }
+  a { @include prose-link; }
   ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
 }
 
@@ -825,7 +834,7 @@ body.fullbleed {
   padding: 0;
 }
 .route-description {
-  a { color: inherit; text-decoration: underline; }
+  a { @include prose-link; }
 }
 
 // Admin edit link (hidden unless logged in)
@@ -838,7 +847,12 @@ body.fullbleed {
   margin-left: 0.5em;
   opacity: 0.4;
   text-decoration: none;
+  color: $color-text;
   &:hover { opacity: 0.8; }
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
 }
 .admin-visible .admin-edit-link {
   display: inline;

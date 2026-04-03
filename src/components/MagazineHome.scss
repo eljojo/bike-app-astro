@@ -107,18 +107,8 @@
 }
 
 .featured-route-readmore {
-  color: $color-link;
+  @include action-link;
   font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-
-  @include dark-mode {
-    color: $color-link-dark;
-  }
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 // Video
@@ -218,20 +208,10 @@
 
 // View-all links (shared style)
 .magazine-view-all {
+  @include action-link;
   display: inline-block;
   margin-top: 0.5rem;
-  color: $color-link;
   font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-
-  @include dark-mode {
-    color: $color-link-dark;
-  }
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 // Sidebar
