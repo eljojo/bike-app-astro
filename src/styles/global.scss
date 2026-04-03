@@ -839,12 +839,12 @@ body.fullbleed {
 // assign explicit order so map + facts float to the top.
 @media (max-width: $breakpoint-tablet) {
   .route-detail-map-wrapper { order: 1; }
-  .route-facts-table { order: 2; }
-  .route-description { order: 3; }
-  .route-videos { order: 4; }
-  .nearby-places { order: 5; }
-  .route-downloads { order: 6; }
-  .route-elevation { order: 7; }
+  .route-elevation { order: 2; }
+  .route-facts-table { order: 3; }
+  .route-description { order: 4; }
+  .route-videos { order: 5; }
+  .nearby-places { order: 6; }
+  .route-downloads { order: 7; }
   .route-reactions-zone { order: 9; }
   .edit-entry-point { order: 10; }
   .route-place-summary { order: 11; }

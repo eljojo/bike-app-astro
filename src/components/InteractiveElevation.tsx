@@ -25,10 +25,10 @@ interface Props {
 
 const SVG_W = 800;
 const SVG_H = 200;
-const PAD_L = 50;
+const PAD_L = 70;
 const PAD_R = 10;
 const PAD_T = 10;
-const PAD_B = 25;
+const PAD_B = 35;
 const PLOT_W = SVG_W - PAD_L - PAD_R;
 const PLOT_H = SVG_H - PAD_T - PAD_B;
 
@@ -82,16 +82,16 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
     + ` L${(PAD_L + PLOT_W).toFixed(1)},${PAD_T + PLOT_H}`
     + ` L${PAD_L},${PAD_T + PLOT_H} Z`;
 
-  // Y-axis ticks
-  const yStep = niceStep(eleRange, 4);
+  // Y-axis ticks — fewer ticks (2-3) for readability in small containers
+  const yStep = niceStep(eleRange, 2);
   const yStart = Math.ceil(minEle / yStep) * yStep;
   const yTicks: { v: number; y: number }[] = [];
   for (let v = yStart; v <= maxEle; v += yStep) {
     yTicks.push({ v, y: PAD_T + PLOT_H - ((v - minEle) / eleRange) * PLOT_H });
   }
 
-  // X-axis ticks
-  const xStep = niceStep(maxKm, 5);
+  // X-axis ticks — fewer ticks (3-4) for readability
+  const xStep = niceStep(maxKm, 3);
   const xTicks: { v: number; x: number }[] = [];
   for (let v = 0; v <= maxKm; v += xStep) {
     xTicks.push({ v, x: PAD_L + (v / maxKm) * PLOT_W });
@@ -185,17 +185,17 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
 
             {/* Y-axis labels */}
             {yTicks.map(t => (
-              <text key={t.v} x={PAD_L - 5} y={t.y + 4} text-anchor="end"
-                    font-size="11" fill="#666">{Math.round(t.v)}m</text>
+              <text key={t.v} x={PAD_L - 6} y={t.y + 5} text-anchor="end"
+                    font-size="20" fill="#888">{Math.round(t.v)}m</text>
             ))}
 
             {/* X-axis labels */}
             {xTicks.map(t => (
-              <text key={t.v} x={t.x} y={plotBottom + 16} text-anchor="middle"
-                    font-size="11" fill="#666">{t.v}</text>
+              <text key={t.v} x={t.x} y={plotBottom + 20} text-anchor="middle"
+                    font-size="20" fill="#888">{t.v}</text>
             ))}
-            <text x={PAD_L + PLOT_W} y={plotBottom + 16} text-anchor="middle"
-                  font-size="11" fill="#666">km</text>
+            <text x={PAD_L + PLOT_W} y={plotBottom + 20} text-anchor="middle"
+                  font-size="20" fill="#888">km</text>
 
             {/* Hover crosshair */}
             {hoverPoint && (
