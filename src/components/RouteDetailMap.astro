@@ -116,8 +116,9 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       onModeChange(mode) {
         if (mode === 'expanded') {
           ensureExpandedLayers();
-          if (photoLayer) photoLayer.setVisible!(map, true);
-          if (placeLayer) placeLayer.setVisible!(map, true);
+          // Honour stored user preference; default photos off, places on
+          if (photoLayer) photoLayer.setVisible!(map, loadToggleState('map-photos', false));
+          if (placeLayer) placeLayer.setVisible!(map, loadToggleState('map-places', true));
         } else {
           if (photoLayer) photoLayer.setVisible!(map, false);
           if (placeLayer) placeLayer.setVisible!(map, false);
