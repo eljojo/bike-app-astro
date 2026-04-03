@@ -85,11 +85,13 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
     function ensureExpandedLayers() {
       if (!photoLayer && photos.length > 0) {
-        photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: true });
+        const showPhotos = loadToggleState('map-photos', false);
+        photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: showPhotos });
         photoLayer.setup({ map, isCurrent: () => true });
       }
       if (!placeLayer && placeData.length > 0) {
-        placeLayer = createPlaceLayer({ places: placeData, defaultVisible: true });
+        const showPlaces = loadToggleState('map-places', true);
+        placeLayer = createPlaceLayer({ places: placeData, defaultVisible: showPlaces });
         placeLayer.setup({ map, isCurrent: () => true });
       }
     }
@@ -115,11 +117,10 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     createExpandableMap(map, { card, overlay, closeBtn }, {
       onModeChange(mode) {
         if (mode === 'expanded') {
+          // Lazy-create layers with stored user preferences baked in
           ensureExpandedLayers();
-          // Honour stored user preference; default photos off, places on
-          if (photoLayer) photoLayer.setVisible!(map, loadToggleState('map-photos', false));
-          if (placeLayer) placeLayer.setVisible!(map, loadToggleState('map-places', true));
         } else {
+          // Compact: force everything off
           if (photoLayer) photoLayer.setVisible!(map, false);
           if (placeLayer) placeLayer.setVisible!(map, false);
         }

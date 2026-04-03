@@ -87,8 +87,11 @@ export function createExpandableMap(
     setMode('expanded');
     setTimeout(() => {
       map.resize();
-      const bounds = callbacks.getBounds();
-      if (bounds) map.fitBounds(bounds, { padding: 60, animate: false });
+      // Wait for resize to take effect, then fit bounds
+      requestAnimationFrame(() => {
+        const bounds = callbacks.getBounds();
+        if (bounds) map.fitBounds(bounds, { padding: 60, animate: false });
+      });
     }, TRANSITION_MS);
   }
 
