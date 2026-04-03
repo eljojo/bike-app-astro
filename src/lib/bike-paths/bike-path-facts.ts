@@ -49,6 +49,7 @@ export interface PathFact {
 /** Input metadata for buildPathFacts. Mirrors the relevant fields from BikePathPage. */
 interface PathMeta {
   surface?: string;
+  smoothness?: string;
   width?: string;
   highway?: string;
   segregated?: string;
@@ -67,14 +68,18 @@ interface PathMeta {
 export function buildPathFacts(meta: PathMeta): PathFact[] {
   const facts: PathFact[] = [];
 
-  // Surface + width combined
-  const surfaceCategory = meta.surface ? (SURFACE_CATEGORIES[meta.surface] || meta.surface) : undefined;
-  if (surfaceCategory && meta.width) {
-    facts.push({ key: 'surface_width', value: `${surfaceCategory}:${meta.width}` });
-  } else if (surfaceCategory) {
-    facts.push({ key: 'surface', value: surfaceCategory });
+  // Surface — show actual value (e.g. 'fine_gravel'), not category
+  if (meta.surface && meta.width) {
+    facts.push({ key: 'surface_width', value: `${meta.surface}:${meta.width}` });
+  } else if (meta.surface) {
+    facts.push({ key: 'surface', value: meta.surface });
   } else if (meta.width) {
     facts.push({ key: 'width', value: meta.width });
+  }
+
+  // Smoothness
+  if (meta.smoothness) {
+    facts.push({ key: `smoothness_${meta.smoothness}` });
   }
 
   // Separated from cars (cycleway = dedicated infrastructure)

@@ -111,7 +111,7 @@ describe('buildPathFacts', () => {
 
   it('emits surface_width when both surface and width present', () => {
     const facts = buildPathFacts({ surface: 'asphalt', width: '3' });
-    expect(facts).toContainEqual({ key: 'surface_width', value: 'paved:3' });
+    expect(facts).toContainEqual({ key: 'surface_width', value: 'asphalt:3' });
   });
 
   it('emits surface alone when no width', () => {
@@ -127,6 +127,22 @@ describe('buildPathFacts', () => {
   it('uses raw surface value for unknown surfaces', () => {
     const facts = buildPathFacts({ surface: 'cobblestone' });
     expect(facts).toContainEqual({ key: 'surface', value: 'cobblestone' });
+  });
+
+  it('emits smoothness fact for known values', () => {
+    const facts = buildPathFacts({ smoothness: 'good' });
+    expect(facts).toContainEqual({ key: 'smoothness_good' });
+  });
+
+  it('emits smoothness fact for rough values', () => {
+    const facts = buildPathFacts({ smoothness: 'very_bad' });
+    expect(facts).toContainEqual({ key: 'smoothness_very_bad' });
+  });
+
+  it('does not emit smoothness when undefined', () => {
+    const facts = buildPathFacts({ surface: 'asphalt' });
+    const keys = facts.map(f => f.key);
+    expect(keys.some(k => k.startsWith('smoothness_'))).toBe(false);
   });
 
   it('emits separated_cars for cycleway', () => {
@@ -197,6 +213,7 @@ describe('buildPathFacts', () => {
   it('builds full fact list for a rich path', () => {
     const facts = buildPathFacts({
       surface: 'asphalt',
+      smoothness: 'good',
       width: '3',
       highway: 'cycleway',
       segregated: 'yes',
@@ -208,6 +225,7 @@ describe('buildPathFacts', () => {
     const keys = facts.map(f => f.key);
     expect(keys).toEqual([
       'surface_width',
+      'smoothness_good',
       'separated_cars',
       'separated_peds',
       'lit',
