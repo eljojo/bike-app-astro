@@ -215,9 +215,6 @@ const variantElevationData = variants.map(v => {
       </ul>
     )}
 
-    {/* QUALIFY: Variant selector (above columns) */}
-    <VariantSelector client:idle variants={variantOptions} />
-
     {/* TWO COLUMNS: main + sidebar */}
     <div class="route-detail-layout">
       <div class="route-detail-main">
@@ -270,6 +267,9 @@ const variantElevationData = variants.map(v => {
       </div>
 
       <aside class="route-detail-sidebar">
+        {/* QUALIFY: Variant selector (in sidebar, above map) */}
+        <VariantSelector client:idle variants={variantOptions} />
+
         {/* Interactive MapLibre map */}
         {mapPolylines.length > 0 && (
           <RouteDetailMap polylines={mapPolylines} places={mapPlaces} photos={mapPhotos} locale={locale} />

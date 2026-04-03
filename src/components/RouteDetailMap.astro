@@ -41,6 +41,7 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 <script>
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createElevationSyncLayer } from '../lib/maps/layers';
   import { buildPlacePopup } from '../lib/maps/map-helpers';
+  import { buildPolylineFeature } from '../lib/maps/map-init';
   import { loadToggleState } from './admin/MapControls';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
@@ -66,19 +67,23 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       center = [mid[0], mid[1]];
     }
 
-    const polylineData = polylines.map(pl => ({
+    // Build polyline data for all variants
+    const allPolylineData = polylines.map(pl => ({
       encoded: pl.encoded,
       popup: pl.name,
     }));
+
+    // Start with only the first variant visible
+    const initialPolylineData = allPolylineData.length > 0 ? [allPolylineData[0]] : [];
 
     const placeData = places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    const polylineLayer = createPolylineLayer({ polylines: polylineData });
-    const photoLayer = createPhotoLayer({ photos, cdnUrl });
-    const placeLayer = createPlaceLayer({ places: placeData });
+    const polylineLayer = createPolylineLayer({ polylines: initialPolylineData });
+    const photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: false });
+    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
 
     const session = createMapSession({ el: glEl, center, zoom: 12 })
       .use(polylineLayer)
@@ -182,6 +187,21 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
     overlay!.addEventListener('click', collapse);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
+
+    // Variant switching — swap visible polyline
+    window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
+      const key = e.detail.key;
+      const idx = polylines.findIndex(p => p.key === key);
+      if (idx >= 0) {
+        const selected = allPolylineData[idx];
+        // Rebuild the GeoJSON source with only the selected variant
+        const feature = buildPolylineFeature(selected.encoded, selected.popup);
+        polylineLayer.updateData([feature]);
+        // Re-fit bounds
+        const bounds = polylineLayer.getBounds?.();
+        if (bounds && !expanded) map.fitBounds(bounds, { padding: 20, animate: true });
+      }
+    }) as EventListener);
 
     // Start the map session
     session.start(() => {
