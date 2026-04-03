@@ -1,23 +1,29 @@
 ---
 import Base from '@/layouts/Base.astro';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
 import { routeJsonLd, touristAttractionJsonLd, breadcrumbJsonLd } from '@/lib/json-ld';
 import { formatDistance } from '@/lib/geo/distance';
 import MediaGallery from '@/components/MediaGallery.astro';
 import NearbyPlaces from '@/components/NearbyPlaces.astro';
-import VariantCards from '@/components/VariantCards.astro';
+import RouteFactsTable from '@/components/RouteFactsTable.astro';
+import RouteDetailMap from '@/components/RouteDetailMap.astro';
+import RouteDownloads from '@/components/RouteDownloads.astro';
+import VariantSelector from '@/components/VariantSelector';
+import InteractiveElevation from '@/components/InteractiveElevation.tsx';
+import { computeElevationPoints } from '@/lib/geo/elevation-profile';
+import { deriveSurface, deriveBeginnerFriendly } from '@/lib/route-facts';
+import { toMapPlaces } from '@/lib/geo/places';
 import { elevationConclusion } from '@/lib/geo/elevation';
-import { routeShape, placeCounts } from '@/lib/route-insights';
+import { routeShape } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
-import { t, tCategory, localePath } from '@/i18n';
+import { t, localePath } from '@/i18n';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
-import { paths, assets, routeSlug } from '@/lib/paths';
+import { paths, routeSlug } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
@@ -78,19 +84,12 @@ for (const loc of supportedLocales()) {
 const cover = media.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
 const ogImageAlt = cover?.caption || t('route.photo_from', locale, { name: localeName });
-const hasMap = hasCachedMap(route.id, undefined, locale);
-const mapLang = cachedMapLocale(route.id, undefined, locale);
 
 const primaryGpx = variants[0]?.gpx;
 const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
-const manyVariants = variants.length > 1;
 
 const variantDistances = variants.map(v => v.distance_km).filter((d): d is number => d != null);
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
-
-const conclusion = primaryTrack?.elevation_gain_m
-  ? elevationConclusion(primaryTrack.elevation_gain_m, allElevations)
-  : null;
 
 const variantScores = routeDifficultyScores.get(route.id) || [];
 const primaryScore = variantScores[0] ?? null;
@@ -99,38 +98,9 @@ const maxScore = variantScores.length > 0 ? Math.max(...variantScores) : null;
 const hasRange = minScore !== null && maxScore !== null && Math.abs(maxScore - minScore) > 3;
 const shape = primaryTrack ? routeShape(primaryTrack.points, primaryTrack.distance_m) : null;
 
-// Per-variant elevation conclusions and shapes for VariantCards
-const variantElevationConclusions: Record<string, string> = {};
-const variantShapes: Record<string, string> = {};
-for (const v of variants) {
-  const track = gpxTracks[v.gpx];
-  if (!track) continue;
-  const vKey = variantKeyFromGpx(v.gpx);
-  if (track.elevation_gain_m) {
-    const c = elevationConclusion(track.elevation_gain_m, allElevations);
-    if (c) variantElevationConclusions[vKey] = c;
-  }
-  const s = routeShape(track.points, track.distance_m);
-  if (s) variantShapes[vKey] = s;
-}
-
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
-const nearbyCategories = placeCounts(nearbyPlaces);
 
 const nearbyBikePaths = routeToPaths[route.id] ?? [];
-
-// Build place description — highlight the top few interesting categories, not all of them
-function buildPlaceDesc(categories: { category: string; count: number }[]): string | null {
-  if (categories.length === 0) return null;
-  // Show up to 4 categories to keep it readable
-  const shown = categories.slice(0, 4);
-  const parts = shown.map(p => `${p.count} ${tCategory(p.category, p.count, locale)}`);
-  const extra = categories.length - shown.length;
-  let desc = t('places.summary_prefix', locale) + ' ' + parts.join(', ');
-  if (extra > 0) desc += ` ${t('places.and_more', locale, { count: String(extra) })}`;
-  return desc;
-}
-const placeDesc = buildPlaceDesc(nearbyCategories);
 
 const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 
@@ -172,66 +142,85 @@ const jsonLd = [
     startLng: startPoint?.[1],
   }),
 ];
+
+// Build variant options for the selector
+const variantOptions = variants.map((v, i) => {
+  const track = gpxTracks[v.gpx];
+  const vKey = variantKeyFromGpx(v.gpx);
+  const dist = v.distance_km || (track ? track.distance_m / 1000 : distance_km);
+  const score = variantScores[i] ?? null;
+  const diffLabel = score !== null ? t('difficulty.' + difficultyLabel(score, allScores), locale) : '';
+  return {
+    key: vKey,
+    name: v.name,
+    summary: `${formatDistance([dist])}${diffLabel ? ` · ${diffLabel}` : ''}`,
+  };
+});
+
+// Build polylines for map (all variants)
+const mapPolylines = variants.map(v => {
+  const track = gpxTracks[v.gpx];
+  return track ? { name: v.name, encoded: track.polyline, key: variantKeyFromGpx(v.gpx) } : null;
+}).filter((p): p is NonNullable<typeof p> => p !== null);
+
+// Build map photos and places
+const mapPhotos = media
+  .filter(m => m.type !== 'video' && m.lat != null && m.lng != null)
+  .map((m, i) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
+
+const mapPlaces = toMapPlaces(nearbyPlaces, locale);
+
+// Per-variant facts data
+const surf = deriveSurface(tags);
+const beginner = deriveBeginnerFriendly(tags);
+const variantFacts = variants.map((v, i) => {
+  const track = gpxTracks[v.gpx];
+  const vKey = variantKeyFromGpx(v.gpx);
+  const dist = v.distance_km || (track ? track.distance_m / 1000 : distance_km);
+  const elGain = track?.elevation_gain_m ?? null;
+  const elConc = elGain ? elevationConclusion(elGain, allElevations) : null;
+  const vShape = track ? routeShape(track.points, track.distance_m) : shape;
+  const score = variantScores[i] ?? null;
+  const diffText = score !== null ? t('difficulty.' + difficultyLabel(score, allScores), locale) : null;
+  return { vKey, dist, elGain, elConc, vShape, diffText, surf, beginner };
+});
+
+// Per-variant elevation data
+const variantElevationData = variants.map(v => {
+  const track = gpxTracks[v.gpx];
+  const vKey = variantKeyFromGpx(v.gpx);
+  if (!track || !track.points.length) return null;
+  return {
+    key: vKey,
+    points: computeElevationPoints(track.points, track.distance_m),
+    gain: track.elevation_gain_m,
+    distanceM: track.distance_m,
+  };
+}).filter((ed): ed is NonNullable<typeof ed> => ed !== null);
 ---
 
 <Base title={seoTitle} description={localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`} ogImage={coverUrl} ogImageAlt={ogImageAlt} ogType="article" jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
   <div class="route-detail">
-    {cover && (
-      <div class="route-detail--hero">
-        <img
-          src={imageUrl(cover.key, { width: 1170 })}
-          srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
-          alt={cover.caption || localeName}
-          class="gallery-cover-photo"
-        />
-      </div>
+    {/* HOOK: Title + tagline + tags */}
+    <h1>
+      {localeName}
+      <a href={`/admin/routes/${route.id}`} class="admin-edit-link" aria-label="Edit this route">Edit</a>
+    </h1>
+    {localeTagline && <p class="route-detail-tagline">{localeTagline}</p>}
+
+    {displayTags.length > 0 && (
+      <ul class="route--tags">
+        {displayTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
+      </ul>
     )}
 
-    <div class="route-detail--content">
-      <div class="route-detail--body">
-        {/* Zone 1: Header */}
-        <h1>
-          {localeName}
-          <a href={`/admin/routes/${route.id}`} class="admin-edit-link" aria-label="Edit this route">Edit</a>
-        </h1>
-        {localeTagline && <h2>{localeTagline}</h2>}
+    {/* QUALIFY: Variant selector (above columns) */}
+    <VariantSelector client:idle variants={variantOptions} />
 
-        {displayTags.length > 0 && (
-          <ul class="route--tags">
-            {displayTags.map(tag => <li class="tag-pill">{tTag(tag, locale)}</li>)}
-          </ul>
-        )}
-
-        {/* Zone 2: Stats Strip */}
-        <div class="route-stats">
-          <div class="route-stats--item">
-            <span class="route-stats--label">{t('route.distance', locale)}</span>
-            <span class="route-stats--value">{distanceTag}</span>
-          </div>
-          {shape && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('route.shape', locale)}</span>
-              <span class="route-stats--value">{t('shape.' + shape, locale)}</span>
-            </div>
-          )}
-          {primaryTrack?.elevation_gain_m != null && !manyVariants && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">
-                <a href={`${paths.routeMap(slug, locale)}#elevation-profile`}>{t('route.elevation_gain', locale)}</a>
-              </span>
-              <span class="route-stats--value">{primaryTrack.elevation_gain_m} {t('route.meters', locale)}</span>
-              {conclusion && <span class="route-stats--detail">{t('elevation.' + conclusion, locale)}</span>}
-            </div>
-          )}
-          {difficultyText && (
-            <div class="route-stats--item">
-              <span class="route-stats--label">{t('route.difficulty', locale)}</span>
-              <span class="route-stats--value">{difficultyText}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Zone 3: Description */}
+    {/* TWO COLUMNS: main + sidebar */}
+    <div class="route-detail-layout">
+      <div class="route-detail-main">
+        {/* Description (shared across variants) */}
         <div class="route-description" set:html={localeBody} />
 
         {youtubeIds.length > 0 && (
@@ -244,19 +233,27 @@ const jsonLd = [
 
         <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
-        {/* Zone 4: Route Variants & External Links */}
-        <div class="route-variants">
-          <VariantCards
-            variants={variants}
-            slug={slug}
-            localeName={localeName}
-            locale={locale}
-            elevationConclusions={variantElevationConclusions}
-            shapes={variantShapes}
-          />
-        </div>
+        {/* Downloads (one per variant, data-variant for show/hide) */}
+        {variants.map(v => {
+          const vKey = variantKeyFromGpx(v.gpx);
+          return (
+            <RouteDownloads
+              routeSlug={slug}
+              variant={v}
+              locale={locale}
+              variantKey={vKey}
+            />
+          );
+        })}
 
-        {/* Zone 5: Reactions */}
+        {/* Elevation profile (one per variant, data-variant for show/hide) */}
+        {variantElevationData.map(ed => (
+          <div data-variant={ed.key}>
+            <InteractiveElevation client:visible points={ed.points} />
+          </div>
+        ))}
+
+        {/* Reactions */}
         {getInstanceFeatures().allowsReactions && (
           <div class="route-reactions-zone">
             <ReactionsWidget client:idle contentType="route" contentSlug={route.id}
@@ -271,23 +268,49 @@ const jsonLd = [
         )}
       </div>
 
-      <div class="route-detail--static-map">
-        {hasMap && (
-          <a href={paths.routeMap(slug, locale)} title={t('route.view_map', locale, { name: localeName })}>
-            <img
-              src={assets.mapThumbnail(route.id, 750, mapLang)}
-              srcset={assets.mapThumbnailSrcsetLarge(route.id, mapLang)}
-              alt={t('route.map_of', locale, { name: localeName })}
-            />
-          </a>
+      <aside class="route-detail-sidebar">
+        {/* Interactive MapLibre map */}
+        {mapPolylines.length > 0 && (
+          <RouteDetailMap polylines={mapPolylines} places={mapPlaces} photos={mapPhotos} locale={locale} />
         )}
+
+        {/* Facts table (one per variant, data-variant for show/hide) */}
+        {variantFacts.map(vf => (
+          <RouteFactsTable
+            distance_km={vf.dist}
+            shape={vf.vShape}
+            elevationGain={vf.elGain}
+            elevationConclusion={vf.elConc}
+            difficulty={vf.diffText}
+            surface={vf.surf}
+            beginnerFriendly={vf.beginner}
+            locale={locale}
+            variantId={vf.vKey}
+          />
+        ))}
+
+        {/* Places along the way */}
         {nearbyPlaces.length > 0 && (
-          <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} />
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} headingKey="route.places_along" />
         )}
-        {placeDesc && <p class="route-place-summary">&#x1F5FA;&#xFE0F; {t('route.this_route', locale)} {placeDesc}</p>}
+
+        {/* Bike paths on route */}
         <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
-      </div>
+      </aside>
     </div>
+
+    {/* Full width below columns */}
+
+    {/* Hero photo (hidden on desktop, shows on mobile) */}
+    {cover && (
+      <div class="route-detail-hero">
+        <img
+          src={imageUrl(cover.key, { width: 1170 })}
+          srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
+          alt={cover.caption || localeName}
+        />
+      </div>
+    )}
 
     <MediaGallery media={media} name={localeName} />
     {(() => {
