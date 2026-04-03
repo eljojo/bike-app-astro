@@ -35,7 +35,7 @@ import { getContentTypes } from './lib/content/content-types.server';
 import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
 import { computeBikePathRelations, enrichBikePathPages } from './lib/bike-paths/bike-path-relations.server';
-import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from './lib/geo/geojson-sampling';
+import { loadAllGeoData } from './lib/geo/geojson-reader.server';
 import { supportedLocales, defaultLocale as getDefaultLocale } from './lib/i18n/locale-utils';
 import { translatePath } from './lib/i18n/path-translations';
 
@@ -61,36 +61,7 @@ function loadParkedMedia(): ParkedMedia[] {
   return (yaml.load(raw) as ParkedMedia[]) || [];
 }
 
-function loadPlacePhotoKeys(): Array<{ slug: string; photo_key?: string }> {
-  const placesDir = path.join(CITY_DIR, 'places');
-  if (!fs.existsSync(placesDir)) return [];
-  return fs.readdirSync(placesDir)
-    .filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))
-    .map(f => {
-      const content = fs.readFileSync(path.join(placesDir, f), 'utf-8');
-      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!fmMatch) return { slug: f.replace('.md', '') };
-      const fm = yaml.load(fmMatch[1]) as Record<string, unknown>;
-      return { slug: f.replace('.md', ''), photo_key: fm.photo_key as string | undefined };
-    });
-}
-
-function loadEventPosterKeys(): Array<{ slug: string; poster_key?: string }> {
-  const eventsDir = path.join(CITY_DIR, 'events');
-  if (!fs.existsSync(eventsDir)) return [];
-  const results: Array<{ slug: string; poster_key?: string }> = [];
-  for (const yearDir of fs.readdirSync(eventsDir).filter(d => /^\d{4}$/.test(d))) {
-    const yearPath = path.join(eventsDir, yearDir);
-    for (const f of fs.readdirSync(yearPath).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
-      const content = fs.readFileSync(path.join(yearPath, f), 'utf-8');
-      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!fmMatch) continue;
-      const fm = yaml.load(fmMatch[1]) as Record<string, unknown>;
-      results.push({ slug: `${yearDir}/${f.replace('.md', '')}`, poster_key: fm.poster_key as string | undefined });
-    }
-  }
-  return results;
-}
+// loadPlacePhotoKeys and loadEventPosterKeys removed — data now extracted from admin data promises.
 
 function loadCityConfig() {
   return yaml.load(fs.readFileSync(path.join(CITY_DIR, 'config.yml'), 'utf-8'));
@@ -135,66 +106,8 @@ function loadGeoFiles(consumerRoot: string): string[] {
   return fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
 }
 
-/**
- * Load GeoJSON geometry files and extract sampled coordinates.
- * Files are keyed by their identifier:
- * - {relationId}.geojson → keyed by relation ID
- * - name-{slug}.geojson → keyed by "name-{slug}"
- * - seg-{slug}.geojson → keyed by "seg-{slug}"
- */
-function loadGeoCoordinates(consumerRoot: string): Record<string, Array<{ lat: number; lng: number }>> {
-  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
-  if (!fs.existsSync(geoDir)) return {};
-  const result: Record<string, Array<{ lat: number; lng: number }>> = {};
-
-  for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
-    const relId = file.replace(/\.geojson$/, '');
-    try {
-      const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
-      const points = sampleGeoJsonPoints(geojson, SAMPLE_INTERVAL);
-      if (points.length > 0) result[relId] = points;
-    } catch {
-      // Malformed file — skip
-    }
-  }
-  return result;
-}
-
-/**
- * Load elevation stats per relation ID from enriched GeoJSON files.
- * Returns elevation gain in meters (sum of positive deltas).
- */
-function loadGeoElevation(consumerRoot: string): Record<string, { gain_m: number; loss_m: number }> {
-  const geoDir = path.join(consumerRoot, 'public', 'bike-paths', 'geo');
-  if (!fs.existsSync(geoDir)) return {};
-  const result: Record<string, { gain_m: number; loss_m: number }> = {};
-
-  for (const file of fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))) {
-    const relId = file.replace(/\.geojson$/, '');
-    try {
-      const geojson = JSON.parse(fs.readFileSync(path.join(geoDir, file), 'utf-8'));
-      let gain = 0;
-      let loss = 0;
-      for (const feature of geojson.features ?? []) {
-        const geomType = feature.geometry?.type;
-        const lineArrays: number[][][] =
-          geomType === 'LineString' ? [feature.geometry.coordinates] :
-          geomType === 'MultiLineString' ? feature.geometry.coordinates :
-          [];
-        for (const coords of lineArrays) {
-          for (let i = 1; i < coords.length; i++) {
-            if (coords[i].length < 3 || coords[i - 1].length < 3) continue;
-            const delta = coords[i][2] - coords[i - 1][2];
-            if (delta > 0) gain += delta;
-            else loss -= delta;
-          }
-        }
-      }
-      if (gain > 0 || loss > 0) result[relId] = { gain_m: Math.round(gain), loss_m: Math.round(loss) };
-    } catch { /* skip */ }
-  }
-  return result;
-}
+// GeoJSON coordinate and elevation data is now loaded via loadAllGeoData() from geojson-reader.server.ts.
+// This replaces the former loadGeoCoordinates() and loadGeoElevation() functions with a single-pass reader.
 
 function loadFontPreloads() {
   const content = fs.readFileSync(path.join(PROJECT_ROOT, 'src/styles/_webfonts.scss'), 'utf-8');
@@ -317,16 +230,18 @@ function loadBikePathPhotoKeys(): Array<{ slug: string; photo_key?: string }> {
 
 function buildMediaSharedKeysModule(
   routeDetails: Record<string, { media: Array<{ key: string }> }>,
+  parkedMedia: ParkedMedia[],
+  adminPlaces: Array<{ id: string; photo_key?: string }>,
+  adminEvents: Array<{ id: string; slug: string; poster_key?: string }>,
 ): string {
   const routeData: Record<string, { media: Array<{ key: string }> }> = {};
   for (const [slug, detail] of Object.entries(routeDetails)) {
     routeData[slug] = { media: detail.media || [] };
   }
-  const parked = loadParkedMedia();
-  const places = loadPlacePhotoKeys();
-  const events = loadEventPosterKeys();
+  const places = adminPlaces.map(p => ({ slug: p.id, photo_key: p.photo_key }));
+  const events = adminEvents.map(e => ({ slug: e.id, poster_key: e.poster_key }));
   const bikePaths = loadBikePathPhotoKeys();
-  const map = buildSharedKeysMap(routeData, places, events, parked, bikePaths);
+  const map = buildSharedKeysMap(routeData, places, events, parkedMedia, bikePaths);
   return `export default ${serializeSharedKeys(map)};`;
 }
 
@@ -337,25 +252,23 @@ function loadRedirectsYaml(): Record<string, unknown> {
     : {};
 }
 
-function buildRideRedirectsModule(): string {
-  const data = loadRedirectsYaml();
-  const rideEntries = (data.rides as Array<{ from: string; to: string }>) || [];
+function buildRideRedirectsModule(redirectsData: Record<string, unknown>): string {
+  const rideEntries = (redirectsData.rides as Array<{ from: string; to: string }>) || [];
 
   const map = buildRideRedirectMap(rideEntries);
   return `export default ${JSON.stringify(map)};`;
 }
 
-function buildRouteRedirectsModule(): string {
-  const data = loadRedirectsYaml();
-  const routeEntries = (data.routes as Array<{ from: string; to: string }>) || [];
+function buildRouteRedirectsModule(redirectsData: Record<string, unknown>): string {
+  const routeEntries = (redirectsData.routes as Array<{ from: string; to: string }>) || [];
 
   const map: Record<string, string> = {};
   for (const r of routeEntries) map[r.from] = r.to;
   return `export default ${JSON.stringify(map)};`;
 }
 
-function buildContentRedirectsModule(): string {
-  const data = loadRedirectsYaml();
+function buildContentRedirectsModule(redirectsData: Record<string, unknown>): string {
+  const data = redirectsData;
   const map: Record<string, string> = {};
 
   const sections: Record<string, string> = {
@@ -417,24 +330,17 @@ function buildContentRedirectsModule(): string {
   return `export default ${JSON.stringify(map)};`;
 }
 
-function buildVideoRouteMapModule(): string {
-  const routesDir = path.join(CITY_DIR, 'routes');
+function buildVideoRouteMapModule(
+  routeDetails: Record<string, { media: Array<{ type?: string; handle?: string }> }>,
+): string {
   const map: Record<string, string> = {};
-
-  if (fs.existsSync(routesDir)) {
-    for (const slug of fs.readdirSync(routesDir)) {
-      const mediaPath = path.join(routesDir, slug, 'media.yml');
-      if (!fs.existsSync(mediaPath)) continue;
-      const media = yaml.load(fs.readFileSync(mediaPath, 'utf-8'));
-      if (!Array.isArray(media)) continue;
-      for (const item of media) {
-        if (item.type === 'video' && item.handle) {
-          map[item.handle] = slug;
-        }
+  for (const [slug, detail] of Object.entries(routeDetails)) {
+    for (const item of detail.media || []) {
+      if (item.type === 'video' && item.handle) {
+        map[item.handle] = slug;
       }
     }
   }
-
   return `export default ${JSON.stringify(map)};`;
 }
 
@@ -446,12 +352,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const CONSUMER_ROOT = options?.consumerRoot || PROJECT_ROOT;
   const cityConfig = loadCityConfig();
   const tagTranslations = loadTagTranslations();
+  // Read parked-media.yml and redirects.yml once at plugin init (shared across virtual module loaders)
+  const parkedMedia = loadParkedMedia();
+  const redirectsData = loadRedirectsYaml();
   // Tier 1: canonical merge of bikepaths.yml + markdown entries + geometry
   const bikePathBase = loadBikePathEntries();
   const bikePaths = bikePathBase.allYmlEntries;
   const geoFiles = loadGeoFiles(CONSUMER_ROOT);
-  const geoCoordinates = loadGeoCoordinates(CONSUMER_ROOT);
-  const geoElevation = loadGeoElevation(CONSUMER_ROOT);
+  const geoDir = path.join(CONSUMER_ROOT, 'public', 'bike-paths', 'geo');
+  const { coordinates: geoCoordinates, elevation: geoElevation } = loadAllGeoData(geoDir);
   const routeTracks = loadRouteTrackPoints();
   // Load places for nearby-places computation
   const placesDir = path.join(CITY_DIR, 'places');
@@ -556,26 +465,26 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       `export default ${JSON.stringify(contributors)};`,
 
     'parked-media': async () =>
-      `export default ${JSON.stringify(loadParkedMedia())};`,
+      `export default ${JSON.stringify(parkedMedia)};`,
 
     'media-locations': async () => {
       const details = await getRouteDetails();
-      const parked = loadParkedMedia();
-      return `export default ${JSON.stringify(buildMediaLocations(details, parked))};`;
+      return `export default ${JSON.stringify(buildMediaLocations(details, parkedMedia))};`;
     },
 
     'nearby-media': async () => {
       if (isBlog) return `export default ${JSON.stringify({})};`;
       const details = await getRouteDetails();
-      const parked = loadParkedMedia();
-      const locations = buildMediaLocations(details, parked);
+      const locations = buildMediaLocations(details, parkedMedia);
       const tracks = routeTracks;
       return `export default ${JSON.stringify(buildNearbyMediaMap(locations, tracks))};`;
     },
 
     'media-shared-keys': async () => {
       const details = await getRouteDetails();
-      return buildMediaSharedKeysModule(details);
+      const placeData = await adminPlaceDataPromise;
+      const eventData = await adminEventDataPromise;
+      return buildMediaSharedKeysModule(details, parkedMedia, placeData.places, eventData.events);
     },
 
     'tours': async () => {
@@ -596,10 +505,13 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       return `export default ${JSON.stringify(stats)};`;
     },
 
-    'ride-redirects': async () => buildRideRedirectsModule(),
-    'route-redirects': async () => buildRouteRedirectsModule(),
-    'content-redirects': async () => buildContentRedirectsModule(),
-    'video-route-map': async () => buildVideoRouteMapModule(),
+    'ride-redirects': async () => buildRideRedirectsModule(redirectsData),
+    'route-redirects': async () => buildRouteRedirectsModule(redirectsData),
+    'content-redirects': async () => buildContentRedirectsModule(redirectsData),
+    'video-route-map': async () => {
+      const details = await getRouteDetails();
+      return buildVideoRouteMapModule(details);
+    },
 
     'homepage-facts': async () =>
       `export default ${JSON.stringify(homepageFacts)};`,

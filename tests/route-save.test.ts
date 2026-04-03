@@ -7,7 +7,8 @@ vi.mock('../src/lib/env/env.service', () => ({ env: { GITHUB_TOKEN: 'test', GIT_
 import yaml from 'js-yaml';
 import type { CurrentFiles } from '../src/lib/content/content-save';
 
-const { routeHandlers } = await import('../src/views/api/route-save');
+const { createRouteHandlers } = await import('../src/views/api/route-save');
+const routeHandlers = createRouteHandlers();
 
 function makeCurrentFiles(mediaEntries?: Record<string, unknown>[]): CurrentFiles {
   const files: CurrentFiles = {

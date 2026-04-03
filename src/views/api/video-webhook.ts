@@ -3,17 +3,24 @@ export const prerender = false;
 
 import type { APIContext } from 'astro';
 import { eq } from 'drizzle-orm';
+import { timingSafeEqual } from 'node:crypto';
 import { env } from '../../lib/env/env.service';
 import { db } from '../../lib/get-db';
 import { videoJobs } from '../../db/schema';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { persistVideoMetadataToGit } from '../../lib/media/video-completion.webhook';
 
+/** Timing-safe string comparison to prevent timing attacks on webhook secrets. */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export async function POST({ request }: APIContext) {
   // Auth: bearer token, NOT session-based (Lambda calls this)
   const authHeader = request.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token || token !== env.WEBHOOK_SECRET) {
+  if (!token || !env.WEBHOOK_SECRET || !safeEqual(token, env.WEBHOOK_SECRET)) {
     return jsonError('Unauthorized', 401);
   }
 

@@ -13,11 +13,10 @@ import type { SessionUser } from '../auth/auth';
 import { authorize, can } from '../auth/authorize';
 import { buildAuthorEmail } from '../git/commit-author';
 import { upsertContentCache } from './cache';
+import type { GitFiles } from '../models/content-model';
 
-export interface CurrentFiles {
-  primaryFile: { content: string; sha: string } | null;
-  auxiliaryFiles?: Record<string, { content: string; sha: string } | null>;
-}
+/** @deprecated Use GitFiles from content-model.ts instead */
+export type CurrentFiles = GitFiles;
 
 export interface BuildResult {
   files: FileChange[];
@@ -203,7 +202,7 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
 ): Promise<Response | null> {
   if (!currentFiles.primaryFile) return null;
 
-  const cached = await database.select().from(contentEdits)
+  const cached = await database.select({ githubSha: contentEdits.githubSha }).from(contentEdits)
     .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
     .get();
 

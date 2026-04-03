@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { baseMediaItemSchema, type GitFiles } from './content-model';
+import { baseMediaItemSchema } from './content-model';
 
 export const rideMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),
@@ -14,12 +14,14 @@ export const rideVariantSchema = z.object({
   rwgps_url: z.string().optional(),
 });
 
+export const RIDE_STATUSES = ['published', 'draft'] as const;
+
 export const rideDetailSchema = z.object({
   slug: z.string(),
   name: z.string(),
   tagline: z.string().default(''),
   tags: z.array(z.string()).default([]),
-  status: z.string().default('published'),
+  status: z.enum(RIDE_STATUSES).default('published'),
   body: z.string().default(''),
   media: z.array(rideMediaItemSchema).default([]),
   variants: z.array(rideVariantSchema).default([]),
@@ -37,11 +39,6 @@ export const rideDetailSchema = z.object({
 
 export type RideDetail = z.infer<typeof rideDetailSchema>;
 export type RideMediaItem = z.infer<typeof rideMediaItemSchema>;
-
-export interface RideGitFiles extends GitFiles {
-  primaryFile: { content: string; sha: string } | null;
-  auxiliaryFiles?: Record<string, { content: string; sha: string } | null>;
-}
 
 /** Serialize RideDetail to JSON string for D1 cache. */
 export function rideDetailToCache(detail: RideDetail): string {

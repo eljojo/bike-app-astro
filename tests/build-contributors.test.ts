@@ -57,7 +57,7 @@ describe('resolveContributors', () => {
     const result = resolveContributors(authorMap, usersData);
     expect(result).toHaveLength(1);
     expect(result[0].username).toBe('alice');
-    expect(result[0].gravatarHash).toBeTruthy();
+    expect(result[0].gravatarHash).toMatch(/^[a-f0-9]{32}$/);
     expect(result[0]).not.toHaveProperty('email');
   });
 

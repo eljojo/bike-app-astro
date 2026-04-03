@@ -5,7 +5,8 @@ import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import { db } from '../../lib/get-db';
 import { emailTokens, users } from '../../db/schema';
 import { createSessionWithCookies } from '../../lib/auth/auth';
-import { eq, and, gt, isNull } from 'drizzle-orm';
+import { eq, and, gt, isNull, sql } from 'drizzle-orm';
+import { withBatch } from '../../db/transaction';
 
 const token = Astro.url.searchParams.get('token');
 let error = '';
@@ -30,31 +31,18 @@ if (token) {
   const tokenRow = result[0];
 
   if (tokenRow && tokenRow.userId) {
-    // Mark token as used
-    await database
-      .update(emailTokens)
-      .set({ usedAt: now })
-      .where(eq(emailTokens.id, tokenRow.id));
-
-    // Set emailVerified = true
-    await database
-      .update(users)
-      .set({ emailVerified: 1 })
-      .where(eq(users.id, tokenRow.userId));
-
-    // If user is a guest, upgrade to editor
-    const user = await database
-      .select({ role: users.role })
-      .from(users)
-      .where(eq(users.id, tokenRow.userId))
-      .limit(1);
-
-    if (user[0]?.role === 'guest') {
-      await database
-        .update(users)
-        .set({ role: 'editor' })
-        .where(eq(users.id, tokenRow.userId));
-    }
+    // Atomically: mark token as used + set emailVerified and upgrade guest to editor
+    await withBatch(database, (tx) => [
+      tx.update(emailTokens)
+        .set({ usedAt: now })
+        .where(eq(emailTokens.id, tokenRow.id)),
+      tx.update(users)
+        .set({
+          emailVerified: 1,
+          role: sql`CASE WHEN ${users.role} = 'guest' THEN 'editor' ELSE ${users.role} END`,
+        })
+        .where(eq(users.id, tokenRow.userId)),
+    ]);
 
     // Create session
     await createSessionWithCookies(database, tokenRow.userId, Astro.cookies);

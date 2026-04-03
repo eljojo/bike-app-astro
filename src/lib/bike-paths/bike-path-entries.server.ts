@@ -11,9 +11,8 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml.server';
-import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from '../geo/geojson-sampling';
+import { readGeoFileData } from '../geo/geojson-reader.server';
 import { scoreBikePath, isHardExcluded, isDestination, SCORE_THRESHOLD } from './bike-path-scoring.server';
-import { haversineM } from '../geo/proximity';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
 
@@ -130,35 +129,14 @@ export function normalizeOperator(operator: string | undefined): string | undefi
   return operator;
 }
 
-/** Read sampled points from a GeoJSON file. */
+/** Read sampled points from a GeoJSON file (delegates to single-pass reader). */
 function readGeoPoints(filePath: string): Array<{ lat: number; lng: number }> {
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    return sampleGeoJsonPoints(geojson, SAMPLE_INTERVAL);
-  } catch { return []; }
+  return readGeoFileData(filePath).points;
 }
 
-/** Compute total length (km) of all LineString/MultiLineString features in a GeoJSON file. */
+/** Compute total length (km) of all LineString/MultiLineString features in a GeoJSON file (delegates to single-pass reader). */
 function readGeoLengthKm(filePath: string): number {
-  if (!fs.existsSync(filePath)) return 0;
-  try {
-    const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    let totalM = 0;
-    for (const feature of geojson.features ?? []) {
-      const geomType = feature.geometry?.type;
-      const lineArrays: number[][][] =
-        geomType === 'LineString' ? [feature.geometry.coordinates] :
-        geomType === 'MultiLineString' ? feature.geometry.coordinates :
-        [];
-      for (const coords of lineArrays) {
-        for (let i = 1; i < coords.length; i++) {
-          totalM += haversineM(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
-        }
-      }
-    }
-    return totalM / 1000;
-  } catch { return 0; }
+  return readGeoFileData(filePath).lengthKm;
 }
 
 /** Compute total length (km) for a path from all its GeoJSON files. */
@@ -340,6 +318,9 @@ function readBikePathTranslations(
   return translations;
 }
 
+/** Memoized result — set on first call, returned on subsequent calls. */
+let cachedBikePathEntries: { pages: BikePathPage[]; allYmlEntries: SluggedBikePathYml[]; geoFiles: string[] } | null = null;
+
 /**
  * Load and merge bike path data from YML + markdown + geometry — synchronously.
  *
@@ -347,12 +328,15 @@ function readBikePathTranslations(
  * directly from the filesystem (no Astro getCollection). Tier 2 relation fields
  * (overlappingRoutes, nearbyPhotos, etc.) default to empty — they are populated
  * later by the build-data-plugin enrichment step.
+ *
+ * Results are memoized at module level — the merge is only computed once per process.
  */
 export function loadBikePathEntries(): {
   pages: BikePathPage[];
   allYmlEntries: SluggedBikePathYml[];
   geoFiles: string[];
 } {
+  if (cachedBikePathEntries) return cachedBikePathEntries;
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
   const parsed = fs.existsSync(ymlPath)
@@ -601,5 +585,6 @@ export function loadBikePathEntries(): {
     ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
     : [];
 
-  return { pages, allYmlEntries, geoFiles };
+  cachedBikePathEntries = { pages, allYmlEntries, geoFiles };
+  return cachedBikePathEntries;
 }

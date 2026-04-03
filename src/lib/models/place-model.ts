@@ -2,6 +2,8 @@ import { z } from 'zod/v4';
 import { type GitFiles } from './content-model';
 import { goodForEnum, socialLinkSchema } from '../../schemas/index';
 
+export const PLACE_STATUSES = ['published'] as const;
+
 export const placeDetailSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -9,7 +11,7 @@ export const placeDetailSchema = z.object({
   category: z.string(),
   lat: z.number(),
   lng: z.number(),
-  status: z.string().default('published'),
+  status: z.enum(PLACE_STATUSES).default('published'),
   vibe: z.string().optional(),
   good_for: z.array(goodForEnum).default([]),
   address: z.string().optional(),

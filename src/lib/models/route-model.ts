@@ -6,7 +6,7 @@ export const adminMediaItemSchema = baseMediaItemSchema.extend({
   captured_at: z.string().optional(),
 });
 
-export const adminVariantSchema = z.object({
+export const variantSchema = z.object({
   name: z.string(),
   gpx: z.string(),
   distance_km: z.number().optional(),
@@ -15,6 +15,8 @@ export const adminVariantSchema = z.object({
   google_maps_url: z.string().optional(),
   komoot_url: z.string().optional(),
 });
+
+export const ROUTE_STATUSES = ['published', 'draft'] as const;
 
 const localeContentSchema = z.object({
   name: z.string().optional(),
@@ -27,17 +29,17 @@ export const routeDetailSchema = z.object({
   name: z.string(),
   tagline: z.string(),
   tags: z.array(z.string()),
-  distance: z.number(),
-  status: z.string(),
+  distance_km: z.number(),
+  status: z.enum(ROUTE_STATUSES).default('draft'),
   body: z.string(),
   media: z.array(adminMediaItemSchema),
-  variants: z.array(adminVariantSchema),
+  variants: z.array(variantSchema),
   translations: z.record(z.string(), localeContentSchema).default({}),
 });
 
 export type RouteDetail = z.infer<typeof routeDetailSchema>;
 export type AdminMediaItem = z.infer<typeof adminMediaItemSchema>;
-export type AdminVariant = z.infer<typeof adminVariantSchema>;
+export type AdminVariant = z.infer<typeof variantSchema>;
 
 export type RouteGitFiles = GitFiles;
 

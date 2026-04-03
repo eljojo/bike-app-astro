@@ -171,21 +171,22 @@ export async function validateSession(db: Database, token: string): Promise<Sess
 
   const row = result[0];
 
-  // Fetch settings separately to avoid LEFT JOIN issues with WAL mode
-  const settings = await db
-    .select({
-      emailInCommits: userSettings.emailInCommits,
-      analyticsOptOut: userSettings.analyticsOptOut,
-    })
-    .from(userSettings)
-    .where(eq(userSettings.userId, row.userId))
-    .limit(1);
-
-  // Count credentials separately (same pattern as settings — avoids LEFT JOIN with WAL mode)
-  const credentialCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(credentials)
-    .where(eq(credentials.userId, row.userId));
+  // Fetch settings and credential count in parallel — they are independent
+  // and avoiding sequential queries saves a round-trip on D1.
+  const [settings, credentialCount] = await Promise.all([
+    db
+      .select({
+        emailInCommits: userSettings.emailInCommits,
+        analyticsOptOut: userSettings.analyticsOptOut,
+      })
+      .from(userSettings)
+      .where(eq(userSettings.userId, row.userId))
+      .limit(1),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(credentials)
+      .where(eq(credentials.userId, row.userId)),
+  ]);
 
   const hasPasskey = (credentialCount[0]?.count ?? 0) > 0;
 

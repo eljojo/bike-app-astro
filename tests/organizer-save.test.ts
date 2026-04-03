@@ -18,7 +18,8 @@ vi.mock('../src/lib/media/media-parking.server', () => ({
 }));
 
 import { CITY } from '../src/lib/config/config';
-import { organizerHandlers, type OrganizerUpdate } from '../src/views/api/organizer-save';
+import { createOrganizerHandlers, type OrganizerUpdate } from '../src/views/api/organizer-save';
+const organizerHandlers = createOrganizerHandlers();
 
 function makeUpdate(overrides: Partial<OrganizerUpdate['frontmatter']> = {}): OrganizerUpdate {
   return {

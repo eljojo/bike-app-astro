@@ -85,7 +85,7 @@ const hasSocialMap = hasCachedMap(route.id, undefined, locale);
 const socialMapUrl = hasSocialMap ? `${config.url}${assets.mapSocial(route.id, mapLang)}` : undefined;
 ---
 
-<Base title={`Map: ${name} | ${config.display_name}`} description={mapDescription} ogImage={socialMapUrl} ogImageAlt={`Map of ${localeName}`} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
+<Base title={`${t('map.title', locale, { name })} | ${config.display_name}`} description={mapDescription} ogImage={socialMapUrl} ogImageAlt={t('route.map_of', locale, { name: localeName })} jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
   {variant && track ? (
     <MapPage
       routeSlug={route.id}
@@ -101,6 +101,6 @@ const socialMapUrl = hasSocialMap ? `${config.url}${assets.mapSocial(route.id, m
       trackDistanceM={track.distance_m}
     />
   ) : (
-    <p>No map available for this route.</p>
+    <p>{t('map.no_map', locale)}</p>
   )}
 </Base>

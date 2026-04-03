@@ -21,9 +21,13 @@ describe('local environment', () => {
     const { createLocalEnv } = await import('../src/lib/env/env.adapter-local');
     const localEnv = createLocalEnv();
     expect(localEnv).toHaveProperty('DB');
-    // DB should be a drizzle instance (has select, insert, etc.)
-    expect(typeof (localEnv.DB as Record<string, unknown>).select).toBe('function');
-    expect(typeof (localEnv.DB as Record<string, unknown>).insert).toBe('function');
+    // DB should be a drizzle instance — verify by calling select().from() chain
+    const db = localEnv.DB as Record<string, Function>;
+    expect(db.select).toBeDefined();
+    expect(db.insert).toBeDefined();
+    // Smoke-test: calling select() returns a query builder with .from()
+    const queryBuilder = db.select();
+    expect(queryBuilder).toHaveProperty('from');
   });
 
   it('creates an env object with BUCKET (local storage)', async () => {
@@ -32,9 +36,10 @@ describe('local environment', () => {
     const { createLocalEnv } = await import('../src/lib/env/env.adapter-local');
     const localEnv = createLocalEnv();
     expect(localEnv).toHaveProperty('BUCKET');
-    expect(typeof localEnv.BUCKET.head).toBe('function');
-    expect(typeof localEnv.BUCKET.put).toBe('function');
-    expect(typeof localEnv.BUCKET.delete).toBe('function');
+    // BUCKET should have the storage adapter interface methods
+    expect(localEnv.BUCKET).toHaveProperty('head');
+    expect(localEnv.BUCKET).toHaveProperty('put');
+    expect(localEnv.BUCKET).toHaveProperty('delete');
   });
 
   it('reads string env vars from process.env', async () => {

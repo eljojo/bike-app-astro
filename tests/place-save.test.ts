@@ -20,7 +20,8 @@ vi.mock('../src/lib/media/media-parking.server', () => ({
 }));
 
 import { CITY } from '../src/lib/config/config';
-import { placeHandlers } from '../src/views/api/place-save';
+import { createPlaceHandlers } from '../src/views/api/place-save';
+const placeHandlers = createPlaceHandlers();
 
 describe('placeHandlers.parseRequest', () => {
   it('validates a valid place update', () => {

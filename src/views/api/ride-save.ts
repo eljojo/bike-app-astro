@@ -20,9 +20,10 @@ import { commitGpxFile } from '../../lib/git/git-gpx';
 
 import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
 
-let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 import { buildMediaKeyChanges, computeMediaKeyDiff, buildCommitTrailer, mergeFrontmatter, loadExistingMedia, enrichAndAnnotateMedia, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
 import { db } from '../../lib/get-db';
+
+type SharedKeysData = Record<string, Array<{ type: string; slug: string }>>;
 
 export const prerender = false;
 
@@ -66,7 +67,7 @@ interface RideBuildResult extends BuildResult {
  * Create ride save handlers. Returns a fresh instance per request
  * to safely capture gpxRelativePath from the parsed request body.
  */
-export function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<RideBuildResult> {
+export function createRideHandlers(sharedKeysData: SharedKeysData = {}): SaveHandlers<RideUpdate, RideBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<RideBuildResult> {
   let gpxRelPath: string | undefined;
 
   return {
@@ -260,8 +261,8 @@ export function createRideHandlers(): SaveHandlers<RideUpdate, RideBuildResult> 
 }
 
 export async function POST({ params, request, locals }: APIContext) {
-  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
-  const handlers = createRideHandlers();
+  const sharedKeysData = await fetchSharedKeysData(new URL(request.url));
+  const handlers = createRideHandlers(sharedKeysData);
   if (params.slug === 'new') {
     return saveContent(request, locals, params, 'rides', handlers);
   }

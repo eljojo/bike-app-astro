@@ -3,7 +3,8 @@ import matter from 'gray-matter';
 import { parseGpx } from '../gpx/parse';
 import { computeHashFromParts } from './content-hash.server';
 import { rideDetailToCache } from './ride-model';
-import type { RideDetail, RideMediaItem, RideGitFiles } from './ride-model';
+import type { RideDetail, RideMediaItem } from './ride-model';
+import { parseMediaItem, type GitFiles } from './content-model';
 
 /** Compute content hash for ride conflict detection. Canonical order: sidecar, gpx, media. */
 export function computeRideContentHash(sidecarContent: string, gpxContent?: string, mediaContent?: string): string {
@@ -11,7 +12,7 @@ export function computeRideContentHash(sidecarContent: string, gpxContent?: stri
 }
 
 /** Compute ride hash directly from git file snapshots used by the save pipeline. */
-export function computeRideContentHashFromFiles(currentFiles: RideGitFiles): string {
+export function computeRideContentHashFromFiles(currentFiles: GitFiles): string {
   if (!currentFiles.primaryFile) {
     throw new Error('Cannot compute ride hash without primary file content');
   }
@@ -28,21 +29,7 @@ function parseMediaYaml(yml: string): RideMediaItem[] {
   if (!yml.trim()) return [];
   const parsed = yaml.load(yml);
   if (!Array.isArray(parsed)) return [];
-  return parsed.map((m: Record<string, unknown>) => {
-    const item: Record<string, unknown> = { key: m.key as string };
-    if (m.type != null) item.type = m.type;
-    if (m.caption != null) item.caption = m.caption;
-    if (m.cover != null) item.cover = m.cover;
-    if (m.width != null) item.width = m.width;
-    if (m.height != null) item.height = m.height;
-    if (m.lat != null) item.lat = m.lat;
-    if (m.lng != null) item.lng = m.lng;
-    if (m.title != null) item.title = m.title;
-    if (m.handle != null) item.handle = m.handle;
-    if (m.duration != null) item.duration = m.duration;
-    if (m.orientation != null) item.orientation = m.orientation;
-    return item as RideMediaItem;
-  });
+  return parsed.map((m: Record<string, unknown>) => parseMediaItem(m) as RideMediaItem);
 }
 
 /**
@@ -96,7 +83,7 @@ export function rideDetailFromGit(
     name: (frontmatter.name as string) || slug,
     tagline: (frontmatter.tagline as string) || '',
     tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
-    status: (frontmatter.status as string) || 'published',
+    status: (frontmatter.status as RideDetail['status']) || 'published',
     body: body.trim(),
     media,
     variants: [{
@@ -118,7 +105,7 @@ export function rideDetailFromGit(
 }
 
 /** Build fresh ride cache JSON directly from git file snapshots used by the save pipeline. */
-export function buildFreshRideData(slug: string, currentFiles: RideGitFiles): string {
+export function buildFreshRideData(slug: string, currentFiles: GitFiles): string {
   if (!currentFiles.primaryFile) {
     throw new Error('Cannot build ride cache data without primary file content');
   }

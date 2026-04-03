@@ -259,8 +259,8 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
     name,
     tagline: '',
     tags: [] as string[],
-    distance: 0,
-    status: 'draft',
+    distance_km: 0,
+    status: 'draft' as const,
     body: '',
     media: [] as MediaItem[],
     variants: [{

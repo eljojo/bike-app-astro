@@ -4,6 +4,7 @@ import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';
 import { eventMediaItemSchema, eventDetailToCache } from './event-model';
 import type { EventDetail, EventGitFiles, EventSeries } from './event-model';
+import { parseMediaItem } from './content-model';
 
 /** Compute content hash for event conflict detection. Hashes primary content + optional media.yml. */
 export function computeEventContentHash(content: string, mediaContent?: string): string {
@@ -44,17 +45,7 @@ function parseMediaYaml(yml: string): z.infer<typeof eventMediaItemSchema>[] {
   if (!yml.trim()) return [];
   const parsed = yaml.load(yml);
   if (!Array.isArray(parsed)) return [];
-  return parsed.map((item: Record<string, unknown>) => {
-    const entry: Record<string, unknown> = { key: item.key as string };
-    if (item.caption != null) entry.caption = item.caption;
-    if (item.cover != null) entry.cover = item.cover;
-    if (item.width != null) entry.width = item.width;
-    if (item.height != null) entry.height = item.height;
-    if (item.lat != null) entry.lat = item.lat;
-    if (item.lng != null) entry.lng = item.lng;
-    if (item.type != null) entry.type = item.type;
-    return entry as z.infer<typeof eventMediaItemSchema>;
-  });
+  return parsed.map((item: Record<string, unknown>) => parseMediaItem(item) as z.infer<typeof eventMediaItemSchema>);
 }
 
 /**
@@ -81,7 +72,7 @@ export function eventDetailFromGit(
     end_date: frontmatter.end_date as string | undefined,
     end_time: frontmatter.end_time as string | undefined,
     time_limit_hours: frontmatter.time_limit_hours as number | undefined,
-    status: frontmatter.status as string | undefined,
+    status: frontmatter.status as EventDetail['status'],
     routes: (frontmatter.routes as string[]) ?? [],
     registration: frontmatter.registration as EventDetail['registration'],
     registration_url: frontmatter.registration_url as string | undefined,

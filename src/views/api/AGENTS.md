@@ -9,6 +9,18 @@ All files here MUST have `export const prerender = false`.
 - **Return new contentHash after save**: The client MUST update its local state with the returned hash. Forgetting this breaks consecutive saves.
 - **Permission stripping**: non-admin users have `status` stripped from updates; non-editors have `newSlug` stripped.
 
+## Factory Pattern for Save Handlers
+
+All save handlers use a factory function (e.g., `createRouteHandlers()`, `createEventHandlers()`) that returns a fresh `SaveHandlers` object per request. Request-scoped state (shared keys data, organizer updates, etc.) is encapsulated as local variables inside the factory closure. This prevents concurrent request cross-contamination on Cloudflare Workers, where module-level variables persist across requests in the same isolate.
+
+The `POST` export calls the factory to get fresh handlers each time:
+```typescript
+export function createRouteHandlers(...): SaveHandlers<RouteUpdate, RouteBuildResult> { ... }
+export const POST = createApiHandler(/* ... */, () => createRouteHandlers(sharedKeysData));
+```
+
+Never store request-scoped data in module-level `let` variables in save handler files.
+
 ## afterCommit Pattern
 
 All save handlers update the media-shared-keys registry via `updateMediaRegistryCache()`. Failures are logged but don't fail the response. Track old vs new media keys and build a changes array.

@@ -4,17 +4,14 @@ import type { APIContext } from 'astro';
 import { z } from 'zod/v4';
 import { serializeMdFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
-import { env } from '../../lib/env/env.service';
 import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { bikePathOps } from '../../lib/content/content-ops.server';
-import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup, mergeFrontmatter } from '../../lib/content/save-helpers.server';
+import { buildSingleMediaKeyChanges, afterCommitMediaCleanup, mergeFrontmatter, buildSimpleCommitMessage, buildGitHubUrl } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
-
-let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 
 export const prerender = false;
 
@@ -60,75 +57,78 @@ interface BikePathBuildResult extends BuildResult {
   mergedParked: ParkedMediaEntry[] | undefined;
 }
 
-export const bikePathHandlers: SaveHandlers<BikePathUpdate, BikePathBuildResult> & WithAfterCommit<BikePathBuildResult> = {
-  parseRequest(body: unknown): BikePathUpdate {
-    return bikePathUpdateSchema.parse(body);
-  },
+/**
+ * Create bike path save handlers. Returns a fresh instance per request
+ * to safely encapsulate sharedKeysData from concurrent request contamination.
+ */
+export function createBikePathHandlers(sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {}): SaveHandlers<BikePathUpdate, BikePathBuildResult> & WithAfterCommit<BikePathBuildResult> {
+  return {
+    parseRequest(body: unknown): BikePathUpdate {
+      return bikePathUpdateSchema.parse(body);
+    },
 
-  resolveContentId(params): string {
-    return params.id!;
-  },
+    resolveContentId(params): string {
+      return params.id!;
+    },
 
-  getFilePaths: bikePathOps.getFilePaths,
-  computeContentHash: bikePathOps.computeContentHash,
-  buildFreshData: bikePathOps.buildFreshData,
+    getFilePaths: bikePathOps.getFilePaths,
+    computeContentHash: bikePathOps.computeContentHash,
+    buildFreshData: bikePathOps.buildFreshData,
 
-  async buildFileChanges(update, bikePathId, currentFiles, git) {
-    const bikePath = bikePathOps.getFilePaths(bikePathId).primary;
-    const isNew = !currentFiles.primaryFile;
-    const files: FileChange[] = [];
+    async buildFileChanges(update, bikePathId, currentFiles, git) {
+      const bikePath = bikePathOps.getFilePaths(bikePathId).primary;
+      const isNew = !currentFiles.primaryFile;
+      const files: FileChange[] = [];
 
-    // Detect photo_key change and park orphaned photo
-    const oldPhotoKey = currentFiles.primaryFile
-      ? extractFrontmatterField(currentFiles.primaryFile.content, 'photo_key')
-      : undefined;
-    const newPhotoKey = update.frontmatter.photo_key;
+      // Detect photo_key change and park orphaned photo
+      const oldPhotoKey = currentFiles.primaryFile
+        ? extractFrontmatterField(currentFiles.primaryFile.content, 'photo_key')
+        : undefined;
+      const newPhotoKey = update.frontmatter.photo_key;
 
-    let mergedParked: ParkedMediaEntry[] | undefined;
-    const parked = await parkOrphanedMedia({
-      oldKey: oldPhotoKey,
-      newKey: newPhotoKey,
-      contentType: 'bike-path',
-      contentId: bikePathId,
-      sharedKeysData,
-      git,
-    });
-    if (parked) {
-      mergedParked = parked.mergedParked;
-      files.push(parked.fileChange);
-    }
+      let mergedParked: ParkedMediaEntry[] | undefined;
+      const parked = await parkOrphanedMedia({
+        oldKey: oldPhotoKey,
+        newKey: newPhotoKey,
+        contentType: 'bike-path',
+        contentId: bikePathId,
+        sharedKeysData,
+        git,
+      });
+      if (parked) {
+        mergedParked = parked.mergedParked;
+        files.push(parked.fileChange);
+      }
 
-    // Merge frontmatter: overlay editor fields on existing frontmatter
-    const mergedFrontmatter = mergeFrontmatter(
-      isNew,
-      currentFiles.primaryFile?.content ?? null,
-      update.frontmatter as Record<string, unknown>,
-    );
+      // Merge frontmatter: overlay editor fields on existing frontmatter
+      const mergedFrontmatter = mergeFrontmatter(
+        isNew,
+        currentFiles.primaryFile?.content ?? null,
+        update.frontmatter as Record<string, unknown>,
+      );
 
-    files.push({ path: bikePath, content: serializeMdFile(mergedFrontmatter, update.body) });
+      files.push({ path: bikePath, content: serializeMdFile(mergedFrontmatter, update.body) });
 
-    return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, bikePathSlug: bikePathId, mergedParked };
-  },
+      return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, bikePathSlug: bikePathId, mergedParked };
+    },
 
-  async afterCommit(result, database) {
-    const { oldPhotoKey, newPhotoKey, bikePathSlug, mergedParked } = result;
-    const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'bike-path', bikePathSlug);
-    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
-  },
+    async afterCommit(result, database) {
+      const { oldPhotoKey, newPhotoKey, bikePathSlug, mergedParked } = result;
+      const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'bike-path', bikePathSlug);
+      await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
+    },
 
-  buildCommitMessage(update, bikePathId, isNew): string {
-    const resourcePath = `${CITY}/bike-paths/${bikePathId}`;
-    const title = update.frontmatter.name || bikePathId;
-    const trailer = buildCommitTrailer(resourcePath);
-    return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
-  },
+    buildCommitMessage(update, bikePathId, isNew): string {
+      return buildSimpleCommitMessage(update.frontmatter.name || bikePathId, `${CITY}/bike-paths/${bikePathId}`, isNew);
+    },
 
-  buildGitHubUrl(bikePathId: string, baseBranch: string): string {
-    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${bikePathOps.getFilePaths(bikePathId).primary}`;
-  },
-};
+    buildGitHubUrl(bikePathId: string, baseBranch: string): string {
+      return buildGitHubUrl(bikePathOps.getFilePaths(bikePathId).primary, baseBranch);
+    },
+  };
+}
 
 export async function POST({ params, request, locals }: APIContext) {
-  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
-  return saveContent(request, locals, params, 'bike-paths', bikePathHandlers);
+  const sharedKeysData = await fetchSharedKeysData(new URL(request.url));
+  return saveContent(request, locals, params, 'bike-paths', createBikePathHandlers(sharedKeysData));
 }

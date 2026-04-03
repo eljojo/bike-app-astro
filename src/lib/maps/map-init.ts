@@ -124,6 +124,17 @@ export function buildPolylineFeature(encoded: string, popup: string, color?: str
 
 // --- Map initialization ---
 
+/**
+ * Resolve relative URLs to absolute — MapLibre's web worker can't resolve
+ * relative paths. Used by initMap() and StaticRouteMap.
+ */
+export function transformRequest(url: string): { url: string } {
+  if (url.startsWith('/')) {
+    return { url: `${location.origin}${url}` };
+  }
+  return { url };
+}
+
 export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.Map {
   return new maplibregl.Map({
     container: el,
@@ -132,13 +143,7 @@ export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.
     zoom,
     fadeDuration: 0,
     attributionControl: {},
-    // Resolve relative URLs to absolute — MapLibre's web worker can't resolve them
-    transformRequest: (url) => {
-      if (url.startsWith('/')) {
-        return { url: `${location.origin}${url}` };
-      }
-      return { url };
-    },
+    transformRequest,
   });
 }
 

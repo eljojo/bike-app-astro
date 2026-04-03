@@ -61,10 +61,10 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
 
   <StatBar slot="stats" items={[
     { label: '', value: route.data.ride_date || '' },
-    { label: 'Distance', value: formatDistance(distance_km, 2) },
-    { label: 'Time', value: timeDisplay },
-    { label: 'Avg. Speed', value: route.data.average_speed_kmh ? formatSpeed(route.data.average_speed_kmh, 2) : '' },
-    { label: 'Elevation', value: elevation != null ? formatElevation(elevation) : '' },
+    { label: t('ride.distance', locale), value: formatDistance(distance_km, 2) },
+    { label: t('ride.time', locale), value: timeDisplay },
+    { label: t('ride.speed', locale), value: route.data.average_speed_kmh ? formatSpeed(route.data.average_speed_kmh, 2) : '' },
+    { label: t('ride.elevation', locale), value: elevation != null ? formatElevation(elevation) : '' },
   ]} />
 
   <Fragment slot="body">
@@ -95,7 +95,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
         <a href={paths.rideMap(route.id, route.data.tour_slug)} title={t('ride.view_map', locale)}>
           <img
             src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
-            alt={`Map of ${name}`}
+            alt={t('route.map_of', locale, { name })}
           />
         </a>
         {nearbyPlaces.length > 0 && (
@@ -131,7 +131,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
                       <img
                         class="tour-ride--map"
                         src={assets.mapThumbnail(tourRide.id, 375)}
-                        alt={`Map of ${tourRide.data.name}`}
+                        alt={t('route.map_of', locale, { name: tourRide.data.name })}
                         loading="lazy"
                         width="80"
                         height="80"

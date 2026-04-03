@@ -10,8 +10,26 @@ type FormState =
   | 'check-email'
   | 'passkey-prompt';
 
+export interface LoginFormLabels {
+  signing_in: string;
+  sign_in_passkey: string;
+  create_account: string;
+  email_placeholder: string;
+  username_label: string;
+  username_placeholder: string;
+  username_hint: string;
+  back_to_sign_in: string;
+  continue: string;
+  send_link_instead: string;
+  check_email_verify: string;
+  check_email_magic_link: string;
+  error_email_required: string;
+  error_invalid_username: string;
+}
+
 interface Props {
   returnTo?: string;
+  labels?: LoginFormLabels;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -21,7 +39,25 @@ async function sha256Hex(input: string): Promise<string> {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export default function LoginForm({ returnTo = '/admin' }: Props) {
+const fallbackLabels: LoginFormLabels = {
+  signing_in: 'Signing in...',
+  sign_in_passkey: 'Sign in with passkey',
+  create_account: 'Create account',
+  email_placeholder: 'you@example.com',
+  username_label: 'Choose a username',
+  username_placeholder: 'your-username',
+  username_hint: 'This will appear on your contributions.',
+  back_to_sign_in: 'Back to sign in',
+  continue: 'Continue',
+  send_link_instead: 'Send a sign-in link instead',
+  check_email_verify: 'Check your email to verify your account and finish setting up.',
+  check_email_magic_link: 'Check your email for a sign-in link. It expires in 15 minutes.',
+  error_email_required: 'Email is required',
+  error_invalid_username: 'Username must be 2-30 characters: letters, numbers, hyphens, underscores',
+};
+
+export default function LoginForm({ returnTo = '/admin', labels }: Props) {
+  const l = labels ?? fallbackLabels;
   const hydratedRef = useHydrated<HTMLDivElement>();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -150,14 +186,14 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError('Email is required');
+      setError(l.error_email_required);
       return;
     }
 
     // If in needs-username state, submit with username
     if (formState === 'needs-username') {
       if (!isValidUsername(username)) {
-        setError('Username must be 2-30 characters: letters, numbers, hyphens, underscores');
+        setError(l.error_invalid_username);
         return;
       }
       setLoading(true);
@@ -175,10 +211,10 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
         }
 
         if (data.flow === 'verify-email') {
-          setCheckEmailMessage('Check your email to verify your account and finish setting up.');
+          setCheckEmailMessage(l.check_email_verify);
           setFormState('check-email');
         } else if (data.flow === 'magic-link') {
-          setCheckEmailMessage('Check your email for a sign-in link. It expires in 15 minutes.');
+          setCheckEmailMessage(l.check_email_magic_link);
           setFormState('check-email');
         }
       } catch (err: unknown) {
@@ -219,12 +255,12 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
           return;
 
         case 'magic-link':
-          setCheckEmailMessage('Check your email for a sign-in link. It expires in 15 minutes.');
+          setCheckEmailMessage(l.check_email_magic_link);
           setFormState('check-email');
           break;
 
         case 'verify-email':
-          setCheckEmailMessage('Check your email to verify your account and finish setting up.');
+          setCheckEmailMessage(l.check_email_verify);
           setFormState('check-email');
           break;
 
@@ -274,7 +310,7 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
               setError('');
             }}
           >
-            Back to sign in
+            {l.back_to_sign_in}
           </button>
         </div>
       </div>
@@ -311,13 +347,13 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
           autoComplete="username webauthn"
           autoFocus
           disabled={loading}
-          placeholder="you@example.com"
+          placeholder={l.email_placeholder}
         />
       </div>
 
       {formState === 'needs-username' && (
         <div class="form-field">
-          <label for="login-username">Choose a username</label>
+          <label for="login-username">{l.username_label}</label>
           <input
             id="login-username"
             type="text"
@@ -326,20 +362,20 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
             required
             autoComplete="off"
             disabled={loading}
-            placeholder="your-username"
+            placeholder={l.username_placeholder}
           />
-          <p class="auth-field-hint">This will appear on your contributions.</p>
+          <p class="auth-field-hint">{l.username_hint}</p>
         </div>
       )}
 
       <button type="submit" class="btn-primary" disabled={loading}>
         {loading
-          ? 'Signing in...'
+          ? l.signing_in
           : formState === 'passkey-prompt'
-            ? 'Sign in with passkey'
+            ? l.sign_in_passkey
             : formState === 'needs-username'
-              ? 'Create account'
-              : 'Continue'
+              ? l.create_account
+              : l.continue
         }
       </button>
 
@@ -366,7 +402,7 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
                 throw new Error(data.error || 'Failed to send sign-in link');
               }
 
-              setCheckEmailMessage('Check your email for a sign-in link. It expires in 15 minutes.');
+              setCheckEmailMessage(l.check_email_magic_link);
               setFormState('check-email');
             } catch (err: unknown) {
               setError(err instanceof Error ? err.message : 'Failed to send sign-in link');
@@ -375,7 +411,7 @@ export default function LoginForm({ returnTo = '/admin' }: Props) {
             }
           }}
         >
-          Send a sign-in link instead
+          {l.send_link_instead}
         </button>
       )}
     </form>

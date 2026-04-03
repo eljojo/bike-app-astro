@@ -17,18 +17,7 @@ import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
 import { localeLabel } from '../../lib/i18n/locale-utils';
-
-const SOCIAL_PLATFORMS = [
-  'instagram', 'facebook', 'strava', 'youtube',
-  'meetup', 'tiktok', 'bluesky', 'threads', 'website',
-  'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
-  'booking', 'telephone', 'email',
-] as const;
-
-interface SocialLink {
-  platform: string;
-  url: string;
-}
+import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
 
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };

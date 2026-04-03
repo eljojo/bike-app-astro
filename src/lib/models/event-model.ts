@@ -11,7 +11,7 @@ const organizerRefSchema = z.object({
   photo_height: z.number().optional(),
 });
 
-const waypointDetailSchema = z.object({
+export const waypointSchema = z.object({
   place: z.string(),
   type: z.enum(['checkpoint', 'danger', 'poi']),
   label: z.string(),
@@ -22,7 +22,7 @@ const waypointDetailSchema = z.object({
   note: z.string().optional(),
 });
 
-const registrationDetailSchema = z.object({
+export const registrationSchema = z.object({
   url: z.string().optional(),
   slots: z.number().optional(),
   price: z.string().optional(),
@@ -30,7 +30,7 @@ const registrationDetailSchema = z.object({
   departure_groups: z.array(z.string()).optional(),
 });
 
-const resultDetailSchema = z.object({
+export const resultSchema = z.object({
   brevet_no: z.number().optional(),
   last_name: z.string(),
   first_name: z.string().optional(),
@@ -43,8 +43,7 @@ export const eventMediaItemSchema = baseMediaItemSchema.extend({
   type: z.string().optional(),
 });
 
-// Mirrors seriesOccurrenceOverrideSchema in src/schemas/index.ts — keep in sync
-const seriesOccurrenceOverrideSchema = z.object({
+export const seriesOccurrenceOverrideSchema = z.object({
   date: z.string(),
   location: z.string().optional(),
   start_time: z.string().optional(),
@@ -54,8 +53,7 @@ const seriesOccurrenceOverrideSchema = z.object({
   rescheduled_from: z.string().optional(),
 });
 
-// Mirrors eventSeriesSchema in src/schemas/index.ts — keep in sync
-const eventSeriesSchema = z.object({
+export const eventSeriesSchema = z.object({
   // Pattern 1: recurrence rule
   recurrence: z.enum(['weekly', 'biweekly']).optional(),
   recurrence_day: z.enum([
@@ -74,6 +72,8 @@ const eventSeriesSchema = z.object({
   { message: 'Series needs either recurrence rule or explicit schedule' },
 );
 
+export const EVENT_STATUSES = ['upcoming', 'open', 'closed', 'past'] as const;
+
 export const eventDetailSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -86,12 +86,12 @@ export const eventDetailSchema = z.object({
   end_date: z.string().optional(),
   end_time: z.string().optional(),
   time_limit_hours: z.number().optional(),
-  status: z.string().optional(),
+  status: z.enum(EVENT_STATUSES).optional(),
   routes: z.array(z.string()).default([]),
-  registration: registrationDetailSchema.optional(),
+  registration: registrationSchema.optional(),
   registration_url: z.string().optional(),
-  waypoints: z.array(waypointDetailSchema).default([]),
-  results: z.array(resultDetailSchema).default([]),
+  waypoints: z.array(waypointSchema).default([]),
+  results: z.array(resultSchema).default([]),
   gpx_include_waypoints: z.boolean().optional(),
   distances: z.string().optional(),
   location: z.string().optional(),
@@ -123,9 +123,9 @@ export type EventDetail = z.infer<typeof eventDetailSchema>;
 export function eventCoverKey(data: { poster_key?: string; media?: Array<{ key: string }> }): string | undefined {
   return data.poster_key || data.media?.[0]?.key;
 }
-export type EventWaypoint = z.infer<typeof waypointDetailSchema>;
-export type EventResult = z.infer<typeof resultDetailSchema>;
-export type EventRegistration = z.infer<typeof registrationDetailSchema>;
+export type EventWaypoint = z.infer<typeof waypointSchema>;
+export type EventResult = z.infer<typeof resultSchema>;
+export type EventRegistration = z.infer<typeof registrationSchema>;
 export type EventOrganizerRef = z.infer<typeof organizerRefSchema>;
 export type SeriesOccurrenceOverride = z.infer<typeof seriesOccurrenceOverrideSchema>;
 export type EventSeries = z.infer<typeof eventSeriesSchema>;

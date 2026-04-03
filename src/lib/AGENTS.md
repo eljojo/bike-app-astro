@@ -18,7 +18,14 @@ Service modules, adapters, and utilities organized into domain directories. This
 | `maps/` | MapLibre initialization, style switching, polyline/marker rendering, map thumbnails, static map URLs, tile proxy helpers |
 | `markdown/` | Markdown-to-HTML rendering with sanitization, preview text extraction |
 | `media/` | Media pipeline: R2/local storage, image dimensions, EXIF extraction, video transcoding, media registry |
+| `models/` | Domain model schemas and types — the single source of truth for shared domain schemas. `src/schemas/index.ts` imports from here |
 | `tile-cache/` | Map tile caching with adapter pattern: KV store (prod) or local filesystem (dev) |
+
+## Model Schemas Are Canonical
+
+Model files in `models/` are the single source of truth for shared domain schemas: variants, waypoints, registration, results, event series, media items, and status enums. Collection schemas in `src/schemas/index.ts` import from model files rather than defining their own copies. When adding or changing a domain schema, update the model file first — the collection schema will pick up the change through its import.
+
+Status enums are defined as exported `as const` arrays in each model file (e.g., `ROUTE_STATUSES`, `EVENT_STATUSES`). Both model schemas and collection schemas reference these arrays.
 
 ## Root-Level Files (Utilities)
 

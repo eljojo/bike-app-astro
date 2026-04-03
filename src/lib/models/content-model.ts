@@ -19,6 +19,27 @@ export const baseMediaItemSchema = z.object({
 
 export type BaseMediaItem = z.infer<typeof baseMediaItemSchema>;
 
+/**
+ * Parse a raw YAML-parsed object into a base media item.
+ * Extracts only known fields, skipping null/undefined values.
+ * Callers can extend the result with type-specific fields.
+ */
+export function parseMediaItem(raw: Record<string, unknown>): BaseMediaItem {
+  const item: Record<string, unknown> = { key: raw.key as string };
+  if (raw.type != null) item.type = raw.type;
+  if (raw.caption != null) item.caption = raw.caption;
+  if (raw.cover != null) item.cover = raw.cover;
+  if (raw.width != null) item.width = raw.width;
+  if (raw.height != null) item.height = raw.height;
+  if (raw.lat != null) item.lat = raw.lat;
+  if (raw.lng != null) item.lng = raw.lng;
+  if (raw.title != null) item.title = raw.title;
+  if (raw.handle != null) item.handle = raw.handle;
+  if (raw.duration != null) item.duration = raw.duration;
+  if (raw.orientation != null) item.orientation = raw.orientation;
+  return item as BaseMediaItem;
+}
+
 export interface GitFileSnapshot {
   content: string;
   sha: string;
@@ -27,21 +48,4 @@ export interface GitFileSnapshot {
 export interface GitFiles {
   primaryFile: GitFileSnapshot | null;
   auxiliaryFiles?: Record<string, GitFileSnapshot | null>;
-}
-
-/**
- * Contract that every content model must satisfy. Each content type
- * (route, event, place, ride) exports functions matching this shape,
- * using the naming convention {contentType}DetailSchema, compute{Type}ContentHash, etc.
- *
- * The contract is verified by tests/content-model-contract.test.ts.
- */
-export interface ContentModelContract<T, F extends GitFiles = GitFiles> {
-  schema: z.ZodType<T>;
-  computeContentHash(...contents: (string | undefined)[]): string;
-  computeContentHashFromFiles(files: F): string;
-  detailFromGit(id: string, frontmatter: Record<string, unknown>, body: string, ...aux: unknown[]): T;
-  detailToCache(detail: T): string;
-  buildFreshData(id: string, files: F): string;
-  detailFromCache(blob: string): T;
 }

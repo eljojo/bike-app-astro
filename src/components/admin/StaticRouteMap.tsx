@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'preact/hooks';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
-import { getRouteColor } from '../../lib/maps/map-init';
+import { getRouteColor, transformRequest } from '../../lib/maps/map-init';
 
 interface Props {
   /** Array of [lon, lat] coordinate pairs */
@@ -40,12 +40,7 @@ export default function StaticRouteMap({ coordinates, class: className }: Props)
         fitBoundsOptions: { padding: 30 },
         interactive: false,
         attributionControl: false,
-        // TODO: deduplicate — this duplicates transformRequest from initMap() in map-init.ts
-        // Can't use initMap directly because this map needs bounds/interactive/attribution options it doesn't support
-        transformRequest: (url: string) => {
-          if (url.startsWith('/')) return { url: `${location.origin}${url}` };
-          return { url };
-        },
+        transformRequest,
       });
 
       map.on('load', () => {

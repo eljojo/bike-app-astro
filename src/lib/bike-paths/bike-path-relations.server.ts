@@ -189,6 +189,7 @@ export function computeBikePathRelations(
   // use a pre-filter: skip entries that are hard-excluded or have no points.
   // This reduces the inner loop from ~600 to ~100-200 candidates.
   const candidateEntries = bikePaths.filter(e => !isHardExcluded(e));
+  const candidateBySlug = new Map(candidateEntries.map(e => [e.slug, e]));
 
   for (const entry of candidateEntries) {
     const points = entryPoints.get(entry.slug) ?? [];
@@ -226,22 +227,33 @@ export function computeBikePathRelations(
     }
     routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
 
-    // Nearby paths (within 2km) — bbox pre-filter + sample points for speed
-    const nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }> = [];
-    for (const other of candidateEntries) {
-      if (other.slug === entry.slug) continue;
-      const otherPts = entryPoints.get(other.slug) ?? [];
-      if (otherPts.length === 0) continue;
-      const otherBbox = boundingBox(otherPts, 0.02); // ~2km padding
-      if (!bboxOverlap(pathBbox, otherBbox)) continue;
-      // Sample every 5th point to reduce comparisons
-      let found = false;
-      for (let i = 0; i < points.length && !found; i += 5) {
-        for (let j = 0; j < otherPts.length; j += 5) {
-          if (haversineM(points[i].lat, points[i].lng, otherPts[j].lat, otherPts[j].lng) < 2000) { found = true; break; }
+    // Nearby paths (within 2km) — use spatial grid to find candidates
+    const NEARBY_THRESHOLD_M = 2000;
+    const nearbySlugs = new Set<string>();
+    // Sample every 5th point to reduce grid lookups
+    for (let i = 0; i < points.length; i += 5) {
+      const pt = points[i];
+      const cLat = Math.floor(pt.lat / CELL_SIZE);
+      const cLng = Math.floor(pt.lng / CELL_SIZE);
+      const rLat = Math.ceil(NEARBY_THRESHOLD_M / 111000 / CELL_SIZE);
+      const rLng = Math.ceil(NEARBY_THRESHOLD_M / (111000 * Math.cos(pt.lat * Math.PI / 180)) / CELL_SIZE);
+      for (let dLat = -rLat; dLat <= rLat; dLat++) {
+        for (let dLng = -rLng; dLng <= rLng; dLng++) {
+          const cell = pathGrid.get(`${cLat + dLat},${cLng + dLng}`);
+          if (!cell) continue;
+          for (const p of cell) {
+            if (p.slug === entry.slug || nearbySlugs.has(p.slug)) continue;
+            if (haversineM(pt.lat, pt.lng, p.lat, p.lng) < NEARBY_THRESHOLD_M) {
+              nearbySlugs.add(p.slug);
+            }
+          }
         }
       }
-      if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface, memberOf: other.member_of });
+    }
+    const nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }> = [];
+    for (const slug of nearbySlugs) {
+      const other = candidateBySlug.get(slug);
+      if (other) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface, memberOf: other.member_of });
     }
 
     // Connected paths (endpoints within 200m) — only check candidate entries

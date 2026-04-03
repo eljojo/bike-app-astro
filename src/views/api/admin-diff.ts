@@ -1,10 +1,16 @@
 import type { APIContext } from 'astro';
+import { z } from 'zod/v4';
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { db } from '../../lib/get-db';
 import { checkRateLimit, recordAttempt } from '../../lib/auth/rate-limit';
+
+const diffRequestSchema = z.object({
+  commitSha: z.string().regex(/^[0-9a-f]{40}$/, 'commitSha must be a 40-character hex string'),
+  contentPath: z.string().optional(),
+});
 
 export const prerender = false;
 
@@ -22,10 +28,13 @@ export async function POST({ request, locals }: APIContext) {
     await recordAttempt(database, 'view-history', [ip]);
   }
 
-  const { commitSha, contentPath } = await request.json();
-  if (!commitSha) {
-    return jsonError('Missing commitSha');
+  let body;
+  try {
+    body = diffRequestSchema.parse(await request.json());
+  } catch {
+    return jsonError('Invalid request body', 400);
   }
+  const { commitSha, contentPath } = body;
 
   const git = createGitService({
     token: env.GITHUB_TOKEN,
