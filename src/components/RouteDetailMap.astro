@@ -136,6 +136,9 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       map.dragPan.enable();
       map.doubleClickZoom.enable();
       map.touchZoomRotate.enable();
+      // Show photos + places when expanded
+      if (photos.length > 0) photoLayer.setVisible!(map, loadToggleState('map-photos', true));
+      if (places.length > 0) placeLayer.setVisible!(map, loadToggleState('map-places', true));
       setTimeout(() => {
         map.resize();
         const bounds = polylineLayer.getBounds?.();
@@ -149,6 +152,9 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       container!.classList.remove('expanded');
       container!.setAttribute('aria-expanded', 'false');
       overlay!.classList.remove('visible');
+      // Hide photos + places in compact mode
+      photoLayer.setVisible!(map, false);
+      placeLayer.setVisible!(map, false);
       if (savedRect) {
         container!.style.top = `${savedRect.top}px`;
         container!.style.left = `${savedRect.left}px`;
@@ -188,18 +194,30 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     overlay!.addEventListener('click', collapse);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
 
-    // Variant switching — swap visible polyline
+    // Compute bounds from an encoded polyline
+    function boundsFromEncoded(encoded: string): maplibregl.LngLatBounds | null {
+      const maplibregl = (window as any).maplibregl;
+      if (!maplibregl) return null;
+      const points = polylineCodec.decode(encoded);
+      if (points.length === 0) return null;
+      const bounds = new maplibregl.LngLatBounds();
+      for (const [lat, lng] of points) {
+        bounds.extend([lng, lat]);
+      }
+      return bounds.isEmpty() ? null : bounds;
+    }
+
+    // Variant switching — swap visible polyline and re-fit bounds
     window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
       const key = e.detail.key;
       const idx = polylines.findIndex(p => p.key === key);
       if (idx >= 0) {
         const selected = allPolylineData[idx];
-        // Rebuild the GeoJSON source with only the selected variant
         const feature = buildPolylineFeature(selected.encoded, selected.popup);
         polylineLayer.updateData([feature]);
-        // Re-fit bounds
-        const bounds = polylineLayer.getBounds?.();
-        if (bounds && !expanded) map.fitBounds(bounds, { padding: 20, animate: true });
+        // Compute new bounds from the polyline directly
+        const bounds = boundsFromEncoded(selected.encoded);
+        if (bounds) map.fitBounds(bounds, { padding: 20, animate: true });
       }
     }) as EventListener);
 
