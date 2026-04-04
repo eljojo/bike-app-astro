@@ -20,6 +20,10 @@ export interface ExpandableMapElements {
 export interface ExpandableMapCallbacks {
   /** Return bounds for fitBounds after expand/collapse. Must return a LngLatBounds with .isEmpty(). */
   getBounds: () => maplibregl.LngLatBounds | null;
+  /** Called after expand completes (after resize + fitBounds). Apply layer visibility here. */
+  onExpand?: () => void;
+  /** Called at the start of collapse. Hide layers here. */
+  onCollapse?: () => void;
 }
 
 const TRANSITION_MS = 350;
@@ -79,12 +83,14 @@ export function createExpandableMap(
       const b = callbacks.getBounds();
       if (b && !b.isEmpty()) map.fitBounds(b, { padding: 60, animate: false });
       requestAnimationFrame(() => glEl.classList.remove('fading'));
+      callbacks.onExpand?.();
     }, TRANSITION_MS);
   }
 
   function collapse() {
     if (!expanded) return;
     expanded = false;
+    callbacks.onCollapse?.();
     glEl.classList.add('fading');
     card.classList.remove('expanded');
     card.setAttribute('aria-expanded', 'false');
