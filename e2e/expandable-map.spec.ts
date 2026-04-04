@@ -30,12 +30,23 @@ async function waitForMapSettled(page: Page) {
   await page.waitForTimeout(5000);
 }
 
-// Check if MapLibre initialized (has WebGL canvas). Photo bubbles require
-// MapLibre to be running — in headless CI without GPU, it may not start.
-async function isMapInitialized(page: Page): Promise<boolean> {
+// Check if WebGL rendering actually works. Photo bubbles require MapLibre's
+// queryRenderedFeatures which needs real GPU-backed WebGL — not just the
+// canvas element (which MapLibre creates even without GPU).
+// Headless CI has the canvas but can't render, so bubbles never appear.
+async function hasWorkingWebGL(page: Page): Promise<boolean> {
   return page.evaluate(() => {
-    const card = document.querySelector('.expandable-map-card');
-    return !!(card && card.querySelector('.maplibregl-canvas'));
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+    if (!gl) return false;
+    // Check if the renderer is a real GPU, not a software fallback
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      // SwiftShader / llvmpipe = software rendering, queryRenderedFeatures won't work
+      if (/swiftshader|llvmpipe/i.test(renderer)) return false;
+    }
+    return true;
   });
 }
 
@@ -51,14 +62,11 @@ test.describe('Compact mode — no photo bubbles', () => {
 
     await waitForMapSettled(page);
 
-    // Verify MapLibre actually initialized — if it didn't, the test is meaningless
-    const mapInitialized = await page.evaluate(() => {
-      const card = document.querySelector('.expandable-map-card');
-      return !!(card && card.querySelector('.maplibregl-canvas'));
-    });
+    // Verify WebGL rendering works — if not, the test can't verify DOM bubbles
+    const webglWorks = await hasWorkingWebGL(page);
 
-    if (!mapInitialized) {
-      // MapLibre didn't init (no WebGL in headless) — test can't verify bubbles.
+    if (!webglWorks) {
+      // No hardware WebGL — test can't verify bubbles.
       // Check that at least the photo data exists so the test isn't vacuous.
       const hasPhotos = await page.evaluate(() => {
         const card = document.getElementById('route-detail-map');
@@ -126,8 +134,8 @@ test.describe('Photo layer lifecycle', () => {
     await page.reload();
     await waitForMapSettled(page);
 
-    if (!await isMapInitialized(page)) {
-      console.warn('MapLibre did not initialize (no WebGL) — skipping photo bubble lifecycle test');
+    if (!await hasWorkingWebGL(page)) {
+      console.warn('No hardware WebGL — skipping photo bubble lifecycle test');
       return;
     }
 
@@ -157,8 +165,8 @@ test.describe('Photo layer lifecycle', () => {
     await page.reload();
     await waitForMapSettled(page);
 
-    if (!await isMapInitialized(page)) {
-      console.warn('MapLibre did not initialize (no WebGL) — skipping photo bubble lifecycle test');
+    if (!await hasWorkingWebGL(page)) {
+      console.warn('No hardware WebGL — skipping photo bubble lifecycle test');
       return;
     }
 
@@ -190,8 +198,8 @@ test.describe('Photo layer lifecycle', () => {
     await page.reload();
     await waitForMapSettled(page);
 
-    if (!await isMapInitialized(page)) {
-      console.warn('MapLibre did not initialize (no WebGL) — skipping photo bubble lifecycle test');
+    if (!await hasWorkingWebGL(page)) {
+      console.warn('No hardware WebGL — skipping photo bubble lifecycle test');
       return;
     }
 
