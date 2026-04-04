@@ -169,9 +169,16 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
       };
       map.on('moveend', moveEndHandler);
 
-      // DOM bubble sync on idle
+      // DOM bubble sync on idle — guarded against concurrent runs.
+      // The handler is async (awaits getClusterLeaves). If a second idle fires
+      // while the first is suspended at an await, the second run could clean up
+      // markers that the first run then recreates as zombies.
+      let syncing = false;
       syncHandler = async () => {
         if (!visible) return;
+        if (syncing) { map.triggerRepaint(); return; }
+        syncing = true;
+        try {
         const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
         if (!source) return;
 
@@ -263,6 +270,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
         for (const [id, marker] of clusterMarkers) {
           if (!seenClusterIds.has(id)) { marker.remove(); clusterMarkers.delete(id); }
         }
+        } finally { syncing = false; }
       };
       map.on('idle', syncHandler);
 
