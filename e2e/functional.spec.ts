@@ -275,4 +275,18 @@ test.describe('Route detail — translated slug in secondary locale', () => {
     expect(response?.status()).toBe(200);
     await expect(page.locator('h1')).toContainText('Ottawa to Plaisance');
   });
+
+  // "Wrong combo" pages redirect to the canonical slug for the locale.
+  // Astro.redirect() on prerendered pages emits a meta refresh redirect.
+  test('French path with route ID slug redirects to translated slug', async ({ page }) => {
+    await page.goto('/fr/parcours/ottawa-to-plaisance/');
+    await page.waitForURL('**/fr/parcours/ottawa-a-plaisance/**');
+    expect(page.url()).toContain('/fr/parcours/ottawa-a-plaisance/');
+  });
+
+  test('default path with translated slug redirects to route ID', async ({ page }) => {
+    await page.goto('/routes/ottawa-a-plaisance/');
+    await page.waitForURL('**/routes/ottawa-to-plaisance/**');
+    expect(page.url()).toContain('/routes/ottawa-to-plaisance/');
+  });
 });
