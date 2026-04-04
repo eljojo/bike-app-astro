@@ -97,14 +97,13 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
     xTicks.push({ v, x: PAD_L + (v / maxKm) * PLOT_W });
   }
 
-  function handleMove(e: MouseEvent) {
+  function updatePosition(clientX: number) {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const svgX = (e.clientX - rect.left) / rect.width * SVG_W;
+    const svgX = (clientX - rect.left) / rect.width * SVG_W;
     const plotX = Math.max(0, Math.min(PLOT_W, svgX - PAD_L));
     const km = (plotX / PLOT_W) * maxKm;
 
-    // Find nearest point
     let bestIdx = 0;
     let bestDist = Infinity;
     for (let i = 0; i < points.length; i++) {
@@ -113,11 +112,22 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
     }
     setHoverIdx(bestIdx);
 
-    // Dispatch for map cursor sync
     const p = points[bestIdx];
     window.dispatchEvent(new CustomEvent('elevation:hover', {
       detail: { lat: p.lat, lng: p.lng, km: p.km },
     }));
+  }
+
+  function handleMove(e: MouseEvent) { updatePosition(e.clientX); }
+
+  function handleTouchStart(e: TouchEvent) {
+    e.preventDefault(); // prevent page scroll while scrubbing
+    updatePosition(e.touches[0].clientX);
+  }
+
+  function handleTouchMove(e: TouchEvent) {
+    e.preventDefault();
+    updatePosition(e.touches[0].clientX);
   }
 
   function handleLeave() {
@@ -164,6 +174,9 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
             class="elevation-svg"
             onMouseMove={handleMove}
             onMouseLeave={handleLeave}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleLeave}
           >
             {/* Grid lines */}
             {yTicks.map(t => (

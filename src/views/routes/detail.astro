@@ -218,6 +218,18 @@ const variantElevationData = variants.map(v => {
           </ul>
         )}
 
+        {/* Hero photo (mobile only, after tags, before description) — click opens lightbox */}
+        {cover && (
+          <div class="route-detail-hero">
+            <img
+              src={imageUrl(cover.key, { width: 1170 })}
+              srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
+              alt={cover.caption || localeName}
+              class="gallery-cover-photo"
+            />
+          </div>
+        )}
+
         {/* Description (shared across variants) */}
         <div class="route-description" set:html={localeBody} />
 
@@ -235,6 +247,9 @@ const variantElevationData = variants.map(v => {
             />
           );
         })}
+
+        {/* Photos (inside main column so it participates in mobile reordering) */}
+        <MediaGallery media={media} name={localeName} show="photos" />
 
         {/* Reactions */}
         {getInstanceFeatures().allowsReactions && (
@@ -297,19 +312,7 @@ const variantElevationData = variants.map(v => {
     {/* Weather nudge */}
     <WeatherNudge locale={locale} />
 
-    {/* Hero photo (hidden on desktop, shows on mobile) — click opens lightbox */}
-    {cover && (
-      <div class="route-detail-hero">
-        <img
-          src={imageUrl(cover.key, { width: 1170 })}
-          srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
-          alt={cover.caption || localeName}
-          class="gallery-cover-photo"
-        />
-      </div>
-    )}
-
-    <MediaGallery media={media} name={localeName} youtubeIds={youtubeIds} />
+    <MediaGallery media={media} name={localeName} youtubeIds={youtubeIds} show="videos" />
     {(() => {
       const hasPhotos = media.some(m => m.type !== 'video');
       const photoCtaKey = hasPhotos ? 'route.add_photo' : 'route.add_first_photo';

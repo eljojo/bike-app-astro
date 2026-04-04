@@ -797,7 +797,10 @@ body.fullbleed {
 
 // Route detail
 .route-detail {
-  h1 { font-size: 24px; }
+  h1 {
+    font-size: 24px;
+    @media (max-width: $breakpoint-tablet) { margin: 0; }
+  }
   h2 { font-size: 18.72px; }
 }
 
@@ -806,16 +809,18 @@ body.fullbleed {
   font-style: italic;
   color: $color-text-muted;
   @include dark-mode { color: $color-text-muted-dark; }
+  @media (max-width: $breakpoint-tablet) { margin: 0; }
 }
 
 .route-detail-layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 1.5rem;
   margin-top: 0.5rem;
 
   @media (max-width: $breakpoint-tablet) {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
 }
 
@@ -843,6 +848,7 @@ body.fullbleed {
   .route-elevation { order: 2; }
   .route-facts-table { order: 3; }
   .route-description { order: 4; }
+  .route-photos { order: 5; overflow: hidden; }
   .route-videos { order: 5; }
   .nearby-places { order: 6; }
   .route-downloads { order: 7; }
@@ -851,8 +857,21 @@ body.fullbleed {
   .route-place-summary { order: 11; }
 }
 
+.route-photos {
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+
+.route-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .route-detail-hero {
   @media (min-width: $breakpoint-tablet + 1) { display: none; }
+  @media (max-width: $breakpoint-tablet) { order: -1; }
   img { width: 100%; height: auto; border-radius: $border-radius; }
 }
 

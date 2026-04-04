@@ -20,18 +20,13 @@
   .photo-gallery--image {
     display: block;
     flex: 0 0 auto;
-    height: 140px;
-    width: calc(140px * var(--ratio, 1.333));
+    height: 180px;
+    width: calc(180px * var(--ratio, 1.333));
     border-radius: $border-radius;
     overflow: hidden;
     position: relative;
     cursor: pointer;
     transition: transform $transition-state, filter $transition-state;
-
-    @media (max-width: $breakpoint-mobile - 1px) {
-      height: 70px;
-      width: calc(70px * var(--ratio, 1.333));
-    }
 
     &:hover {
       transform: scale(1.04);

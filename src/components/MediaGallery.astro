@@ -26,9 +26,12 @@ interface Props {
   media: MediaItem[];
   name: string;
   youtubeIds?: string[];
+  show?: 'all' | 'photos' | 'videos';
 }
 
-const { media, name, youtubeIds = [] } = Astro.props;
+const { media, name, youtubeIds = [], show = 'all' } = Astro.props;
+const showPhotos = show === 'all' || show === 'photos';
+const showVideos = show === 'all' || show === 'videos';
 const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
 const hostedVideos = media.filter(m => m.type === 'video');
 
@@ -69,7 +72,7 @@ const videoItems: VideoGalleryItem[] = [
 ];
 ---
 
-{allPhotos.length > 0 && (
+{showPhotos && allPhotos.length > 0 && (
   <section class="route-photos" id="photos">
     <div class="photo-gallery">
       {allPhotos.map((photo) => {
@@ -101,13 +104,13 @@ const videoItems: VideoGalleryItem[] = [
   </section>
 )}
 
-{videoItems.length > 0 && (
+{showVideos && videoItems.length > 0 && (
   <section class="route-videos" id="videos">
     <VideoGallery client:idle videos={videoItems} />
   </section>
 )}
 
-{(allPhotos.length > 0) && (
+{(showPhotos && allPhotos.length > 0) && (
   <script>
     import PhotoSwipeLightbox from 'photoswipe/lightbox';
     import 'photoswipe/style.css';
