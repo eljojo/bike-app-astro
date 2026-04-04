@@ -30,17 +30,17 @@ const mapLang = cachedMapLocale(routeSlug, vKey, locale);
 <div class="route-downloads" data-variant={variantKey || undefined}>
   {hasMapPng && (
     <Fragment>
-      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download>
+      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download title="An image to print or save on your phone">
         <Icon name="download-simple" size={16} /> Download PNG
       </a>
       {' '}
     </Fragment>
   )}
-  <a href={gpxUrl} class="action-button" download>
+  <a href={gpxUrl} class="action-button" download title="GPS format for turn-by-turn navigation">
     <Icon name="download-simple" size={16} /> {t('map.download_gpx', locale)}
   </a>
   {' '}
-  <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow">
+  <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow" title="View and edit the route in your browser">
     <Icon name="map-trifold" size={16} /> {t('map.explore_gpx', locale)}
   </a>
   {variant.strava_url && (

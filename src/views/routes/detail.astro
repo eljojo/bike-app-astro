@@ -15,9 +15,9 @@ import { computeElevationPoints } from '@/lib/geo/elevation-profile';
 import { deriveSurface, deriveBeginnerFriendly } from '@/lib/route-facts';
 import { toMapPlaces } from '@/lib/geo/places';
 import { elevationConclusion } from '@/lib/geo/elevation';
-import { routeShape } from '@/lib/route-insights';
+import { routeShape, placeCounts } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
-import { t, localePath } from '@/i18n';
+import { t, localePath, tCategory } from '@/i18n';
 import { findNearbyPlaces } from '@/lib/geo/proximity';
 import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
@@ -98,6 +98,17 @@ const hasRange = minScore !== null && maxScore !== null && Math.abs(maxScore - m
 const shape = primaryTrack ? routeShape(primaryTrack.points, primaryTrack.distance_m) : null;
 
 const nearbyPlaces = primaryTrack ? findNearbyPlaces(primaryTrack.points, placeData) : [];
+
+const nearbyCategories = placeCounts(nearbyPlaces);
+const placeDesc = (() => {
+  if (nearbyCategories.length === 0) return null;
+  const shown = nearbyCategories.slice(0, 4);
+  const parts = shown.map(p => `${p.count} ${tCategory(p.category, p.count, locale)}`);
+  const extra = nearbyCategories.length - shown.length;
+  let desc = t('places.summary_prefix', locale) + ' ' + parts.join(', ');
+  if (extra > 0) desc += ` ${t('places.and_more', locale, { count: String(extra) })}`;
+  return desc;
+})();
 
 const nearbyBikePaths = routeToPaths[route.id] ?? [];
 
@@ -247,8 +258,8 @@ const variantElevationData = variants.map(v => {
               bookmarkHint={t('reaction.bookmark_hint', locale)}
               trustReceiptMessage={t('reaction.trust_receipt', locale)}
               labels={[
-                { type: 'ridden', icon: 'bicycle', label: t('reaction.ridden', locale) },
                 { type: 'thumbs-up', icon: 'thumbs-up', label: t('reaction.thumbs-up', locale) },
+                { type: 'ridden', icon: 'bicycle', label: t('reaction.ridden', locale) },
                 { type: 'star', icon: 'bookmark-simple', label: t('reaction.star', locale), title: t('reaction.star_title', locale) },
               ]} />
           </div>
@@ -305,6 +316,7 @@ const variantElevationData = variants.map(v => {
         <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
         {/* Places along the way */}
+        {placeDesc && <p class="route-place-summary">{t('route.this_route', locale)} {placeDesc}</p>}
         {nearbyPlaces.length > 0 && (
           <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} headingKey="route.places_along" />
         )}
