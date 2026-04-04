@@ -31,7 +31,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
 
   useEffect(() => {
     const p = loadToggleState('map-photos', defaultPhotos);
-    const pl = loadToggleState('map-places', true);
+    const pl = loadToggleState('map-places', false);
     setPhotos(p);
     setPlaces(pl);
     onTogglePhotos?.(p);

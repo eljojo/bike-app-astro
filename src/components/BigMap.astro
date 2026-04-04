@@ -195,7 +195,7 @@ const hasPaths = pathMapData.length > 0;
           onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v),
           onToggleStyle: (key) => session.switchStyle(key, () => {
             photoLayer.setVisible!(map, loadToggleState('map-photos', false));
-            placeLayer.setVisible!(map, loadToggleState('map-places', true));
+            placeLayer.setVisible!(map, loadToggleState('map-places', false));
             // Preserve current view mode after style switch
             if (pathsVisible) {
               polylineLayer.setVisible!(map, false);
