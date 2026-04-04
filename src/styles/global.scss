@@ -294,13 +294,13 @@ body.fullbleed {
 
       .site-title {
         font-size: 0.75em;
-        opacity: 0.8;
+        opacity: 0.7;
         background: none;
         -webkit-background-clip: unset;
         -webkit-text-fill-color: $color-text-muted;
         background-clip: unset;
         transition: opacity $transition-state;
-        &:hover { opacity: 1; }
+        &:hover { opacity: 0.9; }
 
         @include dark-mode {
           -webkit-text-fill-color: $color-text-muted-dark;

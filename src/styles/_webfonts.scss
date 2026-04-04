@@ -1,3 +1,12 @@
+/* Arial Black — self-hosted for iOS (not bundled with Safari) */
+@font-face {
+  font-family: 'Arial Black';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: local('Arial Black'), url('/fonts/ArialBlack.ttf') format('truetype');
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Merriweather';
