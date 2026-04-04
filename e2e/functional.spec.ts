@@ -105,8 +105,8 @@ test.describe('Bike path detail page (member of network)', () => {
     const factsTable = page.locator('.bike-path-facts-table');
     // highway: cycleway → separated from traffic
     await expect(factsTable).toContainText('Separado del tráfico');
-    // lit: yes
-    await expect(factsTable).toContainText('Sí');
+    // lit: yes → localized fact string
+    await expect(factsTable).toContainText('Iluminado de noche');
   });
 });
 
