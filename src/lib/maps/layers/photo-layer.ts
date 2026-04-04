@@ -75,6 +75,57 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
     if (moveEndHandler) { map.off('moveend', moveEndHandler); moveEndHandler = null; }
   }
 
+  /**
+   * Spread overlapping bubble markers apart in screen space.
+   * Groups markers whose projected positions are within `threshold` px,
+   * then arranges each group in a circle around the centroid.
+   */
+  function spreadOverlaps(map: maplibregl.Map) {
+    const threshold = 24; // px — less than bubble radius, so only truly overlapping
+    const entries: Array<{ key: string; marker: maplibregl.Marker; x: number; y: number }> = [];
+
+    for (const [key, marker] of bubbleMarkers) {
+      const pt = map.project(marker.getLngLat());
+      entries.push({ key, marker, x: pt.x, y: pt.y });
+    }
+
+    // Reset all offsets first
+    for (const e of entries) e.marker.setOffset([0, 0]);
+
+    if (entries.length < 2) return;
+
+    // Group overlapping markers (simple single-pass clustering)
+    const assigned = new Set<string>();
+    const groups: typeof entries[] = [];
+
+    for (const a of entries) {
+      if (assigned.has(a.key)) continue;
+      const group = [a];
+      assigned.add(a.key);
+      for (const b of entries) {
+        if (assigned.has(b.key)) continue;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        if (dx * dx + dy * dy < threshold * threshold) {
+          group.push(b);
+          assigned.add(b.key);
+        }
+      }
+      if (group.length > 1) groups.push(group);
+    }
+
+    // Spread each overlapping group in a circle
+    for (const group of groups) {
+      const radius = Math.max(20, group.length * 8); // px, scales with group size
+      for (let i = 0; i < group.length; i++) {
+        const angle = (2 * Math.PI * i) / group.length - Math.PI / 2;
+        const dx = Math.round(radius * Math.cos(angle));
+        const dy = Math.round(radius * Math.sin(angle));
+        group[i].marker.setOffset([dx, dy]);
+      }
+    }
+  }
+
   function showPhotoPopup(map: maplibregl.Map, props: PhotoProps, coords: [number, number]) {
     const imgUrl = buildImageUrl(cdnUrl, props.key, { width: 800, fit: 'scale-down' });
     const fullUrl = buildImageUrl(cdnUrl, props.key, { width: 1600 });
@@ -220,6 +271,9 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
           if (!seenKeys.has(key)) { marker.remove(); bubbleMarkers.delete(key); }
         }
 
+        // Spread overlapping bubbles apart
+        spreadOverlaps(map);
+
         // Cluster thumbnails
         const clusters = map.queryRenderedFeatures({ layers: ['photo-clusters'] });
         const seenClusterIds = new Set<number>();
@@ -288,6 +342,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
           (el as HTMLElement).style.width = `${clusterSize}px`;
           (el as HTMLElement).style.height = `${clusterSize}px`;
         }
+        spreadOverlaps(map);
       };
       map.on('zoom', zoomHandler);
 
