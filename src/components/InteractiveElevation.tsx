@@ -23,12 +23,12 @@ interface Props {
   collapsed?: boolean;
 }
 
-const SVG_W = 800;
-const SVG_H = 200;
-const PAD_L = 70;
-const PAD_R = 10;
-const PAD_T = 10;
-const PAD_B = 35;
+const SVG_W = 400;
+const SVG_H = 160;
+const PAD_L = 42;
+const PAD_R = 5;
+const PAD_T = 8;
+const PAD_B = 28;
 const PLOT_W = SVG_W - PAD_L - PAD_R;
 const PLOT_H = SVG_H - PAD_T - PAD_B;
 
@@ -141,20 +141,21 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
 
   return (
     <div class="interactive-elevation">
-      <div class="elevation-stats">
-        <span><Icon name="trend-up" size={16} /> {Math.round(elevGain)}m gain</span>
-        <span><Icon name="arrows-down-up" size={16} /> {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
-        <span><Icon name="ruler" size={16} /> {maxKm.toFixed(1)} km</span>
+      <button
+        type="button"
+        class="elevation-stats"
+        onClick={() => setCollapsed(c => !c)}
+        aria-expanded={!isCollapsed}
+        aria-label={isCollapsed ? 'Show elevation chart' : 'Hide elevation chart'}
+      >
+        <span title="Total elevation gained">{'\u00A0'}<Icon name="trend-up" size={16} /> {Math.round(elevGain)}m gain</span>
+        <span title="Elevation range (lowest – highest)">{'\u00A0'}<Icon name="arrows-down-up" size={16} /> {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
+        <span title="Total distance">{'\u00A0'}<Icon name="ruler" size={16} /> {maxKm.toFixed(1)} km</span>
         {label && <span class="elevation-label" style={`color: ${color}`}>{label}</span>}
-        <button
-          type="button"
-          class="elevation-toggle"
-          onClick={() => setCollapsed(c => !c)}
-          aria-label={isCollapsed ? 'Show elevation' : 'Hide elevation'}
-        >
+        <span class="elevation-toggle">
           {isCollapsed ? <Icon name="caret-right" size={16} /> : <Icon name="caret-down" size={16} />}
-        </button>
-      </div>
+        </span>
+      </button>
       {!isCollapsed && (
         <>
           <svg
@@ -178,31 +179,31 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
             {wpTicks.map((wp, i) => (
               <g key={i}>
                 <line x1={wp.x} x2={wp.x} y1={PAD_T} y2={plotBottom}
-                      stroke={wp.color} stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7" />
+                      stroke={wp.color} stroke-width="1" stroke-dasharray="3,2" opacity="0.7" />
                 <title>{wp.label} ({wp.km.toFixed(1)} km)</title>
               </g>
             ))}
 
             {/* Y-axis labels */}
             {yTicks.map(t => (
-              <text key={t.v} x={PAD_L - 6} y={t.y + 5} text-anchor="end"
-                    font-size="20" fill="#888">{Math.round(t.v)}m</text>
+              <text key={t.v} x={PAD_L - 4} y={t.y + 4} text-anchor="end"
+                    font-size="16" fill="#888">{Math.round(t.v)}m</text>
             ))}
 
             {/* X-axis labels */}
             {xTicks.map(t => (
-              <text key={t.v} x={t.x} y={plotBottom + 20} text-anchor="middle"
-                    font-size="20" fill="#888">{t.v}</text>
+              <text key={t.v} x={t.x} y={plotBottom + 18} text-anchor="middle"
+                    font-size="16" fill="#888">{t.v}</text>
             ))}
-            <text x={PAD_L + PLOT_W} y={plotBottom + 20} text-anchor="middle"
-                  font-size="20" fill="#888">km</text>
+            <text x={PAD_L + PLOT_W} y={plotBottom + 18} text-anchor="end"
+                  font-size="16" fill="#888">km</text>
 
             {/* Hover crosshair */}
             {hoverPoint && (
               <>
                 <line x1={hoverX} x2={hoverX} y1={PAD_T} y2={plotBottom}
-                      stroke="#666" stroke-width="1" stroke-dasharray="4,3" />
-                <circle cx={hoverX} cy={hoverY} r="4" fill={color} stroke="#fff" stroke-width="2" />
+                      stroke="#666" stroke-width="0.75" stroke-dasharray="3,2" />
+                <circle cx={hoverX} cy={hoverY} r="3.5" fill={color} stroke="#fff" stroke-width="1.5" />
               </>
             )}
           </svg>

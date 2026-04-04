@@ -1916,6 +1916,16 @@ body.fullbleed {
   font-size: 0.85em;
   @include muted-text;
   margin-bottom: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+
+  &:hover { color: $color-text; }
+  @include dark-mode { &:hover { color: $color-text-dark; } }
 }
 
 .elevation-label {
@@ -1923,15 +1933,9 @@ body.fullbleed {
 }
 
 .elevation-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
+  margin-left: auto;
   font-size: 0.8em;
   @include muted-text;
-  padding: 0 0.25rem;
-  margin-left: auto;
-  &:hover { color: $color-text; }
-  @include dark-mode { &:hover { color: $color-text-dark; } }
 }
 
 .elevation-svg {
