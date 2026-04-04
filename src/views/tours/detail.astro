@@ -54,12 +54,6 @@ const polylines = tourRides
   })
   .filter((p): p is NonNullable<typeof p> => p != null);
 
-const photos = tourRides.flatMap(ride =>
-  ride.data.media
-    .filter(m => m.type === 'photo' && m.lat != null && m.lng != null)
-    .map((m, i) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }))
-).filter((photo, i, arr) => arr.findIndex(p => p.key === photo.key) === i);
-
 const seoTitle = `${tour.name} | ${config.display_name}`;
 const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km over ${tour.days} days`;
 
@@ -164,7 +158,7 @@ const breadcrumbs = breadcrumbJsonLd([
     </div>
 
     {polylines.length > 0 && (
-      <RouteMap polylines={polylines} photos={photos} />
+      <RouteMap polylines={polylines} />
     )}
 
     <p class="route-similar">

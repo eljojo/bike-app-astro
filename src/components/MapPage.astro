@@ -17,30 +17,11 @@ interface Variant {
   komoot_url?: string;
 }
 
-interface MapPlace {
-  name: string;
-  emoji: string;
-  lat: number;
-  lng: number;
-  description?: string;
-  link?: string;
-  google_maps_url?: string;
-}
 
 interface GpxPoint {
   lat: number;
   lon: number;
   ele?: number;
-}
-
-interface MapPhoto {
-  key: string;
-  lat: number;
-  lng: number;
-  caption?: string;
-  width?: number;
-  height?: number;
-  index: number;
 }
 
 interface Props {
@@ -53,8 +34,6 @@ interface Props {
   variantLabel?: string;
   elevationGain?: number | null;
   elevationConclusion?: string | null;
-  places?: MapPlace[];
-  photos?: MapPhoto[];
   trackPoints?: GpxPoint[];
   trackDistanceM?: number;
   /** Override GPX download path (for blog rides that use /rides/ instead of /routes/) */
@@ -63,7 +42,7 @@ interface Props {
   backPath?: string;
 }
 
-const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, places = [], photos = [], trackPoints, trackDistanceM, gpxPath, backPath } = Astro.props;
+const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, trackPoints, trackDistanceM, gpxPath, backPath } = Astro.props;
 const linkSlug = routeLocaleSlug || routeSlug;
 const siteUrl = getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
@@ -126,7 +105,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   )}
 </p>
 
-<RouteMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} places={places} photos={photos} />
+<RouteMap polylines={[{ name: variantLabel || routeName, encoded: polyline }]} />
 
 {trackPoints && trackPoints.length > 0 && trackDistanceM && (
   <div id="elevation-profile" style="margin-top: 1.5em;">

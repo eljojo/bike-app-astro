@@ -1,14 +1,10 @@
 ---
-interface MapPhoto { key: string; lat: number; lng: number; routeSlug: string; caption?: string }
-interface MapPlace { name: string; lat: number; lng: number; category: string }
 interface Props {
   geoFiles: string[];
   center?: [number, number];  // [lat, lng] from anchors
   fallbackCenter: [number, number];  // [lat, lng] from city config
   hintText: string;
   closeLabel: string;
-  photos?: MapPhoto[];
-  places?: MapPlace[];
   cdnUrl?: string;
   /** Optional mapping from geo filename to slug — enables list↔map hover highlight */
   slugMap?: Record<string, string>;
@@ -19,7 +15,7 @@ interface Props {
   /** CSS selector for list items with data-slug to wire up hover highlight */
   highlightSelector?: string;
 }
-const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '', slugMap, nameMap, urlMap, highlightSelector } = Astro.props;
+const { geoFiles, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', slugMap, nameMap, urlMap, highlightSelector } = Astro.props;
 ---
 
 <div class="expandable-map-wrapper">
@@ -30,8 +26,6 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     data-geo-files={JSON.stringify(geoFiles)}
     data-center={center ? JSON.stringify(center) : ''}
     data-fallback-center={JSON.stringify(fallbackCenter)}
-    data-photos={JSON.stringify(photos)}
-    data-places={JSON.stringify(places)}
     data-cdn-url={cdnUrl}
     data-slug-map={slugMap ? JSON.stringify(slugMap) : ''}
     data-name-map={nameMap ? JSON.stringify(nameMap) : ''}

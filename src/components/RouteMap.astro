@@ -1,28 +1,4 @@
 ---
-interface Place {
-  name: string;
-  emoji: string;
-  lat: number;
-  lng: number;
-  description?: string;
-  link?: string;
-  google_maps_url?: string;
-  address?: string;
-  phone?: string;
-  photo_key?: string;
-  category?: string;
-}
-
-interface MapPhoto {
-  key: string;
-  lat: number;
-  lng: number;
-  caption?: string;
-  width?: number;
-  height?: number;
-  index: number;
-}
-
 interface WaypointMarker {
   lat: number;
   lng: number;
@@ -41,15 +17,13 @@ interface WaypointMarker {
 
 interface Props {
   polylines: { name: string; encoded: string; color?: string; url?: string; distance_km?: number; ride_date?: string; moving_time_s?: number }[];
-  places?: Place[];
-  photos?: MapPhoto[];
   waypointMarkers?: WaypointMarker[];
   center?: [number, number];
   zoom?: number;
 }
 
 import { getCityConfig } from '../lib/config/city-config';
-const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom } = Astro.props;
+const { polylines, waypointMarkers = [], center, zoom } = Astro.props;
 ---
 
 <div class="map-container">
@@ -57,10 +31,8 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
     id="route-map"
     style="width: 100%; height: 100%;"
     data-polylines={JSON.stringify(polylines)}
-    data-places={JSON.stringify(places)}
     data-center={JSON.stringify(center)}
     data-zoom={zoom?.toString() || '12'}
-    data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
     data-waypoint-markers={JSON.stringify(waypointMarkers)}
   ></div>
