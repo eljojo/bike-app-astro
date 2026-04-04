@@ -1,7 +1,7 @@
 ---
 import Icon from './Icon.astro';
 import { getCityConfig } from '@/lib/config/city-config';
-import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
+import { variantKey as variantKeyFromGpx, variantSlug as variantSlugFromGpx } from '@/lib/gpx/filenames';
 import { t } from '@/i18n';
 import { paths, assets } from '@/lib/paths';
 import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
@@ -21,7 +21,8 @@ interface Props {
 const { routeSlug, variant, locale, variantKey } = Astro.props;
 const siteUrl = getCityConfig().url;
 const vKey = variantKeyFromGpx(variant.gpx);
-const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, vKey)}`;
+const vSlug = variantSlugFromGpx(variant.gpx);
+const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, vSlug)}`;
 const exploreUrl = `https://gpx.studio/app?files=%5B%22${encodeURIComponent(gpxUrl)}%22%5D`;
 const hasMapPng = hasCachedMap(routeSlug, vKey, locale);
 const mapLang = cachedMapLocale(routeSlug, vKey, locale);

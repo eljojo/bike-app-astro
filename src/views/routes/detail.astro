@@ -285,7 +285,7 @@ const variantElevationData = variants.map(v => {
           const vKey = variantKeyFromGpx(v.gpx);
           return (
             <RouteDownloads
-              routeSlug={slug}
+              routeSlug={route.id}
               variant={v}
               locale={locale}
               variantKey={vKey}

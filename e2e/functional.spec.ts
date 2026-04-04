@@ -236,11 +236,22 @@ test.describe('Route detail — downloads', () => {
     await expect(pngButton).toHaveAttribute('href', /\/maps\/ruta-rio-chillan\/.*map\.png/);
   });
 
-  test('Download GPX button is present', async ({ page }) => {
+  test('Download GPX button links to correct variant slug URL', async ({ page }) => {
     await page.goto(ROUTE_DETAIL_URL);
     const gpxButton = page.locator('.route-downloads a', { hasText: 'GPX' }).first();
     await expect(gpxButton).toBeVisible();
-    await expect(gpxButton).toHaveAttribute('href', /\.gpx$/);
+    // GPX download URL must use variantSlug ("default"), not variantKey ("variants-default").
+    // The download endpoint at /routes/[slug]/[variant].gpx uses variantSlug.
+    await expect(gpxButton).toHaveAttribute('href', /\/routes\/ruta-rio-chillan\/default\.gpx$/);
+  });
+
+  test('French locale GPX download uses route ID, not translated slug', async ({ page }) => {
+    await page.goto('/fr/parcours/ottawa-a-plaisance/');
+    const gpxButton = page.locator('.route-downloads a', { hasText: 'GPX' }).first();
+    await expect(gpxButton).toBeVisible();
+    // GPX downloads are never localized — must use route ID (ottawa-to-plaisance),
+    // not translated slug (ottawa-a-plaisance).
+    await expect(gpxButton).toHaveAttribute('href', /\/routes\/ottawa-to-plaisance\/default\.gpx$/);
   });
 });
 
