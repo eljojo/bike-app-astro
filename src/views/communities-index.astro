@@ -45,7 +45,7 @@ const breadcrumbs = breadcrumbJsonLd([
 ---
 
 <Base title={`${t('communities.title', locale)} | ${config.display_name}`} breadcrumbs={breadcrumbs}>
-  <SubTabToggle items={[
+  <SubTabToggle isIndex items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
     { label: t('nav.people', locale), href: paths.communities(locale), active: true },
     { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: false },

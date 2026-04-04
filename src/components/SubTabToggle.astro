@@ -9,14 +9,16 @@ interface TabItem {
 
 interface Props {
   items: TabItem[];
+  /** True on index pages — active tab is not clickable. False on detail pages — active tab links back to index. */
+  isIndex?: boolean;
 }
 
-const { items } = Astro.props;
+const { items, isIndex = false } = Astro.props;
 ---
 <div class="sub-tab-toggle">
   {items.map(item => (
-    item.active
+    item.active && isIndex
       ? <span class="sub-tab-btn active">{item.label}</span>
-      : <a href={item.href} class="sub-tab-btn">{item.label}</a>
+      : <a href={item.href} class={`sub-tab-btn ${item.active ? 'active' : ''}`}>{item.label}</a>
   ))}
 </div>

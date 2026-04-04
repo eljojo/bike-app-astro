@@ -16,10 +16,23 @@
   border: 1px solid $color-border;
   background: $color-bg;
   color: $color-text-muted;
-  cursor: pointer;
   user-select: none;
   transition: all 0.15s;
   text-decoration: none;
+  cursor: default;
+
+  &:is(a), &:is(button) {
+    cursor: pointer;
+
+    &:not(.active):hover {
+      border-bottom: 2px solid $color-accent;
+      color: $color-text;
+
+      @include dark-mode {
+        color: $color-text-dark;
+      }
+    }
+  }
 
   &:first-child {
     border-radius: 6px 0 0 6px;

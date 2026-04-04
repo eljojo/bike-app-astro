@@ -25,7 +25,7 @@ const suggestKey = published.length < 5
 
 <Base title={`${t('nav.routes', locale)} | ${config.display_name}`}>
   {features.hasPaths && (
-    <SubTabToggle items={[
+    <SubTabToggle isIndex items={[
       { label: t('nav.routes', locale), href: localePath('/routes', locale), active: true },
       { label: t('nav.bike_paths', locale), href: paths.bikePaths(locale), active: false },
     ]} />
