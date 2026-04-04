@@ -3,17 +3,27 @@ import maplibregl from 'maplibre-gl';
 import { buildImageUrl } from '../../media/image-service';
 import { html, raw } from '../map-helpers';
 import { showPopup } from '../map-init';
+import { createTileLoader, type TileLoader } from '../tile-loader';
 import type { MapLayer, LayerContext } from './types';
-import type { PhotoMarkerOptions } from '../map-init';
 
 export interface PhotoLayerOptions {
-  photos: PhotoMarkerOptions[];
   cdnUrl: string;
   defaultVisible?: boolean;
 }
 
 const SOURCE_ID = 'photo-markers';
 const LAYER_IDS = ['photo-clusters', 'photo-unclustered'];
+const MANIFEST_PATH = '/places/geo/photos/manifest.json';
+const TILE_PATH = '/places/geo/photos/';
+
+interface PhotoProps {
+  key: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  routeName?: string;
+  routeUrl?: string;
+}
 
 const preloadedUrls = new Set<string>();
 function preloadImage(url: string) {
@@ -29,11 +39,13 @@ function photoPopupMaxWidth(zoom: number): number {
 }
 
 export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
-  const { photos, cdnUrl, defaultVisible = true } = opts;
+  const { cdnUrl, defaultVisible = true } = opts;
 
   let visible = defaultVisible;
+  let tileLoader: TileLoader | null = null;
   let syncHandler: (() => void) | null = null;
   let zoomHandler: (() => void) | null = null;
+  let moveEndHandler: (() => void) | null = null;
   const bubbleMarkers = new Map<string, maplibregl.Marker>();
   const clusterMarkers = new Map<number, maplibregl.Marker>();
 
@@ -60,9 +72,10 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
   function removeListeners(map: maplibregl.Map) {
     if (syncHandler) { map.off('idle', syncHandler); syncHandler = null; }
     if (zoomHandler) { map.off('zoom', zoomHandler); zoomHandler = null; }
+    if (moveEndHandler) { map.off('moveend', moveEndHandler); moveEndHandler = null; }
   }
 
-  function showPhotoPopup(map: maplibregl.Map, props: PhotoMarkerOptions, coords: [number, number]) {
+  function showPhotoPopup(map: maplibregl.Map, props: PhotoProps, coords: [number, number]) {
     const imgUrl = buildImageUrl(cdnUrl, props.key, { width: 800, fit: 'scale-down' });
     const fullUrl = buildImageUrl(cdnUrl, props.key, { width: 1600 });
     const routeLink = props.routeName && props.routeUrl
@@ -94,31 +107,38 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
 
   return {
     id: 'photos',
-    hasContent: photos.length > 0,
+    hasContent: true,
 
-    setup(ctx: LayerContext) {
+    async setup(ctx: LayerContext) {
       const { map } = ctx;
+
+      // Lazy-init tile loader
+      if (!tileLoader) {
+        const res = await fetch(MANIFEST_PATH);
+        if (!res.ok) return;
+        const manifest = await res.json();
+        if (!ctx.isCurrent()) return;
+        tileLoader = createTileLoader(manifest, TILE_PATH);
+      }
+
+      // Load tiles for current viewport
+      const b = map.getBounds();
+      const features = await tileLoader.loadTilesForBounds([
+        b.getWest(), b.getSouth(), b.getEast(), b.getNorth(),
+      ]);
+      if (!ctx.isCurrent()) return;
+
+      if (features.length === 0) return;
+
+      const minZoom = features.length > 200 ? 11 : features.length > 50 ? 8 : 0;
 
       map.addSource(SOURCE_ID, {
         type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: photos.map(p => ({
-            type: 'Feature' as const,
-            geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-            properties: {
-              key: p.key, caption: p.caption || '', index: p.index,
-              routeName: p.routeName || '', routeUrl: p.routeUrl || '',
-              width: p.width || 0, height: p.height || 0,
-            },
-          })),
-        },
+        data: { type: 'FeatureCollection', features },
         cluster: true,
         clusterRadius: 80,
         clusterMaxZoom: 15,
       });
-
-      const minZoom = photos.length > 200 ? 11 : photos.length > 50 ? 8 : 0;
 
       map.addLayer({
         id: 'photo-clusters', type: 'circle', source: SOURCE_ID,
@@ -131,6 +151,23 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
         filter: ['!', ['has', 'point_count']], minzoom: minZoom,
         paint: { 'circle-radius': 1, 'circle-opacity': 0 },
       });
+
+      // Load new tiles on pan/zoom
+      moveEndHandler = async () => {
+        if (!visible || !tileLoader) return;
+        const prevCount = tileLoader.allLoadedFeatures().length;
+        const bounds = map.getBounds();
+        const newFeatures = await tileLoader.loadTilesForBounds([
+          bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth(),
+        ]);
+        if (newFeatures.length > prevCount) {
+          const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+          if (source) {
+            source.setData({ type: 'FeatureCollection', features: newFeatures });
+          }
+        }
+      };
+      map.on('moveend', moveEndHandler);
 
       // DOM bubble sync on idle
       syncHandler = async () => {
@@ -159,7 +196,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
             });
             el.addEventListener('click', (e) => {
               e.stopPropagation();
-              showPhotoPopup(map, props as unknown as PhotoMarkerOptions, coords);
+              showPhotoPopup(map, props as unknown as PhotoProps, coords);
             });
             const marker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map);
             bubbleMarkers.set(key, marker);

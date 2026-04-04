@@ -11,7 +11,6 @@ import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLay
 import type { PolylineLayer } from './layers';
 import type { MapLayer } from './layers/types';
 import { buildPolylineFeature } from './map-init';
-import { buildPlacePopup } from './map-helpers';
 import { createExpandableMap } from './expandable-map';
 import { loadToggleState } from '../../components/admin/MapControls';
 import { render, h } from 'preact';
@@ -26,8 +25,8 @@ export interface MapFactoryResult {
   map: maplibregl.Map;
   session: ReturnType<typeof createMapSession>;
   polylineLayer: PolylineLayer;
-  photoLayer: MapLayer | null;
-  placeLayer: MapLayer | null;
+  photoLayer: MapLayer;
+  placeLayer: MapLayer;
   expandable: ReturnType<typeof createExpandableMap> | null;
 }
 
@@ -75,7 +74,7 @@ function centerFromPolyline(encoded: string): [number, number] {
 /**
  * Set up a map from a container element's data attributes.
  *
- * Reads: data-polylines, data-photos, data-places, data-cdn-url,
+ * Reads: data-polylines, data-cdn-url,
  * data-waypoint-markers, data-center, data-zoom.
  *
  * Finds child elements: .expandable-map-gl, .expandable-map-controls,
@@ -93,8 +92,6 @@ export function setupMapFromElement(container: HTMLElement, opts: MapFactoryOpti
 
   // Parse data from DOM
   const polylines = parseJSON<Record<string, unknown>[]>(container, 'polylines', []);
-  const photos = parseJSON<Record<string, unknown>[]>(container, 'photos', []);
-  const places = parseJSON<Record<string, unknown>[]>(container, 'places', []);
   const waypoints = parseJSON<Record<string, unknown>[]>(container, 'waypointMarkers', []);
   const cdnUrl = container.dataset.cdnUrl || '';
   const zoom = parseInt(container.dataset.zoom || '12');
@@ -129,20 +126,9 @@ export function setupMapFromElement(container: HTMLElement, opts: MapFactoryOpti
     polylineLayer = createPolylineLayer({ polylines: polylineData }) as PolylineLayer;
   }
 
-  // Create optional layers
-  // Layer factories expect specific types; DOM data is parsed as generic objects.
-  // The JSON structure matches the expected types by convention (data attributes
-  // are serialized from typed Astro props). Cast through unknown to satisfy both.
-  const photoLayer = photos.length > 0
-    ? createPhotoLayer({ photos: photos as unknown as Parameters<typeof createPhotoLayer>[0]['photos'], cdnUrl, defaultVisible: false })
-    : null;
-  const placeData = places.map(p => ({
-    lat: p.lat as number, lng: p.lng as number, emoji: p.emoji as string,
-    popup: buildPlacePopup(p as unknown as Parameters<typeof buildPlacePopup>[0], cdnUrl),
-  }));
-  const placeLayer = placeData.length > 0
-    ? createPlaceLayer({ places: placeData, defaultVisible: false })
-    : null;
+  // Create optional layers — photo and place layers are self-loading (fetch their own tile data)
+  const photoLayer = createPhotoLayer({ cdnUrl, defaultVisible: false });
+  const placeLayer = createPlaceLayer({ cdnUrl, defaultVisible: false });
   const waypointLayer = waypoints.length > 0
     ? createWaypointLayer({ waypoints: waypoints as unknown as Parameters<typeof createWaypointLayer>[0]['waypoints'] })
     : null;
@@ -151,8 +137,8 @@ export function setupMapFromElement(container: HTMLElement, opts: MapFactoryOpti
   // Build session
   const session = createMapSession({ el: glEl, center, zoom });
   session.use(polylineLayer);
-  if (photoLayer) session.use(photoLayer);
-  if (placeLayer) session.use(placeLayer);
+  session.use(photoLayer);
+  session.use(placeLayer);
   if (waypointLayer) session.use(waypointLayer);
   session.use(createElevationSyncLayer());
   if (gpsLayer) session.use(gpsLayer);
@@ -167,8 +153,8 @@ export function setupMapFromElement(container: HTMLElement, opts: MapFactoryOpti
 
   function applyVisibility() {
     const isExp = expandableResult?.isExpanded() ?? !isExpandable; // non-expandable = always "expanded"
-    if (photoLayer) photoLayer.setVisible!(map, isExp && wantsPhotos);
-    if (placeLayer) placeLayer.setVisible!(map, isExp && wantsPlaces);
+    photoLayer.setVisible!(map, isExp && wantsPhotos);
+    placeLayer.setVisible!(map, isExp && wantsPlaces);
   }
 
   // Expandable mode
@@ -192,15 +178,15 @@ export function setupMapFromElement(container: HTMLElement, opts: MapFactoryOpti
   map.on('load', () => {
     if (controlsEl) {
       render(h(MapControls, {
-        hasPhotos: photos.length > 0,
-        hasPlaces: places.length > 0,
+        hasPhotos: true,
+        hasPlaces: true,
         ...(isExpandable && { defaultPhotos: false, defaultPlaces: false }),
         onTogglePhotos: (v: boolean) => { wantsPhotos = v; applyVisibility(); },
         onTogglePlaces: (v: boolean) => { wantsPlaces = v; applyVisibility(); },
         ...(gpsLayer && { onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v) }),
         onToggleStyle: (key: MapStyleKey) => session.switchStyle(key, isExpandable ? undefined : () => {
-          if (photoLayer) photoLayer.setVisible!(map, loadToggleState('map-photos', defaultPhotos));
-          if (placeLayer) placeLayer.setVisible!(map, loadToggleState('map-places', defaultPlaces));
+          photoLayer.setVisible!(map, loadToggleState('map-photos', defaultPhotos));
+          placeLayer.setVisible!(map, loadToggleState('map-places', defaultPlaces));
         }),
       }), controlsEl);
     }
