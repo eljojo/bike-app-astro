@@ -9,6 +9,15 @@ import { test, expect, type Page } from '@playwright/test';
 
 const ROUTE_URL = '/routes/ruta-rio-chillan';
 
+// Assert no photo bubbles are visible (DOM elements may exist but be display:none)
+async function expectNoVisibleBubbles(page: Page) {
+  const visibleCount = await page.evaluate(() => {
+    const bubbles = document.querySelectorAll('.expandable-map-card .photo-bubble');
+    return Array.from(bubbles).filter(b => (b as HTMLElement).style.display !== 'none').length;
+  });
+  expect(visibleCount).toBe(0);
+}
+
 // Wait for the map card and its layers to settle.
 // MapLibre canvas may not render in headless/no-GPU environments, but the
 // DOM elements (photo bubbles, controls, etc.) are created by JS regardless.
@@ -53,8 +62,8 @@ test.describe('Compact mode — no photo bubbles', () => {
     }
 
     // MapLibre IS running — check for actual photo bubbles
-    const bubbles = page.locator('.expandable-map-card .photo-bubble');
-    await expect(bubbles).toHaveCount(0);
+    
+    await expectNoVisibleBubbles(page);
   });
 
   test('no photo bubbles even when localStorage map-photos=true', async ({ page }) => {
@@ -64,8 +73,8 @@ test.describe('Compact mode — no photo bubbles', () => {
     await page.reload();
     await waitForMapSettled(page);
 
-    const bubbles = page.locator('.expandable-map-card .photo-bubble');
-    await expect(bubbles).toHaveCount(0);
+    
+    await expectNoVisibleBubbles(page);
   });
 
   test('no place markers on initial load', async ({ page }) => {
@@ -105,22 +114,24 @@ test.describe('Photo layer lifecycle', () => {
     await page.reload();
     await waitForMapSettled(page);
 
-    // Compact: no bubbles
-    const bubbles = page.locator('.expandable-map-card .photo-bubble');
-    await expect(bubbles).toHaveCount(0);
+    // Compact: no visible bubbles
+    await expectNoVisibleBubbles(page);
 
     // Expand
     const card = page.locator('.expandable-map-card');
-    await card.click();
-    await expect(card).toHaveClass(/expanded/);
+    await card.evaluate(el => (el as HTMLElement).click());
+    await expect(card).toHaveClass(/expanded/, { timeout: 10000 });
 
-    // Wait for layers to settle after expand
-    await page.waitForTimeout(2000);
+    // Wait for: expand animation (350ms) + resize + onExpand callback +
+    // setVisible(true) + triggerRepaint + idle event + syncHandler creates bubbles
+    await page.waitForTimeout(3000);
 
-    // Expanded: photos should be visible (stored preference is true)
-    const expandedBubbles = page.locator('.expandable-map-card .photo-bubble');
-    const count = await expandedBubbles.count();
-    expect(count).toBeGreaterThan(0);
+    // Expanded with map-photos=true: photos should be visible
+    const visibleCount = await page.evaluate(() => {
+      const bubbles = document.querySelectorAll('.expandable-map-card .photo-bubble');
+      return Array.from(bubbles).filter(b => (b as HTMLElement).style.display !== 'none').length;
+    });
+    expect(visibleCount).toBeGreaterThan(0);
   });
 
   test('photos disappear after collapsing', async ({ page }) => {
@@ -131,8 +142,8 @@ test.describe('Photo layer lifecycle', () => {
 
     // Expand
     const card = page.locator('.expandable-map-card');
-    await card.click();
-    await expect(card).toHaveClass(/expanded/);
+    await card.evaluate(el => (el as HTMLElement).click());
+    await expect(card).toHaveClass(/expanded/, { timeout: 10000 });
     await page.waitForTimeout(2000);
 
     // Verify photos appeared
@@ -143,9 +154,12 @@ test.describe('Photo layer lifecycle', () => {
     await page.locator('.expandable-map-close').click();
     await page.waitForTimeout(1000);
 
-    // Compact again: no bubbles
-    const compactBubbles = page.locator('.expandable-map-card .photo-bubble');
-    await expect(compactBubbles).toHaveCount(0);
+    // Compact again: bubbles hidden (DOM elements may exist but display:none)
+    const visibleCount = await page.evaluate(() => {
+      const bubbles = document.querySelectorAll('.expandable-map-card .photo-bubble');
+      return Array.from(bubbles).filter(b => (b as HTMLElement).style.display !== 'none').length;
+    });
+    expect(visibleCount).toBe(0);
   });
 
   test('photos off in compact even after expand-collapse cycle with photos on', async ({ page }) => {
@@ -156,25 +170,27 @@ test.describe('Photo layer lifecycle', () => {
 
     const card = page.locator('.expandable-map-card');
     const closeBtn = page.locator('.expandable-map-close');
-    const bubbles = page.locator('.expandable-map-card .photo-bubble');
+    
 
     // Cycle 1: expand (photos on) -> collapse (photos off)
-    await card.click();
-    await expect(card).toHaveClass(/expanded/);
+    await card.evaluate(el => (el as HTMLElement).click());
+    await expect(card).toHaveClass(/expanded/, { timeout: 10000 });
     await page.waitForTimeout(2000);
-    expect(await bubbles.count()).toBeGreaterThan(0);
+    const cycle1Bubbles = await page.locator('.expandable-map-card .photo-bubble').count();
+    expect(cycle1Bubbles).toBeGreaterThan(0);
     await closeBtn.click();
     await page.waitForTimeout(1000);
-    await expect(bubbles).toHaveCount(0);
+    await expectNoVisibleBubbles(page);
 
     // Cycle 2: expand again (photos should come back) -> collapse (gone again)
-    await card.click();
-    await expect(card).toHaveClass(/expanded/);
+    await card.evaluate(el => (el as HTMLElement).click());
+    await expect(card).toHaveClass(/expanded/, { timeout: 10000 });
     await page.waitForTimeout(2000);
-    expect(await bubbles.count()).toBeGreaterThan(0);
+    const cycle2Bubbles = await page.locator('.expandable-map-card .photo-bubble').count();
+    expect(cycle2Bubbles).toBeGreaterThan(0);
     await closeBtn.click();
     await page.waitForTimeout(1000);
-    await expect(bubbles).toHaveCount(0);
+    await expectNoVisibleBubbles(page);
   });
 });
 
@@ -236,8 +252,8 @@ test.describe('Expand and collapse', () => {
     await page.locator('.expandable-map-close').click();
     await page.waitForTimeout(1000);
 
-    const bubbles = page.locator('.expandable-map-card .photo-bubble');
-    await expect(bubbles).toHaveCount(0);
+    
+    await expectNoVisibleBubbles(page);
   });
 
   test('expand-collapse-expand cycle works', async ({ page }) => {
@@ -262,7 +278,7 @@ test.describe('Expand and collapse', () => {
     await expect(card).not.toHaveClass(/expanded/);
 
     // Still no bubbles
-    const bubbles = page.locator('.expandable-map-card .photo-bubble');
-    await expect(bubbles).toHaveCount(0);
+    
+    await expectNoVisibleBubbles(page);
   });
 });

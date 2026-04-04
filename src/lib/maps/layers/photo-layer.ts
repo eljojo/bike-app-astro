@@ -134,6 +134,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
 
       // DOM bubble sync on idle
       syncHandler = async () => {
+        if (!visible) return;
         const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
         if (!source) return;
 
@@ -259,6 +260,9 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
       for (const el of bubbles) {
         (el as HTMLElement).style.display = v ? '' : 'none';
       }
+      // When turning on, trigger repaint so the idle sync handler runs
+      // and creates any bubbles that were skipped while invisible.
+      if (v) map.triggerRepaint();
     },
   };
 }

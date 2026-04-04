@@ -93,24 +93,29 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 
     const { map } = session;
 
-    // Expandable card — handles interactions, close button, overlay, zoom.
-    // onExpand: apply stored layer preferences (photos/places).
-    // onCollapse: force all layers off.
-    createExpandableMap(map, { card, glEl, overlay, closeBtn }, {
+    // Layer visibility = isExpanded AND user preference.
+    // MapControls updates preferences, expand/collapse applies them.
+    // This is deterministic — no timing races with idle/useEffect.
+    let wantsPhotos = loadToggleState('map-photos', false);
+    let wantsPlaces = loadToggleState('map-places', true);
+
+    const expandable = createExpandableMap(map, { card, glEl, overlay, closeBtn }, {
       getBounds: () => polylineLayer.getBounds?.() ?? null,
-      onExpand() {
-        photoLayer.setVisible!(map, loadToggleState('map-photos', false));
-        placeLayer.setVisible!(map, loadToggleState('map-places', true));
-      },
-      onCollapse() {
-        photoLayer.setVisible!(map, false);
-        placeLayer.setVisible!(map, false);
-      },
+      onExpand: applyOverlayVisibility,
+      onCollapse: applyOverlayVisibility,
     });
+
+    function applyOverlayVisibility() {
+      photoLayer.setVisible!(map, expandable.isExpanded() && wantsPhotos);
+      placeLayer.setVisible!(map, expandable.isExpanded() && wantsPlaces);
+    }
 
     session.start();
 
     // Controls — rendered after map loads, CSS-hidden in compact mode.
+    // MapControls updates wantsPhotos/wantsPlaces, then applyOverlayVisibility
+    // gates effective visibility on isExpanded. In compact mode, setVisible
+    // always gets false regardless of what MapControls fires.
     map.on('load', () => {
       if (controlsEl) {
         render(h(MapControls, {
@@ -118,20 +123,11 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
           hasPlaces: places.length > 0,
           defaultPhotos: false,
           defaultPlaces: false,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
+          onTogglePhotos: (v: boolean) => { wantsPhotos = v; applyOverlayVisibility(); },
+          onTogglePlaces: (v: boolean) => { wantsPlaces = v; applyOverlayVisibility(); },
           onToggleStyle: (key) => session.switchStyle(key),
         }), controlsEl);
       }
-
-      // Force layers off after MapControls mounts.
-      // MapControls useEffect reads localStorage and may turn photos on.
-      // In compact mode, layers must be off. This runs after Preact's
-      // microtask queue (useEffect) via requestAnimationFrame.
-      requestAnimationFrame(() => {
-        photoLayer.setVisible!(map, false);
-        placeLayer.setVisible!(map, false);
-      });
     });
 
     // Variant switching — swap polyline and re-fit
