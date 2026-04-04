@@ -3,6 +3,7 @@
 @use 'webfonts';
 @use 'about';
 @use 'event-detail';
+@use 'route-detail';
 @use 'paths';
 @use 'map-touch-lock';
 @use 'variant-selector';
@@ -885,8 +886,6 @@ body.fullbleed {
     img { width: 200px; height: 200px; object-fit: cover; }
   }
 }
-
-@use 'route-detail';
 
 // Legacy layout classes (used by rides, events, content detail patterns)
 .route-detail--hero {
