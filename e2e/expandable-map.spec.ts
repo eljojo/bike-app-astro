@@ -26,12 +26,33 @@ test.describe('Compact mode — no photo bubbles', () => {
     const response = await page.goto(ROUTE_URL);
     expect(response?.status()).toBe(200);
 
-    // Verify the page has the map card
+    // Verify the page has the map card with photo data
     const html = await page.content();
     expect(html).toContain('expandable-map-card');
+    expect(html).toContain('data-photos');
 
     await waitForMapSettled(page);
 
+    // Verify MapLibre actually initialized — if it didn't, the test is meaningless
+    const mapInitialized = await page.evaluate(() => {
+      const card = document.querySelector('.expandable-map-card');
+      return !!(card && card.querySelector('.maplibregl-canvas'));
+    });
+
+    if (!mapInitialized) {
+      // MapLibre didn't init (no WebGL in headless) — test can't verify bubbles.
+      // Check that at least the photo data exists so the test isn't vacuous.
+      const hasPhotos = await page.evaluate(() => {
+        const card = document.getElementById('route-detail-map');
+        const photos = JSON.parse(card?.dataset.photos || '[]');
+        return photos.length;
+      });
+      expect(hasPhotos).toBeGreaterThan(0);
+      console.warn('MapLibre did not initialize (no WebGL) — skipping bubble DOM check');
+      return;
+    }
+
+    // MapLibre IS running — check for actual photo bubbles
     const bubbles = page.locator('.expandable-map-card .photo-bubble');
     await expect(bubbles).toHaveCount(0);
   });

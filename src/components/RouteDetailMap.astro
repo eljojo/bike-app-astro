@@ -93,13 +93,16 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     const { map } = session;
 
     // Expandable card — handles interactions, close button, overlay, zoom
-    createExpandableMap(map, { card, glEl, overlay, closeBtn }, {
+    const expandable = createExpandableMap(map, { card, glEl, overlay, closeBtn }, {
       getBounds: () => polylineLayer.getBounds?.() ?? null,
     });
 
     session.start();
 
-    // Controls — rendered after map loads, hidden until expanded via CSS
+    // Controls — rendered after map loads, CSS-hidden in compact mode.
+    // BUG FIX: MapControls useEffect reads localStorage on mount and fires
+    // onToggle callbacks immediately. If map-photos=true in localStorage,
+    // it turns photos on even in compact mode. Guard with isExpanded().
     map.on('load', () => {
       if (controlsEl) {
         render(h(MapControls, {
@@ -107,8 +110,14 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
           hasPlaces: places.length > 0,
           defaultPhotos: false,
           defaultPlaces: false,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
+          onTogglePhotos: (v: boolean) => {
+            if (!expandable.isExpanded()) return;
+            photoLayer.setVisible!(map, v);
+          },
+          onTogglePlaces: (v: boolean) => {
+            if (!expandable.isExpanded()) return;
+            placeLayer.setVisible!(map, v);
+          },
           onToggleStyle: (key) => session.switchStyle(key),
         }), controlsEl);
       }
