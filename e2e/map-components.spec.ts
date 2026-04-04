@@ -32,7 +32,6 @@ test.describe('RouteDetailMap — DOM contract', () => {
     const card = page.locator('.expandable-map-card');
     await expect(card).toBeAttached();
     await expect(card).toHaveAttribute('data-polylines');
-    await expect(card).toHaveAttribute('data-photos');
     await expect(card).toHaveAttribute('data-cdn-url');
     await expect(card).toHaveAttribute('aria-expanded', 'false');
   });
@@ -65,16 +64,6 @@ test.describe('RouteDetailMap — DOM contract', () => {
     expect(polylines[0]).toHaveProperty('encoded');
   });
 
-  test('photos data is valid JSON array with geo coordinates', async ({ page }) => {
-    await page.goto(ROUTE_URL);
-    const data = await page.locator('.expandable-map-card').getAttribute('data-photos');
-    const photos = JSON.parse(data!);
-    expect(Array.isArray(photos)).toBe(true);
-    expect(photos.length).toBeGreaterThan(0);
-    expect(photos[0]).toHaveProperty('lat');
-    expect(photos[0]).toHaveProperty('lng');
-    expect(photos[0]).toHaveProperty('key');
-  });
 });
 
 test.describe('BikePathMap — DOM contract', () => {
@@ -103,7 +92,6 @@ test.describe('BigMap — DOM contract', () => {
     const map = page.locator('#big-map');
     await expect(map).toBeAttached();
     await expect(map).toHaveAttribute('data-routes');
-    await expect(map).toHaveAttribute('data-places');
     await expect(map).toHaveAttribute('data-center');
   });
 
@@ -134,6 +122,34 @@ test.describe('BigMap — DOM contract', () => {
     await page.goto(MAP_URL);
     const routesBtn = page.locator('[data-map-view="routes"]');
     await expect(routesBtn).toHaveClass(/active/);
+  });
+});
+
+test.describe('BigMap — category filter', () => {
+  test('?category= shows only matching places on map', async ({ page }) => {
+    if (!await hasWorkingWebGL(page)) {
+      console.warn('No hardware WebGL — skipping category filter test');
+      test.skip();
+    }
+
+    // Wait for the places.geojson to load — confirms the layer is active
+    const placesRequest = page.waitForResponse(
+      resp => resp.url().includes('/places/geo/places.geojson') && resp.status() === 200,
+    );
+
+    await page.goto('/map/?category=cafe');
+    await placesRequest;
+
+    // Wait for emoji markers to appear (place layer renders on idle)
+    const poiMarkers = page.locator('.poi-marker');
+    await expect(poiMarkers.first()).toBeAttached({ timeout: 15000 });
+
+    // Only cafe markers should be visible — bike-shop should be filtered out
+    const visibleEmojis = await page.locator('.poi-marker:visible .poi-marker-emoji').allTextContents();
+    expect(visibleEmojis.length).toBeGreaterThan(0);
+    for (const emoji of visibleEmojis) {
+      expect(emoji.trim()).toBe('☕');
+    }
   });
 });
 
