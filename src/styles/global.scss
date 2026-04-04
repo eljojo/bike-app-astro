@@ -266,21 +266,47 @@ body.fullbleed {
   margin: 0;
   overflow: hidden;
 
-  .site-header,
-  .top-nav {
+  .site-header {
     position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    a { pointer-events: auto; }
+
+    // Desktop: top left with gradient (same as before)
+    top: 0;
     left: 0;
     right: 0;
-    z-index: 10;
-  }
-
-  .site-header {
-    top: 0;
     padding: 0.6rem 0 4rem;
     background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
-    pointer-events: none;
 
-    a { pointer-events: auto; }
+    @include dark-mode {
+      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.9) 0%, rgba(30, 30, 30, 0.6) 50%, rgba(30, 30, 30, 0) 100%);
+    }
+
+    // Mobile: bottom left, small, monochrome
+    @media (max-width: $breakpoint-tablet) {
+      top: auto;
+      bottom: 1.5rem;
+      left: 1rem;
+      right: auto;
+      padding: 0;
+      background: none;
+
+      .site-title {
+        font-size: 0.75em;
+        opacity: 0.8;
+        background: none;
+        -webkit-background-clip: unset;
+        -webkit-text-fill-color: $color-text-muted;
+        background-clip: unset;
+        transition: opacity $transition-state;
+        &:hover { opacity: 1; }
+
+        @include dark-mode {
+          -webkit-text-fill-color: $color-text-muted-dark;
+        }
+      }
+    }
   }
 
   .site-subtitle,
@@ -288,9 +314,41 @@ body.fullbleed {
     display: none;
   }
 
+  // Mobile: top gradient for nav (desktop uses .site-header gradient instead)
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5rem;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.4) 60%, rgba(255, 255, 255, 0) 100%);
+    z-index: 9;
+    pointer-events: none;
+    display: none;
+
+    @media (max-width: $breakpoint-tablet) {
+      display: block;
+    }
+  }
+
+  @include dark-mode {
+    &::before {
+      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.85) 0%, rgba(30, 30, 30, 0.4) 60%, rgba(30, 30, 30, 0) 100%);
+    }
+  }
+
   .top-nav {
-    top: 3rem;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 3.5rem;
+    z-index: 10;
     background: none;
+
+    @media (max-width: $breakpoint-tablet) {
+      top: 0.5rem;
+    }
     pointer-events: none;
 
     a, button { pointer-events: auto; }
@@ -306,12 +364,6 @@ body.fullbleed {
     }
   }
 
-  @include dark-mode {
-    .site-header {
-      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.9) 0%, rgba(30, 30, 30, 0.6) 50%, rgba(30, 30, 30, 0) 100%);
-    }
-  }
-
   main {
     margin: 0;
     padding: 0;
@@ -324,6 +376,13 @@ body.fullbleed {
 
   .map-controls {
     top: 5.9rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      top: 3.5rem;
+    }
+    @media (max-width: $breakpoint-mobile) {
+      top: 6rem;
+    }
   }
 }
 
@@ -562,6 +621,18 @@ body.fullbleed {
 }
 .fullbleed .map-layer-toggle {
   top: 5.9rem;
+
+  @media (max-width: $breakpoint-tablet) {
+    top: 2.8rem;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    left: 10px;
+    right: 10px;
+    transform: none;
+
+    .sub-tab-btn { flex: 1; }
+  }
 }
 // Map controls (Photos/Places/GPS toggles)
 .map-controls {
