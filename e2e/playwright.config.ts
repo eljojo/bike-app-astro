@@ -5,7 +5,7 @@ import { defineConfig } from '@playwright/test';
 // This means SSR tests here catch Workerd-specific issues like missing renderers.
 export default defineConfig({
   testDir: '.',
-  testMatch: ['screenshots.spec.ts', 'functional.spec.ts'],
+  testMatch: ['screenshots.spec.ts', 'functional.spec.ts', 'expandable-map.spec.ts'],
   fullyParallel: true,
   retries: 2,
   workers: '100%',
@@ -20,7 +20,11 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npx astro preview --port 4322',
+    // Use wrangler dev instead of astro preview — the @cloudflare/vite-plugin
+    // miniflare bridge can fail with "Expected miniflare to be defined" on
+    // certain dependency versions. wrangler dev runs the same Cloudflare Workers
+    // runtime but bypasses the Vite preview layer.
+    command: 'npx wrangler dev --port 4322 --config dist/server/wrangler.json',
     port: 4322,
     cwd: '..',
     reuseExistingServer: true,
