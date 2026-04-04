@@ -35,7 +35,7 @@ describe('buildSitemapEntries', () => {
     const home = entries.find(e => e.url === 'https://ottawabybike.ca/');
     expect(home).toBeDefined();
     expect(home!.priority).toBe(1.0);
-    const about = entries.find(e => e.url === 'https://ottawabybike.ca/about');
+    const about = entries.find(e => e.url === 'https://ottawabybike.ca/about/');
     expect(about).toBeDefined();
     expect(about!.priority).toBe(0.6);
   });
@@ -85,16 +85,16 @@ describe('buildSitemapEntries', () => {
     const entries = buildSitemapEntries({ routes: [], guides: [] });
 
     // French about should use translated segment
-    const frAbout = entries.find(e => e.url === 'https://ottawabybike.ca/fr/a-propos');
+    const frAbout = entries.find(e => e.url === 'https://ottawabybike.ca/fr/a-propos/');
     expect(frAbout).toBeDefined();
 
     // Should NOT have untranslated French about
-    const frAboutOld = entries.find(e => e.url === 'https://ottawabybike.ca/fr/about');
+    const frAboutOld = entries.find(e => e.url === 'https://ottawabybike.ca/fr/about/');
     expect(frAboutOld).toBeUndefined();
 
     // French calendar and map
-    expect(entries.find(e => e.url === 'https://ottawabybike.ca/fr/calendrier')).toBeDefined();
-    expect(entries.find(e => e.url === 'https://ottawabybike.ca/fr/carte')).toBeDefined();
+    expect(entries.find(e => e.url === 'https://ottawabybike.ca/fr/calendrier/')).toBeDefined();
+    expect(entries.find(e => e.url === 'https://ottawabybike.ca/fr/carte/')).toBeDefined();
   });
 
   it('uses translated segments for French route URLs', () => {
@@ -111,17 +111,17 @@ describe('buildSitemapEntries', () => {
     });
 
     // French route should use 'parcours'
-    const frRoute = entries.find(e => e.url === 'https://ottawabybike.ca/fr/parcours/test-route');
+    const frRoute = entries.find(e => e.url === 'https://ottawabybike.ca/fr/parcours/test-route/');
     expect(frRoute).toBeDefined();
 
     // Route map URLs are no longer in sitemap (deprecated)
-    const frMap = entries.find(e => e.url === 'https://ottawabybike.ca/fr/parcours/test-route/carte');
+    const frMap = entries.find(e => e.url === 'https://ottawabybike.ca/fr/parcours/test-route/carte/');
     expect(frMap).toBeUndefined();
 
     // Alternates should also use translated URLs
-    const enRoute = entries.find(e => e.url === 'https://ottawabybike.ca/routes/test-route');
+    const enRoute = entries.find(e => e.url === 'https://ottawabybike.ca/routes/test-route/');
     const frAlt = enRoute!.alternates!.find(a => a.locale === 'fr');
-    expect(frAlt!.url).toBe('https://ottawabybike.ca/fr/parcours/test-route');
+    expect(frAlt!.url).toBe('https://ottawabybike.ca/fr/parcours/test-route/');
   });
 
   it('includes only standalone bike paths in sitemap', () => {

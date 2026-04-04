@@ -12,12 +12,15 @@ interface SitemapEntry {
   alternates?: { locale: string; url: string }[];
 }
 
+/** Ensure a path ends with a trailing slash (Cloudflare Pages 307-redirects without one). */
+const withSlash = (p: string) => p.endsWith('/') ? p : `${p}/`;
+
 /** Build a locale-prefixed URL. Default locale has no prefix. */
 function localeUrl(path: string, locale: string): string {
   const defLocale = defaultLocale();
-  if (locale === defLocale) return `${BASE}${path}`;
+  if (locale === defLocale) return `${BASE}${withSlash(path)}`;
   const translated = translatePath(path, locale);
-  return translated === '/' ? `${BASE}/${locale}/` : `${BASE}/${locale}${translated}`;
+  return translated === '/' ? `${BASE}/${locale}/` : `${BASE}/${locale}${withSlash(translated)}`;
 }
 
 /** Create a sitemap entry with alternates for all supported locales. */
