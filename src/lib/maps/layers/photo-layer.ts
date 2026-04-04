@@ -229,7 +229,12 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
               clusterMarkers.delete(clusterId);
               continue;
             }
-          } catch { continue; }
+          } catch {
+            // Cluster no longer exists (zoom broke it apart) — remove stale marker
+            clusterMarkers.get(clusterId)?.remove();
+            clusterMarkers.delete(clusterId);
+            continue;
+          }
 
           if (!clusterMarkers.has(clusterId)) {
             const count = f.properties?.point_count as number;
