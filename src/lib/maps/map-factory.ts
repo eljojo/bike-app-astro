@@ -11,6 +11,7 @@ import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLay
 import type { PolylineLayer } from './layers';
 import type { MapLayer } from './layers/types';
 import { buildPolylineFeature } from './map-init';
+import { buildPlacePopup } from './map-helpers';
 import { createExpandableMap } from './expandable-map';
 import { loadToggleState } from '../../components/admin/MapControls';
 import { render, h } from 'preact';
@@ -135,8 +136,12 @@ export function setupMapFromElement(container: HTMLElement, opts: MapFactoryOpti
   const photoLayer = photos.length > 0
     ? createPhotoLayer({ photos: photos as unknown as Parameters<typeof createPhotoLayer>[0]['photos'], cdnUrl, defaultVisible: false })
     : null;
-  const placeLayer = places.length > 0
-    ? createPlaceLayer({ places: places as unknown as Parameters<typeof createPlaceLayer>[0]['places'], defaultVisible: false })
+  const placeData = places.map(p => ({
+    lat: p.lat as number, lng: p.lng as number, emoji: p.emoji as string,
+    popup: buildPlacePopup(p as unknown as Parameters<typeof buildPlacePopup>[0], cdnUrl),
+  }));
+  const placeLayer = placeData.length > 0
+    ? createPlaceLayer({ places: placeData, defaultVisible: false })
     : null;
   const waypointLayer = waypoints.length > 0
     ? createWaypointLayer({ waypoints: waypoints as unknown as Parameters<typeof createWaypointLayer>[0]['waypoints'] })
