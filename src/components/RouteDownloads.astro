@@ -3,7 +3,8 @@ import Icon from './Icon.astro';
 import { getCityConfig } from '@/lib/config/city-config';
 import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
 import { t } from '@/i18n';
-import { paths } from '@/lib/paths';
+import { paths, assets } from '@/lib/paths';
+import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
 
 interface Props {
   routeSlug: string;
@@ -22,6 +23,8 @@ const siteUrl = getCityConfig().url;
 const vKey = variantKeyFromGpx(variant.gpx);
 const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, vKey)}`;
 const exploreUrl = `https://gpx.studio/app?files=%5B%22${encodeURIComponent(gpxUrl)}%22%5D`;
+const hasMapPng = hasCachedMap(routeSlug, vKey, locale);
+const mapLang = cachedMapLocale(routeSlug, vKey, locale);
 ---
 
 <div class="route-downloads" data-variant={variantKey || undefined}>
@@ -53,6 +56,14 @@ const exploreUrl = `https://gpx.studio/app?files=%5B%22${encodeURIComponent(gpxU
       {' '}
       <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener">
         <img src="/komoot.svg" width="80" alt={t('komoot.open', locale)} />
+      </a>
+    </Fragment>
+  )}
+  {hasMapPng && (
+    <Fragment>
+      {' '}
+      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download>
+        <Icon name="download-simple" size={16} /> Download PNG
       </a>
     </Fragment>
   )}

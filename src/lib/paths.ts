@@ -12,8 +12,6 @@ function localize(path: string, locale?: string): string {
 // Page paths
 export const paths = {
   route: (slug: string, locale?: string) => localize(`/routes/${slug}`, locale),
-  routeMap: (slug: string, locale?: string) => localize(`/routes/${slug}/map`, locale),
-  routeVariantMap: (slug: string, variant: string, locale?: string) => localize(`/routes/${slug}/map/${variant}`, locale),
   routeGpx: (slug: string, variant: string) => `/routes/${slug}/${variant}.gpx`,  // GPX never localized
   guide: (slug: string, locale?: string) => localize(`/guides/${slug}`, locale),
   video: (handle: string, locale?: string) => localize(`/videos/${handle}`, locale),
