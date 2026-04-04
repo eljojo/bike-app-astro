@@ -7,7 +7,7 @@ import { test, expect, type Page } from '@playwright/test';
 // This was a recurring regression — MapControls useEffect reads localStorage
 // and can turn layers on even when the controls panel is CSS-hidden.
 
-const ROUTE_URL = '/routes/ruta-rio-chillan';
+const ROUTE_URL = '/routes/ruta-rio-chillan/';
 
 // Assert no photo bubbles are visible (DOM elements may exist but be display:none)
 async function expectNoVisibleBubbles(page: Page) {
