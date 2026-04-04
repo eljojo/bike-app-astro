@@ -41,6 +41,7 @@ import { haversineM, PHOTO_NEAR_PLACE_M } from './lib/geo/proximity';
 import { supportedLocales, defaultLocale as getDefaultLocale } from './lib/i18n/locale-utils';
 import { translatePath } from './lib/i18n/path-translations';
 import type { FeatureCollection, Feature } from 'geojson';
+import type { TileManifestEntry } from './lib/maps/tile-types';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -131,6 +132,94 @@ export function buildPlacesGeoJSON(
   });
 
   return { type: 'FeatureCollection', features };
+}
+
+// --- Photo tile builder (pure, exported for testing) ---
+
+export interface PhotoTileInput {
+  key: string;
+  lat: number;
+  lng: number;
+  routeSlug: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  type?: string;
+}
+
+export interface PhotoRouteInfo {
+  name: string;
+  url: string;
+}
+
+export interface PhotoTileData {
+  features: Feature[];
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+}
+
+export function buildPhotoTiles(
+  mediaLocations: PhotoTileInput[],
+  routeInfo: Map<string, PhotoRouteInfo>,
+): { tiles: Map<string, PhotoTileData>; manifest: TileManifestEntry[] } {
+  const tiles = new Map<string, PhotoTileData>();
+
+  // Filter to photos only (exclude videos and other types)
+  const photos = mediaLocations.filter(m => !m.type || m.type === 'photo');
+
+  for (const photo of photos) {
+    const tileId = `${Math.floor(photo.lat)}_${Math.floor(photo.lng)}`;
+    const route = photo.routeSlug !== '__parked' ? routeInfo.get(photo.routeSlug) : undefined;
+
+    const feature: Feature = {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [photo.lng, photo.lat],
+      },
+      properties: {
+        key: photo.key,
+        _fid: photo.key,
+        caption: photo.caption || '',
+        width: photo.width || 0,
+        height: photo.height || 0,
+        routeName: route?.name || '',
+        routeUrl: route?.url || '',
+      },
+    };
+
+    let tile = tiles.get(tileId);
+    if (!tile) {
+      tile = {
+        features: [],
+        minLng: Infinity,
+        minLat: Infinity,
+        maxLng: -Infinity,
+        maxLat: -Infinity,
+      };
+      tiles.set(tileId, tile);
+    }
+    tile.features.push(feature);
+
+    if (photo.lng < tile.minLng) tile.minLng = photo.lng;
+    if (photo.lat < tile.minLat) tile.minLat = photo.lat;
+    if (photo.lng > tile.maxLng) tile.maxLng = photo.lng;
+    if (photo.lat > tile.maxLat) tile.maxLat = photo.lat;
+  }
+
+  // Build manifest, sorted alphabetically by tile ID
+  const manifest: TileManifestEntry[] = [...tiles.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, tile]) => ({
+      id,
+      bounds: [tile.minLng, tile.minLat, tile.maxLng, tile.maxLat] as [number, number, number, number],
+      featureCount: tile.features.length,
+      file: `tile-${id}.geojson`,
+    }));
+
+  return { tiles, manifest };
 }
 
 // --- File-reading helpers ---
@@ -475,7 +564,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     }
   }
   // Load geolocated media for nearby-photo computation
-  const mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }> = [];
+  const mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: string }> = [];
   const routesDirForMedia = path.join(CITY_DIR, 'routes');
   if (fs.existsSync(routesDirForMedia)) {
     for (const slug of fs.readdirSync(routesDirForMedia)) {
@@ -485,7 +574,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       if (!Array.isArray(media)) continue;
       for (const m of media) {
         if (m.lat != null && m.lng != null && m.key) {
-          mediaLocations.push({ key: m.key, lat: m.lat, lng: m.lng, routeSlug: slug, caption: m.caption });
+          mediaLocations.push({ key: m.key, lat: m.lat, lng: m.lng, routeSlug: slug, caption: m.caption, width: m.width, height: m.height, type: m.type });
         }
       }
     }
@@ -515,6 +604,31 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const placesGeoDir = path.join(CONSUMER_ROOT, 'public', 'places', 'geo');
   fs.mkdirSync(placesGeoDir, { recursive: true });
   fs.writeFileSync(path.join(placesGeoDir, 'places.geojson'), JSON.stringify(placesGeoJSON));
+
+  // Build route info map for photo tile enrichment (slug → { name, url })
+  const photoRouteInfo = new Map<string, { name: string; url: string }>();
+  if (fs.existsSync(routesDirForMedia)) {
+    for (const slug of fs.readdirSync(routesDirForMedia)) {
+      const indexPath = path.join(routesDirForMedia, slug, 'index.md');
+      if (!fs.existsSync(indexPath)) continue;
+      const { data } = matter(fs.readFileSync(indexPath, 'utf-8'));
+      if (data.name) {
+        photoRouteInfo.set(slug, { name: data.name as string, url: `/routes/${slug}` });
+      }
+    }
+  }
+
+  // Emit photo tiles to public/places/geo/photos/
+  const { tiles: photoTiles, manifest: photoManifest } = buildPhotoTiles(mediaLocations, photoRouteInfo);
+  if (photoTiles.size > 0) {
+    const photoTilesDir = path.join(CONSUMER_ROOT, 'public', 'places', 'geo', 'photos');
+    fs.mkdirSync(photoTilesDir, { recursive: true });
+    for (const [id, tile] of photoTiles) {
+      const fc: FeatureCollection = { type: 'FeatureCollection', features: tile.features };
+      fs.writeFileSync(path.join(photoTilesDir, `tile-${id}.geojson`), JSON.stringify(fc));
+    }
+    fs.writeFileSync(path.join(photoTilesDir, 'manifest.json'), JSON.stringify(photoManifest, null, 2));
+  }
 
   // Tier 2: compute relations per YML slug (overlapping routes, nearby photos/places/paths, connected paths)
   const { relations: bikePathRelations, routeOverlaps, routeToPaths: rawRouteToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList, mediaLocations);
