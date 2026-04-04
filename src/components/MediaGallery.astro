@@ -75,8 +75,9 @@ const videoItems: VideoGalleryItem[] = [
 {showPhotos && allPhotos.length > 0 && (
   <section class="route-photos" id="photos">
     <div class="photo-gallery">
-      {allPhotos.map((photo) => {
+      {allPhotos.map((photo, i) => {
         const ratio = (photo.width || 4) / (photo.height || 3);
+        const eager = i < 4; // first 4 load immediately, rest deferred to IntersectionObserver
         return (
           <a
             href={imageUrl(photo.key)}
@@ -88,12 +89,19 @@ const videoItems: VideoGalleryItem[] = [
             style={`--ratio: ${ratio.toFixed(3)};`}
             target="_blank"
           >
-            <img
-              src={imageUrl(photo.key, { width: 300 })}
-              srcset={imageSrcSet2x(photo.key, { width: 300 })}
-              alt={photo.caption || name}
-              loading="lazy"
-            />
+            {eager ? (
+              <img
+                src={imageUrl(photo.key, { width: 300 })}
+                srcset={imageSrcSet2x(photo.key, { width: 300 })}
+                alt={photo.caption || name}
+              />
+            ) : (
+              <img
+                data-src={imageUrl(photo.key, { width: 300 })}
+                data-srcset={imageSrcSet2x(photo.key, { width: 300 })}
+                alt={photo.caption || name}
+              />
+            )}
             {photo.caption && (
               <span class="pswp-caption-content">{photo.caption}</span>
             )}
@@ -156,10 +164,32 @@ const videoItems: VideoGalleryItem[] = [
       }
     }
 
+    // Preload images ahead of scroll — observe with generous right margin
+    // so images load ~600px before they become visible in the filmstrip.
+    const gallery = document.querySelector<HTMLElement>('.photo-gallery');
+    if (gallery) {
+      const preloadObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const img = entry.target as HTMLImageElement;
+          if (img.dataset.src) {
+            img.src = img.dataset.src;
+            if (img.dataset.srcset) img.srcset = img.dataset.srcset;
+            delete img.dataset.src;
+            delete img.dataset.srcset;
+            preloadObserver.unobserve(img);
+          }
+        }
+      }, { root: gallery, rootMargin: '0px 600px 0px 0px' });
+
+      for (const img of gallery.querySelectorAll<HTMLImageElement>('img[data-src]')) {
+        preloadObserver.observe(img);
+      }
+    }
+
     // Desktop drag-to-scroll: grab cursor, drag scrolls, click opens lightbox.
     // On touch devices, native scroll handles everything — no drag logic needed.
     // After hovering still for 1s, cursor switches to pointer to hint "clickable".
-    const gallery = document.querySelector<HTMLElement>('.photo-gallery');
     if (gallery && !('ontouchstart' in window)) {
       let isDragging = false;
       let startX = 0;
