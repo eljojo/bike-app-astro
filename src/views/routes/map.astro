@@ -1,5 +1,5 @@
 ---
-import { paths, routeSlug } from '@/lib/paths';
+import { paths, routeSlug, allRouteSlugs } from '@/lib/paths';
 import { loadRouteData } from '@/lib/route-data';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
@@ -8,10 +8,10 @@ export async function getStaticPaths() {
   const { routes } = await loadRouteData();
   const filtered = filterByBuildPlan(routes, loadBuildPlan(), 'route');
 
-  return filtered.map(route => ({
-    params: { slug: route.id },
+  return filtered.flatMap(route => allRouteSlugs(route).map(slug => ({
+    params: { slug },
     props: { route },
-  }));
+  })));
 }
 
 const { route } = Astro.props;

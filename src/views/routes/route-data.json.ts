@@ -11,7 +11,7 @@ import { difficultyLabel } from '../../lib/difficulty';
 import { findNearbyPlaces } from '../../lib/geo/proximity';
 import { findSimilarRoutes } from '../../lib/route-similarity';
 import { variantKey, variantSlug } from '../../lib/gpx/filenames';
-import { paths, routeSlug } from '../../lib/paths';
+import { paths, routeSlug, allRouteSlugs } from '../../lib/paths';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { loadBuildPlan, filterByBuildPlan } from '../../lib/content/build-plan.server';
 
@@ -35,10 +35,10 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const { routes, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames } = await loadRouteData();
   const filtered = filterByBuildPlan(routes.filter(isPublished), loadBuildPlan(), 'route');
 
-  return filtered.map(route => ({
-    params: { slug: route.id },
+  return filtered.flatMap(route => allRouteSlugs(route).map(slug => ({
+    params: { slug },
     props: { route, allElevations, placeData, routeDifficultyScores, allScores, similarityMatrix, routeNames },
-  }));
+  })));
 };
 
 export const GET: APIRoute = async ({ props, currentLocale }) => {

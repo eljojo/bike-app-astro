@@ -23,7 +23,7 @@ import { loadRouteData } from '@/lib/route-data';
 import { findSimilarRoutes } from '@/lib/route-similarity';
 import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
-import { paths, routeSlug } from '@/lib/paths';
+import { paths, routeSlug, allRouteSlugs } from '@/lib/paths';
 import { supportedLocales } from '@/lib/i18n/locale-utils';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 import ReactionsWidget from '@/components/ReactionsWidget';
@@ -55,10 +55,10 @@ export async function getStaticPaths() {
     };
   }
 
-  return filtered.map(route => ({
-    params: { slug: route.id },
+  return filtered.flatMap(route => allRouteSlugs(route).map(slug => ({
+    params: { slug },
     props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths },
-  }));
+  })));
 }
 
 const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths } = Astro.props;

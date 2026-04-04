@@ -48,6 +48,24 @@ export function routeSlug(route: { id: string; data: { translations?: Record<str
   return route.id;
 }
 
+/**
+ * All slugs that should resolve to a route: the route ID plus any translated slugs.
+ * Used by getStaticPaths to generate pages at translated slug URLs so they serve
+ * directly as static HTML without needing runtime rewrites.
+ */
+export function allRouteSlugs(route: { id: string; data: { translations?: Record<string, { slug?: string; [key: string]: unknown }> } }): string[] {
+  const slugs = [route.id];
+  const translations = route.data.translations;
+  if (translations) {
+    for (const trans of Object.values(translations)) {
+      if (trans.slug && trans.slug !== route.id) {
+        slugs.push(trans.slug);
+      }
+    }
+  }
+  return slugs;
+}
+
 // Static asset paths (map thumbnails)
 // lang prefix is used for non-default locale maps (e.g. /maps/fr/slug/map-750.webp)
 export const assets = {

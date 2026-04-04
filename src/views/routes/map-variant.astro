@@ -1,6 +1,6 @@
 ---
 import { variantKey as variantKeyFromGpx, variantSlug } from '@/lib/gpx/filenames';
-import { paths, routeSlug } from '@/lib/paths';
+import { paths, routeSlug, allRouteSlugs } from '@/lib/paths';
 import { loadRouteData } from '@/lib/route-data';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 
@@ -11,14 +11,17 @@ export async function getStaticPaths() {
   const results: { params: { slug: string; variant: string }; props: Record<string, unknown> }[] = [];
 
   for (const route of filtered) {
+    const slugs = allRouteSlugs(route);
     for (const v of route.data.variants) {
       const variantKey = variantKeyFromGpx(v.gpx);
       if (!route.data.gpxTracks[v.gpx]) continue;
 
-      results.push({
-        params: { slug: route.id, variant: variantKey },
-        props: { route },
-      });
+      for (const slug of slugs) {
+        results.push({
+          params: { slug, variant: variantKey },
+          props: { route },
+        });
+      }
     }
   }
   return results;

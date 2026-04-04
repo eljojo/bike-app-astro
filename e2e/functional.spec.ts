@@ -253,3 +253,26 @@ test.describe('Route detail — variant permalink', () => {
     await expect(page.locator('h1')).toContainText('Ruta Río Chillán');
   });
 });
+
+// Translated slug in secondary locale — reproduces production 404 at
+// https://ottawabybike.ca/fr/parcours/ottawa-a-plaisance/
+//
+// Route ID: "ottawa-to-plaisance", French translated slug: "ottawa-a-plaisance".
+// Astro only builds /fr/parcours/ottawa-to-plaisance/ (the route ID).
+// The translated slug URL must also resolve — currently it relies on
+// Cloudflare _redirects 200 rewrites, which don't work in wrangler dev
+// and are fragile in production. The fix should make Astro generate pages
+// at the translated slug path directly.
+test.describe('Route detail — translated slug in secondary locale', () => {
+  test('French translated slug URL renders without 404', async ({ page }) => {
+    const response = await page.goto('/fr/parcours/ottawa-a-plaisance/');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('h1')).toContainText('Ottawa à Plaisance');
+  });
+
+  test('default locale route detail uses original slug', async ({ page }) => {
+    const response = await page.goto('/routes/ottawa-to-plaisance/');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('h1')).toContainText('Ottawa to Plaisance');
+  });
+});

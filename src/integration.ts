@@ -21,7 +21,7 @@ import { getCityConfig } from './lib/config/city-config';
 import { CITY } from './lib/config/config';
 import { CONTENT_DIR } from './lib/config/config.server';
 import { sharedCspDirectives } from './lib/csp';
-import { slugRedirectLines } from './lib/slug-redirects';
+
 import { buildDataPlugin } from './build-data-plugin';
 import { i18nRoutes } from './integrations/i18n-routes';
 import { appRoutesIntegration } from './integrations/admin-routes';
@@ -253,29 +253,8 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
           }
         }
 
-        // Translated slug rewrites for non-default locales.
-        const locales = i18nConfig.locales;
-        const defaultLoc = i18nConfig.defaultLocale;
-        const translatedRedirects: string[] = [];
-        if (fs.existsSync(routesDir)) {
-          for (const slug of fs.readdirSync(routesDir)) {
-            for (const locale of locales) {
-              if (locale === defaultLoc) continue;
-              const localePath = path.join(routesDir, slug, `index.${locale}.md`);
-              if (!fs.existsSync(localePath)) continue;
-              const raw = fs.readFileSync(localePath, 'utf-8');
-              const match = raw.match(/^slug:\s*(.+)$/m);
-              if (!match) continue;
-              const localeSlug = match[1].trim().replace(/^["']|["']$/g, '');
-              translatedRedirects.push(...slugRedirectLines(slug, localeSlug, locale));
-            }
-          }
-        }
-        if (translatedRedirects.length > 0) {
-          lines.push('');
-          lines.push('# Translated slug rewrites and redirects');
-          lines.push(...translatedRedirects);
-        }
+        // Translated slug rewrites are handled by SSR middleware
+        // (virtual:bike-app/translated-slugs) to avoid Cloudflare's 100 _redirects limit.
 
         // Renamed URL redirects
         lines.push('');
