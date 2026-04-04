@@ -1,5 +1,5 @@
 // Public Preact island. Styles in global.scss.
-import { useState, useRef } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import Icon from './Icon';
 
 export interface ElevationPoint {
@@ -48,9 +48,25 @@ const WP_COLORS: Record<string, string> = {
   poi: '#1976d2',
 };
 
+const ELEVATION_KEY = 'elevation-collapsed';
+
 export default function InteractiveElevation({ points, label, color = '#0066cc', waypoints = [], collapsed: initialCollapsed = false }: Props) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [isCollapsed, setCollapsed] = useState(initialCollapsed);
+
+  // Read persisted state after hydration + sync across instances
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(ELEVATION_KEY);
+      if (v !== null) setCollapsed(v === 'true');
+    } catch {}
+
+    const handler = (e: Event) => {
+      setCollapsed((e as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener('elevation:toggle', handler);
+    return () => window.removeEventListener('elevation:toggle', handler);
+  }, []);
   const svgRef = useRef<SVGSVGElement>(null);
 
   if (points.length === 0) return null;
@@ -154,7 +170,12 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
       <button
         type="button"
         class="elevation-stats"
-        onClick={() => setCollapsed(c => !c)}
+        onClick={() => {
+          const next = !isCollapsed;
+          setCollapsed(next);
+          try { localStorage.setItem(ELEVATION_KEY, String(next)); } catch {}
+          window.dispatchEvent(new CustomEvent('elevation:toggle', { detail: next }));
+        }}
         aria-expanded={!isCollapsed}
         aria-label={isCollapsed ? 'Show elevation chart' : 'Hide elevation chart'}
       >
@@ -162,8 +183,8 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
         <span title="Elevation range (lowest – highest)">{'\u00A0'}<Icon name="arrows-down-up" size={16} /> {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
         <span title="Total distance">{'\u00A0'}<Icon name="ruler" size={16} /> {maxKm.toFixed(1)} km</span>
         {label && <span class="elevation-label" style={`color: ${color}`}>{label}</span>}
-        <span class="elevation-toggle">
-          {isCollapsed ? <Icon name="caret-right" size={16} /> : <Icon name="caret-down" size={16} />}
+        <span class={`elevation-toggle ${isCollapsed ? 'elevation-toggle--collapsed' : ''}`}>
+          <Icon name="caret-down" size={16} />
         </span>
       </button>
       {!isCollapsed && (

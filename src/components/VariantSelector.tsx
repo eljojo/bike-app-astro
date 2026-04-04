@@ -11,24 +11,42 @@ interface Props {
   initialVariant?: string;
 }
 
-export default function VariantSelector({ variants, initialVariant }: Props) {
-  // Check URL for ?variant= param (used by map page redirects)
-  const urlVariant = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('variant') || undefined
-    : undefined;
-  const startKey = urlVariant && variants.some(v => v.key === urlVariant) ? urlVariant : initialVariant || variants[0]?.key || '';
-  const [active, setActive] = useState(startKey);
+// "variants-cyclotour" → "cyclotour"
+function keyToSlug(key: string): string {
+  return key.replace(/^variants-/, '');
+}
 
-  // Dispatch variant:change on mount if URL had a variant param
+// "cyclotour" → find matching key (e.g. "variants-cyclotour")
+function slugToKey(slug: string, variants: VariantOption[]): string | undefined {
+  return variants.find(v => v.key === slug || keyToSlug(v.key) === slug)?.key;
+}
+
+export default function VariantSelector({ variants, initialVariant }: Props) {
+  const [active, setActive] = useState(initialVariant || variants[0]?.key || '');
+
+  // Read URL ?variant= after hydration — accepts slug ("cyclotour") or full key ("variants-cyclotour")
   useEffect(() => {
-    if (urlVariant && urlVariant !== (variants[0]?.key || '') && variants.some(v => v.key === urlVariant)) {
-      window.dispatchEvent(new CustomEvent('variant:change', { detail: { key: urlVariant } }));
+    const param = new URLSearchParams(window.location.search).get('variant');
+    if (!param) return;
+    const key = slugToKey(param, variants);
+    if (key && key !== active) {
+      setActive(key);
+      window.dispatchEvent(new CustomEvent('variant:change', { detail: { key } }));
     }
   }, []);
 
   function select(key: string) {
     setActive(key);
     window.dispatchEvent(new CustomEvent('variant:change', { detail: { key } }));
+    // Update URL with clean slug (no "variants-" prefix)
+    const params = new URLSearchParams(window.location.search);
+    if (key === (variants[0]?.key || '')) {
+      params.delete('variant');
+    } else {
+      params.set('variant', keyToSlug(key));
+    }
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
   }
 
   if (variants.length <= 1) return null;

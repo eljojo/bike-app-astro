@@ -1,5 +1,5 @@
 ---
-import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
+import { variantKey as variantKeyFromGpx, variantSlug } from '@/lib/gpx/filenames';
 import { paths, routeSlug } from '@/lib/paths';
 import { loadRouteData } from '@/lib/route-data';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
@@ -29,8 +29,11 @@ const locale = Astro.currentLocale;
 const slug = routeSlug(route, locale);
 const variant = Astro.params.variant;
 const defaultVariant = variantKeyFromGpx(route.data.variants[0]?.gpx || '');
-const dest = variant && variant !== defaultVariant
-  ? `${paths.route(slug, locale)}?variant=${variant}`
+// Use clean slug in URL param ("cyclotour" not "variants-cyclotour")
+const variantParam = variant ? variant.replace(/^variants-/, '') : '';
+const defaultSlug = variantSlug(route.data.variants[0]?.gpx || '');
+const dest = variantParam && variantParam !== defaultSlug
+  ? `${paths.route(slug, locale)}?variant=${variantParam}`
   : paths.route(slug, locale);
 return Astro.redirect(dest, 301);
 ---
