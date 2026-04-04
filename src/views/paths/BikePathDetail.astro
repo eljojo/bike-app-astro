@@ -20,7 +20,7 @@ import { paths, assets } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { computeCenter, displaySurface, NETWORK_LABELS, buildPathFacts, type PathFact } from '@/lib/bike-paths/bike-path-facts';
+import { computeCenter, buildPathFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeSurface } from '@/lib/bike-paths/bike-path-facts';
 
 interface Props {
   page: BikePathPage;
@@ -72,48 +72,8 @@ const networkName = networkPage
   ? ((locale && networkPage.translations[locale]?.name) || networkPage.name)
   : page.memberOf;
 
-// --- Standalone/member shared helpers ---
-function localizeSurface(raw?: string): string | undefined {
-  const cat = displaySurface(raw);
-  if (!cat) return undefined;
-  const i18nKey = `paths.fact.${cat}`;
-  const translated = t(i18nKey, locale);
-  return translated !== i18nKey ? translated : cat;
-}
-
-const networkLabel = page.network
-  ? (NETWORK_LABELS[page.network]
-      ? t(`paths.fact.${NETWORK_LABELS[page.network]}`, locale)
-      : isMember ? undefined : page.network)
-  : undefined;
-
-// --- Standalone-specific: pathFacts ---
-function renderFact(fact: PathFact): string {
-  switch (fact.key) {
-    case 'surface_width': {
-      const [cat, width] = (fact.value || '').split(':');
-      const i18nKey = `paths.fact.${cat}`;
-      const surfaceStr = t(i18nKey, locale) !== i18nKey ? t(i18nKey, locale) : cat;
-      return `${surfaceStr}, ${width}m ${t('paths.fact.wide', locale)}`;
-    }
-    case 'surface': {
-      const i18nKey = `paths.fact.${fact.value}`;
-      return t(i18nKey, locale) !== i18nKey ? t(i18nKey, locale) : (fact.value || '');
-    }
-    case 'width':
-      return `${fact.value}m ${t('paths.fact.wide', locale)}`;
-    case 'operator':
-      return t('paths.fact.maintained', locale, { operator: fact.value || '' });
-    case 'gentle_hills':
-      return t('paths.fact.gentle_hills', locale, { meters: fact.value || '' });
-    case 'hilly':
-      return t('paths.fact.hilly', locale, { meters: fact.value || '' });
-    default:
-      return t(`paths.fact.${fact.key}`, locale);
-  }
-}
-
-const pathFacts = isStandalone ? buildPathFacts(page).map(renderFact) : [];
+// --- Structured facts from centralized system (standalone + member) ---
+const pathFacts = !isNetwork ? buildPathFacts(page) : [];
 
 // --- SEO ---
 const seoDescription = (() => {
@@ -127,8 +87,9 @@ const seoDescription = (() => {
   if (isMember) {
     return localeVibe || `${localeName} — ${page.length_km ? `${page.length_km} km` : ''} cycling path`;
   }
-  // standalone
-  return localeVibe || (pathFacts.length > 0 ? pathFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`);
+  // standalone — use sentence form for SEO
+  const seoFacts = pathFacts.map(f => localizeFactSentence(f, t, locale));
+  return localeVibe || (seoFacts.length > 0 ? seoFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`);
 })();
 
 // ogImage: network uses thumbnail_key fallback, standalone/member use route cover photo
@@ -308,7 +269,7 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
           />
         )}
 
-        {/* Facts table — network and standalone/member have different rows */}
+        {/* Facts table — network has its own rows, standalone/member driven by buildPathFacts */}
         {isNetwork ? (
           <table class="bike-path-facts-table">
             {page.length_km && (
@@ -330,26 +291,14 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
             {page.length_km && (
               <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
             )}
-            {page.surface && (
-              <tr><td>{t('paths.label.surface', locale)}</td><td>{localizeSurface(page.surface)}{page.width ? `, ${page.width}m` : ''}</td></tr>
-            )}
+            {pathFacts.map(fact => (
+              <tr><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
+            ))}
             {page.parallel_to && (
               <tr><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
             )}
             {page.mtb && (
               <tr><td>{t('paths.label.trail_type', locale)}</td><td>{t('paths.fact.mtb', locale)}</td></tr>
-            )}
-            {page.highway === 'cycleway' && (
-              <tr><td>{t('paths.label.separated', locale)}</td><td>{t('paths.fact.separated_cars', locale)}</td></tr>
-            )}
-            {page.lit && (
-              <tr><td>{t('paths.label.lit', locale)}</td><td>{page.lit === 'yes' ? t('paths.lit_yes', locale) : t('paths.lit_no', locale)}</td></tr>
-            )}
-            {page.operator && (
-              <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
-            )}
-            {networkLabel && (
-              <tr><td>{t('paths.label.network', locale)}</td><td>{networkLabel}</td></tr>
             )}
           </table>
         )}
@@ -372,7 +321,7 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
               {standaloneConnected.map(p => (
                 <li>
                   <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-                  {!isNetwork && localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
+                  {!isNetwork && localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
                 </li>
               ))}
             </ul>

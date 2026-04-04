@@ -640,6 +640,8 @@
   "paths.label.operator": "Operator",
   "paths.label.network": "Network",
   "paths.label.alongside": "Alongside",
+  "paths.label.terrain": "Terrain",
+  "paths.label.surface_quality": "Surface quality",
   "paths.lit_yes": "Yes",
   "paths.lit_no": "No",
   "paths.go_back": "All bike paths",

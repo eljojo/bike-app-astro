@@ -1,12 +1,15 @@
 /**
- * Shared bike-path fact helpers — locale-independent.
+ * Shared bike-path fact helpers.
  *
- * These functions extract structured facts from bike path metadata.
- * Views are responsible for localizing the output (mapping keys to
- * translated strings via `t()`).
+ * Extracts structured facts from bike path metadata and provides
+ * localization helpers for views. The single source of truth for
+ * what facts a bike path page shows and how they're displayed.
  *
  * Browser-safe — no .server.ts, no node:* imports.
  */
+
+/** Minimal translator type — compatible with the `t()` function from @/i18n. */
+export type Translator = (key: string, locale?: string, vars?: Record<string, string | number>) => string;
 
 /** Maps OSM surface values to display category keys. */
 export const SURFACE_CATEGORIES: Record<string, string> = {
@@ -121,4 +124,71 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   }
 
   return facts;
+}
+
+// ---------------------------------------------------------------------------
+// Localization helpers — views pass their `t` function in
+// ---------------------------------------------------------------------------
+
+/** Returns the i18n label key for a fact's table row (e.g. "paths.label.surface"). */
+export function factLabelKey(factKey: string): string {
+  if (factKey === 'surface_width' || factKey === 'surface' || factKey === 'width') return 'paths.label.surface';
+  if (factKey.startsWith('smoothness_')) return 'paths.label.surface_quality';
+  if (factKey === 'separated_cars' || factKey === 'separated_peds') return 'paths.label.separated';
+  if (factKey === 'lit' || factKey === 'not_lit') return 'paths.label.lit';
+  if (factKey === 'flat' || factKey === 'gentle_hills' || factKey === 'hilly') return 'paths.label.terrain';
+  if (factKey === 'operator') return 'paths.label.operator';
+  if (factKey.startsWith('network_')) return 'paths.label.network';
+  return `paths.label.${factKey}`;
+}
+
+/** Localize a fact's value for table display. */
+export function localizeFactValue(fact: PathFact, t: Translator, locale?: string): string {
+  switch (fact.key) {
+    case 'surface_width': {
+      const [surface, width] = (fact.value || '').split(':');
+      const surfaceStr = localizeSurface(surface, t, locale) || surface;
+      return `${surfaceStr}, ${width}m`;
+    }
+    case 'surface':
+      return localizeSurface(fact.value, t, locale) || fact.value || '';
+    case 'width':
+      return `${fact.value}m`;
+    case 'operator':
+      return fact.value || '';
+    case 'gentle_hills':
+      return t('paths.fact.gentle_hills', locale, { meters: fact.value || '' });
+    case 'hilly':
+      return t('paths.fact.hilly', locale, { meters: fact.value || '' });
+    default: {
+      const i18nKey = `paths.fact.${fact.key}`;
+      const translated = t(i18nKey, locale);
+      return translated !== i18nKey ? translated : fact.key;
+    }
+  }
+}
+
+/** Localize a fact as a full sentence (for SEO descriptions). */
+export function localizeFactSentence(fact: PathFact, t: Translator, locale?: string): string {
+  if (fact.key === 'surface_width') {
+    const [surface, width] = (fact.value || '').split(':');
+    const surfaceStr = localizeSurface(surface, t, locale) || surface;
+    return `${surfaceStr}, ${width}m ${t('paths.fact.wide', locale)}`;
+  }
+  if (fact.key === 'width') {
+    return `${fact.value}m ${t('paths.fact.wide', locale)}`;
+  }
+  if (fact.key === 'operator') {
+    return t('paths.fact.maintained', locale, { operator: fact.value || '' });
+  }
+  return localizeFactValue(fact, t, locale);
+}
+
+/** Localize a raw OSM surface value (e.g. "fine_gravel" → "Gravel"). */
+export function localizeSurface(raw: string | undefined, t: Translator, locale?: string): string | undefined {
+  const cat = displaySurface(raw);
+  if (!cat) return undefined;
+  const i18nKey = `paths.fact.${cat}`;
+  const translated = t(i18nKey, locale);
+  return translated !== i18nKey ? translated : cat;
 }

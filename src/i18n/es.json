@@ -640,6 +640,8 @@
   "paths.label.operator": "Operador",
   "paths.label.network": "Red",
   "paths.label.alongside": "Junto a",
+  "paths.label.terrain": "Terreno",
+  "paths.label.surface_quality": "Calidad de superficie",
   "paths.lit_yes": "Sí",
   "paths.lit_no": "No",
   "paths.go_back": "Todas las ciclovías",

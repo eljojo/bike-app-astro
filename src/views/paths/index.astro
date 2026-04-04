@@ -8,7 +8,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
-import { displaySurface } from '@/lib/bike-paths/bike-path-facts';
+import { localizeSurface } from '@/lib/bike-paths/bike-path-facts';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -99,14 +99,7 @@ for (const [operator, pathsList] of sortedEntries) {
   });
 }
 
-// Localize a surface category key into a translated string
-function localizeSurface(raw?: string): string | undefined {
-  const cat = displaySurface(raw);
-  if (!cat) return undefined;
-  const i18nKey = `paths.fact.${cat}`;
-  const translated = t(i18nKey, locale);
-  return translated !== i18nKey ? translated : cat;
-}
+
 
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
@@ -148,7 +141,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                 <h3>{pathName(p)}</h3>
                 {pathVibe(p) && <p class="path-vibe">{pathVibe(p)}</p>}
                 <span class="path-card-meta">
-                  {localizeSurface(p.surface) && <span class="path-surface">{localizeSurface(p.surface)}</span>}
+                  {localizeSurface(p.surface, t, locale) && <span class="path-surface">{localizeSurface(p.surface, t, locale)}</span>}
                   {p.routeCount > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
                 </span>
               </a>
@@ -241,7 +234,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                       <span class="path-link-name">{pathName(p)}</span>
                       <span class="path-link-meta">
                         {p.length_km && <span class="path-meta">{p.length_km} km</span>}
-                        {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
+                        {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
                         {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
                       </span>
                     </span>
