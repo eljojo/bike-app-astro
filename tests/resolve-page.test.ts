@@ -59,7 +59,7 @@ describe('resolvePageForYmlSlug', () => {
   it('resolves a network member with nested URL', () => {
     const ref = resolvePageForYmlSlug('ottawa-river-pathway', pages);
     expect(ref).toBeDefined();
-    expect(ref!.url).toBe('/bike-paths/capital-pathway/ottawa-river-pathway');
+    expect(ref!.url).toBe('/bike-paths/capital-pathway/ottawa-river-pathway/');
     expect(ref!.networkSlug).toBe('capital-pathway');
   });
 

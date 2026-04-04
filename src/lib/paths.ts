@@ -4,9 +4,12 @@ import { translatePath } from './i18n/path-translations';
 
 /** When a locale is provided and differs from the default, translate path segments and add locale prefix. */
 function localize(path: string, locale?: string): string {
-  if (!locale || locale === defaultLocale()) return path;
+  // All page paths get a trailing slash to avoid Cloudflare Pages 307 redirects.
+  const trailed = path.endsWith('/') ? path : `${path}/`;
+  if (!locale || locale === defaultLocale()) return trailed;
   const translated = translatePath(path, locale);
-  return `/${locale}${translated}`;
+  const trailedTranslated = translated.endsWith('/') ? translated : `${translated}/`;
+  return `/${locale}${trailedTranslated}`;
 }
 
 // Page paths
@@ -29,11 +32,11 @@ export const paths = {
   event: (slug: string, locale?: string) => localize(`/events/${slug}`, locale),
   // Blog instance paths
   ride: (slug: string, tourSlug?: string | null) =>
-    tourSlug ? `/tours/${tourSlug}/${slug}` : `/rides/${slug}`,
+    tourSlug ? `/tours/${tourSlug}/${slug}/` : `/rides/${slug}/`,
   rideMap: (slug: string, tourSlug?: string | null) =>
-    tourSlug ? `/tours/${tourSlug}/${slug}/map` : `/rides/${slug}/map`,
+    tourSlug ? `/tours/${tourSlug}/${slug}/map/` : `/rides/${slug}/map/`,
   rideGpx: (slug: string, variant: string) => `/rides/${slug}/${variant}.gpx`,
-  tour: (slug: string) => `/tours/${slug}`,
+  tour: (slug: string) => `/tours/${slug}/`,
 };
 
 /** Get the correct slug for a route in the given locale. Uses translated slug if available. */
