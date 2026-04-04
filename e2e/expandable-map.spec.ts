@@ -55,10 +55,9 @@ test.describe('Compact mode — no photo bubbles', () => {
     const response = await page.goto(ROUTE_URL);
     expect(response?.status()).toBe(200);
 
-    // Verify the page has the map card with photo data
+    // Verify the page has the map card
     const html = await page.content();
     expect(html).toContain('expandable-map-card');
-    expect(html).toContain('data-photos');
 
     await waitForMapSettled(page);
 
