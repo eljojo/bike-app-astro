@@ -95,25 +95,50 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       data: { type: 'FeatureCollection', features },
     });
 
+    // Non-interactive paths: fade out and thin when zoomed out
     map.addLayer({
       id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
       filter: ['!=', ['get', 'interactive'], 'true'],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': ROUTE_COLOR,
-        'line-width': Math.max(1, ROUTE_LINE_WIDTH - 2),
-        'line-opacity': 0.5,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1, 12, 2, 14, 4],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.08, 12, 0.2, 14, 0.45],
       },
     });
 
+    // Interactive paths: thinner when zoomed out, full width when zoomed in
     map.addLayer({
       id: 'paths-network-line', type: 'line', source: SOURCE_ID,
       filter: ['==', ['get', 'interactive'], 'true'],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
         'line-color': ROUTE_COLOR,
-        'line-width': ROUTE_LINE_WIDTH,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
         'line-opacity': 0.8,
+      },
+    });
+
+    // Path name labels — rendered above the line so text is always readable
+    map.addLayer({
+      id: 'paths-network-labels', type: 'symbol', source: SOURCE_ID,
+      filter: ['==', ['get', 'interactive'], 'true'],
+      minzoom: 11,
+      layout: {
+        'symbol-placement': 'line',
+        'text-field': ['get', 'name'],
+        'text-size': 12,
+        'text-font': ['Open Sans Regular'],
+        'text-anchor': 'center',
+        'text-offset': [0, -1],
+        'text-max-angle': 30,
+        'symbol-spacing': 300,
+        'text-allow-overlap': false,
+      },
+      paint: {
+        'text-color': ROUTE_COLOR,
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 2,
       },
     });
 
@@ -189,6 +214,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       const vis = v ? 'visible' : 'none';
       if (map.getLayer('paths-network-bg')) map.setLayoutProperty('paths-network-bg', 'visibility', vis);
       if (map.getLayer('paths-network-line')) map.setLayoutProperty('paths-network-line', 'visibility', vis);
+      if (map.getLayer('paths-network-labels')) map.setLayoutProperty('paths-network-labels', 'visibility', vis);
     },
   };
 }
