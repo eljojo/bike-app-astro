@@ -63,7 +63,7 @@ const regUrl = data.registration?.url || data.registration_url;
 Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
-<Base title={`${data.name} | ${config.display_name}`} description={dateDisplay} ogImage={coverUrl} ogImageAlt={data.name} ogType="event">
+<Base title={`${data.name}${organizerName ? ` - ${organizerName}` : ''} | ${config.display_name}`} description={dateDisplay} ogImage={coverUrl} ogImageAlt={data.name} ogType="event">
   <div class="event-preview-banner">Preview — this event has not been published yet</div>
   <article class="event-detail">
     <div class={`event-detail-hero ${coverKey ? '' : 'event-detail-hero--no-poster'}`}>

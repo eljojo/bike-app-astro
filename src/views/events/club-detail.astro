@@ -385,7 +385,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
 }
 ---
 
-<Base title={`${data.name} | ${config.display_name}`} description={seoDescription} ogImage={coverUrl} ogImageAlt={data.name} ogType="event" jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
+<Base title={`${data.name}${organizerName ? ` - ${organizerName}` : ''} | ${config.display_name}`} description={seoDescription} ogImage={coverUrl} ogImageAlt={data.name} ogType="event" jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
   <SubTabToggle items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: true },
     { label: t('nav.people', locale), href: paths.communities(locale), active: false },
