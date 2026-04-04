@@ -46,24 +46,24 @@ const mapLang = cachedMapLocale(routeSlug, vKey, locale);
   {variant.strava_url && (
     <Fragment>
       {' '}
-      <a href={variant.strava_url} class="action-button --light --logo" target="_blank" rel="noopener">
-        <img src="/strava.svg" width="80" alt={t('strava.open', locale)} />
+      <a href={variant.strava_url} class="action-button --light --logo" target="_blank" rel="noopener" title={t('strava.open', locale)} aria-label={t('strava.open', locale)}>
+        <img src="/strava.svg" width="80" alt="" aria-hidden="true" style="-webkit-user-select: none" />
       </a>
     </Fragment>
   )}
   {variant.rwgps_url && (
     <Fragment>
       {' '}
-      <a href={variant.rwgps_url} class="action-button --light --logo" target="_blank" rel="noopener">
-        <img src="/rwgps.svg" width="78" alt={t('rwgps.open', locale)} />
+      <a href={variant.rwgps_url} class="action-button --light --logo" target="_blank" rel="noopener" title={t('rwgps.open', locale)} aria-label={t('rwgps.open', locale)}>
+        <img src="/rwgps.svg" width="78" alt="" aria-hidden="true" style="-webkit-user-select: none" />
       </a>
     </Fragment>
   )}
   {variant.komoot_url && (
     <Fragment>
       {' '}
-      <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener">
-        <img src="/komoot.svg" width="80" alt={t('komoot.open', locale)} />
+      <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener" title={t('komoot.open', locale)} aria-label={t('komoot.open', locale)}>
+        <img src="/komoot.svg" width="80" alt="" aria-hidden="true" style="-webkit-user-select: none" />
       </a>
     </Fragment>
   )}

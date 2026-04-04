@@ -14,6 +14,7 @@ import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/dat
 import { t, localePath, eventNoun, eventNextLabel, eventSignUpLabel, eventEditionsLabel, eventGoBackLabel } from '@/i18n';
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
+import SubTabToggle from '@/components/SubTabToggle.astro';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import ReactionsWidget from '@/components/ReactionsWidget.tsx';
 import { tTag } from '@/lib/i18n/tag-translations.server';
@@ -385,6 +386,11 @@ function editionDateLabel(startDate: string, loc?: string): string {
 ---
 
 <Base title={`${data.name} | ${config.display_name}`} description={seoDescription} ogImage={coverUrl} ogImageAlt={data.name} ogType="event" jsonLd={jsonLd} breadcrumbs={breadcrumbs}>
+  <SubTabToggle items={[
+    { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: true },
+    { label: t('nav.people', locale), href: paths.communities(locale), active: false },
+    { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: false },
+  ]} />
   <article class="event-detail">
     <div class={`event-detail-hero ${coverKey ? '' : 'event-detail-hero--no-poster'}`}>
       {coverKey && (

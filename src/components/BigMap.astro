@@ -113,7 +113,12 @@ const hasPaths = pathMapData.length > 0;
       routesBtn.classList.toggle('active', !showingPaths);
       pathsBtn.classList.toggle('active', showingPaths);
     }
-    if (initialShowPaths) updateToggleUI(true);
+    if (initialShowPaths) {
+      updateToggleUI(true);
+      // Set "Ride" nav link to match initial paths state
+      const rideLink = document.querySelector<HTMLAnchorElement>('[data-nav-ride]');
+      if (rideLink) rideLink.href = '/bike-paths';
+    }
 
     // Category filter
     const categoryFilter = new URLSearchParams(location.search).get('category');
@@ -214,6 +219,12 @@ const hasPaths = pathMapData.length > 0;
       updateToggleUI(showingPaths);
       saveToggleState('map-paths', showingPaths);
       history.replaceState(null, '', showingPaths ? '#paths' : location.pathname);
+
+      // Update "Ride" nav link to match the active tab
+      const rideLink = document.querySelector<HTMLAnchorElement>('[data-nav-ride]');
+      if (rideLink) {
+        rideLink.href = showingPaths ? '/bike-paths' : '/routes';
+      }
 
       if (showingPaths) {
         tilePathLayer.setVisible!(map, true);

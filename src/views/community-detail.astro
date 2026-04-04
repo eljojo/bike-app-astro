@@ -20,6 +20,7 @@ import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import PinMap from '@/components/PinMap.astro';
 import Icon from '@/components/Icon.astro';
+import SubTabToggle from '@/components/SubTabToggle.astro';
 import { escapeHtml } from '@/lib/maps/map-helpers';
 
 const config = getCityConfig();
@@ -143,6 +144,11 @@ const PAST_EVENTS_INITIAL = 4;
 ---
 
 <Base title={`${data.name} | ${config.display_name}`} description={data.tagline} breadcrumbs={breadcrumbs}>
+  <SubTabToggle items={[
+    { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
+    { label: t('nav.people', locale), href: paths.communities(locale), active: !isShop },
+    { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: isShop },
+  ]} />
   <article class="community-detail">
     <header class="community-detail-header">
       <div class="community-detail-avatar">
