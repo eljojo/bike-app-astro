@@ -142,7 +142,7 @@ test.describe('Network pages', () => {
     const badge = page.locator('.network-badge');
     await expect(badge).toBeVisible();
     await expect(badge).toContainText('Red de Ciclovías');
-    await expect(badge).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias$/);
+    await expect(badge).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias\/?$/);
   });
 });
 
