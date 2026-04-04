@@ -886,139 +886,7 @@ body.fullbleed {
   }
 }
 
-// Route detail
-.route-detail {
-  h1 {
-    font-size: 24px;
-    @media (max-width: $breakpoint-tablet) { margin: 0; }
-  }
-  h2 { font-size: 18.72px; }
-}
-
-.route-detail-tagline {
-  font-family: $font-heading;
-  font-style: italic;
-  color: $color-text-muted;
-  @include dark-mode { color: $color-text-muted-dark; }
-  @media (max-width: $breakpoint-tablet) { margin: 0; }
-}
-
-.route-detail-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
-  gap: 1.5rem;
-  margin-top: 0.5rem;
-
-  @media (max-width: $breakpoint-tablet) {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-}
-
-.route-detail-main {
-  font-size: 1.05em;
-  p { line-height: 1.45em; }
-  @media (max-width: $breakpoint-tablet) {
-    display: contents;
-  }
-}
-
-.route-detail-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  @media (max-width: $breakpoint-tablet) {
-    display: contents;
-  }
-}
-
-// Mobile reordering — when display:contents flattens both columns into the grid,
-// assign explicit order so map + facts float to the top.
-@media (max-width: $breakpoint-tablet) {
-  .route-detail-map-wrapper { order: 1; }
-  .route-elevation { order: 2; }
-  .route-facts-table { order: 3; }
-  .route-description { order: 4; }
-  .route-photos { order: 5; overflow: hidden; }
-  .route-videos { order: 5; }
-  .nearby-places { order: 6; }
-  .route-downloads { order: 7; }
-  .route-reactions-zone { order: 9; }
-  .edit-entry-point { order: 10; }
-  .route-place-summary { order: 11; }
-}
-
-.route-photos {
-  max-width: 100%;
-  overflow: hidden;
-  margin: 0.75rem 0;
-}
-
-.route-downloads {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid $color-border;
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-  }
-
-  .action-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1rem;
-    border: 1px solid $color-border;
-    border-radius: $border-radius;
-    background: transparent;
-    color: $color-text;
-    font-size: 0.9rem;
-    height: auto;
-    line-height: normal;
-    text-decoration: none;
-    transition: background-color 0.15s, border-color 0.15s;
-    margin-right: 0;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.04);
-    }
-
-    @include dark-mode {
-      color: $color-text-dark;
-      border-color: $color-border-dark;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.06);
-      }
-    }
-
-    &.--light {
-      background: transparent;
-      border-color: $color-border;
-
-      &:hover {
-        background: rgba(0, 0, 0, 0.04);
-      }
-
-      @include dark-mode {
-        border-color: $color-border-dark;
-
-        &:hover {
-          background: rgba(255, 255, 255, 0.06);
-        }
-      }
-    }
-  }
-}
-
-.route-detail-hero {
-  @media (min-width: $breakpoint-tablet + 1) { display: none; }
-  @media (max-width: $breakpoint-tablet) { order: -1; }
-  img { width: 100%; height: auto; border-radius: $border-radius; }
-}
+@use 'route-detail';
 
 // Legacy layout classes (used by rides, events, content detail patterns)
 .route-detail--hero {
@@ -1051,13 +919,6 @@ body.fullbleed {
   max-width: 600px;
   img { width: 100%; height: auto; border-radius: 8px; }
   @media (max-width: 800px) { width: 100%; }
-}
-.route--tags {
-  list-style: none;
-  padding: 0;
-}
-.route-description {
-  a { @include prose-link; }
 }
 
 // Admin edit link (hidden unless logged in)
@@ -1196,80 +1057,13 @@ body.fullbleed {
   }
 }
 
-// Route detail: reactions zone
-.route-reactions-zone {
-  margin: 1rem 0;
-}
-
 .event-reactions-zone {
   margin-top: 1rem;
-}
-
-// Similar routes
-.route-similar {
-  margin-top: 2em;
-}
-
-.route-similar--cards {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75em;
-  padding: 0;
-  margin: 0;
-}
-
-.route-similar--card {
-  width: calc(50% - 0.375em);
-  @include card-depth;
-
-  @media (min-width: $breakpoint-desktop) {
-    width: calc(33.333% - 0.5em);
-  }
-
-  a {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-  }
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: $border-radius;
-    object-fit: cover;
-    aspect-ratio: 3 / 2;
-  }
-}
-
-.route-similar--card-name {
-  display: block;
-  font-weight: 600;
-  margin-top: 0.3em;
-  font-size: 0.95em;
-}
-
-.route-similar--card-distance {
-  display: block;
-  font-size: 0.85em;
-  @include muted-text;
 }
 
 // Hidden nearby places (truncation toggle)
 .places-hidden {
   display: none !important;
-}
-
-// Place summary line
-.route-place-summary {
-  font-size: 0.9em;
-  color: $color-text-muted;
-  @include dark-mode { color: $color-text-muted-dark; }
-
-  a {
-    @include sidebar-link;
-  }
 }
 
 // Reactions widget
