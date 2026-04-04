@@ -40,8 +40,9 @@ If the user says "you're drifting", "stop and listen", "that's not what I asked"
 Before claiming work is complete:
   **Follow the [verification protocol](_ctx/protocol-verify-before-done.md).**
 
-Before any git command that discards or moves uncommitted work:
-  **Follow the [destructive actions protocol](_ctx/protocol-destructive-actions.md).**
+**NEVER run `git stash`, `git checkout --`, `git restore`, `git reset --hard`, or any command that discards uncommitted work.**
+  These commands are irreversible and can destroy the user's in-progress work on unrelated tasks.
+  If you think you need to discard changes: STOP. Read the [destructive actions protocol](_ctx/protocol-destructive-actions.md). List every affected file. Explain why. Ask for explicit confirmation. There are no exceptions.
 
 ## Mandatory Rules
 

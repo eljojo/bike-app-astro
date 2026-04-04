@@ -1,28 +1,25 @@
 /**
- * Expandable map card — shared expand/collapse logic for inline maps.
+ * Expandable map card — shared expand/collapse for inline maps.
  *
- * The map has two modes:
- *   compact  — polyline only, no interaction, no controls
- *   expanded — full map with interactions, controls, layers
+ * Compact: polyline only, interactions disabled, controls CSS-hidden.
+ * Expanded: full map, interactions enabled, close button visible.
  *
- * The mode is the single source of truth. Everything flows from setMode().
+ * This is a direct extraction of the proven BikePathMap expand/collapse pattern.
+ * It was battle-tested before extraction — don't add cleverness.
  */
 
 import type maplibregl from 'maplibre-gl';
 
-export type MapMode = 'compact' | 'expanded';
-
 export interface ExpandableMapElements {
   card: HTMLElement;
+  glEl: HTMLElement;
   overlay: HTMLElement;
   closeBtn: HTMLElement;
 }
 
 export interface ExpandableMapCallbacks {
-  /** Called when mode changes. Component wires up layer show/hide here. */
-  onModeChange: (mode: MapMode) => void;
-  /** Return bounds for fitBounds after expand/collapse. */
-  getBounds: () => maplibregl.LngLatBoundsLike | null;
+  /** Return bounds for fitBounds after expand/collapse. Must return a LngLatBounds with .isEmpty(). */
+  getBounds: () => maplibregl.LngLatBounds | null;
 }
 
 const TRANSITION_MS = 350;
@@ -32,32 +29,20 @@ export function createExpandableMap(
   els: ExpandableMapElements,
   callbacks: ExpandableMapCallbacks,
 ) {
-  let mode: MapMode = 'compact';
+  const { card, glEl, overlay, closeBtn } = els;
+  let expanded = false;
   let savedRect: DOMRect | null = null;
-  const { card, overlay, closeBtn } = els;
 
-  function setMode(newMode: MapMode) {
-    mode = newMode;
-
-    if (mode === 'compact') {
-      map.scrollZoom.disable();
-      map.dragPan.disable();
-      map.doubleClickZoom.disable();
-      map.touchZoomRotate.disable();
-      closeBtn.style.display = 'none';
-    } else {
-      map.scrollZoom.enable();
-      map.dragPan.enable();
-      map.doubleClickZoom.enable();
-      map.touchZoomRotate.enable();
-      closeBtn.style.display = 'flex';
-    }
-
-    callbacks.onModeChange(mode);
-  }
+  // Start in compact mode — disable interactions
+  map.scrollZoom.disable();
+  map.dragPan.disable();
+  map.doubleClickZoom.disable();
+  map.touchZoomRotate.disable();
 
   function expand() {
-    if (mode === 'expanded') return;
+    if (expanded) return;
+    expanded = true;
+    glEl.classList.add('fading');
     savedRect = card.getBoundingClientRect();
     card.style.position = 'fixed';
     card.style.top = `${savedRect.top}px`;
@@ -66,6 +51,7 @@ export function createExpandableMap(
     card.style.height = `${savedRect.height}px`;
     card.style.zIndex = '1000';
     overlay.classList.add('visible');
+    closeBtn.style.display = 'flex';
     card.setAttribute('aria-expanded', 'true');
     const isMobile = window.matchMedia('(max-width: 800px)').matches;
     requestAnimationFrame(() => {
@@ -84,30 +70,38 @@ export function createExpandableMap(
         card.style.borderRadius = '16px';
       }
     });
-    setMode('expanded');
+    map.scrollZoom.enable();
+    map.dragPan.enable();
+    map.doubleClickZoom.enable();
+    map.touchZoomRotate.enable();
     setTimeout(() => {
       map.resize();
-      // fitBounds after map has re-rendered at new size
-      map.once('render', () => {
-        const bounds = callbacks.getBounds();
-        if (bounds) map.fitBounds(bounds, { padding: 60, animate: false });
-      });
+      const b = callbacks.getBounds();
+      if (b && !b.isEmpty()) map.fitBounds(b, { padding: 60, animate: false });
+      requestAnimationFrame(() => glEl.classList.remove('fading'));
     }, TRANSITION_MS);
   }
 
   function collapse() {
-    if (mode === 'compact') return;
-    setMode('compact');
+    if (!expanded) return;
+    expanded = false;
+    glEl.classList.add('fading');
     card.classList.remove('expanded');
     card.setAttribute('aria-expanded', 'false');
     overlay.classList.remove('visible');
+    closeBtn.style.display = 'none';
     if (savedRect) {
       card.style.top = `${savedRect.top}px`;
       card.style.left = `${savedRect.left}px`;
       card.style.width = `${savedRect.width}px`;
       card.style.height = `${savedRect.height}px`;
-      card.style.borderRadius = '';
+      const isMobile = window.matchMedia('(max-width: 800px)').matches;
+      card.style.borderRadius = isMobile ? '8px' : '12px';
     }
+    map.scrollZoom.disable();
+    map.dragPan.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
     setTimeout(() => {
       card.style.position = '';
       card.style.top = '';
@@ -117,29 +111,26 @@ export function createExpandableMap(
       card.style.zIndex = '';
       card.style.borderRadius = '';
       map.resize();
-      map.once('render', () => {
-        const bounds = callbacks.getBounds();
-        if (bounds) map.fitBounds(bounds, { padding: 20, animate: false });
-      });
+      const b = callbacks.getBounds();
+      if (b && !b.isEmpty()) map.fitBounds(b, { padding: 20, animate: false });
+      requestAnimationFrame(() => glEl.classList.remove('fading'));
     }, TRANSITION_MS);
   }
 
-  // Wire up events
+  // Event wiring
   card.addEventListener('click', (e) => {
-    if (mode === 'expanded') return;
-    if ((e.target as HTMLElement).closest('.maplibregl-popup')) return;
+    if (expanded) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.maplibregl-popup')) return;
     if (card.querySelector('.maplibregl-popup')) return;
     expand();
   });
   card.addEventListener('keydown', (e) => {
-    if (mode === 'compact' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
+    if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
   });
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
   overlay.addEventListener('click', collapse);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mode === 'expanded') collapse(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
 
-  // Start in compact mode
-  setMode('compact');
-
-  return { expand, collapse, getMode: () => mode };
+  return { expand, collapse, isExpanded: () => expanded };
 }

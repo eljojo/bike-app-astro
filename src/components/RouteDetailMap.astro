@@ -6,7 +6,6 @@ interface Props {
   polylines: { name: string; encoded: string; key?: string }[];
   places?: { name: string; emoji: string; lat: number; lng: number; description?: string; link?: string; google_maps_url?: string }[];
   photos?: { key: string; lat: number; lng: number; caption?: string; width?: number; height?: number; index: number }[];
-  initialVariant?: string;
   locale?: string;
 }
 
@@ -37,6 +36,12 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 </div>
 
 <script>
+  // Follows the exact same pattern as BikePathMap.astro.
+  // Photo/place layers start hidden (defaultVisible: false).
+  // MapControls starts with defaultPhotos: false.
+  // Controls are CSS-hidden in compact mode — user can only toggle layers when expanded.
+  // No clever mode management, no lazy layer creation, no onModeChange callbacks.
+
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createElevationSyncLayer } from '../lib/maps/layers';
   import { buildPlacePopup } from '../lib/maps/map-helpers';
   import { buildPolylineFeature } from '../lib/maps/map-init';
@@ -57,7 +62,7 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     const photos: any[] = JSON.parse(card.dataset.photos || '[]');
     const cdnUrl = card.dataset.cdnUrl || '';
 
-    // Compute center from first polyline
+    // Center from first polyline midpoint
     let center: [number, number] = [0, 0];
     if (polylines.length > 0) {
       const points = polylineCodec.decode(polylines[0].encoded);
@@ -65,96 +70,61 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       center = [mid[0], mid[1]];
     }
 
+    // All variant polylines, starting with only the first visible
     const allPolylineData = polylines.map(pl => ({ encoded: pl.encoded, popup: pl.name }));
     const initialPolylineData = allPolylineData.length > 0 ? [allPolylineData[0]] : [];
+
     const placeData = places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    // Session with polyline only — photo/place layers added on expand
+    // All layers in session — photos/places start hidden, same as BikePathMap
     const polylineLayer = createPolylineLayer({ polylines: initialPolylineData });
+    const photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: false });
+    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
+
     const session = createMapSession({ el: glEl, center, zoom: 12 })
       .use(polylineLayer)
+      .use(photoLayer)
+      .use(placeLayer)
       .use(createElevationSyncLayer());
+
     const { map } = session;
 
-    // Photo/place layers — created lazily on first expand
-    let photoLayer: ReturnType<typeof createPhotoLayer> | null = null;
-    let placeLayer: ReturnType<typeof createPlaceLayer> | null = null;
-
-    function ensureExpandedLayers() {
-      if (!photoLayer && photos.length > 0) {
-        const showPhotos = loadToggleState('map-photos', false);
-        photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: showPhotos });
-        photoLayer.setup({ map, isCurrent: () => true });
-      }
-      if (!placeLayer && placeData.length > 0) {
-        const showPlaces = loadToggleState('map-places', true);
-        placeLayer = createPlaceLayer({ places: placeData, defaultVisible: showPlaces });
-        placeLayer.setup({ map, isCurrent: () => true });
-      }
-    }
-
-    // Bounds from encoded polyline
-    let currentVariantIdx = 0;
-    function currentBounds(): [[number, number], [number, number]] | null {
-      const encoded = allPolylineData[currentVariantIdx]?.encoded;
-      if (!encoded) return null;
-      const points = polylineCodec.decode(encoded);
-      if (points.length === 0) return null;
-      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-      for (const [lat, lng] of points) {
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      }
-      return [[minLng, minLat], [maxLng, maxLat]];
-    }
-
-    // Expandable map — mode handles interactions, layers, close button
-    createExpandableMap(map, { card, overlay, closeBtn }, {
-      onModeChange(mode) {
-        if (mode === 'expanded') {
-          // Lazy-create layers with stored user preferences baked in
-          ensureExpandedLayers();
-        } else {
-          // Compact: force everything off
-          if (photoLayer) photoLayer.setVisible!(map, false);
-          if (placeLayer) placeLayer.setVisible!(map, false);
-        }
-      },
-      getBounds: currentBounds,
+    // Expandable card — handles interactions, close button, overlay, zoom
+    createExpandableMap(map, { card, glEl, overlay, closeBtn }, {
+      getBounds: () => polylineLayer.getBounds?.() ?? null,
     });
 
-    // Variant switching
-    window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
-      const key = e.detail.key;
-      const idx = polylines.findIndex(p => p.key === key);
-      if (idx >= 0) {
-        currentVariantIdx = idx;
-        const selected = allPolylineData[idx];
-        const feature = buildPolylineFeature(selected.encoded, selected.popup);
-        polylineLayer.updateData([feature]);
-        const bounds = currentBounds();
-        if (bounds) map.fitBounds(bounds, { padding: 20, animate: true });
-      }
-    }) as EventListener);
+    session.start();
 
-    // Start session + render controls
-    session.start(() => {
+    // Controls — rendered after map loads, hidden until expanded via CSS
+    map.on('load', () => {
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
           hasPlaces: places.length > 0,
           defaultPhotos: false,
           defaultPlaces: false,
-          onTogglePhotos: (v: boolean) => { if (photoLayer) photoLayer.setVisible!(map, v); },
-          onTogglePlaces: (v: boolean) => { if (placeLayer) placeLayer.setVisible!(map, v); },
+          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
+          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
           onToggleStyle: (key) => session.switchStyle(key),
         }), controlsEl);
       }
     });
+
+    // Variant switching — swap polyline and re-fit
+    window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
+      const key = e.detail.key;
+      const idx = polylines.findIndex(p => p.key === key);
+      if (idx >= 0) {
+        const selected = allPolylineData[idx];
+        const feature = buildPolylineFeature(selected.encoded, selected.popup);
+        polylineLayer.updateData([feature]);
+        const b = polylineLayer.getBounds?.();
+        if (b && !b.isEmpty()) map.fitBounds(b, { padding: 20, animate: true });
+      }
+    }) as EventListener);
   }
 </script>

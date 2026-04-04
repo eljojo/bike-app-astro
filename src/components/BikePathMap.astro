@@ -101,12 +101,8 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 
     const { map } = session;
 
-    // Expandable map — mode handles interactions, close button
-    const { expand } = createExpandableMap(map, { card: container, overlay: overlay!, closeBtn: closeBtn! }, {
-      onModeChange(mode) {
-        // Photo/place layers start off — user turns them on via controls when expanded
-        // (controls are CSS-hidden in compact mode)
-      },
+    // Expandable card — handles interactions, close button, overlay, zoom
+    const { expand } = createExpandableMap(map, { card: container, glEl, overlay: overlay!, closeBtn: closeBtn! }, {
       getBounds: () => geojsonLayer.getBounds?.() ?? null,
     });
 
