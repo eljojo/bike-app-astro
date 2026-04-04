@@ -11,6 +11,12 @@ import noServerImportInBrowser from './eslint-rules/no-server-import-in-browser.
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
+  // typescript-eslint recommended rules (no-unused-vars, prefer-const, etc.)
+  ...tseslint.configs.recommended.map(config => ({
+    ...config,
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    ignores: ['src/**/*.d.ts'],
+  })),
   {
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     ignores: ['src/**/*.d.ts'],
@@ -35,6 +41,12 @@ export default [
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
+      // Allow unused vars with _ prefix (interface implementations, destructuring rest)
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       'bike-app/no-hardcoded-city-locale': 'error',
       'bike-app/require-prerender-export': 'error',
       'bike-app/vendor-isolation': 'error',

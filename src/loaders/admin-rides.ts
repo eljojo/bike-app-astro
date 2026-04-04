@@ -357,7 +357,7 @@ function emptyStats(): RideStats {
 function buildStats(
   rides: AdminRide[],
   tours: AdminTour[],
-  details: Record<string, AdminRideDetail>,
+  _details: Record<string, AdminRideDetail>,
 ): RideStats {
   if (rides.length === 0) return emptyStats();
 

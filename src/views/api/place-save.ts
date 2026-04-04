@@ -180,6 +180,6 @@ export async function POST({ params, request, locals }: APIContext) {
     return saveContent(request, locals, params, 'places', handlers);
   }
   // For edits, omit checkExistence — only check when creating new places
-  const { checkExistence, ...editHandlers } = handlers;
+  const { checkExistence: _checkExistence, ...editHandlers } = handlers;
   return saveContent(request, locals, params, 'places', editHandlers);
 }

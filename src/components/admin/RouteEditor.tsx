@@ -98,7 +98,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     deps: [name, tagline, tags, status, body, media, variants, slug, translations],
     validate,
     buildPayload: () => {
-      const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
+      const cleanMedia = media.map(({ videoStatus: _videoStatus, uploadPercent: _uploadPercent, transcodingStartedAt: _transcodingStartedAt, posterChecked: _posterChecked, ...rest }) => rest);
       const payload: RouteUpdate = {
         frontmatter: {
           name,
@@ -116,7 +116,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       };
       return payload as unknown as Record<string, unknown>;
     },
-    onSuccess: (result) => {
+    onSuccess: (_result) => {
       if (initialData.isNew) {
         window.location.href = `/admin/routes/${initialData.slug}`;
       }

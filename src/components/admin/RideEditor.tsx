@@ -197,7 +197,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
     extraDirty: hasTranscoding,
     deps: [name, slug, status, body, media, variants, rideDate, country, tourSlug, highlight, privacyZone, stravaId],
     buildPayload: () => {
-      const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
+      const cleanMedia = media.map(({ videoStatus: _videoStatus, uploadPercent: _uploadPercent, transcodingStartedAt: _transcodingStartedAt, posterChecked: _posterChecked, ...rest }) => rest);
       return {
         frontmatter: {
           name,

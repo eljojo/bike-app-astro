@@ -339,6 +339,6 @@ export async function POST({ params, request, locals }: APIContext) {
   if (params.id === 'new') {
     return saveContent(request, locals, params, 'events', handlers);
   }
-  const { checkExistence, ...editHandlers } = handlers;
+  const { checkExistence: _checkExistence, ...editHandlers } = handlers;
   return saveContent(request, locals, params, 'events', editHandlers);
 }

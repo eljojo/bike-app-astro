@@ -26,7 +26,7 @@ interface Props {
   passkeys?: Passkey[];
 }
 
-export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog: _isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const isGuest = role === 'guest';
   const isAdmin = role === 'admin';
