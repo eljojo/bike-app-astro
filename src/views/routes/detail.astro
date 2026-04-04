@@ -30,7 +30,6 @@ import ReactionsWidget from '@/components/ReactionsWidget';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 import { extractYouTubeUrls } from '@/lib/youtube-extract';
-import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { getRouteToPaths } from '@/lib/bike-paths/bike-path-data.server';
 import PathsOnRoute from '@/components/PathsOnRoute.astro';
@@ -198,6 +197,7 @@ const variantElevationData = variants.map(v => {
     distanceM: track.distance_m,
   };
 }).filter((ed): ed is NonNullable<typeof ed> => ed !== null);
+
 ---
 
 <Base title={seoTitle} description={localeTagline || `${localeName} — ${distanceTag} ${t('route.bike_route', locale)}`} ogImage={coverUrl} ogImageAlt={ogImageAlt} ogType="article" jsonLd={jsonLd} breadcrumbs={breadcrumbs} alternateUrls={alternateUrls}>
@@ -220,14 +220,6 @@ const variantElevationData = variants.map(v => {
 
         {/* Description (shared across variants) */}
         <div class="route-description" set:html={localeBody} />
-
-        {youtubeIds.length > 0 && (
-          <div class="route-videos">
-            {youtubeIds.map(id => (
-              <YouTubeEmbed videoId={id} title={localeName} />
-            ))}
-          </div>
-        )}
 
         <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
@@ -305,18 +297,19 @@ const variantElevationData = variants.map(v => {
     {/* Weather nudge */}
     <WeatherNudge locale={locale} />
 
-    {/* Hero photo (hidden on desktop, shows on mobile) */}
+    {/* Hero photo (hidden on desktop, shows on mobile) — click opens lightbox */}
     {cover && (
       <div class="route-detail-hero">
         <img
           src={imageUrl(cover.key, { width: 1170 })}
           srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
           alt={cover.caption || localeName}
+          class="gallery-cover-photo"
         />
       </div>
     )}
 
-    <MediaGallery media={media} name={localeName} />
+    <MediaGallery media={media} name={localeName} youtubeIds={youtubeIds} />
     {(() => {
       const hasPhotos = media.some(m => m.type !== 'video');
       const photoCtaKey = hasPhotos ? 'route.add_photo' : 'route.add_first_photo';
