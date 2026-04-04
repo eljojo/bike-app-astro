@@ -20,16 +20,17 @@ import { paths, assets } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { computeCenter, buildPathFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeSurface } from '@/lib/bike-paths/bike-path-facts';
+import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
 
 interface Props {
   page: BikePathPage;
   networkNames: Record<string, string>;
   memberGeoMap?: Record<string, string>;  // network only
+  memberMeta?: PathMeta[];                // network only — member metadata for fact aggregation
   networkPage?: BikePathPage;             // member only
 }
 
-const { page, networkNames, memberGeoMap, networkPage } = Astro.props;
+const { page, networkNames, memberGeoMap, memberMeta, networkPage } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -72,8 +73,9 @@ const networkName = networkPage
   ? ((locale && networkPage.translations[locale]?.name) || networkPage.name)
   : page.memberOf;
 
-// --- Structured facts from centralized system (standalone + member) ---
+// --- Structured facts from centralized system ---
 const pathFacts = !isNetwork ? buildPathFacts(page) : [];
+const networkFacts = isNetwork && memberMeta ? buildNetworkFacts(memberMeta) : [];
 
 // --- SEO ---
 const seoDescription = (() => {
@@ -269,14 +271,18 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
           />
         )}
 
-        {/* Facts table — network has its own rows, standalone/member driven by buildPathFacts */}
+        {/* Facts table — network aggregates from members, standalone/member driven by buildPathFacts */}
         {isNetwork ? (
           <table class="bike-path-facts-table">
             {page.length_km && (
               <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
             )}
             <tr><td>{t('paths.pathways', locale)}</td><td>{standaloneMemberCount}</td></tr>
-            {page.operator && (
+            {networkFacts.map(fact => (
+              <tr><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeNetworkFactValue(fact, t, locale)}</td></tr>
+            ))}
+            {/* Network's own operator (if not already shown via member aggregation) */}
+            {page.operator && !networkFacts.some(f => f.key === 'operator') && (
               <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
             )}
             {wikidataMeta?.inception && (
@@ -296,9 +302,6 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
             ))}
             {page.parallel_to && (
               <tr><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
-            )}
-            {page.mtb && (
-              <tr><td>{t('paths.label.trail_type', locale)}</td><td>{t('paths.fact.mtb', locale)}</td></tr>
             )}
           </table>
         )}

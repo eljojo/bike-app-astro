@@ -617,6 +617,8 @@
   "paths.fact.separated_peds": "Separated from pedestrians",
   "paths.fact.lit": "Lit at night",
   "paths.fact.not_lit": "Not lit",
+  "paths.fact.partially_lit": "Some paths lit, some not",
+  "paths.fact.not_mtb": "Road-bike friendly",
   "paths.fact.maintained": "Maintained by {operator}",
   "paths.fact.network_regional": "Part of the regional cycling network",
   "paths.fact.network_national": "Part of the national cycling network",

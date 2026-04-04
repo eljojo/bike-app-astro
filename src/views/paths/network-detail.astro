@@ -15,21 +15,28 @@ export async function getStaticPaths() {
   const pageBySlug = new Map(pages.map(p => [p.slug, p]));
   return networkPages.map(page => {
     const memberGeoMap: Record<string, string> = {};
+    const memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean }> = [];
     for (const m of page.memberRefs ?? []) {
       const memberPage = pageBySlug.get(m.slug);
       if (memberPage) {
         for (const gf of memberPage.geoFiles) memberGeoMap[gf] = m.slug;
+        memberMeta.push({
+          surface: memberPage.surface, smoothness: memberPage.smoothness, width: memberPage.width,
+          highway: memberPage.highway, segregated: memberPage.segregated, lit: memberPage.lit,
+          elevation_gain_m: memberPage.elevation_gain_m, operator: memberPage.operator,
+          network: memberPage.network, mtb: memberPage.mtb,
+        });
       }
     }
     return {
       params: { network: page.slug },
-      props: { page, networkNames, memberGeoMap },
+      props: { page, networkNames, memberGeoMap, memberMeta },
     };
   });
 }
 
-interface Props { page: BikePathPage; networkNames: Record<string, string>; memberGeoMap: Record<string, string> }
-const { page, networkNames, memberGeoMap } = Astro.props;
+interface Props { page: BikePathPage; networkNames: Record<string, string>; memberGeoMap: Record<string, string>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean }> }
+const { page, networkNames, memberGeoMap, memberMeta } = Astro.props;
 ---
 
-<BikePathDetail page={page} networkNames={networkNames} memberGeoMap={memberGeoMap} />
+<BikePathDetail page={page} networkNames={networkNames} memberGeoMap={memberGeoMap} memberMeta={memberMeta} />

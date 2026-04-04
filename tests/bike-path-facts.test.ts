@@ -5,6 +5,7 @@ import {
   NETWORK_LABELS,
   computeCenter,
   buildPathFacts,
+  buildNetworkFacts,
 } from '../src/lib/bike-paths/bike-path-facts';
 
 describe('SURFACE_CATEGORIES', () => {
@@ -233,5 +234,128 @@ describe('buildPathFacts', () => {
       'operator',
       'network_national',
     ]);
+  });
+
+  it('includes mtb fact when mtb is true', () => {
+    const facts = buildPathFacts({ mtb: true });
+    expect(facts.map(f => f.key)).toContain('mtb');
+  });
+});
+
+describe('buildNetworkFacts', () => {
+  it('returns unanimous surface when all members agree', () => {
+    const facts = buildNetworkFacts([
+      { surface: 'asphalt' },
+      { surface: 'asphalt' },
+      { surface: 'concrete' },  // different raw value but same category: "paved"
+    ]);
+    const surface = facts.find(f => f.key === 'surface');
+    expect(surface).toBeDefined();
+    expect(surface!.value).toBe('paved');
+    expect(surface!.consistency).toBe('unanimous');
+  });
+
+  it('returns partial surface when some members lack surface data', () => {
+    const facts = buildNetworkFacts([
+      { surface: 'asphalt' },
+      { surface: 'asphalt' },
+      {},  // no surface data
+    ]);
+    const surface = facts.find(f => f.key === 'surface');
+    expect(surface).toBeDefined();
+    expect(surface!.consistency).toBe('partial');
+  });
+
+  it('returns mixed surface when members have different surface categories', () => {
+    const facts = buildNetworkFacts([
+      { surface: 'asphalt' },
+      { surface: 'fine_gravel' },
+      { surface: 'asphalt' },
+    ]);
+    const surface = facts.find(f => f.key === 'surface_mixed');
+    expect(surface).toBeDefined();
+    expect(surface!.consistency).toBe('mixed');
+    expect(surface!.breakdown).toHaveLength(2);
+    // Paved should come first (count 2 > count 1)
+    expect(surface!.breakdown![0]).toEqual({ value: 'paved', count: 2 });
+    expect(surface!.breakdown![1]).toEqual({ value: 'gravel', count: 1 });
+  });
+
+  it('returns mtb fact when all members are mtb', () => {
+    const facts = buildNetworkFacts([
+      { mtb: true },
+      { mtb: true },
+    ]);
+    const mtb = facts.find(f => f.key === 'mtb');
+    expect(mtb).toBeDefined();
+    expect(mtb!.consistency).toBe('unanimous');
+  });
+
+  it('returns partial mtb when some members are mtb', () => {
+    const facts = buildNetworkFacts([
+      { mtb: true },
+      {},  // not mtb
+    ]);
+    const mtb = facts.find(f => f.key === 'mtb');
+    expect(mtb).toBeDefined();
+    expect(mtb!.consistency).toBe('partial');
+  });
+
+  it('returns mixed lighting when members disagree', () => {
+    const facts = buildNetworkFacts([
+      { lit: 'yes' },
+      { lit: 'no' },
+      { lit: 'yes' },
+    ]);
+    const lit = facts.find(f => f.key === 'lit_mixed');
+    expect(lit).toBeDefined();
+    expect(lit!.consistency).toBe('mixed');
+    expect(lit!.breakdown).toEqual([
+      { value: 'lit', count: 2 },
+      { value: 'not_lit', count: 1 },
+    ]);
+  });
+
+  it('returns unanimous lit when all members are lit', () => {
+    const facts = buildNetworkFacts([
+      { lit: 'yes' },
+      { lit: 'yes' },
+    ]);
+    const lit = facts.find(f => f.key === 'lit');
+    expect(lit).toBeDefined();
+    expect(lit!.consistency).toBe('unanimous');
+  });
+
+  it('returns unanimous operator when all members share same operator', () => {
+    const facts = buildNetworkFacts([
+      { operator: 'NCC' },
+      { operator: 'NCC' },
+    ]);
+    const op = facts.find(f => f.key === 'operator');
+    expect(op).toBeDefined();
+    expect(op!.value).toBe('NCC');
+    expect(op!.consistency).toBe('unanimous');
+  });
+
+  it('omits operator when members have different operators', () => {
+    const facts = buildNetworkFacts([
+      { operator: 'NCC' },
+      { operator: 'City of Ottawa' },
+    ]);
+    expect(facts.find(f => f.key === 'operator')).toBeUndefined();
+  });
+
+  it('returns separated_cars when all members are cycleways', () => {
+    const facts = buildNetworkFacts([
+      { highway: 'cycleway' },
+      { highway: 'cycleway' },
+    ]);
+    const sep = facts.find(f => f.key === 'separated_cars');
+    expect(sep).toBeDefined();
+    expect(sep!.consistency).toBe('unanimous');
+  });
+
+  it('returns empty array for empty members', () => {
+    expect(buildNetworkFacts([])).toEqual([]);
   });
 });

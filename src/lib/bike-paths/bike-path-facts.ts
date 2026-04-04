@@ -50,7 +50,7 @@ export interface PathFact {
 }
 
 /** Input metadata for buildPathFacts. Mirrors the relevant fields from BikePathPage. */
-interface PathMeta {
+export interface PathMeta {
   surface?: string;
   smoothness?: string;
   width?: string;
@@ -60,6 +60,7 @@ interface PathMeta {
   elevation_gain_m?: number;
   operator?: string;
   network?: string;
+  mtb?: boolean;
 }
 
 /**
@@ -83,6 +84,11 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Smoothness
   if (meta.smoothness) {
     facts.push({ key: `smoothness_${meta.smoothness}` });
+  }
+
+  // Mountain bike trail
+  if (meta.mtb) {
+    facts.push({ key: 'mtb' });
   }
 
   // Separated from cars (cycleway = dedicated infrastructure)
@@ -127,15 +133,121 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
 }
 
 // ---------------------------------------------------------------------------
+// Network fact aggregation — inherit from members when consistent
+// ---------------------------------------------------------------------------
+
+/**
+ * Consistency of a fact across network members:
+ * - unanimous: every member has this fact with the same value
+ * - partial:   some members have this fact, but those who do all agree
+ * - mixed:     members disagree (different values for the same category)
+ */
+export type FactConsistency = 'unanimous' | 'partial' | 'mixed';
+
+export interface NetworkFact extends PathFact {
+  consistency: FactConsistency;
+  /** For mixed facts: breakdown of values with counts. */
+  breakdown?: Array<{ value: string; count: number }>;
+}
+
+/**
+ * Aggregate facts from network member paths.
+ *
+ * Analyzes each fact category across all members. When members agree,
+ * the network inherits the fact. When they disagree, the fact explains
+ * the variation. Categories where no member has data are omitted.
+ */
+export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
+  if (members.length === 0) return [];
+  const facts: NetworkFact[] = [];
+
+  // --- Surface ---
+  const surfaces = members.filter(m => m.surface).map(m => displaySurface(m.surface)!);
+  if (surfaces.length > 0) {
+    const unique = [...new Set(surfaces)];
+    if (unique.length === 1) {
+      facts.push({
+        key: 'surface', value: unique[0],
+        consistency: surfaces.length === members.length ? 'unanimous' : 'partial',
+      });
+    } else {
+      const counts = unique.map(v => ({ value: v, count: surfaces.filter(s => s === v).length }));
+      counts.sort((a, b) => b.count - a.count);
+      facts.push({ key: 'surface_mixed', consistency: 'mixed', breakdown: counts });
+    }
+  }
+
+  // --- MTB ---
+  aggregateBoolean(members, 'mtb', 'mtb', 'not_mtb', facts);
+
+  // --- Separated from cars ---
+  const cycleways = members.filter(m => m.highway === 'cycleway').length;
+  const nonCycleways = members.filter(m => m.highway && m.highway !== 'cycleway').length;
+  if (cycleways > 0 && nonCycleways === 0) {
+    facts.push({
+      key: 'separated_cars',
+      consistency: cycleways === members.length ? 'unanimous' : 'partial',
+    });
+  }
+
+  // --- Lit ---
+  const litYes = members.filter(m => m.lit === 'yes').length;
+  const litNo = members.filter(m => m.lit === 'no').length;
+  if (litYes > 0 && litNo === 0) {
+    facts.push({ key: 'lit', consistency: litYes === members.length ? 'unanimous' : 'partial' });
+  } else if (litNo > 0 && litYes === 0) {
+    facts.push({ key: 'not_lit', consistency: litNo === members.length ? 'unanimous' : 'partial' });
+  } else if (litYes > 0 && litNo > 0) {
+    facts.push({
+      key: 'lit_mixed', consistency: 'mixed',
+      breakdown: [{ value: 'lit', count: litYes }, { value: 'not_lit', count: litNo }],
+    });
+  }
+
+  // --- Operator ---
+  const operators = members.filter(m => m.operator).map(m => m.operator!);
+  if (operators.length > 0) {
+    const unique = [...new Set(operators)];
+    if (unique.length === 1) {
+      facts.push({
+        key: 'operator', value: unique[0],
+        consistency: operators.length === members.length ? 'unanimous' : 'partial',
+      });
+    }
+    // Mixed operators: skip — network page already shows its own operator field
+  }
+
+  return facts;
+}
+
+/** Helper: aggregate a boolean field across members. */
+function aggregateBoolean(
+  members: PathMeta[],
+  field: keyof PathMeta,
+  trueKey: string,
+  _falseKey: string,
+  facts: NetworkFact[],
+): void {
+  const hasTrue = members.filter(m => m[field]).length;
+  if (hasTrue > 0) {
+    facts.push({
+      key: trueKey,
+      consistency: hasTrue === members.length ? 'unanimous' : 'partial',
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Localization helpers — views pass their `t` function in
 // ---------------------------------------------------------------------------
 
 /** Returns the i18n label key for a fact's table row (e.g. "paths.label.surface"). */
 export function factLabelKey(factKey: string): string {
-  if (factKey === 'surface_width' || factKey === 'surface' || factKey === 'width') return 'paths.label.surface';
+  if (factKey === 'surface_width' || factKey === 'surface' || factKey === 'width' || factKey === 'surface_mixed') return 'paths.label.surface';
   if (factKey.startsWith('smoothness_')) return 'paths.label.surface_quality';
+  if (factKey === 'mtb') return 'paths.label.trail_type';
   if (factKey === 'separated_cars' || factKey === 'separated_peds') return 'paths.label.separated';
-  if (factKey === 'lit' || factKey === 'not_lit') return 'paths.label.lit';
+  if (factKey === 'lit' || factKey === 'not_lit' || factKey === 'lit_mixed') return 'paths.label.lit';
   if (factKey === 'flat' || factKey === 'gentle_hills' || factKey === 'hilly') return 'paths.label.terrain';
   if (factKey === 'operator') return 'paths.label.operator';
   if (factKey.startsWith('network_')) return 'paths.label.network';
@@ -181,6 +293,27 @@ export function localizeFactSentence(fact: PathFact, t: Translator, locale?: str
   if (fact.key === 'operator') {
     return t('paths.fact.maintained', locale, { operator: fact.value || '' });
   }
+  return localizeFactValue(fact, t, locale);
+}
+
+/** Localize a network fact's value, handling mixed/partial consistency. */
+export function localizeNetworkFactValue(fact: NetworkFact, t: Translator, locale?: string): string {
+  // Mixed surface: "Paved (3), Gravel (2)"
+  if (fact.key === 'surface_mixed' && fact.breakdown) {
+    return fact.breakdown
+      .map(b => {
+        const label = localizeSurface(b.value, t, locale) || b.value;
+        return `${label} (${b.count})`;
+      })
+      .join(', ');
+  }
+
+  // Mixed lit: "Some lit, some not"
+  if (fact.key === 'lit_mixed') {
+    return t('paths.fact.partially_lit', locale);
+  }
+
+  // For unanimous/partial, use the regular localization
   return localizeFactValue(fact, t, locale);
 }
 
