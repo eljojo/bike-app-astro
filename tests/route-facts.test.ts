@@ -40,15 +40,19 @@ describe('deriveBeginnerFriendly', () => {
     expect(deriveBeginnerFriendly(['bike path', 'chill'])).toBe(true);
   });
 
-  it('returns false for gravel + easy', () => {
-    expect(deriveBeginnerFriendly(['gravel', 'easy'])).toBe(false);
+  it('returns false for single track (explicitly hard)', () => {
+    expect(deriveBeginnerFriendly(['single track', 'scenic'])).toBe(false);
   });
 
-  it('returns false for bike path without easy/chill/family', () => {
-    expect(deriveBeginnerFriendly(['bike path', 'scenic'])).toBe(false);
+  it('returns null for gravel + easy (not clearly hard)', () => {
+    expect(deriveBeginnerFriendly(['gravel', 'easy'])).toBe(null);
   });
 
-  it('returns false for no relevant tags', () => {
-    expect(deriveBeginnerFriendly(['scenic'])).toBe(false);
+  it('returns null for bike path without easy/chill/family', () => {
+    expect(deriveBeginnerFriendly(['bike path', 'scenic'])).toBe(null);
+  });
+
+  it('returns null for no relevant tags', () => {
+    expect(deriveBeginnerFriendly(['scenic'])).toBe(null);
   });
 });
