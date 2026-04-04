@@ -145,6 +145,19 @@ export function createPolylineLayer(opts: PolylineLayerOptions): PolylineLayer {
       if (source) {
         source.setData({ type: 'FeatureCollection', features });
       }
+      // Recalculate bounds from the new features
+      bounds = null;
+      if (features.length > 0) {
+        bounds = new maplibregl.LngLatBounds();
+        for (const f of features) {
+          const geom = f.geometry as GeoJSON.LineString;
+          if (geom.coordinates) {
+            for (const coord of geom.coordinates) {
+              bounds.extend(coord as [number, number]);
+            }
+          }
+        }
+      }
     },
 
     setFilter(filter: maplibregl.FilterSpecification | null) {
