@@ -51,8 +51,11 @@ export async function GET({ params, locals }: APIContext) {
 
   const user = getOptionalUser(locals);
   let userReactions: string[] = [];
+  let riddenCount: number | undefined;
+
   if (user) {
-    const own = await database
+    // Run user queries in parallel: own reactions + total ridden count (for route pages)
+    const ownPromise = database
       .select({ reactionType: reactions.reactionType })
       .from(reactions)
       .where(
@@ -63,12 +66,34 @@ export async function GET({ params, locals }: APIContext) {
           eq(reactions.contentSlug, contentSlug),
         )
       );
+
+    const riddenPromise = contentType === 'route'
+      ? database
+          .select({ total: count(reactions.id) })
+          .from(reactions)
+          .where(
+            and(
+              eq(reactions.city, CITY),
+              eq(reactions.userId, user.id),
+              eq(reactions.contentType, 'route'),
+              eq(reactions.reactionType, 'ridden'),
+            )
+          )
+      : null;
+
+    const [own, riddenResult] = await Promise.all([ownPromise, riddenPromise]);
     userReactions = own.map(r => r.reactionType);
+
+    // Only include riddenCount when the user has actually ridden this route
+    if (riddenResult && userReactions.includes('ridden')) {
+      riddenCount = riddenResult[0]?.total ?? 0;
+    }
   }
 
   const response = jsonResponse({
     counts: Object.fromEntries(counts.map(c => [c.reactionType, c.total])),
     userReactions,
+    ...(riddenCount !== undefined && { riddenCount }),
   });
   // Short cache for public counts; personalized responses (with user) skip cache
   if (!user) {

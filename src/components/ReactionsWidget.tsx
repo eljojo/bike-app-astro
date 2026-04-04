@@ -33,19 +33,6 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
   const [riddenCount, setRiddenCount] = useState<number | null>(null);
   const hasShownReceipt = useRef(false);
 
-  const fetchRiddenCount = useCallback(async () => {
-    if (!totalRoutes) return;
-    try {
-      const res = await fetch('/api/reactions/ridden-count');
-      if (res.ok) {
-        const data = await res.json();
-        setRiddenCount(data.riddenCount ?? null);
-      }
-    } catch {
-      // Network error — fail silently
-    }
-  }, [totalRoutes]);
-
   const fetchReactions = useCallback(async () => {
     try {
       const res = await fetch(`/api/reactions/${contentType}/${contentSlug}`);
@@ -53,17 +40,14 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
         const data = await res.json();
         setCounts(data.counts || {});
         setUserReactions(data.userReactions || []);
-        // Fetch ridden count if user has ridden active
-        if ((data.userReactions || []).includes('ridden')) {
-          fetchRiddenCount();
-        }
+        setRiddenCount(data.riddenCount ?? null);
       }
     } catch {
       // Network error — fail silently
     } finally {
       setLoading(false);
     }
-  }, [contentType, contentSlug, fetchRiddenCount]);
+  }, [contentType, contentSlug]);
 
   useEffect(() => {
     fetchReactions();
@@ -121,7 +105,8 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
         }));
         setUserReactions(prev => [...prev, reactionType]);
         playAnimation(reactionType);
-        if (reactionType === 'ridden') fetchRiddenCount();
+        // Re-fetch to get updated riddenCount from server
+        if (reactionType === 'ridden') fetchReactions();
       } else {
         setCounts(prev => ({
           ...prev,
@@ -131,7 +116,7 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
         if (reactionType === 'ridden') setRiddenCount(null);
       }
     }
-  }, [contentType, contentSlug, createSilentGuest, fetchRiddenCount]);
+  }, [contentType, contentSlug, createSilentGuest, fetchReactions]);
 
   if (loading) return null;
 
