@@ -175,6 +175,7 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
           setCollapsed(next);
           try { localStorage.setItem(ELEVATION_KEY, String(next)); } catch {}
           window.dispatchEvent(new CustomEvent('elevation:toggle', { detail: next }));
+          window.BikeApp?.tE?.('elevation toggle', { props: { action: next ? 'close' : 'open', page: window.location.pathname } });
         }}
         aria-expanded={!isCollapsed}
         aria-label={isCollapsed ? 'Show elevation chart' : 'Hide elevation chart'}

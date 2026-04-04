@@ -46,6 +46,7 @@ export function createExpandableMap(
   function expand() {
     if (expanded) return;
     expanded = true;
+    window.BikeApp?.tE?.('expand map', { props: { page: window.location.pathname } });
     glEl.classList.add('fading');
     savedRect = card.getBoundingClientRect();
     card.style.position = 'fixed';

@@ -38,6 +38,7 @@ export default function VariantSelector({ variants, initialVariant }: Props) {
   function select(key: string) {
     setActive(key);
     window.dispatchEvent(new CustomEvent('variant:change', { detail: { key } }));
+    window.BikeApp?.tE?.('variant switch', { props: { variant: keyToSlug(key), page: window.location.pathname } });
     // Update URL with clean slug (no "variants-" prefix)
     const params = new URLSearchParams(window.location.search);
     if (key === (variants[0]?.key || '')) {

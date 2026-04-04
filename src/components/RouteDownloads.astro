@@ -30,7 +30,7 @@ const mapLang = cachedMapLocale(routeSlug, vKey, locale);
 <div class="route-downloads" data-variant={variantKey || undefined}>
   {hasMapPng && (
     <Fragment>
-      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download title="An image to print or save on your phone">
+      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download title="An image to print or save on your phone" onclick="window.BikeApp?.tE?.('download png', { props: { page: location.pathname } })">
         <Icon name="download-simple" size={16} /> Download PNG
       </a>
       {' '}

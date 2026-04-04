@@ -34,6 +34,15 @@ export default function VideoPlayer({ sources, poster, fallbackUrl, width, heigh
 
     if (initialVolume != null) video.volume = initialVolume;
 
+    // Track first user-initiated play (not autoplay)
+    let tracked = false;
+    const onPlay = () => {
+      if (tracked || video.muted) return; // muted = autoplay, skip
+      tracked = true;
+      window.BikeApp?.tE?.('play video', { props: { page: window.location.pathname } });
+    };
+    video.addEventListener('play', onPlay);
+
     // Skip HLS.js on mobile and Safari (native HLS support)
     if (window.innerWidth < DESKTOP_MIN_WIDTH || isSafari()) return;
 
@@ -62,6 +71,7 @@ export default function VideoPlayer({ sources, poster, fallbackUrl, width, heigh
     });
 
     return () => {
+      video.removeEventListener('play', onPlay);
       video.pause();
       video.removeAttribute('src');
       video.load();
