@@ -186,5 +186,5 @@ const jsonLd = webPageJsonLd({
 ---
 
 <Base title={mapTitle} description={mapDescription} jsonLd={jsonLd} ogImage={ogImage} fullbleed>
-  <BigMap routes={routeData} places={placeData} photos={photoData} center={[config.center.lat, config.center.lng]} pathMapData={features.hasPaths ? pathMapData : []} routesLabel={features.hasPaths ? t('nav.routes', locale) : undefined} pathsLabel={features.hasPaths ? t('nav.bike_paths', locale) : undefined} />
+  <BigMap routes={routeData} center={[config.center.lat, config.center.lng]} pathMapData={features.hasPaths ? pathMapData : []} routesLabel={features.hasPaths ? t('nav.routes', locale) : undefined} pathsLabel={features.hasPaths ? t('nav.bike_paths', locale) : undefined} />
 </Base>

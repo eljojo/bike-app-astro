@@ -9,31 +9,6 @@ interface RouteOnMap {
   photo_key?: string;
 }
 
-interface PlaceOnMap {
-  name: string;
-  category: string;
-  emoji: string;
-  lat: number;
-  lng: number;
-  google_maps_url?: string;
-  address?: string;
-  phone?: string;
-  photo_key?: string;
-  link?: string;
-}
-
-interface MapPhoto {
-  key: string;
-  lat: number;
-  lng: number;
-  caption?: string;
-  width?: number;
-  height?: number;
-  routeName?: string;
-  routeUrl?: string;
-  index: number;
-}
-
 interface PathOnMap {
   relId: string;
   slug: string;
@@ -46,8 +21,6 @@ interface PathOnMap {
 
 interface Props {
   routes: RouteOnMap[];
-  places: PlaceOnMap[];
-  photos?: MapPhoto[];
   center: [number, number];
   pathMapData?: PathOnMap[];
   routesLabel?: string;
@@ -56,7 +29,7 @@ interface Props {
 
 import { getCityConfig } from '../lib/config/city-config';
 import './SubTabToggle.scss';
-const { routes, places, photos = [], center, pathMapData = [], routesLabel, pathsLabel } = Astro.props;
+const { routes, center, pathMapData = [], routesLabel, pathsLabel } = Astro.props;
 const hasPaths = pathMapData.length > 0;
 ---
 
@@ -71,9 +44,7 @@ const hasPaths = pathMapData.length > 0;
     id="big-map"
     style="width: 100%; height: 100%;"
     data-routes={JSON.stringify(routes)}
-    data-places={JSON.stringify(places)}
     data-center={JSON.stringify(center)}
-    data-photos={JSON.stringify(photos)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
     data-path-map-data={JSON.stringify(pathMapData)}
   ></div>
@@ -82,7 +53,7 @@ const hasPaths = pathMapData.length > 0;
 
 <script>
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createTilePathLayer, createGpsLayer, type PathInfo } from '../lib/maps/layers';
-  import { buildPlacePopup, html, raw, filterMapByCategory } from '../lib/maps/map-helpers';
+  import { html, raw } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState, saveToggleState } from './admin/MapControls';
@@ -90,9 +61,7 @@ const hasPaths = pathMapData.length > 0;
   const el = document.getElementById('big-map');
   const controlsEl = document.getElementById('big-map-controls');
   if (el) {
-    const allRoutes = JSON.parse(el.dataset.routes || '[]');
-    const allPlaces = JSON.parse(el.dataset.places || '[]');
-    const allPhotos = JSON.parse(el.dataset.photos || '[]');
+    const routes = JSON.parse(el.dataset.routes || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
     const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string; memberOf?: string }> =
@@ -120,18 +89,6 @@ const hasPaths = pathMapData.length > 0;
       if (rideLink) rideLink.href = '/bike-paths';
     }
 
-    // Category filter
-    const categoryFilter = new URLSearchParams(location.search).get('category');
-    let places = allPlaces;
-    let routes = allRoutes;
-    let photos = allPhotos;
-    if (categoryFilter) {
-      const filtered = filterMapByCategory(allPlaces, allRoutes, categoryFilter);
-      places = filtered.places;
-      routes = filtered.routes;
-      photos = [];
-    }
-
     const polylineData = routes.map((r: any) => {
       const photoHtml = r.photo_key && cdnUrl
         ? html`<a href="${r.url}"><img class="place-popup-photo" src="${raw(buildImageUrl(cdnUrl, r.photo_key, { width: 280, height: 160, fit: 'cover' }))}" alt="" /></a>`
@@ -142,14 +99,9 @@ const hasPaths = pathMapData.length > 0;
       };
     });
 
-    const placeData = places.map((p: any) => ({
-      lat: p.lat, lng: p.lng, emoji: p.emoji,
-      popup: buildPlacePopup(p, cdnUrl),
-    }));
-
     const polylineLayer = createPolylineLayer({ polylines: polylineData });
-    const photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: false });
-    const placeLayer = createPlaceLayer({ places: placeData });
+    const photoLayer = createPhotoLayer({ cdnUrl, defaultVisible: false });
+    const placeLayer = createPlaceLayer({ cdnUrl });
     const gpsLayer = createGpsLayer();
 
     // Tile path layer (lazy-load manifest eagerly)
@@ -193,8 +145,8 @@ const hasPaths = pathMapData.length > 0;
     map.on('load', () => {
       if (controlsEl) {
         render(h(MapControls, {
-          hasPhotos: photos.length > 0,
-          hasPlaces: places.length > 0,
+          hasPhotos: true,
+          hasPlaces: true,
           defaultPhotos: false,
           onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
           onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
