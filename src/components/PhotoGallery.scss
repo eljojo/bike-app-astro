@@ -20,8 +20,8 @@
   .photo-gallery--image {
     display: block;
     flex: 0 0 auto;
-    height: 180px;
-    width: calc(180px * var(--ratio, 1.333));
+    height: 220px;
+    width: calc(220px * var(--ratio, 1.333));
     border-radius: $border-radius;
     overflow: hidden;
     position: relative;

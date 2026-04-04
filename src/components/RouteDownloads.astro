@@ -28,6 +28,14 @@ const mapLang = cachedMapLocale(routeSlug, vKey, locale);
 ---
 
 <div class="route-downloads" data-variant={variantKey || undefined}>
+  {hasMapPng && (
+    <Fragment>
+      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download>
+        <Icon name="download-simple" size={16} /> Download PNG
+      </a>
+      {' '}
+    </Fragment>
+  )}
   <a href={gpxUrl} class="action-button" download>
     <Icon name="download-simple" size={16} /> {t('map.download_gpx', locale)}
   </a>
@@ -56,14 +64,6 @@ const mapLang = cachedMapLocale(routeSlug, vKey, locale);
       {' '}
       <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener">
         <img src="/komoot.svg" width="80" alt={t('komoot.open', locale)} />
-      </a>
-    </Fragment>
-  )}
-  {hasMapPng && (
-    <Fragment>
-      {' '}
-      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download>
-        <Icon name="download-simple" size={16} /> Download PNG
       </a>
     </Fragment>
   )}

@@ -235,19 +235,6 @@ const variantElevationData = variants.map(v => {
 
         <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
 
-        {/* Downloads (one per variant, data-variant for show/hide) */}
-        {variants.map(v => {
-          const vKey = variantKeyFromGpx(v.gpx);
-          return (
-            <RouteDownloads
-              routeSlug={slug}
-              variant={v}
-              locale={locale}
-              variantKey={vKey}
-            />
-          );
-        })}
-
         {/* Photos (inside main column so it participates in mobile reordering) */}
         <MediaGallery media={media} name={localeName} show="photos" />
 
@@ -264,6 +251,22 @@ const variantElevationData = variants.map(v => {
               ]} />
           </div>
         )}
+
+        {/* Downloads (one per variant, data-variant for show/hide) */}
+        {variants.map(v => {
+          const vKey = variantKeyFromGpx(v.gpx);
+          return (
+            <RouteDownloads
+              routeSlug={slug}
+              variant={v}
+              locale={locale}
+              variantKey={vKey}
+            />
+          );
+        })}
+
+        {/* Bike paths on route */}
+        <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
       </div>
 
       <aside class="route-detail-sidebar">
@@ -302,8 +305,6 @@ const variantElevationData = variants.map(v => {
           <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} headingKey="route.places_along" />
         )}
 
-        {/* Bike paths on route */}
-        <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
       </aside>
     </div>
 
