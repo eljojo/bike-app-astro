@@ -31,11 +31,13 @@ interface Props {
 export default function VideoGallery({ videos }: Props) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [rotating, setRotating] = useState(videos.length > 1);
+  const [userActivated, setUserActivated] = useState(false);
 
   if (videos.length === 0) return null;
 
   const stopRotation = useCallback(() => {
     setRotating(false);
+    setUserActivated(true);
   }, []);
 
   // Auto-rotate: wait for current video to end, then switch to next
@@ -100,8 +102,8 @@ export default function VideoGallery({ videos }: Props) {
               height={active.height || 360}
               title={active.title}
               autoPlay
-              muted={rotating}
-              initialVolume={rotating ? 0 : 0.5}
+              muted={!userActivated}
+              initialVolume={userActivated ? 0.5 : 0}
             />
           )}
           {active.type === 'youtube' && active.youtubeId && (
