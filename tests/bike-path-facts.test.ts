@@ -236,9 +236,26 @@ describe('buildPathFacts', () => {
     ]);
   });
 
-  it('includes mtb fact when mtb is true', () => {
+  it('no longer emits mtb fact (replaced by path_type)', () => {
     const facts = buildPathFacts({ mtb: true });
-    expect(facts.map(f => f.key)).toContain('mtb');
+    expect(facts.map(f => f.key)).not.toContain('mtb');
+  });
+
+  it('emits path_type as first fact', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt' });
+    expect(facts[0]).toEqual({ key: 'path_type', value: 'mup' });
+  });
+
+  it.each([
+    'mup', 'separated-lane', 'bike-lane', 'paved-shoulder', 'mtb-trail', 'trail',
+  ] as const)('emits path_type fact for %s', (type) => {
+    const facts = buildPathFacts({ path_type: type });
+    expect(facts).toContainEqual({ key: 'path_type', value: type });
+  });
+
+  it('does not emit path_type when undefined', () => {
+    const facts = buildPathFacts({ surface: 'asphalt' });
+    expect(facts.map(f => f.key)).not.toContain('path_type');
   });
 });
 
@@ -281,24 +298,53 @@ describe('buildNetworkFacts', () => {
     expect(surface!.breakdown![1]).toEqual({ value: 'gravel', count: 1 });
   });
 
-  it('returns mtb fact when all members are mtb', () => {
+  it('returns unanimous path_type when all members agree', () => {
     const facts = buildNetworkFacts([
-      { mtb: true },
-      { mtb: true },
+      { path_type: 'mup' },
+      { path_type: 'mup' },
+      { path_type: 'mup' },
     ]);
-    const mtb = facts.find(f => f.key === 'mtb');
-    expect(mtb).toBeDefined();
-    expect(mtb!.consistency).toBe('unanimous');
+    const pt = facts.find(f => f.key === 'path_type');
+    expect(pt).toBeDefined();
+    expect(pt!.value).toBe('mup');
+    expect(pt!.consistency).toBe('unanimous');
   });
 
-  it('returns partial mtb when some members are mtb', () => {
+  it('returns partial path_type when some members lack it', () => {
     const facts = buildNetworkFacts([
-      { mtb: true },
-      {},  // not mtb
+      { path_type: 'bike-lane' },
+      { path_type: 'bike-lane' },
+      {},  // no path_type
     ]);
-    const mtb = facts.find(f => f.key === 'mtb');
-    expect(mtb).toBeDefined();
-    expect(mtb!.consistency).toBe('partial');
+    const pt = facts.find(f => f.key === 'path_type');
+    expect(pt).toBeDefined();
+    expect(pt!.value).toBe('bike-lane');
+    expect(pt!.consistency).toBe('partial');
+  });
+
+  it('returns mixed path_type when members have different types', () => {
+    const facts = buildNetworkFacts([
+      { path_type: 'mup' },
+      { path_type: 'mup' },
+      { path_type: 'bike-lane' },
+      { path_type: 'trail' },
+    ]);
+    const pt = facts.find(f => f.key === 'path_type_mixed');
+    expect(pt).toBeDefined();
+    expect(pt!.consistency).toBe('mixed');
+    expect(pt!.breakdown).toHaveLength(3);
+    expect(pt!.breakdown![0]).toEqual({ value: 'mup', count: 2 });
+  });
+
+  it('path_type appears before surface in network facts', () => {
+    const facts = buildNetworkFacts([
+      { path_type: 'separated-lane', surface: 'asphalt' },
+      { path_type: 'separated-lane', surface: 'asphalt' },
+    ]);
+    const keys = facts.map(f => f.key);
+    const ptIdx = keys.indexOf('path_type');
+    const surfIdx = keys.indexOf('surface');
+    expect(ptIdx).toBeLessThan(surfIdx);
   });
 
   it('returns mixed lighting when members disagree', () => {

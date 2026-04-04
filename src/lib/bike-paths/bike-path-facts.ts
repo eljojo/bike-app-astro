@@ -61,6 +61,7 @@ export interface PathMeta {
   operator?: string;
   network?: string;
   mtb?: boolean;
+  path_type?: string;
 }
 
 /**
@@ -71,6 +72,11 @@ export interface PathMeta {
  */
 export function buildPathFacts(meta: PathMeta): PathFact[] {
   const facts: PathFact[] = [];
+
+  // Path type — first fact, replaces the old mtb boolean
+  if (meta.path_type) {
+    facts.push({ key: 'path_type', value: meta.path_type });
+  }
 
   // Surface — show actual value (e.g. 'fine_gravel'), not category
   if (meta.surface && meta.width) {
@@ -84,11 +90,6 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Smoothness
   if (meta.smoothness) {
     facts.push({ key: `smoothness_${meta.smoothness}` });
-  }
-
-  // Mountain bike trail
-  if (meta.mtb) {
-    facts.push({ key: 'mtb' });
   }
 
   // Separated from cars (cycleway = dedicated infrastructure)
@@ -161,6 +162,22 @@ export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
   if (members.length === 0) return [];
   const facts: NetworkFact[] = [];
 
+  // --- Path type ---
+  const pathTypes = members.filter(m => m.path_type).map(m => m.path_type!);
+  if (pathTypes.length > 0) {
+    const unique = [...new Set(pathTypes)];
+    if (unique.length === 1) {
+      facts.push({
+        key: 'path_type', value: unique[0],
+        consistency: pathTypes.length === members.length ? 'unanimous' : 'partial',
+      });
+    } else {
+      const counts = unique.map(v => ({ value: v, count: pathTypes.filter(pt => pt === v).length }));
+      counts.sort((a, b) => b.count - a.count);
+      facts.push({ key: 'path_type_mixed', consistency: 'mixed', breakdown: counts });
+    }
+  }
+
   // --- Surface ---
   const surfaces = members.filter(m => m.surface).map(m => displaySurface(m.surface)!);
   if (surfaces.length > 0) {
@@ -176,9 +193,6 @@ export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
       facts.push({ key: 'surface_mixed', consistency: 'mixed', breakdown: counts });
     }
   }
-
-  // --- MTB ---
-  aggregateBoolean(members, 'mtb', 'mtb', 'not_mtb', facts);
 
   // --- Separated from cars ---
   const cycleways = members.filter(m => m.highway === 'cycleway').length;
@@ -220,29 +234,13 @@ export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
   return facts;
 }
 
-/** Helper: aggregate a boolean field across members. */
-function aggregateBoolean(
-  members: PathMeta[],
-  field: keyof PathMeta,
-  trueKey: string,
-  _falseKey: string,
-  facts: NetworkFact[],
-): void {
-  const hasTrue = members.filter(m => m[field]).length;
-  if (hasTrue > 0) {
-    facts.push({
-      key: trueKey,
-      consistency: hasTrue === members.length ? 'unanimous' : 'partial',
-    });
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Localization helpers — views pass their `t` function in
 // ---------------------------------------------------------------------------
 
 /** Returns the i18n label key for a fact's table row (e.g. "paths.label.surface"). */
 export function factLabelKey(factKey: string): string {
+  if (factKey === 'path_type' || factKey === 'path_type_mixed') return 'paths.label.path_type';
   if (factKey === 'surface_width' || factKey === 'surface' || factKey === 'width' || factKey === 'surface_mixed') return 'paths.label.surface';
   if (factKey.startsWith('smoothness_')) return 'paths.label.surface_quality';
   if (factKey === 'mtb') return 'paths.label.trail_type';
@@ -257,6 +255,11 @@ export function factLabelKey(factKey: string): string {
 /** Localize a fact's value for table display. */
 export function localizeFactValue(fact: PathFact, t: Translator, locale?: string): string {
   switch (fact.key) {
+    case 'path_type': {
+      const i18nKey = `paths.fact.${(fact.value || '').replace(/-/g, '_')}`;
+      const translated = t(i18nKey, locale);
+      return translated !== i18nKey ? translated : fact.value || '';
+    }
     case 'surface_width': {
       const [surface, width] = (fact.value || '').split(':');
       const surfaceStr = localizeSurface(surface, t, locale) || surface;
@@ -298,6 +301,17 @@ export function localizeFactSentence(fact: PathFact, t: Translator, locale?: str
 
 /** Localize a network fact's value, handling mixed/partial consistency. */
 export function localizeNetworkFactValue(fact: NetworkFact, t: Translator, locale?: string): string {
+  // Mixed path type: "Multi-use pathway (3), Bike lane (2)"
+  if (fact.key === 'path_type_mixed' && fact.breakdown) {
+    return fact.breakdown
+      .map(b => {
+        const i18nKey = `paths.fact.${b.value.replace(/-/g, '_')}`;
+        const translated = t(i18nKey, locale);
+        return `${translated !== i18nKey ? translated : b.value} (${b.count})`;
+      })
+      .join(', ');
+  }
+
   // Mixed surface: "Paved (3), Gravel (2)"
   if (fact.key === 'surface_mixed' && fact.breakdown) {
     return fact.breakdown

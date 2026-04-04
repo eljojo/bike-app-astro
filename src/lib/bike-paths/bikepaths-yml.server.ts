@@ -39,6 +39,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
   member_of: z.string().optional(),
   /** Mountain bike trail — set by detect-mtb.mjs in the data pipeline. */
   mtb: z.boolean().optional(),
+  /** Infrastructure type — classifies the path by safety and bike requirements. */
+  path_type: z.enum(['mup', 'separated-lane', 'bike-lane', 'paved-shoulder', 'mtb-trail', 'trail']).optional(),
   /** Super-network attribute (e.g., capital-pathway, trans-canada-trail).
    * Display-only — does NOT produce a page. Shows in facts table, influences index grouping. */
   super_network: z.string().optional(),
