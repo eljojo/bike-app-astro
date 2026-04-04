@@ -61,19 +61,19 @@ test.describe('Nav contextual links', () => {
   test('Ride nav links to /bike-paths when on a bike path page', async ({ page }) => {
     await page.goto('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
     const rideLink = page.locator('.top-nav a.nav-active');
-    await expect(rideLink).toHaveAttribute('href', '/bike-paths');
+    await expect(rideLink).toHaveAttribute('href', '/bike-paths/');
   });
 
   test('Ride nav links to /routes when on a route page', async ({ page }) => {
     await page.goto('/routes/ruta-rio-chillan');
     const rideLink = page.locator('.top-nav a.nav-active');
-    await expect(rideLink).toHaveAttribute('href', '/routes');
+    await expect(rideLink).toHaveAttribute('href', '/routes/');
   });
 
   test('secondary locale: Ride nav links to translated bike-paths', async ({ page }) => {
     await page.goto('/fr/pistes-cyclables/red-de-ciclovias/ciclovia-avenida-ecuador');
     const rideLink = page.locator('.top-nav a.nav-active');
-    await expect(rideLink).toHaveAttribute('href', '/fr/pistes-cyclables');
+    await expect(rideLink).toHaveAttribute('href', '/fr/pistes-cyclables/');
   });
 
   test('Community nav is active on event detail page and links to /calendar', async ({ page }) => {
@@ -81,7 +81,7 @@ test.describe('Nav contextual links', () => {
     const communityLink = page.locator('.top-nav a.nav-active');
     // Demo city default locale is es-CL: "Comunidad"
     await expect(communityLink).toContainText('Comunidad');
-    await expect(communityLink).toHaveAttribute('href', '/calendar');
+    await expect(communityLink).toHaveAttribute('href', '/calendar/');
   });
 });
 
@@ -142,7 +142,7 @@ test.describe('Network pages', () => {
     const badge = page.locator('.network-badge');
     await expect(badge).toBeVisible();
     await expect(badge).toContainText('Red de Ciclovías');
-    await expect(badge).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias$/);
+    await expect(badge).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias\/?$/);
   });
 });
 

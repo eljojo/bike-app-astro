@@ -177,8 +177,10 @@ export function createEventHandlers(
         files.push(parked.fileChange);
       }
 
-      // Build the event frontmatter
-      const fm: Record<string, unknown> = { ...update.frontmatter };
+      // Build the event frontmatter — merge with existing to preserve fields the editor doesn't manage
+      const fm: Record<string, unknown> = isNew
+        ? { ...update.frontmatter }
+        : { ...matter(effectivePrimary!.content).data, ...update.frontmatter };
 
       // Organizer handling: inline vs separate file
       let oldOrgPhotoKey: string | undefined;

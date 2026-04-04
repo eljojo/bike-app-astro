@@ -57,12 +57,13 @@
   .route-facts-table { order: 3; }
   .route-description { order: 4; }
   .route-photos { order: 5; overflow: hidden; }
-  .route-videos { order: 5; }
-  .nearby-places { order: 6; }
+  .route-reactions-zone { order: 6; }
   .route-downloads { order: 7; }
-  .route-reactions-zone { order: 9; }
-  .edit-entry-point { order: 10; }
-  .route-place-summary { order: 11; }
+  .route-videos { order: 8; }
+  .route-place-summary { order: 9; }
+  .nearby-places { order: 10; }
+  .paths-on-route { order: 11; }
+  .edit-entry-point { order: 12; }
 }
 
 .route-photos {
@@ -200,6 +201,61 @@
   display: block;
   font-size: 0.85em;
   @include muted-text;
+}
+
+// Empty state CTAs — prominent calls to action for missing content
+.empty-state-cta {
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 1rem 1.25rem;
+  margin: 0.75rem 0;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  p {
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+    color: $color-text-muted;
+
+    @include dark-mode {
+      color: $color-text-muted-dark;
+    }
+  }
+
+  a {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: $color-link;
+    border: 1px solid $color-border;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: background-color $transition-state, border-color $transition-state;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: $color-link;
+    }
+
+    @include dark-mode {
+      color: $color-link-dark;
+      border-color: $color-border-dark;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: $color-link-dark;
+      }
+    }
+  }
+}
+
+// Mobile ordering for empty state CTAs
+@media (max-width: $breakpoint-tablet) {
+  .route-photos-empty { order: 5; }
+  .route-description-empty { order: 12; }
 }
 
 // Place summary line ("This route follows...")

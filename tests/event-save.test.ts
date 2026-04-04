@@ -531,6 +531,71 @@ describe('eventHandlers.buildFileChanges', () => {
     expect(orgFile!.content).not.toContain('photo_key');
     expect(orgFile!.content).not.toContain('photo_width');
   });
+
+  it('preserves existing frontmatter fields not managed by editor (banner_text, linked_routes)', async () => {
+    // Reproduces data loss from commit f5ec4f19: editing an event via the web UI
+    // stripped banner_text and linked_routes because buildFileChanges reconstructed
+    // frontmatter from only the editor's fields instead of merging with existing.
+    const existingContent = [
+      '---',
+      'name: NCC Weekend Bikedays',
+      "start_date: '2026-05-09'",
+      "end_date: '2026-10-12'",
+      'registration_url: https://ncc-ccn.gc.ca/events/weekend-bikedays',
+      'organizer: ncc',
+      'tags:',
+      '  - seasonal',
+      '  - advocacy',
+      'banner_text: "Parkways reserved for cycling every weekend, May through October."',
+      'linked_routes:',
+      '  - route: britannia-by-ottawa-river-pathway',
+      '    variant: kichi-zibi-mikan',
+      '    label: "Kichi Zībī Mīkan (9km, Sat/Sun 8am–noon)"',
+      '  - route: easy-loop-around-the-canal',
+      '    label: "Queen Elizabeth Driveway (2.4km, Sat/Sun 8am–8pm)"',
+      'previous_event: ncc-2025-weekend-bikedays',
+      '---',
+      '',
+      'From May to October, the NCC reserves parkways.',
+    ].join('\n');
+
+    // Editor only sends the fields it has UI controls for — no banner_text, no linked_routes
+    const update = {
+      frontmatter: {
+        name: 'NCC Weekend Bikedays',
+        start_date: '2026-05-09',
+        end_date: '2026-10-12',
+        registration_url: 'https://ncc-ccn.gc.ca/events/weekend-bikedays',
+        previous_event: 'ncc-2025-weekend-bikedays',
+        tags: ['seasonal', 'advocacy'],
+      },
+      body: '\n## Dates still need to be confirmed for 2026!\n\nFrom May to October, the NCC reserves parkways.',
+    };
+
+    const currentFiles = {
+      primaryFile: {
+        content: existingContent,
+        sha: 'sha-existing',
+      },
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2026/ncc-2026-weekend-bikedays', currentFiles, mockGit as any,
+    );
+
+    const mdFile = result.files.find(f => f.path.endsWith('.md'));
+    expect(mdFile).toBeDefined();
+
+    // Fields sent by the editor should be present
+    expect(mdFile!.content).toContain('name: NCC Weekend Bikedays');
+    expect(mdFile!.content).toContain('start_date:');
+
+    // Fields NOT managed by the editor must be preserved from the existing file
+    expect(mdFile!.content).toContain('banner_text:');
+    expect(mdFile!.content).toContain('linked_routes:');
+    expect(mdFile!.content).toContain('britannia-by-ottawa-river-pathway');
+    expect(mdFile!.content).toContain('organizer: ncc');
+  });
 });
 
 describe('eventHandlers.afterCommit', () => {

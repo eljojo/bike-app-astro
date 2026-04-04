@@ -6,6 +6,7 @@ import { getInstanceFeatures } from '../lib/config/instance-features';
 
 const locale = Astro.currentLocale || defaultLocale();
 const features = getInstanceFeatures();
+const trail = (p: string) => p.endsWith('/') ? p : p + '/';
 
 // Determine active nav item from current URL path
 const pathname = Astro.url.pathname;
@@ -19,28 +20,28 @@ const rideActive = isWiki && (isActive('/routes') || (features.hasPaths && isAct
 const communityActive = isWiki && (isActive('/calendar') || isActive('/communities') || isActive('/bike-shops') || isActive('/events'));
 
 // Link to the current sub-section so clicking "Ride" on a bike path page goes to /bike-paths
-const rideHref = features.hasPaths && isActive('/bike-paths') ? localePath('/bike-paths', locale) : localePath('/routes', locale);
+const rideHref = trail(features.hasPaths && isActive('/bike-paths') ? localePath('/bike-paths', locale) : localePath('/routes', locale));
 const mapHref = features.hasPaths && isActive('/bike-paths')
-  ? localePath('/map', locale) + '#paths'
-  : localePath('/map', locale);
-const communityHref = isActive('/communities') ? localePath('/communities', locale)
+  ? trail(localePath('/map', locale)) + '#paths'
+  : trail(localePath('/map', locale));
+const communityHref = trail(isActive('/communities') ? localePath('/communities', locale)
   : isActive('/bike-shops') ? localePath('/bike-shops', locale)
-  : localePath('/calendar', locale);
+  : localePath('/calendar', locale));
 ---
 <nav class="top-nav">
   <ul>
     {features.hasRides ? (
       <>
-        <li><a href="/rides" class={isActive('/rides') ? 'nav-active' : ''}>{t('nav.rides', locale)}</a></li>
-        <li><a href="/tours" class={isActive('/tours') ? 'nav-active' : ''}>{t('nav.tours', locale)}</a></li>
-        <li><a href="/stats" class={isActive('/stats') ? 'nav-active' : ''}>{t('nav.stats', locale)}</a></li>
-        <li class="nav-about"><a href={localePath('/about', locale)} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
+        <li><a href="/rides/" class={isActive('/rides') ? 'nav-active' : ''}>{t('nav.rides', locale)}</a></li>
+        <li><a href="/tours/" class={isActive('/tours') ? 'nav-active' : ''}>{t('nav.tours', locale)}</a></li>
+        <li><a href="/stats/" class={isActive('/stats') ? 'nav-active' : ''}>{t('nav.stats', locale)}</a></li>
+        <li class="nav-about"><a href={trail(localePath('/about', locale))} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
       </>
     ) : features.hasEnrichedEvents ? (
       <>
-        <li><a href={localePath('/events', locale)} class={isActive('/events') ? 'nav-active' : ''}>{t('nav.events', locale)}</a></li>
-        <li><a href={localePath('/places', locale)} class={isActive('/places') ? 'nav-active' : ''}>{t('nav.places', locale)}</a></li>
-        <li class="nav-about"><a href={localePath('/about', locale)} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
+        <li><a href={trail(localePath('/events', locale))} class={isActive('/events') ? 'nav-active' : ''}>{t('nav.events', locale)}</a></li>
+        <li><a href={trail(localePath('/places', locale))} class={isActive('/places') ? 'nav-active' : ''}>{t('nav.places', locale)}</a></li>
+        <li class="nav-about"><a href={trail(localePath('/about', locale))} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
       </>
     ) : (
       <>
@@ -49,6 +50,6 @@ const communityHref = isActive('/communities') ? localePath('/communities', loca
         <li><a href={communityHref} class={communityActive ? 'nav-active' : ''}>{t('nav.community', locale)}</a></li>
       </>
     )}
-    <li class="nav-admin"><a href="/admin">Admin</a></li>
+    <li class="nav-admin"><a href="/admin/">Admin</a></li>
   </ul>
 </nav>

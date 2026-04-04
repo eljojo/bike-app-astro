@@ -1,19 +1,27 @@
 // src/lib/maps/layers/photo-layer.ts
 import maplibregl from 'maplibre-gl';
 import { buildImageUrl } from '../../media/image-service';
-import { html, raw } from '../map-helpers';
-import { showPopup } from '../map-init';
+import { createTileLoader, type TileLoader } from '../tile-loader';
 import type { MapLayer, LayerContext } from './types';
-import type { PhotoMarkerOptions } from '../map-init';
 
 export interface PhotoLayerOptions {
-  photos: PhotoMarkerOptions[];
   cdnUrl: string;
   defaultVisible?: boolean;
 }
 
 const SOURCE_ID = 'photo-markers';
 const LAYER_IDS = ['photo-clusters', 'photo-unclustered'];
+const MANIFEST_PATH = '/places/geo/photos/manifest.json';
+const TILE_PATH = '/places/geo/photos/';
+
+interface PhotoProps {
+  key: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  routeName?: string;
+  routeUrl?: string;
+}
 
 const preloadedUrls = new Set<string>();
 function preloadImage(url: string) {
@@ -29,11 +37,13 @@ function photoPopupMaxWidth(zoom: number): number {
 }
 
 export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
-  const { photos, cdnUrl, defaultVisible = true } = opts;
+  const { cdnUrl, defaultVisible = true } = opts;
 
   let visible = defaultVisible;
+  let tileLoader: TileLoader | null = null;
   let syncHandler: (() => void) | null = null;
   let zoomHandler: (() => void) | null = null;
+  let moveEndHandler: (() => void) | null = null;
   const bubbleMarkers = new Map<string, maplibregl.Marker>();
   const clusterMarkers = new Map<number, maplibregl.Marker>();
 
@@ -60,65 +70,176 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
   function removeListeners(map: maplibregl.Map) {
     if (syncHandler) { map.off('idle', syncHandler); syncHandler = null; }
     if (zoomHandler) { map.off('zoom', zoomHandler); zoomHandler = null; }
+    if (moveEndHandler) { map.off('moveend', moveEndHandler); moveEndHandler = null; }
   }
 
-  function showPhotoPopup(map: maplibregl.Map, props: PhotoMarkerOptions, coords: [number, number]) {
-    const imgUrl = buildImageUrl(cdnUrl, props.key, { width: 800, fit: 'scale-down' });
-    const fullUrl = buildImageUrl(cdnUrl, props.key, { width: 1600 });
-    const routeLink = props.routeName && props.routeUrl
-      ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
-    const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
-    const imgWidth = 800;
-    const imgHeight = props.width && props.height ? Math.round(imgWidth * props.height / props.width) : undefined;
-    const sizeAttrs = imgHeight ? ` width="${imgWidth}" height="${imgHeight}"` : '';
+  /**
+   * Spread overlapping bubble markers apart in screen space.
+   * Groups markers whose projected positions are within `threshold` px,
+   * then arranges each group in a circle around the centroid.
+   */
+  function spreadOverlaps(map: maplibregl.Map) {
+    const threshold = 24; // px — less than bubble radius, so only truly overlapping
+    const entries: Array<{ key: string; marker: maplibregl.Marker; x: number; y: number }> = [];
 
-    const popupHtml = html`
-      <div class="photo-popup-content">
-        <a href="${raw(fullUrl)}" target="_blank">
-          <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
-        </a>
-        ${raw(captionBlock)}
-        ${raw(routeLink)}
-      </div>
+    for (const [key, marker] of bubbleMarkers) {
+      const pt = map.project(marker.getLngLat());
+      entries.push({ key, marker, x: pt.x, y: pt.y });
+    }
+
+    // Reset all offsets first
+    for (const e of entries) e.marker.setOffset([0, 0]);
+
+    if (entries.length < 2) return;
+
+    // Group overlapping markers (simple single-pass clustering)
+    const assigned = new Set<string>();
+    const groups: typeof entries[] = [];
+
+    for (const a of entries) {
+      if (assigned.has(a.key)) continue;
+      const group = [a];
+      assigned.add(a.key);
+      for (const b of entries) {
+        if (assigned.has(b.key)) continue;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        if (dx * dx + dy * dy < threshold * threshold) {
+          group.push(b);
+          assigned.add(b.key);
+        }
+      }
+      if (group.length > 1) groups.push(group);
+    }
+
+    // Spread each overlapping group in a circle
+    for (const group of groups) {
+      const radius = Math.max(20, group.length * 8); // px, scales with group size
+      for (let i = 0; i < group.length; i++) {
+        const angle = (2 * Math.PI * i) / group.length - Math.PI / 2;
+        const dx = Math.round(radius * Math.cos(angle));
+        const dy = Math.round(radius * Math.sin(angle));
+        group[i].marker.setOffset([dx, dy]);
+      }
+    }
+  }
+
+  let activeBubblePopup: { el: HTMLElement; cleanup: () => void } | null = null;
+
+  function dismissBubblePopup() {
+    if (!activeBubblePopup) return;
+    activeBubblePopup.el.classList.add('photo-bubble-popup--closing');
+    const el = activeBubblePopup.el;
+    activeBubblePopup.cleanup();
+    activeBubblePopup = null;
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
+  function showPhotoPopup(map: maplibregl.Map, props: PhotoProps, coords: [number, number]) {
+    dismissBubblePopup();
+
+    const size = photoPopupMaxWidth(map.getZoom());
+    const imgUrl = buildImageUrl(cdnUrl, props.key, { width: size * 2, height: size * 2, fit: 'cover' });
+    // Link to route page with ?photo= to open lightbox, or full-res image if no route
+    const photoLink = props.routeUrl
+      ? `${props.routeUrl}?photo=${encodeURIComponent(props.key)}`
+      : buildImageUrl(cdnUrl, props.key, { width: 1600 });
+    const linkTarget = props.routeUrl ? '' : ' target="_blank"';
+    const routeLink = props.routeName && props.routeUrl
+      ? `<a class="photo-bubble-popup--route" href="${props.routeUrl}">${props.routeName}</a>` : '';
+    const meta = routeLink
+      ? `<div class="photo-bubble-popup--meta">${routeLink}</div>` : '';
+
+    const el = document.createElement('div');
+    el.className = 'photo-bubble-popup';
+    el.style.setProperty('--bubble-size', `${size}px`);
+    el.innerHTML = `
+      <a class="photo-bubble-popup--image" href="${photoLink}"${linkTarget}>
+        <img src="${imgUrl}" alt="${props.caption || ''}" />
+      </a>
+      ${meta}
     `;
 
-    const popup = new maplibregl.Popup({ maxWidth: `${photoPopupMaxWidth(map.getZoom())}px` })
-      .setLngLat(coords)
-      .setHTML(popupHtml);
-    showPopup(map, popup);
+    // Position as overlay inside the map container — prefer above the point
+    const container = map.getContainer();
+    container.appendChild(el);
 
-    const onZoom = () => popup.setMaxWidth(`${photoPopupMaxWidth(map.getZoom())}px`);
-    map.on('zoom', onZoom);
-    popup.on('close', () => map.off('zoom', onZoom));
+    function reposition() {
+      const pt = map.project(coords);
+      const rect = container.getBoundingClientRect();
+
+      // Position the bubble's top-left corner so the circle floats above-right
+      // of the clicked point. Clamp to keep the full circle inside the container.
+      const margin = 4;
+      // Ideal: circle starts slightly right of click, and its bottom edge is above click
+      let left = pt.x - size / 4;
+      let top = pt.y - size - size / 4;
+
+      // Clamp to container bounds
+      left = Math.max(margin, Math.min(left, rect.width - size - margin));
+      top = Math.max(margin, Math.min(top, rect.height - size - margin));
+
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+    }
+    reposition();
+
+    // Dismiss on click outside, escape, or map move
+    const onClickOutside = (e: MouseEvent) => {
+      if (!el.contains(e.target as Node)) dismissBubblePopup();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissBubblePopup(); };
+    const onMove = () => dismissBubblePopup();
+
+    setTimeout(() => {
+      document.addEventListener('click', onClickOutside);
+      document.addEventListener('keydown', onKey);
+      map.once('movestart', onMove);
+    }, 50); // delay so the opening click doesn't immediately dismiss
+
+    const cleanup = () => {
+      document.removeEventListener('click', onClickOutside);
+      document.removeEventListener('keydown', onKey);
+      map.off('movestart', onMove);
+    };
+
+    activeBubblePopup = { el, cleanup };
   }
 
   return {
     id: 'photos',
-    hasContent: photos.length > 0,
+    hasContent: true,
 
-    setup(ctx: LayerContext) {
+    async setup(ctx: LayerContext) {
       const { map } = ctx;
+
+      // Lazy-init tile loader
+      if (!tileLoader) {
+        const res = await fetch(MANIFEST_PATH);
+        if (!res.ok) return;
+        const manifest = await res.json();
+        if (!ctx.isCurrent()) return;
+        tileLoader = createTileLoader(manifest, TILE_PATH);
+      }
+
+      // Load tiles for current viewport
+      const b = map.getBounds();
+      const features = await tileLoader.loadTilesForBounds([
+        b.getWest(), b.getSouth(), b.getEast(), b.getNorth(),
+      ]);
+      if (!ctx.isCurrent()) return;
+
+      if (features.length === 0) return;
+
+      const minZoom = features.length > 200 ? 11 : features.length > 50 ? 8 : 0;
 
       map.addSource(SOURCE_ID, {
         type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: photos.map(p => ({
-            type: 'Feature' as const,
-            geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-            properties: {
-              key: p.key, caption: p.caption || '', index: p.index,
-              routeName: p.routeName || '', routeUrl: p.routeUrl || '',
-              width: p.width || 0, height: p.height || 0,
-            },
-          })),
-        },
+        data: { type: 'FeatureCollection', features },
         cluster: true,
         clusterRadius: 80,
         clusterMaxZoom: 15,
       });
-
-      const minZoom = photos.length > 200 ? 11 : photos.length > 50 ? 8 : 0;
 
       map.addLayer({
         id: 'photo-clusters', type: 'circle', source: SOURCE_ID,
@@ -132,9 +253,33 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
         paint: { 'circle-radius': 1, 'circle-opacity': 0 },
       });
 
-      // DOM bubble sync on idle
+      // Load new tiles on pan/zoom
+      moveEndHandler = async () => {
+        if (!visible || !tileLoader) return;
+        const prevCount = tileLoader.allLoadedFeatures().length;
+        const bounds = map.getBounds();
+        const newFeatures = await tileLoader.loadTilesForBounds([
+          bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth(),
+        ]);
+        if (newFeatures.length > prevCount) {
+          const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+          if (source) {
+            source.setData({ type: 'FeatureCollection', features: newFeatures });
+          }
+        }
+      };
+      map.on('moveend', moveEndHandler);
+
+      // DOM bubble sync on idle — guarded against concurrent runs.
+      // The handler is async (awaits getClusterLeaves). If a second idle fires
+      // while the first is suspended at an await, the second run could clean up
+      // markers that the first run then recreates as zombies.
+      let syncing = false;
       syncHandler = async () => {
         if (!visible) return;
+        if (syncing) { map.triggerRepaint(); return; }
+        syncing = true;
+        try {
         const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
         if (!source) return;
 
@@ -159,7 +304,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
             });
             el.addEventListener('click', (e) => {
               e.stopPropagation();
-              showPhotoPopup(map, props as unknown as PhotoMarkerOptions, coords);
+              showPhotoPopup(map, props as unknown as PhotoProps, coords);
             });
             const marker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map);
             bubbleMarkers.set(key, marker);
@@ -175,6 +320,9 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
         for (const [key, marker] of bubbleMarkers) {
           if (!seenKeys.has(key)) { marker.remove(); bubbleMarkers.delete(key); }
         }
+
+        // Spread overlapping bubbles apart
+        spreadOverlaps(map);
 
         // Cluster thumbnails
         const clusters = map.queryRenderedFeatures({ layers: ['photo-clusters'] });
@@ -192,7 +340,12 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
               clusterMarkers.delete(clusterId);
               continue;
             }
-          } catch { continue; }
+          } catch {
+            // Cluster no longer exists (zoom broke it apart) — remove stale marker
+            clusterMarkers.get(clusterId)?.remove();
+            clusterMarkers.delete(clusterId);
+            continue;
+          }
 
           if (!clusterMarkers.has(clusterId)) {
             const count = f.properties?.point_count as number;
@@ -221,6 +374,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
         for (const [id, marker] of clusterMarkers) {
           if (!seenClusterIds.has(id)) { marker.remove(); clusterMarkers.delete(id); }
         }
+        } finally { syncing = false; }
       };
       map.on('idle', syncHandler);
 
@@ -238,6 +392,7 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
           (el as HTMLElement).style.width = `${clusterSize}px`;
           (el as HTMLElement).style.height = `${clusterSize}px`;
         }
+        spreadOverlaps(map);
       };
       map.on('zoom', zoomHandler);
 

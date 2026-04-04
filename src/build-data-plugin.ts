@@ -36,8 +36,12 @@ import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
 import { computeBikePathRelations, enrichBikePathPages } from './lib/bike-paths/bike-path-relations.server';
 import { loadAllGeoData } from './lib/geo/geojson-reader.server';
+import { buildPlacesGeoJSON, buildPhotoTiles, type PlaceGeoInput } from './lib/geo/geojson-builders';
+export { buildPlacesGeoJSON, buildPhotoTiles } from './lib/geo/geojson-builders';
+export type { PlaceGeoInput, MediaLocationInput, PhotoTileInput, PhotoRouteInfo, PhotoTileData } from './lib/geo/geojson-builders';
 import { supportedLocales, defaultLocale as getDefaultLocale } from './lib/i18n/locale-utils';
 import { translatePath } from './lib/i18n/path-translations';
+import type { FeatureCollection } from 'geojson';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -362,19 +366,39 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const geoDir = path.join(CONSUMER_ROOT, 'public', 'bike-paths', 'geo');
   const { coordinates: geoCoordinates, elevation: geoElevation } = loadAllGeoData(geoDir);
   const routeTracks = loadRouteTrackPoints();
-  // Load places for nearby-places computation
+  // Load places for nearby-places computation and GeoJSON emission
   const placesDir = path.join(CITY_DIR, 'places');
-  const placeList: Array<{ name: string; category: string; lat: number; lng: number; status?: string }> = [];
+  const placeList: Array<{
+    name: string; category: string; lat: number; lng: number; status?: string;
+    name_fr?: string; address?: string; website?: string; phone?: string;
+    google_maps_url?: string; photo_key?: string;
+    media?: Array<{ key: string; cover?: boolean }>;
+    organizer?: string;
+  }> = [];
   if (fs.existsSync(placesDir)) {
     for (const file of fs.readdirSync(placesDir).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
       const { data } = matter(fs.readFileSync(path.join(placesDir, file), 'utf-8'));
       if (data.lat != null && data.lng != null) {
-        placeList.push({ name: data.name as string, category: data.category as string, lat: data.lat as number, lng: data.lng as number, status: data.status as string });
+        placeList.push({
+          name: data.name as string,
+          category: data.category as string,
+          lat: data.lat as number,
+          lng: data.lng as number,
+          status: data.status as string | undefined,
+          name_fr: data.name_fr as string | undefined,
+          address: data.address as string | undefined,
+          website: data.website as string | undefined,
+          phone: data.phone as string | undefined,
+          google_maps_url: data.google_maps_url as string | undefined,
+          photo_key: data.photo_key as string | undefined,
+          media: data.media as Array<{ key: string; cover?: boolean }> | undefined,
+          organizer: data.organizer as string | undefined,
+        });
       }
     }
   }
   // Load geolocated media for nearby-photo computation
-  const mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }> = [];
+  const mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string; width?: number; height?: number; type?: string }> = [];
   const routesDirForMedia = path.join(CITY_DIR, 'routes');
   if (fs.existsSync(routesDirForMedia)) {
     for (const slug of fs.readdirSync(routesDirForMedia)) {
@@ -384,10 +408,60 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       if (!Array.isArray(media)) continue;
       for (const m of media) {
         if (m.lat != null && m.lng != null && m.key) {
-          mediaLocations.push({ key: m.key, lat: m.lat, lng: m.lng, routeSlug: slug, caption: m.caption });
+          mediaLocations.push({ key: m.key, lat: m.lat, lng: m.lng, routeSlug: slug, caption: m.caption, width: m.width, height: m.height, type: m.type });
         }
       }
     }
+  }
+
+  // Build organizer name map (slug → name) for place GeoJSON enrichment
+  const organizerNames = new Map<string, { name: string; website?: string }>();
+  const organizerDir = path.join(CITY_DIR, 'organizers');
+  if (fs.existsSync(organizerDir)) {
+    for (const file of fs.readdirSync(organizerDir).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
+      const { data } = matter(fs.readFileSync(path.join(organizerDir, file), 'utf-8'));
+      const slug = file.replace('.md', '');
+      organizerNames.set(slug, { name: data.name as string, website: data.website as string | undefined });
+    }
+  }
+
+  // Emit places.geojson to public/places/geo/
+  const placesGeoInput: PlaceGeoInput[] = placeList.map(p => {
+    const org = p.organizer ? organizerNames.get(p.organizer) : undefined;
+    return {
+      ...p,
+      organizer_name: org?.name,
+      organizer_url: org?.website,
+    };
+  });
+  const placesGeoJSON = buildPlacesGeoJSON(placesGeoInput, mediaLocations);
+  const placesGeoDir = path.join(CONSUMER_ROOT, 'public', 'places', 'geo');
+  fs.mkdirSync(placesGeoDir, { recursive: true });
+  fs.writeFileSync(path.join(placesGeoDir, 'places.geojson'), JSON.stringify(placesGeoJSON));
+
+  // Build route info map for photo tile enrichment (slug → { name, url })
+  const photoRouteInfo = new Map<string, { name: string; url: string }>();
+  if (fs.existsSync(routesDirForMedia)) {
+    for (const slug of fs.readdirSync(routesDirForMedia)) {
+      const indexPath = path.join(routesDirForMedia, slug, 'index.md');
+      if (!fs.existsSync(indexPath)) continue;
+      const { data } = matter(fs.readFileSync(indexPath, 'utf-8'));
+      if (data.name) {
+        photoRouteInfo.set(slug, { name: data.name as string, url: `/routes/${slug}` });
+      }
+    }
+  }
+
+  // Emit photo tiles to public/places/geo/photos/
+  const { tiles: photoTiles, manifest: photoManifest } = buildPhotoTiles(mediaLocations, photoRouteInfo);
+  if (photoTiles.size > 0) {
+    const photoTilesDir = path.join(CONSUMER_ROOT, 'public', 'places', 'geo', 'photos');
+    fs.mkdirSync(photoTilesDir, { recursive: true });
+    for (const [id, tile] of photoTiles) {
+      const fc: FeatureCollection = { type: 'FeatureCollection', features: tile.features };
+      fs.writeFileSync(path.join(photoTilesDir, `tile-${id}.geojson`), JSON.stringify(fc));
+    }
+    fs.writeFileSync(path.join(photoTilesDir, 'manifest.json'), JSON.stringify(photoManifest, null, 2));
   }
 
   // Tier 2: compute relations per YML slug (overlapping routes, nearby photos/places/paths, connected paths)

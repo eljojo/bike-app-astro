@@ -13,7 +13,6 @@ import VariantSelector from '@/components/VariantSelector';
 import InteractiveElevation from '@/components/InteractiveElevation.tsx';
 import { computeElevationPoints } from '@/lib/geo/elevation-profile';
 import { deriveSurface, deriveBeginnerFriendly } from '@/lib/route-facts';
-import { toMapPlaces } from '@/lib/geo/places';
 import { elevationConclusion } from '@/lib/geo/elevation';
 import { routeShape, placeCounts } from '@/lib/route-insights';
 import { difficultyLabel } from '@/lib/difficulty';
@@ -55,13 +54,15 @@ export async function getStaticPaths() {
     };
   }
 
+  const totalRoutes = filtered.length;
+
   return filtered.flatMap(route => allRouteSlugs(route).map(slug => ({
     params: { slug },
-    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths },
+    props: { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths, totalRoutes },
   })));
 }
 
-const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths } = Astro.props;
+const { route, allElevations, routeDifficultyScores, allScores, placeData, similarityMatrix, routeCardData, routeToPaths, totalRoutes } = Astro.props;
 
 // If the URL slug doesn't match the canonical slug for this locale, render a
 // meta redirect instead of the full page. This handles the "wrong combo" pages
@@ -74,7 +75,6 @@ if (urlSlug !== canonicalSlug) {
   const canonicalUrl = paths.route(canonicalSlug, locale);
   return Astro.redirect(canonicalUrl, 301);
 }
-
 const { name, tagline, distance_km, tags, media, variants, gpxTracks } = route.data;
 
 // Get translated route content
@@ -129,6 +129,8 @@ const nearbyBikePaths = features.hasPaths ? (routeToPaths[route.id] ?? []) : [];
 const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 
 const displayTags = tags;
+const hasPhotos = media.some(m => m.type !== 'video');
+const hasDescription = !!localeBody && localeBody.replace(/<[^>]*>/g, '').trim().length > 0;
 
 const difficultyText = primaryScore !== null
   ? (hasRange
@@ -186,13 +188,6 @@ const mapPolylines = variants.map(v => {
   const track = gpxTracks[v.gpx];
   return track ? { name: v.name, encoded: track.polyline, key: variantKeyFromGpx(v.gpx) } : null;
 }).filter((p): p is NonNullable<typeof p> => p !== null);
-
-// Build map photos and places
-const mapPhotos = media
-  .filter(m => m.type !== 'video' && m.lat != null && m.lng != null)
-  .map((m, i) => ({ key: m.key, lat: m.lat!, lng: m.lng!, caption: m.caption, width: m.width, height: m.height, index: i }));
-
-const mapPlaces = toMapPlaces(nearbyPlaces, locale);
 
 // Per-variant facts data
 const surf = deriveSurface(tags);
@@ -259,11 +254,14 @@ const variantElevationData = variants.map(v => {
 
         {/* Photos (inside main column so it participates in mobile reordering) */}
         <MediaGallery media={media} name={localeName} show="photos" />
-        {(() => {
-          const hasPhotos = media.some(m => m.type !== 'video');
-          const photoCtaKey = hasPhotos ? 'route.add_photo' : 'route.add_first_photo';
-          return <EditEntryPoint text={t(photoCtaKey, locale)} href={`/admin/routes/${route.id}?focus=media`} />;
-        })()}
+        {hasPhotos ? (
+          <EditEntryPoint text={t('route.add_photo', locale)} href={`/admin/routes/${route.id}?focus=media`} />
+        ) : getInstanceFeatures().showsContributeLink && (
+          <div class="empty-state-cta route-photos-empty">
+            <p>{t('route.empty_photos', locale)}</p>
+            <a href={`/admin/routes/${route.id}?focus=media`}>{t('route.empty_photos_cta', locale)}</a>
+          </div>
+        )}
 
         {/* Reactions */}
         {getInstanceFeatures().allowsReactions && (
@@ -271,6 +269,9 @@ const variantElevationData = variants.map(v => {
             <ReactionsWidget client:idle contentType="route" contentSlug={route.id}
               bookmarkHint={t('reaction.bookmark_hint', locale)}
               trustReceiptMessage={t('reaction.trust_receipt', locale)}
+              totalRoutes={totalRoutes}
+              riddenProgressText={t('reaction.ridden_progress', locale)}
+              riddenCompleteText={t('reaction.ridden_complete', locale)}
               labels={[
                 { type: 'thumbs-up', icon: 'thumbs-up', label: t('reaction.thumbs-up', locale) },
                 { type: 'ridden', icon: 'bicycle', label: t('reaction.ridden', locale) },
@@ -293,7 +294,9 @@ const variantElevationData = variants.map(v => {
         })}
 
         {/* Bike paths on route */}
-        <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+        <div class="paths-on-route">
+          <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+        </div>
       </div>
 
       <aside class="route-detail-sidebar">
@@ -302,7 +305,7 @@ const variantElevationData = variants.map(v => {
 
         {/* Interactive MapLibre map */}
         {mapPolylines.length > 0 && (
-          <RouteDetailMap polylines={mapPolylines} places={mapPlaces} photos={mapPhotos} locale={locale} />
+          <RouteDetailMap polylines={mapPolylines} locale={locale} />
         )}
 
         {/* Elevation profile (one per variant, collapsible) */}
@@ -327,7 +330,14 @@ const variantElevationData = variants.map(v => {
           />
         ))}
 
-        <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
+        {hasDescription ? (
+          <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
+        ) : getInstanceFeatures().showsContributeLink && (
+          <div class="empty-state-cta route-description-empty">
+            <p>{t('route.empty_description', locale)}</p>
+            <a href={`/admin/routes/${route.id}?focus=description`}>{t('route.empty_description_cta', locale)}</a>
+          </div>
+        )}
 
         {/* Places along the way */}
         {placeDesc && <p class="route-place-summary">{t('route.this_route', locale)} {placeDesc}</p>}
