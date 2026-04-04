@@ -85,18 +85,6 @@ export interface MarkerOptions {
   popup: string;
 }
 
-export interface PhotoMarkerOptions {
-  key: string;
-  lat: number;
-  lng: number;
-  caption?: string;
-  width?: number;
-  height?: number;
-  routeName?: string;
-  routeUrl?: string;
-  index: number;
-}
-
 export interface WaypointMarkerOptions {
   lat: number;
   lng: number;

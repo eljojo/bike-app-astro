@@ -1,7 +1,5 @@
-import type { PlaceData, NearbyPlace } from './proximity';
+import type { PlaceData } from './proximity';
 import { haversineM, PHOTO_NEAR_PLACE_M } from './proximity';
-import { categoryEmoji } from './place-categories';
-import { defaultLocale } from '../i18n/locale-utils';
 
 interface MediaLocation {
   key: string;
@@ -69,18 +67,3 @@ export function toPlaceData(
     });
 }
 
-/** Convert NearbyPlace[] into the format expected by map components. */
-export function toMapPlaces(nearby: NearbyPlace[], locale?: string) {
-  return nearby.map(p => ({
-    name: (locale && locale !== defaultLocale() && p.name_fr) ? p.name_fr : p.name,
-    emoji: categoryEmoji[p.category] || '\u{1F4CD}',
-    lat: p.lat,
-    lng: p.lng,
-    google_maps_url: p.google_maps_url || `https://www.google.com/maps/?q=${p.lat},${p.lng}`,
-    link: p.website,
-    address: p.address,
-    phone: p.phone,
-    photo_key: p.photo_key,
-    category: p.category,
-  }));
-}
