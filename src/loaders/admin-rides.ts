@@ -17,6 +17,7 @@ import { cityDir } from '../lib/config/config.server';
 import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { computeRideContentHash } from '../lib/models/ride-model.server';
 import type { RideDetail } from '../lib/models/ride-model';
+import { parseMediaItem } from '../lib/models/content-model';
 import {
   detectTours,
   findGpxFiles,
@@ -217,7 +218,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const tourData = tourSlug ? tourMeta.get(tourSlug) : undefined;
 
     const name = (parsed.frontmatter.name as string) || nameFromFilename(gpxFilename);
-    const status = (parsed.frontmatter.status as string) || 'published';
+    const status = (parsed.frontmatter.status as RideDetail['status']) || 'published';
     const country = (parsed.frontmatter.country as string)
       || (tourData?.country)
       || undefined;
@@ -230,21 +231,7 @@ export async function loadAdminRideData(): Promise<AdminRideData> {
     const elevation_m = Math.round(parsed.gpxTrack.elevation_gain_m);
 
     // Include all media (photos and videos)
-    const media = parsed.media.map(m => {
-      const item: AdminRideDetail['media'][0] = { key: m.key };
-      if (m.type != null) item.type = m.type;
-      if (m.caption != null) item.caption = m.caption;
-      if (m.cover != null) item.cover = m.cover;
-      if (m.width != null) item.width = m.width;
-      if (m.height != null) item.height = m.height;
-      if (m.lat != null) item.lat = m.lat;
-      if (m.lng != null) item.lng = m.lng;
-      if (m.title != null) item.title = m.title;
-      if (m.handle != null) item.handle = m.handle;
-      if (m.duration != null) item.duration = m.duration;
-      if (m.orientation != null) item.orientation = m.orientation;
-      return item;
-    });
+    const media = parsed.media.map(m => parseMediaItem(m as unknown as Record<string, unknown>) as AdminRideDetail['media'][0]);
 
     const ride: AdminRide = {
       slug: parsed.slug,

@@ -24,23 +24,40 @@ const bikeShops = allOrganizers
     return a.data.name.localeCompare(b.data.name);
   });
 
+// Build name→link lookup so map popups can link to detail pages
+const shopLinkByName = new Map<string, string>();
+for (const org of bikeShops) {
+  shopLinkByName.set(org.data.name, organizerLink(org, locale));
+}
+
 // Load places with bike-shop category for map pins
 const allPlaces = await getCollection('places');
 const shopPlaces = allPlaces.filter(p =>
   p.data.category === 'bike-shop' && p.data.lat && p.data.lng
 );
 
-const pins = shopPlaces.map(p => ({
-  lat: p.data.lat,
-  lng: p.data.lng,
-  label: '🔧',
-  popup: p.data.name,
-}));
+const pins = shopPlaces.map(p => {
+  const link = shopLinkByName.get(p.data.name);
+  return {
+    lat: p.data.lat,
+    lng: p.data.lng,
+    label: '🔧',
+    popup: link
+      ? `<a href="${link}" style="font-weight:600;color:inherit">${p.data.name}</a>`
+      : p.data.name,
+  };
+});
 
 const seoDescription = t('bike_shops.seo_description', locale, { city: config.name });
+
+import { breadcrumbJsonLd } from '@/lib/json-ld';
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: t('bike_shops.heading', locale), url: `${config.url}${paths.bikeShops(locale)}` },
+]);
 ---
 
-<Base title={`${t('bike_shops.page_title', locale)} | ${config.display_name}`} description={seoDescription}>
+<Base title={`${t('bike_shops.page_title', locale)} | ${config.display_name}`} description={seoDescription} breadcrumbs={breadcrumbs}>
   <SubTabToggle items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
     { label: t('nav.people', locale), href: paths.communities(locale), active: false },

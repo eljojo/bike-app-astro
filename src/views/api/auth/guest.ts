@@ -4,6 +4,7 @@ import { users } from '../../../db/schema';
 import { buildSessionBatch, generateId, setSessionCookies } from '../../../lib/auth/auth';
 import { generatePseudonym } from '../../../lib/auth/pseudonym';
 import { isIpBanned } from '../../../lib/auth/ban-service';
+import { checkRateLimit, recordAttempt } from '../../../lib/auth/rate-limit';
 import { jsonResponse, jsonError } from '../../../lib/api-response';
 import { withBatch } from '../../../db/transaction';
 import { getInstanceFeatures } from '../../../lib/config/instance-features';
@@ -30,6 +31,11 @@ export async function POST({ cookies, request }: APIContext) {
       return jsonError('Unable to create account', 403);
     }
 
+    const rateLimited = await checkRateLimit(database, 'guest-create', [`ip:${ip}`], 5);
+    if (rateLimited) {
+      return jsonError('Too many accounts created. Please try again later.', 429);
+    }
+
     let token = '';
     await withBatch(database, (tx) => {
       const sessionPlan = buildSessionBatch(tx, userId, { durationMs: GUEST_SESSION_DURATION_MS });
@@ -48,6 +54,8 @@ export async function POST({ cookies, request }: APIContext) {
       ];
     });
     setSessionCookies(cookies, token, GUEST_SESSION_MAX_AGE);
+
+    await recordAttempt(database, 'guest-create', [`ip:${ip}`]);
 
     return jsonResponse({ success: true, username });
   } catch (err: unknown) {

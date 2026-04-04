@@ -9,34 +9,53 @@
  *
  * Each generator is a standalone script that can also run independently
  * via `npx tsx scripts/build-*.ts` for debugging.
+ *
+ * Dependencies are wired through promises — each task starts as soon as
+ * its inputs resolve. Read the `.then()` chains to see the graph:
+ *
+ *   map-style ─────────────┐
+ *   icon-paths ────────────┤
+ *   contributors ──────────┤
+ *                          ├─► done
+ *   cache-path-geometry ───┤
+ *     └─► copy-path-geometry
+ *           ├─► path-tiles
+ *           └─► maps
  */
-import { execFileSync } from 'node:child_process';
+import { execFile as execFileCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
 
-const scripts = path.resolve(import.meta.dirname);
+const execFile = promisify(execFileCb);
 
+const scripts = path.resolve(import.meta.dirname);
 const minimal = process.env.PREBUILD_MINIMAL === '1';
 
-const generators = [
-  { name: 'map-style', script: 'build-map-style.ts' },
-  { name: 'icon-paths', script: 'build-icon-paths.ts' },
-  { name: 'path-geo-cache', script: 'cache-path-geometry.ts' },
-  { name: 'path-geo', script: 'copy-path-geometry.ts' },
-  { name: 'path-tiles', script: 'generate-path-tiles.ts' },
-  ...(!minimal ? [
-    { name: 'maps', script: 'generate-maps.ts' },
-    { name: 'contributors', script: 'build-contributors.ts' },
-  ] : []),
-];
-
-for (const { name, script } of generators) {
+async function run(name: string, script: string): Promise<void> {
   try {
-    execFileSync('npx', ['tsx', path.join(scripts, script)], {
-      stdio: 'inherit',
+    const { stdout, stderr } = await execFile('npx', ['tsx', path.join(scripts, script)], {
       env: process.env,
+      maxBuffer: 10 * 1024 * 1024,
     });
-  } catch {
+    if (stdout) process.stdout.write(stdout);
+    if (stderr) process.stderr.write(stderr);
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string };
+    if (e.stdout) process.stdout.write(e.stdout);
+    if (e.stderr) process.stderr.write(e.stderr);
     console.error(`[prebuild] ${name} failed`);
     process.exit(1);
   }
 }
+
+// Dependency graph — each task awaits only its actual inputs.
+const mapStyle     = run('map-style',      'build-map-style.ts');
+const iconPaths    = run('icon-paths',     'build-icon-paths.ts');
+const contributors = minimal ? Promise.resolve() : run('contributors', 'build-contributors.ts');
+
+const geoCache  = run('path-geo-cache', 'cache-path-geometry.ts');
+const geoCopy   = geoCache.then(() => run('path-geo', 'copy-path-geometry.ts'));
+const pathTiles = geoCopy.then(() => run('path-tiles', 'generate-path-tiles.ts'));
+const maps      = minimal ? Promise.resolve() : geoCopy.then(() => run('maps', 'generate-maps.ts'));
+
+await Promise.all([mapStyle, iconPaths, contributors, pathTiles, maps]);

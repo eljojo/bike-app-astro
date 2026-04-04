@@ -124,4 +124,34 @@ describe('buildSitemapEntries', () => {
     const frAlt = enRoute!.alternates!.find(a => a.locale === 'fr');
     expect(frAlt!.url).toBe('https://ottawabybike.ca/fr/parcours/test-route');
   });
+
+  it('includes only standalone bike paths in sitemap', () => {
+    const entries = buildSitemapEntries({
+      routes: [],
+      guides: [],
+      bikePaths: [
+        { slug: 'standalone-path', standalone: true },
+        { slug: 'non-standalone', standalone: false },
+        { slug: 'network-member', standalone: true, memberOf: 'capital-pathway' },
+      ],
+    });
+
+    const pathUrls = entries.filter(e => e.url.includes('/bike-paths/')).map(e => e.url);
+    expect(pathUrls).toContainEqual(expect.stringContaining('/bike-paths/standalone-path'));
+    expect(pathUrls).toContainEqual(expect.stringContaining('/bike-paths/capital-pathway/network-member'));
+    expect(pathUrls).not.toContainEqual(expect.stringContaining('/non-standalone'));
+  });
+
+  it('excludes non-standalone paths from sitemap', () => {
+    const entries = buildSitemapEntries({
+      routes: [],
+      guides: [],
+      bikePaths: [
+        { slug: 'short-connector', standalone: false },
+      ],
+    });
+
+    const pathUrls = entries.filter(e => e.url.includes('/bike-paths/short-connector'));
+    expect(pathUrls).toHaveLength(0);
+  });
 });

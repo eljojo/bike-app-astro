@@ -15,6 +15,7 @@ describe('i18n dynamic loading', () => {
 
   it('falls back to en for missing keys', async () => {
     const { t } = await import('../src/i18n/index');
-    expect(t('nav.about', 'xx')).toBeTruthy();
+    // Falls back to default locale (es, from mocked city config)
+    expect(t('nav.about', 'xx')).toBe('Acerca de');
   });
 });

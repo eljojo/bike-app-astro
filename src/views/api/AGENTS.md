@@ -1,26 +1,31 @@
 # API Endpoints
 
-All files here MUST have `export const prerender = false`.
+All files here MUST have `export const prerender = false` and call `authorize()` on every endpoint.
 
-## Save Pipeline Rules
+## Local Rules
 
-- **Always merge frontmatter**: read existing frontmatter first, spread editor fields on top. Never reconstruct from only UI fields — this silently deletes fields the editor doesn't manage (variants, created_at, strava_url, etc.).
-- **Content hash is blob SHA, not commit SHA**: The D1 cache stores blob SHAs from the GitHub API. Using commit SHAs causes false 409 conflicts on consecutive saves.
-- **Return new contentHash after save**: The client MUST update its local state with the returned hash. Forgetting this breaks consecutive saves.
-- **Permission stripping**: non-admin users have `status` stripped from updates; non-editors have `newSlug` stripped.
+- **Always merge frontmatter**: read existing first, spread editor fields on top. Never reconstruct from only UI fields.
+- **Content hash is blob SHA, not commit SHA**: commit SHAs cause false 409 conflicts.
+- **Return new contentHash after save**: client must update local state.
+- **Zod v4**: import from `zod/v4`, not `zod` or `astro/zod`.
 
-## afterCommit Pattern
+## Factory Pattern
 
-All save handlers update the media-shared-keys registry via `updateMediaRegistryCache()`. Failures are logged but don't fail the response. Track old vs new media keys and build a changes array.
+All save handlers use a factory function returning a fresh `SaveHandlers` per request. Request-scoped state lives in the factory closure, not module-level variables. This prevents cross-contamination on Cloudflare Workers (isolate reuse).
+
+```typescript
+export const POST = createApiHandler(/* ... */, () => createRouteHandlers(sharedKeysData));
+```
 
 ## Registering New Endpoints
 
-1. Create file here (auth endpoints go in `src/views/api/auth/`)
-2. Add `export const prerender = false` at top level
-3. Register in `src/integrations/admin-routes.ts` — static routes MUST precede parameterized routes when they share a prefix
-4. If public (no auth needed), add exclusion in `src/middleware.ts` `isProtected` check
-5. If new permission needed, add action to `src/lib/authorize.ts`
+1. Create file here (auth endpoints in `src/views/api/auth/`)
+2. Add `export const prerender = false`
+3. Register in `src/integrations/admin-routes.ts` — static routes before parameterized
+4. If public, add exclusion in `src/middleware.ts`
+5. If new permission, add action to `src/lib/auth/authorize.ts`
 
-## Zod Imports
+## Detailed Context
 
-Import from `zod/v4`, not `zod` or `astro/zod`. Key v4 differences: `z.record(z.string(), z.unknown())` (not single-arg), `z.looseObject()` (not `.passthrough()`).
+- [Save pipeline](../../../_ctx/save-pipeline.md)
+- [Adding new things](../../../_ctx/adding-new-things.md)

@@ -37,7 +37,8 @@ vi.mock('../src/lib/media/media-parking.server', () => ({
   updateMediaRegistryCache: (...args: unknown[]) => mockUpdateMediaRegistryCache(...args),
 }));
 
-import { isPastEvent, eventHandlers } from '../src/views/api/event-save';
+import { isPastEvent, createEventHandlers } from '../src/views/api/event-save';
+const eventHandlers = createEventHandlers();
 
 describe('isPastEvent', () => {
   it('returns true for past dates', () => {

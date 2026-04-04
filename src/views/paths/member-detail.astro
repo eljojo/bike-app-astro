@@ -1,0 +1,30 @@
+---
+export const prerender = true;
+import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
+import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
+import BikePathDetail from './BikePathDetail.astro';
+
+export async function getStaticPaths() {
+  const { pages } = await loadBikePathData();
+  const memberPaths = pages.filter(p => p.standalone && p.memberOf);
+  const filtered = filterByBuildPlan(
+    memberPaths.map(p => ({ ...p, id: p.slug })),
+    loadBuildPlan(),
+    'bike-path',
+  );
+  const networksBySlug = new Map(
+    pages.filter(p => p.memberRefs).map(p => [p.slug, p]),
+  );
+  const networkNames: Record<string, string> = {};
+  for (const [slug, net] of networksBySlug) networkNames[slug] = net.name;
+  return filtered.map(page => ({
+    params: { network: page.memberOf!, slug: page.slug },
+    props: { page, networkPage: networksBySlug.get(page.memberOf!), networkNames },
+  }));
+}
+
+interface Props { page: BikePathPage; networkPage?: BikePathPage; networkNames: Record<string, string> }
+const { page, networkPage, networkNames } = Astro.props;
+---
+
+<BikePathDetail page={page} networkNames={networkNames} networkPage={networkPage} />

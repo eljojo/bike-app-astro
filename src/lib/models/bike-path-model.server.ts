@@ -2,7 +2,7 @@ import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';
 import { bikePathDetailToCache, bikePathDetailSchema } from './bike-path-model';
 import type { BikePathDetail } from './bike-path-model';
-import type { CurrentFiles } from '../content/content-save';
+import type { GitFiles } from './content-model';
 
 /** Compute content hash for bike path conflict detection. */
 export function computeBikePathContentHash(content: string): string {
@@ -10,7 +10,7 @@ export function computeBikePathContentHash(content: string): string {
 }
 
 /** Compute bike path hash from git file snapshots. */
-export function computeBikePathContentHashFromFiles(currentFiles: CurrentFiles): string {
+export function computeBikePathContentHashFromFiles(currentFiles: GitFiles): string {
   if (!currentFiles.primaryFile) {
     throw new Error('Cannot compute bike path hash without primary file content');
   }
@@ -31,7 +31,7 @@ export function bikePathDetailFromGit(
 }
 
 /** Build fresh bike path cache JSON from git file snapshots. */
-export function buildFreshBikePathData(bikePathId: string, currentFiles: CurrentFiles): string {
+export function buildFreshBikePathData(bikePathId: string, currentFiles: GitFiles): string {
   if (!currentFiles.primaryFile) {
     throw new Error('Cannot build bike path cache data without primary file content');
   }

@@ -46,7 +46,7 @@ const emailHash = user.email
 ---
 
 <Base title="Settings" admin>
-  <div class="admin-page">
+  <div class="admin-page admin-page--narrow">
     <AdminHeader user={user} currentTab="settings" subtitle="Your account and preferences." />
     <SettingsForm
       client:load
@@ -63,10 +63,3 @@ const emailHash = user.email
   </div>
 </Base>
 
-<style lang="scss">
-  .admin-page {
-    max-width: 700px;
-    margin: 1rem auto;
-    padding: 0 1rem;
-  }
-</style>

@@ -1,6 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+const EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.heic': 'image/heic',
+};
+
+function contentTypeFromKey(key: string): string {
+  const ext = path.extname(key).toLowerCase();
+  return EXTENSION_CONTENT_TYPES[ext] ?? 'application/octet-stream';
+}
+
 export function createLocalBucket(uploadsDir: string) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
@@ -9,7 +22,7 @@ export function createLocalBucket(uploadsDir: string) {
       const filePath = path.join(uploadsDir, key);
       if (!fs.existsSync(filePath)) return null;
       const stat = fs.statSync(filePath);
-      return { size: stat.size, httpMetadata: { contentType: 'image/jpeg' } };
+      return { size: stat.size, httpMetadata: { contentType: contentTypeFromKey(key) } };
     },
     async put(key: string, data: ArrayBuffer | ReadableStream | string | Uint8Array) {
       const filePath = path.join(uploadsDir, key);

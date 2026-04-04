@@ -32,7 +32,7 @@ describe('routeDetailFromGit', () => {
     expect(result.status).toBe('published');
     expect(result.body).toBe('Route description here.');
     expect(result.media).toHaveLength(2);
-    expect(result.media[0]).toEqual({ key: 'abc123', caption: 'Nice view', cover: true, width: 1600, height: 1200 });
+    expect(result.media[0]).toEqual({ key: 'abc123', type: 'photo', caption: 'Nice view', cover: true, width: 1600, height: 1200 });
     expect(result.media[1]).toMatchObject({ key: 'vid456', type: 'video', title: 'Ride Along' });
     expect(result.variants).toEqual([{ name: 'Main', gpx: 'main.gpx', distance_km: 12.5 }]);
   });
@@ -158,7 +158,7 @@ describe('buildFreshRouteData', () => {
     const parsed = routeDetailFromCache(data);
     expect(parsed.slug).toBe('test-route');
     expect(parsed.body).toBe('Body text');
-    expect(parsed.media).toEqual([{ key: 'img1', caption: 'Nice' }]);
+    expect(parsed.media).toEqual([{ key: 'img1', type: 'photo', caption: 'Nice' }]);
     expect(parsed.translations.fr?.name).toBe('Itineraire');
     expect(parsed.translations.fr?.body).toBe('Texte');
   });

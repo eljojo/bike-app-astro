@@ -9,7 +9,28 @@ import type { ContentMetricRow, DailyMetricRow, TotalsRow } from './parsers.serv
 
 export const BATCH_SIZE = 50;
 
-/** Escape single quotes in SQL values. */
+/**
+ * Escape single quotes for SQLite string literals.
+ *
+ * Why raw SQL: D1 has ~30-50ms latency per round-trip. Using parameterized
+ * queries for 300+ rows individually would take 9-15 seconds. Batching rows
+ * into a single INSERT with raw SQL values brings that down to ~6 queries
+ * (~200ms). Drizzle's `sql` template doesn't support multi-row value lists
+ * with per-row parameter binding.
+ *
+ * What flows through this: all string fields in analytics metric rows —
+ * `city`, `contentType`, `contentSlug`, `pageType`, `date`, `eventName`,
+ * and `dimensionValue`. The first five are internally derived (city config,
+ * URL parsing, date formatting). `eventName` and `dimensionValue` come from
+ * Plausible API responses and could theoretically contain arbitrary strings.
+ *
+ * Sufficiency: SQLite string literals use single-quote delimiting. Doubling
+ * single quotes is the only escaping needed — there are no backslash escape
+ * sequences in SQLite string literals. However, this is a maintenance risk:
+ * any future caller that passes non-string-literal SQL through this function
+ * (e.g., column names, table names) would not be protected. Keep inputs
+ * strictly limited to VALUES clause string literals.
+ */
 export function esc(s: string): string {
   return s.replace(/'/g, "''");
 }

@@ -131,7 +131,7 @@ test.describe('Community Admin — Edit', () => {
     await saveButton.click();
 
     // Wait for success message
-    await expect(page.getByText('Saved! Your edit will be live in a few minutes.')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Saved. Your edit will be live in a few minutes.')).toBeVisible({ timeout: 15000 });
 
     // Verify git commit happened
     const headAfter = execSync('git rev-parse HEAD', { cwd: FIXTURE_DIR }).toString().trim();

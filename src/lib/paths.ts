@@ -17,8 +17,11 @@ export const paths = {
   routeGpx: (slug: string, variant: string) => `/routes/${slug}/${variant}.gpx`,  // GPX never localized
   guide: (slug: string, locale?: string) => localize(`/guides/${slug}`, locale),
   video: (handle: string, locale?: string) => localize(`/videos/${handle}`, locale),
-  // Bike path pages
-  bikePath: (slug: string, locale?: string) => localize(`/bike-paths/${slug}`, locale),
+  // Bike path pages — networkSlug nests the URL: /bike-paths/network/member
+  bikePath: (slug: string, networkSlug?: string, locale?: string) =>
+    networkSlug
+      ? localize(`/bike-paths/${networkSlug}/${slug}`, locale)
+      : localize(`/bike-paths/${slug}`, locale),
   bikePaths: (locale?: string) => localize('/bike-paths', locale),
   bikeShops: (locale?: string) => localize('/bike-shops', locale),
   // Community paths

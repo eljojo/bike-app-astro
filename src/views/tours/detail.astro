@@ -64,7 +64,7 @@ const seoTitle = `${tour.name} | ${config.display_name}`;
 const seoDescription = `${tour.name} — ${tour.total_distance_km.toFixed(0)} km over ${tour.days} days`;
 
 const breadcrumbs = breadcrumbJsonLd([
-  { name: 'Home', url: `${config.url}/` },
+  { name: t('nav.home', locale), url: `${config.url}/` },
   { name: t('nav.tours', locale), url: `${config.url}/tours` },
   { name: tour.name, url: `${config.url}${paths.tour(tour.slug)}` },
 ]);

@@ -11,9 +11,8 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml.server';
-import { sampleGeoJsonPoints, SAMPLE_INTERVAL } from '../geo/geojson-sampling';
-import { scoreBikePath, isHardExcluded, SCORE_THRESHOLD } from './bike-path-scoring.server';
-import { haversineM } from '../geo/proximity';
+import { readGeoFileData } from '../geo/geojson-reader.server';
+import { scoreBikePath, isHardExcluded, isDestination, SCORE_THRESHOLD } from './bike-path-scoring.server';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
 
@@ -43,13 +42,14 @@ export interface MemberRef {
   length_km?: number;
   thumbnail_key?: string;
   standalone: boolean;
+  /** The member's actual memberOf value — may differ from the network page slug. */
+  memberOf?: string;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
 export interface BikePathPage {
   slug: string;
   name: string;
-  name_fr?: string;
   vibe?: string;
   body?: string;
   photo_key?: string;
@@ -83,9 +83,9 @@ export interface BikePathPage {
   /** Precomputed nearby places (within 300m). */
   nearbyPlaces: Array<{ name: string; category: string; lat: number; lng: number; distance_m: number }>;
   /** Precomputed nearby paths (within 2km). */
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
   /** Precomputed connected paths (endpoints within 200m). */
-  connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
   /** Wikipedia article reference — "en:Article Title" format. */
   wikipedia?: string;
   /** Resolved thumbnail key for index display (photo_key → route cover → map PNG). */
@@ -104,7 +104,9 @@ export interface BikePathPage {
   highway?: string;
   /** Road name this path runs alongside (for parallel bike lanes). */
   parallel_to?: string;
-  /** Locale-specific content overrides from .{locale}.md files + YML name_fr. */
+  /** Mountain bike trail (not road-bike-friendly). Set by detect-mtb in the data pipeline. */
+  mtb?: boolean;
+  /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
 }
 
@@ -127,35 +129,14 @@ export function normalizeOperator(operator: string | undefined): string | undefi
   return operator;
 }
 
-/** Read sampled points from a GeoJSON file. */
+/** Read sampled points from a GeoJSON file (delegates to single-pass reader). */
 function readGeoPoints(filePath: string): Array<{ lat: number; lng: number }> {
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    return sampleGeoJsonPoints(geojson, SAMPLE_INTERVAL);
-  } catch { return []; }
+  return readGeoFileData(filePath).points;
 }
 
-/** Compute total length (km) of all LineString/MultiLineString features in a GeoJSON file. */
+/** Compute total length (km) of all LineString/MultiLineString features in a GeoJSON file (delegates to single-pass reader). */
 function readGeoLengthKm(filePath: string): number {
-  if (!fs.existsSync(filePath)) return 0;
-  try {
-    const geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    let totalM = 0;
-    for (const feature of geojson.features ?? []) {
-      const geomType = feature.geometry?.type;
-      const lineArrays: number[][][] =
-        geomType === 'LineString' ? [feature.geometry.coordinates] :
-        geomType === 'MultiLineString' ? feature.geometry.coordinates :
-        [];
-      for (const coords of lineArrays) {
-        for (let i = 1; i < coords.length; i++) {
-          totalM += haversineM(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
-        }
-      }
-    }
-    return totalM / 1000;
-  } catch { return 0; }
+  return readGeoFileData(filePath).lengthKm;
 }
 
 /** Compute total length (km) for a path from all its GeoJSON files. */
@@ -230,7 +211,6 @@ interface MarkdownEntry {
   id: string;
   data: {
     name?: string;
-    name_fr?: string;
     vibe?: string;
     hidden: boolean;
     stub: boolean;
@@ -241,6 +221,8 @@ interface MarkdownEntry {
     wikipedia?: string;
     operator?: string;
   };
+  /** Raw frontmatter object — used to pass dynamic name_{locale} keys to readBikePathTranslations. */
+  rawFrontmatter: Record<string, unknown>;
   body: string;
 }
 
@@ -264,7 +246,6 @@ function readMarkdownEntries(): MarkdownEntry[] {
       id,
       data: {
         name: fm.name as string | undefined,
-        name_fr: fm.name_fr as string | undefined,
         vibe: fm.vibe as string | undefined,
         hidden: (fm.hidden as boolean) || false,
         stub: (fm.stub as boolean) || false,
@@ -275,6 +256,7 @@ function readMarkdownEntries(): MarkdownEntry[] {
         wikipedia: fm.wikipedia as string | undefined,
         operator: fm.operator as string | undefined,
       },
+      rawFrontmatter: fm as Record<string, unknown>,
       body: body.trim(),
     });
   }
@@ -282,16 +264,20 @@ function readMarkdownEntries(): MarkdownEntry[] {
 }
 
 /**
- * Read locale translations for a bike path from two sources:
+ * Read locale translations for a bike path from three sources (highest to lowest priority):
  * 1. .{locale}.md files (e.g., greenbelt-pathway.fr.md) — full translation with slug, name, vibe, body
- * 2. YML name_{locale} fields (e.g., name_fr from OSM's name:fr tag) — fallback name only
+ * 2. Main markdown frontmatter name_{locale} fields (e.g., name_fr in rideau-canal-pathway.md)
+ * 3. YML name_{locale} fields (e.g., name_fr from OSM's name:fr tag) — fallback name only
  *
- * For each non-primary locale in the city config, checks both sources.
- * .md file takes precedence over YML field for the name.
+ * This is the single source of truth for locale-specific names on bike paths.
+ *
+ * For each non-primary locale in the city config, checks all three sources.
+ * .md file takes precedence over frontmatter, which takes precedence over YML.
  */
 function readBikePathTranslations(
   slug: string,
   ymlEntry: SluggedBikePathYml,
+  markdownFrontmatter?: Record<string, unknown>,
 ): Record<string, BikePathTranslation> {
   const bikePathsDir = path.join(cityDir, 'bike-paths');
   const translations: Record<string, BikePathTranslation> = {};
@@ -312,7 +298,16 @@ function readBikePathTranslations(
       };
     }
 
-    // Source 2: YML name_{locale} field (OSM name:xx tag) — fallback name
+    // Source 2: Main markdown frontmatter name_{locale} field
+    if (markdownFrontmatter) {
+      const mdLocName = markdownFrontmatter[`name_${locale}`];
+      if (typeof mdLocName === 'string' && mdLocName) {
+        if (!translations[locale]) translations[locale] = {};
+        if (!translations[locale].name) translations[locale].name = mdLocName;
+      }
+    }
+
+    // Source 3: YML name_{locale} field (OSM name:xx tag) — fallback name
     const ymlLocName = (ymlEntry as Record<string, unknown>)[`name_${locale}`];
     if (typeof ymlLocName === 'string' && ymlLocName) {
       if (!translations[locale]) translations[locale] = {};
@@ -323,6 +318,9 @@ function readBikePathTranslations(
   return translations;
 }
 
+/** Memoized result — set on first call, returned on subsequent calls. */
+let cachedBikePathEntries: { pages: BikePathPage[]; allYmlEntries: SluggedBikePathYml[]; geoFiles: string[] } | null = null;
+
 /**
  * Load and merge bike path data from YML + markdown + geometry — synchronously.
  *
@@ -330,17 +328,21 @@ function readBikePathTranslations(
  * directly from the filesystem (no Astro getCollection). Tier 2 relation fields
  * (overlappingRoutes, nearbyPhotos, etc.) default to empty — they are populated
  * later by the build-data-plugin enrichment step.
+ *
+ * Results are memoized at module level — the merge is only computed once per process.
  */
 export function loadBikePathEntries(): {
   pages: BikePathPage[];
   allYmlEntries: SluggedBikePathYml[];
   geoFiles: string[];
 } {
+  if (cachedBikePathEntries) return cachedBikePathEntries;
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
-  const allYmlEntries = fs.existsSync(ymlPath)
+  const parsed = fs.existsSync(ymlPath)
     ? parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'))
-    : [];
+    : { entries: [] as SluggedBikePathYml[], superNetworks: [] };
+  const allYmlEntries = parsed.entries;
 
   // 2. Load markdown files directly from filesystem
   const markdownEntries = readMarkdownEntries();
@@ -354,6 +356,8 @@ export function loadBikePathEntries(): {
   // 4. Track which YML slugs are claimed by markdown `includes`
   const claimedSlugs = new Set<string>();
   const pages: BikePathPage[] = [];
+  // Markdown overlays for network entries — stashed here, applied in step 7
+  const networkMarkdownOverlays = new Map<string, typeof markdownEntries[0]>();
 
   // 5. Process markdown files first (they have priority)
   for (const md of markdownEntries) {
@@ -374,6 +378,12 @@ export function loadBikePathEntries(): {
       const entry = ymlBySlug.get(md.id);
       if (entry) {
         matchedEntries.push(entry);
+        // If this YML entry is a network, don't claim it — stash the markdown
+        // overlay for step 7 so the network page gets built with markdown content.
+        if (entry.type === 'network') {
+          networkMarkdownOverlays.set(md.id, md);
+          continue;
+        }
         claimedSlugs.add(md.id);
       }
     }
@@ -395,7 +405,6 @@ export function loadBikePathEntries(): {
     pages.push({
       slug: md.id,
       name: md.data.name ?? primary?.name ?? md.id,
-      name_fr: md.data.name_fr ?? primary?.name_fr,
       vibe: md.data.vibe,
       body: md.body,
       photo_key: md.data.photo_key,
@@ -406,6 +415,7 @@ export function loadBikePathEntries(): {
       standalone: true,
       stub: md.data.stub ?? false,
       featured: md.data.featured ?? false,
+      memberOf: primary?.member_of,
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
@@ -427,92 +437,35 @@ export function loadBikePathEntries(): {
       network: primary?.network,
       highway: primary?.highway,
       parallel_to: primary?.parallel_to,
+      mtb: primary?.mtb,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
-      translations: primary ? readBikePathTranslations(md.id, primary) : {},
+      translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
-  }
-
-  // Collect slugs absorbed by grouped_from entries
-  const absorbedSlugs = new Set<string>();
-  for (const entry of allYmlEntries) {
-    if (entry.grouped_from) {
-      for (const slug of entry.grouped_from) absorbedSlugs.add(slug);
-    }
   }
 
   // 6. Process all unclaimed YML entries (non-hard-excluded).
   // Every entry gets a page; `listed` is determined by score in Tier 2.
+  // Member entries stay in the file and get their own pages.
   for (const entry of allYmlEntries) {
     if (claimedSlugs.has(entry.slug)) continue;
-    if (absorbedSlugs.has(entry.slug)) continue;
     if (isHardExcluded(entry)) continue;
 
     const score = scoreBikePath(entry, 0);
 
-    // Grouped entries: merge member geometry like markdown includes
-    if (entry.grouped_from && entry.grouped_from.length > 0) {
-      const memberEntries: SluggedBikePathYml[] = [];
-      for (const memberSlug of entry.grouped_from) {
-        const member = ymlBySlug.get(memberSlug);
-        if (member) memberEntries.push(member);
-      }
-
-      const allEntriesToMerge = [entry, ...memberEntries];
-      const osmRelationIds = [...new Set(allEntriesToMerge.flatMap(e => e.osm_relations ?? []))];
-      const osmNames = [...new Set(allEntriesToMerge.flatMap(e => e.osm_names ?? []))];
-      const lengthParts = allEntriesToMerge.map(e => getPathLengthKm(e) ?? 0);
-      const totalLengthKm = lengthParts.reduce((s, v) => s + v, 0);
-      const points = allEntriesToMerge.flatMap(e => getPathPoints(e));
-
-      pages.push({
-        slug: entry.slug,
-        name: entry.name,
-        name_fr: entry.name_fr,
-        tags: [],
-        score,
-        hasMarkdown: false,
-        listed: true, // grouped entries are always listed
-        standalone: true,
-        stub: true,
-        featured: false,
-        ymlEntries: allEntriesToMerge,
-        osmRelationIds,
-        osmNames,
-        geoFiles: entryGeoFiles(allEntriesToMerge),
-        length_km: totalLengthKm > 0 ? Math.round(totalLengthKm * 10) / 10 : undefined,
-        points,
-        routeCount: 0,
-        overlappingRoutes: [],
-        nearbyPhotos: [],
-        nearbyPlaces: [],
-        nearbyPaths: [],
-        connectedPaths: [],
-        surface: entry.surface,
-        width: entry.width,
-        lit: entry.lit,
-        segregated: entry.segregated,
-        smoothness: entry.smoothness,
-        operator: normalizeOperator(entry.operator),
-        network: entry.network,
-        highway: entry.highway,
-        parallel_to: entry.parallel_to,
-        wikipedia: entry.wikipedia,
-        translations: readBikePathTranslations(entry.slug, entry),
-      });
-      continue;
-    }
+    // Skip network entries — they're processed after all paths
+    if (entry.type === 'network') continue;
 
     pages.push({
       slug: entry.slug,
       name: entry.name,
-      name_fr: entry.name_fr,
       tags: [],
       score,
       hasMarkdown: false,
       listed: score >= SCORE_THRESHOLD,
-      standalone: true,
+      standalone: isDestination(entry, getPathLengthKm(entry), false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,
+      memberOf: entry.member_of,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
@@ -534,8 +487,109 @@ export function loadBikePathEntries(): {
       network: entry.network,
       highway: entry.highway,
       parallel_to: entry.parallel_to,
+      mtb: entry.mtb,
       wikipedia: entry.wikipedia,
       translations: readBikePathTranslations(entry.slug, entry),
+    });
+  }
+
+  // 7. Process type: network entries — build network pages with lightweight memberRefs.
+  // Network pages aggregate metadata from members. memberRefs are lightweight —
+  // slug, name, length, thumbnail, standalone — NOT full BikePathPage objects.
+  // The virtual module (build-data-plugin.ts) serializes all pages into a JS bundle;
+  // embedding full page objects inside network pages would duplicate large relation arrays.
+  const pageBySlug = new Map(pages.map(p => [p.slug, p]));
+  for (const entry of allYmlEntries) {
+    if (entry.type !== 'network') continue;
+    if (claimedSlugs.has(entry.slug)) continue;
+    if (isHardExcluded(entry)) continue;
+
+    const memberSlugs = entry.members ?? [];
+    // Guard: warn about network→network references (should be fixed in the data pipeline)
+    const networkMemberSlugs = memberSlugs.filter(s => {
+      const yml = ymlBySlug.get(s);
+      return yml?.type === 'network';
+    });
+    if (networkMemberSlugs.length > 0) {
+      console.warn(`Network "${entry.slug}" references other networks as members: ${networkMemberSlugs.join(', ')} — skipped`);
+    }
+    const memberPages = memberSlugs
+      .filter(s => !networkMemberSlugs.includes(s))
+      .map(s => pageBySlug.get(s))
+      .filter((p): p is BikePathPage => !!p);
+
+    // A network needs ≥2 resolved members with at least one standalone page.
+    // Otherwise clear memberOf so members stay at flat URLs.
+    const standaloneCount = memberPages.filter(p => p.standalone).length;
+    if (memberPages.length < 2 || standaloneCount === 0) {
+      for (const mp of memberPages) {
+        mp.memberOf = undefined;
+      }
+      continue;
+    }
+
+    const memberRefs: MemberRef[] = memberPages.map(p => ({
+      slug: p.slug,
+      name: p.name,
+      length_km: p.length_km,
+      thumbnail_key: p.thumbnail_key,
+      standalone: p.standalone,
+      memberOf: p.memberOf,
+    }));
+
+    // Aggregate geometry from all members
+    const allMemberEntries = memberPages.flatMap(p => p.ymlEntries);
+    const allEntries = [entry, ...allMemberEntries];
+    const osmRelationIds = [...new Set(allEntries.flatMap(e => e.osm_relations ?? []))];
+    const osmNames = [...new Set(allEntries.flatMap(e => e.osm_names ?? []))];
+    const points = memberPages.flatMap(p => p.points);
+
+    // Network length: prefer wikidata_meta.length_km, fallback to sum of member lengths
+    const wikidataLength = entry.wikidata_meta?.length_km;
+    const sumLength = memberPages.reduce((sum, p) => sum + (p.length_km ?? 0), 0);
+    const totalLengthKm = wikidataLength ?? (sumLength > 0 ? Math.round(sumLength * 10) / 10 : undefined);
+
+    const score = scoreBikePath(entry, 0);
+
+    // Apply markdown overlay if a markdown file matches this network
+    const mdOverlay = networkMarkdownOverlays.get(entry.slug);
+
+    pages.push({
+      slug: entry.slug,
+      name: mdOverlay?.data.name ?? entry.name,
+      vibe: mdOverlay?.data.vibe,
+      body: mdOverlay?.body,
+      photo_key: mdOverlay?.data.photo_key,
+      tags: mdOverlay?.data.tags ?? [],
+      score,
+      hasMarkdown: !!mdOverlay,
+      listed: true,
+      standalone: true,
+      stub: !mdOverlay,
+      featured: mdOverlay?.data.featured ?? false,
+      memberRefs,
+      ymlEntries: [entry],
+      osmRelationIds,
+      osmNames,
+      geoFiles: entryGeoFiles(allEntries),
+      length_km: totalLengthKm,
+      points,
+      routeCount: 0,
+      overlappingRoutes: [],
+      nearbyPhotos: [],
+      nearbyPlaces: [],
+      nearbyPaths: [],
+      connectedPaths: [],
+      surface: entry.surface,
+      width: entry.width,
+      lit: entry.lit,
+      segregated: entry.segregated,
+      smoothness: entry.smoothness,
+      operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator),
+      network: entry.network,
+      highway: entry.highway,
+      wikipedia: mdOverlay?.data.wikipedia ?? entry.wikipedia,
+      translations: readBikePathTranslations(entry.slug, entry, mdOverlay?.rawFrontmatter),
     });
   }
 
@@ -545,5 +599,6 @@ export function loadBikePathEntries(): {
     ? fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'))
     : [];
 
-  return { pages, allYmlEntries, geoFiles };
+  cachedBikePathEntries = { pages, allYmlEntries, geoFiles };
+  return cachedBikePathEntries;
 }

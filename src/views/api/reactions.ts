@@ -36,7 +36,7 @@ export async function POST({ request, locals }: APIContext) {
   await recordAttempt(database, 'reaction', identifiers);
   cleanupOldAttempts(database, 'reaction').catch(() => {});
 
-  // Check if reaction already exists (toggle off)
+  // Check if reaction already exists
   const existing = await database
     .select({ id: reactions.id })
     .from(reactions)
@@ -52,13 +52,12 @@ export async function POST({ request, locals }: APIContext) {
     .limit(1);
 
   if (existing.length > 0) {
-    await database
-      .delete(reactions)
-      .where(eq(reactions.id, existing[0].id));
-
+    // Remove existing reaction (toggle off)
+    await database.delete(reactions).where(eq(reactions.id, existing[0].id));
     return jsonResponse({ action: 'removed' });
   }
 
+  // Add new reaction — ON CONFLICT guards against rare race with another insert
   await database
     .insert(reactions)
     .values({
@@ -69,7 +68,8 @@ export async function POST({ request, locals }: APIContext) {
       contentSlug: body.contentSlug,
       reactionType: body.reactionType,
       createdAt: new Date().toISOString(),
-    });
+    })
+    .onConflictDoNothing({ target: [reactions.city, reactions.userId, reactions.contentType, reactions.contentSlug, reactions.reactionType] });
 
   return jsonResponse({ action: 'added' });
 }

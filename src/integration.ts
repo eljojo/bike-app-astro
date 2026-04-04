@@ -283,6 +283,9 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
         lines.push('/paths  /bike-paths  301');
         lines.push('/paths/:slug  /bike-paths/:slug  301');
 
+        // Network member redirects are handled via SSR middleware (contentRedirects
+        // virtual module) to avoid hitting Cloudflare's 100 dynamic _redirects limit.
+
         const content = lines.join('\n');
         if (content) {
           fs.writeFileSync(path.join(dir.pathname, '_redirects'), content);

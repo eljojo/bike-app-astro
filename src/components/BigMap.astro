@@ -41,6 +41,7 @@ interface PathOnMap {
   hasPage: boolean;
   operator?: string;
   surface?: string;
+  memberOf?: string;
 }
 
 interface Props {
@@ -94,7 +95,7 @@ const hasPaths = pathMapData.length > 0;
     const allPhotos = JSON.parse(el.dataset.photos || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
-    const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string }> =
+    const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string; memberOf?: string }> =
       JSON.parse(el.dataset.pathMapData || '[]');
 
     const hasPaths = pathMapData.length > 0;

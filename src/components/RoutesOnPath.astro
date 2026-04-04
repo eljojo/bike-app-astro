@@ -27,7 +27,7 @@ const { routes, locale } = Astro.props;
       {routes.map(r => (
         <li class="routes-on-path-card">
           <a href={paths.route(r.slug, locale)}>
-            {r.coverKey && (
+            {r.coverKey ? (
               <img
                 src={imageUrl(r.coverKey, { width: 300, height: 200, fit: 'cover' })}
                 srcset={`${imageUrl(r.coverKey, { width: 600, height: 400, fit: 'cover' })} 2x`}
@@ -36,6 +36,8 @@ const { routes, locale } = Astro.props;
                 height="200"
                 loading="lazy"
               />
+            ) : (
+              <div class="routes-on-path-card-placeholder" aria-hidden="true">&#x1F6B2;</div>
             )}
             <span class="routes-on-path-card-name">{r.name}</span>
             <span class="routes-on-path-card-distance">{formatDistance([r.distance_km])}</span>

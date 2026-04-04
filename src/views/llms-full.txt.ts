@@ -6,6 +6,7 @@ import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement, formatCategory } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
+import { paths as urlPaths } from '../lib/paths';
 
 export const prerender = true;
 
@@ -141,7 +142,7 @@ export const GET: APIRoute = async () => {
         if (facts.length > 0) lines.push(facts.map(f => `- ${f}`).join('\n'));
         if (bp.vibe) lines.push(`\n${bp.vibe}`);
         if (bp.body) lines.push(`\n${bp.body}`);
-        lines.push(`- **More info:** ${config.url}/bike-paths/${bp.slug}`);
+        lines.push(`- **More info:** ${config.url}${urlPaths.bikePath(bp.slug, bp.memberOf)}`);
         return lines.join('\n');
       });
       sections.push(`## Bike Paths\n\n${pathBlocks.join('\n\n---\n\n')}\n`);

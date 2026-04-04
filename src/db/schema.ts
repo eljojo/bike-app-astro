@@ -36,6 +36,7 @@ export const sessions = sqliteTable('sessions', {
   createdAt: text('created_at').notNull(),
 }, (table) => [
   index('sessions_expires_at_idx').on(table.expiresAt),
+  index('sessions_user_id_idx').on(table.userId),
 ]);
 
 export const bannedIps = sqliteTable('banned_ips', {
@@ -90,7 +91,6 @@ export const emailTokens = sqliteTable('email_tokens', {
   createdAt: text('created_at').notNull(),
   usedAt: text('used_at'),
 }, (table) => [
-  index('email_tokens_token_idx').on(table.token),
   index('email_tokens_email_idx').on(table.email),
 ]);
 

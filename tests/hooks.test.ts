@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { useDragDrop, reorderItems } from '../src/lib/hooks';
-
-describe('useDragDrop', () => {
-  it('is exported as a function', () => {
-    expect(typeof useDragDrop).toBe('function');
-  });
-});
+import { reorderItems } from '../src/lib/hooks';
 
 describe('reorderItems', () => {
   it('moves item forward', () => {

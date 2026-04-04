@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { z } from 'zod/v4';
 import { env } from '../../lib/env/env.service';
 import { createGitService } from '../../lib/git/git-factory';
 import { db } from '../../lib/get-db';
@@ -9,6 +10,12 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { parseAuthorEmail } from '../../lib/git/commit-author';
 import { checkRateLimit, recordAttempt } from '../../lib/auth/rate-limit';
 import { createHash } from 'node:crypto';
+
+const historyRequestSchema = z.object({
+  path: z.string(),
+  perPage: z.number().int().min(1).max(100).optional().default(20),
+  page: z.number().int().min(1).optional().default(1),
+});
 
 type ResolvedUser = { id: string; username: string; role: string; bannedAt: string | null; wasGuest?: boolean };
 
@@ -29,7 +36,13 @@ export async function POST({ request, locals }: APIContext) {
     await recordAttempt(database, 'view-history', [ip]);
   }
 
-  const { path, perPage = 20, page = 1 } = await request.json();
+  let body;
+  try {
+    body = historyRequestSchema.parse(await request.json());
+  } catch {
+    return jsonError('Invalid request body', 400);
+  }
+  const { path, perPage, page } = body;
   const baseBranch = env.GIT_BRANCH || 'main';
 
   const git = createGitService({

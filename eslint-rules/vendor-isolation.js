@@ -9,23 +9,31 @@ export default {
   },
   create(context) {
     const VENDOR_RULES = {
-      'cloudflare:workers': ['src/lib/env/env.service.ts'],
+      'cloudflare:workers': ['src/lib/env/env.service.ts', 'src/lib/csp-env.ts'],
     };
+
+    function checkSource(node, source) {
+      const allowed = VENDOR_RULES[source];
+      if (!allowed) return;
+
+      const filename = context.filename || context.getFilename();
+      const isAllowed = allowed.some(f => filename.endsWith(f));
+      if (!isAllowed) {
+        context.report({
+          node,
+          messageId: 'vendorImport',
+          data: { source, allowed: allowed.join(', ') },
+        });
+      }
+    }
 
     return {
       ImportDeclaration(node) {
-        const source = node.source.value;
-        const allowed = VENDOR_RULES[source];
-        if (!allowed) return;
-
-        const filename = context.filename || context.getFilename();
-        const isAllowed = allowed.some(f => filename.endsWith(f));
-        if (!isAllowed) {
-          context.report({
-            node,
-            messageId: 'vendorImport',
-            data: { source, allowed: allowed.join(', ') },
-          });
+        checkSource(node, node.source.value);
+      },
+      ImportExpression(node) {
+        if (node.source && node.source.type === 'Literal' && typeof node.source.value === 'string') {
+          checkSource(node, node.source.value);
         }
       },
     };

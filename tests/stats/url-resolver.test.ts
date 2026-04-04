@@ -60,6 +60,27 @@ describe('resolveUrl', () => {
     const result = resolveUrl('/routes/britannia/', 'en', emptyAliases, emptyRedirects);
     expect(result).toEqual({ contentType: 'route', contentSlug: 'britannia', pageType: 'detail' });
   });
+
+  it('resolves flat bike-path URL', () => {
+    const result = resolveUrl('/bike-paths/rideau-canal-pathway', 'en', emptyAliases, emptyRedirects);
+    expect(result).toEqual({ contentType: 'bike-path', contentSlug: 'rideau-canal-pathway', pageType: 'detail' });
+  });
+
+  it('resolves nested bike-path URL (network/member)', () => {
+    const result = resolveUrl('/bike-paths/capital-pathway/ottawa-river-pathway', 'en', emptyAliases, emptyRedirects);
+    expect(result).toEqual({ contentType: 'bike-path', contentSlug: 'ottawa-river-pathway', pageType: 'detail' });
+  });
+
+  it('resolves French nested bike-path URL', () => {
+    const result = resolveUrl('/pistes-cyclables/capital-pathway/ottawa-river-pathway', 'fr', emptyAliases, emptyRedirects);
+    expect(result).toEqual({ contentType: 'bike-path', contentSlug: 'ottawa-river-pathway', pageType: 'detail' });
+  });
+
+  it('applies redirect map to nested bike-path member slug', () => {
+    const redirects = { 'old-pathway': 'new-pathway' };
+    const result = resolveUrl('/bike-paths/capital-pathway/old-pathway', 'en', emptyAliases, redirects);
+    expect(result).toEqual({ contentType: 'bike-path', contentSlug: 'new-pathway', pageType: 'detail' });
+  });
 });
 
 describe('resolveUrl with real fixture data', () => {

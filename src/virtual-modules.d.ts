@@ -32,7 +32,7 @@ interface _AdminRoute {
   contentHash?: string;
   // Route-specific (wiki)
   mediaCount?: number;
-  difficultyScore?: number;
+  difficultyScore?: number | null;
   coverKey?: string;
   // Ride-specific (blog)
   date?: string;
@@ -47,17 +47,9 @@ interface _AdminRoute {
  * Admin route detail. On blog instances, the admin-route-detail module serves
  * ride details — ride-specific fields are marked optional.
  */
-interface _AdminRouteDetail {
-  slug: string;
-  name: string;
-  tagline: string;
-  tags: string[];
-  status: string;
-  body: string;
-  media: Array<{ key: string; caption?: string; cover?: boolean; width?: number; height?: number; lat?: number; lng?: number; uploaded_by?: string; captured_at?: string }>;
+type _AdminRouteDetail = import('./lib/models/route-model').RouteDetail & {
   contentHash?: string;
-  variants?: Array<{ name: string; gpx: string; distance_km?: number; strava_url?: string; rwgps_url?: string; komoot_url?: string }>;
-  // Ride-specific (blog)
+  // Ride-specific (blog) — present when admin-route-detail serves ride data
   ride_date?: string;
   country?: string;
   tour_slug?: string;
@@ -66,102 +58,13 @@ interface _AdminRouteDetail {
   moving_time_s?: number;
   average_speed_kmh?: number;
   gpxRelativePath?: string;
-}
+};
 
-interface _AdminEvent {
-  id: string;
-  slug: string;
-  year: string;
-  name: string;
-  start_date: string;
-  end_date?: string;
-  status?: string;
-  routes?: string[];
-  organizer?: string | { name: string; website?: string; instagram?: string };
-  poster_key?: string;
-  tags?: string[];
-  hasBody: boolean;
-  mediaCount: number;
-  waypointCount: number;
-  contentHash: string;
-}
+type _AdminEvent = import('./types/admin').AdminEvent;
 
-/** Mirrors EventDetail from src/lib/models/event-model.ts + contentHash */
-interface _AdminEventDetail {
-  id: string;
-  slug: string;
-  year: string;
-  name: string;
-  start_date: string;
-  event_date?: string;
-  start_time?: string;
-  end_date?: string;
-  end_time?: string;
-  time_limit_hours?: number;
-  status?: string;
-  routes?: string[];
-  registration?: {
-    url?: string;
-    slots?: number;
-    price?: string;
-    deadline?: string;
-    departure_groups?: string[];
-  };
-  registration_url?: string;
-  waypoints?: Array<{
-    place: string;
-    type: 'checkpoint' | 'danger' | 'poi';
-    label: string;
-    distance_km?: number;
-    opening?: string;
-    closing?: string;
-    route?: string;
-  }>;
-  results?: Array<{
-    brevet_no?: number;
-    last_name: string;
-    first_name?: string;
-    time?: string;
-    homologation?: string;
-    status?: 'DNS' | 'DNF' | 'DQ';
-  }>;
-  gpx_include_waypoints?: boolean;
-  distances?: string;
-  location?: string;
-  review_url?: string;
-  organizer?: string | { name: string; website?: string; instagram?: string };
-  poster_key?: string;
-  poster_content_type?: string;
-  body: string;
-  media?: Array<{
-    key: string;
-    caption?: string;
-    cover?: boolean;
-    width?: number;
-    height?: number;
-    lat?: number;
-    lng?: number;
-    type?: string;
-  }>;
-  contentHash?: string;
-}
+type _AdminEventDetail = import('./lib/models/event-model').EventDetail & { contentHash: string };
 
-interface _AdminOrganizer {
-  slug: string;
-  name: string;
-  tagline?: string;
-  tags: string[];
-  featured: boolean;
-  website?: string;
-  instagram?: string;
-  photo_key?: string;
-  photo_content_type?: string;
-  photo_width?: number;
-  photo_height?: number;
-  hasBody: boolean;
-  social_links?: Array<{ platform: string; url: string }>;
-  contentHash: string;
-}
+type _AdminOrganizer = import('./types/admin').AdminOrganizer;
 
 declare module 'virtual:bike-app/admin-routes' {
   const routes: _AdminRoute[];
@@ -183,35 +86,9 @@ declare module 'virtual:bike-app/admin-event-detail' {
   export default details;
 }
 
-interface _AdminPlace {
-  id: string;
-  name: string;
-  category: string;
-  lat: number;
-  lng: number;
-  photo_key?: string;
-  social_links?: Array<{ platform: string; url: string }>;
-  contentHash: string;
-}
+type _AdminPlace = import('./types/admin').AdminPlace;
 
-/** Mirrors PlaceDetail from src/lib/models/place-model.ts + contentHash */
-interface _AdminPlaceDetail {
-  id: string;
-  name: string;
-  name_fr?: string;
-  category: string;
-  lat: number;
-  lng: number;
-  status?: string;
-  address?: string;
-  website?: string;
-  phone?: string;
-  google_maps_url?: string;
-  photo_key?: string;
-  organizer?: string;
-  social_links?: Array<{ platform: string; url: string }>;
-  contentHash?: string;
-}
+type _AdminPlaceDetail = import('./lib/models/place-model').PlaceDetail & { contentHash?: string };
 
 declare module 'virtual:bike-app/admin-places' {
   const places: _AdminPlace[];

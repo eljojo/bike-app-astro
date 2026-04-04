@@ -1,5 +1,5 @@
 import { getInstanceFeatures } from '../config/instance-features';
-import type { CurrentFiles } from './content-save';
+import type { GitFiles } from '../models/content-model';
 import { routeOps, eventOps, placeOps, organizerOps, bikePathOps } from './content-ops.server';
 
 export interface ContentTypeRoute {
@@ -28,8 +28,8 @@ export interface ContentTypeConfig {
 
 export interface ContentOps {
   getFilePaths(contentId: string): { primary: string; auxiliary?: string[] };
-  computeContentHash(currentFiles: CurrentFiles): string;
-  buildFreshData(contentId: string, currentFiles: CurrentFiles): string;
+  computeContentHash(currentFiles: GitFiles): string;
+  buildFreshData(contentId: string, currentFiles: GitFiles): string;
 }
 
 /*

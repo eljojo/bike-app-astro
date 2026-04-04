@@ -10,8 +10,16 @@ interface Props {
   photos?: MapPhoto[];
   places?: MapPlace[];
   cdnUrl?: string;
+  /** Optional mapping from geo filename to slug — enables list↔map hover highlight */
+  slugMap?: Record<string, string>;
+  /** Optional mapping from slug to display name — enables click popups */
+  nameMap?: Record<string, string>;
+  /** Optional mapping from slug to URL — enables click-through links */
+  urlMap?: Record<string, string>;
+  /** CSS selector for list items with data-slug to wire up hover highlight */
+  highlightSelector?: string;
 }
-const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '' } = Astro.props;
+const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], places = [], cdnUrl = '', slugMap, nameMap, urlMap, highlightSelector } = Astro.props;
 ---
 
 <div class="bike-path-map-wrapper">
@@ -25,6 +33,10 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     data-photos={JSON.stringify(photos)}
     data-places={JSON.stringify(places)}
     data-cdn-url={cdnUrl}
+    data-slug-map={slugMap ? JSON.stringify(slugMap) : ''}
+    data-name-map={nameMap ? JSON.stringify(nameMap) : ''}
+    data-url-map={urlMap ? JSON.stringify(urlMap) : ''}
+    data-highlight-selector={highlightSelector || ''}
     role="button"
     tabindex="0"
     aria-expanded="false"
@@ -39,6 +51,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 <script>
   import { createMapSession, createGeojsonLineLayer, createPhotoLayer, createPlaceLayer } from '../lib/maps/layers';
   import { categoryEmoji } from '../lib/geo/place-categories';
+  import { setupPathHighlight } from '../lib/maps/path-highlight';
   import { render, h } from 'preact';
   import MapControls from './admin/MapControls';
   import type { MapStyleKey } from '../lib/maps/map-style-switch';
@@ -56,6 +69,10 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     const photos: Array<{ key: string; lat: number; lng: number }> = JSON.parse(container.dataset.photos || '[]');
     const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
     const cdnUrl = container.dataset.cdnUrl || '';
+    const slugMap: Record<string, string> = container.dataset.slugMap ? JSON.parse(container.dataset.slugMap) : {};
+    const nameMap: Record<string, string> = container.dataset.nameMap ? JSON.parse(container.dataset.nameMap) : {};
+    const urlMap: Record<string, string> = container.dataset.urlMap ? JSON.parse(container.dataset.urlMap) : {};
+    const highlightSelector = container.dataset.highlightSelector || '';
 
     const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
     const placeData = places.map(p => ({
@@ -64,7 +81,15 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       popup: `<div class="place-popup">${p.name}</div>`,
     }));
 
-    const geojsonLayer = createGeojsonLineLayer({ geoFiles, fetchPath: '/bike-paths/geo/' });
+    const hasSlugMap = Object.keys(slugMap).length > 0;
+    const hasNameMap = Object.keys(nameMap).length > 0;
+    const geojsonLayer = createGeojsonLineLayer({
+      geoFiles,
+      fetchPath: '/bike-paths/geo/',
+      ...(hasSlugMap && { slugMap }),
+      ...(hasNameMap && { nameMap }),
+      ...(Object.keys(urlMap).length > 0 && { urlMap }),
+    });
     const photoLayer = createPhotoLayer({ photos: photoData, cdnUrl, defaultVisible: false });
     const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
 
@@ -80,7 +105,15 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     map.doubleClickZoom.disable();
     map.touchZoomRotate.disable();
 
-    session.start();
+    session.start(() => {
+      // Wire up list↔map hover highlight if configured
+      if (highlightSelector && hasSlugMap) {
+        setupPathHighlight(map, {
+          listSelector: highlightSelector,
+          layerIds: ['bike-path-line'],
+        });
+      }
+    });
 
     // Render controls after load (hidden until expanded via CSS)
     map.on('load', () => {
@@ -184,13 +217,52 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       }, TRANSITION_MS);
     }
 
-    container.addEventListener('click', () => { if (!expanded) expand(); });
+    // Suppress expand when interacting with popups.
+    // A path click opens a popup synchronously before this handler runs,
+    // so we can check if a popup exists. For popup close clicks, the popup's
+    // close button is a child of .maplibregl-popup — check event target ancestry.
+    container.addEventListener('click', (e) => {
+      if (expanded) return;
+      const target = e.target as HTMLElement;
+      // Click was on/inside a popup (e.g. close button, link)
+      if (target.closest('.maplibregl-popup')) return;
+      // A path line click just created a popup (target is the canvas, popup is now in DOM)
+      if (container.querySelector('.maplibregl-popup')) return;
+      expand();
+    });
     container.addEventListener('keydown', (e) => {
       if (!expanded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); expand(); }
     });
     closeBtn!.addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
     overlay!.addEventListener('click', collapse);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && expanded) collapse(); });
+
+    // Listen for "show photo on map" events from the photo grid
+    document.addEventListener('map:show-photo', ((e: CustomEvent<{ key: string; lat: number; lng: number }>) => {
+      const { key, lat, lng } = e.detail;
+      // Expand the map
+      expand();
+      // Enable photo layer
+      photoLayer.setVisible!(map, true);
+      // Fly to location after expand animation
+      setTimeout(() => {
+        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
+        // After fly completes, find and click the photo bubble
+        map.once('moveend', () => {
+          // Wait for idle so DOM bubbles are synced
+          map.once('idle', () => {
+            const bubbles = map.getContainer().querySelectorAll('.photo-bubble img');
+            for (const img of bubbles) {
+              const src = (img as HTMLImageElement).src;
+              if (src.includes(key)) {
+                (img.closest('.photo-bubble') as HTMLElement)?.click();
+                break;
+              }
+            }
+          });
+        });
+      }, 400);
+    }) as EventListener);
   }
 </script>
 

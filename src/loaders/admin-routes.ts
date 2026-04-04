@@ -24,9 +24,10 @@ import { computeDirectoryDigest } from '../lib/directory-digest.server';
 interface CachedRouteData {
   route: AdminRoute;
   detail: RouteDetail & { contentHash: string };
+  trackPoints?: Array<{ lat: number; lng: number }>;
 }
 
-const ROUTE_CACHE_VERSION = 1;
+const ROUTE_CACHE_VERSION = 2;
 
 function routeCachePath(): string {
   return path.join(process.cwd(), '.astro', 'cache', 'admin-routes-cache.json');
@@ -38,6 +39,8 @@ interface AdminRouteData {
 }
 
 let cachedRouteData: AdminRouteData | null = null;
+/** Track points collected during loadAdminRouteData — used by loadRouteTrackPoints to avoid re-parsing. */
+let collectedTrackPoints: Record<string, Array<{ lat: number; lng: number }>> | null = null;
 
 export async function loadAdminRouteData(): Promise<AdminRouteData> {
   if (cachedRouteData) return cachedRouteData;
@@ -54,6 +57,7 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
   const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
   const routes: AdminRoute[] = [];
   const details: Record<string, RouteDetail & { contentHash: string }> = {};
+  const trackPointsMap: Record<string, Array<{ lat: number; lng: number }>> = {};
 
   // Load persistent disk cache
   const diskCache = readContentCache<CachedRouteData>(routeCachePath(), ROUTE_CACHE_VERSION);
@@ -71,6 +75,9 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
     if (cached && cached.digest === digest) {
       routes.push(cached.data.route);
       details[slug] = cached.data.detail;
+      if (cached.data.trackPoints && cached.data.trackPoints.length > 0) {
+        trackPointsMap[slug] = cached.data.trackPoints;
+      }
       updatedEntries[slug] = cached;
       cacheHits++;
       continue;
@@ -142,11 +149,22 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
 
     const detailWithHash = { ...detail, contentHash };
 
+    // Extract track points from parsed GPX tracks
+    const points: Array<{ lat: number; lng: number }> = [];
+    for (const track of Object.values(parsed.gpxTracks)) {
+      for (const p of track.points) {
+        points.push({ lat: p.lat, lng: p.lon });
+      }
+    }
+    if (points.length > 0) {
+      trackPointsMap[slug] = points;
+    }
+
     routes.push(route);
     details[slug] = detailWithHash;
 
-    // Store in updated cache
-    updatedEntries[slug] = { digest, data: { route, detail: detailWithHash } };
+    // Store in updated cache (including track points for loadRouteTrackPoints)
+    updatedEntries[slug] = { digest, data: { route, detail: detailWithHash, trackPoints: points.length > 0 ? points : undefined } };
   }
 
   // Persist updated cache
@@ -158,10 +176,45 @@ export async function loadAdminRouteData(): Promise<AdminRouteData> {
 
   routes.sort((a, b) => a.name.localeCompare(b.name));
   cachedRouteData = { routes, details };
+  collectedTrackPoints = trackPointsMap;
   return cachedRouteData;
 }
 
 export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng: number }>> {
+  // If loadAdminRouteData already ran, reuse its collected track points
+  if (collectedTrackPoints) return collectedTrackPoints;
+
+  // Try the disk cache — track points are stored alongside admin route data
+  const diskCache = readContentCache<CachedRouteData>(routeCachePath(), ROUTE_CACHE_VERSION);
+  const cacheEntries = Object.entries(diskCache.entries);
+  if (cacheEntries.length > 0) {
+    const routesDir = path.join(cityDir, 'routes');
+    if (!fs.existsSync(routesDir)) return {};
+    const slugs = new Set(fs.readdirSync(routesDir).filter((name) => {
+      return fs.statSync(path.join(routesDir, name)).isDirectory();
+    }));
+
+    // Check if every route directory has a valid cache entry with matching digest
+    let allCached = true;
+    const tracks: Record<string, Array<{ lat: number; lng: number }>> = {};
+    for (const slug of slugs) {
+      const cached = diskCache.entries[slug];
+      if (!cached) { allCached = false; break; }
+      // Verify digest still matches
+      const routeDir = path.join(routesDir, slug);
+      const digest = computeDirectoryDigest(routeDir, { includeSubdirs: ['variants'] });
+      if (cached.digest !== digest) { allCached = false; break; }
+      if (cached.data.trackPoints && cached.data.trackPoints.length > 0) {
+        tracks[slug] = cached.data.trackPoints;
+      }
+    }
+    if (allCached) {
+      collectedTrackPoints = tracks;
+      return tracks;
+    }
+  }
+
+  // Fallback: parse all GPX files (first build or cache miss)
   const routesDir = path.join(cityDir, 'routes');
   if (!fs.existsSync(routesDir)) return {};
   const slugs = fs.readdirSync(routesDir).filter((name) => {
@@ -187,5 +240,6 @@ export function loadRouteTrackPoints(): Record<string, Array<{ lat: number; lng:
     }
   }
 
+  collectedTrackPoints = tracks;
   return tracks;
 }

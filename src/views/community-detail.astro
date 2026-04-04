@@ -58,6 +58,16 @@ const locations = allPlaces
 
 const isShop = isBikeShop(organizer);
 
+// Breadcrumbs: Home → Communities/Bike Shops → Name
+import { breadcrumbJsonLd } from '@/lib/json-ld';
+const parentLabel = isShop ? t('bike_shops.heading', locale) : t('nav.people', locale);
+const parentUrl = isShop ? paths.bikeShops(locale) : paths.communities(locale);
+const breadcrumbs = breadcrumbJsonLd([
+  { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
+  { name: parentLabel, url: `${config.url}${parentUrl}` },
+  { name: data.name, url: `${config.url}${paths.community(organizer.id, locale)}` },
+]);
+
 // Load events by this organizer
 const allEvents = await getCollection('events');
 const now = new Date();
@@ -132,7 +142,7 @@ const socialOnlyLinks = socialLinks.filter(l => !contactPlatforms.has(l.platform
 const PAST_EVENTS_INITIAL = 4;
 ---
 
-<Base title={`${data.name} | ${config.display_name}`} description={data.tagline}>
+<Base title={`${data.name} | ${config.display_name}`} description={data.tagline} breadcrumbs={breadcrumbs}>
   <article class="community-detail">
     <header class="community-detail-header">
       <div class="community-detail-avatar">

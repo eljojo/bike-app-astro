@@ -194,22 +194,24 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
           } catch { continue; }
 
           if (!clusterMarkers.has(clusterId)) {
-            const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
             const count = f.properties?.point_count as number;
             try {
               const leaves = await source.getClusterLeaves(clusterId, 1, 0);
-              const leafKey = leaves[0]?.properties?.key as string | undefined;
-              if (!leafKey) continue;
+              const leaf = leaves[0];
+              const leafKey = leaf?.properties?.key as string | undefined;
+              if (!leafKey || !leaf) continue;
+              // Position cluster at cover photo, not centroid
+              const coverCoords = (leaf.geometry as GeoJSON.Point).coordinates as [number, number];
               const thumbUrl = buildImageUrl(cdnUrl, leafKey, { width: 80, height: 80, fit: 'cover' });
               const el = document.createElement('div');
               el.className = 'photo-bubble photo-bubble--cluster';
               el.innerHTML = `<img src="${thumbUrl}" alt="" loading="lazy" /><span class="photo-bubble--count">${count}</span>`;
-              el.addEventListener('click', async (e) => {
+              el.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const zoom = await source.getClusterExpansionZoom(clusterId);
-                map.easeTo({ center: coords, zoom });
+                // Zoom to cover photo location
+                map.flyTo({ center: coverCoords, zoom: 16, duration: 600 });
               });
-              const marker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map);
+              const marker = new maplibregl.Marker({ element: el }).setLngLat(coverCoords).addTo(map);
               clusterMarkers.set(clusterId, marker);
             } catch { /* cluster removed between query and fetch */ }
           }

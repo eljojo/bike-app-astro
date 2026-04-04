@@ -97,6 +97,9 @@ jobs:
       - name: Lint
         run: npx eslint src/
 
+      - name: Validate _ctx/ context system
+        run: npx tsx scripts/validate-ctx.ts
+
       - name: Check migration numbering
         run: |
           dupes=$(ls drizzle/migrations/*.sql | sed 's/.*\///' | cut -d_ -f1 | sort | uniq -d)
@@ -414,7 +417,7 @@ jobs:
           if-no-files-found: ignore
 
   update-screenshots:
-    if: ${{ inputs.update-screenshots && !cancelled() }}
+    if: ${{ inputs.update-screenshots && success() }}
     needs: e2e
     runs-on: ubuntu-latest
     steps:

@@ -10,18 +10,7 @@ import TagEditor from './TagEditor';
 import CommunityPreview from './CommunityPreview';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
-
-const SOCIAL_PLATFORMS = [
-  'instagram', 'facebook', 'strava', 'youtube',
-  'meetup', 'tiktok', 'bluesky', 'threads', 'website',
-  'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
-  'booking', 'telephone', 'email',
-] as const;
-
-interface SocialLink {
-  platform: string;
-  url: string;
-}
+import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
 
 interface Props {
   initialData: Partial<OrganizerDetail> & { contentHash?: string; isNew?: boolean };

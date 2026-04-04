@@ -7,6 +7,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 import { defaultLocale } from '@/lib/i18n/locale-utils';
 import { t, localePath } from '@/i18n';
+import { tTag } from '@/lib/i18n/tag-translations.server';
 import contributors from 'virtual:bike-app/contributors';
 import { categoryEmoji } from '@/lib/geo/place-categories';
 import { imageUrl } from '@/lib/media/image-service';
@@ -26,7 +27,7 @@ const rawHtml = translation?.renderedBody || aboutPage.data.renderedBody;
 // Variable replacement on the full rendered HTML
 const contentHtml = rawHtml
   .replace(/\{author_email\}/g, config.author.email)
-  .replace(/\{author_photo_url\}/g, config.author.photo_url)
+  .replace(/\{author_photo_url\}/g, config.author.photo_url || '')
   .replace(/\{author_name\}/g, config.author.name)
   .replace(/\{display_name\}/g, config.display_name);
 
@@ -109,7 +110,7 @@ const selectedPlaces = pinCategories
       const pos = positions[i];
       return (
         <div class="about-route-tag" style={`left:${pos.left};top:${pos.top};animation-delay:${pos.delay}s`}>
-          {tag}
+          {tTag(tag, locale)}
         </div>
       );
     })}

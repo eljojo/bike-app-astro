@@ -343,7 +343,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
               <select
                 id="route-status"
                 value={status}
-                onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
+                onChange={(e) => setStatus((e.target as HTMLSelectElement).value as RouteDetail['status'])}
               >
                 <option value="published">Published</option>
                 <option value="draft">Draft</option>

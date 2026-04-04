@@ -23,7 +23,7 @@ const config = (features.hasRides || features.hasEnrichedEvents) ? getCityConfig
 <footer class="site-footer">
   {features.hasRides && config?.author?.name ? (
     <a href={localePath('/about', locale)}>
-      {config.display_name} is curated by {config.author.name}
+      {t('footer.curated_by', locale, { site: config.display_name, author: config.author.name })}
     </a>
   ) : features.hasEnrichedEvents && config ? (
     <a href={localePath('/about', locale)}>

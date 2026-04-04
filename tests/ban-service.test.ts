@@ -41,7 +41,7 @@ describe('ban-service', () => {
     await banUser(database, 'guest-1');
 
     const [user] = await database.select().from(users).where(eq(users.id, 'guest-1'));
-    expect(user.bannedAt).toBeTruthy();
+    expect(user.bannedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('banUser adds IP to bannedIps for guests', async () => {

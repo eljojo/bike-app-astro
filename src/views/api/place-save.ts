@@ -4,19 +4,15 @@ import type { APIContext } from 'astro';
 import { z } from 'zod/v4';
 import { serializeMdFile } from '../../lib/content/file-serializers';
 import { CITY } from '../../lib/config/config';
-import { env } from '../../lib/env/env.service';
-import { jsonError } from '../../lib/api-response';
 import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
 import { placeOps } from '../../lib/content/content-ops.server';
 import { slugify } from '../../lib/slug';
-import { buildSingleMediaKeyChanges, buildCommitTrailer, afterCommitMediaCleanup } from '../../lib/content/save-helpers.server';
+import { buildSingleMediaKeyChanges, afterCommitMediaCleanup, mergeFrontmatter, buildSimpleCommitMessage, buildGitHubUrl, checkSlugExistence } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server';
-
-let sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {};
 
 export const prerender = false;
 
@@ -72,113 +68,118 @@ interface PlaceBuildResult extends BuildResult {
   mergedParked: ParkedMediaEntry[] | undefined;
 }
 
-export const placeHandlers: SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<PlaceBuildResult> = {
-  parseRequest(body: unknown): PlaceUpdate {
-    return placeUpdateSchema.parse(body);
-  },
+/**
+ * Create place save handlers. Returns a fresh instance per request
+ * to safely encapsulate sharedKeysData from concurrent request contamination.
+ */
+export function createPlaceHandlers(sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {}): SaveHandlers<PlaceUpdate, PlaceBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<PlaceBuildResult> {
+  return {
+    parseRequest(body: unknown): PlaceUpdate {
+      return placeUpdateSchema.parse(body);
+    },
 
-  resolveContentId(params, update): string {
-    const id = params.id;
-    if (id === 'new') {
-      return slugify(update.frontmatter.name);
-    }
-    return id!;
-  },
+    resolveContentId(params, update): string {
+      const id = params.id;
+      if (id === 'new') {
+        return slugify(update.frontmatter.name);
+      }
+      return id!;
+    },
 
-  validateSlug(placeId: string): string | null {
-    if (!placeId || placeId.length < 2) return 'Place name is too short';
-    return null;
-  },
+    validateSlug(placeId: string): string | null {
+      if (!placeId || placeId.length < 2) return 'Place name is too short';
+      return null;
+    },
 
-  getFilePaths: placeOps.getFilePaths,
-  computeContentHash: placeOps.computeContentHash,
-  buildFreshData: placeOps.buildFreshData,
+    getFilePaths: placeOps.getFilePaths,
+    computeContentHash: placeOps.computeContentHash,
+    buildFreshData: placeOps.buildFreshData,
 
-  async checkExistence(git, placeId) {
-    const placePath = placeOps.getFilePaths(placeId).primary;
-    const existing = await git.readFile(placePath);
-    if (existing) {
-      return jsonError(`Place ${placeId} already exists`, 409);
-    }
-    return null;
-  },
+    async checkExistence(git, placeId) {
+      return checkSlugExistence(git, placeOps.getFilePaths(placeId).primary, 'Place', placeId);
+    },
 
-  async buildFileChanges(update, placeId, currentFiles, git) {
-    const placePath = placeOps.getFilePaths(placeId).primary;
-    const isNew = !currentFiles.primaryFile;
-    const files: FileChange[] = [];
+    async buildFileChanges(update, placeId, currentFiles, git) {
+      const placePath = placeOps.getFilePaths(placeId).primary;
+      const isNew = !currentFiles.primaryFile;
+      const files: FileChange[] = [];
 
-    // Detect photo_key change and park orphaned photo
-    const oldPhotoKey = currentFiles.primaryFile
-      ? extractFrontmatterField(currentFiles.primaryFile.content, 'photo_key')
-      : undefined;
-    const newPhotoKey = update.frontmatter.photo_key;
+      // Detect photo_key change and park orphaned photo
+      const oldPhotoKey = currentFiles.primaryFile
+        ? extractFrontmatterField(currentFiles.primaryFile.content, 'photo_key')
+        : undefined;
+      const newPhotoKey = update.frontmatter.photo_key;
 
-    let mergedParked: ParkedMediaEntry[] | undefined;
-    const parked = await parkOrphanedMedia({
-      oldKey: oldPhotoKey,
-      newKey: newPhotoKey,
-      contentType: 'place',
-      contentId: placeId,
-      sharedKeysData,
-      git,
-    });
-    if (parked) {
-      mergedParked = parked.mergedParked;
-      files.push(parked.fileChange);
-    }
+      let mergedParked: ParkedMediaEntry[] | undefined;
+      const parked = await parkOrphanedMedia({
+        oldKey: oldPhotoKey,
+        newKey: newPhotoKey,
+        contentType: 'place',
+        contentId: placeId,
+        sharedKeysData,
+        git,
+      });
+      if (parked) {
+        mergedParked = parked.mergedParked;
+        files.push(parked.fileChange);
+      }
 
-    // Build frontmatter, stripping empty optional fields
-    const fm: Record<string, unknown> = {};
-    fm.name = update.frontmatter.name;
-    if (update.frontmatter.name_fr) fm.name_fr = update.frontmatter.name_fr;
-    fm.category = update.frontmatter.category;
-    fm.lat = update.frontmatter.lat;
-    fm.lng = update.frontmatter.lng;
-    if (update.frontmatter.status && update.frontmatter.status !== 'published') {
-      fm.status = update.frontmatter.status;
-    }
-    if (update.frontmatter.vibe) fm.vibe = update.frontmatter.vibe;
-    if (update.frontmatter.good_for.length > 0) fm.good_for = update.frontmatter.good_for;
-    if (update.frontmatter.address) fm.address = update.frontmatter.address;
-    if (update.frontmatter.website) fm.website = update.frontmatter.website;
-    if (update.frontmatter.phone) fm.phone = update.frontmatter.phone;
-    if (update.frontmatter.google_maps_url) fm.google_maps_url = update.frontmatter.google_maps_url;
-    if (update.frontmatter.photo_key) {
-      fm.photo_key = update.frontmatter.photo_key;
-    }
-    if (update.frontmatter.organizer) fm.organizer = update.frontmatter.organizer;
-    if (update.frontmatter.social_links.length > 0) fm.social_links = update.frontmatter.social_links;
+      // Build editor fields, stripping empty optional values
+      const fm: Record<string, unknown> = {};
+      fm.name = update.frontmatter.name;
+      if (update.frontmatter.name_fr) fm.name_fr = update.frontmatter.name_fr;
+      fm.category = update.frontmatter.category;
+      fm.lat = update.frontmatter.lat;
+      fm.lng = update.frontmatter.lng;
+      if (update.frontmatter.status && update.frontmatter.status !== 'published') {
+        fm.status = update.frontmatter.status;
+      }
+      if (update.frontmatter.vibe) fm.vibe = update.frontmatter.vibe;
+      if (update.frontmatter.good_for.length > 0) fm.good_for = update.frontmatter.good_for;
+      if (update.frontmatter.address) fm.address = update.frontmatter.address;
+      if (update.frontmatter.website) fm.website = update.frontmatter.website;
+      if (update.frontmatter.phone) fm.phone = update.frontmatter.phone;
+      if (update.frontmatter.google_maps_url) fm.google_maps_url = update.frontmatter.google_maps_url;
+      if (update.frontmatter.photo_key) {
+        fm.photo_key = update.frontmatter.photo_key;
+      }
+      if (update.frontmatter.organizer) fm.organizer = update.frontmatter.organizer;
+      if (update.frontmatter.social_links.length > 0) fm.social_links = update.frontmatter.social_links;
 
-    files.push({ path: placePath, content: serializeMdFile(fm) });
+      // Merge with existing frontmatter to preserve fields the editor doesn't manage
+      const merged = mergeFrontmatter(isNew, currentFiles.primaryFile?.content ?? null, fm);
 
-    return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, placeSlug: placeId, mergedParked };
-  },
+      // Strip default status — places default to published, no need to persist it
+      if (merged.status === 'published') delete merged.status;
 
-  async afterCommit(result, database) {
-    const { oldPhotoKey, newPhotoKey, placeSlug, mergedParked } = result;
-    const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
-    await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
-  },
+      files.push({ path: placePath, content: serializeMdFile(merged) });
 
-  buildCommitMessage(update, placeId, isNew): string {
-    const resourcePath = `${CITY}/places/${placeId}`;
-    const title = update.frontmatter.name || placeId;
-    const trailer = buildCommitTrailer(resourcePath);
-    return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
-  },
+      return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, placeSlug: placeId, mergedParked };
+    },
 
-  buildGitHubUrl(placeId: string, baseBranch: string): string {
-    return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${placeOps.getFilePaths(placeId).primary}`;
-  },
-};
+    async afterCommit(result, database) {
+      const { oldPhotoKey, newPhotoKey, placeSlug, mergedParked } = result;
+      const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'place', placeSlug);
+      await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
+    },
+
+    buildCommitMessage(update, placeId, isNew): string {
+      return buildSimpleCommitMessage(update.frontmatter.name || placeId, `${CITY}/places/${placeId}`, isNew);
+    },
+
+    buildGitHubUrl(placeId: string, baseBranch: string): string {
+      return buildGitHubUrl(placeOps.getFilePaths(placeId).primary, baseBranch);
+    },
+  };
+}
 
 export async function POST({ params, request, locals }: APIContext) {
-  sharedKeysData = await fetchSharedKeysData(new URL(request.url));
+  const sharedKeysData = await fetchSharedKeysData(new URL(request.url));
+  const handlers = createPlaceHandlers(sharedKeysData);
   if (params.id === 'new') {
-    return saveContent(request, locals, params, 'places', placeHandlers);
+    return saveContent(request, locals, params, 'places', handlers);
   }
   // For edits, omit checkExistence — only check when creating new places
-  const { checkExistence, ...editHandlers } = placeHandlers;
+  const { checkExistence, ...editHandlers } = handlers;
   return saveContent(request, locals, params, 'places', editHandlers);
 }

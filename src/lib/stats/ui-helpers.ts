@@ -20,12 +20,14 @@ export function formatNumber(n: number | string): string {
   return String(n);
 }
 
-export function liveUrl(contentType: string, contentSlug: string): string {
+export function liveUrl(contentType: string, contentSlug: string, networkSlug?: string): string {
   switch (contentType) {
     case 'route': return `/routes/${contentSlug}`;
     case 'event': return `/events/${contentSlug}`;
     case 'organizer': return `/communities/${contentSlug}`;
-    case 'bike-path': return `/bike-paths/${contentSlug}`;
+    case 'bike-path': return networkSlug
+      ? `/bike-paths/${networkSlug}/${contentSlug}`
+      : `/bike-paths/${contentSlug}`;
     default: return '#';
   }
 }

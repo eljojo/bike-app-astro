@@ -198,7 +198,10 @@ export class LocalGitService implements IGitService {
   }
 
   async updateRef(_branch: string, _sha: string, _force?: boolean): Promise<void> {
-    // No-op for local development
+    // Intentionally a no-op for local development. In production, updateRef()
+    // fast-forwards the staging branch after a commit is merged to main.
+    // Locally, all commits go directly to the working branch, so there is
+    // no staging ref to synchronize.
   }
 
   async createRef(branch: string, sha: string): Promise<void> {

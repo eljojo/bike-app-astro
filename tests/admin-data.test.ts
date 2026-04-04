@@ -21,11 +21,11 @@ describe('loadAdminRouteData routes', () => {
       expect(route).toHaveProperty('mediaCount');
       expect(route).toHaveProperty('status');
       expect(route).toHaveProperty('contentHash');
-      expect(typeof route.slug).toBe('string');
-      expect(typeof route.name).toBe('string');
-      expect(typeof route.mediaCount).toBe('number');
-      expect(typeof route.status).toBe('string');
-      expect(typeof route.contentHash).toBe('string');
+      expect(route.slug).toMatch(/^[a-z0-9-]+$/);
+      expect(route.name.length).toBeGreaterThan(0);
+      expect(route.mediaCount).toBeGreaterThanOrEqual(0);
+      expect(['published', 'draft']).toContain(route.status);
+      expect(route.contentHash).toMatch(/^[a-f0-9]{32}$/);
       // Should not have extra fields
       // coverKey is optional — only present when the route has a cover photo
       const expectedKeys = ['contentHash', 'difficultyScore', 'mediaCount', 'name', 'slug', 'status'];
@@ -44,17 +44,16 @@ describe('loadAdminRouteData routes', () => {
   it('includes contentHash in route list items', async () => {
     const { routes } = await loadAdminRouteData();
     expect(routes[0]).toHaveProperty('contentHash');
-    expect(typeof routes[0].contentHash).toBe('string');
-    expect(routes[0].contentHash.length).toBe(32); // MD5 hex length
+    expect(routes[0].contentHash).toMatch(/^[a-f0-9]{32}$/); // MD5 hex
   });
 });
 
 describe('loadAdminRouteData details', () => {
   it('returns a record keyed by slug', async () => {
     const { details } = await loadAdminRouteData();
-    expect(typeof details).toBe('object');
-    const firstSlug = Object.keys(details)[0];
-    expect(firstSlug).toBeDefined();
+    const slugs = Object.keys(details);
+    expect(slugs.length).toBeGreaterThan(0);
+    const firstSlug = slugs[0];
     expect(details[firstSlug].slug).toBe(firstSlug);
   });
 
@@ -62,11 +61,11 @@ describe('loadAdminRouteData details', () => {
     const { details } = await loadAdminRouteData();
     for (const [slug, detail] of Object.entries(details)) {
       expect(detail.slug).toBe(slug);
-      expect(typeof detail.name).toBe('string');
-      expect(typeof detail.tagline).toBe('string');
+      expect(detail.name.length).toBeGreaterThan(0);
+      expect(detail.tagline).toBeDefined();
       expect(Array.isArray(detail.tags)).toBe(true);
-      expect(typeof detail.status).toBe('string');
-      expect(typeof detail.body).toBe('string');
+      expect(['published', 'draft']).toContain(detail.status);
+      expect(detail.body).toBeDefined();
       expect(Array.isArray(detail.media)).toBe(true);
     }
   });
@@ -91,7 +90,7 @@ describe('loadAdminRouteData details', () => {
         }
         // key is always required
         expect(item).toHaveProperty('key');
-        expect(typeof item.key).toBe('string');
+        expect(item.key.length).toBeGreaterThan(0);
       }
     }
   });
@@ -109,8 +108,7 @@ describe('loadAdminRouteData details', () => {
     const { details } = await loadAdminRouteData();
     const slug = Object.keys(details)[0];
     expect(details[slug]).toHaveProperty('contentHash');
-    expect(typeof details[slug].contentHash).toBe('string');
-    expect(details[slug].contentHash.length).toBe(32); // MD5 hex length
+    expect(details[slug].contentHash).toMatch(/^[a-f0-9]{32}$/); // MD5 hex
   });
 });
 

@@ -17,8 +17,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
-import { slugifyBikePathName } from '../src/lib/bike-paths/bikepaths-yml.server';
+import { parseBikePathsYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
@@ -112,8 +111,6 @@ function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureColle
   return { type: 'FeatureCollection', features };
 }
 
-const slugify = slugifyBikePathName;
-
 /** Build Overpass bbox from anchor coordinates: south,west,north,east */
 function anchorBbox(anchors: Array<[number, number]>): string {
   const lngs = anchors.map(a => a[0]);
@@ -131,12 +128,16 @@ if (!fs.existsSync(ymlPath)) {
   process.exit(0);
 }
 
-const raw = yaml.load(fs.readFileSync(ymlPath, 'utf-8')) as { bike_paths: BikePathEntry[] };
-const relationEntries = raw.bike_paths.filter(e => e.osm_relations && e.osm_relations.length > 0);
-const nameEntries = raw.bike_paths.filter(e => (!e.osm_relations || e.osm_relations.length === 0) && e.osm_names && e.osm_names.length > 0 && e.anchors && e.anchors.length >= 2);
-const segmentEntries = raw.bike_paths.filter(e => e.segments && e.segments.length > 0 && (!e.osm_relations || e.osm_relations.length === 0));
+const raw = fs.readFileSync(ymlPath, 'utf-8');
+const { entries: allEntries } = parseBikePathsYml(raw);
+// Cast to BikePathEntry with slug for the passes below
+type SluggedEntry = BikePathEntry & { slug: string };
+const sluggedEntries: SluggedEntry[] = allEntries.map(e => ({ ...e, anchors: e.anchors?.map(a => 'lat' in a ? [a.lng, a.lat] as [number, number] : a as [number, number]) } as SluggedEntry));
+const relationEntries = sluggedEntries.filter(e => e.osm_relations && e.osm_relations.length > 0);
+const nameEntries = sluggedEntries.filter(e => (!e.osm_relations || e.osm_relations.length === 0) && e.osm_names && e.osm_names.length > 0 && e.anchors && e.anchors.length >= 2);
+const segmentEntries = sluggedEntries.filter(e => e.segments && e.segments.length > 0 && (!e.osm_relations || e.osm_relations.length === 0));
 
-console.log(`[path-geo] ${relationEntries.length} relations + ${nameEntries.length} named + ${segmentEntries.length} segmented (${raw.bike_paths.length} total)`);
+console.log(`[path-geo] ${relationEntries.length} relations + ${nameEntries.length} named + ${segmentEntries.length} segmented (${allEntries.length} total)`);
 
 if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
@@ -173,8 +174,7 @@ for (const entry of relationEntries) {
 
 // --- Pass 2: Name-based entries (query ways by name within anchor bbox) ---
 for (const entry of nameEntries) {
-  const slug = slugify(entry.name);
-  const outPath = path.join(CACHE_DIR, `name-${slug}.geojson`);
+  const outPath = path.join(CACHE_DIR, `name-${entry.slug}.geojson`);
 
   if (fs.existsSync(outPath) && !forceRefresh) {
     skipped++;
@@ -194,7 +194,7 @@ for (const entry of nameEntries) {
     const nameFilters = entry.osm_names!.map(n => `way["name"="${n.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"](${bbox});`).join('\n');
     const query = `[out:json][timeout:60];\n(\n${nameFilters}\n);\nout geom;`;
     const data = await queryOverpass(query);
-    const geojson = overpassToGeoJSON(data, slug);
+    const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
       fs.writeFileSync(outPath, JSON.stringify(geojson));
       fetched++;
@@ -208,8 +208,7 @@ for (const entry of nameEntries) {
 
 // --- Pass 3: Segment-based entries (query individual ways by ID) ---
 for (const entry of segmentEntries) {
-  const slug = slugify(entry.name);
-  const outPath = path.join(CACHE_DIR, `seg-${slug}.geojson`);
+  const outPath = path.join(CACHE_DIR, `seg-${entry.slug}.geojson`);
 
   if (fs.existsSync(outPath) && !forceRefresh) {
     skipped++;
@@ -226,7 +225,7 @@ for (const entry of segmentEntries) {
     const wayIds = entry.segments!.map(s => s.osm_way);
     const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
     const data = await queryOverpass(query);
-    const geojson = overpassToGeoJSON(data, slug);
+    const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
       fs.writeFileSync(outPath, JSON.stringify(geojson));
       fetched++;
@@ -239,16 +238,15 @@ for (const entry of segmentEntries) {
 }
 
 // --- Pass 4: Parallel-to entries — unnamed cycleways alongside named roads ---
-const parallelEntries = raw.bike_paths.filter(
-  (e: BikePathEntry) => e.parallel_to && (!e.osm_relations || e.osm_relations.length === 0),
+const parallelEntries = sluggedEntries.filter(
+  e => e.parallel_to && (!e.osm_relations || e.osm_relations.length === 0),
 );
 
 if (parallelEntries.length > 0) {
   console.log(`\nPass 4: Fetching geometry for ${parallelEntries.length} parallel-to entries...`);
 
   for (const entry of parallelEntries) {
-    const slug = slugify(entry.name);
-    const outFile = path.join(CACHE_DIR, `parallel-${slug}.geojson`);
+    const outFile = path.join(CACHE_DIR, `parallel-${entry.slug}.geojson`);
 
     if (!forceRefresh && fs.existsSync(outFile)) {
       skipped++;
@@ -270,23 +268,23 @@ way["highway"="cycleway"][!"name"](around.road:30);
 out geom;`;
 
     if (dryRun) {
-      console.log(`  [dry-run] parallel-${slug}: ${entry.parallel_to}`);
+      console.log(`  [dry-run] parallel-${entry.slug}: ${entry.parallel_to}`);
       continue;
     }
 
     try {
       const data = await queryOverpass(q);
-      const geojson = overpassToGeoJSON(data, `parallel-${slug}`);
+      const geojson = overpassToGeoJSON(data, `parallel-${entry.slug}`);
       if (geojson.features.length === 0) {
-        console.log(`  [empty] parallel-${slug}: no geometry found`);
+        console.log(`  [empty] parallel-${entry.slug}: no geometry found`);
         continue;
       }
 
       fs.writeFileSync(outFile, JSON.stringify(geojson));
       fetched++;
-      console.log(`  parallel-${slug}: ${geojson.features.length} features`);
+      console.log(`  parallel-${entry.slug}: ${geojson.features.length} features`);
     } catch (err: any) {
-      console.error(`  [error] parallel-${slug}: ${err.message}`);
+      console.error(`  [error] parallel-${entry.slug}: ${err.message}`);
     }
   }
 }
@@ -312,10 +310,8 @@ if (!dryRun) {
 
   // --- Determine which cache files belong to featured paths ---
 
-  // 1. Parse YML entries with canonical slugs (single source of truth)
-  const { parseBikePathsYml } = await import('../src/lib/bike-paths/bikepaths-yml.server');
-  const sluggedEntries = parseBikePathsYml(fs.readFileSync(ymlPath, 'utf-8'));
-  const ymlBySlug = new Map(sluggedEntries.map(e => [e.slug, e]));
+  // 1. Use the already-parsed entries with canonical disambiguated slugs
+  const ymlBySlug = new Map(allEntries.map(e => [e.slug, e]));
 
   // 2. Read markdown frontmatter to find featured paths and their includes
   const bikePathsDir = path.join(CONTENT_DIR, CITY, 'bike-paths');
@@ -360,17 +356,17 @@ if (!dryRun) {
     for (const relId of entry.osm_relations ?? []) {
       featuredCacheFiles.add(`${relId}.geojson`);
     }
-    // Name-based files
+    // Name-based files (use disambiguated slug, not re-slugified name)
     if ((!entry.osm_relations || entry.osm_relations.length === 0) && entry.osm_names?.length) {
-      featuredCacheFiles.add(`name-${slugify(entry.name)}.geojson`);
+      featuredCacheFiles.add(`name-${ymlSlug}.geojson`);
     }
     // Segment-based files
     if (entry.segments?.length && (!entry.osm_relations || entry.osm_relations.length === 0)) {
-      featuredCacheFiles.add(`seg-${slugify(entry.name)}.geojson`);
+      featuredCacheFiles.add(`seg-${ymlSlug}.geojson`);
     }
     // Parallel-to files
     if (entry.parallel_to && (!entry.osm_relations || entry.osm_relations.length === 0)) {
-      featuredCacheFiles.add(`parallel-${slugify(entry.name)}.geojson`);
+      featuredCacheFiles.add(`parallel-${ymlSlug}.geojson`);
     }
   }
 

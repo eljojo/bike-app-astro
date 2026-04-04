@@ -4,6 +4,8 @@ import { getInstanceFeatures } from '../lib/config/instance-features';
 import { loadRouteFacts, loadUpcomingEvents, loadCommunities, loadBikeShops, loadHomepageFacts, factToStatement } from './llms-shared';
 import type { RouteFacts } from './llms-shared';
 import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
+import { buildPathFacts } from '../lib/bike-paths/bike-path-facts';
+import { paths } from '../lib/paths';
 
 export const prerender = true;
 
@@ -85,11 +87,30 @@ export const GET: APIRoute = async () => {
     const { pages: bikePaths } = await loadBikePathData();
     if (bikePaths.length > 0) {
       const pathLines = bikePaths.map(bp => {
-        const parts: string[] = [];
-        if (bp.surface) parts.push(bp.surface);
-        if (bp.highway === 'cycleway') parts.push('separated from cars');
-        if (bp.operator) parts.push(bp.operator);
-        return `- [${bp.name}](${config.url}/bike-paths/${bp.slug})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
+        const facts = buildPathFacts(bp);
+        const parts = facts.map(f => {
+          switch (f.key) {
+            case 'surface': return f.value;
+            case 'surface_width': {
+              const [surf, w] = (f.value ?? '').split(':');
+              return `${surf}, ${w}m wide`;
+            }
+            case 'width': return `${f.value}m wide`;
+            case 'separated_cars': return 'separated from cars';
+            case 'separated_peds': return 'separated from pedestrians';
+            case 'lit': return 'lit';
+            case 'not_lit': return 'unlit';
+            case 'flat': return 'flat';
+            case 'gentle_hills': return `gentle hills (${f.value}m gain)`;
+            case 'hilly': return `hilly (${f.value}m gain)`;
+            case 'operator': return f.value;
+            case 'network_regional': return 'regional network';
+            case 'network_national': return 'national network';
+            case 'network_local': return 'local network';
+            default: return f.key.replace(/_/g, ' ');
+          }
+        }).filter(Boolean);
+        return `- [${bp.name}](${config.url}${paths.bikePath(bp.slug, bp.memberOf)})${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`;
       });
       sections.push(`## Bike Paths\n\n${pathLines.join('\n')}\n`);
     }

@@ -35,7 +35,7 @@ import { isHardExcluded } from '../lib/bike-paths/bike-path-scoring.server';
 
 // Map geo file ID → metadata. IDs are relation IDs (e.g., "12345") or
 // prefixed slugs (e.g., "name-foo", "seg-bar") matching the .geojson filenames.
-const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string }> = [];
+const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string; memberOf?: string }> = [];
 const mappedGeoIds = new Set<string>();
 
 // Pages: interactive, with slug links — all geo file types
@@ -50,6 +50,7 @@ for (const p of bikePathPages) {
       hasPage: true,
       interactive: true,
       surface: p.surface,
+      memberOf: p.memberOf,
     });
   }
 }
@@ -72,6 +73,7 @@ for (const e of allYmlEntries) {
       hasPage: !!page,
       interactive: !excluded,
       surface: e.surface,
+      memberOf: page?.memberOf ?? e.member_of,
     });
   }
 }

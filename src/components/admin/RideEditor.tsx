@@ -10,11 +10,10 @@ import EditorActions from './EditorActions';
 import RidePreview from './RidePreview';
 import StravaActivityBrowser from './StravaActivityBrowser';
 import type { StravaImportResult } from './StravaActivityBrowser';
-import { useEditorState } from './useEditorState';
+import { useEditorForm } from './useEditorForm';
 import { useFormValidation } from './useFormValidation';
-import { useDragDrop, useHydrated } from '../../lib/hooks';
+import { useDragDrop } from '../../lib/hooks';
 import { paths } from '../../lib/paths';
-import { useUnsavedGuard } from '../../lib/hooks/use-unsaved-guard';
 import { slugify } from '../../lib/slug';
 import SlugEditor from './SlugEditor';
 import { extractRideDate, parseGpx } from '../../lib/gpx/parse';
@@ -39,7 +38,6 @@ interface Props {
 }
 
 export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, mapThumbnail, rideLabels, tours = [], stravaConnected, guestLabel }: Props) {
-  const hydratedRef = useHydrated<HTMLDivElement>();
   // State
   const [name, setName] = useState(initialData.name);
   const [slug, setSlug] = useState(initialData.slug);
@@ -54,23 +52,10 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
   const [privacyZone, setPrivacyZone] = useState(initialData.privacy_zone ?? false);
   const [stravaId, setStravaId] = useState(initialData.strava_id || '');
 
-  const [dirty, setDirty] = useState(false);
-  const initialRender = useRef(true);
-  useEffect(() => {
-    if (initialRender.current) { initialRender.current = false; return; }
-    setDirty(true);
-  }, [name, slug, status, body, media, variants, rideDate, country, tourSlug, highlight, privacyZone, stravaId]);
-
   const hasTranscoding = media.some(m => m.videoStatus && m.videoStatus !== 'ready');
-  useUnsavedGuard(dirty || hasTranscoding);
-
-  // Mobile tabs
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
 
   // Collapsible details (collapsed by default for existing rides)
   const [detailsOpen, setDetailsOpen] = useState(!!initialData.isNew);
-
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Strava browser toggle
   const [stravaBrowsing, setStravaBrowsing] = useState(false);
@@ -203,12 +188,14 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
     { field: '', check: () => !variants.length, message: 'A GPX file is required' },
   ]);
 
-  const { saving, saved, error, githubUrl, guestCreated, save: handleSave, dismissSaved } = useEditorState({
+  const editor = useEditorForm({
     apiBase: '/api/rides',
     contentId: initialData.isNew ? null : initialData.slug,
-    initialContentHash: initialData.contentHash,
+    contentHash: initialData.contentHash,
     userRole,
     validate,
+    extraDirty: hasTranscoding,
+    deps: [name, slug, status, body, media, variants, rideDate, country, tourSlug, highlight, privacyZone, stravaId],
     buildPayload: () => {
       const cleanMedia = media.map(({ videoStatus, uploadPercent, transcodingStartedAt, posterChecked, ...rest }) => rest);
       return {
@@ -230,7 +217,6 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
       };
     },
     onSuccess: (result) => {
-      setDirty(false);
       if (initialData.isNew && result.id) {
         window.location.href = `/admin/rides/${result.id}`;
       }
@@ -241,7 +227,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
   const gpxInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div class="ride-editor" ref={hydratedRef}>
+    <div class="ride-editor" ref={editor.hydratedRef}>
       {dragging && (
         <div class="drop-overlay">
           <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
@@ -264,19 +250,19 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
       <div class="ride-editor-tabs">
         <button
           type="button"
-          class={`ride-editor-tab ${activeTab === 'edit' ? 'ride-editor-tab--active' : ''}`}
-          onClick={() => setActiveTab('edit')}
+          class={`ride-editor-tab ${editor.activeTab === 'edit' ? 'ride-editor-tab--active' : ''}`}
+          onClick={() => editor.setActiveTab('edit')}
         >Edit</button>
         <button
           type="button"
-          class={`ride-editor-tab ${activeTab === 'preview' ? 'ride-editor-tab--active' : ''}`}
-          onClick={() => setActiveTab('preview')}
+          class={`ride-editor-tab ${editor.activeTab === 'preview' ? 'ride-editor-tab--active' : ''}`}
+          onClick={() => editor.setActiveTab('preview')}
         >Preview</button>
       </div>
 
       <div class="ride-editor-panes">
         {/* LEFT PANE: Editor */}
-        <div class={`ride-editor-edit ${activeTab !== 'edit' ? 'ride-editor-pane--hidden' : ''}`}>
+        <div class={`ride-editor-edit ${editor.activeTab !== 'edit' ? 'ride-editor-pane--hidden' : ''}`}>
           {/* Title */}
           <div class="form-field">
             <label for="ride-name">Title</label>
@@ -326,7 +312,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
                   {userRole === 'admin' && (
                     <div class="form-field">
                       <label for="ride-status">Status</label>
-                      <select id="ride-status" value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}>
+                      <select id="ride-status" value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value as RideDetail['status'])}>
                         <option value="published">Published</option>
                         <option value="draft">Draft</option>
                       </select>
@@ -401,7 +387,7 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
               id="ride-body"
               value={body}
               onChange={setBody}
-              textareaRef={bodyRef}
+              textareaRef={editor.bodyRef}
               rows={16}
               placeholder="Write about your ride..."
             />
@@ -429,15 +415,15 @@ export default function RideEditor({ initialData, cdnUrl, videosCdnUrl, videoPre
 
           {/* Save */}
           <EditorActions
-            error={error} githubUrl={githubUrl} saved={saved} saving={saving}
-            onSave={handleSave} onDismiss={dismissSaved} contentType="ride" userRole={userRole} guestCreated={guestCreated}
+            error={editor.error} githubUrl={editor.githubUrl} saved={editor.saved} saving={editor.saving}
+            onSave={editor.save} onDismiss={editor.dismissSaved} contentType="ride" userRole={userRole} guestCreated={editor.guestCreated}
             viewLink={paths.ride(initialData.slug, initialData.tour_slug)}
             showLicenseNotice={false}
           />
         </div>
 
         {/* RIGHT PANE: Preview */}
-        <div class={`ride-editor-preview ${activeTab !== 'preview' ? 'ride-editor-pane--hidden' : ''}`}>
+        <div class={`ride-editor-preview ${editor.activeTab !== 'preview' ? 'ride-editor-pane--hidden' : ''}`}>
           <RidePreview
             name={name}
             body={body}

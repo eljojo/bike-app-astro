@@ -28,14 +28,18 @@ export const bikePathYmlEntrySchema = z.looseObject({
   cycleway: z.string().optional(),
   ref: z.string().optional(),
   parallel_to: z.string().optional(),
-  grouped_from: z.array(z.string()).optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
-  /** 'network' = OSM superroute grouping multiple route relations. */
+  /** 'network' = auto-grouped cluster of connected paths. Members keep their pages. */
   type: z.enum(['network']).optional(),
   /** For networks: slugs of member paths. */
   members: z.array(z.string()).optional(),
-  /** Slug of the primary network this path belongs to. */
+  /** Slug of the network this path belongs to. */
   member_of: z.string().optional(),
+  /** Mountain bike trail — set by detect-mtb.mjs in the data pipeline. */
+  mtb: z.boolean().optional(),
+  /** Super-network attribute (e.g., capital-pathway, trans-canada-trail).
+   * Display-only — does NOT produce a page. Shows in facts table, influences index grouping. */
+  super_network: z.string().optional(),
   /** OSM cycle_network tag (e.g., "National Capital Region"). */
   cycle_network: z.string().optional(),
   /** Metadata enriched from Wikidata. */
@@ -52,6 +56,16 @@ export type BikePathYmlEntry = z.infer<typeof bikePathYmlEntrySchema>;
 
 export interface SluggedBikePathYml extends BikePathYmlEntry {
   slug: string;
+}
+
+/** Super-network metadata from the optional top-level super_networks section. */
+export interface SuperNetworkMeta {
+  name: string;
+  slug: string;
+  wikidata?: string;
+  operator?: string;
+  network?: string;
+  wikidata_meta?: BikePathYmlEntry['wikidata_meta'];
 }
 
 /** Convert a bike path name to a URL-safe slug. */
@@ -78,12 +92,22 @@ function slugSortKey(entry: BikePathYmlEntry): string {
   return `n${entry.name}`;
 }
 
-/** Parse bikepaths.yml content and return entries with stable slugs. */
-export function parseBikePathsYml(content: string): SluggedBikePathYml[] {
-  const raw = yaml.load(content) as { bike_paths?: unknown[] };
+/** Parse bikepaths.yml content and return entries with stable slugs + optional super-network metadata. */
+export function parseBikePathsYml(content: string): { entries: SluggedBikePathYml[]; superNetworks: SuperNetworkMeta[] } {
+  const raw = yaml.load(content) as { bike_paths?: unknown[]; super_networks?: Array<Record<string, unknown>> };
   if (!raw || !Array.isArray(raw.bike_paths)) {
     throw new Error('bikepaths.yml must have a top-level bike_paths array');
   }
+
+  // Parse optional super_networks section (Capital Pathway, TCT, etc.)
+  const superNetworks: SuperNetworkMeta[] = (raw.super_networks ?? []).map(sn => ({
+    name: String(sn.name || ''),
+    slug: String(sn.slug || slugifyBikePathName(String(sn.name || ''))),
+    wikidata: sn.wikidata as string | undefined,
+    operator: sn.operator as string | undefined,
+    network: sn.network as string | undefined,
+    wikidata_meta: sn.wikidata_meta as SuperNetworkMeta['wikidata_meta'],
+  }));
   const entries = raw.bike_paths.map(e => bikePathYmlEntrySchema.parse(e));
 
   // Group entries by base slug, sort each group deterministically, then number
@@ -107,5 +131,5 @@ export function parseBikePathsYml(content: string): SluggedBikePathYml[] {
 
   // Restore original order so downstream code sees entries in YAML order
   result.sort((a, b) => a.index - b.index);
-  return result.map(r => ({ ...r.entry, slug: r.slug }));
+  return { entries: result.map(r => ({ ...r.entry, slug: r.slug })), superNetworks };
 }

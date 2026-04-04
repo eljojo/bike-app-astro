@@ -15,11 +15,14 @@ import { loadBikePathData } from '../lib/bike-paths/bike-path-data.server';
 import { getInstanceFeatures } from '../lib/config/instance-features';
 
 const features = getInstanceFeatures();
+import { isBikeShop, isCommunity, hasDetailPage } from '../lib/models/organizer-model';
+
 const routes = await getCollection('routes');
 const guides = await getCollection('guides');
 const events = await getCollection('events').catch(() => []);
+const organizers = await getCollection('organizers').catch(() => []);
 const bikePaths = features.hasPaths
-  ? (await loadBikePathData()).pages.filter(bp => bp.standalone)
+  ? (await loadBikePathData()).pages
   : [];
 
 const publishedRoutes = routes
@@ -32,6 +35,14 @@ const allVideos = publishedRoutes
 const publishedGuides = guides
   .filter(g => g.data.status === 'published');
 
+const communities = organizers.filter(o => isCommunity(o) && hasDetailPage(o) && !o.data.hidden);
+const bikeShops = organizers.filter(o => isBikeShop(o) && hasDetailPage(o) && !o.data.hidden);
+
+// Bike paths: separate networks and standalone paths
+const networkPages = bikePaths.filter(p => p.memberRefs && p.memberRefs.length > 0);
+const memberSlugs = new Set(networkPages.flatMap(n => (n.memberRefs ?? []).map(m => m.slug)));
+const standaloneBikePaths = bikePaths.filter(p => p.standalone && !p.memberRefs && !memberSlugs.has(p.slug));
+
 const nonDefaultLocales = locales.filter(l => l !== defLocale);
 ---
 
@@ -41,36 +52,75 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
     <li><a href={localePath('/', defLocale)}>{config.display_name}</a>
       <ul>
         <li><a href="/about">{t('nav.about', defLocale)} {config.display_name}</a></li>
-        <li><a href="/calendar">{t('sitemap.cycling_calendar', defLocale)}</a></li>
-        <li><a href={paths.communities(defLocale)}>{t('nav.people', defLocale)}</a></li>
-        <li><a href={paths.bikeShops(defLocale)}>{t('bike_shops.heading', defLocale)}</a></li>
         <li><a href="/map">{t('sitemap.map_description', defLocale)}</a></li>
-        <li><a href="/videos">{t('videos.title', defLocale)}</a>
+      </ul>
+    </li>
+
+    <li><strong>{t('nav.ride', defLocale)}</strong>
+      <ul>
+        <li><a href={localePath('/routes', defLocale)}>{t('nav.routes', defLocale)}</a>
           <ul>
-            {allVideos.map(v => (
-              <li><a href={paths.video(v.handle)}>{v.title || v.handle}</a></li>
+            {publishedRoutes.map(route => (
+              <li><a href={paths.route(route.id, defLocale)}>{route.data.name}</a></li>
             ))}
           </ul>
         </li>
+        {bikePaths.length > 0 && (
+          <li><a href={paths.bikePaths(defLocale)}>{t('nav.bike_paths', defLocale)}</a>
+            <ul>
+              {networkPages.map(net => (
+                <li>
+                  <a href={paths.bikePath(net.slug, undefined, defLocale)}>{net.name}</a>
+                  {net.memberRefs && net.memberRefs.length > 0 && (
+                    <ul>
+                      {net.memberRefs.filter(m => m.standalone).map(m => (
+                        <li><a href={paths.bikePath(m.slug, net.slug, defLocale)}>{m.name}</a></li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+              {standaloneBikePaths.map(bp => (
+                <li><a href={paths.bikePath(bp.slug, bp.memberOf, defLocale)}>{bp.name}</a></li>
+              ))}
+            </ul>
+          </li>
+        )}
       </ul>
     </li>
-    {publishedRoutes.map(route => (
-      <li>
-        <a href={paths.route(route.id, defLocale)}>{route.data.name}</a>
-        <ul>
-          <li><a href={paths.routeMap(route.id, defLocale)}>{t('nav.map', defLocale)}</a></li>
-        </ul>
-      </li>
-    ))}
-    {bikePaths.length > 0 && (
-      <li><a href={paths.bikePaths(defLocale)}>{t('paths.title', defLocale)}</a>
-        <ul>
-          {bikePaths.map(bp => (
-            <li><a href={paths.bikePath(bp.slug, defLocale)}>{bp.name}</a></li>
-          ))}
-        </ul>
-      </li>
-    )}
+
+    <li><strong>{t('nav.community', defLocale)}</strong>
+      <ul>
+        <li><a href={localePath('/calendar', defLocale)}>{t('sitemap.cycling_calendar', defLocale)}</a>
+          {events.length > 0 && (
+            <ul>
+              {events.map(e => (
+                <li><a href={paths.event(e.id, defLocale)}>{e.data.name}</a></li>
+              ))}
+            </ul>
+          )}
+        </li>
+        <li><a href={paths.communities(defLocale)}>{t('nav.people', defLocale)}</a>
+          {communities.length > 0 && (
+            <ul>
+              {communities.map(c => (
+                <li><a href={paths.community(c.id, defLocale)}>{c.data.name}</a></li>
+              ))}
+            </ul>
+          )}
+        </li>
+        <li><a href={paths.bikeShops(defLocale)}>{t('bike_shops.heading', defLocale)}</a>
+          {bikeShops.length > 0 && (
+            <ul>
+              {bikeShops.map(s => (
+                <li><a href={paths.community(s.id, defLocale)}>{s.data.name}</a></li>
+              ))}
+            </ul>
+          )}
+        </li>
+      </ul>
+    </li>
+
     <li><a href="/guides">{t('guides.title', defLocale)}</a>
       <ul>
         {publishedGuides.map(guide => (
@@ -78,11 +128,12 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
         ))}
       </ul>
     </li>
-    {events.length > 0 && (
-      <li><a href="/events">{t('nav.events', defLocale)}</a>
+
+    {allVideos.length > 0 && (
+      <li><a href="/videos">{t('videos.title', defLocale)}</a>
         <ul>
-          {events.map(e => (
-            <li><a href={paths.event(e.id, defLocale)}>{e.data.name}</a></li>
+          {allVideos.map(v => (
+            <li><a href={paths.video(v.handle)}>{v.title || v.handle}</a></li>
           ))}
         </ul>
       </li>
@@ -95,34 +146,59 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
       <li><a href={localePath('/', locale)}>{config.display_name} ({locale})</a>
         <ul>
           <li><a href={localePath('/about', locale)}>{t('nav.about', locale)}</a></li>
-          <li><a href={localePath('/calendar', locale)}>{t('nav.calendar', locale)}</a></li>
           <li><a href={localePath('/map', locale)}>{t('nav.map', locale)}</a></li>
-          <li><a href={localePath('/videos', locale)}>{t('videos.title', locale)}</a>
+        </ul>
+      </li>
+
+      <li><strong>{t('nav.ride', locale)}</strong>
+        <ul>
+          <li><a href={localePath('/routes', locale)}>{t('nav.routes', locale)}</a>
             <ul>
-              {allVideos.map(v => (
-                <li><a href={paths.video(v.handle, locale)}>{v.title || v.handle}</a></li>
+              {publishedRoutes.map(route => (
+                <li><a href={paths.route(routeSlug(route, locale), locale)}>{route.data.name}</a></li>
               ))}
             </ul>
           </li>
+          {bikePaths.length > 0 && (
+            <li><a href={paths.bikePaths(locale)}>{t('nav.bike_paths', locale)}</a>
+              <ul>
+                {networkPages.map(net => (
+                  <li>
+                    <a href={paths.bikePath(net.slug, undefined, locale)}>{net.name}</a>
+                    {net.memberRefs && net.memberRefs.length > 0 && (
+                      <ul>
+                        {net.memberRefs.filter(m => m.standalone).map(m => (
+                          <li><a href={paths.bikePath(m.slug, net.slug, locale)}>{m.name}</a></li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+                {standaloneBikePaths.map(bp => (
+                  <li><a href={paths.bikePath(bp.slug, bp.memberOf, locale)}>{bp.name}</a></li>
+                ))}
+              </ul>
+            </li>
+          )}
         </ul>
       </li>
-      {publishedRoutes.map(route => (
-        <li>
-          <a href={paths.route(routeSlug(route, locale), locale)}>{route.data.name}</a>
-          <ul>
-            <li><a href={paths.routeMap(routeSlug(route, locale), locale)}>{t('nav.map', locale)}</a></li>
-          </ul>
-        </li>
-      ))}
-      {bikePaths.length > 0 && (
-        <li><a href={paths.bikePaths(locale)}>{t('paths.title', locale)}</a>
-          <ul>
-            {bikePaths.map(bp => (
-              <li><a href={paths.bikePath(bp.slug, locale)}>{bp.name}</a></li>
-            ))}
-          </ul>
-        </li>
-      )}
+
+      <li><strong>{t('nav.community', locale)}</strong>
+        <ul>
+          <li><a href={localePath('/calendar', locale)}>{t('nav.calendar', locale)}</a>
+            {events.length > 0 && (
+              <ul>
+                {events.map(e => (
+                  <li><a href={paths.event(e.id, locale)}>{e.data.name}</a></li>
+                ))}
+              </ul>
+            )}
+          </li>
+          <li><a href={paths.communities(locale)}>{t('nav.people', locale)}</a></li>
+          <li><a href={paths.bikeShops(locale)}>{t('bike_shops.heading', locale)}</a></li>
+        </ul>
+      </li>
+
       <li><a href={localePath('/guides', locale)}>{t('guides.title', locale)}</a>
         <ul>
           {publishedGuides.map(guide => (
@@ -130,11 +206,12 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
           ))}
         </ul>
       </li>
-      {events.length > 0 && (
-        <li><a href={localePath('/events', locale)}>{t('nav.events', locale)}</a>
+
+      {allVideos.length > 0 && (
+        <li><a href={localePath('/videos', locale)}>{t('videos.title', locale)}</a>
           <ul>
-            {events.map(e => (
-              <li><a href={paths.event(e.id, locale)}>{e.data.name}</a></li>
+            {allVideos.map(v => (
+              <li><a href={paths.video(v.handle, locale)}>{v.title || v.handle}</a></li>
             ))}
           </ul>
         </li>

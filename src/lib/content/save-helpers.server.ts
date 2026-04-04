@@ -6,6 +6,9 @@ import { deleteConsumedVideoJobs, enrichMediaFromVideoJobs } from '../media/vide
 import { bareVideoKey, videoKeyForGit } from '../media/video-service';
 import { updateMediaRegistryCache } from '../media/media-parking.server';
 import type { ParkedMediaEntry } from '../media/media-merge';
+import type { IGitService } from '../git/git.adapter-github';
+import { jsonError } from '../api-response';
+import { env } from '../env/env.service';
 
 export interface MediaKeyChange {
   key: string;
@@ -70,6 +73,40 @@ export function buildMediaKeyChanges(
  */
 export function buildCommitTrailer(resourcePath: string): string {
   return `\n\nChanges: ${resourcePath}`;
+}
+
+/**
+ * Build a simple Create/Update commit message with trailer.
+ * Used by place, organizer, event, and bike-path save handlers.
+ */
+export function buildSimpleCommitMessage(title: string, resourcePath: string, isNew: boolean): string {
+  const trailer = buildCommitTrailer(resourcePath);
+  return isNew ? `Create ${title}${trailer}` : `Update ${title}${trailer}`;
+}
+
+/**
+ * Build the GitHub URL for a file on the default branch.
+ * Used by save handlers to provide conflict resolution links.
+ */
+export function buildGitHubUrl(filePath: string, baseBranch: string): string {
+  return `https://github.com/${env.GIT_OWNER}/${env.GIT_DATA_REPO}/blob/${baseBranch}/${filePath}`;
+}
+
+/**
+ * Check if a file already exists in git and return a 409 error if so.
+ * Used by place and organizer save handlers for new content creation.
+ */
+export async function checkSlugExistence(
+  git: IGitService,
+  filePath: string,
+  label: string,
+  id: string,
+): Promise<Response | null> {
+  const existing = await git.readFile(filePath);
+  if (existing) {
+    return jsonError(`${label} ${id} already exists`, 409);
+  }
+  return null;
 }
 
 /**

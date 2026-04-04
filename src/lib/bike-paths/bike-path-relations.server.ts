@@ -12,7 +12,7 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
 import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD } from './bike-path-scoring.server';
-import type { parseBikePathsYml } from './bikepaths-yml.server';
+import type { SluggedBikePathYml } from './bikepaths-yml.server';
 import type { BikePathPage } from './bike-path-entries.server';
 
 const CITY_DIR = cityDir;
@@ -44,8 +44,8 @@ export interface PathRelations {
   overlappingRoutes: RouteCard[];
   nearbyPhotos: NearbyPhoto[];
   nearbyPlaces: NearbyPlace[];
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string }>;
-  connectedPaths: Array<{ slug: string; name: string; surface?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
 }
 
 /** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
@@ -73,12 +73,12 @@ function bboxOverlap(
  * This replaces the heavy computation that was happening in workerd prerendering.
  */
 export function computeBikePathRelations(
-  bikePaths: ReturnType<typeof parseBikePathsYml>,
+  bikePaths: SluggedBikePathYml[],
   geoCoords: Record<string, Array<{ lat: number; lng: number }>>,
   routeTracks: Record<string, Array<{ lat: number; lng: number }>>,
   places: Array<{ name: string; category: string; lat: number; lng: number; status?: string }>,
   mediaLocations: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }>,
-): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }>; routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> } {
+): { relations: Record<string, PathRelations>; routeOverlaps: Record<string, { count: number }>; routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string; memberOf?: string }>> } {
   const publishedPlaces = places.filter(p => !p.status || p.status === 'published');
   const relations: Record<string, PathRelations> = {};
   const routeOverlaps: Record<string, { count: number }> = {};
@@ -189,6 +189,7 @@ export function computeBikePathRelations(
   // use a pre-filter: skip entries that are hard-excluded or have no points.
   // This reduces the inner loop from ~600 to ~100-200 candidates.
   const candidateEntries = bikePaths.filter(e => !isHardExcluded(e));
+  const candidateBySlug = new Map(candidateEntries.map(e => [e.slug, e]));
 
   for (const entry of candidateEntries) {
     const points = entryPoints.get(entry.slug) ?? [];
@@ -226,29 +227,40 @@ export function computeBikePathRelations(
     }
     routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
 
-    // Nearby paths (within 2km) — bbox pre-filter + sample points for speed
-    const nearbyPaths: Array<{ slug: string; name: string; surface?: string }> = [];
-    for (const other of candidateEntries) {
-      if (other.slug === entry.slug) continue;
-      const otherPts = entryPoints.get(other.slug) ?? [];
-      if (otherPts.length === 0) continue;
-      const otherBbox = boundingBox(otherPts, 0.02); // ~2km padding
-      if (!bboxOverlap(pathBbox, otherBbox)) continue;
-      // Sample every 5th point to reduce comparisons
-      let found = false;
-      for (let i = 0; i < points.length && !found; i += 5) {
-        for (let j = 0; j < otherPts.length; j += 5) {
-          if (haversineM(points[i].lat, points[i].lng, otherPts[j].lat, otherPts[j].lng) < 2000) { found = true; break; }
+    // Nearby paths (within 2km) — use spatial grid to find candidates
+    const NEARBY_THRESHOLD_M = 2000;
+    const nearbySlugs = new Set<string>();
+    // Sample every 5th point to reduce grid lookups
+    for (let i = 0; i < points.length; i += 5) {
+      const pt = points[i];
+      const cLat = Math.floor(pt.lat / CELL_SIZE);
+      const cLng = Math.floor(pt.lng / CELL_SIZE);
+      const rLat = Math.ceil(NEARBY_THRESHOLD_M / 111000 / CELL_SIZE);
+      const rLng = Math.ceil(NEARBY_THRESHOLD_M / (111000 * Math.cos(pt.lat * Math.PI / 180)) / CELL_SIZE);
+      for (let dLat = -rLat; dLat <= rLat; dLat++) {
+        for (let dLng = -rLng; dLng <= rLng; dLng++) {
+          const cell = pathGrid.get(`${cLat + dLat},${cLng + dLng}`);
+          if (!cell) continue;
+          for (const p of cell) {
+            if (p.slug === entry.slug || nearbySlugs.has(p.slug)) continue;
+            if (haversineM(pt.lat, pt.lng, p.lat, p.lng) < NEARBY_THRESHOLD_M) {
+              nearbySlugs.add(p.slug);
+            }
+          }
         }
       }
-      if (found) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
+    }
+    const nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }> = [];
+    for (const slug of nearbySlugs) {
+      const other = candidateBySlug.get(slug);
+      if (other) nearbyPaths.push({ slug: other.slug, name: other.name, surface: other.surface, memberOf: other.member_of });
     }
 
     // Connected paths (endpoints within 200m) — only check candidate entries
     const endpoints = points.length >= 2
       ? [points[0], points[points.length - 1]]
       : points.slice(0, 1);
-    const connectedPaths: Array<{ slug: string; name: string; surface?: string }> = [];
+    const connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }> = [];
     for (const other of candidateEntries) {
       if (other.slug === entry.slug) continue;
       const otherPts = entryPoints.get(other.slug) ?? [];
@@ -263,7 +275,7 @@ export function computeBikePathRelations(
           if (haversineM(ep.lat, ep.lng, oep.lat, oep.lng) < 200) { found = true; break; }
         }
       }
-      if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface });
+      if (found) connectedPaths.push({ slug: other.slug, name: other.name, surface: other.surface, memberOf: other.member_of });
     }
 
     // Nearby places (within threshold of any path point)
@@ -299,7 +311,7 @@ export function computeBikePathRelations(
   }
 
   // Build reverse map: route slug → list of paths that overlap it
-  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string }>> = {};
+  const routeToPaths: Record<string, Array<{ slug: string; name: string; surface?: string; memberOf?: string }>> = {};
   for (const [pathSlug, rel] of Object.entries(relations)) {
     const pathEntry = bikePaths.find(e => e.slug === pathSlug);
     for (const route of rel.overlappingRoutes) {
@@ -308,6 +320,7 @@ export function computeBikePathRelations(
         slug: pathSlug,
         name: pathEntry?.name ?? pathSlug,
         surface: pathEntry?.surface,
+        memberOf: pathEntry?.member_of,
       });
     }
   }
@@ -328,8 +341,12 @@ export function enrichBikePathPages(
   routeOverlaps: Record<string, { count: number }>,
   geoElevation: Record<string, { gain_m: number; loss_m: number }>,
 ): BikePathPage[] {
-  const result: BikePathPage[] = [];
+  // Two-pass enrichment: first enrich all pages into a Map (order-independent),
+  // then aggregate network pages from member data in the Map.
+  const enrichedBySlug = new Map<string, BikePathPage>();
 
+  // Pass 1: enrich all pages (non-network pages get their own relations,
+  // network pages get their own YML entry relations only — member aggregation in pass 2)
   for (const original of tier1Pages) {
     const matchedEntries = original.ymlEntries;
     // Create a shallow copy to avoid mutating the input array's elements
@@ -440,8 +457,71 @@ export function enrichBikePathPages(
       }
     }
 
-    result.push(page);
+    enrichedBySlug.set(page.slug, page);
   }
 
-  return result;
+  // Pass 2: aggregate network pages from enriched member data (order-independent)
+  for (const page of enrichedBySlug.values()) {
+    if (!page.memberRefs || page.memberRefs.length === 0) continue;
+
+    const memberPages = page.memberRefs
+      .map(m => enrichedBySlug.get(m.slug))
+      .filter((p): p is BikePathPage => !!p);
+
+    // Aggregate overlapping routes from members (deduplicated)
+    const seenRoutes = new Set(page.overlappingRoutes.map(r => r.slug));
+    for (const mp of memberPages) {
+      for (const r of mp.overlappingRoutes) {
+        if (!seenRoutes.has(r.slug)) { seenRoutes.add(r.slug); page.overlappingRoutes.push(r); }
+      }
+    }
+
+    // Aggregate nearby photos from members
+    const seenPhotos = new Set(page.nearbyPhotos.map(p => p.key));
+    for (const mp of memberPages) {
+      for (const p of mp.nearbyPhotos) {
+        if (!seenPhotos.has(p.key)) { seenPhotos.add(p.key); page.nearbyPhotos.push(p); }
+      }
+    }
+
+    // Aggregate nearby places from members
+    const seenPlaces = new Set(page.nearbyPlaces.map(p => p.name + p.lat + p.lng));
+    for (const mp of memberPages) {
+      for (const p of mp.nearbyPlaces) {
+        const key = p.name + p.lat + p.lng;
+        if (!seenPlaces.has(key)) { seenPlaces.add(key); page.nearbyPlaces.push(p); }
+      }
+    }
+    page.nearbyPlaces.sort((a, b) => a.distance_m - b.distance_m);
+
+    page.routeCount = page.overlappingRoutes.length;
+
+    // Update memberRefs with resolved thumbnails
+    for (const ref of page.memberRefs) {
+      const mp = enrichedBySlug.get(ref.slug);
+      if (mp?.thumbnail_key) ref.thumbnail_key = mp.thumbnail_key;
+    }
+  }
+
+  // Pass 3: fix nearby/connected path links — only reference paths that have pages.
+  // Non-standalone member paths have memberOf set in the raw YML but no page at the
+  // nested URL, so linking to them produces 404s. Use the resolved page's memberOf
+  // (which is cleared for non-standalone members) instead of the raw YML member_of.
+  for (const page of enrichedBySlug.values()) {
+    page.nearbyPaths = page.nearbyPaths
+      .filter(p => enrichedBySlug.get(p.slug)?.standalone)
+      .map(p => {
+        const resolved = enrichedBySlug.get(p.slug)!;
+        return { ...p, memberOf: resolved.memberOf };
+      });
+    page.connectedPaths = page.connectedPaths
+      .filter(p => enrichedBySlug.get(p.slug)?.standalone)
+      .map(p => {
+        const resolved = enrichedBySlug.get(p.slug)!;
+        return { ...p, memberOf: resolved.memberOf };
+      });
+  }
+
+  // Preserve original ordering
+  return tier1Pages.map(p => enrichedBySlug.get(p.slug)!);
 }

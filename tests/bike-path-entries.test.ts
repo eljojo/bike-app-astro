@@ -46,6 +46,7 @@ beforeAll(() => {
     surface: asphalt
   - name: Small Local Path
     highway: cycleway
+    member_of: trail-network
   - name: Some Random Road
     highway: tertiary
   - name: Claimed By Includes
@@ -54,13 +55,32 @@ beforeAll(() => {
     operator: City
     highway: cycleway
   - name: Trail Network
-    grouped_from:
+    type: network
+    members:
       - small-local-path
+      - ottawa-river-pathway
     osm_names: [Small Local Path]
     highway: cycleway
     anchors:
       - [-75.69, 45.42]
       - [-75.68, 45.43]
+  - name: Capital Pathway
+    type: network
+    members:
+      - ottawa-river-pathway
+      - aviation-pathway
+    osm_relations: [10990511]
+    operator: NCC
+    highway: cycleway
+    wikidata_meta:
+      description_en: Multi-use pathway network
+      length_km: 220
+      inception: 1970s
+  - name: Aviation Pathway
+    member_of: capital-pathway
+    osm_relations: [7174865]
+    highway: cycleway
+    surface: asphalt
 `);
 
   // Markdown that matches a YML entry by slug
@@ -86,6 +106,18 @@ tags:
   - combined
 ---
 This page combines multiple YML entries.
+`);
+
+  // Markdown that matches a type: network YML entry — should overlay, not replace
+  fs.writeFileSync(path.join(bikePathsDir, 'trail-network.md'), `---
+name: Trail Network Park
+vibe: A network of trails through the forest
+tags:
+  - park
+  - family
+photo_key: trail-network-photo
+---
+A lovely network of trails.
 `);
 
   // Hidden markdown (should be excluded)
@@ -127,7 +159,7 @@ describe('loadBikePathEntries', () => {
 
   it('parses all YML entries', () => {
     const { allYmlEntries } = loadBikePathEntries();
-    expect(allYmlEntries.length).toBe(6);
+    expect(allYmlEntries.length).toBe(8);
     expect(allYmlEntries.map(e => e.name)).toContain('Ottawa River Pathway');
     expect(allYmlEntries.map(e => e.name)).toContain('Rideau Canal Pathway');
   });
@@ -145,6 +177,7 @@ describe('loadBikePathEntries', () => {
       expect(Array.isArray(page.points)).toBe(true);
       expect(typeof page.score).toBe('number');
       expect(typeof page.hasMarkdown).toBe('boolean');
+      expect(typeof page.standalone).toBe('boolean');
       expect(typeof page.stub).toBe('boolean');
       expect(typeof page.featured).toBe('boolean');
     }
@@ -182,7 +215,7 @@ describe('loadBikePathEntries', () => {
     expect(rideau).toBeDefined();
     expect(rideau!.hasMarkdown).toBe(true);
     expect(rideau!.name).toBe('Rideau Canal Pathway');
-    expect(rideau!.name_fr).toBe('Sentier du canal Rideau');
+    expect(rideau!.translations.fr?.name).toBe('Sentier du canal Rideau');
     expect(rideau!.vibe).toBe('A gentle ride along the canal');
     expect(rideau!.tags).toEqual(['scenic', 'flat']);
     expect(rideau!.photo_key).toBe('rideau-canal-photo');
@@ -212,11 +245,11 @@ describe('loadBikePathEntries', () => {
     expect(road).toBeUndefined();
   });
 
-  it('absorbed member does not get its own page', () => {
+  it('network members keep their own pages with memberOf set', () => {
     const { pages } = loadBikePathEntries();
-    // "Small Local Path" is absorbed by "Trail Network" via grouped_from
     const small = pages.find(p => p.slug === 'small-local-path');
-    expect(small).toBeUndefined();
+    expect(small).toBeDefined();
+    expect(small!.memberOf).toBe('trail-network');
   });
 
   it('includes high-scoring unclaimed YML entries as listed pages', () => {
@@ -238,26 +271,70 @@ describe('loadBikePathEntries', () => {
     expect(guide!.ymlEntries.length).toBe(0);
   });
 
-  it('grouped_from entry produces a single listed page', () => {
+  it('type: network entry produces a network page with memberRefs', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'trail-network');
     expect(network).toBeDefined();
     expect(network!.listed).toBe(true);
-    expect(network!.hasMarkdown).toBe(false);
+    expect(network!.memberRefs).toBeDefined();
+    expect(network!.memberRefs!.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('grouped_from page includes member in ymlEntries', () => {
+  it('network memberRefs contain member slugs', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'trail-network');
-    expect(network!.ymlEntries.length).toBeGreaterThanOrEqual(2);
-    const memberNames = network!.ymlEntries.map(e => e.name);
-    expect(memberNames).toContain('Small Local Path');
-    expect(memberNames).toContain('Trail Network');
+    const memberSlugs = network!.memberRefs!.map(m => m.slug);
+    expect(memberSlugs).toContain('small-local-path');
+    expect(memberSlugs).toContain('ottawa-river-pathway');
   });
 
-  it('grouped page merges osmNames from all members', () => {
+  it('constructs network page with memberRefs', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'capital-pathway');
+    expect(network).toBeDefined();
+    expect(network!.memberRefs).toBeDefined();
+    expect(network!.memberRefs!.length).toBe(2);
+    expect(network!.memberRefs!.map(m => m.slug)).toContain('ottawa-river-pathway');
+    expect(network!.memberRefs!.map(m => m.slug)).toContain('aviation-pathway');
+    expect(network!.standalone).toBe(true);
+    expect(network!.listed).toBe(true);
+  });
+
+  it('network page uses wikidata_meta.length_km when available', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'capital-pathway');
+    expect(network!.length_km).toBe(220);
+  });
+
+  it('member path has memberOf set', () => {
+    const { pages } = loadBikePathEntries();
+    const aviation = pages.find(p => p.slug === 'aviation-pathway');
+    expect(aviation).toBeDefined();
+    expect(aviation!.memberOf).toBe('capital-pathway');
+  });
+
+  it('network page aggregates osm_relations from self and members', () => {
+    const { pages } = loadBikePathEntries();
+    const network = pages.find(p => p.slug === 'capital-pathway');
+    // Network's own relation + ottawa-river-pathway's relation + aviation-pathway's
+    expect(network!.osmRelationIds).toContain(10990511);
+    expect(network!.osmRelationIds).toContain(7174864);
+    expect(network!.osmRelationIds).toContain(7174865);
+  });
+
+  it('markdown overlaying a network entry produces a network page, not a standalone page', () => {
     const { pages } = loadBikePathEntries();
     const network = pages.find(p => p.slug === 'trail-network');
-    expect(network!.osmNames).toContain('Small Local Path');
+    expect(network).toBeDefined();
+    // Must be a network page with memberRefs — not a standalone page
+    expect(network!.memberRefs).toBeDefined();
+    expect(network!.memberRefs!.length).toBeGreaterThanOrEqual(2);
+    // Markdown content should overlay onto the network page
+    expect(network!.hasMarkdown).toBe(true);
+    expect(network!.name).toBe('Trail Network Park');
+    expect(network!.vibe).toBe('A network of trails through the forest');
+    expect(network!.body).toContain('A lovely network of trails');
+    expect(network!.tags).toEqual(['park', 'family']);
+    expect(network!.photo_key).toBe('trail-network-photo');
   });
 });

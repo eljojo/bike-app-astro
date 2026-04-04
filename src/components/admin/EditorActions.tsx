@@ -34,19 +34,17 @@ export default function EditorActions({
       {error && !githubUrl && <div class="auth-error">{error}</div>}
       {githubUrl && contentType && (
         <div class="conflict-notice">
-          <strong>Save blocked — this {contentType} was changed on GitHub</strong>
-          <p>Someone modified this {contentType} since you started editing.
-            Your changes are still in the form above — nothing was lost.</p>
+          <strong>Save blocked — someone else updated this {contentType} while you were editing</strong>
+          <p>Your changes are still in the form above — nothing was lost.</p>
           <p><strong>To resolve this:</strong></p>
           <ol>
-            <li>Open the file on GitHub to see what changed</li>
+            <li>Reload the page to see the latest version</li>
             <li>Copy your edits from the form above (they're safe until you navigate away)</li>
-            <li>Either apply your changes directly on GitHub, or wait for the site to rebuild,
-              then reload this page and re-enter your edits</li>
+            <li>Re-enter your edits on the reloaded page</li>
           </ol>
           <a href={githubUrl} target="_blank" rel="noopener" class="btn-primary"
             style="display: inline-block; margin-top: 0.5rem; text-decoration: none;">
-            View file on GitHub
+            View changes
           </a>
         </div>
       )}
@@ -55,7 +53,7 @@ export default function EditorActions({
       )}
       {saved && userRole !== 'guest' && !guestCreated && (
         <div class="save-success">
-          Saved! Your edit will be live in a few minutes.
+          Saved. Your edit will be live in a few minutes.
           {viewLink && <>{' '}<a href={viewLink}>View live</a></>}
         </div>
       )}

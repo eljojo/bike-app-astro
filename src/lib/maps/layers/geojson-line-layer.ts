@@ -1,6 +1,6 @@
 // src/lib/maps/layers/geojson-line-layer.ts
 import maplibregl from 'maplibre-gl';
-import { ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../map-init';
+import { ROUTE_COLOR, ROUTE_LINE_WIDTH, showPopup } from '../map-init';
 import type { MapLayer, LayerContext } from './types';
 
 export interface GeojsonLineLayerOptions {
@@ -8,13 +8,19 @@ export interface GeojsonLineLayerOptions {
   geoFiles: string[];
   /** Base URL path, e.g. '/bike-paths/geo/' */
   fetchPath: string;
+  /** Optional mapping from geo filename to slug — enriches features for highlight */
+  slugMap?: Record<string, string>;
+  /** Optional mapping from slug to display name — enables click popups */
+  nameMap?: Record<string, string>;
+  /** Optional mapping from slug to URL — enables click-through links in popups */
+  urlMap?: Record<string, string>;
 }
 
 const SOURCE_ID = 'bike-path';
 const LINE_LAYER_ID = 'bike-path-line';
 
 export function createGeojsonLineLayer(opts: GeojsonLineLayerOptions): MapLayer {
-  const { geoFiles, fetchPath } = opts;
+  const { geoFiles, fetchPath, slugMap, nameMap, urlMap } = opts;
 
   let cachedFeatures: GeoJSON.Feature[] | null = null;
   let bounds: maplibregl.LngLatBounds | null = null;
@@ -43,7 +49,11 @@ export function createGeojsonLineLayer(opts: GeojsonLineLayerOptions): MapLayer 
             if (!res.ok) continue;
             const geojson = await res.json();
             if (!ctx.isCurrent()) return;
+            const fileSlug = slugMap?.[file];
             for (const feature of geojson.features) {
+              if (fileSlug) {
+                feature.properties = { ...feature.properties, slug: fileSlug };
+              }
               features.push(feature);
               if (feature.geometry.type === 'LineString') {
                 for (const coord of feature.geometry.coordinates) {
@@ -75,6 +85,25 @@ export function createGeojsonLineLayer(opts: GeojsonLineLayerOptions): MapLayer 
           'line-opacity': 0.85,
         },
       });
+
+      // Click popups when slug + name data is available
+      if (nameMap && slugMap) {
+        map.on('click', LINE_LAYER_ID, (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+          const slug = e.features?.[0]?.properties?.slug;
+          if (!slug) return;
+          const name = nameMap[slug] || slug;
+          const url = urlMap?.[slug];
+          const html = url
+            ? `<a href="${url}" style="font-weight:600;color:inherit">${name}</a>`
+            : name;
+          const popup = new maplibregl.Popup({ offset: 10, maxWidth: '220px' })
+            .setLngLat(e.lngLat)
+            .setHTML(html);
+          showPopup(map, popup);
+        });
+        map.on('mouseenter', LINE_LAYER_ID, () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', LINE_LAYER_ID, () => { map.getCanvas().style.cursor = ''; });
+      }
 
       if (bounds && !bounds.isEmpty()) {
         map.fitBounds(bounds, { padding: 30, animate: false });
