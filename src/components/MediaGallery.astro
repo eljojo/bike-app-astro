@@ -2,7 +2,7 @@
 import './PhotoGallery.scss';
 import './VideoGallery.scss';
 import { imageUrl, imageSrcSet2x } from '../lib/media/image-service';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../lib/media/video-service';
+import { videoPlaybackSources, videoPosterUrl, videoFallbackUrl, videoDisplaySize } from '../lib/media/video-service';
 import VideoGallery from './VideoGallery';
 import type { VideoGalleryItem } from './VideoGallery';
 import { paths } from '../lib/paths';
@@ -41,15 +41,19 @@ const hasVideoPages = !isBlogInstance();
 const videoItems: VideoGalleryItem[] = [
   ...hostedVideos.map(v => {
     const sources = videoPlaybackSources(v.key);
-    const size = videoDisplaySize(v.width || 640, v.height || 360);
+    const origW = v.width || 640;
+    const origH = v.height || 360;
+    const display = videoDisplaySize(origW, origH);
     return {
       type: 'hosted' as const,
       key: v.key,
       sources,
       poster: videoPosterUrl(v.key),
       fallbackUrl: videoFallbackUrl(v.key),
-      width: size.width,
-      height: size.height,
+      width: display.width,
+      height: display.height,
+      aspectW: origW,
+      aspectH: origH,
       title: v.title,
       detailUrl: v.handle && hasVideoPages ? paths.video(v.handle, locale) : undefined,
       thumbUrl: videoPosterUrl(v.key),

@@ -2,15 +2,34 @@
 @use '../styles/mixins' as *;
 
 .video-gallery {
-  max-width: 800px;
+  margin-top: 1.5rem;
+
+  @media (max-width: $breakpoint-tablet) {
+    max-width: var(--video-max-w, 640px);
+  }
+}
+
+.video-gallery--row {
+  @media (min-width: $breakpoint-tablet + 1) {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+}
+
+.video-gallery--player-col {
+  max-width: var(--video-max-w, 640px);
+  flex: 0 1 auto;
 }
 
 .video-gallery--player {
-  video, iframe {
+  video {
     width: 100%;
-    height: auto;
+    aspect-ratio: var(--video-aspect, 16 / 9);
+    object-fit: contain;
     border-radius: $border-radius;
     display: block;
+    background: #000;
   }
 }
 
@@ -30,41 +49,76 @@
   }
 }
 
-.video-gallery--title {
-  margin: 0.4rem 0 0;
+.video-gallery--active-title {
+  margin: 0 0 0.3rem;
   font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .video-gallery--thumbs {
   display: flex;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  // Desktop: vertical list capped to player height, scroll if overflow
+  @media (min-width: $breakpoint-tablet + 1) {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    max-height: var(--video-thumbs-max-h, 360px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    margin-top: 0.5rem;
+  }
 }
 
 .video-gallery--thumb {
   flex: 0 0 auto;
-  width: 120px;
-  height: 68px;
-  border-radius: $border-radius-small;
-  overflow: hidden;
   border: 2px solid transparent;
   padding: 0;
   cursor: pointer;
-  position: relative;
-  transition: border-color $transition-state, opacity $transition-state;
+  transition: border-color $transition-state, opacity $transition-state, background-color $transition-state;
   background: none;
   opacity: 0.7;
 
-  @media (max-width: $breakpoint-mobile - 1px) {
-    width: 100px;
-    height: 56px;
+  // Desktop: horizontal layout with title beside thumbnail
+  @media (min-width: $breakpoint-tablet + 1) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: $border-radius;
+    padding: 0.25rem;
+  }
+
+  // Mobile: square thumbnail only
+  @media (max-width: $breakpoint-tablet) {
+    border-radius: $border-radius-small;
+    overflow: hidden;
   }
 
   &:hover {
     opacity: 1;
+    background: rgba(0, 0, 0, 0.04);
+
+    @include dark-mode {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+}
+
+.video-gallery--thumb-img {
+  width: 80px;
+  height: 80px;
+  border-radius: $border-radius-small;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+
+  @media (max-width: $breakpoint-mobile - 1px) {
+    width: 64px;
+    height: 64px;
   }
 
   img {
@@ -78,6 +132,21 @@
 .video-gallery--thumb-active {
   border-color: $color-accent;
   opacity: 1;
+}
+
+.video-gallery--thumb-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: $color-text;
+  display: none;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  @media (min-width: $breakpoint-tablet + 1) {
+    display: block;
+  }
 }
 
 .video-gallery--thumb-play {
