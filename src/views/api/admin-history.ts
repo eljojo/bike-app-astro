@@ -12,7 +12,7 @@ import { checkRateLimit, recordAttempt } from '../../lib/auth/rate-limit';
 import { createHash } from 'node:crypto';
 
 const historyRequestSchema = z.object({
-  path: z.string(),
+  path: z.string().optional(),
   perPage: z.number().int().min(1).max(100).optional().default(20),
   page: z.number().int().min(1).optional().default(1),
 });
