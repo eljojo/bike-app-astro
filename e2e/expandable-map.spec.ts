@@ -98,6 +98,86 @@ test.describe('Compact mode — no photo bubbles', () => {
   });
 });
 
+test.describe('Photo layer lifecycle', () => {
+  test('photos appear when expanded and localStorage map-photos=true', async ({ page }) => {
+    await page.goto(ROUTE_URL);
+    await page.evaluate(() => localStorage.setItem('map-photos', 'true'));
+    await page.reload();
+    await waitForMapSettled(page);
+
+    // Compact: no bubbles
+    const bubbles = page.locator('.expandable-map-card .photo-bubble');
+    await expect(bubbles).toHaveCount(0);
+
+    // Expand
+    const card = page.locator('.expandable-map-card');
+    await card.click();
+    await expect(card).toHaveClass(/expanded/);
+
+    // Wait for layers to settle after expand
+    await page.waitForTimeout(2000);
+
+    // Expanded: photos should be visible (stored preference is true)
+    const expandedBubbles = page.locator('.expandable-map-card .photo-bubble');
+    const count = await expandedBubbles.count();
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test('photos disappear after collapsing', async ({ page }) => {
+    await page.goto(ROUTE_URL);
+    await page.evaluate(() => localStorage.setItem('map-photos', 'true'));
+    await page.reload();
+    await waitForMapSettled(page);
+
+    // Expand
+    const card = page.locator('.expandable-map-card');
+    await card.click();
+    await expect(card).toHaveClass(/expanded/);
+    await page.waitForTimeout(2000);
+
+    // Verify photos appeared
+    const expandedBubbles = page.locator('.expandable-map-card .photo-bubble');
+    expect(await expandedBubbles.count()).toBeGreaterThan(0);
+
+    // Collapse
+    await page.locator('.expandable-map-close').click();
+    await page.waitForTimeout(1000);
+
+    // Compact again: no bubbles
+    const compactBubbles = page.locator('.expandable-map-card .photo-bubble');
+    await expect(compactBubbles).toHaveCount(0);
+  });
+
+  test('photos off in compact even after expand-collapse cycle with photos on', async ({ page }) => {
+    await page.goto(ROUTE_URL);
+    await page.evaluate(() => localStorage.setItem('map-photos', 'true'));
+    await page.reload();
+    await waitForMapSettled(page);
+
+    const card = page.locator('.expandable-map-card');
+    const closeBtn = page.locator('.expandable-map-close');
+    const bubbles = page.locator('.expandable-map-card .photo-bubble');
+
+    // Cycle 1: expand (photos on) -> collapse (photos off)
+    await card.click();
+    await expect(card).toHaveClass(/expanded/);
+    await page.waitForTimeout(2000);
+    expect(await bubbles.count()).toBeGreaterThan(0);
+    await closeBtn.click();
+    await page.waitForTimeout(1000);
+    await expect(bubbles).toHaveCount(0);
+
+    // Cycle 2: expand again (photos should come back) -> collapse (gone again)
+    await card.click();
+    await expect(card).toHaveClass(/expanded/);
+    await page.waitForTimeout(2000);
+    expect(await bubbles.count()).toBeGreaterThan(0);
+    await closeBtn.click();
+    await page.waitForTimeout(1000);
+    await expect(bubbles).toHaveCount(0);
+  });
+});
+
 test.describe('Expand and collapse', () => {
   test('clicking card expands map', async ({ page }) => {
     await page.goto(ROUTE_URL);
