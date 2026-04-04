@@ -36,50 +36,11 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 </div>
 
 <script>
-  import { setupMap, wireVariantSwitch } from '../lib/maps/map-factory';
-  import { buildPlacePopup } from '../lib/maps/map-helpers';
-  import polylineCodec from '@mapbox/polyline';
+  import { setupMapFromElement, wireVariantSwitch } from '../lib/maps/map-factory';
 
   const card = document.getElementById('route-detail-map');
-  const glEl = document.getElementById('route-detail-map-gl');
-  const overlay = document.getElementById('route-detail-map-overlay');
-  const closeBtn = document.getElementById('route-detail-map-close');
-  const controlsEl = document.getElementById('route-detail-map-controls');
-
-  if (card && glEl && overlay && closeBtn) {
-    const polylines: { name: string; encoded: string; key?: string }[] = JSON.parse(card.dataset.polylines || '[]');
-    const places: any[] = JSON.parse(card.dataset.places || '[]');
-    const photos: any[] = JSON.parse(card.dataset.photos || '[]');
-    const cdnUrl = card.dataset.cdnUrl || '';
-
-    // Center from first polyline midpoint
-    let center: [number, number] = [0, 0];
-    if (polylines.length > 0) {
-      const points = polylineCodec.decode(polylines[0].encoded);
-      const mid = points[Math.floor(points.length / 2)];
-      center = [mid[0], mid[1]];
-    }
-
-    // All variant polylines — only show the first initially
-    const allPolylines = polylines.map(pl => ({ encoded: pl.encoded, popup: pl.name, key: pl.key }));
-    const initialPolyline = allPolylines.length > 0 ? [allPolylines[0]] : [];
-
-    const placeData = places.map((p: any) => ({
-      lat: p.lat, lng: p.lng, emoji: p.emoji,
-      popup: buildPlacePopup(p, cdnUrl),
-    }));
-
-    const { map, polylineLayer } = setupMap({
-      el: glEl,
-      center,
-      polylines: initialPolyline,
-      photos,
-      places: placeData,
-      cdnUrl,
-      controlsEl,
-      expandable: { card, glEl, overlay, closeBtn },
-    });
-
-    wireVariantSwitch(map, polylineLayer, allPolylines);
+  if (card) {
+    const { map, polylineLayer } = setupMapFromElement(card, { expandable: true });
+    wireVariantSwitch(map, polylineLayer, card);
   }
 </script>

@@ -49,31 +49,20 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 </div>
 
 <script>
-  import { setupMap } from '../lib/maps/map-factory';
+  import { setupMapFromElement } from '../lib/maps/map-factory';
   import { createGeojsonLineLayer } from '../lib/maps/layers';
-  import { categoryEmoji } from '../lib/geo/place-categories';
   import { setupPathHighlight } from '../lib/maps/path-highlight';
 
   const container = document.getElementById('bike-path-map');
-  const glEl = document.getElementById('bike-path-map-gl');
-  const overlay = document.getElementById('bike-path-map-overlay');
-  const closeBtn = document.getElementById('bike-path-map-close');
-  const controlsEl = document.getElementById('bike-path-map-controls');
-
-  if (container && glEl && overlay && closeBtn) {
+  if (container) {
+    // BikePathMap uses geojson files instead of encoded polylines — create the layer manually
     const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
-    const centerData = container.dataset.center ? JSON.parse(container.dataset.center) : null;
-    const fallbackCenterData = JSON.parse(container.dataset.fallbackCenter || '[0,0]');
-    const center: [number, number] = centerData || fallbackCenterData;
-    const photos: Array<{ key: string; lat: number; lng: number }> = JSON.parse(container.dataset.photos || '[]');
-    const places: Array<{ name: string; lat: number; lng: number; category: string }> = JSON.parse(container.dataset.places || '[]');
-    const cdnUrl = container.dataset.cdnUrl || '';
-    const slugMap: Record<string, string> = container.dataset.slugMap ? JSON.parse(container.dataset.slugMap) : {};
-    const nameMap: Record<string, string> = container.dataset.nameMap ? JSON.parse(container.dataset.nameMap) : {};
-    const urlMap: Record<string, string> = container.dataset.urlMap ? JSON.parse(container.dataset.urlMap) : {};
+    const slugMap = container.dataset.slugMap ? JSON.parse(container.dataset.slugMap) : {};
+    const nameMap = container.dataset.nameMap ? JSON.parse(container.dataset.nameMap) : {};
+    const urlMap = container.dataset.urlMap ? JSON.parse(container.dataset.urlMap) : {};
     const highlightSelector = container.dataset.highlightSelector || '';
-
     const hasSlugMap = Object.keys(slugMap).length > 0;
+
     const geojsonLayer = createGeojsonLineLayer({
       geoFiles,
       fetchPath: '/bike-paths/geo/',
@@ -82,22 +71,9 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       ...(Object.keys(urlMap).length > 0 && { urlMap }),
     });
 
-    const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
-    const placeData = places.map(p => ({
-      lat: p.lat, lng: p.lng,
-      emoji: categoryEmoji[p.category] || '📌',
-      popup: `<div class="place-popup">${p.name}</div>`,
-    }));
-
-    const { map, expandable, photoLayer } = setupMap({
-      el: glEl,
-      center,
+    const { map, expandable, photoLayer } = setupMapFromElement(container, {
+      expandable: true,
       primaryLayer: geojsonLayer,
-      photos: photoData,
-      places: placeData,
-      cdnUrl,
-      controlsEl,
-      expandable: { card: container, glEl, overlay, closeBtn },
       onReady: () => {
         if (highlightSelector && hasSlugMap) {
           setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['bike-path-line'] });
@@ -105,7 +81,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       },
     });
 
-    // Listen for "show photo on map" events from the photo grid
+    // "Show photo on map" from the photo grid
     document.addEventListener('map:show-photo', ((e: CustomEvent<{ key: string; lat: number; lng: number }>) => {
       const { key, lat, lng } = e.detail;
       expandable?.expand();
@@ -116,8 +92,7 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
           map.once('idle', () => {
             const bubbles = map.getContainer().querySelectorAll('.photo-bubble img');
             for (const img of bubbles) {
-              const src = (img as HTMLImageElement).src;
-              if (src.includes(key)) {
+              if ((img as HTMLImageElement).src.includes(key)) {
                 (img.closest('.photo-bubble') as HTMLElement)?.click();
                 break;
               }

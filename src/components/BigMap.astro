@@ -175,8 +175,6 @@ const hasPaths = pathMapData.length > 0;
     let pathsVisible = initialShowPaths;
 
     session.start(() => {
-      // onReady: all layers (including async tile-path) are set up
-
       // Photos off by default on big map (unless user previously enabled)
       if (!loadToggleState('map-photos', false)) {
         photoLayer.setVisible!(map, false);
@@ -188,8 +186,11 @@ const hasPaths = pathMapData.length > 0;
       } else if (hasPaths) {
         tilePathLayer.setVisible!(map, false);
       }
+    });
 
-      // Controls
+    // Controls — render on map.on('load'), not session.start().
+    // session.start() waits for tile loading (slow); controls don't need tiles.
+    map.on('load', () => {
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
