@@ -1,11 +1,11 @@
 // src/lib/maps/layers/place-layer.ts
 import maplibregl from 'maplibre-gl';
 import { showPopup } from '../map-init';
+import { buildPlacePopup } from '../map-helpers';
 import type { MapLayer, LayerContext } from './types';
-import type { MarkerOptions } from '../map-init';
 
 export interface PlaceLayerOptions {
-  places: MarkerOptions[];
+  cdnUrl: string;
   defaultVisible?: boolean;
 }
 
@@ -13,7 +13,7 @@ const SOURCE_ID = 'place-markers';
 const LAYER_IDS = ['place-clusters', 'place-cluster-count', 'place-unclustered'];
 
 export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
-  const { places, defaultVisible = true } = opts;
+  const { cdnUrl, defaultVisible = true } = opts;
 
   let syncHandler: (() => void) | null = null;
   let clusterClickHandler: ((e: maplibregl.MapLayerMouseEvent) => void) | null = null;
@@ -21,6 +21,7 @@ export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
   let leaveHandler: (() => void) | null = null;
   const emojiMarkers = new Map<string, maplibregl.Marker>();
   let visible = defaultVisible;
+  let cachedGeoJson: GeoJSON.FeatureCollection | null = null;
 
   function removeAllDomMarkers() {
     for (const [, marker] of emojiMarkers) marker.remove();
@@ -57,21 +58,23 @@ export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
 
   return {
     id: 'places',
-    hasContent: places.length > 0,
+    hasContent: true,
 
-    setup(ctx: LayerContext) {
+    async setup(ctx: LayerContext) {
       const { map } = ctx;
+
+      if (!cachedGeoJson) {
+        const res = await fetch('/places/geo/places.geojson');
+        if (!res.ok) return;
+        cachedGeoJson = await res.json() as GeoJSON.FeatureCollection;
+        if (!ctx.isCurrent()) return;
+      }
+
+      if (cachedGeoJson.features.length === 0) return;
 
       map.addSource(SOURCE_ID, {
         type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: places.map(m => ({
-            type: 'Feature' as const,
-            geometry: { type: 'Point' as const, coordinates: [m.lng, m.lat] },
-            properties: { emoji: m.emoji, popup: m.popup },
-          })),
-        },
+        data: cachedGeoJson,
         cluster: true,
         clusterRadius: 30,
         clusterMaxZoom: 12,
@@ -129,9 +132,20 @@ export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
             el.style.cursor = 'pointer';
             el.innerHTML = `<span class="poi-marker-emoji">${props.emoji}</span>`;
 
-            const popup = new maplibregl.Popup({ offset: 20, maxWidth: '320px' }).setHTML(props.popup);
             el.addEventListener('click', (e) => {
               e.stopPropagation();
+              const popupHtml = buildPlacePopup({
+                name: props.name,
+                address: props.address,
+                phone: props.phone,
+                link: props.link,
+                google_maps_url: props.google_maps_url,
+                photo_key: props.photo_key,
+                category: props.category,
+                organizer_name: props.organizer_name,
+                organizer_url: props.organizer_url,
+              }, cdnUrl);
+              const popup = new maplibregl.Popup({ offset: 20, maxWidth: '320px' }).setHTML(popupHtml);
               popup.setLngLat(coords);
               showPopup(map, popup);
             });
