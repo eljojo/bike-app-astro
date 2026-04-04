@@ -110,7 +110,8 @@ const placeDesc = (() => {
   return desc;
 })();
 
-const nearbyBikePaths = routeToPaths[route.id] ?? [];
+const features = getInstanceFeatures();
+const nearbyBikePaths = features.hasPaths ? (routeToPaths[route.id] ?? []) : [];
 
 const similarRoutes = findSimilarRoutes(route.id, similarityMatrix, 3);
 
