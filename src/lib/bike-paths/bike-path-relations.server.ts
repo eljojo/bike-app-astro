@@ -503,6 +503,25 @@ export function enrichBikePathPages(
     }
   }
 
+  // Pass 3: fix nearby/connected path links — only reference paths that have pages.
+  // Non-standalone member paths have memberOf set in the raw YML but no page at the
+  // nested URL, so linking to them produces 404s. Use the resolved page's memberOf
+  // (which is cleared for non-standalone members) instead of the raw YML member_of.
+  for (const page of enrichedBySlug.values()) {
+    page.nearbyPaths = page.nearbyPaths
+      .filter(p => enrichedBySlug.get(p.slug)?.standalone)
+      .map(p => {
+        const resolved = enrichedBySlug.get(p.slug)!;
+        return { ...p, memberOf: resolved.memberOf };
+      });
+    page.connectedPaths = page.connectedPaths
+      .filter(p => enrichedBySlug.get(p.slug)?.standalone)
+      .map(p => {
+        const resolved = enrichedBySlug.get(p.slug)!;
+        return { ...p, memberOf: resolved.memberOf };
+      });
+  }
+
   // Preserve original ordering
   return tier1Pages.map(p => enrichedBySlug.get(p.slug)!);
 }

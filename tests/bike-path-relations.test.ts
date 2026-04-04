@@ -25,7 +25,8 @@ vi.mock('../src/lib/config/city-config', () => ({
   }),
 }));
 
-import { computeBikePathRelations } from '../src/lib/bike-paths/bike-path-relations.server';
+import { computeBikePathRelations, enrichBikePathPages } from '../src/lib/bike-paths/bike-path-relations.server';
+import type { BikePathPage } from '../src/lib/bike-paths/bike-path-entries.server';
 import type { SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 import { haversineM } from '../src/lib/geo/proximity';
 
@@ -582,5 +583,96 @@ describe('computeBikePathRelations', () => {
 
       expect(relations['anchor-path'].nearbyPhotos).toHaveLength(1);
     });
+  });
+});
+
+/** Create a minimal BikePathPage for enrichBikePathPages tests. */
+function makePage(overrides: Partial<BikePathPage> & { slug: string; name: string }): BikePathPage {
+  return {
+    tags: [],
+    score: 50,
+    hasMarkdown: false,
+    listed: true,
+    standalone: true,
+    stub: false,
+    featured: false,
+    ymlEntries: [makeEntry({ slug: overrides.slug, name: overrides.name })],
+    osmRelationIds: [],
+    osmNames: [],
+    geoFiles: [],
+    points: [],
+    routeCount: 0,
+    overlappingRoutes: [],
+    nearbyPhotos: [],
+    nearbyPlaces: [],
+    nearbyPaths: [],
+    connectedPaths: [],
+    translations: {},
+    ...overrides,
+  };
+}
+
+describe('enrichBikePathPages', () => {
+  it('excludes non-standalone paths from nearbyPaths and connectedPaths', () => {
+    const pageA = makePage({ slug: 'park-path', name: 'Park Path' });
+
+    // Trail X is NOT standalone — it's a non-standalone network member (no page exists)
+    const pageB = makePage({
+      slug: 'trail-x',
+      name: 'Trail X',
+      standalone: false,
+      memberOf: 'some-network',
+    });
+
+    // Relations say park-path sees trail-x as nearby and connected
+    const enriched = enrichBikePathPages(
+      [pageA, pageB],
+      {
+        'park-path': {
+          overlappingRoutes: [], nearbyPhotos: [], nearbyPlaces: [],
+          nearbyPaths: [{ slug: 'trail-x', name: 'Trail X', memberOf: 'some-network' }],
+          connectedPaths: [{ slug: 'trail-x', name: 'Trail X', memberOf: 'some-network' }],
+        },
+        'trail-x': { overlappingRoutes: [], nearbyPhotos: [], nearbyPlaces: [], nearbyPaths: [], connectedPaths: [] },
+      },
+      { 'park-path': { count: 0 }, 'trail-x': { count: 0 } },
+      {},
+    );
+
+    const parkPath = enriched.find(p => p.slug === 'park-path')!;
+    // Non-standalone trail-x should be filtered out — linking to it would produce a 404
+    expect(parkPath.nearbyPaths).toHaveLength(0);
+    expect(parkPath.connectedPaths).toHaveLength(0);
+  });
+
+  it('keeps standalone paths in nearbyPaths and uses resolved memberOf', () => {
+    const pageA = makePage({ slug: 'park-path', name: 'Park Path' });
+
+    // Good trail IS standalone — it has a page at /bike-paths/the-network/good-trail
+    const pageB = makePage({
+      slug: 'good-trail',
+      name: 'Good Trail',
+      standalone: true,
+      memberOf: 'the-network',
+    });
+
+    const enriched = enrichBikePathPages(
+      [pageA, pageB],
+      {
+        'park-path': {
+          overlappingRoutes: [], nearbyPhotos: [], nearbyPlaces: [],
+          nearbyPaths: [{ slug: 'good-trail', name: 'Good Trail', memberOf: 'the-network' }],
+          connectedPaths: [],
+        },
+        'good-trail': { overlappingRoutes: [], nearbyPhotos: [], nearbyPlaces: [], nearbyPaths: [], connectedPaths: [] },
+      },
+      { 'park-path': { count: 0 }, 'good-trail': { count: 0 } },
+      {},
+    );
+
+    const parkPath = enriched.find(p => p.slug === 'park-path')!;
+    expect(parkPath.nearbyPaths).toHaveLength(1);
+    expect(parkPath.nearbyPaths[0].slug).toBe('good-trail');
+    expect(parkPath.nearbyPaths[0].memberOf).toBe('the-network');
   });
 });
