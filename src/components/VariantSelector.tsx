@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 
 interface VariantOption {
   key: string;
@@ -12,7 +12,19 @@ interface Props {
 }
 
 export default function VariantSelector({ variants, initialVariant }: Props) {
-  const [active, setActive] = useState(initialVariant || variants[0]?.key || '');
+  // Check URL for ?variant= param (used by map page redirects)
+  const urlVariant = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('variant') || undefined
+    : undefined;
+  const startKey = urlVariant && variants.some(v => v.key === urlVariant) ? urlVariant : initialVariant || variants[0]?.key || '';
+  const [active, setActive] = useState(startKey);
+
+  // Dispatch variant:change on mount if URL had a variant param
+  useEffect(() => {
+    if (urlVariant && urlVariant !== (variants[0]?.key || '') && variants.some(v => v.key === urlVariant)) {
+      window.dispatchEvent(new CustomEvent('variant:change', { detail: { key: urlVariant } }));
+    }
+  }, []);
 
   function select(key: string) {
     setActive(key);

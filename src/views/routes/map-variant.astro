@@ -27,5 +27,10 @@ export async function getStaticPaths() {
 const { route } = Astro.props;
 const locale = Astro.currentLocale;
 const slug = routeSlug(route, locale);
-return Astro.redirect(paths.route(slug, locale), 301);
+const variant = Astro.params.variant;
+const defaultVariant = variantKeyFromGpx(route.data.variants[0]?.gpx || '');
+const dest = variant && variant !== defaultVariant
+  ? `${paths.route(slug, locale)}?variant=${variant}`
+  : paths.route(slug, locale);
+return Astro.redirect(dest, 301);
 ---

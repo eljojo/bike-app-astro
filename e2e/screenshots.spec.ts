@@ -82,6 +82,12 @@ test.describe('Screenshots', () => {
     await expect(page).toHaveURL(/\/routes\/ruta-rio-chillan\/?$/);
   });
 
+  test('route variant map redirects to detail (default variant, no param)', async ({ page }) => {
+    await page.goto('/routes/ruta-rio-chillan/map/variants-default');
+    // Default variant redirect — no ?variant= param since it's the first variant
+    await expect(page).toHaveURL(/\/routes\/ruta-rio-chillan\/?$/);
+  });
+
   test('guides index', async ({ page }) => {
     await page.goto('/guides');
     await waitForImages(page);
