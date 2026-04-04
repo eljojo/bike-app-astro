@@ -36,19 +36,8 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
 </div>
 
 <script>
-  // Follows the exact same pattern as BikePathMap.astro.
-  // Photo/place layers start hidden (defaultVisible: false).
-  // MapControls starts with defaultPhotos: false.
-  // Controls are CSS-hidden in compact mode — user can only toggle layers when expanded.
-  // No clever mode management, no lazy layer creation, no onModeChange callbacks.
-
-  import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createElevationSyncLayer } from '../lib/maps/layers';
+  import { setupMap, wireVariantSwitch } from '../lib/maps/map-factory';
   import { buildPlacePopup } from '../lib/maps/map-helpers';
-  import { buildPolylineFeature } from '../lib/maps/map-init';
-  import { createExpandableMap } from '../lib/maps/expandable-map';
-  import { loadToggleState } from './admin/MapControls';
-  import { render, h } from 'preact';
-  import MapControls from './admin/MapControls';
   import polylineCodec from '@mapbox/polyline';
 
   const card = document.getElementById('route-detail-map');
@@ -71,76 +60,26 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
       center = [mid[0], mid[1]];
     }
 
-    // All variant polylines, starting with only the first visible
-    const allPolylineData = polylines.map(pl => ({ encoded: pl.encoded, popup: pl.name }));
-    const initialPolylineData = allPolylineData.length > 0 ? [allPolylineData[0]] : [];
+    // All variant polylines — only show the first initially
+    const allPolylines = polylines.map(pl => ({ encoded: pl.encoded, popup: pl.name, key: pl.key }));
+    const initialPolyline = allPolylines.length > 0 ? [allPolylines[0]] : [];
 
     const placeData = places.map((p: any) => ({
       lat: p.lat, lng: p.lng, emoji: p.emoji,
       popup: buildPlacePopup(p, cdnUrl),
     }));
 
-    // All layers in session — photos/places start hidden, same as BikePathMap
-    const polylineLayer = createPolylineLayer({ polylines: initialPolylineData });
-    const photoLayer = createPhotoLayer({ photos, cdnUrl, defaultVisible: false });
-    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
-
-    const session = createMapSession({ el: glEl, center, zoom: 12 })
-      .use(polylineLayer)
-      .use(photoLayer)
-      .use(placeLayer)
-      .use(createElevationSyncLayer());
-
-    const { map } = session;
-
-    // Layer visibility = isExpanded AND user preference.
-    // MapControls updates preferences, expand/collapse applies them.
-    // This is deterministic — no timing races with idle/useEffect.
-    let wantsPhotos = loadToggleState('map-photos', false);
-    let wantsPlaces = loadToggleState('map-places', true);
-
-    const expandable = createExpandableMap(map, { card, glEl, overlay, closeBtn }, {
-      getBounds: () => polylineLayer.getBounds?.() ?? null,
-      onExpand: applyOverlayVisibility,
-      onCollapse: applyOverlayVisibility,
+    const { map, polylineLayer } = setupMap({
+      el: glEl,
+      center,
+      polylines: initialPolyline,
+      photos,
+      places: placeData,
+      cdnUrl,
+      controlsEl,
+      expandable: { card, glEl, overlay, closeBtn },
     });
 
-    function applyOverlayVisibility() {
-      photoLayer.setVisible!(map, expandable.isExpanded() && wantsPhotos);
-      placeLayer.setVisible!(map, expandable.isExpanded() && wantsPlaces);
-    }
-
-    session.start();
-
-    // Controls — rendered after map loads, CSS-hidden in compact mode.
-    // MapControls updates wantsPhotos/wantsPlaces, then applyOverlayVisibility
-    // gates effective visibility on isExpanded. In compact mode, setVisible
-    // always gets false regardless of what MapControls fires.
-    map.on('load', () => {
-      if (controlsEl) {
-        render(h(MapControls, {
-          hasPhotos: photos.length > 0,
-          hasPlaces: places.length > 0,
-          defaultPhotos: false,
-          defaultPlaces: false,
-          onTogglePhotos: (v: boolean) => { wantsPhotos = v; applyOverlayVisibility(); },
-          onTogglePlaces: (v: boolean) => { wantsPlaces = v; applyOverlayVisibility(); },
-          onToggleStyle: (key) => session.switchStyle(key),
-        }), controlsEl);
-      }
-    });
-
-    // Variant switching — swap polyline and re-fit
-    window.addEventListener('variant:change', ((e: CustomEvent<{ key: string }>) => {
-      const key = e.detail.key;
-      const idx = polylines.findIndex(p => p.key === key);
-      if (idx >= 0) {
-        const selected = allPolylineData[idx];
-        const feature = buildPolylineFeature(selected.encoded, selected.popup);
-        polylineLayer.updateData([feature]);
-        const b = polylineLayer.getBounds?.();
-        if (b && !b.isEmpty()) map.fitBounds(b, { padding: 20, animate: true });
-      }
-    }) as EventListener);
+    wireVariantSwitch(map, polylineLayer, allPolylines);
   }
 </script>
