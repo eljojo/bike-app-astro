@@ -33,6 +33,7 @@ validate-ctx: ## Validate _ctx/ context system (links, frontmatter, index)
 	npx tsx scripts/validate-ctx.ts
 
 test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright screenshot tests
+	@rm -rf .astro
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
 	@node -e "\

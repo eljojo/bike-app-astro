@@ -78,7 +78,8 @@ test.describe('Screenshots', () => {
   test('route map redirects to detail', async ({ page }) => {
     await page.goto('/routes/ruta-rio-chillan/map');
     // Route map pages are deprecated — 301 redirect to the detail page
-    await expect(page).toHaveURL('/routes/ruta-rio-chillan');
+    // wrangler dev may add trailing slash to static file URLs
+    await expect(page).toHaveURL(/\/routes\/ruta-rio-chillan\/?$/);
   });
 
   test('guides index', async ({ page }) => {
