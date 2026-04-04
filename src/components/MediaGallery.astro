@@ -77,7 +77,7 @@ const videoItems: VideoGalleryItem[] = [
     <div class="photo-gallery">
       {allPhotos.map((photo, i) => {
         const ratio = (photo.width || 4) / (photo.height || 3);
-        const eager = i < 4; // first 4 load immediately, rest deferred to IntersectionObserver
+        const eager = i < 4;
         return (
           <a
             href={imageUrl(photo.key)}
@@ -89,19 +89,12 @@ const videoItems: VideoGalleryItem[] = [
             style={`--ratio: ${ratio.toFixed(3)};`}
             target="_blank"
           >
-            {eager ? (
-              <img
-                src={imageUrl(photo.key, { width: 300 })}
-                srcset={imageSrcSet2x(photo.key, { width: 300 })}
-                alt={photo.caption || name}
-              />
-            ) : (
-              <img
-                data-src={imageUrl(photo.key, { width: 300 })}
-                data-srcset={imageSrcSet2x(photo.key, { width: 300 })}
-                alt={photo.caption || name}
-              />
-            )}
+            <img
+              src={imageUrl(photo.key, { width: 300 })}
+              srcset={imageSrcSet2x(photo.key, { width: 300 })}
+              alt={photo.caption || name}
+              loading={eager ? undefined : 'lazy'}
+            />
             {photo.caption && (
               <span class="pswp-caption-content">{photo.caption}</span>
             )}
@@ -164,25 +157,22 @@ const videoItems: VideoGalleryItem[] = [
       }
     }
 
-    // Preload images ahead of scroll — observe with generous right margin
-    // so images load ~600px before they become visible in the filmstrip.
+    // Force-load images 600px ahead of scroll position in the filmstrip.
+    // All images have real src/srcset (SEO-safe), but loading="lazy" ones
+    // may not load soon enough for smooth scrolling. The observer upgrades
+    // them to eager so the browser starts fetching before they're visible.
     const gallery = document.querySelector<HTMLElement>('.photo-gallery');
     if (gallery) {
       const preloadObserver = new IntersectionObserver((entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const img = entry.target as HTMLImageElement;
-          if (img.dataset.src) {
-            img.src = img.dataset.src;
-            if (img.dataset.srcset) img.srcset = img.dataset.srcset;
-            delete img.dataset.src;
-            delete img.dataset.srcset;
-            preloadObserver.unobserve(img);
-          }
+          img.loading = 'eager';
+          preloadObserver.unobserve(img);
         }
       }, { root: gallery, rootMargin: '0px 600px 0px 0px' });
 
-      for (const img of gallery.querySelectorAll<HTMLImageElement>('img[data-src]')) {
+      for (const img of gallery.querySelectorAll<HTMLImageElement>('img[loading="lazy"]')) {
         preloadObserver.observe(img);
       }
     }
