@@ -49,20 +49,18 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
 </div>
 
 <script>
-  import { createMapSession, createGeojsonLineLayer, createPhotoLayer, createPlaceLayer } from '../lib/maps/layers';
+  import { setupMap } from '../lib/maps/map-factory';
+  import { createGeojsonLineLayer } from '../lib/maps/layers';
   import { categoryEmoji } from '../lib/geo/place-categories';
   import { setupPathHighlight } from '../lib/maps/path-highlight';
-  import { createExpandableMap } from '../lib/maps/expandable-map';
-  import { render, h } from 'preact';
-  import MapControls from './admin/MapControls';
-  import type { MapStyleKey } from '../lib/maps/map-style-switch';
 
   const container = document.getElementById('bike-path-map');
   const glEl = document.getElementById('bike-path-map-gl');
   const overlay = document.getElementById('bike-path-map-overlay');
   const closeBtn = document.getElementById('bike-path-map-close');
+  const controlsEl = document.getElementById('bike-path-map-controls');
 
-  if (container && glEl) {
+  if (container && glEl && overlay && closeBtn) {
     const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
     const centerData = container.dataset.center ? JSON.parse(container.dataset.center) : null;
     const fallbackCenterData = JSON.parse(container.dataset.fallbackCenter || '[0,0]');
@@ -75,6 +73,15 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
     const urlMap: Record<string, string> = container.dataset.urlMap ? JSON.parse(container.dataset.urlMap) : {};
     const highlightSelector = container.dataset.highlightSelector || '';
 
+    const hasSlugMap = Object.keys(slugMap).length > 0;
+    const geojsonLayer = createGeojsonLineLayer({
+      geoFiles,
+      fetchPath: '/bike-paths/geo/',
+      ...(hasSlugMap && { slugMap }),
+      ...(Object.keys(nameMap).length > 0 && { nameMap }),
+      ...(Object.keys(urlMap).length > 0 && { urlMap }),
+    });
+
     const photoData = photos.map((p, i) => ({ key: p.key, lat: p.lat, lng: p.lng, index: i }));
     const placeData = places.map(p => ({
       lat: p.lat, lng: p.lng,
@@ -82,60 +89,27 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, photos = [], pla
       popup: `<div class="place-popup">${p.name}</div>`,
     }));
 
-    const hasSlugMap = Object.keys(slugMap).length > 0;
-    const hasNameMap = Object.keys(nameMap).length > 0;
-    const geojsonLayer = createGeojsonLineLayer({
-      geoFiles,
-      fetchPath: '/bike-paths/geo/',
-      ...(hasSlugMap && { slugMap }),
-      ...(hasNameMap && { nameMap }),
-      ...(Object.keys(urlMap).length > 0 && { urlMap }),
-    });
-    const photoLayer = createPhotoLayer({ photos: photoData, cdnUrl, defaultVisible: false });
-    const placeLayer = createPlaceLayer({ places: placeData, defaultVisible: false });
-
-    const session = createMapSession({ el: glEl, center, zoom: 12 })
-      .use(geojsonLayer)
-      .use(photoLayer)
-      .use(placeLayer);
-
-    const { map } = session;
-
-    // Expandable card — handles interactions, close button, overlay, zoom
-    const { expand } = createExpandableMap(map, { card: container, glEl, overlay: overlay!, closeBtn: closeBtn! }, {
-      getBounds: () => geojsonLayer.getBounds?.() ?? null,
-    });
-
-    session.start(() => {
-      // Wire up list↔map hover highlight if configured
-      if (highlightSelector && hasSlugMap) {
-        setupPathHighlight(map, {
-          listSelector: highlightSelector,
-          layerIds: ['bike-path-line'],
-        });
-      }
-    });
-
-    // Render controls after load (hidden until expanded via CSS)
-    map.on('load', () => {
-      const controlsEl = document.getElementById('bike-path-map-controls');
-      if (controlsEl) {
-        render(h(MapControls, {
-          hasPhotos: photos.length > 0,
-          hasPlaces: places.length > 0,
-          defaultPhotos: false,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
-          onToggleStyle: (key: MapStyleKey) => session.switchStyle(key),
-        }), controlsEl);
-      }
+    const { map, expandable, photoLayer } = setupMap({
+      el: glEl,
+      center,
+      primaryLayer: geojsonLayer,
+      photos: photoData,
+      places: placeData,
+      cdnUrl,
+      controlsEl,
+      expandable: { card: container, glEl, overlay, closeBtn },
+      onReady: () => {
+        if (highlightSelector && hasSlugMap) {
+          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['bike-path-line'] });
+        }
+      },
     });
 
     // Listen for "show photo on map" events from the photo grid
     document.addEventListener('map:show-photo', ((e: CustomEvent<{ key: string; lat: number; lng: number }>) => {
       const { key, lat, lng } = e.detail;
-      expand();
-      photoLayer.setVisible!(map, true);
+      expandable?.expand();
+      if (photoLayer) photoLayer.setVisible!(map, true);
       setTimeout(() => {
         map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
         map.once('moveend', () => {

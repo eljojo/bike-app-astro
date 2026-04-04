@@ -68,12 +68,10 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
 </div>
 
 <script>
-  import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createWaypointLayer, createElevationSyncLayer, createGpsLayer, type PolylineLayer } from '../lib/maps/layers';
+  import { setupMap } from '../lib/maps/map-factory';
+  import { createGpsLayer } from '../lib/maps/layers';
   import { buildPlacePopup, buildWaypointPopup, html } from '../lib/maps/map-helpers';
   import { buildPolylineFeature } from '../lib/maps/map-init';
-  import { loadToggleState } from './admin/MapControls';
-  import { render, h } from 'preact';
-  import MapControls from './admin/MapControls';
   import polylineCodec from '@mapbox/polyline';
 
   const el = document.getElementById('route-map');
@@ -128,20 +126,20 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
       popup: buildWaypointPopup(wp, cdnUrl),
     }));
 
-    const polylineLayer = createPolylineLayer({ polylines: polylineData }) as PolylineLayer;
-    const photoLayer = createPhotoLayer({ photos, cdnUrl });
-    const placeLayer = createPlaceLayer({ places: placeData });
-    const gpsLayer = createGpsLayer();
-
-    const session = createMapSession({ el, center, zoom })
-      .use(polylineLayer)
-      .use(photoLayer)
-      .use(placeLayer)
-      .use(createWaypointLayer({ waypoints: waypointData }))
-      .use(createElevationSyncLayer())
-      .use(gpsLayer);
-
-    session.start();
+    const { map, polylineLayer } = setupMap({
+      el,
+      center,
+      zoom,
+      polylines: polylineData,
+      photos,
+      places: placeData,
+      waypoints: waypointData,
+      cdnUrl,
+      controlsEl,
+      gpsLayer: createGpsLayer(),
+      defaultPhotos: true,
+      defaultPlaces: true,
+    });
 
     // Route toggle (from EventRouteSelector)
     const hiddenSlugs = new Set<string>();
@@ -162,22 +160,5 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
       polylineLayer.updateData(features);
       polylineLayer.setFilter(['!', ['has', 'hidden']]);
     }) as EventListener);
-
-    // Render MapControls after map loads
-    session.map.on('load', () => {
-      if (controlsEl) {
-        render(h(MapControls, {
-          hasPhotos: photos.length > 0,
-          hasPlaces: places.length > 0,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(session.map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(session.map, v),
-          onToggleGps: (v: boolean) => gpsLayer.setVisible!(session.map, v),
-          onToggleStyle: (key) => session.switchStyle(key, () => {
-            photoLayer.setVisible!(session.map, loadToggleState('map-photos', true));
-            placeLayer.setVisible!(session.map, loadToggleState('map-places', true));
-          }),
-        }), controlsEl);
-      }
-    });
   }
 </script>

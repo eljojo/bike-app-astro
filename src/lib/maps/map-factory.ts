@@ -69,11 +69,19 @@ export interface MapFactoryOptions {
   zoom?: number;
 
   // ── Layers (all optional) ──
+
+  /** Polyline data — auto-creates a PolylineLayer. Mutually exclusive with primaryLayer. */
   polylines?: MapPolyline[];
+  /** Pre-created primary layer (e.g. geojsonLineLayer). Used instead of polylines. */
+  primaryLayer?: MapLayer & { getBounds?: () => maplibregl.LngLatBounds | null };
+
   photos?: MapPhoto[];
   places?: MapPlace[];
   waypoints?: MapWaypoint[];
   cdnUrl?: string;
+
+  /** GPS layer — auto-wires toggle in MapControls */
+  gpsLayer?: MapLayer;
 
   /** Extra layers to add after the standard ones */
   extraLayers?: MapLayer[];
@@ -116,6 +124,8 @@ export function setupMap(opts: MapFactoryOptions): MapFactoryResult {
     el, center, zoom = 12,
     polylines = [], photos = [], places = [], waypoints = [],
     cdnUrl = '',
+    primaryLayer: providedPrimary,
+    gpsLayer,
     extraLayers = [],
     defaultPhotos = false, defaultPlaces = false,
     controlsEl,
@@ -123,13 +133,18 @@ export function setupMap(opts: MapFactoryOptions): MapFactoryResult {
     onReady, onExpandChange,
   } = opts;
 
-  // Create layers
-  const polylineData = polylines.map(p => ({
-    encoded: p.encoded,
-    popup: p.popup || '',
-    ...(p.color && { color: p.color }),
-  }));
-  const polylineLayer = createPolylineLayer({ polylines: polylineData }) as PolylineLayer;
+  // Primary layer: use provided or auto-create from polylines
+  let polylineLayer: PolylineLayer;
+  if (providedPrimary) {
+    polylineLayer = providedPrimary as unknown as PolylineLayer;
+  } else {
+    const polylineData = polylines.map(p => ({
+      encoded: p.encoded,
+      popup: p.popup || '',
+      ...(p.color && { color: p.color }),
+    }));
+    polylineLayer = createPolylineLayer({ polylines: polylineData }) as PolylineLayer;
+  }
 
   const photoLayer = photos.length > 0
     ? createPhotoLayer({ photos, cdnUrl, defaultVisible: false })
@@ -150,6 +165,7 @@ export function setupMap(opts: MapFactoryOptions): MapFactoryResult {
   if (placeLayer) session.use(placeLayer);
   if (waypointLayer) session.use(waypointLayer);
   session.use(createElevationSyncLayer());
+  if (gpsLayer) session.use(gpsLayer);
   for (const layer of extraLayers) session.use(layer);
 
   const { map } = session;
@@ -186,6 +202,7 @@ export function setupMap(opts: MapFactoryOptions): MapFactoryResult {
           defaultPlaces: false,
           onTogglePhotos: (v: boolean) => { wantsPhotos = v; applyOverlayVisibility(); },
           onTogglePlaces: (v: boolean) => { wantsPlaces = v; applyOverlayVisibility(); },
+          ...(gpsLayer && { onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v) }),
           onToggleStyle: (key: MapStyleKey) => session.switchStyle(key),
         }), controlsEl);
       }
@@ -201,6 +218,7 @@ export function setupMap(opts: MapFactoryOptions): MapFactoryResult {
           hasPlaces: places.length > 0,
           onTogglePhotos: (v: boolean) => { if (photoLayer) photoLayer.setVisible!(map, v); },
           onTogglePlaces: (v: boolean) => { if (placeLayer) placeLayer.setVisible!(map, v); },
+          ...(gpsLayer && { onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v) }),
           onToggleStyle: (key: MapStyleKey) => session.switchStyle(key, () => {
             if (photoLayer) photoLayer.setVisible!(map, loadToggleState('map-photos', defaultPhotos));
             if (placeLayer) placeLayer.setVisible!(map, loadToggleState('map-places', defaultPlaces));
