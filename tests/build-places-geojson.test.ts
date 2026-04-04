@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPlacesGeoJSON } from '../src/build-data-plugin';
+import { buildPlacesGeoJSON } from '../src/lib/geo/geojson-builders';
 
 interface PlaceInput {
   name: string;

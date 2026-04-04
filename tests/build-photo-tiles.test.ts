@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPhotoTiles, type PhotoTileInput, type PhotoRouteInfo } from '../src/build-data-plugin';
+import { buildPhotoTiles, type PhotoTileInput, type PhotoRouteInfo } from '../src/lib/geo/geojson-builders';
 
 function makePhoto(overrides: Partial<PhotoTileInput> = {}): PhotoTileInput {
   return {
