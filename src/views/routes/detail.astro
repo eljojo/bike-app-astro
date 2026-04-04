@@ -33,7 +33,6 @@ import { extractYouTubeUrls } from '@/lib/youtube-extract';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { getRouteToPaths } from '@/lib/bike-paths/bike-path-data.server';
 import PathsOnRoute from '@/components/PathsOnRoute.astro';
-import WeatherNudge from '@/components/WeatherNudge.astro';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -233,10 +232,13 @@ const variantElevationData = variants.map(v => {
         {/* Description (shared across variants) */}
         <div class="route-description" set:html={localeBody} />
 
-        <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
-
         {/* Photos (inside main column so it participates in mobile reordering) */}
         <MediaGallery media={media} name={localeName} show="photos" />
+        {(() => {
+          const hasPhotos = media.some(m => m.type !== 'video');
+          const photoCtaKey = hasPhotos ? 'route.add_photo' : 'route.add_first_photo';
+          return <EditEntryPoint text={t(photoCtaKey, locale)} href={`/admin/routes/${route.id}?focus=media`} />;
+        })()}
 
         {/* Reactions */}
         {getInstanceFeatures().allowsReactions && (
@@ -300,6 +302,8 @@ const variantElevationData = variants.map(v => {
           />
         ))}
 
+        <EditEntryPoint text={t('route.edit_description', locale)} href={`/admin/routes/${route.id}?focus=description`} />
+
         {/* Places along the way */}
         {nearbyPlaces.length > 0 && (
           <NearbyPlaces nearby={nearbyPlaces} limit={8} routeSlug={slug} headingKey="route.places_along" />
@@ -310,15 +314,7 @@ const variantElevationData = variants.map(v => {
 
     {/* Full width below columns */}
 
-    {/* Weather nudge */}
-    <WeatherNudge locale={locale} />
-
     <MediaGallery media={media} name={localeName} youtubeIds={youtubeIds} show="videos" />
-    {(() => {
-      const hasPhotos = media.some(m => m.type !== 'video');
-      const photoCtaKey = hasPhotos ? 'route.add_photo' : 'route.add_first_photo';
-      return <EditEntryPoint text={t(photoCtaKey, locale)} href={`/admin/routes/${route.id}?focus=media`} />;
-    })()}
 
     {similarRoutes.length > 0 && (
       <div class="route-similar">
