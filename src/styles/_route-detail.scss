@@ -57,12 +57,13 @@
   .route-facts-table { order: 3; }
   .route-description { order: 4; }
   .route-photos { order: 5; overflow: hidden; }
-  .route-videos { order: 5; }
-  .nearby-places { order: 6; }
+  .route-reactions-zone { order: 6; }
   .route-downloads { order: 7; }
-  .route-reactions-zone { order: 9; }
-  .edit-entry-point { order: 10; }
-  .route-place-summary { order: 11; }
+  .route-videos { order: 8; }
+  .route-place-summary { order: 9; }
+  .nearby-places { order: 10; }
+  .paths-on-route { order: 11; }
+  .edit-entry-point { order: 12; }
 }
 
 .route-photos {
@@ -254,7 +255,7 @@
 // Mobile ordering for empty state CTAs
 @media (max-width: $breakpoint-tablet) {
   .route-photos-empty { order: 5; }
-  .route-description-empty { order: 10; }
+  .route-description-empty { order: 12; }
 }
 
 // Place summary line ("This route follows...")

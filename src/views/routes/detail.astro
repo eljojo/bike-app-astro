@@ -294,7 +294,9 @@ const variantElevationData = variants.map(v => {
         })}
 
         {/* Bike paths on route */}
-        <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+        <div class="paths-on-route">
+          <PathsOnRoute bikePaths={nearbyBikePaths} locale={locale} />
+        </div>
       </div>
 
       <aside class="route-detail-sidebar">
