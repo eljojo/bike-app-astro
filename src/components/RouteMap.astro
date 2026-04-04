@@ -76,7 +76,7 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
   if (el) {
     const rawPolylines = JSON.parse(el.dataset.polylines || '[]');
 
-    function buildPolylinePopup(pl: any): string {
+    function buildPolylinePopup(pl: Record<string, unknown>): string {
       const title = pl.url
         ? `<a href="${pl.url}" style="font-weight:bold;text-decoration:underline">${html`${pl.name}`}</a>`
         : html`${pl.name}`;
@@ -109,7 +109,7 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
       if (isVisible) hiddenSlugs.delete(slug);
       else hiddenSlugs.add(slug);
 
-      const features = rawPolylines.map((pl: any) => {
+      const features = rawPolylines.map((pl: Record<string, unknown>) => {
         const feature = buildPolylineFeature(pl.encoded, buildPolylinePopup(pl), pl.color);
         const plSlug = (pl.url || '').split('/').pop() || '';
         if (hiddenSlugs.has(plSlug)) feature.properties!.hidden = true;

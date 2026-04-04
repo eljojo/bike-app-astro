@@ -24,14 +24,14 @@ function slugToKey(slug: string, variants: VariantOption[]): string | undefined 
 export default function VariantSelector({ variants, initialVariant }: Props) {
   const [active, setActive] = useState(initialVariant || variants[0]?.key || '');
 
-  // Read URL ?variant= after hydration — accepts slug ("cyclotour") or full key ("variants-cyclotour")
+  // Read URL ?variant= after hydration to sync button state.
+  // variant-switch.ts already dispatched variant:change on load — no need to re-dispatch.
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get('variant');
     if (!param) return;
     const key = slugToKey(param, variants);
     if (key && key !== active) {
       setActive(key);
-      window.dispatchEvent(new CustomEvent('variant:change', { detail: { key } }));
     }
   }, []);
 
