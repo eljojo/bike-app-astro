@@ -1,8 +1,6 @@
 // src/lib/maps/layers/photo-layer.ts
 import maplibregl from 'maplibre-gl';
 import { buildImageUrl } from '../../media/image-service';
-import { html, raw } from '../map-helpers';
-import { showPopup } from '../map-init';
 import { createTileLoader, type TileLoader } from '../tile-loader';
 import type { MapLayer, LayerContext } from './types';
 
@@ -126,34 +124,86 @@ export function createPhotoLayer(opts: PhotoLayerOptions): MapLayer {
     }
   }
 
-  function showPhotoPopup(map: maplibregl.Map, props: PhotoProps, coords: [number, number]) {
-    const imgUrl = buildImageUrl(cdnUrl, props.key, { width: 800, fit: 'scale-down' });
-    const fullUrl = buildImageUrl(cdnUrl, props.key, { width: 1600 });
-    const routeLink = props.routeName && props.routeUrl
-      ? html`<p class="photo-popup-route"><a href="${raw(props.routeUrl)}">${props.routeName}</a></p>` : '';
-    const captionBlock = props.caption ? html`<p class="photo-popup-caption">${props.caption}</p>` : '';
-    const imgWidth = 800;
-    const imgHeight = props.width && props.height ? Math.round(imgWidth * props.height / props.width) : undefined;
-    const sizeAttrs = imgHeight ? ` width="${imgWidth}" height="${imgHeight}"` : '';
+  let activeBubblePopup: { el: HTMLElement; cleanup: () => void } | null = null;
 
-    const popupHtml = html`
-      <div class="photo-popup-content">
-        <a href="${raw(fullUrl)}" target="_blank">
-          <img src="${raw(imgUrl)}" alt="${props.caption || 'Photo'}"${raw(sizeAttrs)} />
-        </a>
-        ${raw(captionBlock)}
-        ${raw(routeLink)}
-      </div>
+  function dismissBubblePopup() {
+    if (!activeBubblePopup) return;
+    activeBubblePopup.el.classList.add('photo-bubble-popup--closing');
+    const el = activeBubblePopup.el;
+    activeBubblePopup.cleanup();
+    activeBubblePopup = null;
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
+  function showPhotoPopup(map: maplibregl.Map, props: PhotoProps, coords: [number, number]) {
+    dismissBubblePopup();
+
+    const size = photoPopupMaxWidth(map.getZoom());
+    const imgUrl = buildImageUrl(cdnUrl, props.key, { width: size * 2, height: size * 2, fit: 'cover' });
+    // Link to route page with ?photo= to open lightbox, or full-res image if no route
+    const photoLink = props.routeUrl
+      ? `${props.routeUrl}?photo=${encodeURIComponent(props.key)}`
+      : buildImageUrl(cdnUrl, props.key, { width: 1600 });
+    const linkTarget = props.routeUrl ? '' : ' target="_blank"';
+    const routeLink = props.routeName && props.routeUrl
+      ? `<a class="photo-bubble-popup--route" href="${props.routeUrl}">${props.routeName}</a>` : '';
+    const meta = routeLink
+      ? `<div class="photo-bubble-popup--meta">${routeLink}</div>` : '';
+
+    const el = document.createElement('div');
+    el.className = 'photo-bubble-popup';
+    el.style.setProperty('--bubble-size', `${size}px`);
+    el.innerHTML = `
+      <a class="photo-bubble-popup--image" href="${photoLink}"${linkTarget}>
+        <img src="${imgUrl}" alt="${props.caption || ''}" />
+      </a>
+      ${meta}
     `;
 
-    const popup = new maplibregl.Popup({ maxWidth: `${photoPopupMaxWidth(map.getZoom())}px` })
-      .setLngLat(coords)
-      .setHTML(popupHtml);
-    showPopup(map, popup);
+    // Position as overlay inside the map container — prefer above the point
+    const container = map.getContainer();
+    container.appendChild(el);
 
-    const onZoom = () => popup.setMaxWidth(`${photoPopupMaxWidth(map.getZoom())}px`);
-    map.on('zoom', onZoom);
-    popup.on('close', () => map.off('zoom', onZoom));
+    function reposition() {
+      const pt = map.project(coords);
+      const rect = container.getBoundingClientRect();
+
+      // Position the bubble's top-left corner so the circle floats above-right
+      // of the clicked point. Clamp to keep the full circle inside the container.
+      const margin = 4;
+      // Ideal: circle starts slightly right of click, and its bottom edge is above click
+      let left = pt.x - size / 4;
+      let top = pt.y - size - size / 4;
+
+      // Clamp to container bounds
+      left = Math.max(margin, Math.min(left, rect.width - size - margin));
+      top = Math.max(margin, Math.min(top, rect.height - size - margin));
+
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+    }
+    reposition();
+
+    // Dismiss on click outside, escape, or map move
+    const onClickOutside = (e: MouseEvent) => {
+      if (!el.contains(e.target as Node)) dismissBubblePopup();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissBubblePopup(); };
+    const onMove = () => dismissBubblePopup();
+
+    setTimeout(() => {
+      document.addEventListener('click', onClickOutside);
+      document.addEventListener('keydown', onKey);
+      map.once('movestart', onMove);
+    }, 50); // delay so the opening click doesn't immediately dismiss
+
+    const cleanup = () => {
+      document.removeEventListener('click', onClickOutside);
+      document.removeEventListener('keydown', onKey);
+      map.off('movestart', onMove);
+    };
+
+    activeBubblePopup = { el, cleanup };
   }
 
   return {
