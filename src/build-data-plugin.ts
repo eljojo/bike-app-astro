@@ -36,8 +36,11 @@ import { buildRideRedirectMap } from './lib/build-ride-redirect-map';
 import { loadBikePathEntries } from './lib/bike-paths/bike-path-entries.server';
 import { computeBikePathRelations, enrichBikePathPages } from './lib/bike-paths/bike-path-relations.server';
 import { loadAllGeoData } from './lib/geo/geojson-reader.server';
+import { categoryEmoji } from './lib/geo/place-categories';
+import { haversineM, PHOTO_NEAR_PLACE_M } from './lib/geo/proximity';
 import { supportedLocales, defaultLocale as getDefaultLocale } from './lib/i18n/locale-utils';
 import { translatePath } from './lib/i18n/path-translations';
+import type { FeatureCollection, Feature } from 'geojson';
 
 // Project root for resolving project-internal paths (webfonts, maps cache)
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
@@ -51,6 +54,84 @@ export { loadAdminRideData };
 export { loadAdminBikePathData };
 
 const CITY_DIR = cityDir;
+
+// --- Places GeoJSON builder (pure, exported for testing) ---
+
+export interface PlaceGeoInput {
+  name: string;
+  category: string;
+  lat: number;
+  lng: number;
+  status?: string;
+  name_fr?: string;
+  address?: string;
+  website?: string;
+  phone?: string;
+  google_maps_url?: string;
+  photo_key?: string;
+  media?: Array<{ key: string; cover?: boolean }>;
+  organizer_name?: string;
+  organizer_url?: string;
+}
+
+export interface MediaLocationInput {
+  key: string;
+  lat: number;
+  lng: number;
+}
+
+export function buildPlacesGeoJSON(
+  places: PlaceGeoInput[],
+  mediaLocations: MediaLocationInput[],
+): FeatureCollection {
+  const published = places.filter(p => !p.status || p.status === 'published');
+
+  const features: Feature[] = published.map(place => {
+    // Resolve photo_key: media cover > first media > standalone photo_key
+    const mediaCover = place.media?.find(m => m.cover)?.key || place.media?.[0]?.key;
+    let photoKey = mediaCover || place.photo_key;
+
+    // Auto-assign from nearest geolocated media within threshold
+    if (!photoKey) {
+      let bestKey: string | undefined;
+      let bestDist = PHOTO_NEAR_PLACE_M;
+      for (const m of mediaLocations) {
+        const dist = haversineM(m.lat, m.lng, place.lat, place.lng);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestKey = m.key;
+        }
+      }
+      photoKey = bestKey;
+    }
+
+    const properties: Record<string, unknown> = {
+      name: place.name,
+      emoji: categoryEmoji[place.category] || '📍',
+      category: place.category,
+    };
+
+    if (place.name_fr) properties.name_fr = place.name_fr;
+    if (place.address) properties.address = place.address;
+    if (place.phone) properties.phone = place.phone;
+    if (place.website) properties.link = place.website;
+    if (place.google_maps_url) properties.google_maps_url = place.google_maps_url;
+    if (photoKey) properties.photo_key = photoKey;
+    if (place.organizer_name) properties.organizer_name = place.organizer_name;
+    if (place.organizer_url) properties.organizer_url = place.organizer_url;
+
+    return {
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [place.lng, place.lat],
+      },
+      properties,
+    };
+  });
+
+  return { type: 'FeatureCollection', features };
+}
 
 // --- File-reading helpers ---
 
@@ -362,14 +443,34 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   const geoDir = path.join(CONSUMER_ROOT, 'public', 'bike-paths', 'geo');
   const { coordinates: geoCoordinates, elevation: geoElevation } = loadAllGeoData(geoDir);
   const routeTracks = loadRouteTrackPoints();
-  // Load places for nearby-places computation
+  // Load places for nearby-places computation and GeoJSON emission
   const placesDir = path.join(CITY_DIR, 'places');
-  const placeList: Array<{ name: string; category: string; lat: number; lng: number; status?: string }> = [];
+  const placeList: Array<{
+    name: string; category: string; lat: number; lng: number; status?: string;
+    name_fr?: string; address?: string; website?: string; phone?: string;
+    google_maps_url?: string; photo_key?: string;
+    media?: Array<{ key: string; cover?: boolean }>;
+    organizer?: string;
+  }> = [];
   if (fs.existsSync(placesDir)) {
     for (const file of fs.readdirSync(placesDir).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
       const { data } = matter(fs.readFileSync(path.join(placesDir, file), 'utf-8'));
       if (data.lat != null && data.lng != null) {
-        placeList.push({ name: data.name as string, category: data.category as string, lat: data.lat as number, lng: data.lng as number, status: data.status as string });
+        placeList.push({
+          name: data.name as string,
+          category: data.category as string,
+          lat: data.lat as number,
+          lng: data.lng as number,
+          status: data.status as string | undefined,
+          name_fr: data.name_fr as string | undefined,
+          address: data.address as string | undefined,
+          website: data.website as string | undefined,
+          phone: data.phone as string | undefined,
+          google_maps_url: data.google_maps_url as string | undefined,
+          photo_key: data.photo_key as string | undefined,
+          media: data.media as Array<{ key: string; cover?: boolean }> | undefined,
+          organizer: data.organizer as string | undefined,
+        });
       }
     }
   }
@@ -389,6 +490,31 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
       }
     }
   }
+
+  // Build organizer name map (slug → name) for place GeoJSON enrichment
+  const organizerNames = new Map<string, { name: string; website?: string }>();
+  const organizerDir = path.join(CITY_DIR, 'organizers');
+  if (fs.existsSync(organizerDir)) {
+    for (const file of fs.readdirSync(organizerDir).filter(f => f.endsWith('.md') && !f.match(/\.\w{2}\.md$/))) {
+      const { data } = matter(fs.readFileSync(path.join(organizerDir, file), 'utf-8'));
+      const slug = file.replace('.md', '');
+      organizerNames.set(slug, { name: data.name as string, website: data.website as string | undefined });
+    }
+  }
+
+  // Emit places.geojson to public/places/geo/
+  const placesGeoInput: PlaceGeoInput[] = placeList.map(p => {
+    const org = p.organizer ? organizerNames.get(p.organizer) : undefined;
+    return {
+      ...p,
+      organizer_name: org?.name,
+      organizer_url: org?.website,
+    };
+  });
+  const placesGeoJSON = buildPlacesGeoJSON(placesGeoInput, mediaLocations);
+  const placesGeoDir = path.join(CONSUMER_ROOT, 'public', 'places', 'geo');
+  fs.mkdirSync(placesGeoDir, { recursive: true });
+  fs.writeFileSync(path.join(placesGeoDir, 'places.geojson'), JSON.stringify(placesGeoJSON));
 
   // Tier 2: compute relations per YML slug (overlapping routes, nearby photos/places/paths, connected paths)
   const { relations: bikePathRelations, routeOverlaps, routeToPaths: rawRouteToPaths } = computeBikePathRelations(bikePaths, geoCoordinates, routeTracks, placeList, mediaLocations);
