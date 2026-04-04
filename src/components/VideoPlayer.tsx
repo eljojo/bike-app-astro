@@ -34,14 +34,20 @@ export default function VideoPlayer({ sources, poster, fallbackUrl, width, heigh
 
     if (initialVolume != null) video.volume = initialVolume;
 
-    // Track first user-initiated play (not autoplay)
+    // Track first intentional engagement — unmute, play unmuted, or fullscreen
     let tracked = false;
-    const onPlay = () => {
-      if (tracked || video.muted) return; // muted = autoplay, skip
+    const track = () => {
+      if (tracked) return;
       tracked = true;
       window.BikeApp?.tE?.('play video', { props: { page: window.location.pathname } });
     };
+    const onPlay = () => { if (!video.muted) track(); };
+    const onVolumeChange = () => { if (!video.muted && !video.paused) track(); };
+    const onFullscreen = () => { if (document.fullscreenElement === video) track(); };
     video.addEventListener('play', onPlay);
+    video.addEventListener('volumechange', onVolumeChange);
+    video.addEventListener('fullscreenchange', onFullscreen);
+    video.addEventListener('webkitfullscreenchange', onFullscreen);
 
     // Skip HLS.js on mobile and Safari (native HLS support)
     if (window.innerWidth < DESKTOP_MIN_WIDTH || isSafari()) return;
@@ -72,6 +78,9 @@ export default function VideoPlayer({ sources, poster, fallbackUrl, width, heigh
 
     return () => {
       video.removeEventListener('play', onPlay);
+      video.removeEventListener('volumechange', onVolumeChange);
+      video.removeEventListener('fullscreenchange', onFullscreen);
+      video.removeEventListener('webkitfullscreenchange', onFullscreen);
       video.pause();
       video.removeAttribute('src');
       video.load();
