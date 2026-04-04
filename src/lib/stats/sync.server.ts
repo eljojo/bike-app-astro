@@ -66,8 +66,8 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Fire BOTH Plausible queries in parallel
-  const [dailyRows, pageRows] = await Promise.all([
+  // Fire Plausible queries in parallel — page metrics + custom events
+  const [dailyRows, pageRows, videoPlayRows, mapExpandRows] = await Promise.all([
     queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
       metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
@@ -81,6 +81,24 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
       dimensions: ['event:page'],
       pagination: { limit: 10000 },
     }),
+    // Custom event: play video (per page)
+    queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['visitors'],
+      dateRange: [fromDate, today],
+      dimensions: ['event:props:page'],
+      filters: [['is', 'event:goal', ['play video']]],
+      pagination: { limit: 10000 },
+    }).catch(() => []),
+    // Custom event: expand map (per page)
+    queryPlausible(opts.apiKey, {
+      siteId: opts.siteId,
+      metrics: ['visitors'],
+      dateRange: [fromDate, today],
+      dimensions: ['event:props:page'],
+      filters: [['is', 'event:goal', ['expand map']]],
+      pagination: { limit: 10000 },
+    }).catch(() => []),
   ]);
 
   const dailyMetrics = processDailyAggregate(dailyRows, opts.city);
@@ -90,8 +108,41 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
   const { contentRows } = processPageBreakdown(
     pageRows, opts.city, {}, redir, today, opts.locales, opts.defaultLocale, opts.videoRouteMap,
   );
+
+  // Merge custom event counts into content rows by resolving the event's page prop
+  const videoPlaysByPath = new Map<string, number>();
+  for (const row of videoPlayRows) {
+    videoPlaysByPath.set(row.dimensions[0], row.metrics[0]);
+  }
+  const mapExpandsByPath = new Map<string, number>();
+  for (const row of mapExpandRows) {
+    mapExpandsByPath.set(row.dimensions[0], row.metrics[0]);
+  }
+  for (const cr of contentRows) {
+    // Match event page paths to content rows — events use the page pathname as the prop
+    if (cr.pageType === 'detail') {
+      // Build possible paths for this content
+      const basePath = cr.contentType === 'route' ? `/routes/${cr.contentSlug}` : `/${cr.contentType}s/${cr.contentSlug}`;
+      cr.videoPlays = videoPlaysByPath.get(basePath) || videoPlaysByPath.get(basePath + '/') || 0;
+      // Store map expands as a synthetic "map" page type entry (for mapConversionRate)
+      const expands = mapExpandsByPath.get(basePath) || mapExpandsByPath.get(basePath + '/') || 0;
+      if (expands > 0) {
+        contentRows.push({
+          ...cr,
+          pageType: 'map',
+          pageviews: expands,
+          visitorDays: expands,
+          visitDurationS: 0,
+          bounceRate: 0,
+          videoPlays: 0,
+          gpxDownloads: 0,
+        });
+      }
+    }
+  }
+
   const numberedAfter = contentRows.filter(r => /^\d+-/.test(r.contentSlug)).length;
-  console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered`);
+  console.log(`syncSiteMetrics: ${redirCount} redirects, ${pageRows.length} plausible rows, ${contentRows.length} content rows, ${numberedAfter} still numbered, ${videoPlayRows.length} video plays, ${mapExpandRows.length} map expands`);
 
   const totalsRows = aggregateContentRows(contentRows, today);
 
