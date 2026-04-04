@@ -321,50 +321,48 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
               {standaloneConnected.map(p => (
                 <li>
                   <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-                  {!isNetwork && localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
+                  {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
                 </li>
               ))}
             </ul>
           </section>
         )}
 
-        {/* NearbyPaths minus connected (standalone + member only) */}
-        {!isNetwork && (() => {
+        {/* NearbyPaths minus already-connected ones */}
+        {(() => {
           const connectedSlugs = new Set(connectedPaths.map(p => p.slug));
           const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug));
           return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
         })()}
 
-        {/* External links (standalone + member only) */}
-        {!isNetwork && (
-          <div class="bike-path-links">
-            {page.wikipedia && (() => {
-              const [lang, ...titleParts] = page.wikipedia.split(':');
-              const title = titleParts.join(':');
-              const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
-              return <a href={url} target="_blank" rel="noopener">{title} — Wikipedia ↗</a>;
-            })()}
+        {/* External links */}
+        <div class="bike-path-links">
+          {page.wikipedia && (() => {
+            const [lang, ...titleParts] = page.wikipedia.split(':');
+            const title = titleParts.join(':');
+            const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+            return <a href={url} target="_blank" rel="noopener">{title} — Wikipedia ↗</a>;
+          })()}
 
-            {(page.osmRelationIds.length > 0 || page.osmNames.length > 0) && (
-              <div class="bike-path-osm">
-                <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
-                {page.ymlEntries.map(entry => (
-                  entry.osm_relations?.length
-                    ? entry.osm_relations.map(id => (
-                        <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
-                          {entry.name} — relation {id} ↗
-                        </a>
-                      ))
-                    : entry.osm_names?.length
-                      ? <a href={`https://openstreetmap.org/search?query=${encodeURIComponent(entry.osm_names[0])}`} target="_blank" rel="noopener">
-                          {entry.name} — {t('paths.osm_search', locale)} ↗
-                        </a>
-                      : null
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          {(page.osmRelationIds.length > 0 || page.osmNames.length > 0) && (
+            <div class="bike-path-osm">
+              <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
+              {page.ymlEntries.map(entry => (
+                entry.osm_relations?.length
+                  ? entry.osm_relations.map(id => (
+                      <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
+                        {entry.name} — relation {id} ↗
+                      </a>
+                    ))
+                  : entry.osm_names?.length
+                    ? <a href={`https://openstreetmap.org/search?query=${encodeURIComponent(entry.osm_names[0])}`} target="_blank" rel="noopener">
+                        {entry.name} — {t('paths.osm_search', locale)} ↗
+                      </a>
+                    : null
+              ))}
+            </div>
+          )}
+        </div>
       </aside>
     </div>
 
