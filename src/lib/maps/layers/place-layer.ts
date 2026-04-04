@@ -7,20 +7,24 @@ import type { MapLayer, LayerContext } from './types';
 export interface PlaceLayerOptions {
   cdnUrl: string;
   defaultVisible?: boolean;
+  /** When set, only show places matching this category. Forces layer visible. */
+  categoryFilter?: string;
 }
 
 const SOURCE_ID = 'place-markers';
 const LAYER_IDS = ['place-clusters', 'place-cluster-count', 'place-unclustered'];
 
 export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
-  const { cdnUrl, defaultVisible = true } = opts;
+  const { cdnUrl, defaultVisible = true, categoryFilter } = opts;
+  // Category filter forces layer visible
+  const initialVisible = categoryFilter ? true : defaultVisible;
 
   let syncHandler: (() => void) | null = null;
   let clusterClickHandler: ((e: maplibregl.MapLayerMouseEvent) => void) | null = null;
   let enterHandler: (() => void) | null = null;
   let leaveHandler: (() => void) | null = null;
   const emojiMarkers = new Map<string, maplibregl.Marker>();
-  let visible = defaultVisible;
+  let visible = initialVisible;
   let cachedGeoJson: GeoJSON.FeatureCollection | null = null;
 
   function removeAllDomMarkers() {
@@ -70,11 +74,16 @@ export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
         if (!ctx.isCurrent()) return;
       }
 
-      if (cachedGeoJson.features.length === 0) return;
+      // Apply category filter if set
+      const sourceData = categoryFilter
+        ? { ...cachedGeoJson, features: cachedGeoJson.features.filter(f => f.properties?.category === categoryFilter) }
+        : cachedGeoJson;
+
+      if (sourceData.features.length === 0) return;
 
       map.addSource(SOURCE_ID, {
         type: 'geojson',
-        data: cachedGeoJson,
+        data: sourceData,
         cluster: true,
         clusterRadius: 30,
         clusterMaxZoom: 12,

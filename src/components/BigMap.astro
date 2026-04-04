@@ -99,9 +99,12 @@ const hasPaths = pathMapData.length > 0;
       };
     });
 
+    // Category filter from URL param (e.g. /map/?category=cafe)
+    const categoryFilter = new URLSearchParams(location.search).get('category') || undefined;
+
     const polylineLayer = createPolylineLayer({ polylines: polylineData });
     const photoLayer = createPhotoLayer({ cdnUrl, defaultVisible: false });
-    const placeLayer = createPlaceLayer({ cdnUrl });
+    const placeLayer = createPlaceLayer({ cdnUrl, categoryFilter });
     const gpsLayer = createGpsLayer();
 
     // Tile path layer (lazy-load manifest eagerly)
