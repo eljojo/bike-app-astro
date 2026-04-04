@@ -38,7 +38,7 @@
       border-radius: 16px;
       font-size: 0.8rem;
       pointer-events: none;
-      transition: opacity 0.2s ease;
+      transition: opacity $transition-enter;
     }
 
     &.primed .map-touch-label {

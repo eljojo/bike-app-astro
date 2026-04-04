@@ -68,32 +68,15 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
 </div>
 
 <script>
-  import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createWaypointLayer, createElevationSyncLayer, createGpsLayer, type PolylineLayer } from '../lib/maps/layers';
+  import { setupMapFromElement } from '../lib/maps/map-factory';
   import { buildPlacePopup, buildWaypointPopup, html } from '../lib/maps/map-helpers';
   import { buildPolylineFeature } from '../lib/maps/map-init';
-  import { loadToggleState } from './admin/MapControls';
-  import { render, h } from 'preact';
-  import MapControls from './admin/MapControls';
-  import polylineCodec from '@mapbox/polyline';
 
   const el = document.getElementById('route-map');
-  const controlsEl = document.getElementById('route-map-controls');
   if (el) {
-    const polylines = JSON.parse(el.dataset.polylines || '[]');
-    const places = JSON.parse(el.dataset.places || '[]');
-    const photos = JSON.parse(el.dataset.photos || '[]');
-    const waypointMkrs = JSON.parse(el.dataset.waypointMarkers || '[]');
-    const zoom = parseInt(el.dataset.zoom || '12');
-    const cdnUrl = el.dataset.cdnUrl || '';
+    const rawPolylines = JSON.parse(el.dataset.polylines || '[]');
 
-    let center: [number, number] = JSON.parse(el.dataset.center || 'null');
-    if (!center && polylines.length > 0) {
-      const points = polylineCodec.decode(polylines[0].encoded);
-      const mid = points[Math.floor(points.length / 2)];
-      center = [mid[0], mid[1]];
-    }
-
-    function buildPolylinePopup(pl: any): string {
+    function buildPolylinePopup(pl: Record<string, unknown>): string {
       const title = pl.url
         ? `<a href="${pl.url}" style="font-weight:bold;text-decoration:underline">${html`${pl.name}`}</a>`
         : html`${pl.name}`;
@@ -112,36 +95,12 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
       return `<div class="ride-popup">${title}<div class="ride-popup-meta">${meta.join(' · ')}</div></div>`;
     }
 
-    const polylineData = polylines.map((pl: any) => ({
-      encoded: pl.encoded,
-      popup: buildPolylinePopup(pl),
-      ...(pl.color && { color: pl.color }),
-    }));
-
-    const placeData = places.map((p: any) => ({
-      lat: p.lat, lng: p.lng, emoji: p.emoji,
-      popup: buildPlacePopup(p, cdnUrl),
-    }));
-
-    const waypointData = waypointMkrs.map((wp: any) => ({
-      ...wp,
-      popup: buildWaypointPopup(wp, cdnUrl),
-    }));
-
-    const polylineLayer = createPolylineLayer({ polylines: polylineData }) as PolylineLayer;
-    const photoLayer = createPhotoLayer({ photos, cdnUrl });
-    const placeLayer = createPlaceLayer({ places: placeData });
-    const gpsLayer = createGpsLayer();
-
-    const session = createMapSession({ el, center, zoom })
-      .use(polylineLayer)
-      .use(photoLayer)
-      .use(placeLayer)
-      .use(createWaypointLayer({ waypoints: waypointData }))
-      .use(createElevationSyncLayer())
-      .use(gpsLayer);
-
-    session.start();
+    const { map, polylineLayer } = setupMapFromElement(el, {
+      gps: true,
+      defaultPhotos: true,
+      defaultPlaces: true,
+      buildPopup: buildPolylinePopup,
+    });
 
     // Route toggle (from EventRouteSelector)
     const hiddenSlugs = new Set<string>();
@@ -150,34 +109,14 @@ const { polylines, places = [], photos = [], waypointMarkers = [], center, zoom 
       if (isVisible) hiddenSlugs.delete(slug);
       else hiddenSlugs.add(slug);
 
-      const features = polylineData.map((p: any, i: number) => {
-        const feature = buildPolylineFeature(p.encoded, p.popup, p.color);
-        const plUrl = polylines[i]?.url || '';
-        const plSlug = plUrl.split('/').pop() || '';
-        if (hiddenSlugs.has(plSlug)) {
-          feature.properties!.hidden = true;
-        }
+      const features = rawPolylines.map((pl: Record<string, unknown>) => {
+        const feature = buildPolylineFeature(pl.encoded, buildPolylinePopup(pl), pl.color);
+        const plSlug = (pl.url || '').split('/').pop() || '';
+        if (hiddenSlugs.has(plSlug)) feature.properties!.hidden = true;
         return feature;
       });
       polylineLayer.updateData(features);
       polylineLayer.setFilter(['!', ['has', 'hidden']]);
     }) as EventListener);
-
-    // Render MapControls after map loads
-    session.map.on('load', () => {
-      if (controlsEl) {
-        render(h(MapControls, {
-          hasPhotos: photos.length > 0,
-          hasPlaces: places.length > 0,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(session.map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(session.map, v),
-          onToggleGps: (v: boolean) => gpsLayer.setVisible!(session.map, v),
-          onToggleStyle: (key) => session.switchStyle(key, () => {
-            photoLayer.setVisible!(session.map, loadToggleState('map-photos', true));
-            placeLayer.setVisible!(session.map, loadToggleState('map-places', true));
-          }),
-        }), controlsEl);
-      }
-    });
   }
 </script>

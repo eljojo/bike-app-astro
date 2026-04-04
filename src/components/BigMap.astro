@@ -113,7 +113,12 @@ const hasPaths = pathMapData.length > 0;
       routesBtn.classList.toggle('active', !showingPaths);
       pathsBtn.classList.toggle('active', showingPaths);
     }
-    if (initialShowPaths) updateToggleUI(true);
+    if (initialShowPaths) {
+      updateToggleUI(true);
+      // Set "Ride" nav link to match initial paths state
+      const rideLink = document.querySelector<HTMLAnchorElement>('[data-nav-ride]');
+      if (rideLink) rideLink.href = '/bike-paths';
+    }
 
     // Category filter
     const categoryFilter = new URLSearchParams(location.search).get('category');
@@ -170,8 +175,6 @@ const hasPaths = pathMapData.length > 0;
     let pathsVisible = initialShowPaths;
 
     session.start(() => {
-      // onReady: all layers (including async tile-path) are set up
-
       // Photos off by default on big map (unless user previously enabled)
       if (!loadToggleState('map-photos', false)) {
         photoLayer.setVisible!(map, false);
@@ -183,8 +186,11 @@ const hasPaths = pathMapData.length > 0;
       } else if (hasPaths) {
         tilePathLayer.setVisible!(map, false);
       }
+    });
 
-      // Controls
+    // Controls — render on map.on('load'), not session.start().
+    // session.start() waits for tile loading (slow); controls don't need tiles.
+    map.on('load', () => {
       if (controlsEl) {
         render(h(MapControls, {
           hasPhotos: photos.length > 0,
@@ -195,7 +201,7 @@ const hasPaths = pathMapData.length > 0;
           onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v),
           onToggleStyle: (key) => session.switchStyle(key, () => {
             photoLayer.setVisible!(map, loadToggleState('map-photos', false));
-            placeLayer.setVisible!(map, loadToggleState('map-places', true));
+            placeLayer.setVisible!(map, loadToggleState('map-places', false));
             // Preserve current view mode after style switch
             if (pathsVisible) {
               polylineLayer.setVisible!(map, false);
@@ -214,6 +220,12 @@ const hasPaths = pathMapData.length > 0;
       updateToggleUI(showingPaths);
       saveToggleState('map-paths', showingPaths);
       history.replaceState(null, '', showingPaths ? '#paths' : location.pathname);
+
+      // Update "Ride" nav link to match the active tab
+      const rideLink = document.querySelector<HTMLAnchorElement>('[data-nav-ride]');
+      if (rideLink) {
+        rideLink.href = showingPaths ? '/bike-paths' : '/routes';
+      }
 
       if (showingPaths) {
         tilePathLayer.setVisible!(map, true);

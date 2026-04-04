@@ -107,7 +107,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 ---
 
 <Base title={`${t('paths.page_title', locale, { city: config.name })} | ${config.display_name}`} description={seoDescription} ogImage={ogImage}>
-  <SubTabToggle items={[
+  <SubTabToggle isIndex items={[
     { label: t('nav.routes', locale), href: localePath('/routes', locale), active: false },
     { label: t('nav.bike_paths', locale), href: paths.bikePaths(locale), active: true },
   ]} />

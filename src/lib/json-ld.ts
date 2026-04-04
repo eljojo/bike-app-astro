@@ -221,54 +221,6 @@ export function touristAttractionJsonLd(attraction: {
   };
 }
 
-export function routeMapJsonLd(map: {
-  name: string;
-  description?: string;
-  imageUrl?: string;
-  url: string;
-  geoLine?: string;
-  containsPlaces?: Array<{ name: string; lat: number; lng: number; category?: string }>;
-  distance?: string;
-  elevationGain?: string;
-  routeShape?: string;
-}) {
-  const additionalProperty: Array<Record<string, string>> = [];
-  if (map.distance) {
-    additionalProperty.push({ '@type': 'PropertyValue', name: 'distance', value: map.distance });
-  }
-  if (map.elevationGain) {
-    additionalProperty.push({ '@type': 'PropertyValue', name: 'elevationGain', value: map.elevationGain });
-  }
-  if (map.routeShape) {
-    additionalProperty.push({ '@type': 'PropertyValue', name: 'routeShape', value: map.routeShape });
-  }
-
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'TouristAttraction',
-    name: map.name,
-    ...(map.description && { description: map.description }),
-    ...(map.imageUrl && { image: map.imageUrl }),
-    url: map.url,
-    ...(map.geoLine && {
-      geo: {
-        '@type': 'GeoShape',
-        line: map.geoLine,
-      },
-    }),
-    ...(map.containsPlaces && map.containsPlaces.length > 0 && {
-      containsPlace: map.containsPlaces.map(p => ({
-        '@type': 'Place',
-        name: p.name,
-        geo: { '@type': 'GeoCoordinates', latitude: p.lat, longitude: p.lng },
-        ...(p.category && { additionalType: p.category }),
-      })),
-    }),
-    ...(additionalProperty.length > 0 && { additionalProperty }),
-    touristType: 'Cyclist',
-    isAccessibleForFree: true,
-  };
-}
 
 /** Convert a duration string (seconds like "32", or "mm:ss" like "1:30") to ISO 8601 (PT…). */
 function formatIsoDuration(raw: string): string {

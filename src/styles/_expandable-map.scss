@@ -1,0 +1,128 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// Shared styles for expandable map cards (route detail, bike path detail).
+// Components use these classes directly — no per-component prefixed copies.
+
+.expandable-map-wrapper {
+  position: relative;
+}
+
+.expandable-map-overlay {
+  visibility: hidden;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s;
+
+  &.visible {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+.expandable-map-card {
+  width: 100%;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: all $transition-move;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  // Map fills the card
+  .map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  // Hide attribution and controls in compact mode
+  .maplibregl-ctrl-attrib { display: none; }
+  .expandable-map-controls { display: none; }
+
+  &.expanded .maplibregl-ctrl-attrib { display: block; }
+  &.expanded .expandable-map-controls {
+    display: block;
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 1;
+  }
+
+  &.expanded {
+    cursor: default;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    border-radius: 8px;
+  }
+}
+
+.expandable-map-gl {
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: opacity $transition-enter;
+
+  &.fading {
+    opacity: 0;
+  }
+}
+
+.expandable-map-close {
+  display: none;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #000;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+  align-items: center;
+  justify-content: center;
+  transition: transform $transition-state;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  @include dark-mode {
+    background: #222;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.expandable-map-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity $transition-enter;
+
+  .expandable-map-card:hover & {
+    opacity: 1;
+  }
+
+  .expandable-map-card.expanded & {
+    display: none;
+  }
+}

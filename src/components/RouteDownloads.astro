@@ -1,0 +1,70 @@
+---
+import Icon from './Icon.astro';
+import { getCityConfig } from '@/lib/config/city-config';
+import { variantKey as variantKeyFromGpx } from '@/lib/gpx/filenames';
+import { t } from '@/i18n';
+import { paths, assets } from '@/lib/paths';
+import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
+
+interface Props {
+  routeSlug: string;
+  variant: {
+    gpx: string;
+    strava_url?: string;
+    rwgps_url?: string;
+    komoot_url?: string;
+  };
+  locale?: string;
+  variantKey?: string;
+}
+
+const { routeSlug, variant, locale, variantKey } = Astro.props;
+const siteUrl = getCityConfig().url;
+const vKey = variantKeyFromGpx(variant.gpx);
+const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, vKey)}`;
+const exploreUrl = `https://gpx.studio/app?files=%5B%22${encodeURIComponent(gpxUrl)}%22%5D`;
+const hasMapPng = hasCachedMap(routeSlug, vKey, locale);
+const mapLang = cachedMapLocale(routeSlug, vKey, locale);
+---
+
+<div class="route-downloads" data-variant={variantKey || undefined}>
+  {hasMapPng && (
+    <Fragment>
+      <a href={assets.mapPng(routeSlug, vKey, mapLang)} class="action-button" download title={t('map.download_png_title', locale)} onclick="window.BikeApp?.tE?.('download png', { props: { page: location.pathname } })">
+        <Icon name="download-simple" size={16} /> {t('map.download_png', locale)}
+      </a>
+      {' '}
+    </Fragment>
+  )}
+  <a href={gpxUrl} class="action-button" download title={t('map.download_gpx_title', locale)}>
+    <Icon name="download-simple" size={16} /> {t('map.download_gpx', locale)}
+  </a>
+  {' '}
+  <a href={exploreUrl} class="action-button" target="_blank" rel="nofollow" title={t('map.explore_gpx_title', locale)}>
+    <Icon name="map-trifold" size={16} /> {t('map.explore_gpx', locale)}
+  </a>
+  {variant.strava_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.strava_url} class="action-button --light --logo" target="_blank" rel="noopener" title={t('strava.open', locale)} aria-label={t('strava.open', locale)}>
+        <img src="/strava.svg" width="80" alt="" aria-hidden="true" style="-webkit-user-select: none" />
+      </a>
+    </Fragment>
+  )}
+  {variant.rwgps_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.rwgps_url} class="action-button --light --logo" target="_blank" rel="noopener" title={t('rwgps.open', locale)} aria-label={t('rwgps.open', locale)}>
+        <img src="/rwgps.svg" width="78" alt="" aria-hidden="true" style="-webkit-user-select: none" />
+      </a>
+    </Fragment>
+  )}
+  {variant.komoot_url && (
+    <Fragment>
+      {' '}
+      <a href={variant.komoot_url} class="action-button --light --logo" target="_blank" rel="noopener" title={t('komoot.open', locale)} aria-label={t('komoot.open', locale)}>
+        <img src="/komoot.svg" width="80" alt="" aria-hidden="true" style="-webkit-user-select: none" />
+      </a>
+    </Fragment>
+  )}
+</div>

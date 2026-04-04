@@ -14,7 +14,7 @@ vi.mock('../src/lib/config/city-config', () => ({
 
 import {
   routeJsonLd, eventJsonLd, guideJsonLd, breadcrumbJsonLd,
-  rideJsonLd, touristAttractionJsonLd, routeMapJsonLd, webPageJsonLd,
+  rideJsonLd, touristAttractionJsonLd, webPageJsonLd,
   parsePrice,
 } from '../src/lib/json-ld';
 
@@ -279,37 +279,6 @@ describe('touristAttractionJsonLd', () => {
   });
 });
 
-describe('routeMapJsonLd', () => {
-  it('returns TouristAttraction with GeoShape and places', () => {
-    const result = routeMapJsonLd({
-      name: 'Wakefield',
-      description: '46 km cycling route map',
-      imageUrl: 'https://example.com/map.jpg',
-      url: 'https://example.com/routes/wakefield/map',
-      geoLine: '45.42,-75.69 45.50,-75.80',
-      containsPlaces: [
-        { name: 'Chelsea Pub', lat: 45.45, lng: -75.75, category: 'restaurant' },
-      ],
-      distance: '45.8 km',
-      elevationGain: '320 m',
-      routeShape: 'out-and-back',
-    });
-
-    expect(result['@type']).toBe('TouristAttraction');
-    expect(result.geo).toEqual({ '@type': 'GeoShape', line: '45.42,-75.69 45.50,-75.80' });
-    expect(result.containsPlace!).toHaveLength(1);
-    expect(result.containsPlace![0].name).toBe('Chelsea Pub');
-    expect(result.additionalProperty!).toHaveLength(3);
-    expect(result.additionalProperty![0]).toEqual({ '@type': 'PropertyValue', name: 'distance', value: '45.8 km' });
-  });
-
-  it('omits empty arrays', () => {
-    const result = routeMapJsonLd({ name: 'Test', url: 'https://example.com' });
-    expect(result.geo).toBeUndefined();
-    expect(result.containsPlace).toBeUndefined();
-    expect(result.additionalProperty).toBeUndefined();
-  });
-});
 
 describe('webPageJsonLd', () => {
   it('returns WebPage with about City', () => {

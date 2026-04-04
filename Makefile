@@ -33,6 +33,7 @@ validate-ctx: ## Validate _ctx/ context system (links, frontmatter, index)
 	npx tsx scripts/validate-ctx.ts
 
 test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright screenshot tests
+	@rm -rf .astro
 	CITY=demo npx astro build
 	CITY=demo npx tsx scripts/validate.ts
 	@node -e "\
@@ -43,7 +44,7 @@ test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright screen
 	  c.d1_databases = [{ binding: 'DB', database_name: 'test', database_id: 'local' }];\
 	  fs.writeFileSync(f, JSON.stringify(c));"
 	@for f in drizzle/migrations/*.sql; do npx wrangler d1 execute DB --local --config dist/server/wrangler.json --file "$$f"; done
-	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots)
+	npx playwright test --config e2e/playwright.config.ts $(if $(CI),,--ignore-snapshots) $(if $(TEST_FILTER),-g "$(TEST_FILTER)")
 
 test-update: prebuild ## Update screenshot baselines
 	CITY=demo npx astro build

@@ -16,10 +16,23 @@
   border: 1px solid $color-border;
   background: $color-bg;
   color: $color-text-muted;
-  cursor: pointer;
   user-select: none;
   transition: all 0.15s;
   text-decoration: none;
+  cursor: default;
+
+  &:is(a), &:is(button) {
+    cursor: pointer;
+
+    &:not(.active):hover {
+      border-bottom: 2px solid $color-accent;
+      color: $color-text;
+
+      @include dark-mode {
+        color: $color-text-dark;
+      }
+    }
+  }
 
   &:first-child {
     border-radius: 6px 0 0 6px;
@@ -43,14 +56,19 @@
   }
 
   &.active {
-    background: $color-text;
-    color: $color-bg;
-    border-color: $color-text;
+    background: $color-card-hover;
+    color: $color-text;
+    font-weight: 700;
+    border-color: #bbbbc4;
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+    border-bottom: 2px solid $color-accent;
 
     @include dark-mode {
-      background: $color-text-dark;
-      color: $color-bg-dark;
-      border-color: $color-text-dark;
+      background: $color-bg-dark;
+      color: $color-text-dark;
+      border-color: #3a3a44;
+      box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      border-bottom: 2px solid $color-accent;
     }
   }
 }

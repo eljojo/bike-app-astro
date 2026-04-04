@@ -216,7 +216,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
 ---
 
 <Base title={`${t('calendar.title', locale, { year: currentYear })} | ${config.display_name}`} description={calendarDescription} ogImage={ogImage}>
-  <SubTabToggle items={[
+  <SubTabToggle isIndex items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: true },
     { label: t('nav.people', locale), href: paths.communities(locale), active: false },
     { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: false },

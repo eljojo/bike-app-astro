@@ -145,3 +145,111 @@ test.describe('Network pages', () => {
     await expect(badge).toHaveAttribute('href', /\/bike-paths\/red-de-ciclovias$/);
   });
 });
+
+// Route detail — media gallery, lightbox, downloads, variant permalinks.
+// Demo route "ruta-rio-chillan" has 4 photos, 1 video, 1 variant, cached map PNG.
+const ROUTE_DETAIL_URL = '/routes/ruta-rio-chillan/';
+
+test.describe('Route detail — photo gallery', () => {
+  test('photo filmstrip renders all scored photos', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const photos = page.locator('.photo-gallery .photo-gallery--image');
+    await expect(photos).toHaveCount(4);
+  });
+
+  test('clicking a photo opens PhotoSwipe lightbox', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const firstPhoto = page.locator('.photo-gallery .photo-gallery--image').first();
+    await firstPhoto.click();
+    // PhotoSwipe adds .pswp element to the DOM when opened
+    await expect(page.locator('.pswp')).toBeAttached({ timeout: 5000 });
+  });
+
+  test('photos have data-cropped for PhotoSwipe animation', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const firstPhoto = page.locator('.photo-gallery .photo-gallery--image').first();
+    await expect(firstPhoto).toHaveAttribute('data-cropped', 'true');
+  });
+
+  test('cover photo click opens lightbox on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(ROUTE_DETAIL_URL);
+    await page.waitForLoadState('networkidle');
+    const coverPhoto = page.locator('.gallery-cover-photo');
+    await expect(coverPhoto).toBeVisible({ timeout: 5000 });
+    await coverPhoto.click();
+    await expect(page.locator('.pswp')).toBeAttached({ timeout: 5000 });
+  });
+});
+
+test.describe('Route detail �� video gallery', () => {
+  test('video section renders for route with videos', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const videoSection = page.locator('.route-videos');
+    await expect(videoSection).toBeVisible();
+  });
+
+  test('video autoplays muted', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const video = page.locator('.video-gallery--player video');
+    await expect(video).toHaveAttribute('autoplay', '');
+    await expect(video).toHaveAttribute('muted', '');
+  });
+
+  test('single video has no thumbnail switcher', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const thumbs = page.locator('.video-gallery--thumbs');
+    await expect(thumbs).toHaveCount(0);
+  });
+});
+
+test.describe('Route detail — media show prop', () => {
+  test('photo section does not contain video elements', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const photoSection = page.locator('.route-photos');
+    await expect(photoSection).toBeVisible();
+    // Photos section should only have photo links, no video player
+    const videos = photoSection.locator('video');
+    await expect(videos).toHaveCount(0);
+  });
+
+  test('video section does not contain photo gallery', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const videoSection = page.locator('.route-videos');
+    await expect(videoSection).toBeVisible();
+    const photoGallery = videoSection.locator('.photo-gallery');
+    await expect(photoGallery).toHaveCount(0);
+  });
+});
+
+test.describe('Route detail — downloads', () => {
+  test('Download PNG button appears when map exists', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const pngButton = page.locator('.route-downloads a', { hasText: 'Download PNG' });
+    // PNG button is only rendered when generate-maps.ts produced a cached map.
+    // In CI the map cache may miss (no GOOGLE_MAPS_STATIC_API_KEY) — skip if absent.
+    if (await pngButton.count() === 0) {
+      console.warn('No cached map PNG — skipping Download PNG button test');
+      test.skip();
+    }
+    await expect(pngButton).toBeVisible();
+    await expect(pngButton).toHaveAttribute('href', /\/maps\/ruta-rio-chillan\/.*map\.png/);
+  });
+
+  test('Download GPX button is present', async ({ page }) => {
+    await page.goto(ROUTE_DETAIL_URL);
+    const gpxButton = page.locator('.route-downloads a', { hasText: 'GPX' }).first();
+    await expect(gpxButton).toBeVisible();
+    await expect(gpxButton).toHaveAttribute('href', /\.gpx$/);
+  });
+});
+
+test.describe('Route detail — variant permalink', () => {
+  test('variant param in URL selects the variant', async ({ page }) => {
+    // Demo city has only one variant (variants-default), so ?variant=variants-default
+    // should work without error — the selector reads it and dispatches variant:change
+    await page.goto(ROUTE_DETAIL_URL + '?variant=variants-default');
+    // Page should load successfully with the variant active
+    await expect(page.locator('h1')).toContainText('Ruta Río Chillán');
+  });
+});

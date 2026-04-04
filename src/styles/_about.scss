@@ -241,7 +241,7 @@
   text-decoration: none;
   background: $color-text;
   color: $color-bg;
-  transition: opacity 0.2s;
+  transition: opacity $transition-state;
 
   &, &:visited { color: $color-bg; }
   &:hover { opacity: 0.85; }
@@ -262,7 +262,7 @@
   background: transparent;
   color: $color-text;
   border: 1px solid $color-border;
-  transition: opacity 0.2s;
+  transition: opacity $transition-state;
 
   &, &:visited { color: $color-text; }
   &:hover { opacity: 0.7; }
@@ -329,7 +329,7 @@
       font-size: 1.2em;
       flex-shrink: 0;
       margin-left: 12px;
-      transition: transform 0.2s;
+      transition: transform $transition-state;
       @include muted-text;
     }
   }

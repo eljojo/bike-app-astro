@@ -368,6 +368,8 @@
 .bike-path-description {
   margin-bottom: 2rem;
   line-height: 1.6;
+
+  a { @include prose-link; }
 }
 
 // Routes on this path

@@ -1,0 +1,46 @@
+---
+import { getCityConfig } from '@/lib/config/city-config';
+import { t } from '@/i18n';
+
+interface Props {
+  polylines: { name: string; encoded: string; key?: string }[];
+  places?: { name: string; emoji: string; lat: number; lng: number; description?: string; link?: string; google_maps_url?: string }[];
+  photos?: { key: string; lat: number; lng: number; caption?: string; width?: number; height?: number; index: number }[];
+  locale?: string;
+}
+
+const { polylines, places = [], photos = [], locale } = Astro.props;
+const hintText = t('paths.tap_to_explore', locale);
+const closeLabel = t('paths.close_map', locale);
+const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+---
+
+<div class="expandable-map-wrapper">
+  <div class="expandable-map-overlay" id="route-detail-map-overlay"></div>
+  <div
+    class="expandable-map-card"
+    id="route-detail-map"
+    data-polylines={JSON.stringify(polylines)}
+    data-places={JSON.stringify(places)}
+    data-photos={JSON.stringify(photos)}
+    data-cdn-url={cdnUrl}
+    role="button"
+    tabindex="0"
+    aria-expanded="false"
+  >
+    <div class="expandable-map-gl" id="route-detail-map-gl"></div>
+    <div class="expandable-map-controls" id="route-detail-map-controls"></div>
+    <button class="expandable-map-close" id="route-detail-map-close" aria-label={closeLabel}>✕</button>
+    <div class="expandable-map-hint">{hintText}</div>
+  </div>
+</div>
+
+<script>
+  import { setupMapFromElement, wireVariantSwitch } from '../lib/maps/map-factory';
+
+  const card = document.getElementById('route-detail-map');
+  if (card) {
+    const { map, polylineLayer } = setupMapFromElement(card, { expandable: true });
+    wireVariantSwitch(map, polylineLayer, card);
+  }
+</script>

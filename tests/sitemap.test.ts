@@ -49,7 +49,7 @@ describe('buildSitemapEntries', () => {
     expect(enHome!.alternates).toHaveLength(2);
   });
 
-  it('generates map URLs for each route', () => {
+  it('does not generate map URLs for routes (deprecated)', () => {
     const entries = buildSitemapEntries({
       routes: [{
         id: 'test-route',
@@ -63,8 +63,7 @@ describe('buildSitemapEntries', () => {
     });
 
     const mapEntry = entries.find(e => e.url.includes('/routes/test-route/map'));
-    expect(mapEntry).toBeDefined();
-    expect(mapEntry!.priority).toBe(0.2);
+    expect(mapEntry).toBeUndefined();
   });
 
   it('filters out non-published routes', () => {
@@ -115,9 +114,9 @@ describe('buildSitemapEntries', () => {
     const frRoute = entries.find(e => e.url === 'https://ottawabybike.ca/fr/parcours/test-route');
     expect(frRoute).toBeDefined();
 
-    // French map should use 'parcours' and 'carte'
+    // Route map URLs are no longer in sitemap (deprecated)
     const frMap = entries.find(e => e.url === 'https://ottawabybike.ca/fr/parcours/test-route/carte');
-    expect(frMap).toBeDefined();
+    expect(frMap).toBeUndefined();
 
     // Alternates should also use translated URLs
     const enRoute = entries.find(e => e.url === 'https://ottawabybike.ca/routes/test-route');

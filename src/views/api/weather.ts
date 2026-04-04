@@ -109,7 +109,7 @@ export const GET: APIRoute = async ({ url }) => {
       } else {
         const description = t(`weather.${result.descriptionKey}`, locale);
         const key = isEvening ? 'weather.good_day_tomorrow' : 'weather.good_day';
-        let text = t(key, locale, { temp: result.temperature, description });
+        const text = t(key, locale, { temp: result.temperature, description });
         response = {
           rideable: true,
           text,

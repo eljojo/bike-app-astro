@@ -12,13 +12,10 @@ import { paths, routeSlug } from '../src/lib/paths';
 describe('paths', () => {
   it('returns English paths without locale', () => {
     expect(paths.route('aylmer')).toBe('/routes/aylmer');
-    expect(paths.routeMap('aylmer')).toBe('/routes/aylmer/map');
   });
 
   it('returns translated French paths with locale', () => {
     expect(paths.route('aylmer', 'fr')).toBe('/fr/parcours/aylmer');
-    expect(paths.routeMap('aylmer', 'fr')).toBe('/fr/parcours/aylmer/carte');
-    expect(paths.routeVariantMap('aylmer', 'main', 'fr')).toBe('/fr/parcours/aylmer/carte/main');
     expect(paths.guide('cycling-101', 'fr')).toBe('/fr/guides/cycling-101');
     expect(paths.video('abc123', 'fr')).toBe('/fr/videos/abc123');
   });

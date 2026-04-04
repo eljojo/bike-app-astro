@@ -267,6 +267,6 @@ export async function POST({ params, request, locals }: APIContext) {
     return saveContent(request, locals, params, 'rides', handlers);
   }
   // For edits, omit checkExistence — only deduplicate when creating new rides
-  const { checkExistence, ...editHandlers } = handlers;
+  const { checkExistence: _checkExistence, ...editHandlers } = handlers;
   return saveContent(request, locals, params, 'rides', editHandlers);
 }

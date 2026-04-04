@@ -13,6 +13,9 @@ interface Props {
   width: number;
   height: number;
   title?: string;
+  autoPlay?: boolean;
+  muted?: boolean;
+  initialVolume?: number;
 }
 
 const DESKTOP_MIN_WIDTH = 768;
@@ -22,12 +25,29 @@ function isSafari(): boolean {
   return ua.includes('Safari') && !ua.includes('Chrome') && !ua.includes('Chromium');
 }
 
-export default function VideoPlayer({ sources, poster, fallbackUrl, width, height, title }: Props) {
+export default function VideoPlayer({ sources, poster, fallbackUrl, width, height, title, autoPlay, muted, initialVolume }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    if (initialVolume != null) video.volume = initialVolume;
+
+    // Track first intentional engagement — unmute, play unmuted, or fullscreen
+    let tracked = false;
+    const track = () => {
+      if (tracked) return;
+      tracked = true;
+      window.BikeApp?.tE?.('play video', { props: { page: window.location.pathname } });
+    };
+    const onPlay = () => { if (!video.muted) track(); };
+    const onVolumeChange = () => { if (!video.muted && !video.paused) track(); };
+    const onFullscreen = () => { if (document.fullscreenElement === video) track(); };
+    video.addEventListener('play', onPlay);
+    video.addEventListener('volumechange', onVolumeChange);
+    video.addEventListener('fullscreenchange', onFullscreen);
+    video.addEventListener('webkitfullscreenchange', onFullscreen);
 
     // Skip HLS.js on mobile and Safari (native HLS support)
     if (window.innerWidth < DESKTOP_MIN_WIDTH || isSafari()) return;
@@ -57,6 +77,13 @@ export default function VideoPlayer({ sources, poster, fallbackUrl, width, heigh
     });
 
     return () => {
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('volumechange', onVolumeChange);
+      video.removeEventListener('fullscreenchange', onFullscreen);
+      video.removeEventListener('webkitfullscreenchange', onFullscreen);
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
       if (hls) hls.destroy();
     };
   }, []);
@@ -65,12 +92,15 @@ export default function VideoPlayer({ sources, poster, fallbackUrl, width, heigh
     <video
       ref={videoRef}
       controls
-      preload="metadata"
+      preload={autoPlay ? 'auto' : 'metadata'}
       width={width}
       height={height}
       poster={poster}
       disablePictureInPicture
       aria-label={title}
+      autoPlay={autoPlay}
+      muted={muted}
+      playsInline
     >
       {sources.map(s => (
         <source src={s.src} type={s.type} />

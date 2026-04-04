@@ -12,8 +12,6 @@
   }
 
   p { line-height: 1.5; }
-  a { color: inherit; text-decoration: underline; }
-
   .event-similar-card,
   .edition-card {
     text-decoration: none;
@@ -196,6 +194,8 @@
 .event-detail-body {
   font-size: 1.05em;
   margin-top: 0.75rem;
+
+  a { @include prose-link; }
 }
 
 // Past event state
@@ -255,7 +255,7 @@
       content: '\203A';
       font-size: 1.2em;
       margin-left: auto;
-      transition: transform 0.2s;
+      transition: transform $transition-state;
     }
 
     &::-webkit-details-marker {
@@ -308,7 +308,7 @@
     &::after {
       content: '\203A';
       font-size: 1.2em;
-      transition: transform 0.2s;
+      transition: transform $transition-state;
     }
 
     &::-webkit-details-marker {

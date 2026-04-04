@@ -7,7 +7,7 @@ interface Props {
   returnTo?: string;
 }
 
-export default function RegisterForm({ isSetup, isUpgrade, returnTo = '/admin' }: Props) {
+export default function RegisterForm({ isSetup: _isSetup, isUpgrade, returnTo = '/admin' }: Props) {
   const [email, setEmail] = useState('');
   const [username, setDisplayName] = useState('');
   const [error, setError] = useState('');

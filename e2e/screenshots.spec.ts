@@ -75,14 +75,17 @@ test.describe('Screenshots', () => {
     await expect(page).toHaveScreenshot('route-detail.png', { fullPage: true, maxDiffPixelRatio: 0.02 });
   });
 
-  test('route map', async ({ page }) => {
-    await proxyTiles(page);
+  test('route map redirects to detail', async ({ page }) => {
     await page.goto('/routes/ruta-rio-chillan/map');
-    await page.waitForSelector('.maplibregl-map');
-    await expect(page.locator('.maplibregl-map')).toBeVisible();
-    // Wait for map tiles to render (canvas gets painted)
-    await page.waitForTimeout(2000);
-    await expect(page).toHaveScreenshot('route-map.png', { maxDiffPixelRatio: 0.02 });
+    // Route map pages are deprecated — 301 redirect to the detail page
+    // wrangler dev may add trailing slash to static file URLs
+    await expect(page).toHaveURL(/\/routes\/ruta-rio-chillan\/?$/);
+  });
+
+  test('route variant map redirects to detail (default variant, no param)', async ({ page }) => {
+    await page.goto('/routes/ruta-rio-chillan/map/variants-default');
+    // Default variant redirect — no ?variant= param since it's the first variant
+    await expect(page).toHaveURL(/\/routes\/ruta-rio-chillan\/?$/);
   });
 
   test('guides index', async ({ page }) => {

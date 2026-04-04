@@ -3,12 +3,13 @@
 
 .event-card {
   border: 1px solid $color-border;
-  border-radius: 8px;
+  border-radius: $border-radius;
   padding: 1em;
   display: flex;
   flex-direction: column;
   gap: 0.3em;
   position: relative;
+  @include card-depth;
 }
 
 .event-card--linked {

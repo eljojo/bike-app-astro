@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
+import Icon from '../Icon';
 import { loadStylePreference, saveStylePreference, type MapStyleKey } from '../../lib/maps/map-style-switch';
 
 interface Props {
@@ -31,7 +32,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
 
   useEffect(() => {
     const p = loadToggleState('map-photos', defaultPhotos);
-    const pl = loadToggleState('map-places', true);
+    const pl = loadToggleState('map-places', false);
     setPhotos(p);
     setPlaces(pl);
     onTogglePhotos?.(p);
@@ -71,7 +72,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
           title={photos ? 'Hide photos' : 'Show photos'}
           aria-pressed={photos}
         >
-          {'📷'}
+          <Icon name="camera" weight="fill" size={20} />
         </button>
       )}
       {hasPlaces && (
@@ -81,7 +82,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
           title={places ? 'Hide places' : 'Show places'}
           aria-pressed={places}
         >
-          {'📍'}
+          <Icon name="map-pin" weight="fill" size={20} />
         </button>
       )}
       <button
@@ -90,7 +91,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
         title={gps ? 'Hide my location' : 'Show my location'}
         aria-pressed={gps}
       >
-        {'🧭'}
+        <Icon name="crosshair" size={20} />
       </button>
       <button
         class={`map-control-btn ${styleKey === 'high-contrast' ? 'active' : ''}`}
@@ -103,10 +104,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
         title={styleKey === 'high-contrast' ? 'Color map' : 'High contrast map'}
         aria-pressed={styleKey === 'high-contrast'}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" />
-        </svg>
+        <Icon name="circle-half" size={20} />
       </button>
     </div>
   );

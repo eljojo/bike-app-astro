@@ -1,5 +1,5 @@
 // Public Preact island. Styles in global.scss.
-import { useState, useRef } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import Icon from './Icon';
 
 export interface ElevationPoint {
@@ -23,12 +23,12 @@ interface Props {
   collapsed?: boolean;
 }
 
-const SVG_W = 800;
-const SVG_H = 200;
-const PAD_L = 50;
-const PAD_R = 10;
-const PAD_T = 10;
-const PAD_B = 25;
+const SVG_W = 400;
+const SVG_H = 160;
+const PAD_L = 42;
+const PAD_R = 5;
+const PAD_T = 8;
+const PAD_B = 28;
 const PLOT_W = SVG_W - PAD_L - PAD_R;
 const PLOT_H = SVG_H - PAD_T - PAD_B;
 
@@ -48,9 +48,25 @@ const WP_COLORS: Record<string, string> = {
   poi: '#1976d2',
 };
 
+const ELEVATION_KEY = 'elevation-collapsed';
+
 export default function InteractiveElevation({ points, label, color = '#0066cc', waypoints = [], collapsed: initialCollapsed = false }: Props) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [isCollapsed, setCollapsed] = useState(initialCollapsed);
+
+  // Read persisted state after hydration + sync across instances
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(ELEVATION_KEY);
+      if (v !== null) setCollapsed(v === 'true');
+    } catch {}
+
+    const handler = (e: Event) => {
+      setCollapsed((e as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener('elevation:toggle', handler);
+    return () => window.removeEventListener('elevation:toggle', handler);
+  }, []);
   const svgRef = useRef<SVGSVGElement>(null);
 
   if (points.length === 0) return null;
@@ -82,29 +98,28 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
     + ` L${(PAD_L + PLOT_W).toFixed(1)},${PAD_T + PLOT_H}`
     + ` L${PAD_L},${PAD_T + PLOT_H} Z`;
 
-  // Y-axis ticks
-  const yStep = niceStep(eleRange, 4);
+  // Y-axis ticks — fewer ticks (2-3) for readability in small containers
+  const yStep = niceStep(eleRange, 2);
   const yStart = Math.ceil(minEle / yStep) * yStep;
   const yTicks: { v: number; y: number }[] = [];
   for (let v = yStart; v <= maxEle; v += yStep) {
     yTicks.push({ v, y: PAD_T + PLOT_H - ((v - minEle) / eleRange) * PLOT_H });
   }
 
-  // X-axis ticks
-  const xStep = niceStep(maxKm, 5);
+  // X-axis ticks — fewer ticks (3-4) for readability
+  const xStep = niceStep(maxKm, 3);
   const xTicks: { v: number; x: number }[] = [];
   for (let v = 0; v <= maxKm; v += xStep) {
     xTicks.push({ v, x: PAD_L + (v / maxKm) * PLOT_W });
   }
 
-  function handleMove(e: MouseEvent) {
+  function updatePosition(clientX: number) {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const svgX = (e.clientX - rect.left) / rect.width * SVG_W;
+    const svgX = (clientX - rect.left) / rect.width * SVG_W;
     const plotX = Math.max(0, Math.min(PLOT_W, svgX - PAD_L));
     const km = (plotX / PLOT_W) * maxKm;
 
-    // Find nearest point
     let bestIdx = 0;
     let bestDist = Infinity;
     for (let i = 0; i < points.length; i++) {
@@ -113,11 +128,22 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
     }
     setHoverIdx(bestIdx);
 
-    // Dispatch for map cursor sync
     const p = points[bestIdx];
     window.dispatchEvent(new CustomEvent('elevation:hover', {
       detail: { lat: p.lat, lng: p.lng, km: p.km },
     }));
+  }
+
+  function handleMove(e: MouseEvent) { updatePosition(e.clientX); }
+
+  function handleTouchStart(e: TouchEvent) {
+    e.preventDefault(); // prevent page scroll while scrubbing
+    updatePosition(e.touches[0].clientX);
+  }
+
+  function handleTouchMove(e: TouchEvent) {
+    e.preventDefault();
+    updatePosition(e.touches[0].clientX);
   }
 
   function handleLeave() {
@@ -141,20 +167,27 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
 
   return (
     <div class="interactive-elevation">
-      <div class="elevation-stats">
-        <span><Icon name="trend-up" size={16} /> {Math.round(elevGain)}m gain</span>
-        <span><Icon name="arrows-down-up" size={16} /> {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
-        <span><Icon name="ruler" size={16} /> {maxKm.toFixed(1)} km</span>
+      <button
+        type="button"
+        class="elevation-stats"
+        onClick={() => {
+          const next = !isCollapsed;
+          setCollapsed(next);
+          try { localStorage.setItem(ELEVATION_KEY, String(next)); } catch {}
+          window.dispatchEvent(new CustomEvent('elevation:toggle', { detail: next }));
+          window.BikeApp?.tE?.('elevation toggle', { props: { action: next ? 'close' : 'open', page: window.location.pathname } });
+        }}
+        aria-expanded={!isCollapsed}
+        aria-label={isCollapsed ? 'Show elevation chart' : 'Hide elevation chart'}
+      >
+        <span title="Total elevation gained">{'\u00A0'}<Icon name="trend-up" size={16} /> {Math.round(elevGain)}m gain</span>
+        <span title="Elevation range (lowest – highest)">{'\u00A0'}<Icon name="arrows-down-up" size={16} /> {Math.round(rawMin)}m &ndash; {Math.round(rawMax)}m</span>
+        <span title="Total distance">{'\u00A0'}<Icon name="ruler" size={16} /> {maxKm.toFixed(1)} km</span>
         {label && <span class="elevation-label" style={`color: ${color}`}>{label}</span>}
-        <button
-          type="button"
-          class="elevation-toggle"
-          onClick={() => setCollapsed(c => !c)}
-          aria-label={isCollapsed ? 'Show elevation' : 'Hide elevation'}
-        >
-          {isCollapsed ? <Icon name="caret-right" size={16} /> : <Icon name="caret-down" size={16} />}
-        </button>
-      </div>
+        <span class={`elevation-toggle ${isCollapsed ? 'elevation-toggle--collapsed' : ''}`}>
+          <Icon name="caret-down" size={16} />
+        </span>
+      </button>
       {!isCollapsed && (
         <>
           <svg
@@ -163,6 +196,9 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
             class="elevation-svg"
             onMouseMove={handleMove}
             onMouseLeave={handleLeave}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleLeave}
           >
             {/* Grid lines */}
             {yTicks.map(t => (
@@ -178,31 +214,31 @@ export default function InteractiveElevation({ points, label, color = '#0066cc',
             {wpTicks.map((wp, i) => (
               <g key={i}>
                 <line x1={wp.x} x2={wp.x} y1={PAD_T} y2={plotBottom}
-                      stroke={wp.color} stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7" />
+                      stroke={wp.color} stroke-width="1" stroke-dasharray="3,2" opacity="0.7" />
                 <title>{wp.label} ({wp.km.toFixed(1)} km)</title>
               </g>
             ))}
 
             {/* Y-axis labels */}
             {yTicks.map(t => (
-              <text key={t.v} x={PAD_L - 5} y={t.y + 4} text-anchor="end"
-                    font-size="11" fill="#666">{Math.round(t.v)}m</text>
+              <text key={t.v} x={PAD_L - 4} y={t.y + 4} text-anchor="end"
+                    font-size="16" fill="#888">{Math.round(t.v)}m</text>
             ))}
 
             {/* X-axis labels */}
             {xTicks.map(t => (
-              <text key={t.v} x={t.x} y={plotBottom + 16} text-anchor="middle"
-                    font-size="11" fill="#666">{t.v}</text>
+              <text key={t.v} x={t.x} y={plotBottom + 18} text-anchor="middle"
+                    font-size="16" fill="#888">{t.v}</text>
             ))}
-            <text x={PAD_L + PLOT_W} y={plotBottom + 16} text-anchor="middle"
-                  font-size="11" fill="#666">km</text>
+            <text x={PAD_L + PLOT_W} y={plotBottom + 18} text-anchor="end"
+                  font-size="16" fill="#888">km</text>
 
             {/* Hover crosshair */}
             {hoverPoint && (
               <>
                 <line x1={hoverX} x2={hoverX} y1={PAD_T} y2={plotBottom}
-                      stroke="#666" stroke-width="1" stroke-dasharray="4,3" />
-                <circle cx={hoverX} cy={hoverY} r="4" fill={color} stroke="#fff" stroke-width="2" />
+                      stroke="#666" stroke-width="0.75" stroke-dasharray="3,2" />
+                <circle cx={hoverX} cy={hoverY} r="3.5" fill={color} stroke="#fff" stroke-width="1.5" />
               </>
             )}
           </svg>

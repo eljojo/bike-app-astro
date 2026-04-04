@@ -73,8 +73,8 @@ export function createPlaceLayer(opts: PlaceLayerOptions): MapLayer {
           })),
         },
         cluster: true,
-        clusterRadius: 50,
-        clusterMaxZoom: 14,
+        clusterRadius: 30,
+        clusterMaxZoom: 12,
       });
 
       map.addLayer({

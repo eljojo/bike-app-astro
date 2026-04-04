@@ -266,7 +266,7 @@ export default function StatsOverview() {
         const body = await res.json().catch(() => ({}));
         setError(body.error || `Failed to load (${res.status})`);
       }
-    } catch (e) {
+    } catch (_e) {
       setError('Network error');
     } finally {
       setLoading(false);

@@ -371,9 +371,6 @@ function localeRouteSlug(route: RouteEntry, locale?: string): string {
   return route.id;
 }
 
-export interface BikePathFactData {
-  count: number;
-}
 
 function resolveFactQuery(
   query: FactQuery,
@@ -382,15 +379,12 @@ function resolveFactQuery(
   organizers: OrganizerEntry[],
   events: EventEntry[],
   locale?: string,
-  bikePaths?: BikePathFactData,
 ): Record<string, string | number> | null {
   const order = query.order || query.direction || 'asc';
 
   switch (query.type) {
-    case 'bike_paths': {
-      if (!bikePaths || bikePaths.count === 0) return null;
-      return { count: bikePaths.count };
-    }
+    case 'bike_paths':
+      return null; // removed — was "Ottawa has more than N bike paths?"
     case 'places': {
       let filtered = placeData;
       if (query.filter) {
@@ -556,7 +550,6 @@ export function resolveHomepageFacts(
   organizers: OrganizerEntry[],
   events: EventEntry[],
   locale?: string,
-  bikePaths?: BikePathFactData,
 ): ResolvedFact[] {
   const short = locale ? shortLocale(locale) : defaultLocale();
   const homepageFactEntries = homepageFactsByLocale[short] ?? homepageFactsByLocale[defaultLocale()] ?? [];
@@ -585,7 +578,7 @@ export function resolveHomepageFacts(
 
     // Template with query — resolve values
     if (fact.template && fact.query) {
-      const values = resolveFactQuery(fact.query, routes, placeData, organizers, events, locale, bikePaths);
+      const values = resolveFactQuery(fact.query, routes, placeData, organizers, events, locale);
       if (!values) continue; // skip facts with zero results
 
       const text = resolveTemplate(fact.template, values);
@@ -626,15 +619,7 @@ export async function loadMagazineData(locale?: string): Promise<MagazineData> {
   const todayFeaturedSlug = new Set(featuredRoute ? [featuredRoute.slug] : []);
   const exploreRoutes = getExploreRoutes(routes, todayFeaturedSlug, locale);
 
-  // Bike path count for homepage facts
-  let bikePathFactData: BikePathFactData | undefined;
-  if (features.hasPaths) {
-    const { loadBikePathData } = await import('./bike-paths/bike-path-data.server');
-    const { pages: bikePathPages } = await loadBikePathData();
-    bikePathFactData = { count: bikePathPages.length };
-  }
-
-  const facts = resolveHomepageFacts(routes, placeData, organizers, events, locale, bikePathFactData);
+  const facts = resolveHomepageFacts(routes, placeData, organizers, events, locale);
   const video = findHomepageVideo(routes, allFeatured, locale);
 
   return {

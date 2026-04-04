@@ -3,15 +3,20 @@
 @use 'webfonts';
 @use 'about';
 @use 'event-detail';
+@use 'route-detail';
 @use 'paths';
 @use 'map-touch-lock';
+@use 'variant-selector';
+@use 'expandable-map';
 
 * { box-sizing: border-box; }
 body {
   font-family: $font-body;
   font-weight: 400;
   color: $color-text;
-  background: $color-bg;
+  background: linear-gradient(180deg, $color-bg 0%, $color-bg-bottom 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 
   @media (min-width: $breakpoint-mobile) {
     width: $content-width; // route card image placeholder height (calc(85vw/2 - 8px)) depends on this value
@@ -51,13 +56,14 @@ img { max-width: 100%; height: auto; }
   border-radius: 3px;
   border: 1px solid $color-btn-border;
   margin-right: 0.5em;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color $transition-state, border-color $transition-state;
 }
 
 a.action-button {
   border-radius: 5px;
   padding: 5px;
   line-height: 26px;
+  color: $color-text;
 
   &.--logo {
     display: inline-flex;
@@ -81,6 +87,8 @@ a.action-button {
     }
   }
   @include dark-mode {
+    color: $color-text-dark;
+
     &:hover, &.--primary {
       background-color: #333;
     }
@@ -94,27 +102,40 @@ button.action-button {
   cursor: pointer;
   font-size: 1em;
   background: none;
+  margin-top: 0.5rem;
+
+  &:hover {
+    background-color: $color-card-hover;
+  }
+
+  @include dark-mode {
+    &:hover {
+      background-color: $color-card-hover-dark;
+    }
+  }
 }
 
 a.go-back-button {
   text-decoration: none;
   padding: 5px 0;
+  color: $color-text;
 
   @media (prefers-color-scheme: light) {
     border-top: 1px solid black;
   }
   @include dark-mode {
+    color: $color-text-dark;
     border-top: 1px solid white;
   }
 }
 
-@media (prefers-color-scheme: light) {
-  a, a:visited { color: black; }
-}
 
 @include dark-mode {
-  body { background: $color-bg-dark; color: $color-text-dark; }
-  a, a:visited { color: white; }
+  body {
+    background: linear-gradient(180deg, $color-bg-dark 0%, $color-bg-bottom-dark 100%);
+    background-attachment: fixed;
+    color: $color-text-dark;
+  }
   .site-header img { filter: invert(1); }
   .tag-pill { background: gray; color: white; }
   .action-button {
@@ -246,21 +267,48 @@ body.fullbleed {
   margin: 0;
   overflow: hidden;
 
-  .site-header,
-  .top-nav {
+  .site-header {
     position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    a { pointer-events: auto; }
+
+    // Desktop: top left with gradient
+    top: 0;
     left: 0;
     right: 0;
-    z-index: 10;
-  }
-
-  .site-header {
-    top: 0;
-    padding: 0.6rem 0 4rem;
+    padding: 1.4rem 0 4rem 1rem;
     background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
-    pointer-events: none;
+    text-align: left;
 
-    a { pointer-events: auto; }
+    @include dark-mode {
+      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.9) 0%, rgba(30, 30, 30, 0.6) 50%, rgba(30, 30, 30, 0) 100%);
+    }
+
+    // Mobile: bottom left, small, monochrome
+    @media (max-width: $breakpoint-tablet) {
+      top: auto;
+      bottom: 0.75rem;
+      left: 1rem;
+      right: auto;
+      padding: 0;
+      background: none;
+
+      .site-title {
+        font-size: 0.75em;
+        opacity: 0.7;
+        background: none;
+        -webkit-background-clip: unset;
+        -webkit-text-fill-color: $color-text-muted;
+        background-clip: unset;
+        transition: opacity $transition-state;
+        &:hover { opacity: 0.9; }
+
+        @include dark-mode {
+          -webkit-text-fill-color: $color-text-muted-dark;
+        }
+      }
+    }
   }
 
   .site-subtitle,
@@ -268,9 +316,41 @@ body.fullbleed {
     display: none;
   }
 
+  // Mobile: top gradient for nav (desktop uses .site-header gradient instead)
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5rem;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.4) 60%, rgba(255, 255, 255, 0) 100%);
+    z-index: 9;
+    pointer-events: none;
+    display: none;
+
+    @media (max-width: $breakpoint-tablet) {
+      display: block;
+    }
+  }
+
+  @include dark-mode {
+    &::before {
+      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.85) 0%, rgba(30, 30, 30, 0.4) 60%, rgba(30, 30, 30, 0) 100%);
+    }
+  }
+
   .top-nav {
-    top: 3rem;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 2.2rem;
+    z-index: 10;
     background: none;
+
+    @media (max-width: $breakpoint-tablet) {
+      top: 0.5rem;
+    }
     pointer-events: none;
 
     a, button { pointer-events: auto; }
@@ -286,12 +366,6 @@ body.fullbleed {
     }
   }
 
-  @include dark-mode {
-    .site-header {
-      background: linear-gradient(to bottom, rgba(30, 30, 30, 0.9) 0%, rgba(30, 30, 30, 0.6) 50%, rgba(30, 30, 30, 0) 100%);
-    }
-  }
-
   main {
     margin: 0;
     padding: 0;
@@ -303,7 +377,14 @@ body.fullbleed {
   }
 
   .map-controls {
-    top: 5.9rem;
+    top: 4.5rem;
+
+    @media (max-width: $breakpoint-tablet) {
+      top: 3.5rem;
+    }
+    @media (max-width: $breakpoint-mobile) {
+      top: 6rem;
+    }
   }
 }
 
@@ -469,11 +550,17 @@ body.fullbleed {
 }
 .photo-bubble--cluster {
   position: relative;
+  overflow: visible;
+
+  img {
+    border-radius: 50%;
+  }
 }
 .photo-bubble--count {
   position: absolute;
   bottom: -2px;
   right: -2px;
+  z-index: 1;
   background: $color-accent;
   color: white;
   font-size: 11px;
@@ -518,7 +605,7 @@ body.fullbleed {
   to { opacity: 1; }
 }
 .maplibregl-popup-content {
-  animation: popup-content-enter 0.2s ease-out;
+  animation: popup-content-enter $transition-enter;
 }
 @keyframes popup-content-enter {
   from { transform: translateY(4px) scale(0.97); }
@@ -535,13 +622,25 @@ body.fullbleed {
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: 11;
   margin-bottom: 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   border-radius: 6px;
 }
 .fullbleed .map-layer-toggle {
-  top: 5.9rem;
+  top: 4.5rem;
+
+  @media (max-width: $breakpoint-tablet) {
+    top: 2.8rem;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    left: 10px;
+    right: 10px;
+    transform: none;
+
+    .sub-tab-btn { flex: 1; }
+  }
 }
 // Map controls (Photos/Places/GPS toggles)
 .map-controls {
@@ -559,6 +658,7 @@ body.fullbleed {
   border-radius: 4px;
   border: none;
   background: white;
+  color: $color-text;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   font-size: 18px;
@@ -568,11 +668,12 @@ body.fullbleed {
   opacity: 0.7;
   transition: opacity 0.15s;
 
-  &.active { opacity: 1; }
+  &.active { opacity: 1; color: $color-accent; }
   &:hover { opacity: 1; }
 
   @include dark-mode {
     background: #333;
+    color: $color-text-dark;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
   }
 }
@@ -589,7 +690,7 @@ body.fullbleed {
     color: $color-text-muted-dark;
   }
   .place-popup-links a {
-    color: $color-accent;
+    color: $color-link-dark;
   }
   .photo-popup-caption {
     color: $color-text-muted-dark;
@@ -601,7 +702,7 @@ body.fullbleed {
     color: $color-text-muted-dark;
   }
   .waypoint-popup-links a {
-    color: $color-accent;
+    color: $color-link-dark;
   }
 }
 
@@ -722,6 +823,14 @@ body.fullbleed {
   display: block;
   font-size: 1.4em;
   font-weight: 600;
+  color: $color-text;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
 }
 .guide--tagline {
   display: block;
@@ -737,7 +846,7 @@ body.fullbleed {
   line-height: 1.7;
   h2, h3 { margin-top: 1.5em; }
   p { margin: 0.8em 0; }
-  a { color: inherit; text-decoration: underline; }
+  a { @include prose-link; }
   ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
 }
 
@@ -778,11 +887,7 @@ body.fullbleed {
   }
 }
 
-// Route detail
-.route-detail {
-  h1 { font-size: 24px; }
-  h2 { font-size: 18.72px; }
-}
+// Legacy layout classes (used by rides, events, content detail patterns)
 .route-detail--hero {
   width: 100%;
   max-height: 400px;
@@ -814,13 +919,6 @@ body.fullbleed {
   img { width: 100%; height: auto; border-radius: 8px; }
   @media (max-width: 800px) { width: 100%; }
 }
-.route--tags {
-  list-style: none;
-  padding: 0;
-}
-.route-description {
-  a { color: inherit; text-decoration: underline; }
-}
 
 // Admin edit link (hidden unless logged in)
 .admin-edit-link {
@@ -832,7 +930,12 @@ body.fullbleed {
   margin-left: 0.5em;
   opacity: 0.4;
   text-decoration: none;
+  color: $color-text;
   &:hover { opacity: 0.8; }
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
 }
 .admin-visible .admin-edit-link {
   display: inline;
@@ -868,13 +971,14 @@ body.fullbleed {
   }
 }
 
-// Stats strip
+// Stats strip (used by tours, stats pages)
 .route-stats {
   display: flex;
   background: $color-card-bg;
   border-radius: $border-radius;
   padding: 0.75rem 0;
   margin: 1rem 0;
+  @include card-depth;
 
   @include dark-mode {
     background: $color-card-bg-dark;
@@ -952,139 +1056,13 @@ body.fullbleed {
   }
 }
 
-// Route detail: variants zone
-.route-variants {
-  margin: 1.5rem 0;
-}
-
-// Variant cards
-.variant-cards-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  margin: 1rem 0;
-
-  @media (min-width: $breakpoint-tablet) {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  }
-}
-
-.variant-card {
-  border: 1px solid $color-border;
-  border-radius: $border-radius;
-  padding: 1rem;
-  background: $color-card-bg;
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-    background: $color-card-bg-dark;
-  }
-}
-
-.variant-card-name {
-  font-size: 1rem;
-  margin: 0 0 0.5rem;
-}
-
-.variant-card-stats {
-  font-size: 0.9rem;
-  @include muted-text;
-  margin-bottom: 0.25rem;
-}
-
-.variant-card-dot {
-  margin: 0 0.3em;
-}
-
-.variant-card-actions {
-  margin-top: 0.75rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.variant-card-external {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-// Route detail: reactions zone
-.route-reactions-zone {
-  margin: 1.5rem 0;
-  padding-top: 1rem;
-  border-top: 1px solid $color-border;
-
-  @include dark-mode {
-    border-color: $color-border-dark;
-  }
-}
-
 .event-reactions-zone {
   margin-top: 1rem;
-}
-
-// Similar routes
-.route-similar {
-  margin-top: 2em;
-}
-
-.route-similar--cards {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75em;
-  padding: 0;
-  margin: 0;
-}
-
-.route-similar--card {
-  width: calc(50% - 0.375em);
-
-  @media (min-width: $breakpoint-desktop) {
-    width: calc(33.333% - 0.5em);
-  }
-
-  a {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-  }
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: $border-radius;
-    object-fit: cover;
-    aspect-ratio: 3 / 2;
-  }
-}
-
-.route-similar--card-name {
-  display: block;
-  font-weight: 600;
-  margin-top: 0.3em;
-  font-size: 0.95em;
-}
-
-.route-similar--card-distance {
-  display: block;
-  font-size: 0.85em;
-  @include muted-text;
 }
 
 // Hidden nearby places (truncation toggle)
 .places-hidden {
   display: none !important;
-}
-
-// Place summary line
-.route-place-summary {
-  font-size: 0.9em;
-  color: $color-text-muted;
-  @include dark-mode { color: $color-text-muted-dark; }
 }
 
 // Reactions widget
@@ -1106,6 +1084,7 @@ body.fullbleed {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .trust-receipt {
@@ -1126,7 +1105,6 @@ body.fullbleed {
 .reaction-hint {
   font-size: 0.8rem;
   @include muted-text;
-  margin: 0.5rem 0 0;
 }
 
 .reaction-btn {
@@ -1840,6 +1818,16 @@ body.fullbleed {
   font-size: 0.85em;
   @include muted-text;
   margin-bottom: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+
+  &:hover { color: $color-text; }
+  @include dark-mode { &:hover { color: $color-text-dark; } }
 }
 
 .elevation-label {
@@ -1847,15 +1835,14 @@ body.fullbleed {
 }
 
 .elevation-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
+  margin-left: auto;
   font-size: 0.8em;
   @include muted-text;
-  padding: 0 0.25rem;
-  margin-left: auto;
-  &:hover { color: $color-text; }
-  @include dark-mode { &:hover { color: $color-text-dark; } }
+  transition: transform $transition-toggle;
+
+  &--collapsed {
+    transform: rotate(-90deg);
+  }
 }
 
 .elevation-svg {

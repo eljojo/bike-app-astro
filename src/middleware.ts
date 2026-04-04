@@ -124,12 +124,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (contentTarget) {
     return context.redirect(contentTarget, 301);
   }
-  // Handle /map sub-path on redirected URLs (e.g. /rides/old-slug/map → /routes/new-slug/map)
+  // Handle /map sub-path on redirected URLs (e.g. /rides/old-slug/map → /routes/new-slug)
+  // Route map pages are deprecated (redirect to detail), so skip the /map suffix for routes.
+  // Rides and tours still have map pages, so keep /map for those targets.
   if (stripped.endsWith('/map')) {
     const base = stripped.slice(0, -4);
     const baseTarget = contentRedirects[base];
     if (baseTarget) {
-      return context.redirect(`${baseTarget}/map`, 301);
+      const target = baseTarget.startsWith('/routes/') ? baseTarget : `${baseTarget}/map`;
+      return context.redirect(target, 301);
     }
   }
 

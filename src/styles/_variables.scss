@@ -3,33 +3,36 @@ $font-heading: 'Merriweather', serif;
 $font-mono: 'American Typewriter', 'Courier New', monospace;
 $font-site-title: 'Arial Black', sans-serif;
 
-$color-bg: #ffffff;
-$color-bg-dark: #000000;
-$color-text: #000000;
-$color-text-dark: #ffffff;
-$color-text-muted: #444;
+$color-bg: #fbfbfc;
+$color-bg-dark: #0c0c0f;
+$color-bg-bottom: #f6f6f8;
+$color-bg-bottom-dark: #08080b;
+$color-text: #18181b;
+$color-text-dark: #e8e8ef;
+$color-text-muted: #555560;
 $color-accent: orange;
 $color-primary: #1565c0;
 $color-link: #1565c0;
 $color-link-dark: #5ba3f5;
-$color-border: #dee2e6;
+$color-border: #dddde2;
 
 // Tag pills
 $color-tag-bg: gray;
 $color-tag-text: white;
 
 // Route cards
-$color-card-bg: #f9f9f9;
-$color-card-bg-dark: #141414;
-$color-card-hover: #f0f0f0;
-$color-card-hover-dark: #1f1f1f;
+$color-card-bg: #f1f1f3;
+$color-card-bg-dark: #17171c;
+$color-card-hover: #e8e8ec;
+$color-card-hover-dark: #1f1f24;
 
 // Action buttons
 $color-btn-border: #333;
 $color-btn-primary-bg: #ded;
 $color-btn-primary-border: green;
 
-$border-radius: 3px;
+$border-radius: 6px;
+$border-radius-small: 3px;
 
 $breakpoint-mobile: 600px;
 $breakpoint-tablet: 800px;
@@ -38,9 +41,9 @@ $breakpoint-desktop: 1000px;
 $content-width: 85%;
 
 // Dark mode base
-$color-text-muted-dark: #aaa;
-$color-border-dark: #444;
-$color-border-subtle-dark: #333;
+$color-text-muted-dark: #95959f;
+$color-border-dark: #2a2a32;
+$color-border-subtle-dark: #222228;
 
 // Status: error / danger
 $color-error: #c33;
@@ -80,3 +83,10 @@ $color-hint-dark: #666;
 
 // Bike paths — map/list highlight
 $color-path-highlight: #E6194B;
+
+// Transition timing language
+$transition-state: 0.15s ease;
+$transition-enter: 0.2s ease-out;
+$transition-exit: 0.15s ease-in;
+$transition-move: 0.35s ease-out;
+$transition-toggle: 0.15s ease-in-out;

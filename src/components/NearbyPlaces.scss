@@ -2,7 +2,7 @@
 @use '../styles/mixins' as *;
 
 .nearby-places {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
 
   h2 {
     font-size: 1.1rem;
@@ -33,12 +33,7 @@
 }
 
 .place-name {
-  text-decoration: none;
-  color: inherit;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  @include sidebar-link;
 }
 
 .place-link {

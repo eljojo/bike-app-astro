@@ -1,10 +1,10 @@
 ---
 import './PhotoGallery.scss';
-import { imageUrl } from '../lib/media/image-service';
-import { videoPlaybackSources, videoPosterUrl, videoDisplaySize, videoFallbackUrl } from '../lib/media/video-service';
-import ResponsiveImage from './ResponsiveImage.astro';
-import VideoPlayer from './VideoPlayer.tsx';
-import { t } from '../i18n';
+import './VideoGallery.scss';
+import { imageUrl, imageSrcSet2x } from '../lib/media/image-service';
+import { videoPlaybackSources, videoPosterUrl, videoFallbackUrl, videoDisplaySize } from '../lib/media/video-service';
+import VideoGallery from './VideoGallery';
+import type { VideoGalleryItem } from './VideoGallery';
 import { paths } from '../lib/paths';
 import { isBlogInstance } from '../lib/config/city-config';
 
@@ -25,93 +25,100 @@ interface MediaItem {
 interface Props {
   media: MediaItem[];
   name: string;
+  youtubeIds?: string[];
+  show?: 'all' | 'photos' | 'videos';
 }
 
-const { media, name } = Astro.props;
+const { media, name, youtubeIds = [], show = 'all' } = Astro.props;
+const showPhotos = show === 'all' || show === 'photos';
+const showVideos = show === 'all' || show === 'videos';
 const photos = media.filter(m => m.type === 'photo').sort((a, b) => (b.score || 0) - (a.score || 0));
-const videos = media.filter(m => m.type === 'video');
+const hostedVideos = media.filter(m => m.type === 'video');
 
-// Rails: Gallery.from_photos only shows photos with score >= 1, no fallback (empty gallery if none qualify).
-// We add a fallback to all photos in case scores haven't been set yet.
+// Photos: scored first, fallback to all
 const scored = photos.filter(p => (p.score || 0) >= 1);
 const allPhotos = scored.length > 0 ? scored : photos;
-const VISIBLE_COUNT = 9;
-const hasMore = allPhotos.length > VISIBLE_COUNT;
 
+// Videos: self-hosted + YouTube combined
 const hasVideoPages = !isBlogInstance();
-
-function thumbDimensions(photo: MediaItem, targetWidth: number) {
-  if (!photo.width || !photo.height) return {};
-  const scale = targetWidth / photo.width;
-  return { width: targetWidth, height: Math.round(photo.height * scale) };
-}
+const videoItems: VideoGalleryItem[] = [
+  ...hostedVideos.map(v => {
+    const sources = videoPlaybackSources(v.key);
+    const origW = v.width || 640;
+    const origH = v.height || 360;
+    const display = videoDisplaySize(origW, origH);
+    return {
+      type: 'hosted' as const,
+      key: v.key,
+      sources,
+      poster: videoPosterUrl(v.key),
+      fallbackUrl: videoFallbackUrl(v.key),
+      width: display.width,
+      height: display.height,
+      aspectW: origW,
+      aspectH: origH,
+      title: v.title,
+      detailUrl: v.handle && hasVideoPages ? paths.video(v.handle, locale) : undefined,
+      thumbUrl: videoPosterUrl(v.key),
+    };
+  }),
+  ...youtubeIds.map(id => ({
+    type: 'youtube' as const,
+    key: `yt-${id}`,
+    youtubeId: id,
+    title: name,
+    thumbUrl: `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+  })),
+];
 ---
 
-{allPhotos.length > 0 && (
+{showPhotos && allPhotos.length > 0 && (
   <section class="route-photos" id="photos">
-    <h2>{t('photos.title', locale)}</h2>
     <div class="photo-gallery">
-      {allPhotos.map((photo, i) => (
-        <a
-          href={imageUrl(photo.key)}
-          data-pswp-width={photo.width}
-          data-pswp-height={photo.height}
-          data-cropped="true"
-          data-photo-key={photo.key}
-          class={`photo-gallery--image${i >= VISIBLE_COUNT ? ' photo-hidden' : ''}`}
-          target="_blank"
-        >
-          <ResponsiveImage
-            blobKey={photo.key}
-            alt={photo.caption || name}
-            widths={[375, 750, 1170]}
-            width={thumbDimensions(photo, 375).width}
-            height={thumbDimensions(photo, 375).height}
-          />
-          {photo.caption && (
-            <span class="photo-gallery--caption pswp-caption-content">{photo.caption}</span>
-          )}
-        </a>
-      ))}
+      {allPhotos.map((photo, i) => {
+        const ratio = (photo.width || 4) / (photo.height || 3);
+        const eager = i < 4; // first 4 load immediately, rest deferred to IntersectionObserver
+        return (
+          <a
+            href={imageUrl(photo.key)}
+            data-pswp-width={photo.width}
+            data-pswp-height={photo.height}
+            data-cropped="true"
+            data-photo-key={photo.key}
+            class="photo-gallery--image"
+            style={`--ratio: ${ratio.toFixed(3)};`}
+            target="_blank"
+          >
+            {eager ? (
+              <img
+                src={imageUrl(photo.key, { width: 300 })}
+                srcset={imageSrcSet2x(photo.key, { width: 300 })}
+                alt={photo.caption || name}
+              />
+            ) : (
+              <img
+                data-src={imageUrl(photo.key, { width: 300 })}
+                data-srcset={imageSrcSet2x(photo.key, { width: 300 })}
+                alt={photo.caption || name}
+              />
+            )}
+            {photo.caption && (
+              <span class="pswp-caption-content">{photo.caption}</span>
+            )}
+          </a>
+        );
+      })}
     </div>
-    {hasMore && (
-      <button class="action-button" id="show-all-photos">
-        {t('photos.show_all', locale, { count: allPhotos.length })}
-      </button>
-    )}
   </section>
 )}
 
-{videos.length > 0 && (
-  <section class="route-videos">
-    <h3>{t('videos.title', locale)}</h3>
-    {videos.map(video => {
-      const sources = videoPlaybackSources(video.key);
-      const size = videoDisplaySize(video.width || 640, video.height || 360);
-      return (
-        <div class="route-video">
-          <VideoPlayer
-            client:idle
-            sources={sources}
-            poster={videoPosterUrl(video.key)}
-            fallbackUrl={videoFallbackUrl(video.key)}
-            width={size.width}
-            height={size.height}
-            title={video.title}
-          />
-          {video.title && hasVideoPages && video.handle && (
-            <p><a href={paths.video(video.handle, locale)}>{video.title}</a></p>
-          )}
-          {video.title && !hasVideoPages && (
-            <p class="video-title">{video.title}</p>
-          )}
-        </div>
-      );
-    })}
+{showVideos && videoItems.length > 0 && (
+  <section class="route-videos" id="videos">
+    <VideoGallery client:idle videos={videoItems} />
   </section>
 )}
 
-{(allPhotos.length > 0) && (
+{(showPhotos && allPhotos.length > 0) && (
   <script>
     import PhotoSwipeLightbox from 'photoswipe/lightbox';
     import 'photoswipe/style.css';
@@ -153,26 +160,97 @@ function thumbDimensions(photo: MediaItem, targetWidth: number) {
       const allLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.photo-gallery a.photo-gallery--image'));
       const idx = allLinks.findIndex(a => a.dataset.photoKey === photoParam);
       if (idx >= 0) {
-        // Reveal hidden photos first
-        document.querySelectorAll('.photo-hidden').forEach(el => {
-          (el as HTMLElement).classList.remove('photo-hidden');
-        });
-        const showBtn = document.getElementById('show-all-photos');
-        if (showBtn) showBtn.style.display = 'none';
-        // Open lightbox at the target photo
         lightbox.loadAndOpen(idx);
       }
     }
 
-    const showAllBtn = document.getElementById('show-all-photos');
-    if (showAllBtn) {
-      showAllBtn.addEventListener('click', () => {
-        document.querySelectorAll('.photo-hidden').forEach(el => {
-          (el as HTMLElement).classList.remove('photo-hidden');
-        });
-        showAllBtn.style.display = 'none';
-        window.BikeApp?.tE?.('show more photos', { props: { page: window.location.pathname } });
+    // Preload images ahead of scroll — observe with generous right margin
+    // so images load ~600px before they become visible in the filmstrip.
+    const gallery = document.querySelector<HTMLElement>('.photo-gallery');
+    if (gallery) {
+      const preloadObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const img = entry.target as HTMLImageElement;
+          if (img.dataset.src) {
+            img.src = img.dataset.src;
+            if (img.dataset.srcset) img.srcset = img.dataset.srcset;
+            delete img.dataset.src;
+            delete img.dataset.srcset;
+            preloadObserver.unobserve(img);
+          }
+        }
+      }, { root: gallery, rootMargin: '0px 600px 0px 0px' });
+
+      for (const img of gallery.querySelectorAll<HTMLImageElement>('img[data-src]')) {
+        preloadObserver.observe(img);
+      }
+    }
+
+    // Desktop drag-to-scroll: grab cursor, drag scrolls, click opens lightbox.
+    // On touch devices, native scroll handles everything — no drag logic needed.
+    // After hovering still for 1s, cursor switches to pointer to hint "clickable".
+    if (gallery && !('ontouchstart' in window)) {
+      let isDragging = false;
+      let startX = 0;
+      let scrollStart = 0;
+      let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+      const DRAG_THRESHOLD = 5;
+
+      gallery.classList.add('photo-gallery--draggable');
+
+      gallery.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // prevent native image/link drag
+        isDragging = false;
+        startX = e.clientX;
+        scrollStart = gallery.scrollLeft;
+        gallery.classList.add('photo-gallery--grabbing');
+        gallery.classList.remove('photo-gallery--clickable');
+        if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
       });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!gallery.classList.contains('photo-gallery--grabbing')) return;
+        const dx = e.clientX - startX;
+        if (Math.abs(dx) > DRAG_THRESHOLD) isDragging = true;
+        if (isDragging) {
+          gallery.scrollLeft = scrollStart - dx;
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        gallery.classList.remove('photo-gallery--grabbing');
+      });
+
+      // Prevent click (PhotoSwipe open + link navigation) if user dragged
+      gallery.addEventListener('click', (e) => {
+        if (isDragging) {
+          e.preventDefault();
+          e.stopPropagation();
+          isDragging = false;
+        }
+      }, true); // capture phase — fires before PhotoSwipe's handler
+
+      // After hovering still for 250ms, switch to zoom-in cursor.
+      // Any mouse movement resets the timer (debounce — only triggers when still).
+      for (const thumb of gallery.querySelectorAll<HTMLElement>('.photo-gallery--image')) {
+        thumb.addEventListener('mouseenter', () => {
+          hoverTimer = setTimeout(() => {
+            gallery.classList.add('photo-gallery--clickable');
+          }, 250);
+        });
+        thumb.addEventListener('mousemove', () => {
+          gallery.classList.remove('photo-gallery--clickable');
+          if (hoverTimer) clearTimeout(hoverTimer);
+          hoverTimer = setTimeout(() => {
+            gallery.classList.add('photo-gallery--clickable');
+          }, 250);
+        });
+        thumb.addEventListener('mouseleave', () => {
+          if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+          gallery.classList.remove('photo-gallery--clickable');
+        });
+      }
     }
   </script>
 )}

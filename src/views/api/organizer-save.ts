@@ -185,6 +185,6 @@ export async function POST({ params, request, locals }: APIContext) {
     return saveContent(request, locals, params, 'organizers', handlers);
   }
   // For edits, omit checkExistence — only check when creating new organizers
-  const { checkExistence, ...editHandlers } = handlers;
+  const { checkExistence: _checkExistence, ...editHandlers } = handlers;
   return saveContent(request, locals, params, 'organizers', editHandlers);
 }

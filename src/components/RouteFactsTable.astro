@@ -1,0 +1,64 @@
+---
+import './RouteFactsTable.scss';
+import { formatDistance } from '@/lib/geo/distance';
+import { t } from '@/i18n';
+
+interface Props {
+  distance_km: number;
+  shape?: string | null;
+  elevationGain?: number | null;
+  elevationConclusion?: string | null;
+  difficulty?: string | null;
+  surface?: string | null;
+  beginnerFriendly?: boolean | null;
+  locale?: string;
+  variantId?: string;
+}
+
+const { distance_km, shape, elevationGain, elevationConclusion, difficulty, surface, beginnerFriendly, locale, variantId } = Astro.props;
+---
+
+<table
+  class="route-facts-table"
+  data-variant={variantId || undefined}
+>
+  <tr>
+    <td>{t('route.distance', locale)}</td>
+    <td><span class="tag-pill --accent">{formatDistance([distance_km])}</span></td>
+  </tr>
+  {shape && (
+    <tr>
+      <td>{t('route.shape', locale)}</td>
+      <td>{t('shape.' + shape, locale)}</td>
+    </tr>
+  )}
+  {elevationGain != null && (
+    <tr>
+      <td>{t('route.elevation_gain', locale)}</td>
+      <td>
+        {elevationGain} {t('route.meters', locale)}
+        {elevationConclusion && ` · ${t('elevation.' + elevationConclusion, locale)}`}
+      </td>
+    </tr>
+  )}
+  {difficulty && (
+    <tr>
+      <td>{t('route.difficulty', locale)}</td>
+      <td>{difficulty}</td>
+    </tr>
+  )}
+  {surface && (
+    <tr>
+      <td>{t('route.surface', locale)}</td>
+      <td>{t('paths.fact.' + surface, locale)}</td>
+    </tr>
+  )}
+  {beginnerFriendly != null && (
+    <tr>
+      <td>{t('route.beginner_friendly', locale)}</td>
+      <td class={beginnerFriendly ? 'facts-yes' : 'facts-no'}>
+        {beginnerFriendly ? t('common.yes', locale) : t('common.no', locale)}
+      </td>
+    </tr>
+  )}
+</table>

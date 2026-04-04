@@ -138,12 +138,12 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
             </button>
           );
         })}
+        {bookmarkHint && (
+          <span class="reaction-hint">{bookmarkHint}</span>
+        )}
       </div>
       {showReceipt && trustReceiptMessage && (
         <TrustReceipt message={trustReceiptMessage} />
-      )}
-      {bookmarkHint && (
-        <p class="reaction-hint">{bookmarkHint}</p>
       )}
     </div>
   );

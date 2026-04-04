@@ -4,6 +4,8 @@ import yaml from 'js-yaml';
 /** A single entry from bikepaths.yml */
 export const bikePathYmlEntrySchema = z.looseObject({
   name: z.string(),
+  /** Stored slug from the pipeline — eliminates runtime slug derivation. */
+  slug: z.string().optional(),
   name_en: z.string().optional(),
   name_fr: z.string().optional(),
   osm_relations: z.array(z.number()).optional(),
@@ -110,22 +112,42 @@ export function parseBikePathsYml(content: string): { entries: SluggedBikePathYm
   }));
   const entries = raw.bike_paths.map(e => bikePathYmlEntrySchema.parse(e));
 
-  // Group entries by base slug, sort each group deterministically, then number
-  const baseSlugMap = new Map<string, Array<{ entry: BikePathYmlEntry; index: number }>>();
-  for (let i = 0; i < entries.length; i++) {
-    const base = slugifyBikePathName(entries[i].name);
-    const list = baseSlugMap.get(base);
-    if (list) list.push({ entry: entries[i], index: i });
-    else baseSlugMap.set(base, [{ entry: entries[i], index: i }]);
-  }
+  // Use stored slugs if present (pipeline writes them). Fall back to
+  // runtime computation for entries without stored slugs (old data).
+  const hasStoredSlugs = entries.some(e => e.slug);
 
-  const result: Array<{ slug: string; index: number; entry: BikePathYmlEntry }> = [];
-  for (const [base, group] of baseSlugMap) {
-    // Sort group deterministically by OSM relation ID / anchor / name
-    group.sort((a, b) => slugSortKey(a.entry).localeCompare(slugSortKey(b.entry)));
-    for (let i = 0; i < group.length; i++) {
-      const slug = group.length === 1 ? base : `${base}-${i + 1}`;
-      result.push({ slug, index: group[i].index, entry: group[i].entry });
+  let result: Array<{ slug: string; index: number; entry: BikePathYmlEntry }>;
+  if (hasStoredSlugs) {
+    // Prefer stored slugs. Entries without a stored slug get computed.
+    const usedSlugs = new Set<string>();
+    result = entries.map((entry, index) => {
+      if (entry.slug) {
+        usedSlugs.add(entry.slug);
+        return { slug: entry.slug, index, entry };
+      }
+      // Fallback: compute slug for entries missing one
+      let slug = slugifyBikePathName(entry.name);
+      let suffix = 1;
+      while (usedSlugs.has(slug)) slug = `${slugifyBikePathName(entry.name)}-${suffix++}`;
+      usedSlugs.add(slug);
+      return { slug, index, entry };
+    });
+  } else {
+    // Legacy path: no stored slugs, compute all
+    const baseSlugMap = new Map<string, Array<{ entry: BikePathYmlEntry; index: number }>>();
+    for (let i = 0; i < entries.length; i++) {
+      const base = slugifyBikePathName(entries[i].name);
+      const list = baseSlugMap.get(base);
+      if (list) list.push({ entry: entries[i], index: i });
+      else baseSlugMap.set(base, [{ entry: entries[i], index: i }]);
+    }
+    result = [];
+    for (const [base, group] of baseSlugMap) {
+      group.sort((a, b) => slugSortKey(a.entry).localeCompare(slugSortKey(b.entry)));
+      for (let i = 0; i < group.length; i++) {
+        const slug = group.length === 1 ? base : `${base}-${i + 1}`;
+        result.push({ slug, index: group[i].index, entry: group[i].entry });
+      }
     }
   }
 
