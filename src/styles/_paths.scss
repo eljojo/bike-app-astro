@@ -556,6 +556,39 @@
   margin-left: 1em;
 }
 
+// Long-distance members — trails that pass through this network
+.network-members-long-distance {
+  margin-bottom: 1rem;
+}
+
+.network-member-long-distance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6em 0.75em;
+  margin-bottom: 0.35rem;
+  text-decoration: none;
+  color: $color-text;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  border-left: 3px solid $color-accent;
+  transition: background 0.15s;
+
+  &:hover {
+    background: darken($color-card-bg, 3%);
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+    background: $color-card-bg-dark;
+    &:hover { background: lighten($color-card-bg-dark, 3%); }
+  }
+
+  .network-member-name {
+    font-weight: 600;
+  }
+}
+
 // Secondary members — paths shared with another network
 .network-members h3 {
   font-size: 0.95rem;

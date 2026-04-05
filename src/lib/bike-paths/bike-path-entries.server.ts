@@ -53,6 +53,8 @@ export interface MemberRef {
   memberOf?: string;
   /** Whether this member has a markdown file — used for tier 1/tier 2 display on index. */
   hasMarkdown: boolean;
+  /** The member's entry type — used to distinguish long-distance trails from regular members. */
+  entryType?: string;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
@@ -590,6 +592,7 @@ export function loadBikePathEntries(): {
       standalone: p.standalone,
       memberOf: p.memberOf,
       hasMarkdown: p.hasMarkdown,
+      entryType: p.ymlEntries[0]?.type,
     }));
 
     // Aggregate geometry from all members
