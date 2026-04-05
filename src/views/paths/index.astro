@@ -3,9 +3,8 @@ export const prerender = true;
 import Base from '@/layouts/Base.astro';
 import { loadBikePathData } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
-import { paths, assets } from '@/lib/paths';
+import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
 import { localizeSurface } from '@/lib/bike-paths/bike-path-facts';
@@ -50,58 +49,46 @@ for (const p of allPages) {
   }
 }
 
-
-// Featured: paths with markdown descriptions, or networks with some content
-const featured = pages.filter(p => p.featured
-  || (p.memberRefs && p.memberRefs.length > 0 && (p.body || p.vibe || p.thumbnail_key)));
-
 // Separate network pages, member paths, and standalone paths
 const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
 const memberSlugs = new Set(networkPages.flatMap(n => (n.memberRefs ?? []).map(m => m.slug)));
-const standalonePaths = pages.filter(p => !p.memberRefs && !memberSlugs.has(p.slug));
 
-// Group standalone paths by operator
-type PathGroup = { label: string; paths: typeof pages; isNetwork?: boolean; networkSlug?: string; memberRefs?: typeof pages[0]['memberRefs'] };
-const operatorMap = new Map<string, typeof pages>();
+// Independent paths: standalone destination paths not in any network
+const independentPaths = pages.filter(p =>
+  p.standalone && !p.memberRefs && !memberSlugs.has(p.slug)
+).sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
 
-for (const p of standalonePaths) {
-  const key = p.operator || '';
-  const list = operatorMap.get(key);
-  if (list) {
-    list.push(p);
-  } else {
-    operatorMap.set(key, [p]);
-  }
-}
-
-const groups: PathGroup[] = [];
-
-// Networks first — as expandable sections
-for (const net of networkPages) {
-  groups.push({
-    label: net.name,
-    paths: [net],
-    isNetwork: true,
-    networkSlug: net.slug,
-    memberRefs: net.memberRefs,
-  });
-}
-
-// Then operator groups for standalone paths
-const sortedEntries = [...operatorMap.entries()].sort((a, b) => {
-  if (a[0] === '') return 1;
-  if (b[0] === '') return -1;
-  return b[1].length - a[1].length;
+// For each network, split members into tier 1 (>=5km or hasMarkdown) and tier 2
+const TIER1_MIN_KM = 5;
+const networkData = networkPages.map(net => {
+  const refs = (net.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= 0.5);
+  const tier1 = refs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
+  const tier2 = refs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
+  tier1.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+  return {
+    slug: net.slug,
+    name: pathName(net),
+    length_km: net.length_km,
+    operator: net.operator,
+    tier1,
+    tier2,
+  };
 });
 
-for (const [operator, pathsList] of sortedEntries) {
-  groups.push({
-    label: operator || t('paths.other_group', locale),
-    paths: pathsList,
-  });
+// Build network → geoId mapping for map highlighting
+const pageBySlug = new Map(allPages.map(p => [p.slug, p]));
+const networkGeoIds: Record<string, string[]> = {};
+for (const net of networkPages) {
+  const geoIds: string[] = [];
+  for (const gf of net.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
+  for (const m of net.memberRefs ?? []) {
+    const memberPage = pageBySlug.get(m.slug);
+    if (memberPage) {
+      for (const gf of memberPage.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
+    }
+  }
+  networkGeoIds[net.slug] = geoIds;
 }
-
-
 
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
@@ -116,43 +103,6 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
 
-    {featured.length > 0 && (
-      <section class="paths-featured">
-        <h2>{t('paths.featured', locale)}</h2>
-        <div class="featured-cards">
-          {featured.map(p => {
-            const thumb = p.thumbnail_key;
-            const mapThumb = hasCachedMap(`path-${p.slug}`) ? `/maps/path-${p.slug}/map-750.webp` : undefined;
-            const thumbSrc = thumb
-              ? imageUrl(thumb, { width: 750, height: 375, fit: 'cover' })
-              : mapThumb;
-            const thumbSrcset = thumb
-              ? `${imageUrl(thumb, { width: 1500, height: 750, fit: 'cover' })} 2x`
-              : undefined;
-            return (
-              <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-card">
-                {thumbSrc && (
-                  <img
-                    src={thumbSrc}
-                    srcset={thumbSrcset}
-                    alt={pathName(p)}
-                    loading="lazy"
-                    class="path-card-photo"
-                  />
-                )}
-                <h3>{pathName(p)}</h3>
-                {pathVibe(p) && <p class="path-vibe">{pathVibe(p)}</p>}
-                <span class="path-card-meta">
-                  {localizeSurface(p.surface, t, locale) && <span class="path-surface">{localizeSurface(p.surface, t, locale)}</span>}
-                  {p.routeCount > 0 && <span class="path-routes-count">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
-                </span>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-    )}
-
     {/* TODO: add MTB trail filter toggle on the map — entries have mtb: true (125 in Ottawa) */}
     {allPages.length > 0 && (
       <div class="paths-map-hero-wrapper">
@@ -164,6 +114,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           data-slug-urls={JSON.stringify(slugToUrl)}
           data-interactive-ids={JSON.stringify([...interactiveRelIds])}
           data-listed-ids={JSON.stringify([...listedRelIds])}
+          data-network-geo-ids={JSON.stringify(networkGeoIds)}
           style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
         ></div>
         <div class="map-touch-lock" id="paths-map-touch-lock">
@@ -172,82 +123,101 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       </div>
     )}
 
-    {groups.map(group => (
-      <section class:list={['paths-group', { 'paths-group--network': group.isNetwork }]}>
-        {group.isNetwork ? (
-          <h2>
-            <a href={paths.bikePath(group.networkSlug!, undefined, locale)}>{group.label}</a>
-            {group.paths[0]?.length_km && <span class="path-meta">{group.paths[0].length_km} km</span>}
-            {group.paths[0]?.operator && <span class="path-meta">{group.paths[0].operator}</span>}
-          </h2>
-        ) : (
-          <h2>{group.label}</h2>
-        )}
-        {group.isNetwork && group.memberRefs ? (
-          <ul class="paths-list paths-list--members">
-            {group.memberRefs.map(m => {
-              const hasThumb = m.standalone && hasCachedMap(`path-${m.slug}`);
-              return (
-                <li>
-                  {m.standalone ? (
-                    <a href={paths.bikePath(m.slug, m.memberOf ?? group.networkSlug, locale)} class:list={['path-link', { 'has-thumb': hasThumb }]}>
-                      {hasThumb && (
-                        <img
-                          class="path-thumb"
-                          src={assets.mapThumbnail(`path-${m.slug}`, 375)}
-                          srcset={assets.mapThumbnailSrcset(`path-${m.slug}`)}
-                          alt=""
-                          width="120"
-                          height="60"
-                          loading="lazy"
-                        />
-                      )}
-                      <span class="path-link-text">
+    {networkData.length > 0 && (
+      <div class="network-tabs-wrapper">
+        <div class="network-tabs" id="network-tabs">
+          {networkData.map((net, i) => (
+            <button
+              class:list={['network-tab', { active: i === 0 }]}
+              data-network={net.slug}
+            >{net.name}</button>
+          ))}
+          <button class="network-tab network-tab--all" data-network="all">{t('paths.all_paths_tab', locale)}</button>
+        </div>
+
+        {networkData.map((net, i) => (
+          <div class:list={['network-panel', { active: i === 0 }]} data-panel={net.slug}>
+            <div class="network-panel-header">
+              <div class="network-panel-info">
+                <span class="network-panel-name">{net.name}</span>
+                {net.length_km && <span class="path-meta">{net.length_km} km</span>}
+                {net.operator && <span class="path-meta path-meta--operator">{net.operator}</span>}
+              </div>
+              <a href={paths.bikePath(net.slug, undefined, locale)} class="network-panel-link">
+                {t('paths.view_network', locale)} &rarr;
+              </a>
+            </div>
+
+            {net.tier1.length > 0 && (
+              <ul class="paths-list">
+                {net.tier1.map(m => (
+                  <li data-slug={m.slug}>
+                    {m.standalone ? (
+                      <a href={paths.bikePath(m.slug, m.memberOf ?? net.slug, locale)} class="path-link">
+                        <span class="path-link-name">{m.name}</span>
+                        {m.length_km && <span class="path-meta">{m.length_km} km</span>}
+                      </a>
+                    ) : (
+                      <span class="path-link">
                         <span class="path-link-name">{m.name}</span>
                         {m.length_km && <span class="path-meta">{m.length_km} km</span>}
                       </span>
-                    </a>
-                  ) : (
-                    <span class="non-standalone">{m.name}</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <ul class="paths-list">
-            {group.paths.map(p => {
-              const hasThumb = hasCachedMap(`path-${p.slug}`);
-              return (
-                <li data-slug={p.slug} id={`path-${p.slug}`}>
-                  <a href={paths.bikePath(p.slug, p.memberOf, locale)} class:list={['path-link', { 'has-thumb': hasThumb }]}>
-                    {hasThumb && (
-                      <img
-                        class="path-thumb"
-                        src={assets.mapThumbnail(`path-${p.slug}`, 375)}
-                        srcset={assets.mapThumbnailSrcset(`path-${p.slug}`)}
-                        alt=""
-                        width="120"
-                        height="60"
-                        loading="lazy"
-                      />
                     )}
-                    <span class="path-link-text">
-                      <span class="path-link-name">{pathName(p)}</span>
-                      <span class="path-link-meta">
-                        {p.length_km && <span class="path-meta">{p.length_km} km</span>}
-                        {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
-                        {p.routeCount > 0 && <span class="path-meta">{t('paths.routes_count', locale, { count: String(p.routeCount) })}</span>}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {net.tier2.length > 0 && (
+              <div class="network-tier2">
+                <span class="network-tier2-label">{t('paths.shorter_segments', locale, { count: String(net.tier2.length) })}</span>
+                <span class="network-tier2-names">
+                  {net.tier2.slice(0, 5).map((m, j) => (
+                    <span>{m.name}{j < Math.min(4, net.tier2.length - 1) ? ', ' : ''}</span>
+                  ))}
+                  {net.tier2.length > 5 && <span class="network-tier2-ellipsis">&hellip;</span>}
+                </span>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div class="network-panel" data-panel="all">
+          <ul class="paths-list">
+            {independentPaths.map(p => (
+              <li data-slug={p.slug}>
+                <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
+                  <span class="path-link-name">{pathName(p)}</span>
+                  <span class="path-link-meta">
+                    {p.length_km && <span class="path-meta">{p.length_km} km</span>}
+                    {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
+                  </span>
+                </a>
+              </li>
+            ))}
           </ul>
-        )}
+        </div>
+      </div>
+    )}
+
+    {independentPaths.length > 0 && (
+      <section class="paths-independent">
+        <h2>{t('paths.independent_paths', locale)}</h2>
+        <ul class="paths-list">
+          {independentPaths.map(p => (
+            <li data-slug={p.slug}>
+              <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
+                <span class="path-link-name">{pathName(p)}</span>
+                <span class="path-link-meta">
+                  {p.length_km && <span class="path-meta">{p.length_km} km</span>}
+                  {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
       </section>
-    ))}
+    )}
 
     <p class="paths-osm-attribution">
       {t('paths.index_osm_attribution', locale)} <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>. {t('paths.index_osm_edit', locale)}
@@ -274,6 +244,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const slugUrls: Record<string, string> = JSON.parse(container.dataset.slugUrls || '{}');
     const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
     const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
+    const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
 
     const styleKey = loadStylePreference();
     const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
@@ -292,6 +263,65 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         f.properties!.interactive = interactive ? 'true' : '';
         f.properties!.listed = listed ? 'true' : '';
       }
+    }
+
+    // --- Network highlight ---
+    let activeNetwork: string | null = null;
+
+    function highlightNetwork(networkSlug: string | null) {
+      if (activeNetwork === networkSlug) return;
+      activeNetwork = networkSlug;
+
+      if (!map.getLayer('paths-network-highlight')) return;
+
+      if (networkSlug && networkGeoIds[networkSlug]) {
+        const geoIds = networkGeoIds[networkSlug];
+        map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
+        map.setPaintProperty('paths-network-line', 'line-opacity', 0.3);
+        map.setPaintProperty('paths-network-bg', 'line-opacity', 0.15);
+      } else {
+        map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
+        map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
+        map.setPaintProperty('paths-network-bg', 'line-opacity', 0.5);
+      }
+    }
+
+    // --- Tab interaction ---
+    const tabBar = document.getElementById('network-tabs');
+    if (tabBar) {
+      const tabs = tabBar.querySelectorAll<HTMLButtonElement>('.network-tab');
+      const panels = document.querySelectorAll<HTMLElement>('.network-panel');
+
+      function activateTab(networkSlug: string) {
+        tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
+        panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
+        if (networkSlug === 'all') {
+          highlightNetwork(null);
+        } else {
+          highlightNetwork(networkSlug);
+        }
+      }
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const slug = tab.dataset.network;
+          if (slug) activateTab(slug);
+        });
+        tab.addEventListener('mouseenter', () => {
+          const slug = tab.dataset.network;
+          if (slug && slug !== 'all') highlightNetwork(slug);
+        });
+        tab.addEventListener('mouseleave', () => {
+          // Restore to active tab's highlight
+          const activeTab = tabBar.querySelector<HTMLButtonElement>('.network-tab.active');
+          const activeSlug = activeTab?.dataset.network;
+          if (activeSlug && activeSlug !== 'all') {
+            highlightNetwork(activeSlug);
+          } else {
+            highlightNetwork(null);
+          }
+        });
+      });
     }
 
     let layersSetUp = false;
@@ -331,6 +361,20 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         },
       });
 
+      // Highlight layer for network hover/selection
+      map.addLayer({
+        id: 'paths-network-highlight',
+        type: 'line',
+        source: 'paths-network',
+        filter: ['==', ['get', 'relationId'], ''],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': PATH_WIDTH + 2,
+          'line-opacity': 1,
+        },
+      });
+
       // --- Map interaction ---
 
       // Click on any path → navigate to detail page
@@ -343,7 +387,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       map.on('click', 'paths-network-line', handlePathClick);
       map.on('click', 'paths-network-bg', handlePathClick);
 
-      for (const layerId of ['paths-network-line', 'paths-network-bg']) {
+      for (const layerId of ['paths-network-line', 'paths-network-bg', 'paths-network-highlight']) {
         map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
       }
@@ -358,6 +402,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       });
 
       layersSetUp = true;
+
+      // Activate the first network tab's highlight once layers are ready
+      const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
+      const activeSlug = activeTab?.dataset.network;
+      if (activeSlug && activeSlug !== 'all') {
+        highlightNetwork(activeSlug);
+      }
     }
 
     function getMapBounds(): [number, number, number, number] {
