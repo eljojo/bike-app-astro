@@ -243,21 +243,25 @@
     .bike-path-description { order: 4; }
     .edit-entry-point { order: 5; }
 
-    // 3. Routes on this path
-    .routes-on-path { order: 6; }
+    // 3. Infrastructure section (standalone/member)
+    .infrastructure-section { order: 6; }
 
-    // 4. Nearby places
-    .nearby-places { order: 7; }
+    // 4. Routes on this path
+    .routes-on-path { order: 7; }
 
-    // 5. Photos
-    .bike-path-photos { order: 8; }
+    // 5. Nearby places
+    .nearby-places { order: 8; }
 
-    // 6. Nearby paths + connects to
-    .nearby-paths { order: 9; }
-    .connected-paths { order: 10; }
+    // 6. Photos
+    .bike-path-photos { order: 9; }
 
-    // 7. Footer links
-    .bike-path-links { order: 11; }
+    // 7. Nearby paths + connects to (network pages)
+    .nearby-paths { order: 10; }
+    .connected-paths { order: 11; }
+
+    // 8. External links
+    .external-link-card { order: 12; }
+    .bike-path-osm { order: 13; }
   }
 }
 
@@ -633,6 +637,106 @@
     &:hover img {
       opacity: 0.85;
     }
+  }
+}
+
+// Infrastructure section — network cards (standalone/member detail pages)
+.infrastructure-section {
+  margin-bottom: 1.5rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.network-card {
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.4rem;
+  border-left: 3px solid $color-accent;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.network-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.network-card-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: $color-accent;
+}
+
+.network-card-meta {
+  @include muted-text;
+  font-size: 0.75rem;
+}
+
+.network-card-label {
+  @include muted-text;
+  font-size: 0.75rem;
+}
+
+.network-card-paths {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid $color-card-bg;
+
+  @include dark-mode {
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.network-card-path {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+  font-size: 0.85rem;
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    @include dark-mode { color: $color-text-dark; }
+  }
+}
+
+.network-card-path-relation {
+  @include muted-text;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+// Website + Wikipedia link cards
+.external-link-card {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  margin-bottom: 0.35rem;
+  text-decoration: none;
+  font-size: 0.85rem;
+  color: $color-text;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+  }
+
+  .external-link-icon {
+    flex-shrink: 0;
+  }
+
+  .external-link-arrow {
+    margin-left: auto;
+    @include muted-text;
   }
 }
 
