@@ -30,6 +30,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
   seasonal: z.string().optional(),
   description: z.string().optional(),
   cycleway: z.string().optional(),
+  /** OSM bicycle access tag: 'designated', 'yes', 'no', 'permissive', etc. */
+  bicycle: z.string().optional(),
   ref: z.string().optional(),
   parallel_to: z.string().optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
@@ -39,7 +41,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
    * destination: local path with real-world identity (Sawmill Creek, park trail).
    * infrastructure: bike lane or short named path, visible on map, no page.
    * connector: tiny segment under 300m, invisible. */
-  type: z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector']).optional(),
+  type: z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector']).default('infrastructure'),
   /** For networks: slugs of member paths. */
   members: z.array(z.string()).optional(),
   /** Slug of the network this path belongs to. */

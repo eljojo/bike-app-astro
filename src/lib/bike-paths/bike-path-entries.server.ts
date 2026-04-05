@@ -113,6 +113,10 @@ export interface BikePathPage {
   operator?: string;
   network?: string;
   highway?: string;
+  /** OSM cycleway tag: 'track', 'lane', 'shared_lane', 'crossing'. */
+  cycleway?: string;
+  /** OSM bicycle access: 'designated', 'yes', 'no'. */
+  bicycle?: string;
   /** Road name this path runs alongside (for parallel bike lanes). */
   parallel_to?: string;
   /** Mountain bike trail (not road-bike-friendly). Set by detect-mtb in the data pipeline. */
@@ -129,6 +133,8 @@ export interface BikePathPage {
   wikidata_description?: string;
   /** Year/date the path was established (from wikidata_meta.inception). */
   inception?: string;
+  /** Entry type from the pipeline: long-distance, network, destination, infrastructure, connector. */
+  entryType: string;
   /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
 }
@@ -436,6 +442,8 @@ export function loadBikePathEntries(): {
       operator: normalizeOperator(md.data.operator ?? primary?.operator),
       network: primary?.network,
       highway: primary?.highway,
+      cycleway: primary?.cycleway,
+      bicycle: primary?.bicycle,
       parallel_to: primary?.parallel_to,
       mtb: primary?.mtb,
       path_type: primary?.path_type,
@@ -445,6 +453,7 @@ export function loadBikePathEntries(): {
       wikidata_description: resolveWikidataDescription(primary),
       inception: primary?.wikidata_meta?.inception,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
+      entryType: primary?.type ?? 'infrastructure',
       translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
   }
@@ -492,6 +501,8 @@ export function loadBikePathEntries(): {
       operator: normalizeOperator(entry.operator),
       network: entry.network,
       highway: entry.highway,
+      cycleway: entry.cycleway,
+      bicycle: entry.bicycle,
       parallel_to: entry.parallel_to,
       mtb: entry.mtb,
       path_type: entry.path_type,
@@ -501,6 +512,7 @@ export function loadBikePathEntries(): {
       wikidata_description: resolveWikidataDescription(entry),
       inception: entry.wikidata_meta?.inception,
       wikipedia: entry.wikipedia,
+      entryType: entry.type,
       translations: readBikePathTranslations(entry.slug, entry),
     });
   }
@@ -614,6 +626,7 @@ export function loadBikePathEntries(): {
       network: entry.network,
       highway: entry.highway,
       wikipedia: mdOverlay?.data.wikipedia ?? entry.wikipedia,
+      entryType: entry.type,
       translations: readBikePathTranslations(entry.slug, entry, mdOverlay?.rawFrontmatter),
     });
   }
