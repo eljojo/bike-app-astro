@@ -1106,11 +1106,13 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 );
 out tags;`;
   const relData = await qo(relQ);
-  const osmRelations = relData.elements.map(el => ({
-    id: el.id,
-    name: el.tags?.name || `relation-${el.id}`,
-    tags: el.tags || {},
-  }));
+  const osmRelations = relData.elements
+    .filter(el => el.tags?.type !== 'superroute') // superroutes are containers, handled by network discovery
+    .map(el => ({
+      id: el.id,
+      name: el.tags?.name || `relation-${el.id}`,
+      tags: el.tags || {},
+    }));
   console.log(`  Found ${osmRelations.length} cycling relations`);
 
   // Step 1a: Fetch member way IDs for each relation (for structural dedup).
@@ -1727,36 +1729,6 @@ out geom tags;`;
     if (et) entry.type = et;
   }
 
-  // Step 8a: Remove standalone entries that duplicate a same-named network.
-  // e.g. "Crosstown Bikeway 2" route (relation 10986223) is redundant with
-  // the "Crosstown Bikeway 2" network (which absorbed 10986223 into its osm_relations).
-  {
-    const networksByName = new Map();
-    for (const e of grouped) {
-      if (e.type !== 'network') continue;
-      networksByName.set(e.name.toLowerCase(), e);
-    }
-    const before = grouped.length;
-    for (let i = grouped.length - 1; i >= 0; i--) {
-      const e = grouped[i];
-      if (e.type === 'network') continue;
-      if (!e.osm_relations?.length) continue;
-      const net = networksByName.get(e.name.toLowerCase());
-      if (!net) continue;
-      const netRelIds = new Set(net.osm_relations ?? []);
-      if (e.osm_relations.every(id => netRelIds.has(id))) {
-        // Remove from its network's _memberRefs before splicing
-        if (e._networkRef && e._networkRef._memberRefs) {
-          e._networkRef._memberRefs = e._networkRef._memberRefs.filter(m => m !== e);
-        }
-        grouped.splice(i, 1);
-      }
-    }
-    if (grouped.length < before) {
-      console.log(`  Removed ${before - grouped.length} same-named entries absorbed into networks`);
-    }
-  }
-
   // Step 8b: Apply markdown overrides.
   // member_of has special handling (network reassignment). All other fields
   // are simple overwrites — the human value replaces the pipeline value.
@@ -1894,15 +1866,32 @@ out geom tags;`;
     }
   }
 
-  // Step 9c: Validate — no way should appear in two entries.
-  const dupes = wayRegistry.conflicts();
-  if (dupes.length > 0) {
-    console.warn(`  ⚠ ${dupes.length} way(s) claimed by multiple entries:`);
-    for (const { wayId, entries: owners } of dupes.slice(0, 10)) {
-      const names = owners.map(e => e.name || e.slug || '?').join(', ');
-      console.warn(`    way ${wayId}: ${names}`);
+  // Step 9c: Validate — no OSM relation should appear in two entries.
+  // Ways can legitimately be in multiple relations (Route Verte 1 and
+  // Sentier des Voyageurs share pavement). But each relation is one route
+  // and should map to exactly one entry. Duplicates mean the pipeline
+  // created two entries for the same relation (the PPJ-style bug).
+  {
+    const relToEntry = new Map();
+    const conflicts = [];
+    for (const e of grouped) {
+      for (const relId of e.osm_relations ?? []) {
+        const prev = relToEntry.get(relId);
+        if (prev) {
+          conflicts.push({ relId, entries: [prev, e] });
+        } else {
+          relToEntry.set(relId, e);
+        }
+      }
     }
-    if (dupes.length > 10) console.warn(`    ... and ${dupes.length - 10} more`);
+    if (conflicts.length > 0) {
+      console.warn(`  ⚠ ${conflicts.length} relation(s) appear in multiple entries:`);
+      for (const { relId, entries: owners } of conflicts.slice(0, 10)) {
+        const names = owners.map(e => e.name || e.slug || '?').join(', ');
+        console.warn(`    relation ${relId}: ${names}`);
+      }
+      if (conflicts.length > 10) console.warn(`    ... and ${conflicts.length - 10} more`);
+    }
   }
 
   // Attach osm_way_ids from the registry to entries (for tests and callers)

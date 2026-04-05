@@ -159,21 +159,18 @@ export async function discoverNetworks({ bbox, queryOverpass }) {
     let name = sr.tags?.name || `network-${sr.id}`;
     name = name.replace(/\s*\(super\)\s*/i, '');
 
-    // When a leaf route has the same name as the network, it's not a
-    // separate path — it IS the network's core route. OSM mappers create
-    // a superroute with the same name, then add sibling routes to it.
-    // Absorb the same-named child's relation ID into the network entry
-    // and remove it from the member list to avoid slug collisions
-    // (e.g. "Crosstown Bikeway 2" route vs "Crosstown Bikeway 2" network
-    // would both slug to crosstown-bikeway-2, producing ugly -1/-2 suffixes).
-    const nameLower = name.toLowerCase();
-    const sameNameChildren = unique.filter(l => (l.tags?.name || '').toLowerCase() === nameLower);
-    const distinctChildren = unique.filter(l => (l.tags?.name || '').toLowerCase() !== nameLower);
-
-    // Skip networks with too few distinct members — a superroute with
-    // only its same-named route and no siblings isn't a network page.
-    if (distinctChildren.length < MIN_NETWORK_MEMBERS) {
-      console.log(`  Skipping ${name}: only ${distinctChildren.length} distinct member(s)`);
+    // All leaf routes are members — including same-named children.
+    // A leaf route with the same name as the superroute (e.g. "Crosstown
+    // Bikeway 2" route inside "Crosstown Bikeway 2" superroute) is a
+    // real path with its own relation and geometry. It keeps its own
+    // entry and relation ID. The slug system (computeSlugs) handles
+    // collisions — networks get the clean slug, members get suffixes.
+    //
+    // Networks never absorb children's relation IDs. A network's
+    // osm_relations contains only the superroute relation ID. Member
+    // paths own their own relation IDs.
+    if (unique.length < MIN_NETWORK_MEMBERS) {
+      console.log(`  Skipping ${name}: only ${unique.length} member(s)`);
       continue;
     }
 
@@ -181,21 +178,15 @@ export async function discoverNetworks({ bbox, queryOverpass }) {
       id: sr.id,
       name,
       tags: sr.tags || {},
-      memberRoutes: distinctChildren,
+      memberRoutes: unique,
     });
-
-    // Merge absorbed children's relation IDs into the network entry
-    for (const child of sameNameChildren) {
-      entry.osm_relations.push(child.id);
-    }
 
     // Promoted sub-superroutes become real network entries (type: network
     // with members). Top-level superroutes are super-network attributes.
     if (promotedIds.has(sr.id)) entry._promoted = true;
 
     networks.push(entry);
-    const absorbed = sameNameChildren.length;
-    console.log(`  Network: ${entry.name} (${distinctChildren.length} members${absorbed ? `, absorbed ${absorbed} same-named route(s)` : ''})`);
+    console.log(`  Network: ${entry.name} (${unique.length} members)`);
   }
 
   return networks;

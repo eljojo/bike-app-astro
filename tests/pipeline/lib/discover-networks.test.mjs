@@ -133,11 +133,11 @@ describe('discoverNetworks', () => {
     expect(orp._member_relations.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('absorbs same-named child route into network entry', async () => {
+  it('keeps same-named child as a regular member (no absorption)', async () => {
     // Simulate: "Crosstown Bikeway 2" superroute contains a child also
     // named "Crosstown Bikeway 2" plus two other routes.
-    // The same-named child should be absorbed (relation ID merged into
-    // network, not a separate member). Needs 2+ distinct to pass min-members.
+    // The same-named child keeps its own relation ID and is a regular member.
+    // Networks never absorb children's relation IDs.
     const mockQuery = async (q) => {
       if (q.includes('"superroute"')) {
         return { elements: [{
@@ -164,11 +164,11 @@ describe('discoverNetworks', () => {
     expect(networks).toHaveLength(1);
     const net = networks[0];
     expect(net.name).toBe('Crosstown Bikeway 2');
-    // Same-named child (101) absorbed — its ID is in network's osm_relations
-    expect(net.osm_relations).toContain(101);
-    // Laurier and E-W Crosstown are distinct members
-    expect(net._member_relations).toEqual([102, 103]);
-    expect(net._member_relations).not.toContain(101);
+    // Network's osm_relations only contains the superroute ID
+    expect(net.osm_relations).toEqual([100]);
+    expect(net.osm_relations).not.toContain(101);
+    // All three children are regular members
+    expect(net._member_relations).toEqual([101, 102, 103]);
   });
 
   it('strips "(super)" from OSM names', async () => {

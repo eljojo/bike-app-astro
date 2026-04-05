@@ -287,9 +287,8 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
           group._memberRefs.push(member);
           const memberOsmNames = member.osm_names || [member.name];
           group.osm_names = [...new Set([...(group.osm_names || []), ...memberOsmNames])];
-          if (member.osm_relations) {
-            group.osm_relations = [...new Set([...(group.osm_relations || []), ...member.osm_relations])];
-          }
+          // Members keep their own osm_relations — networks don't absorb them.
+          // A network's osm_relations only contains its own superroute ID (if any).
           group.anchors = bboxAnchors([...(group.anchors || []), ...(member.anchors || [])]);
         }
         member._networkRef = group;
@@ -299,7 +298,8 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
       // New network from cluster
       const tags = mergeTags(cluster.members);
       const allOsmNames = [...new Set(cluster.members.flatMap(m => m.osm_names || [m.name]))];
-      const allOsmRelations = [...new Set(cluster.members.flatMap(m => m.osm_relations || []))];
+      // Networks don't inherit members' osm_relations — members keep their own.
+      // A network's osm_relations only contains its own superroute ID (assigned later).
       let networkName = cluster.resolvedName;
       let networkSlug = slugifyBikePathName(networkName);
 
@@ -332,7 +332,6 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
       if (allWays.length > 0) networkEntry._ways = allWays;
 
       if (allOsmNames.length > 0) networkEntry.osm_names = allOsmNames;
-      if (allOsmRelations.length > 0) networkEntry.osm_relations = allOsmRelations;
       for (const [key, val] of Object.entries(tags)) {
         if (val) networkEntry[key] = val;
       }
