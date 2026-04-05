@@ -118,6 +118,7 @@ This repo uses a two-tier context system. The rules and mindset above are always
 - [config-layers](_ctx/config-layers.md) — build-time vs runtime config, city config, AppEnv
 - [blog-instance](_ctx/blog-instance.md) — blog city is always blog/, CITY=blog, consumer repo, sync.js
 - [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
+- [markdown-overrides](_ctx/markdown-overrides.md) — how markdown frontmatter is consumed by pipeline and app
 - [pipeline-overview](_ctx/pipeline-overview.md) — how the bikepaths pipeline discovers, names, clusters, and networks cycling infrastructure
 - [naming-unnamed-chains](_ctx/naming-unnamed-chains.md) — how the pipeline names unnamed chains from nearby parks/roads
 - [path-types](_ctx/path-types.md) — path_type field: classifies infrastructure by safety and bike requirements
