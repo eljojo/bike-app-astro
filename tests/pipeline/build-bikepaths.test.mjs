@@ -247,4 +247,46 @@ describe('buildBikepathsPipeline', () => {
     expect(bikeway.name_en).toBeUndefined();
     expect(bikeway.name_fr).toBeUndefined();
   });
+
+  it('discovers route=mtb relations', async () => {
+    const MTB_RELATION = {
+      type: 'relation', id: 7770001,
+      tags: { name: 'South March Highlands MTB', route: 'mtb', type: 'route', network: 'lcn' },
+    };
+    const MTB_WAY = {
+      type: 'way', id: 8880001,
+      tags: { highway: 'path', mtb: 'yes', surface: 'ground' },
+      geometry: [{ lat: 45.35, lon: -75.95 }, { lat: 45.36, lon: -75.94 }],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      // Relations query — matches on route=mtb substring
+      ['route"="mtb"', { elements: [MTB_RELATION] }],
+      // Also match the bicycle relation part (returns empty since we only have MTB)
+      ['relation["route"="bicycle"]', { elements: [MTB_RELATION] }],
+      // Body query for member way IDs
+      ['out body', { elements: [{ type: 'relation', id: 7770001, members: [
+        { type: 'way', ref: 8880001, role: '' },
+      ] }] }],
+      // Geom query for relation ways
+      ['out geom', { elements: [{ type: 'relation', id: 7770001, members: [
+        { type: 'way', ref: 8880001, role: '', geometry: MTB_WAY.geometry },
+      ] }] }],
+      // Unnamed cycleways — empty
+      ['highway"="cycleway"][!"name"]', { elements: [] }],
+      // Unnamed chains — empty
+      ['bicycle"~"designated|yes"][!"name"]', { elements: [] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.15,-76.35,45.65,-75.35',
+      adapter: OTTAWA_ADAPTER,
+      manualEntries: [],
+    });
+
+    const mtb = entries.find(e => e.name === 'South March Highlands MTB');
+    expect(mtb).toBeDefined();
+    expect(mtb.osm_relations).toContain(7770001);
+  });
 });

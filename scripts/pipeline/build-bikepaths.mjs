@@ -1122,6 +1122,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
   const relQ = `[out:json][timeout:120];
 (
   relation["route"="bicycle"](${b});
+  relation["route"="mtb"](${b});
   relation["type"="route"]["name"~"${a.relationNamePattern}"](${b});
 );
 out tags;`;
