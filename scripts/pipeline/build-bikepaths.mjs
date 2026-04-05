@@ -821,7 +821,7 @@ async function enrichOutOfBoundsRelations(entries, discoveredRelationIds) {
 // Members that are already in an auto-group network stay there —
 // the auto-group network gets a super_network attribute for index grouping.
 // Only orphaned paths (not in any network) become direct members.
-function addSuperrouteNetworks(entries, networks) {
+function addSuperrouteNetworks(entries, networks, wayRegistry) {
   const byRelation = new Map();
   for (const entry of entries) {
     for (const relId of entry.osm_relations ?? []) {
@@ -924,6 +924,8 @@ function addSuperrouteNetworks(entries, networks) {
         // Tag the sub-network with _superNetworkRef (most specific wins —
         // networks are sorted largest-first so smaller overwrites larger)
         member._superNetworkRef = networkEntry;
+        // Clean up the flattened auto-group network's way claims
+        if (wayRegistry) wayRegistry.remove(member);
         continue;
       }
 
@@ -1644,6 +1646,8 @@ out geom tags;`;
             }
           }
           entry._memberRefs = []; // will be cleaned up as zombie
+          // Clean up the emptied auto-group network's way claims
+          if (wayRegistry) wayRegistry.remove(entry);
         }
 
         // Then: absorb orphaned same-named entries
@@ -1690,7 +1694,7 @@ out geom tags;`;
     // is built once. This prevents the second batch from flattening the first.
     if (allNetSources.length > 0) {
       console.log('Creating superroute & route-system networks...');
-      superNetworks = addSuperrouteNetworks(grouped, allNetSources);
+      superNetworks = addSuperrouteNetworks(grouped, allNetSources, wayRegistry);
     }
   }
 
