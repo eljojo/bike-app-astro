@@ -35,6 +35,7 @@ const OVERPASS_SERVERS = [
 interface BikePathEntry {
   name: string;
   osm_relations?: number[];
+  osm_way_ids?: number[];
   osm_names?: string[];
   anchors?: Array<[number, number]>; // [lng, lat] tuples
   segments?: Array<{ osm_way: number; [k: string]: unknown }>;
@@ -139,10 +140,13 @@ const { entries: allEntries } = parseBikePathsYml(raw);
 type SluggedEntry = BikePathEntry & { slug: string };
 const sluggedEntries: SluggedEntry[] = allEntries.map(e => ({ ...e, anchors: e.anchors?.map(a => 'lat' in a ? [a.lng, a.lat] as [number, number] : a as [number, number]) } as SluggedEntry));
 const relationEntries = sluggedEntries.filter(e => e.osm_relations && e.osm_relations.length > 0);
-const nameEntries = sluggedEntries.filter(e => (!e.osm_relations || e.osm_relations.length === 0) && e.osm_names && e.osm_names.length > 0 && e.anchors && e.anchors.length >= 2);
+const wayIdEntries = sluggedEntries.filter(
+  e => e.osm_way_ids && e.osm_way_ids.length > 0 && (!e.osm_relations || e.osm_relations.length === 0),
+);
+const nameEntries = sluggedEntries.filter(e => (!e.osm_relations || e.osm_relations.length === 0) && (!e.osm_way_ids || e.osm_way_ids.length === 0) && e.osm_names && e.osm_names.length > 0 && e.anchors && e.anchors.length >= 2);
 const segmentEntries = sluggedEntries.filter(e => e.segments && e.segments.length > 0 && (!e.osm_relations || e.osm_relations.length === 0));
 
-console.log(`[path-geo] ${relationEntries.length} relations + ${nameEntries.length} named + ${segmentEntries.length} segmented (${allEntries.length} total)`);
+console.log(`[path-geo] ${relationEntries.length} relations + ${wayIdEntries.length} way-id + ${nameEntries.length} named + ${segmentEntries.length} segmented (${allEntries.length} total)`);
 
 if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
@@ -171,6 +175,41 @@ for (const entry of relationEntries) {
       const geojson = overpassToGeoJSON(data, relId);
       fs.writeFileSync(outPath, JSON.stringify(geojson));
       fetched++;
+    } catch (err: any) {
+      console.error(`  Error: ${err.message}`);
+    }
+  }
+}
+
+// --- Pass 1b: Way-ID-based entries (pipeline provenance) ---
+if (wayIdEntries.length > 0) {
+  console.log(`\nPass 1b: Fetching geometry for ${wayIdEntries.length} way-ID entries...`);
+
+  for (const entry of wayIdEntries) {
+    const outPath = path.join(CACHE_DIR, `ways-${entry.slug}.geojson`);
+
+    if (fs.existsSync(outPath) && !forceRefresh) {
+      skipped++;
+      continue;
+    }
+
+    if (dryRun) {
+      console.log(`  Would fetch ${entry.osm_way_ids!.length} ways (${entry.name})`);
+      continue;
+    }
+
+    console.log(`  Fetching ${entry.osm_way_ids!.length} ways by ID (${entry.name})...`);
+    try {
+      const wayIds = entry.osm_way_ids!;
+      const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
+      const data = await queryOverpass(query);
+      const geojson = overpassToGeoJSON(data, entry.slug);
+      if (geojson.features.length > 0) {
+        fs.writeFileSync(outPath, JSON.stringify(geojson));
+        fetched++;
+      } else {
+        console.log(`  No ways found for ${entry.name}`);
+      }
     } catch (err: any) {
       console.error(`  Error: ${err.message}`);
     }
@@ -361,8 +400,12 @@ if (!dryRun) {
     for (const relId of entry.osm_relations ?? []) {
       featuredCacheFiles.add(`${relId}.geojson`);
     }
+    // Way-ID-based files
+    if (entry.osm_way_ids?.length && (!entry.osm_relations || entry.osm_relations.length === 0)) {
+      featuredCacheFiles.add(`ways-${ymlSlug}.geojson`);
+    }
     // Name-based files (use disambiguated slug, not re-slugified name)
-    if ((!entry.osm_relations || entry.osm_relations.length === 0) && entry.osm_names?.length) {
+    if ((!entry.osm_relations || entry.osm_relations.length === 0) && (!entry.osm_way_ids || entry.osm_way_ids.length === 0) && entry.osm_names?.length) {
       featuredCacheFiles.add(`name-${ymlSlug}.geojson`);
     }
     // Segment-based files
