@@ -53,11 +53,13 @@ export function deriveEntryType(entry, thresholds = {}) {
   const hasRelation = entry.osm_relations?.length > 0;
   const hasOsmName = entry.osm_names?.length > 0;
 
-  // Trails: long-distance named routes that people plan trips for.
-  // National cycling network (ncn) routes are always trails.
-  // Regional cycling network (rcn) routes with OSM relations are trails.
+  // Long-distance: named routes people plan trips for.
+  // 1. National/regional cycling network routes with OSM relations
+  // 2. Any route with a ref code and length > 50km
+  const LONG_DISTANCE_M = 50_000;
   if (entry.network === 'ncn' && hasRelation) return 'long-distance';
   if (entry.network === 'rcn' && hasRelation) return 'long-distance';
+  if (entry.ref && hasRelation && lengthM >= LONG_DISTANCE_M) return 'long-distance';
 
   // Named cycling routes (OSM relations) are destinations — someone created
   // a relation for this path, which means it has real-world identity.

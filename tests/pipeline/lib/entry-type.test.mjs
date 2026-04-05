@@ -47,10 +47,22 @@ describe('deriveEntryType', () => {
     })).toBe('long-distance');
   });
 
-  it('ncn without relation → not trail (falls to other rules)', () => {
+  it('ncn without relation → not long-distance (falls to other rules)', () => {
     expect(deriveEntryType({
       network: 'ncn', path_type: 'mup', _ways: makeWays(0.01),
     })).not.toBe('long-distance');
+  });
+
+  it('long route with ref code (>50km) → long-distance', () => {
+    expect(deriveEntryType({
+      osm_relations: [12345], ref: 'PPJ 1', path_type: 'mup', _ways: makeWays(0.5), // ~55km
+    })).toBe('long-distance');
+  });
+
+  it('short route with ref code (<50km) → destination, not long-distance', () => {
+    expect(deriveEntryType({
+      osm_relations: [12345], ref: 'X1', path_type: 'mup', _ways: makeWays(0.01), // ~1km
+    })).toBe('destination');
   });
 
   // --- Destinations ---
