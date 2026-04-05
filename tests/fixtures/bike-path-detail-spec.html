@@ -1,0 +1,230 @@
+<!--
+  Reference spec for bike path detail page.
+  This HTML is the structural contract — tests run against it.
+  data-testid attributes define the section contract for both this mockup and the real Astro page.
+
+  Path: Watts Creek Pathway (rich case — multiple networks, routes, photos, all facts)
+-->
+
+<!-- TITLE -->
+<div data-testid="path-title" style="padding: 1rem 1.25rem 0;">
+  <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+    <h1 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Watts Creek Pathway</h1>
+    <a href="/admin/bike-paths/watts-creek-pathway" style="color: #888; font-size: 0.8rem; text-decoration: none;">Edit</a>
+  </div>
+</div>
+
+<!-- NETWORK BADGE -->
+<a data-testid="network-badge" href="/bike-paths/ncc-greenbelt/" style="display: inline-block; padding: 0.15rem 1.25rem; color: #6bc46b; font-size: 0.8rem; text-decoration: none;">
+  Part of NCC Greenbelt &rarr;
+</a>
+
+<!-- VIBE -->
+<p data-testid="path-vibe" style="padding: 0.1rem 1.25rem 0.5rem; color: #aaa; font-size: 0.9rem; font-style: italic; margin: 0;">
+  Paved pathway following Watts Creek through the western Greenbelt
+</p>
+
+<!-- MAP -->
+<div data-testid="path-map" style="height: 200px; background: linear-gradient(135deg, #1a2a1a 0%, #1a1a2e 50%, #1a2a2a 100%); margin: 0 1.25rem; border-radius: 8px; position: relative; overflow: hidden;">
+  <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 600 200">
+    <path d="M60,160 Q200,150 350,130 Q500,110 580,130" stroke="#4a7a4a" stroke-width="2" fill="none" opacity="0.4"/>
+    <path d="M80,140 Q150,100 250,80 Q400,50 520,90" stroke="#6bc46b" stroke-width="4" fill="none" opacity="0.8"/>
+  </svg>
+  <div style="position: absolute; bottom: 6px; left: 8px; color: #4a7a4a; font-size: 0.65rem; opacity: 0.6;">Tap to explore</div>
+</div>
+
+<!-- === TWO COLUMN LAYOUT (CSS controls stacking on mobile) === -->
+<div style="display: grid; grid-template-columns: 1fr 265px; gap: 1.25rem; padding: 1rem 1.25rem 1.25rem;">
+
+  <!-- ===== MAIN COLUMN ===== -->
+  <div>
+
+    <!-- BODY TEXT (or wikidata_meta.description fallback for stubs) -->
+    <div data-testid="path-body" style="color: #bbb; line-height: 1.6; margin-bottom: 0.75rem; font-size: 0.85rem;">
+      A well-maintained paved pathway following Watts Creek through the western Greenbelt. Popular with commuters connecting Kanata to the Ottawa River Pathway. The creek section through the forest is especially nice in autumn — the canopy turns gold and the path is quiet on weekday mornings.
+    </div>
+
+    <!-- EDIT CTA -->
+    <div data-testid="edit-cta" style="color: #666; font-size: 0.8rem; margin-bottom: 1.25rem; padding: 0.5rem 0.75rem; background: #1e1e35; border-radius: 4px;">
+      Know this path? Help improve this page — <a href="/admin/bike-paths/watts-creek-pathway" style="color: #6bc46b; text-decoration: none;">every edit can be undone</a>.
+    </div>
+
+    <!-- INFRASTRUCTURE SECTION -->
+    <section data-testid="infrastructure-section">
+      <h2 style="font-size: 0.95rem; font-weight: 600; color: #e0e0e0; margin: 0 0 0.5rem;">Cycling infrastructure here</h2>
+
+      <!-- Network card: NCC Greenbelt (OWN network) -->
+      <div data-testid="network-card" data-testid-own="true" data-network="ncc-greenbelt" style="background: #1e1e35; border-radius: 6px; padding: 0.6rem 0.8rem; margin-bottom: 0.4rem; border-left: 3px solid #6bc46b;">
+        <div data-testid="network-card-own" style="display: flex; justify-content: space-between; align-items: baseline;">
+          <a data-testid="network-card-name" href="/bike-paths/ncc-greenbelt/" style="color: #6bc46b; font-weight: 600; font-size: 0.85rem; text-decoration: none;">NCC Greenbelt</a>
+          <span style="color: #555; font-size: 0.75rem;">132 km &middot; NCC</span>
+        </div>
+        <div style="color: #666; font-size: 0.75rem;">You're on this network</div>
+        <div style="margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid #2a2a40;">
+          <div data-testid="network-card-path" data-relation="connects" style="padding: 0.15rem 0; color: #aaa;"><a href="/bike-paths/ncc-greenbelt/greenbelt-pathway-west/" style="color:#aaa;text-decoration:none">Greenbelt Pathway West</a> <span style="color:#555;font-size:0.75rem">connects</span></div>
+          <div data-testid="network-card-path" data-relation="nearby" style="padding: 0.15rem 0; color: #aaa;"><a href="/bike-paths/ncc-greenbelt/greenbelt-pathway-east/" style="color:#aaa;text-decoration:none">Greenbelt Pathway East</a> <span style="color:#555;font-size:0.75rem">nearby</span></div>
+          <div data-testid="network-card-path" data-relation="nearby" style="padding: 0.15rem 0; color: #aaa;"><a href="/bike-paths/ncc-greenbelt/greenbelt-pathway-west-barrhaven/" style="color:#aaa;text-decoration:none">Greenbelt Pathway West (Barrhaven)</a> <span style="color:#555;font-size:0.75rem">nearby</span></div>
+        </div>
+      </div>
+
+      <!-- Network card: Capital Pathway -->
+      <div data-testid="network-card" data-network="capital-pathway" style="background: #1e1e35; border-radius: 6px; padding: 0.6rem 0.8rem; margin-bottom: 0.4rem; border-left: 3px solid #5b8bd6;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <a data-testid="network-card-name" href="/bike-paths/capital-pathway/" style="color: #5b8bd6; font-weight: 600; font-size: 0.85rem; text-decoration: none;">Capital Pathway</a>
+          <span style="color: #555; font-size: 0.75rem;">220 km &middot; NCC</span>
+        </div>
+        <div style="color: #666; font-size: 0.75rem;">Also part of this network</div>
+        <div style="margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid #2a2a40;">
+          <div data-testid="network-card-path" data-relation="connects" style="padding: 0.15rem 0; color: #aaa;"><a href="/bike-paths/capital-pathway/pinecrest-creek-pathway/" style="color:#aaa;text-decoration:none">Pinecrest Creek Pathway</a> <span style="color:#555;font-size:0.75rem">connects</span></div>
+        </div>
+      </div>
+
+      <!-- Network card: Trans Canada Trail -->
+      <div data-testid="network-card" data-network="trans-canada-trail" style="background: #1e1e35; border-radius: 6px; padding: 0.6rem 0.8rem; margin-bottom: 0.4rem; border-left: 3px solid #d4a054;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <a data-testid="network-card-name" href="/bike-paths/trans-canada-trail/" style="color: #d4a054; font-weight: 600; font-size: 0.85rem; text-decoration: none;">Trans Canada Trail</a>
+          <span style="color: #555; font-size: 0.75rem;">56 km</span>
+        </div>
+        <div style="margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid #2a2a40;">
+          <div data-testid="network-card-path" data-relation="connects" style="padding: 0.15rem 0; color: #aaa;"><a href="/bike-paths/trans-canada-trail/tct-bells-corners/" style="color:#aaa;text-decoration:none">TCT (Bells Corners)</a> <span style="color:#555;font-size:0.75rem">connects</span></div>
+        </div>
+      </div>
+
+      <!-- Other paths nearby (ungrouped) -->
+      <div data-testid="other-paths" style="background: #1e1e35; border-radius: 6px; padding: 0.6rem 0.8rem; margin-bottom: 0; border-left: 3px solid #444;">
+        <div style="color: #888; font-size: 0.8rem; margin-bottom: 0.3rem;">Other paths nearby</div>
+        <div style="padding: 0.15rem 0; color: #aaa;"><a href="/bike-paths/greenbank-road/" style="color:#aaa;text-decoration:none">Greenbank Road</a> <span style="color:#555;font-size:0.75rem">Paved shoulder &middot; 16.4 km</span></div>
+      </div>
+    </section>
+
+    <!-- ROUTES SECTION -->
+    <section data-testid="routes-section" style="margin-top: 1.25rem;">
+      <h2 style="font-size: 0.95rem; font-weight: 600; color: #e0e0e0; margin: 0 0 0.5rem;">Routes that pass here</h2>
+
+      <a data-testid="route-card" href="/routes/kanata-to-downtown/" style="display: flex; gap: 0.75rem; padding: 0.6rem; background: #1e1e35; border-radius: 6px; margin-bottom: 0.4rem; text-decoration: none; align-items: center;">
+        <div style="width: 80px; height: 52px; background: linear-gradient(135deg, #2a3a2a, #1a2a1a); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #4a6a4a; font-size: 0.6rem;">cover</div>
+        <div>
+          <div data-testid="route-card-name" style="color: #e0e0e0; font-weight: 500; font-size: 0.85rem;">Kanata to Downtown</div>
+          <div data-testid="route-card-meta" style="color: #888; font-size: 0.75rem;">42 km &middot; 8.2 km on this path</div>
+        </div>
+      </a>
+
+      <a data-testid="route-card" href="/routes/greenbelt-explorer/" style="display: flex; gap: 0.75rem; padding: 0.6rem; background: #1e1e35; border-radius: 6px; margin-bottom: 0; text-decoration: none; align-items: center;">
+        <div style="width: 80px; height: 52px; background: linear-gradient(135deg, #2a3a2a, #1a2a1a); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #4a6a4a; font-size: 0.6rem;">cover</div>
+        <div>
+          <div data-testid="route-card-name" style="color: #e0e0e0; font-weight: 500; font-size: 0.85rem;">Greenbelt Explorer</div>
+          <div data-testid="route-card-meta" style="color: #888; font-size: 0.75rem;">65 km &middot; 4.1 km on this path</div>
+        </div>
+      </a>
+    </section>
+
+    <!-- PHOTOS SECTION -->
+    <section data-testid="photos-section" style="margin-top: 1.25rem;">
+      <h2 style="font-size: 0.95rem; font-weight: 600; color: #e0e0e0; margin: 0 0 0.5rem;">Photos</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; border-radius: 6px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #2a3a2a, #1e2e1e); height: 90px;"></div>
+        <div style="background: linear-gradient(135deg, #2a2a3a, #1e1e2e); height: 90px;"></div>
+        <div style="background: linear-gradient(135deg, #3a2a2a, #2e1e1e); height: 90px;"></div>
+        <div style="background: linear-gradient(135deg, #2a3a3a, #1e2e2e); height: 90px;"></div>
+        <div style="background: linear-gradient(135deg, #3a3a2a, #2e2e1e); height: 90px;"></div>
+        <div style="background: linear-gradient(135deg, #2a2a2a, #1e1e1e); height: 90px;"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== SIDEBAR (stacks below main on mobile) ===== -->
+  <aside>
+
+    <!-- FACTS TABLE — full table, never hidden -->
+    <table data-testid="facts-table" style="width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 1rem;">
+      <tr data-testid="fact-length" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Length</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">8.8 km</td>
+      </tr>
+      <tr data-testid="fact-path-type" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Path type</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Multi-use pathway</td>
+      </tr>
+      <tr data-testid="fact-surface" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Surface</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Paved, 3m</td>
+      </tr>
+      <tr data-testid="fact-surface-quality" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Surface quality</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Good surface</td>
+      </tr>
+      <tr data-testid="fact-traffic" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Traffic</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Separated from cars</td>
+      </tr>
+      <tr data-testid="fact-lighting" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Lighting</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Not lit</td>
+      </tr>
+      <tr data-testid="fact-terrain" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Terrain</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Flat</td>
+      </tr>
+      <tr data-testid="fact-operator" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Operator</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">NCC</td>
+      </tr>
+      <tr data-testid="fact-network" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Network</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Regional cycling network</td>
+      </tr>
+      <tr data-testid="fact-established" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Established</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">1970s</td>
+      </tr>
+      <tr data-testid="fact-seasonal" style="border-bottom: 1px solid #2a2a40;">
+        <td style="padding: 0.4rem 0; color: #888;">Seasonal</td>
+        <td style="padding: 0.4rem 0; color: #d4a054; text-align: right;">Closed in winter</td>
+      </tr>
+      <tr data-testid="fact-alongside">
+        <td style="padding: 0.4rem 0; color: #888;">Alongside</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">Watts Creek Road</td>
+      </tr>
+      <tr data-testid="fact-ref">
+        <td style="padding: 0.4rem 0; color: #888;">Route ref</td>
+        <td style="padding: 0.4rem 0; color: #ccc; text-align: right;">CP-7</td>
+      </tr>
+    </table>
+
+    <!-- NEARBY PLACES -->
+    <div data-testid="nearby-places" style="margin-bottom: 1rem;">
+      <h3 style="font-weight: 600; color: #ccc; margin: 0 0 0.4rem; font-size: 0.85rem;">Nearby places</h3>
+      <div style="font-size: 0.8rem; color: #888; line-height: 1.7;">
+        <div>Bridlewood Community Centre</div>
+        <div>Tim Hortons Kanata</div>
+        <div>Public Toilet (Watts Creek)</div>
+        <div>Beaver Pond Lookout</div>
+      </div>
+    </div>
+
+    <!-- WEBSITE LINK — prominent card -->
+    <a data-testid="website-link" href="https://ncc-ccn.gc.ca/places/greenbelt" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 0.4rem; color: #e0e0e0; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 0.6rem; background: #1e1e35; border-radius: 5px; margin-bottom: 0.35rem;">
+      <span style="color: #6bc46b;">&#x1f517;</span>
+      <span>ncc-ccn.gc.ca</span>
+      <span style="color: #555; margin-left: auto;">&nearr;</span>
+    </a>
+
+    <!-- WIKIPEDIA LINK -->
+    <a data-testid="wikipedia-link" href="https://en.wikipedia.org/wiki/Watts_Creek" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 0.4rem; color: #ccc; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 0.6rem; background: #1e1e35; border-radius: 5px; margin-bottom: 0.75rem;">
+      <span style="color: #888;">W</span>
+      <span>Watts Creek &mdash; Wikipedia</span>
+      <span style="color: #555; margin-left: auto;">&nearr;</span>
+    </a>
+
+    <!-- OSM ATTRIBUTION -->
+    <div data-testid="osm-attribution" style="color: #555; font-size: 0.75rem; line-height: 1.5;">
+      Path data from <a href="https://www.openstreetmap.org" target="_blank" rel="noopener" style="color: #6bc46b; text-decoration: none;">OpenStreetMap</a><br>
+      <a href="https://www.openstreetmap.org/relation/12345" target="_blank" rel="noopener" style="color: #777; text-decoration: none;">Watts Creek Pathway &mdash; relation 12345 &nearr;</a>
+    </div>
+  </aside>
+</div>
+
+<!-- BACK LINK -->
+<div data-testid="back-link" style="padding: 0 1.25rem 1rem;">
+  <a href="/bike-paths/ncc-greenbelt/" style="color: #6bc46b; text-decoration: none; font-size: 0.85rem;">&#x21A9; NCC Greenbelt</a>
+</div>

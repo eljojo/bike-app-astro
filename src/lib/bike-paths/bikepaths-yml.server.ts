@@ -31,8 +31,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
   ref: z.string().optional(),
   parallel_to: z.string().optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
-  /** 'network' = auto-grouped cluster of connected paths. Members keep their pages. */
-  type: z.enum(['network']).optional(),
+  /** Entry classification from the pipeline — 'network', 'destination', 'infrastructure', 'connector', etc. */
+  type: z.string().optional(),
   /** For networks: slugs of member paths. */
   members: z.array(z.string()).optional(),
   /** Slug of the network this path belongs to. */

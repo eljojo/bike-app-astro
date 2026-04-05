@@ -48,8 +48,7 @@ function assertOrder(doc: Document, aId: string, bId: string) {
 let doc: Document;
 
 beforeAll(() => {
-  // The mockup lives in the bike-app docs repo — load it as the reference implementation
-  const mockupPath = path.resolve(import.meta.dirname, '..', '..', 'bike-app', 'docs', 'plans', 'mockups', '2026-04-04-paths-detail-spec.html');
+  const mockupPath = path.resolve(import.meta.dirname, 'fixtures', 'bike-path-detail-spec.html');
   const html = fs.readFileSync(mockupPath, 'utf-8');
   doc = parseHTML(html);
 });
