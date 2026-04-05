@@ -10,6 +10,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
   name_fr: z.string().optional(),
   osm_relations: z.array(z.number()).optional(),
   osm_names: z.array(z.string()).optional(),
+  /** OSM way IDs that compose this entry — provenance metadata from the pipeline. */
+  osm_way_ids: z.array(z.number()).optional(),
   anchors: z.array(z.union([
     z.object({ lat: z.number(), lng: z.number() }),
     z.tuple([z.number(), z.number()]), // [lng, lat] — GeoJSON coordinate order
