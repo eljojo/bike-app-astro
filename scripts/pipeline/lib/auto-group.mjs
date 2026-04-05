@@ -373,5 +373,17 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   }
 
   const result = [...entries.filter(e => !absorbedEntries.has(e)), ...newNetworkEntries];
+
+  // Resolve _memberRefs → members (slug strings) and _networkRef → member_of
+  const finalSlugMap = computeSlugs(result);
+  for (const entry of result) {
+    if (entry._memberRefs) {
+      entry.members = entry._memberRefs.map(ref => finalSlugMap.get(ref)).filter(Boolean);
+    }
+    if (entry._networkRef) {
+      entry.member_of = finalSlugMap.get(entry._networkRef);
+    }
+  }
+
   return result;
 }
