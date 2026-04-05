@@ -169,6 +169,9 @@ function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
   for (const relId of entry.osm_relations ?? []) {
     totalKm += readGeoLengthKm(path.join(geoDir, `${relId}.geojson`));
   }
+  if (totalKm === 0 && entry.osm_way_ids?.length) {
+    totalKm = readGeoLengthKm(path.join(geoDir, `ways-${entry.slug}.geojson`));
+  }
   if (totalKm === 0 && entry.osm_names?.length) {
     totalKm = readGeoLengthKm(path.join(geoDir, `name-${entry.slug}.geojson`));
   }
@@ -188,6 +191,10 @@ function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: num
 
   for (const relId of entry.osm_relations ?? []) {
     points.push(...readGeoPoints(path.join(geoDir, `${relId}.geojson`)));
+  }
+
+  if (points.length === 0 && entry.osm_way_ids?.length) {
+    points.push(...readGeoPoints(path.join(geoDir, `ways-${entry.slug}.geojson`)));
   }
 
   if (points.length === 0 && entry.osm_names?.length) {
@@ -218,6 +225,8 @@ function entryGeoFiles(entries: SluggedBikePathYml[]): string[] {
   for (const e of entries) {
     if (e.osm_relations?.length) {
       for (const relId of e.osm_relations) files.push(`${relId}.geojson`);
+    } else if (e.osm_way_ids?.length) {
+      files.push(`ways-${e.slug}.geojson`);
     } else if (e.osm_names?.length) {
       files.push(`name-${e.slug}.geojson`);
     } else if (e.segments?.length) {
