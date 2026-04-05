@@ -65,6 +65,9 @@ export interface PathMeta {
   seasonal?: string;
   ref?: string;
   inception?: string;
+  bicycle?: string;
+  cycleway?: string;
+  parallel_to?: string;
 }
 
 /**
@@ -103,6 +106,28 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Separated from pedestrians
   if (meta.segregated === 'yes') {
     facts.push({ key: 'separated_peds' });
+  }
+
+  // Bicycle access level
+  if (meta.bicycle === 'designated') {
+    facts.push({ key: 'bicycle_designated' });
+  } else if (meta.bicycle === 'yes') {
+    facts.push({ key: 'bicycle_yes' });
+  }
+
+  // Cycleway type (track, lane, shared_lane)
+  if (meta.cycleway && meta.cycleway !== 'crossing') {
+    facts.push({ key: 'cycleway', value: meta.cycleway });
+  }
+
+  // Parallel to road
+  if (meta.parallel_to) {
+    facts.push({ key: 'parallel_to', value: meta.parallel_to });
+  }
+
+  // Highway type (only for non-cycleway — cycleway is already 'separated_cars')
+  if (meta.highway && meta.highway !== 'cycleway') {
+    facts.push({ key: 'highway', value: meta.highway });
   }
 
   // Lit
@@ -264,6 +289,11 @@ export function factLabelKey(factKey: string): string {
   // mtb fact no longer emitted (replaced by path_type), but keep mapping for backward compatibility
   if (factKey === 'mtb') return 'paths.label.trail_type';
   if (factKey === 'separated_cars' || factKey === 'separated_peds') return 'paths.label.separated';
+  if (factKey === 'bicycle_designated' || factKey === 'bicycle_yes') return 'paths.label.bicycle';
+  if (factKey === 'cycleway') return 'paths.label.cycleway';
+  if (factKey === 'parallel_to') return 'paths.label.parallel_to';
+  if (factKey === 'highway') return 'paths.label.highway';
+  if (factKey === 'some_parallel' || factKey === 'all_parallel') return 'paths.label.parallel_to';
   if (factKey === 'lit' || factKey === 'not_lit' || factKey === 'lit_mixed') return 'paths.label.lit';
   if (factKey === 'flat' || factKey === 'gentle_hills' || factKey === 'hilly') return 'paths.label.terrain';
   if (factKey === 'operator') return 'paths.label.operator';
@@ -291,6 +321,18 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
       return localizeSurface(fact.value, t, locale) || fact.value || '';
     case 'width':
       return `${fact.value}m`;
+    case 'cycleway': {
+      const i18nKey = `paths.fact.cycleway_${fact.value}`;
+      const translated = t(i18nKey, locale);
+      return translated !== i18nKey ? translated : fact.value || '';
+    }
+    case 'parallel_to':
+      return fact.value || '';
+    case 'highway': {
+      const i18nKey = `paths.fact.highway_${fact.value}`;
+      const translated = t(i18nKey, locale);
+      return translated !== i18nKey ? translated : fact.value || '';
+    }
     case 'operator':
       return fact.value || '';
     case 'seasonal':

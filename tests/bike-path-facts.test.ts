@@ -273,6 +273,50 @@ describe('buildPathFacts', () => {
     const facts = buildPathFacts({ inception: '1970s' });
     expect(facts).toContainEqual({ key: 'inception', value: '1970s' });
   });
+
+  it('emits bicycle_designated when bicycle is designated', () => {
+    const facts = buildPathFacts({ bicycle: 'designated' });
+    expect(facts).toContainEqual({ key: 'bicycle_designated' });
+  });
+
+  it('emits bicycle_yes when bicycle is yes', () => {
+    const facts = buildPathFacts({ bicycle: 'yes' });
+    expect(facts).toContainEqual({ key: 'bicycle_yes' });
+  });
+
+  it('does not emit bicycle fact when bicycle is absent', () => {
+    const facts = buildPathFacts({ surface: 'asphalt' });
+    const keys = facts.map(f => f.key);
+    expect(keys).not.toContain('bicycle_designated');
+    expect(keys).not.toContain('bicycle_yes');
+  });
+
+  it('emits cycleway fact with value for track', () => {
+    const facts = buildPathFacts({ cycleway: 'track' });
+    expect(facts).toContainEqual({ key: 'cycleway', value: 'track' });
+  });
+
+  it('does not emit cycleway fact for crossing', () => {
+    const facts = buildPathFacts({ cycleway: 'crossing' });
+    const keys = facts.map(f => f.key);
+    expect(keys).not.toContain('cycleway');
+  });
+
+  it('emits parallel_to fact with road name', () => {
+    const facts = buildPathFacts({ parallel_to: 'Bank Street' });
+    expect(facts).toContainEqual({ key: 'parallel_to', value: 'Bank Street' });
+  });
+
+  it('emits highway fact for non-cycleway highway', () => {
+    const facts = buildPathFacts({ highway: 'path' });
+    expect(facts).toContainEqual({ key: 'highway', value: 'path' });
+  });
+
+  it('does not emit highway fact when highway is cycleway', () => {
+    const facts = buildPathFacts({ highway: 'cycleway' });
+    const keys = facts.map(f => f.key);
+    expect(keys).not.toContain('highway');
+  });
 });
 
 describe('findNearestMajorPath', () => {
