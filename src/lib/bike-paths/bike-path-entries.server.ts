@@ -408,9 +408,10 @@ export function loadBikePathEntries(): {
       const entry = ymlBySlug.get(md.id);
       if (entry) {
         matchedEntries.push(entry);
-        // If this YML entry is a network, don't claim it — stash the markdown
-        // overlay for step 7 so the network page gets built with markdown content.
-        if (entry.type === 'network') {
+        // If this YML entry has members (network or trail with sections), don't
+        // claim it — stash the markdown overlay for step 7 so the page gets built
+        // with member refs and markdown content.
+        if ((entry.members?.length ?? 0) > 0) {
           networkMarkdownOverlays.set(md.id, md);
           continue;
         }
@@ -488,8 +489,8 @@ export function loadBikePathEntries(): {
 
     const score = scoreBikePath(entry, 0);
 
-    // Skip network entries — they're processed after all paths
-    if (entry.type === 'network') continue;
+    // Skip entries with members (networks, trails with sections) — processed in step 7
+    if ((entry.members?.length ?? 0) > 0) continue;
 
     pages.push({
       slug: entry.slug,
@@ -497,7 +498,7 @@ export function loadBikePathEntries(): {
       tags: [],
       score,
       hasMarkdown: false,
-      listed: entry.type === 'destination' || entry.type === 'infrastructure',
+      listed: entry.type === 'trail' || entry.type === 'destination' || entry.type === 'infrastructure',
       standalone: isDestination(entry, getPathLengthKm(entry), false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,
@@ -535,28 +536,28 @@ export function loadBikePathEntries(): {
     });
   }
 
-  // 7. Process type: network entries — build network pages with lightweight memberRefs.
-  // Network pages aggregate metadata from members. memberRefs are lightweight —
+  // 7. Process entries with members — networks AND trails with sections.
+  // These pages aggregate metadata from members. memberRefs are lightweight —
   // slug, name, length, thumbnail, standalone — NOT full BikePathPage objects.
   // The virtual module (build-data-plugin.ts) serializes all pages into a JS bundle;
   // embedding full page objects inside network pages would duplicate large relation arrays.
   const pageBySlug = new Map(pages.map(p => [p.slug, p]));
   for (const entry of allYmlEntries) {
-    if (entry.type !== 'network') continue;
+    if (!((entry.members?.length ?? 0) > 0)) continue;
     if (claimedSlugs.has(entry.slug)) continue;
     if (isHardExcluded(entry)) continue;
 
     const memberSlugs = entry.members ?? [];
-    // Guard: warn about network→network references (should be fixed in the data pipeline)
-    const networkMemberSlugs = memberSlugs.filter(s => {
+    // Guard: warn about entries that reference other member-bearing entries
+    const nestedMemberSlugs = memberSlugs.filter(s => {
       const yml = ymlBySlug.get(s);
-      return yml?.type === 'network';
+      return (yml?.members?.length ?? 0) > 0;
     });
-    if (networkMemberSlugs.length > 0) {
-      console.warn(`Network "${entry.slug}" references other networks as members: ${networkMemberSlugs.join(', ')} — skipped`);
+    if (nestedMemberSlugs.length > 0) {
+      console.warn(`"${entry.slug}" references other member-bearing entries: ${nestedMemberSlugs.join(', ')} — skipped`);
     }
     const memberPages = memberSlugs
-      .filter(s => !networkMemberSlugs.includes(s))
+      .filter(s => !nestedMemberSlugs.includes(s))
       .map(s => pageBySlug.get(s))
       .filter((p): p is BikePathPage => !!p);
 

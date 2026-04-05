@@ -31,12 +31,13 @@ export const bikePathYmlEntrySchema = z.looseObject({
   ref: z.string().optional(),
   parallel_to: z.string().optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
-  /** Entry classification from the pipeline (see bike-routes entry-type.mjs).
-   * network: superroute grouping with members array.
-   * destination: real-world identity (named relations, MTB trails, long MUPs/trails).
-   * infrastructure: bike lanes, shorter named paths.
-   * connector: tiny segments under 300m. */
-  type: z.enum(['network', 'destination', 'infrastructure', 'connector']).optional(),
+  /** Entry classification from the pipeline (see entry-type.mjs / _ctx/entry-types.md).
+   * trail: long-distance named route people plan trips for (PPJ, Route Verte, TCT). May have members (sections).
+   * network: interconnected city-level system (Capital Pathway, NCC Greenbelt). Has members.
+   * destination: local path with real-world identity (Sawmill Creek, park trail).
+   * infrastructure: bike lane or short named path, visible on map, no page.
+   * connector: tiny segment under 300m, invisible. */
+  type: z.enum(['trail', 'network', 'destination', 'infrastructure', 'connector']).optional(),
   /** For networks: slugs of member paths. */
   members: z.array(z.string()).optional(),
   /** Slug of the network this path belongs to. */

@@ -29,9 +29,33 @@ describe('deriveEntryType', () => {
     expect(deriveEntryType({ type: 'network' })).toBeUndefined();
   });
 
+  it('skips trail entries', () => {
+    expect(deriveEntryType({ type: 'trail' })).toBeUndefined();
+  });
+
+  // --- Trails (long-distance routes) ---
+
+  it('ncn route with relation → trail', () => {
+    expect(deriveEntryType({
+      network: 'ncn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.01),
+    })).toBe('trail');
+  });
+
+  it('rcn route with relation → trail', () => {
+    expect(deriveEntryType({
+      network: 'rcn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.01),
+    })).toBe('trail');
+  });
+
+  it('ncn without relation → not trail (falls to other rules)', () => {
+    expect(deriveEntryType({
+      network: 'ncn', path_type: 'mup', _ways: makeWays(0.01),
+    })).not.toBe('trail');
+  });
+
   // --- Destinations ---
 
-  it('entries with osm_relations → destination', () => {
+  it('entries with osm_relations (no network tag) → destination', () => {
     expect(deriveEntryType({
       osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.001),
     })).toBe('destination');
@@ -104,10 +128,24 @@ describe('deriveEntryType', () => {
 
   // --- Real-world spot checks ---
 
-  it('Sawmill Creek Pathway (relation) → destination', () => {
+  it('Sawmill Creek Pathway (relation, no network tag) → destination', () => {
     expect(deriveEntryType({
       osm_relations: [7369960], path_type: 'mup', _ways: makeWays(0.02),
     })).toBe('destination');
+  });
+
+  it('Route Verte 1 (ncn relation) → trail', () => {
+    expect(deriveEntryType({
+      network: 'ncn', osm_relations: [416115], ref: 'RV1', path_type: 'mup',
+      _ways: makeWays(0.5),
+    })).toBe('trail');
+  });
+
+  it('Algonquin Trail (rcn relation) → trail', () => {
+    expect(deriveEntryType({
+      network: 'rcn', osm_relations: [9351875], ref: 'AL', path_type: 'mup',
+      _ways: makeWays(0.5),
+    })).toBe('trail');
   });
 
   it('Trilby Court (short bike-lane) → connector', () => {

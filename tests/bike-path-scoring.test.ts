@@ -59,6 +59,11 @@ describe('isHardExcluded', () => {
     expect(isHardExcluded(entry({ name: 'Ottawa River Pathway', highway: 'cycleway', network: 'rcn' }))).toBe(false);
     expect(isHardExcluded(entry({ name: 'Sentier des Voyageurs Pathway', highway: 'cycleway' }))).toBe(false);
   });
+
+  it('never excludes trail entries (even with mtb network tag)', () => {
+    expect(isHardExcluded(entry({ name: 'Route Verte 1', type: 'trail', network: 'ncn' }))).toBe(false);
+    expect(isHardExcluded(entry({ name: 'Gatineau MTB Route', type: 'trail', network: 'mtb' }))).toBe(false);
+  });
 });
 
 describe('normalizeOperator', () => {
@@ -156,6 +161,10 @@ describe('isDestination', () => {
 
   it('networks always get standalone pages', () => {
     expect(isDestination(entry({ name: 'Capital Pathway', slug: 'capital-pathway', type: 'network' }), undefined, false, false)).toBe(true);
+  });
+
+  it('trail type gets a standalone page', () => {
+    expect(isDestination(entry({ name: 'Cycloparc PPJ', slug: 'cycloparc-ppj', type: 'trail' }), undefined, false, false)).toBe(true);
   });
 
   it('type: destination gets standalone page', () => {
