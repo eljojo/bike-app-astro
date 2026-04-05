@@ -51,6 +51,7 @@ Before claiming work is complete:
 - **Authorize every endpoint.** Every API endpoint MUST call `authorize()`. ESLint enforces this.
 - **Server boundary.** `.server.ts` = server-only. Plain `.ts` = browser-safe. ESLint enforces this. See [server-boundary](_ctx/server-boundary.md).
 - **Never hardcode city/locale.** Import `CITY` from `src/lib/config/config.ts`. Check city config for locales.
+- **No deprecated Sass.** Use `color.adjust()`/`color.scale()` from `sass:color`, never `lighten()`/`darken()`. See [css-styling](_ctx/css-styling.md).
 - **Zod v4.** Import from `zod/v4`, not `zod` or `astro/zod`.
 - **Prerender flags.** Every page/endpoint MUST export `prerender` (true or false).
 - **Content model layer.** All content data goes through `src/lib/models/`. Never hand-roll JSON serialization.

@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use 'variables' as *;
 @use 'mixins' as *;
 
@@ -581,7 +582,7 @@
   @include dark-mode {
     color: $color-text-dark;
     background: $color-card-bg-dark;
-    &:hover { background: lighten($color-card-bg-dark, 3%); }
+    &:hover { background: color.adjust($color-card-bg-dark, $lightness: 3%); }
   }
 
   .network-member-name {
