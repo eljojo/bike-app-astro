@@ -21,16 +21,17 @@ import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
+import type { NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 interface Props {
   page: BikePathPage;
-  networkNames: Record<string, string>;
+  networkMeta: Record<string, NetworkMeta>;
   memberGeoMap?: Record<string, string>;  // network only
   memberMeta?: PathMeta[];                // network only — member metadata for fact aggregation
   networkPage?: BikePathPage;             // member only
 }
 
-const { page, networkNames, memberGeoMap, memberMeta, networkPage } = Astro.props;
+const { page, networkMeta, memberGeoMap, memberMeta, networkPage } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -218,7 +219,7 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
                       <a href={paths.bikePath(m.slug, m.memberOf, locale)} class="network-member-link network-member-secondary">
                         <span class="network-member-name">{m.name}</span>
                         <span class="network-member-meta">
-                          {m.length_km ? `${m.length_km} km · ` : ''}{networkNames[m.memberOf!] || m.memberOf}
+                          {m.length_km ? `${m.length_km} km · ` : ''}{networkMeta[m.memberOf!]?.name ?? m.memberOf}
                         </span>
                       </a>
                     ) : (
@@ -341,7 +342,7 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
             <ul class="connected-paths-list">
               {connectedNetworkEntries.map(([netSlug, members]) => (
                 <li>
-                  <a href={paths.bikePath(netSlug, undefined, locale)}>{networkNames[netSlug] || netSlug}</a>
+                  <a href={paths.bikePath(netSlug, undefined, locale)}>{networkMeta[netSlug]?.name ?? netSlug}</a>
                   {members.length > 1 && <span class="path-meta">{members.length} {t('paths.pathways', locale)}</span>}
                 </li>
               ))}

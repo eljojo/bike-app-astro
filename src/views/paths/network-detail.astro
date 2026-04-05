@@ -2,14 +2,17 @@
 export const prerender = true;
 import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import BikePathDetail from './BikePathDetail.astro';
+import type { NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
   const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
-  // Build network slug → name lookup for "Connects to" display
-  const networkNames: Record<string, string> = {};
+  // Build network slug → meta lookup for "Connects to" display
+  const networkMeta: Record<string, NetworkMeta> = {};
   for (const p of pages) {
-    if (p.memberRefs && p.memberRefs.length > 0) networkNames[p.slug] = p.name;
+    if (p.memberRefs && p.memberRefs.length > 0) {
+      networkMeta[p.slug] = { name: p.name, length_km: p.length_km, operator: p.operator };
+    }
   }
   // Build member slug → geoFiles lookup for map hover highlight
   const pageBySlug = new Map(pages.map(p => [p.slug, p]));
@@ -30,13 +33,13 @@ export async function getStaticPaths() {
     }
     return {
       params: { network: page.slug },
-      props: { page, networkNames, memberGeoMap, memberMeta },
+      props: { page, networkMeta, memberGeoMap, memberMeta },
     };
   });
 }
 
-interface Props { page: BikePathPage; networkNames: Record<string, string>; memberGeoMap: Record<string, string>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean }> }
-const { page, networkNames, memberGeoMap, memberMeta } = Astro.props;
+interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberGeoMap: Record<string, string>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean }> }
+const { page, networkMeta, memberGeoMap, memberMeta } = Astro.props;
 ---
 
-<BikePathDetail page={page} networkNames={networkNames} memberGeoMap={memberGeoMap} memberMeta={memberMeta} />
+<BikePathDetail page={page} networkMeta={networkMeta} memberGeoMap={memberGeoMap} memberMeta={memberMeta} />
