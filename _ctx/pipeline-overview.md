@@ -12,10 +12,11 @@ related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides]
 ## Steps
 
 1. **Discover cycling relations** — `relation["route"="bicycle"]` in bbox
-2. **Discover named cycling ways** — cycleways, paths, bike lanes with names. Split same-named ways by connectivity (shared nodes + 100m endpoint snap + 2km bbox merge). Junction trail expansion for non-cycling connectors.
+1b. **Claim relation member ways** — fetch member way IDs for all discovered relations via `out body;`. Register in the WayRegistry (`lib/way-registry.mjs`). These ways are "claimed" — named-way discovery will merge them into the relation entry instead of creating duplicates.
+2. **Discover named cycling ways** — cycleways, paths, bike lanes with names. Split same-named ways by connectivity (shared nodes + 100m endpoint snap + 2km bbox merge). Junction trail expansion for non-cycling connectors. Way IDs (`_wayIds`) are preserved through splitting.
 2b. **Discover unnamed parallel lanes** — `highway=cycleway` without names, chained by proximity, matched to nearby roads.
 2c. **Discover unnamed cycling chains** — unnamed cycleways/paths >= 1.5km, named from nearby parks/roads using real geometry (`around.chain` + geometry-to-geometry distance).
-3. **Build entries** — merge relations, named ways, parallel lanes, manual entries into one entry per path.
+3. **Build entries** — merge relations, named ways, parallel lanes, manual entries into one entry per path. Merge priority: way-ID overlap (WayRegistry) → slug match → name match. Relations claim their member ways first; named ways with ≥50% overlap merge into the claiming entry.
 4. **Auto-group** — connectivity-based clustering (shared nodes, endpoint proximity). Park containment splits clusters by park. Spur absorption: clusters with only 1 page-worthy member (>= 1km) absorb the rest.
 5. **Compute slugs** — centralized disambiguation.
 6. **Superroute networks** — promoted sub-superroutes become networks. Top-level superroutes set `super_network` (sorted by scope: ncn < rcn < lcn, most specific wins). Same-named auto-group networks merged into promoted networks.
@@ -39,6 +40,9 @@ The auto-grouping in `lib/cluster-entries.mjs` merges entries whose OSM ways sha
 ## Key Invariants
 
 - `_ways` is transient — exists in memory during build, stripped before YAML output.
+- `osm_way_ids` persists in YAML — the OSM way IDs composing each entry. Provenance metadata: trace any entry back to its source ways.
+- Way IDs are the merge key. Relations claim ways first. Named ways with ≥50% overlap merge into the relation entry. Names are display metadata, not structural keys.
+- The WayRegistry (`lib/way-registry.mjs`) is the single source of truth for way ownership during the pipeline run. Post-pipeline validation asserts no way appears in two entries.
 - Anchors are for Overpass name lookups only — never for spatial reasoning (see `~/code/bike-routes/_ctx/spatial-reasoning.md`).
 - bikepaths.yml is the deliverable. Code changes without regenerating data are incomplete.
 - The Astro app reads bikepaths.yml + markdown directly. Both must be correct.

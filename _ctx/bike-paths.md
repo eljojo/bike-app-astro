@@ -34,6 +34,21 @@ When a markdown file's slug matches a YML entry:
 
 This applies regardless of YML entry type. A markdown matching a `type: network` entry should produce a network page enriched with the markdown content — not a standalone page.
 
+### OSM Provenance
+
+Every entry in bikepaths.yml carries provenance metadata tracing it back to OSM:
+
+- `osm_relations` — the OSM relation IDs (route relations, superroutes)
+- `osm_names` — the way names used to discover this entry
+- `osm_way_ids` — the OSM way IDs that compose this entry's geometry
+
+The pipeline preserves way IDs from Overpass responses through the entire build process. This enables:
+
+1. **Structural dedup** — if two entries share ≥50% of their ways, they're the same path (relation trumps named way)
+2. **Validation** — no way should appear in two entries (a way is one piece of pavement)
+3. **Fast geometry resolution** — `cache-path-geometry.ts` queries ways by ID instead of name
+4. **Provenance audit** — given any fact in bikepaths.yml, trace it to the Overpass query that produced it
+
 ## Networks
 
 A network is a group of connected paths that share a real-world identity (a park trail system, a greenway corridor).
