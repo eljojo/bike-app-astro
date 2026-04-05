@@ -695,6 +695,7 @@
   "paths.other_nearby": "Autres sentiers \u00e0 proximit\u00e9",
   "paths.relation_connects": "connecte",
   "paths.relation_nearby": "\u00e0 proximit\u00e9",
+  "paths.nearest_major": "Le plus proche d'ici",
   "paths.routes_here": "Parcours qui passent ici",
   "admin.sidebar.most_viewed": "Les plus vus",
   "admin.sidebar.most_starred": "Les plus aimés",

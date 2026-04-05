@@ -117,11 +117,17 @@ test.describe('Network pages', () => {
     await expect(page.locator('h1')).toContainText('Red de Ciclovías');
   });
 
-  test('network page shows member list with 2 members', async ({ page }) => {
+  test('network page shows members across tiers', async ({ page }) => {
     await page.goto('/bike-paths/red-de-ciclovias');
+    // Tier 1: members with markdown or ≥5km (Avenida Ecuador has markdown)
     const memberList = page.locator('.network-members-list');
     await expect(memberList).toBeVisible();
-    await expect(memberList.locator('li')).toHaveCount(2);
+    await expect(memberList.locator('li')).toHaveCount(1);
+    await expect(memberList).toContainText('Ciclovía Avenida Ecuador');
+    // Tier 2: shorter segments without markdown (Avenida Brasil)
+    const tier2 = page.locator('.network-tier2');
+    await expect(tier2).toBeVisible();
+    await expect(tier2).toContainText('Ciclovía Avenida Brasil');
   });
 
   test('network page shows stats in facts table', async ({ page }) => {

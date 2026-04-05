@@ -6,6 +6,7 @@ import {
   computeCenter,
   buildPathFacts,
   buildNetworkFacts,
+  findNearestMajorPath,
 } from '../src/lib/bike-paths/bike-path-facts';
 
 describe('SURFACE_CATEGORIES', () => {
@@ -271,6 +272,132 @@ describe('buildPathFacts', () => {
   it('emits inception fact when inception is set', () => {
     const facts = buildPathFacts({ inception: '1970s' });
     expect(facts).toContainEqual({ key: 'inception', value: '1970s' });
+  });
+});
+
+describe('findNearestMajorPath', () => {
+  const defaults = {
+    pageSlug: 'trail-61',
+    pageLengthKm: 1,
+    hasMembers: false,
+    memberSlugs: new Set<string>(),
+  };
+
+  it('picks the longest nearby path that is longer than the current path', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      connectedPaths: [],
+      nearbyPaths: [
+        { slug: 'greenbelt-pathway-east', name: 'Greenbelt Pathway East', length_km: 13.6, surface: 'gravel' },
+        { slug: 'crosstown-3', name: 'Crosstown Bikeway 3', length_km: 5.2, surface: 'asphalt' },
+      ],
+    });
+    expect(result).toBeDefined();
+    expect(result!.slug).toBe('greenbelt-pathway-east');
+  });
+
+  it('prefers connected paths when they appear first (dedup)', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      connectedPaths: [
+        { slug: 'greenbelt-pathway-east', name: 'Greenbelt Pathway East', length_km: 13.6 },
+      ],
+      nearbyPaths: [
+        { slug: 'greenbelt-pathway-east', name: 'Greenbelt Pathway East', length_km: 13.6 },
+        { slug: 'some-other', name: 'Some Other', length_km: 50 },
+      ],
+    });
+    // some-other is longer, so it wins
+    expect(result!.slug).toBe('some-other');
+  });
+
+  it('returns undefined when no candidate is longer than the current path', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      pageLengthKm: 20,
+      connectedPaths: [
+        { slug: 'short-one', name: 'Short One', length_km: 5 },
+      ],
+      nearbyPaths: [
+        { slug: 'another-short', name: 'Another Short', length_km: 10 },
+      ],
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined for network pages (hasMembers=true)', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      hasMembers: true,
+      connectedPaths: [
+        { slug: 'big-path', name: 'Big Path', length_km: 100 },
+      ],
+      nearbyPaths: [],
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('excludes own members', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      memberSlugs: new Set(['greenbelt-pathway-east']),
+      connectedPaths: [],
+      nearbyPaths: [
+        { slug: 'greenbelt-pathway-east', name: 'Greenbelt Pathway East', length_km: 13.6 },
+      ],
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('excludes self', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      connectedPaths: [],
+      nearbyPaths: [
+        { slug: 'trail-61', name: 'Trail 61', length_km: 50 },
+      ],
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('includes same-network siblings (the whole point)', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      connectedPaths: [],
+      nearbyPaths: [
+        { slug: 'greenbelt-pathway-east', name: 'Greenbelt Pathway East', length_km: 13.6, memberOf: 'ncc-greenbelt' },
+      ],
+    });
+    expect(result).toBeDefined();
+    expect(result!.slug).toBe('greenbelt-pathway-east');
+  });
+
+  it('handles paths with no length_km (treated as 0)', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      pageLengthKm: undefined,
+      connectedPaths: [],
+      nearbyPaths: [
+        { slug: 'no-length', name: 'No Length' },
+      ],
+    });
+    // Both page and candidate have length 0, so candidate is NOT longer — excluded
+    expect(result).toBeUndefined();
+  });
+
+  it('deduplicates across connected and nearby', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      connectedPaths: [
+        { slug: 'dup', name: 'Dup Path', length_km: 10 },
+      ],
+      nearbyPaths: [
+        { slug: 'dup', name: 'Dup Path', length_km: 10 },
+      ],
+    });
+    // Should still pick it, just once
+    expect(result).toBeDefined();
+    expect(result!.slug).toBe('dup');
   });
 });
 

@@ -358,6 +358,46 @@ export function localizeNetworkFactValue(fact: NetworkFact, t: Translator, local
   return localizeFactValue(fact, t, locale);
 }
 
+/** Nearby/connected path reference — the shape used by PathRelations. */
+export interface NearbyPathRef {
+  slug: string;
+  name: string;
+  surface?: string;
+  memberOf?: string;
+  length_km?: number;
+}
+
+/**
+ * Find the nearest major path — the most significant path close to this one.
+ * Combines connected + nearby paths (including same-network siblings),
+ * dedupes, and picks the longest one that's bigger than the current path.
+ *
+ * Returns undefined for network pages (they don't need this) or when
+ * no candidate is substantially longer.
+ */
+export function findNearestMajorPath(opts: {
+  connectedPaths: NearbyPathRef[];
+  nearbyPaths: NearbyPathRef[];
+  pageSlug: string;
+  pageLengthKm?: number;
+  hasMembers: boolean;
+  memberSlugs: Set<string>;
+}): NearbyPathRef | undefined {
+  if (opts.hasMembers) return undefined;
+  const seen = new Set<string>();
+  const candidates: NearbyPathRef[] = [];
+  for (const p of [...opts.connectedPaths, ...opts.nearbyPaths]) {
+    if (seen.has(p.slug)) continue;
+    seen.add(p.slug);
+    if (opts.memberSlugs.has(p.slug)) continue;
+    if (p.slug === opts.pageSlug) continue;
+    if ((p.length_km ?? 0) <= (opts.pageLengthKm ?? 0)) continue;
+    candidates.push(p);
+  }
+  candidates.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+  return candidates[0] ?? undefined;
+}
+
 /** Localize a raw OSM surface value (e.g. "fine_gravel" → "Gravel"). */
 export function localizeSurface(raw: string | undefined, t: Translator, locale?: string): string | undefined {
   const cat = displaySurface(raw);

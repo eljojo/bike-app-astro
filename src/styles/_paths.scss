@@ -673,6 +673,35 @@
   }
 }
 
+// Nearest major path — prominent callout to the closest significant path
+.nearest-major-path {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1.25rem;
+  background: $color-card-bg;
+  border-radius: 4px;
+  text-decoration: none;
+  color: $color-text;
+  @include dark-mode { background: $color-card-bg-dark; color: $color-text-dark; }
+  &:hover { background: $color-card-hover; @include dark-mode { background: $color-card-hover-dark; } }
+}
+.nearest-major-label {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.nearest-major-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+.nearest-major-meta {
+  @include muted-text;
+  font-size: 0.8rem;
+}
+
 // Connects to — paths you can ride to from here
 .connects-to-section {
   margin-bottom: 1.25rem;
@@ -736,16 +765,15 @@
   padding: 0.35rem 0;
 }
 
-.network-here-own .network-here-link {
-  color: $color-text;
-  font-weight: 500;
-  background: rgba($color-accent, 0.15);
-  padding: 0.1em 0.3em;
+.network-here-own {
+  display: inline-flex;
+  background-color: rgba(#6bc46b, 0.15);
+  padding: 0.15em 0.3em;
   border-radius: 2px;
-  @include dark-mode {
-    color: $color-text-dark;
-    background: rgba($color-accent, 0.2);
-  }
+  @include dark-mode { background-color: rgba(#6bc46b, 0.12); }
+
+  .network-here-link { color: $color-text; font-weight: 500; @include dark-mode { color: $color-text-dark; } }
+  .network-here-meta { color: $color-text; @include dark-mode { color: $color-text-dark; } }
 }
 
 .network-here-link {
@@ -753,6 +781,14 @@
   color: $color-text;
   font-size: 0.9rem;
   @include dark-mode { color: $color-text-dark; }
+}
+
+.network-here-heading {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.5rem;
 }
 
 .network-here-meta {

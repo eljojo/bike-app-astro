@@ -20,7 +20,7 @@ import { paths, assets } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
+import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
 import { groupPathsByNetwork, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 interface Props {
@@ -159,6 +159,16 @@ for (const p of [...externalConnected, ...filteredNearby]) {
 // Own network (if this is a member path)
 const ownNetworkMeta = page.memberOf ? networkMeta[page.memberOf] : undefined;
 
+// --- Nearest major path — the most significant path close to this one ---
+const nearestMajorPath = findNearestMajorPath({
+  connectedPaths,
+  nearbyPaths,
+  pageSlug: page.slug,
+  pageLengthKm: page.length_km,
+  hasMembers,
+  memberSlugs: memberSlugSet,
+});
+
 // Website resolution (page.website already includes wikidata_meta.website fallback)
 const websiteUrl = page.website;
 const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).hostname; } catch { return undefined; } })() : undefined;
@@ -166,7 +176,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
 
 <Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage} breadcrumbs={breadcrumbs}>
   <div class:list={['bike-path-detail', { 'has-members': hasMembers }]}>
-    <div data-testid="path-title">
+    <div class="bike-path-title">
       <h1>
         {localeName}
         <a href={`/admin/bike-paths/${page.slug}`} class="admin-edit-link" aria-label="Edit this path">Edit</a>
@@ -174,16 +184,16 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
     </div>
 
     {hasMemberOf && networkPage && (
-      <a data-testid="network-badge" href={paths.bikePath(networkPage.slug, undefined, locale)} class="network-badge">
+      <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="network-badge">
         {t('paths.part_of', locale)} {networkName}
       </a>
     )}
 
-    {localeVibe && <p data-testid="path-vibe" class="bike-path-vibe">{localeVibe}</p>}
+    {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
 
     {/* Full-width map when page has members (networks, trails with sections) */}
     {hasMembers && memberGeoMap && (
-      <div data-testid="path-map" class="network-map-full">
+      <div class="network-map-full">
         <BikePathMap
           geoFiles={page.geoFiles}
           center={computeCenter(page.points)}
@@ -211,20 +221,33 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         )}
 
         {descriptionHtml && (
-          <div data-testid="path-body" class="bike-path-description" set:html={descriptionHtml} />
+          <div class="bike-path-description" set:html={descriptionHtml} />
         )}
 
-        <div data-testid="edit-cta">
+        <div class="bike-path-edit-cta">
           <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
         </div>
 
+        {/* Nearest major path — the most significant path close to this one */}
+        {nearestMajorPath && (
+          <a href={paths.bikePath(nearestMajorPath.slug, nearestMajorPath.memberOf, locale)} class="nearest-major-path">
+            <span class="nearest-major-label">{t('paths.nearest_major', locale)}</span>
+            <span class="nearest-major-name">{nearestMajorPath.name}</span>
+            <span class="nearest-major-meta">
+              {nearestMajorPath.length_km && `${nearestMajorPath.length_km} km`}
+              {nearestMajorPath.length_km && nearestMajorPath.surface && ' · '}
+              {nearestMajorPath.surface && (localizeSurface(nearestMajorPath.surface, t, locale) || nearestMajorPath.surface)}
+            </span>
+          </a>
+        )}
+
         {/* Connects to — paths you can ride to from here */}
         {sortedConnected.length > 0 && (
-          <section data-testid="infrastructure-section" class="connects-to-section">
+          <section class="connects-to-section">
             <h2>{t('paths.connects_to', locale)}</h2>
             <ul class="connects-to-list">
               {sortedConnected.slice(0, 5).map(p => (
-                <li data-testid="network-card-path" data-relation="connects" data-slug={p.slug}>
+                <li data-relation="connects" data-slug={p.slug}>
                   <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="connects-to-link">
                     <span class="connects-to-name">{p.name}</span>
                     <span class="connects-to-meta">
@@ -246,18 +269,19 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         {(ownNetworkMeta || nearbyNetworkSlugs.size > 0) && (
           <section class="networks-here">
             {ownNetworkMeta && page.memberOf && (
-              <div data-testid="network-card-own" class="network-here-own">
+              <div class="network-here-own">
                 <a href={paths.bikePath(page.memberOf, undefined, locale)} class="network-here-link">
                   {t('paths.on_this_network', locale)}: {ownNetworkMeta.name}
                 </a>
                 {ownNetworkMeta.length_km && <span class="network-here-meta">{ownNetworkMeta.length_km} km</span>}
               </div>
             )}
+            {nearbyNetworkSlugs.size > 0 && <div class="network-here-heading">Nearby networks</div>}
             {[...nearbyNetworkSlugs].map(slug => {
               const meta = networkMeta[slug];
               if (!meta) return null;
               return (
-                <div data-testid="network-card" data-network={slug} class="network-here-item">
+                <div class="network-here-item">
                   <a href={paths.bikePath(slug, undefined, locale)} class="network-here-link">{meta.name}</a>
                   {meta.length_km && <span class="network-here-meta">{meta.length_km} km</span>}
                 </div>
@@ -344,14 +368,14 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         )}
 
         {overlappingRoutes.length > 0 && (
-          <section data-testid="routes-section">
+          <section class="bike-path-routes">
             <RoutesOnPath routes={overlappingRoutes} locale={locale} />
           </section>
         )}
 
         {/* Photos */}
         {nearbyPhotos.length > 0 && (
-          <section data-testid="photos-section" class="bike-path-photos">
+          <section class="bike-path-photos">
             <h2>{t('paths.photos', locale)}</h2>
             <div class="bike-path-photo-grid">
               {nearbyPhotos.map(photo => (
@@ -375,7 +399,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
       <aside class="bike-path-sidebar">
         {/* Sidebar map: pages without members (map is full-width above when members exist) */}
         {!hasMembers && (
-          <div data-testid="path-map">
+          <div class="bike-path-sidebar-map">
             <BikePathMap
               geoFiles={page.geoFiles}
               center={computeCenter(page.points)}
@@ -390,9 +414,9 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         )}
 
         {/* Facts table — aggregated from members when available, individual otherwise */}
-        <table data-testid="facts-table" class="bike-path-facts-table">
+        <table class="bike-path-facts-table">
           {page.length_km && (
-            <tr data-testid="fact-length"><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
+            <tr class="fact-length"><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
           )}
           {hasMembers && <tr><td>{t('paths.pathways', locale)}</td><td>{standaloneMemberCount}</td></tr>}
           {useNetworkFacts ? (
@@ -401,7 +425,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             ))
           ) : (
             pathFacts.map(fact => {
-              const factTestId = fact.key === 'surface_width' ? 'fact-surface'
+              const factClass = fact.key === 'surface_width' ? 'fact-surface'
                 : fact.key.startsWith('smoothness_') ? 'fact-surface-quality'
                 : fact.key === 'separated_cars' || fact.key === 'separated_peds' ? 'fact-traffic'
                 : fact.key === 'lit' || fact.key === 'not_lit' ? 'fact-lighting'
@@ -410,23 +434,23 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
                 : fact.key === 'inception' ? 'fact-established'
                 : `fact-${fact.key.replace(/_/g, '-')}`;
               return (
-                <tr data-testid={factTestId}><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
+                <tr class={factClass}><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
               );
             })
           )}
           {page.operator && useNetworkFacts && !networkFacts.some(f => f.key === 'operator') && (
-            <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
+            <tr class="fact-operator"><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
           )}
           {page.parallel_to && (
-            <tr data-testid="fact-alongside"><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
+            <tr class="fact-alongside"><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
           )}
           {wikidataMeta?.inception && !pathFacts.some(f => f.key === 'inception') && (
-            <tr data-testid="fact-established"><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
+            <tr class="fact-established"><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
           )}
         </table>
 
         {nearbyPlaces.length > 0 && (
-          <div data-testid="nearby-places">
+          <div>
             <NearbyPlaces nearby={nearbyPlaces} limit={8} />
           </div>
         )}
@@ -440,7 +464,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
 
         {/* Website link card */}
         {websiteUrl && websiteHostname && (
-          <a data-testid="website-link" href={websiteUrl} target="_blank" rel="noopener" class="external-link-card">
+          <a href={websiteUrl} target="_blank" rel="noopener" class="external-link-card external-link-website">
             <span class="external-link-icon">&#x1f517;</span>
             <span>{websiteHostname}</span>
             <span class="external-link-arrow">&nearr;</span>
@@ -453,7 +477,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           const title = titleParts.join(':');
           const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
           return (
-            <a data-testid="wikipedia-link" href={url} target="_blank" rel="noopener" class="external-link-card">
+            <a href={url} target="_blank" rel="noopener" class="external-link-card external-link-wikipedia">
               <span class="external-link-icon" style="color: var(--color-text-muted)">W</span>
               <span>{title} — Wikipedia</span>
               <span class="external-link-arrow">&nearr;</span>
@@ -462,8 +486,8 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         })()}
 
         {/* OSM attribution */}
-        {(page.osmRelationIds.length > 0 || page.osmNames.length > 0) && (
-          <div data-testid="osm-attribution" class="bike-path-osm">
+        {(page.osmRelationIds.length > 0 || page.osmNames.length > 0 || page.ymlEntries.some(e => e.osm_way_ids?.length)) && (
+          <div class="bike-path-osm">
             <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
             {page.ymlEntries.map(entry => (
               entry.osm_relations?.length
@@ -472,11 +496,15 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
                       {entry.name} — relation {id} ↗
                     </a>
                   ))
-                : entry.osm_names?.length
-                  ? <a href={`https://openstreetmap.org/search?query=${encodeURIComponent(entry.osm_names[0])}`} target="_blank" rel="noopener">
-                      {entry.name} — {t('paths.osm_search', locale)} ↗
+                : entry.osm_way_ids?.length
+                  ? <a href={`https://openstreetmap.org/way/${entry.osm_way_ids[0]}`} target="_blank" rel="noopener">
+                      {entry.name} — way {entry.osm_way_ids[0]} ↗
                     </a>
-                  : null
+                  : entry.osm_names?.length
+                    ? <a href={`https://openstreetmap.org/search?query=${encodeURIComponent(entry.osm_names[0])}`} target="_blank" rel="noopener">
+                        {entry.name} — {t('paths.osm_search', locale)} ↗
+                      </a>
+                    : null
             ))}
           </div>
         )}
@@ -484,7 +512,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
     </div>
 
     {/* Back link — member goes to network, network is bare <a>, standalone wraps in <p> */}
-    <div data-testid="back-link">
+    <div class="bike-path-back">
       {hasMemberOf && networkPage ? (
         <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="go-back-button">&#x21A9; {networkName}</a>
       ) : (

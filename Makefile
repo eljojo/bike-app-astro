@@ -32,7 +32,8 @@ lint: ## Run ESLint checks
 validate-ctx: ## Validate _ctx/ context system (links, frontmatter, index)
 	npx tsx scripts/validate-ctx.ts
 
-test-e2e: prebuild ## Build with CITY=demo, validate, then run Playwright tests
+test-e2e: ## Build with CITY=demo, validate, then run Playwright tests
+	CITY=demo npx tsx scripts/prebuild.ts
 	@rm -rf .astro
 	CITY=demo RUNTIME= npx astro build
 	CITY=demo npx tsx scripts/validate.ts

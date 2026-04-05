@@ -1,12 +1,13 @@
 /**
  * Structural contract test for the bike path detail page.
  *
- * Defines what sections must exist, what data they contain, and what order
- * they appear in. Runs against the reference mockup HTML first, then the
- * same assertions apply to the real Astro-built page via e2e/playwright.
+ * Asserts that the real Astro-rendered HTML contains the correct sections,
+ * facts, and ordering. Runs against built HTML from `dist/` after
+ * `CITY=demo astro build`.
  *
- * This test checks DOM presence — not CSS visibility, not pixel layout.
- * If the data is in the DOM, the test passes regardless of viewport.
+ * Uses CSS classes and structural selectors — no data-testid attributes.
+ * The demo city (bike-routes/demo/) is the fixture — enrich it to exercise
+ * new sections.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
@@ -23,261 +24,219 @@ function parseHTML(html: string): Document {
   return window.document as unknown as Document;
 }
 
-function tid(doc: Document, id: string): Element | null {
-  return doc.querySelector(`[data-testid="${id}"]`);
-}
-
-function tids(doc: Document, id: string): Element[] {
-  return [...doc.querySelectorAll(`[data-testid="${id}"]`)];
+function q(doc: Document, selector: string): Element | null {
+  return doc.querySelector(selector);
 }
 
 /** Assert element A appears before element B in document order. */
-function assertOrder(doc: Document, aId: string, bId: string) {
-  const a = tid(doc, aId);
-  const b = tid(doc, bId);
-  expect(a, `${aId} must exist`).not.toBeNull();
-  expect(b, `${bId} must exist`).not.toBeNull();
+function assertOrder(doc: Document, selectorA: string, selectorB: string) {
+  const a = q(doc, selectorA);
+  const b = q(doc, selectorB);
+  expect(a, `${selectorA} must exist`).not.toBeNull();
+  expect(b, `${selectorB} must exist`).not.toBeNull();
   const cmp = a!.compareDocumentPosition(b!);
-  expect(cmp & 4, `${aId} must come before ${bId} in DOM`).toBeTruthy();
+  expect(cmp & 4, `${selectorA} must come before ${selectorB} in DOM`).toBeTruthy();
 }
 
 // ---------------------------------------------------------------------------
-// Load the reference mockup
+// Load built HTML — requires `CITY=demo astro build` to have run
 // ---------------------------------------------------------------------------
 
-let doc: Document;
+const DIST = path.resolve('dist', 'client');
+
+function readPage(urlPath: string): Document | null {
+  const htmlPath = path.join(DIST, urlPath, 'index.html');
+  if (!fs.existsSync(htmlPath)) return null;
+  return parseHTML(fs.readFileSync(htmlPath, 'utf-8'));
+}
+
+let memberPage: Document;
+let standalonePage: Document | null;
+let networkPage: Document;
 
 beforeAll(() => {
-  const mockupPath = path.resolve(import.meta.dirname, 'fixtures', 'bike-path-detail-spec.html');
-  const html = fs.readFileSync(mockupPath, 'utf-8');
-  doc = parseHTML(html);
+  const m = readPage('/bike-paths/red-de-ciclovias/ciclovia-avenida-ecuador');
+  if (!m) {
+    throw new Error(
+      'Built HTML not found. Run: CITY=demo PREBUILD_MINIMAL=1 npx tsx scripts/prebuild.ts && CITY=demo RUNTIME= npx astro build',
+    );
+  }
+  memberPage = m;
+  standalonePage = readPage('/bike-paths/ruta-rio-chillan');
+  networkPage = readPage('/bike-paths/red-de-ciclovias')!;
 });
 
 // ---------------------------------------------------------------------------
-// Section presence — every section must exist in the DOM
+// Member page — section presence
 // ---------------------------------------------------------------------------
 
-describe('detail page sections exist', () => {
-  it('has a path title', () => {
-    expect(tid(doc, 'path-title')).not.toBeNull();
+describe('member page sections', () => {
+  it('has a title', () => {
+    const h1 = q(memberPage, '.bike-path-title h1');
+    expect(h1).not.toBeNull();
+    expect(h1!.textContent).toContain('Ciclovía Avenida Ecuador');
   });
 
-  it('has a network badge (when path is in a network)', () => {
-    expect(tid(doc, 'network-badge')).not.toBeNull();
+  it('has a network badge linking to parent', () => {
+    const badge = q(memberPage, '.network-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toContain('Red de Ciclovías');
+    expect(badge!.getAttribute('href')).toContain('red-de-ciclovias');
   });
 
-  it('has vibe text (when vibe exists)', () => {
-    expect(tid(doc, 'path-vibe')).not.toBeNull();
+  it('has vibe text from markdown', () => {
+    const vibe = q(memberPage, '.bike-path-vibe');
+    expect(vibe).not.toBeNull();
+    expect(vibe!.textContent).toContain('Ciclovía que cruza el centro');
   });
 
   it('has a map', () => {
-    expect(tid(doc, 'path-map')).not.toBeNull();
+    expect(q(memberPage, '.bike-path-sidebar-map') || q(memberPage, '.network-map-full')).not.toBeNull();
   });
 
-  it('has body text or wikidata description fallback', () => {
-    expect(tid(doc, 'path-body')).not.toBeNull();
+  it('has body text', () => {
+    const body = q(memberPage, '.bike-path-description');
+    expect(body).not.toBeNull();
+    expect(body!.textContent).toContain('Avenida Ecuador');
   });
 
-  it('has edit / stub CTA', () => {
-    expect(tid(doc, 'edit-cta')).not.toBeNull();
+  it('has edit CTA', () => {
+    expect(q(memberPage, '.bike-path-edit-cta')).not.toBeNull();
   });
 
-  it('has infrastructure section', () => {
-    expect(tid(doc, 'infrastructure-section')).not.toBeNull();
-  });
-
-  it('has at least one network card', () => {
-    expect(tids(doc, 'network-card').length).toBeGreaterThan(0);
-  });
-
-  it('has routes section', () => {
-    expect(tid(doc, 'routes-section')).not.toBeNull();
-  });
-
-  it('has at least one route card', () => {
-    expect(tids(doc, 'route-card').length).toBeGreaterThan(0);
-  });
-
-  it('has photos section', () => {
-    expect(tid(doc, 'photos-section')).not.toBeNull();
+  it('has nearest major path callout', () => {
+    const el = q(memberPage, 'a.nearest-major-path');
+    expect(el, 'nearest-major-path must exist').not.toBeNull();
+    expect(el!.getAttribute('href')).toBeTruthy();
   });
 
   it('has facts table', () => {
-    expect(tid(doc, 'facts-table')).not.toBeNull();
+    expect(q(memberPage, '.bike-path-facts-table')).not.toBeNull();
   });
 
-  it('has nearby places', () => {
-    expect(tid(doc, 'nearby-places')).not.toBeNull();
+  it('has website link', () => {
+    const link = q(memberPage, '.external-link-website');
+    expect(link).not.toBeNull();
+    expect(link!.textContent).toContain('ciclovias.chillan.cl');
   });
 
-  it('has website link (when website exists)', () => {
-    expect(tid(doc, 'website-link')).not.toBeNull();
+  it('has wikipedia link', () => {
+    const link = q(memberPage, '.external-link-wikipedia');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toContain('wikipedia.org');
   });
 
-  it('has wikipedia link (when wikipedia exists)', () => {
-    expect(tid(doc, 'wikipedia-link')).not.toBeNull();
+  it('has OSM attribution with relation link', () => {
+    const osm = q(memberPage, '.bike-path-osm');
+    expect(osm).not.toBeNull();
+    expect(osm!.innerHTML).toContain('relation/99001');
   });
 
-  it('has OSM attribution', () => {
-    expect(tid(doc, 'osm-attribution')).not.toBeNull();
-  });
-
-  it('has back link', () => {
-    expect(tid(doc, 'back-link')).not.toBeNull();
+  it('has back link to network', () => {
+    const back = q(memberPage, '.bike-path-back');
+    expect(back).not.toBeNull();
+    expect(back!.innerHTML).toContain('red-de-ciclovias');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Facts table — all fact rows present
+// Member page — facts table completeness
 // ---------------------------------------------------------------------------
 
-describe('facts table completeness', () => {
+describe('member page facts', () => {
   const requiredFacts = [
     'fact-length',
     'fact-path-type',
     'fact-surface',
+    'fact-surface-quality',
     'fact-traffic',
     'fact-lighting',
-    'fact-terrain',
-    'fact-operator',
     'fact-network',
+    'fact-operator',
+    'fact-alongside',
+    'fact-ref',
+    'fact-established',
   ];
 
-  for (const factId of requiredFacts) {
-    it(`has ${factId}`, () => {
-      expect(tid(doc, factId), `missing ${factId}`).not.toBeNull();
+  for (const factClass of requiredFacts) {
+    it(`has .${factClass}`, () => {
+      expect(q(memberPage, `.bike-path-facts-table .${factClass}`), `missing .${factClass}`).not.toBeNull();
     });
   }
+});
 
-  // These are conditional but present in the reference mockup
-  it('has fact-surface-quality (when smoothness data exists)', () => {
-    expect(tid(doc, 'fact-surface-quality')).not.toBeNull();
+// ---------------------------------------------------------------------------
+// Member page — section ordering
+// ---------------------------------------------------------------------------
+
+describe('member page section order', () => {
+  it('title before vibe', () => assertOrder(memberPage, '.bike-path-title', '.bike-path-vibe'));
+  it('title before body', () => assertOrder(memberPage, '.bike-path-title', '.bike-path-description'));
+  it('body before nearest major path', () => assertOrder(memberPage, '.bike-path-description', '.nearest-major-path'));
+  it('osm attribution before back link', () => assertOrder(memberPage, '.bike-path-osm', '.bike-path-back'));
+});
+
+// ---------------------------------------------------------------------------
+// Standalone page (Ruta Río Chillán) — osm_way_ids, no network
+// ---------------------------------------------------------------------------
+
+describe('standalone page', () => {
+  it('was built', () => {
+    expect(standalonePage, 'Ruta Río Chillán page must exist in build output').not.toBeNull();
   });
 
-  it('has fact-established (when inception data exists)', () => {
-    expect(tid(doc, 'fact-established')).not.toBeNull();
+  it('has no network badge', () => {
+    if (!standalonePage) return;
+    expect(q(standalonePage, '.network-badge')).toBeNull();
   });
 
-  it('has fact-seasonal (when seasonal data exists)', () => {
-    expect(tid(doc, 'fact-seasonal')).not.toBeNull();
+  it('has a map', () => {
+    if (!standalonePage) return;
+    expect(q(standalonePage, '.bike-path-sidebar-map') || q(standalonePage, '.network-map-full')).not.toBeNull();
   });
 
-  it('has fact-alongside (when parallel_to exists)', () => {
-    expect(tid(doc, 'fact-alongside')).not.toBeNull();
+  it('has OSM attribution with way link (not text search)', () => {
+    if (!standalonePage) return;
+    const osm = q(standalonePage, '.bike-path-osm');
+    expect(osm).not.toBeNull();
+    expect(osm!.innerHTML).toContain('openstreetmap.org/way/');
+    expect(osm!.innerHTML).not.toContain('search?query=');
   });
 
-  it('has fact-ref (when ref code exists)', () => {
-    expect(tid(doc, 'fact-ref')).not.toBeNull();
+  it('back link goes to index (not a network)', () => {
+    if (!standalonePage) return;
+    const back = q(standalonePage, '.bike-path-back a');
+    expect(back).not.toBeNull();
+    expect(back!.getAttribute('href')).toMatch(/\/bike-paths\/$/);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Infrastructure section — network cards have the right structure
+// Network page
 // ---------------------------------------------------------------------------
 
-describe('infrastructure section structure', () => {
-  it('own network card is marked as current', () => {
-    const ownCard = tid(doc, 'network-card-own');
-    expect(ownCard).not.toBeNull();
+describe('network page', () => {
+  it('was built', () => {
+    expect(networkPage).not.toBeNull();
   });
 
-  it('network cards have names', () => {
-    const cards = tids(doc, 'network-card');
-    for (const card of cards) {
-      const name = card.querySelector('[data-testid="network-card-name"]');
-      expect(name, 'network card must have a name').not.toBeNull();
-      expect(name!.textContent!.trim().length).toBeGreaterThan(0);
-    }
+  it('has title', () => {
+    expect(q(networkPage, '.bike-path-title h1')!.textContent).toContain('Red de Ciclovías');
   });
 
-  it('network cards list connected/nearby paths', () => {
-    const cards = tids(doc, 'network-card');
-    const hasMembers = cards.some(card =>
-      card.querySelectorAll('[data-testid="network-card-path"]').length > 0,
-    );
-    expect(hasMembers).toBe(true);
+  it('has full-width map', () => {
+    expect(q(networkPage, '.network-map-full')).not.toBeNull();
   });
 
-  it('connected paths are distinguished from nearby paths', () => {
-    const paths = doc.querySelectorAll('[data-testid="network-card-path"]');
-    const types = new Set<string>();
-    for (const p of paths) {
-      const rel = (p as Element).getAttribute('data-relation');
-      if (rel) types.add(rel);
-    }
-    // Should have at least "connects" — "nearby" is optional
-    expect(types.has('connects')).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Route cards have required content
-// ---------------------------------------------------------------------------
-
-describe('route cards structure', () => {
-  it('route cards have a name', () => {
-    for (const card of tids(doc, 'route-card')) {
-      const name = card.querySelector('[data-testid="route-card-name"]');
-      expect(name).not.toBeNull();
-      expect(name!.textContent!.trim().length).toBeGreaterThan(0);
-    }
+  it('has no network badge (it IS a network)', () => {
+    expect(q(networkPage, '.network-badge')).toBeNull();
   });
 
-  it('route cards have distance', () => {
-    for (const card of tids(doc, 'route-card')) {
-      const meta = card.querySelector('[data-testid="route-card-meta"]');
-      expect(meta).not.toBeNull();
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Section ordering — main column content flow
-// ---------------------------------------------------------------------------
-
-describe('section order', () => {
-  it('title comes before map', () => assertOrder(doc, 'path-title', 'path-map'));
-  it('map comes before body', () => assertOrder(doc, 'path-map', 'path-body'));
-  it('body comes before infrastructure', () => assertOrder(doc, 'path-body', 'infrastructure-section'));
-  it('infrastructure comes before routes', () => assertOrder(doc, 'infrastructure-section', 'routes-section'));
-  it('routes come before photos', () => assertOrder(doc, 'routes-section', 'photos-section'));
-  it('facts table exists (accessible on all viewports)', () => {
-    // Facts must be in the DOM — whether rendered in a sidebar or stacked,
-    // the full table is always present. CSS may reposition but never remove.
-    expect(tid(doc, 'facts-table')).not.toBeNull();
-  });
-  it('back link is last', () => {
-    assertOrder(doc, 'photos-section', 'back-link');
-    assertOrder(doc, 'osm-attribution', 'back-link');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Content spot-checks — the mockup has specific data we can verify
-// ---------------------------------------------------------------------------
-
-describe('content spot-checks (reference mockup)', () => {
-  it('title contains "Watts Creek Pathway"', () => {
-    expect(tid(doc, 'path-title')!.textContent).toContain('Watts Creek Pathway');
+  it('has no nearest-major-path (networks skip this)', () => {
+    expect(q(networkPage, '.nearest-major-path')).toBeNull();
   });
 
-  it('network badge links to NCC Greenbelt', () => {
-    expect(tid(doc, 'network-badge')!.textContent).toContain('NCC Greenbelt');
-  });
-
-  it('has 3 network cards (Greenbelt, Capital Pathway, Trans Canada)', () => {
-    expect(tids(doc, 'network-card').length).toBe(3);
-  });
-
-  it('has an "other paths nearby" section', () => {
-    expect(tid(doc, 'other-paths')).not.toBeNull();
-  });
-
-  it('has 2 route cards', () => {
-    expect(tids(doc, 'route-card').length).toBe(2);
-  });
-
-  it('website link contains hostname', () => {
-    expect(tid(doc, 'website-link')!.textContent!.trim().length).toBeGreaterThan(0);
+  it('has back link', () => {
+    expect(q(networkPage, '.bike-path-back')).not.toBeNull();
   });
 });
