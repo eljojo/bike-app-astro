@@ -100,6 +100,7 @@ This repo uses a two-tier context system. The rules and mindset above are always
 - [protocol-destructive-actions](_ctx/protocol-destructive-actions.md) — before git stash/checkout/reset/push: list files, explain, confirm
 
 ### Rules
+- [spatial-reasoning](_ctx/spatial-reasoning.md) — NEVER use midpoints, centers, anchors, or bboxes as proxy for real geometry
 - [vendor-isolation](_ctx/vendor-isolation.md) — every cloud service behind an adapter; 6 boundary points
 - [server-boundary](_ctx/server-boundary.md) — .server.ts naming, what can import what, ESLint enforcement
 - [git-conventions](_ctx/git-conventions.md) — commit granularity, no co-author, message style
