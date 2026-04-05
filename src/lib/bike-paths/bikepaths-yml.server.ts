@@ -79,6 +79,33 @@ export interface SuperNetworkMeta {
   wikidata_meta?: BikePathYmlEntry['wikidata_meta'];
 }
 
+/**
+ * Compute the expected GeoJSON cache filenames for a bike path entry.
+ * Single source of truth — used by both the geometry cache writer
+ * (scripts/cache-path-geometry.ts) and the app reader (bike-path-entries.server.ts).
+ *
+ * Priority: relations → way IDs → names → segments → parallel.
+ * An entry matches exactly one category.
+ */
+export function geoFilesForEntry(entry: SluggedBikePathYml): string[] {
+  if (entry.osm_relations?.length) {
+    return entry.osm_relations.map(id => `${id}.geojson`);
+  }
+  if (entry.osm_way_ids?.length) {
+    return [`ways-${entry.slug}.geojson`];
+  }
+  if (entry.osm_names?.length) {
+    return [`name-${entry.slug}.geojson`];
+  }
+  if (entry.segments?.length) {
+    return [`seg-${entry.slug}.geojson`];
+  }
+  if (entry.parallel_to) {
+    return [`parallel-${entry.slug}.geojson`];
+  }
+  return [];
+}
+
 /** Convert a bike path name to a URL-safe slug. */
 export function slugifyBikePathName(name: string): string {
   return name

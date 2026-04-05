@@ -17,7 +17,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseBikePathsYml } from '../src/lib/bike-paths/bikepaths-yml.server';
+import { parseBikePathsYml, geoFilesForEntry, type SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
@@ -32,15 +32,9 @@ const OVERPASS_SERVERS = [
   'https://overpass-api.de/api/interpreter',
 ];
 
-interface BikePathEntry {
-  name: string;
-  osm_relations?: number[];
-  osm_way_ids?: number[];
-  osm_names?: string[];
-  anchors?: Array<[number, number]>; // [lng, lat] tuples
-  segments?: Array<{ osm_way: number; [k: string]: unknown }>;
-  parallel_to?: string;
-}
+// Use SluggedBikePathYml from the schema — single source of truth.
+// Anchors need [lng, lat] tuples for bbox computation.
+type CacheEntry = SluggedBikePathYml & { anchors?: Array<[number, number]> };
 
 /**
  * Fetch an Overpass query with server rotation and retry.
@@ -136,15 +130,14 @@ if (!fs.existsSync(ymlPath)) {
 
 const raw = fs.readFileSync(ymlPath, 'utf-8');
 const { entries: allEntries } = parseBikePathsYml(raw);
-// Cast to BikePathEntry with slug for the passes below
-type SluggedEntry = BikePathEntry & { slug: string };
-const sluggedEntries: SluggedEntry[] = allEntries.map(e => ({ ...e, anchors: e.anchors?.map(a => 'lat' in a ? [a.lng, a.lat] as [number, number] : a as [number, number]) } as SluggedEntry));
-const relationEntries = sluggedEntries.filter(e => e.osm_relations && e.osm_relations.length > 0);
-const wayIdEntries = sluggedEntries.filter(
-  e => e.osm_way_ids && e.osm_way_ids.length > 0 && (!e.osm_relations || e.osm_relations.length === 0),
-);
-const nameEntries = sluggedEntries.filter(e => (!e.osm_relations || e.osm_relations.length === 0) && (!e.osm_way_ids || e.osm_way_ids.length === 0) && e.osm_names && e.osm_names.length > 0 && e.anchors && e.anchors.length >= 2);
-const segmentEntries = sluggedEntries.filter(e => e.segments && e.segments.length > 0 && (!e.osm_relations || e.osm_relations.length === 0));
+// Normalize anchors to [lng, lat] tuples for bbox computation
+const cacheEntries: CacheEntry[] = allEntries.map(e => ({ ...e, anchors: e.anchors?.map(a => 'lat' in a ? [a.lng, a.lat] as [number, number] : a as [number, number]) } as CacheEntry));
+
+// Classify entries by their geo file pattern (single source of truth: geoFilesForEntry)
+const relationEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => /^\d+\.geojson$/.test(f)));
+const wayIdEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => f.startsWith('ways-')));
+const nameEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => f.startsWith('name-')) && e.anchors && e.anchors.length >= 2);
+const segmentEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => f.startsWith('seg-')));
 
 console.log(`[path-geo] ${relationEntries.length} relations + ${wayIdEntries.length} way-id + ${nameEntries.length} named + ${segmentEntries.length} segmented (${allEntries.length} total)`);
 
@@ -155,7 +148,7 @@ let skipped = 0;
 
 // --- Pass 1: Relation-based entries ---
 for (const entry of relationEntries) {
-  for (const relId of entry.osm_relations!) {
+  for (const relId of entry.osm_relations ?? []) {
     const outPath = path.join(CACHE_DIR, `${relId}.geojson`);
 
     if (fs.existsSync(outPath) && !forceRefresh) {
@@ -186,7 +179,7 @@ if (wayIdEntries.length > 0) {
   console.log(`\nPass 1b: Fetching geometry for ${wayIdEntries.length} way-ID entries...`);
 
   for (const entry of wayIdEntries) {
-    const outPath = path.join(CACHE_DIR, `ways-${entry.slug}.geojson`);
+    const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
     if (fs.existsSync(outPath) && !forceRefresh) {
       skipped++;
@@ -218,7 +211,7 @@ if (wayIdEntries.length > 0) {
 
 // --- Pass 2: Name-based entries (query ways by name within anchor bbox) ---
 for (const entry of nameEntries) {
-  const outPath = path.join(CACHE_DIR, `name-${entry.slug}.geojson`);
+  const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
   if (fs.existsSync(outPath) && !forceRefresh) {
     skipped++;
@@ -252,7 +245,7 @@ for (const entry of nameEntries) {
 
 // --- Pass 3: Segment-based entries (query individual ways by ID) ---
 for (const entry of segmentEntries) {
-  const outPath = path.join(CACHE_DIR, `seg-${entry.slug}.geojson`);
+  const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
   if (fs.existsSync(outPath) && !forceRefresh) {
     skipped++;
@@ -282,15 +275,15 @@ for (const entry of segmentEntries) {
 }
 
 // --- Pass 4: Parallel-to entries — unnamed cycleways alongside named roads ---
-const parallelEntries = sluggedEntries.filter(
-  e => e.parallel_to && (!e.osm_relations || e.osm_relations.length === 0),
+const parallelEntries = cacheEntries.filter(
+  e => geoFilesForEntry(e).some(f => f.startsWith('parallel-')),
 );
 
 if (parallelEntries.length > 0) {
   console.log(`\nPass 4: Fetching geometry for ${parallelEntries.length} parallel-to entries...`);
 
   for (const entry of parallelEntries) {
-    const outFile = path.join(CACHE_DIR, `parallel-${entry.slug}.geojson`);
+    const outFile = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
     if (!forceRefresh && fs.existsSync(outFile)) {
       skipped++;
@@ -391,30 +384,13 @@ if (!dryRun) {
     }
   }
 
-  // 3. Collect cache filenames for featured entries
+  // 3. Collect cache filenames for featured entries (using shared geoFilesForEntry)
   const featuredCacheFiles = new Set<string>();
   for (const ymlSlug of featuredYmlSlugs) {
     const entry = ymlBySlug.get(ymlSlug);
     if (!entry) continue;
-    // Relation-based files
-    for (const relId of entry.osm_relations ?? []) {
-      featuredCacheFiles.add(`${relId}.geojson`);
-    }
-    // Way-ID-based files
-    if (entry.osm_way_ids?.length && (!entry.osm_relations || entry.osm_relations.length === 0)) {
-      featuredCacheFiles.add(`ways-${ymlSlug}.geojson`);
-    }
-    // Name-based files (use disambiguated slug, not re-slugified name)
-    if ((!entry.osm_relations || entry.osm_relations.length === 0) && (!entry.osm_way_ids || entry.osm_way_ids.length === 0) && entry.osm_names?.length) {
-      featuredCacheFiles.add(`name-${ymlSlug}.geojson`);
-    }
-    // Segment-based files
-    if (entry.segments?.length && (!entry.osm_relations || entry.osm_relations.length === 0)) {
-      featuredCacheFiles.add(`seg-${ymlSlug}.geojson`);
-    }
-    // Parallel-to files
-    if (entry.parallel_to && (!entry.osm_relations || entry.osm_relations.length === 0)) {
-      featuredCacheFiles.add(`parallel-${ymlSlug}.geojson`);
+    for (const file of geoFilesForEntry(entry)) {
+      featuredCacheFiles.add(file);
     }
   }
 
