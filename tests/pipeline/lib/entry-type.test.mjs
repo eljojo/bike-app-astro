@@ -30,7 +30,7 @@ describe('deriveEntryType', () => {
   });
 
   it('skips trail entries', () => {
-    expect(deriveEntryType({ type: 'trail' })).toBeUndefined();
+    expect(deriveEntryType({ type: 'long-distance' })).toBeUndefined();
   });
 
   // --- Trails (long-distance routes) ---
@@ -38,19 +38,19 @@ describe('deriveEntryType', () => {
   it('ncn route with relation → trail', () => {
     expect(deriveEntryType({
       network: 'ncn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.01),
-    })).toBe('trail');
+    })).toBe('long-distance');
   });
 
   it('rcn route with relation → trail', () => {
     expect(deriveEntryType({
       network: 'rcn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.01),
-    })).toBe('trail');
+    })).toBe('long-distance');
   });
 
   it('ncn without relation → not trail (falls to other rules)', () => {
     expect(deriveEntryType({
       network: 'ncn', path_type: 'mup', _ways: makeWays(0.01),
-    })).not.toBe('trail');
+    })).not.toBe('long-distance');
   });
 
   // --- Destinations ---
@@ -138,14 +138,14 @@ describe('deriveEntryType', () => {
     expect(deriveEntryType({
       network: 'ncn', osm_relations: [416115], ref: 'RV1', path_type: 'mup',
       _ways: makeWays(0.5),
-    })).toBe('trail');
+    })).toBe('long-distance');
   });
 
   it('Algonquin Trail (rcn relation) → trail', () => {
     expect(deriveEntryType({
       network: 'rcn', osm_relations: [9351875], ref: 'AL', path_type: 'mup',
       _ways: makeWays(0.5),
-    })).toBe('trail');
+    })).toBe('long-distance');
   });
 
   it('Trilby Court (short bike-lane) → connector', () => {

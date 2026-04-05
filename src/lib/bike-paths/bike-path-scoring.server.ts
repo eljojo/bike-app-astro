@@ -21,7 +21,7 @@ const RELATION_ID = /^relation-\d+$/;
 export function isHardExcluded(entry: SluggedBikePathYml): boolean {
   // Network and trail entries are explicitly modeled — never hard-exclude them.
   // The rules below are for filtering individual path entries from OSM.
-  if (entry.type === 'network' || entry.type === 'trail') return false;
+  if (entry.type === 'network' || entry.type === 'long-distance') return false;
   if (entry.highway && EXCLUDED_HIGHWAYS.has(entry.highway)) return true;
   if (entry.network && EXCLUDED_NETWORKS.has(entry.network)) return true;
   if (entry.seasonal === 'winter') return true;
@@ -66,7 +66,7 @@ export function isDestination(
   if (hidden) return false;
   if (hasMarkdown) return true;
   if (entry.type === 'network') return true;
-  if (entry.type === 'trail') return true;
+  if (entry.type === 'long-distance') return true;
   if (entry.type === 'destination') return true;
   return false;
 }

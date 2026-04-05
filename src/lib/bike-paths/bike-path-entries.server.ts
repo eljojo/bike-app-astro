@@ -498,7 +498,7 @@ export function loadBikePathEntries(): {
       tags: [],
       score,
       hasMarkdown: false,
-      listed: entry.type === 'trail' || entry.type === 'destination' || entry.type === 'infrastructure',
+      listed: entry.type === 'long-distance' || entry.type === 'destination' || entry.type === 'infrastructure',
       standalone: isDestination(entry, getPathLengthKm(entry), false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,

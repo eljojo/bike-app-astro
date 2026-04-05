@@ -61,8 +61,8 @@ describe('isHardExcluded', () => {
   });
 
   it('never excludes trail entries (even with mtb network tag)', () => {
-    expect(isHardExcluded(entry({ name: 'Route Verte 1', type: 'trail', network: 'ncn' }))).toBe(false);
-    expect(isHardExcluded(entry({ name: 'Gatineau MTB Route', type: 'trail', network: 'mtb' }))).toBe(false);
+    expect(isHardExcluded(entry({ name: 'Route Verte 1', type: 'long-distance', network: 'ncn' }))).toBe(false);
+    expect(isHardExcluded(entry({ name: 'Gatineau MTB Route', type: 'long-distance', network: 'mtb' }))).toBe(false);
   });
 });
 
@@ -164,7 +164,7 @@ describe('isDestination', () => {
   });
 
   it('trail type gets a standalone page', () => {
-    expect(isDestination(entry({ name: 'Cycloparc PPJ', slug: 'cycloparc-ppj', type: 'trail' }), undefined, false, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Cycloparc PPJ', slug: 'cycloparc-ppj', type: 'long-distance' }), undefined, false, false)).toBe(true);
   });
 
   it('type: destination gets standalone page', () => {

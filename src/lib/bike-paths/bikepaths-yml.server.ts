@@ -32,12 +32,12 @@ export const bikePathYmlEntrySchema = z.looseObject({
   parallel_to: z.string().optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
   /** Entry classification from the pipeline (see entry-type.mjs / _ctx/entry-types.md).
-   * trail: long-distance named route people plan trips for (PPJ, Route Verte, TCT). May have members (sections).
+   * long-distance: named route people plan trips for (PPJ, Route Verte, TCT). May have members (sections).
    * network: interconnected city-level system (Capital Pathway, NCC Greenbelt). Has members.
    * destination: local path with real-world identity (Sawmill Creek, park trail).
    * infrastructure: bike lane or short named path, visible on map, no page.
    * connector: tiny segment under 300m, invisible. */
-  type: z.enum(['trail', 'network', 'destination', 'infrastructure', 'connector']).optional(),
+  type: z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector']).optional(),
   /** For networks: slugs of member paths. */
   members: z.array(z.string()).optional(),
   /** Slug of the network this path belongs to. */

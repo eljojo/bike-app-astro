@@ -13,7 +13,7 @@ Every entry in `bikepaths.yml` has a `type` field that determines what role it p
 
 | `type` | Gets a page? | On the map? | Has members? | Example |
 |---|---|---|---|---|
-| `trail` | Yes | Yes | Optional (sections) | Cycloparc PPJ, Route Verte, Trans Canada Trail |
+| `long-distance` | Yes | Yes | Optional (sections) | Cycloparc PPJ, Route Verte, Trans Canada Trail |
 | `network` | Yes (network page) | Yes (aggregated) | Yes | Capital Pathway, NCC Greenbelt |
 | `destination` | Yes (standalone or member page) | Yes | No | Sawmill Creek, Trans Orléans, La Boucle |
 | `infrastructure` | No | Yes | No | Bank Street bike lane, Greenbank Road |
@@ -35,7 +35,7 @@ Both trails and networks can have `members` arrays. A trail with members has sec
 
 The pipeline computes `type` after `path_type` and MTB detection. Markdown frontmatter can override it.
 
-- **`trail`** — has `network: ncn` (national) or `network: rcn` (regional) AND has `osm_relations`. Also assigned to superroutes with ncn/rcn tags.
+- **`long-distance`** — has `network: ncn` (national) or `network: rcn` (regional) AND has `osm_relations`. Also assigned to superroutes with ncn/rcn tags.
 - **`network`** — assigned by the pipeline's network discovery step for metro-level superroutes and park groupings.
 - **`destination`** — has `osm_relations` (a named cycling route in OSM), OR `path_type: mtb-trail`, OR MUP/trail above the city's length threshold.
 - **`infrastructure`** — `bike-lane` or `paved-shoulder` on a real road, OR short named MUP/trail.
@@ -43,7 +43,7 @@ The pipeline computes `type` after `path_type` and MTB detection. Markdown front
 
 ## Relationship to other fields
 
-- **`path_type`** — what kind of infrastructure (mup, bike-lane, mtb-trail). A trail can be `path_type: mup` (paved) or `path_type: trail` (unpaved). The two "trail" meanings are different: `path_type: trail` = unpaved surface, `type: trail` = long-distance touring route.
+- **`path_type`** — what kind of infrastructure (mup, bike-lane, mtb-trail). A long-distance route can be `path_type: mup` (paved) or `path_type: trail` (unpaved). No naming collision: `path_type: trail` = unpaved surface, `type: long-distance` = touring route.
 - **`member_of`** — network/trail membership. A `destination` can be a member of a network or trail.
 - **`members`** — both trails and networks can have members. The app checks `members.length > 0` for member behavior, not `type === 'network'`.
 - **`featured`** — markdown-only field for homepage placement. Orthogonal to `type`.
@@ -51,10 +51,10 @@ The pipeline computes `type` after `path_type` and MTB detection. Markdown front
 ## Usage in code
 
 ```
-entry.type === 'trail'         // is this a long-distance trail?
+entry.type === 'long-distance'  // is this a long-distance route?
 entry.type === 'network'       // is this a city-level network?
 entry.type === 'destination'   // is this a local destination path?
-entry.members?.length > 0     // does this have members? (trails OR networks)
+entry.members?.length > 0     // does this have members? (long-distance OR networks)
 ```
 
-The Zod schema validates `type` as an enum: `z.enum(['trail', 'network', 'destination', 'infrastructure', 'connector']).optional()`.
+The Zod schema validates `type` as an enum: `z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector']).optional()`.

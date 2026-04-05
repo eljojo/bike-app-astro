@@ -41,7 +41,7 @@ export function waysLengthM(ways) {
  * @returns {string|undefined}
  */
 export function deriveEntryType(entry, thresholds = {}) {
-  if (entry.type === 'network' || entry.type === 'trail') return undefined;
+  if (entry.type === 'network' || entry.type === 'long-distance') return undefined;
 
   const {
     destinationLengthM = 1000,
@@ -56,8 +56,8 @@ export function deriveEntryType(entry, thresholds = {}) {
   // Trails: long-distance named routes that people plan trips for.
   // National cycling network (ncn) routes are always trails.
   // Regional cycling network (rcn) routes with OSM relations are trails.
-  if (entry.network === 'ncn' && hasRelation) return 'trail';
-  if (entry.network === 'rcn' && hasRelation) return 'trail';
+  if (entry.network === 'ncn' && hasRelation) return 'long-distance';
+  if (entry.network === 'rcn' && hasRelation) return 'long-distance';
 
   // Named cycling routes (OSM relations) are destinations — someone created
   // a relation for this path, which means it has real-world identity.
