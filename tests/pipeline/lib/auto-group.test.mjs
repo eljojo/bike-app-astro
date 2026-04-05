@@ -1,16 +1,34 @@
 // auto-group.test.mjs
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.mjs';
 
-const southMarch = JSON.parse(readFileSync(new URL('../fixtures/south-march-trails.json', import.meta.url), 'utf8'));
-const pineGrove = JSON.parse(readFileSync(new URL('../fixtures/pine-grove-trails.json', import.meta.url), 'utf8'));
+// Fresh copies per test — entries are mutated during absorption
+const rawSouthMarch = readFileSync(new URL('../fixtures/south-march-trails.json', import.meta.url), 'utf8');
+const rawPineGrove = readFileSync(new URL('../fixtures/pine-grove-trails.json', import.meta.url), 'utf8');
+const freshSouthMarch = () => JSON.parse(rawSouthMarch);
+const freshPineGrove = () => JSON.parse(rawPineGrove);
+
+// Park polygon enclosing all South March trails (~45.33-45.35, -75.96 to -75.93)
+const southMarchParkPolygon = [
+  { lat: 45.330, lon: -75.970 },
+  { lat: 45.360, lon: -75.970 },
+  { lat: 45.360, lon: -75.920 },
+  { lat: 45.330, lon: -75.920 },
+  { lat: 45.330, lon: -75.970 },
+];
 
 const mockQueryOverpass = async (q) => {
-  // Return South March park for containment queries near that area
-  if (q.includes('is_in') && q.includes('45.3')) {
-    return { elements: [{ tags: { name: 'South March Highlands Conservation Forest' }, type: 'way', id: 548027518 }] };
+  // fetchParkPolygons queries for leisure=nature_reserve|park with geometry
+  if (q.includes('leisure')) {
+    return {
+      elements: [{
+        type: 'way',
+        id: 548027518,
+        tags: { name: 'South March Highlands Conservation Forest', leisure: 'nature_reserve' },
+        geometry: southMarchParkPolygon,
+      }],
+    };
   }
   return { elements: [] };
 };
@@ -18,62 +36,80 @@ const mockQueryOverpass = async (q) => {
 describe('autoGroupNearbyPaths', () => {
   it('groups South March trails into one entry named after the park', async () => {
     const result = await autoGroupNearbyPaths({
-      entries: southMarch.entries,
+      entries: freshSouthMarch().entries,
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    assert.equal(result.length, 1);
-    assert.equal(result[0].name, 'South March Highlands Conservation Forest');
-    assert.ok(result[0].grouped_from.includes('coconut-tree'));
-    assert.ok(result[0].grouped_from.includes('beartree'));
-    assert.ok(result[0].grouped_from.includes('staycation'));
-    assert.equal(result[0].grouped_from.length, 6);
+    // South March trails are all < 1km — spur absorption produces one dominant entry
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('South March Highlands Conservation Forest');
+    expect(result[0].osm_names).toContain('Coconut Tree');
+    expect(result[0].osm_names).toContain('Beartree');
+    expect(result[0].osm_names).toContain('Staycation');
+    expect(result[0].osm_names).toHaveLength(6);
   });
 
   it('merged entry has unioned osm_names', async () => {
     const result = await autoGroupNearbyPaths({
-      entries: southMarch.entries,
+      entries: freshSouthMarch().entries,
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    assert.ok(result[0].osm_names.includes('Coconut Tree'));
-    assert.ok(result[0].osm_names.includes('Beartree'));
-    assert.ok(result[0].osm_names.includes('Staycation'));
+    expect(result[0].osm_names).toContain('Coconut Tree');
+    expect(result[0].osm_names).toContain('Beartree');
+    expect(result[0].osm_names).toContain('Staycation');
   });
 
   it('keeps South March and Pine Grove as separate groups', async () => {
     const result = await autoGroupNearbyPaths({
-      entries: [...southMarch.entries, ...pineGrove.entries],
+      entries: [...freshSouthMarch().entries, ...freshPineGrove().entries],
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    assert.equal(result.length, 2);
+    expect(result).toHaveLength(2);
     const names = result.map(e => e.name).sort();
-    assert.ok(names.some(n => n.includes('South March')));
+    expect(names.some(n => n.includes('South March'))).toBe(true);
   });
 
   it('does not group entries claimed by markdown', async () => {
     const result = await autoGroupNearbyPaths({
-      entries: southMarch.entries,
+      entries: freshSouthMarch().entries,
       markdownSlugs: new Set(['coconut-tree', 'beartree']),
       queryOverpass: mockQueryOverpass,
     });
-    for (const entry of result) {
-      if (entry.grouped_from) {
-        assert.ok(!entry.grouped_from.includes('coconut-tree'));
-        assert.ok(!entry.grouped_from.includes('beartree'));
-      }
-    }
+    // Coconut Tree and Beartree remain as individual entries
+    const names = result.map(e => e.name);
+    expect(names).toContain('Coconut Tree');
+    expect(names).toContain('Beartree');
+    // The dominant absorbed entry should not include excluded entries' osm_names
+    const dominant = result.find(e => e.osm_names?.length > 1);
+    expect(dominant.osm_names).not.toContain('Coconut Tree');
+    expect(dominant.osm_names).not.toContain('Beartree');
   });
 
-  it('absorbs new entry into existing group on re-run', async () => {
-    const existingGroup = {
+  it('absorbs new entry into existing network on re-run', async () => {
+    const existingNetwork = {
       name: 'South March Highlands Conservation Forest',
-      grouped_from: ['coconut-tree', 'beartree'],
+      type: 'network',
+      members: ['coconut-tree', 'beartree'],
       osm_names: ['Coconut Tree', 'Beartree'],
       anchors: [[-75.946, 45.342], [-75.943, 45.345]],
       surface: 'ground',
       _ways: [[{ lat: 45.342, lon: -75.946 }, { lat: 45.343, lon: -75.944 }]],
+    };
+    const coconut = {
+      name: 'Coconut Tree',
+      osm_names: ['Coconut Tree'],
+      anchors: [[-75.946, 45.342]],
+      surface: 'ground',
+      _ways: [[{ lat: 45.342, lon: -75.946 }, { lat: 45.343, lon: -75.944 }]],
+    };
+    const beartree = {
+      name: 'Beartree',
+      osm_names: ['Beartree'],
+      anchors: [[-75.943, 45.345]],
+      surface: 'ground',
+      _ways: [[{ lat: 45.343, lon: -75.944 }, { lat: 45.345, lon: -75.943 }]],
     };
     const newEntry = {
       name: 'New Trail',
@@ -83,62 +119,50 @@ describe('autoGroupNearbyPaths', () => {
       _ways: [[{ lat: 45.343, lon: -75.944 }, { lat: 45.344, lon: -75.942 }]],
     };
     const result = await autoGroupNearbyPaths({
-      entries: [existingGroup, newEntry],
+      entries: [existingNetwork, coconut, beartree, newEntry],
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    assert.equal(result.length, 1);
-    assert.equal(result[0].name, 'South March Highlands Conservation Forest');
-    assert.ok(result[0].grouped_from.includes('new-trail'));
-    assert.ok(result[0].osm_names.includes('New Trail'));
+    const network = result.find(e => e.type === 'network');
+    expect(network).toBeDefined();
+    expect(network.name).toBe('South March Highlands Conservation Forest');
+    expect(network.members).toContain('new-trail');
+    expect(network.osm_names).toContain('New Trail');
   });
 
   it('is idempotent — running twice produces same output', async () => {
     const first = await autoGroupNearbyPaths({
-      entries: southMarch.entries,
+      entries: freshSouthMarch().entries,
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    // Simulate re-run: re-attach _ways from original entries (as mergeData would)
-    for (const entry of first) {
-      if (entry.grouped_from && !entry._ways) {
-        const ways = [];
-        for (const osmName of entry.osm_names || []) {
-          const src = southMarch.entries.find(e => e.name === osmName);
-          if (src?._ways) ways.push(...src._ways);
-        }
-        if (ways.length > 0) entry._ways = ways;
-      }
-    }
     const second = await autoGroupNearbyPaths({
-      entries: first,
+      entries: structuredClone(first),
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    assert.equal(second.length, 1);
-    assert.equal(second[0].name, first[0].name);
-    assert.deepEqual(second[0].grouped_from.sort(), first[0].grouped_from.sort());
-    assert.deepEqual(second[0].osm_names.sort(), first[0].osm_names.sort());
+    expect(second).toHaveLength(1);
+    expect(second[0].name).toBe(first[0].name);
+    expect(second[0].osm_names.sort()).toEqual(first[0].osm_names.sort());
   });
 
-  it('preserves representative anchors in grouped entry (not just bbox)', async () => {
+  it('preserves compact bbox anchors in grouped entry', async () => {
     const result = await autoGroupNearbyPaths({
-      entries: southMarch.entries,
+      entries: freshSouthMarch().entries,
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
-    // Should have more than 2 anchors (not collapsed to bbox corners)
-    assert.equal(result[0].anchors.length, 2, 'compact bbox anchors for YAML storage');
+    expect(result[0].anchors).toHaveLength(2);
   });
 
   it('removes absorbed individual entries from output', async () => {
     const result = await autoGroupNearbyPaths({
-      entries: southMarch.entries,
+      entries: freshSouthMarch().entries,
       markdownSlugs: new Set(),
       queryOverpass: mockQueryOverpass,
     });
     const allNames = result.map(e => e.name);
-    assert.ok(!allNames.includes('Coconut Tree'), 'individual entry should be removed');
-    assert.ok(!allNames.includes('Beartree'), 'individual entry should be removed');
+    expect(allNames).not.toContain('Coconut Tree');
+    expect(allNames).not.toContain('Beartree');
   });
 });

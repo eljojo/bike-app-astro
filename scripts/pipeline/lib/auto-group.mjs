@@ -249,6 +249,11 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
         if (spur._ways) dominant._ways = [...(dominant._ways || []), ...spur._ways];
         dominant.anchors = bboxAnchors([...(dominant.anchors || []), ...(spur.anchors || [])]);
       }
+      // Use the cluster's resolved name (park name or best pick) for the group
+      if (cluster.resolvedName) {
+        dominant.osm_names = [...new Set([dominant.name, ...(dominant.osm_names || [])])];
+        dominant.name = cluster.resolvedName;
+      }
       absorptionClusters.push({ dominant, spurs });
     } else {
       networkClusters.push(cluster);
@@ -260,11 +265,11 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
 
   for (const cluster of allClustersToProcess) {
     if (cluster.existingGroup) {
-      // Extend existing network — resolve grouped_from slugs to entry refs
+      // Extend existing network — resolve members slugs to entry refs
       const group = cluster.existingGroup;
       if (!group._memberRefs) {
         group._memberRefs = [];
-        for (const slug of group.grouped_from || []) {
+        for (const slug of group.members || []) {
           const entry = entries.find(e => slugMap.get(e) === slug);
           if (entry) group._memberRefs.push(entry);
         }
@@ -282,7 +287,6 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
         }
         member._networkRef = group;
       }
-      delete group.grouped_from;
       if (!group.type) group.type = 'network';
     } else {
       // New network from cluster

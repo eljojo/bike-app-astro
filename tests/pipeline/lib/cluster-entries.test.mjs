@@ -1,6 +1,5 @@
 // cluster-entries.test.mjs
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.mjs';
 
@@ -30,8 +29,8 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 1);
-    assert.equal(clusters[0].members.length, 2);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].members).toHaveLength(2);
   });
 
   it('does not merge entries with no shared nodes or nearby endpoints', () => {
@@ -54,7 +53,7 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 0);
+    expect(clusters).toHaveLength(0);
   });
 
   it('merges entries whose endpoints are within 10m', () => {
@@ -79,8 +78,8 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 1);
-    assert.equal(clusters[0].members.length, 2);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].members).toHaveLength(2);
   });
 
   it('excludes entries without _ways', () => {
@@ -99,7 +98,7 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 0);
+    expect(clusters).toHaveLength(0);
   });
 
   it('does not merge trail with paved cycleway', () => {
@@ -122,7 +121,7 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 0, 'trail and paved cycleway stay separate');
+    expect(clusters).toHaveLength(0);
   });
 
   it('blocks merge across different operators', () => {
@@ -139,13 +138,15 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 0, 'different operators block merge');
+    expect(clusters).toHaveLength(0);
   });
 
   it('blocks merge when corridor width exceeds 2km', () => {
+    // Road-type entries (parallel_to) have a 2km corridor limit.
+    // These entries share a node but span ~2.8km — exceeds the road limit.
     const entries = [
       {
-        name: 'Trail A', highway: 'path', surface: 'ground',
+        name: 'Road Lane A', highway: 'tertiary', parallel_to: 'Bank Street',
         anchors: [[-75.96, 45.34], [-75.92, 45.34]],
         _ways: [[
           { lat: 45.340, lon: -75.960 },
@@ -154,7 +155,7 @@ describe('clusterByConnectivity', () => {
         ]],
       },
       {
-        name: 'Trail B', highway: 'path', surface: 'ground',
+        name: 'Road Lane B', highway: 'tertiary', parallel_to: 'Riverside Drive',
         anchors: [[-75.96, 45.38], [-75.92, 45.38]],
         _ways: [[
           { lat: 45.342, lon: -75.920 },
@@ -164,7 +165,7 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 0, 'wide spread prevents merge');
+    expect(clusters).toHaveLength(0);
   });
 
   it('chains transitive connections: A-B-C all merge', () => {
@@ -186,14 +187,15 @@ describe('clusterByConnectivity', () => {
       },
     ];
     const clusters = clusterByConnectivity(entries);
-    assert.equal(clusters.length, 1);
-    assert.equal(clusters[0].members.length, 3);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].members).toHaveLength(3);
   });
 
-  it('detects existing group and separates newMembers', () => {
-    const existingGroup = {
+  it('detects existing network and separates newMembers', () => {
+    const existingNetwork = {
       name: 'South March Highlands',
-      grouped_from: ['coconut-tree', 'beartree'],
+      type: 'network',
+      members: ['coconut-tree', 'beartree'],
       anchors: [[-75.945, 45.342], [-75.943, 45.345]],
       _ways: [[{ lat: 45.342, lon: -75.945 }, { lat: 45.343, lon: -75.944 }]],
     };
@@ -202,21 +204,21 @@ describe('clusterByConnectivity', () => {
       anchors: [[-75.944, 45.343]],
       _ways: [[{ lat: 45.343, lon: -75.944 }, { lat: 45.344, lon: -75.943 }]],
     };
-    const clusters = clusterByConnectivity([existingGroup, newTrail]);
-    assert.equal(clusters.length, 1);
-    assert.equal(clusters[0].existingGroup.name, 'South March Highlands');
-    assert.equal(clusters[0].newMembers.length, 1);
+    const clusters = clusterByConnectivity([existingNetwork, newTrail]);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].existingGroup.name).toBe('South March Highlands');
+    expect(clusters[0].newMembers).toHaveLength(1);
   });
 
   it('groups South March trails by way connectivity', () => {
     const clusters = clusterByConnectivity(southMarch.entries);
-    assert.equal(clusters.length, 1);
-    assert.equal(clusters[0].members.length, 6);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].members).toHaveLength(6);
   });
 
   it('keeps South March and Pine Grove separate (no shared nodes)', () => {
     const allEntries = [...southMarch.entries, ...pineGrove.entries];
     const clusters = clusterByConnectivity(allEntries);
-    assert.equal(clusters.length, 2);
+    expect(clusters).toHaveLength(2);
   });
 });

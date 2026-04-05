@@ -179,7 +179,7 @@ export function clusterByConnectivity(entries) {
       const lngs = allAnchors.map(a => a[0]);
       const lats = allAnchors.map(a => a[1]);
 
-      const existingGroup = members.find(m => m.grouped_from);
+      const existingGroup = members.find(m => m.type === 'network');
       const newMembers = existingGroup
         ? members.filter(m => m !== existingGroup)
         : members;
