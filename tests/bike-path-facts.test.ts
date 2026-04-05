@@ -257,6 +257,21 @@ describe('buildPathFacts', () => {
     const facts = buildPathFacts({ surface: 'asphalt' });
     expect(facts.map(f => f.key)).not.toContain('path_type');
   });
+
+  it('emits seasonal fact when seasonal is set', () => {
+    const facts = buildPathFacts({ seasonal: 'winter' });
+    expect(facts).toContainEqual({ key: 'seasonal', value: 'winter' });
+  });
+
+  it('emits ref fact when ref is set', () => {
+    const facts = buildPathFacts({ ref: 'RV1' });
+    expect(facts).toContainEqual({ key: 'ref', value: 'RV1' });
+  });
+
+  it('emits inception fact when inception is set', () => {
+    const facts = buildPathFacts({ inception: '1970s' });
+    expect(facts).toContainEqual({ key: 'inception', value: '1970s' });
+  });
 });
 
 describe('buildNetworkFacts', () => {

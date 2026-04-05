@@ -62,6 +62,9 @@ export interface PathMeta {
   network?: string;
   mtb?: boolean;
   path_type?: string;
+  seasonal?: string;
+  ref?: string;
+  inception?: string;
 }
 
 /**
@@ -128,6 +131,21 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Network
   if (meta.network && NETWORK_LABELS[meta.network]) {
     facts.push({ key: NETWORK_LABELS[meta.network] });
+  }
+
+  // Seasonal
+  if (meta.seasonal) {
+    facts.push({ key: 'seasonal', value: meta.seasonal });
+  }
+
+  // Reference code
+  if (meta.ref) {
+    facts.push({ key: 'ref', value: meta.ref });
+  }
+
+  // Inception / Established
+  if (meta.inception) {
+    facts.push({ key: 'inception', value: meta.inception });
   }
 
   return facts;
@@ -249,6 +267,9 @@ export function factLabelKey(factKey: string): string {
   if (factKey === 'flat' || factKey === 'gentle_hills' || factKey === 'hilly') return 'paths.label.terrain';
   if (factKey === 'operator') return 'paths.label.operator';
   if (factKey.startsWith('network_')) return 'paths.label.network';
+  if (factKey === 'seasonal') return 'paths.label.seasonal';
+  if (factKey === 'ref') return 'paths.label.ref';
+  if (factKey === 'inception') return 'paths.label.established';
   return `paths.label.${factKey}`;
 }
 
@@ -270,6 +291,11 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
     case 'width':
       return `${fact.value}m`;
     case 'operator':
+      return fact.value || '';
+    case 'seasonal':
+      return t(`paths.fact.seasonal_${fact.value}`, locale);
+    case 'ref':
+    case 'inception':
       return fact.value || '';
     case 'gentle_hills':
       return t('paths.fact.gentle_hills', locale, { meters: fact.value || '' });
