@@ -18,7 +18,7 @@ export async function getStaticPaths() {
   const pageBySlug = new Map(pages.map(p => [p.slug, p]));
   return networkPages.map(page => {
     const memberGeoMap: Record<string, string> = {};
-    const memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean }> = [];
+    const memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean; path_type?: string; seasonal?: string; ref?: string; inception?: string }> = [];
     for (const m of page.memberRefs ?? []) {
       const memberPage = pageBySlug.get(m.slug);
       if (memberPage) {
@@ -27,7 +27,8 @@ export async function getStaticPaths() {
           surface: memberPage.surface, smoothness: memberPage.smoothness, width: memberPage.width,
           highway: memberPage.highway, segregated: memberPage.segregated, lit: memberPage.lit,
           elevation_gain_m: memberPage.elevation_gain_m, operator: memberPage.operator,
-          network: memberPage.network, mtb: memberPage.mtb,
+          network: memberPage.network, mtb: memberPage.mtb, path_type: memberPage.path_type,
+          seasonal: memberPage.seasonal, ref: memberPage.ref, inception: memberPage.inception,
         });
       }
     }
@@ -38,7 +39,7 @@ export async function getStaticPaths() {
   });
 }
 
-interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberGeoMap: Record<string, string>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean }> }
+interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberGeoMap: Record<string, string>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean; path_type?: string; seasonal?: string; ref?: string; inception?: string }> }
 const { page, networkMeta, memberGeoMap, memberMeta } = Astro.props;
 ---
 

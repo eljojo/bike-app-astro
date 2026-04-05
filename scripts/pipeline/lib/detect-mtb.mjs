@@ -54,28 +54,23 @@ export function detectMtb(entries) {
     if (isExplicitMtb(entry)) entry.mtb = true;
   }
 
-  // Tier 2: inferred from groups
-  // If a group has any explicit MTB member, all trail-type members inherit
-  const bySlug = new Map();
+  // Tier 2: inferred from networks
+  // If a network has any explicit MTB member, all trail-type members inherit
   for (const entry of entries) {
-    // Use a rough slug for lookup — grouped_from references slugs
-    const slug = entry.name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-');
-    if (slug) bySlug.set(slug, entry);
-  }
-
-  for (const entry of entries) {
-    if (!entry.grouped_from) continue;
-    // Check if any member is explicit MTB
-    const members = entry.grouped_from
-      .map(slug => bySlug.get(slug))
-      .filter(Boolean);
-    const hasExplicitMtb = members.some(m => m.mtb === true);
+    if (entry.type !== 'network') continue;
+    // Resolve members — use _memberRefs (object refs) or members (slug strings)
+    const memberEntries = entry._memberRefs
+      ? entry._memberRefs
+      : (entry.members || []).map(slug =>
+          entries.find(e => e.name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-') === slug)
+        ).filter(Boolean);
+    const hasExplicitMtb = memberEntries.some(m => m.mtb === true);
     if (hasExplicitMtb) {
-      // Group itself gets MTB if it's trail-type
+      // Network itself gets MTB if it's trail-type
       if (isTrailType(entry) || !isPaved(entry)) entry.mtb = true;
       // Trail-type members inherit
-      for (const m of members) {
+      for (const m of memberEntries) {
         if (isTrailType(m) && !isPaved(m)) m.mtb = true;
       }
     }
