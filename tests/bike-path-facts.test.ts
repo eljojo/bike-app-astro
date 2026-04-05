@@ -605,4 +605,63 @@ describe('buildNetworkFacts', () => {
   it('returns empty array for empty members', () => {
     expect(buildNetworkFacts([])).toEqual([]);
   });
+
+  it('returns unanimous bicycle_designated when all members have designated', () => {
+    const facts = buildNetworkFacts([
+      { bicycle: 'designated' },
+      { bicycle: 'designated' },
+    ]);
+    const bic = facts.find(f => f.key === 'bicycle_designated');
+    expect(bic).toBeDefined();
+    expect(bic!.consistency).toBe('unanimous');
+  });
+
+  it('returns partial bicycle_yes when some members have bicycle=yes', () => {
+    const facts = buildNetworkFacts([
+      { bicycle: 'yes' },
+      {},
+    ]);
+    const bic = facts.find(f => f.key === 'bicycle_yes');
+    expect(bic).toBeDefined();
+    expect(bic!.consistency).toBe('partial');
+  });
+
+  it('does not emit bicycle fact when members have mixed bicycle values', () => {
+    const facts = buildNetworkFacts([
+      { bicycle: 'designated' },
+      { bicycle: 'yes' },
+    ]);
+    expect(facts.find(f => f.key === 'bicycle_designated')).toBeUndefined();
+    expect(facts.find(f => f.key === 'bicycle_yes')).toBeUndefined();
+  });
+
+  it('returns all_parallel when all members have parallel_to', () => {
+    const facts = buildNetworkFacts([
+      { parallel_to: 'Bank Street' },
+      { parallel_to: 'Main Street' },
+    ]);
+    const par = facts.find(f => f.key === 'all_parallel');
+    expect(par).toBeDefined();
+    expect(par!.consistency).toBe('unanimous');
+  });
+
+  it('returns some_parallel when some members have parallel_to', () => {
+    const facts = buildNetworkFacts([
+      { parallel_to: 'Bank Street' },
+      {},
+      {},
+    ]);
+    const par = facts.find(f => f.key === 'some_parallel');
+    expect(par).toBeDefined();
+    expect(par!.consistency).toBe('partial');
+  });
+
+  it('does not emit parallel fact when no members have parallel_to', () => {
+    const facts = buildNetworkFacts([
+      { surface: 'asphalt' },
+      { surface: 'asphalt' },
+    ]);
+    expect(facts.find(f => f.key === 'some_parallel')).toBeUndefined();
+    expect(facts.find(f => f.key === 'all_parallel')).toBeUndefined();
+  });
 });
