@@ -12,7 +12,7 @@ import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml.server';
 import { readGeoFileData } from '../geo/geojson-reader.server';
-import { scoreBikePath, isHardExcluded, isDestination, SCORE_THRESHOLD } from './bike-path-scoring.server';
+import { scoreBikePath, isHardExcluded, isDestination } from './bike-path-scoring.server';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
 
@@ -480,7 +480,7 @@ export function loadBikePathEntries(): {
   }
 
   // 6. Process all unclaimed YML entries (non-hard-excluded).
-  // Every entry gets a page; `listed` is determined by score in Tier 2.
+  // `listed` is type-based: destination/infrastructure are listed, connector/untyped are not.
   // Member entries stay in the file and get their own pages.
   for (const entry of allYmlEntries) {
     if (claimedSlugs.has(entry.slug)) continue;
@@ -497,7 +497,7 @@ export function loadBikePathEntries(): {
       tags: [],
       score,
       hasMarkdown: false,
-      listed: score >= SCORE_THRESHOLD,
+      listed: entry.type === 'destination' || entry.type === 'infrastructure',
       standalone: isDestination(entry, getPathLengthKm(entry), false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,

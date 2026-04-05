@@ -42,6 +42,7 @@ beforeAll(() => {
   fs.writeFileSync(path.join(cityPath, 'bikepaths.yml'), `bike_paths:
   # Path in one network only — the simple case
   - name: Rideau Canal Pathway
+    type: destination
     member_of: ncc-greenbelt
     osm_relations: [100]
     highway: cycleway
@@ -49,6 +50,7 @@ beforeAll(() => {
 
   # Path physically in TWO networks, assigned to one by the pipeline
   - name: Watts Creek Pathway
+    type: destination
     member_of: ncc-greenbelt
     osm_relations: [200]
     highway: cycleway
@@ -56,6 +58,7 @@ beforeAll(() => {
 
   # Path in one network only
   - name: Experimental Farm Pathway
+    type: destination
     member_of: capital-pathway
     osm_relations: [300]
     highway: cycleway

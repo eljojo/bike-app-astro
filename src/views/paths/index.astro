@@ -13,7 +13,7 @@ import { localizeSurface } from '@/lib/bike-paths/bike-path-facts';
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const { pages: allPages } = await loadBikePathData();
-// Directory listing: only listed paths (score >= threshold), excluding very short ones
+// Directory listing: only listed paths (destination + infrastructure types), excluding very short ones
 const pages = allPages.filter(p => p.listed && (!p.length_km || p.length_km >= 1));
 
 // Locale-aware accessors
@@ -33,6 +33,8 @@ const relationToSlug: Record<string, string> = {};
 // Only include paths that have a page (standalone) — prevents dead links on the map.
 const slugToUrl: Record<string, string> = {};
 for (const p of allPages) {
+  // Skip connectors — not listed, not standalone, don't appear on the map
+  if (!p.listed && !p.standalone) continue;
   if (p.standalone) slugToUrl[p.slug] = paths.bikePath(p.slug, p.memberOf, locale);
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;

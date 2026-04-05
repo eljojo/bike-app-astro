@@ -11,7 +11,7 @@ import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
-import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD } from './bike-path-scoring.server';
+import { isHardExcluded, scoreBikePath } from './bike-path-scoring.server';
 import type { SluggedBikePathYml } from './bikepaths-yml.server';
 import type { BikePathPage } from './bike-path-entries.server';
 
@@ -373,7 +373,7 @@ export function computeBikePathRelations(
  *
  * For markdown pages with `includes`, relations from all included YML entries
  * are merged and deduplicated. YML-only pages are re-scored with the real
- * routeOverlapCount and filtered below SCORE_THRESHOLD.
+ * routeOverlapCount. Listed status is type-based (set in tier 1).
  */
 export function enrichBikePathPages(
   tier1Pages: BikePathPage[],
@@ -392,13 +392,12 @@ export function enrichBikePathPages(
     // Create a shallow copy to avoid mutating the input array's elements
     const page = { ...original };
 
-    // Re-score YML-only pages with real route overlap count and update listed status
+    // Re-score YML-only pages with real route overlap count (listed is type-based, not re-computed)
     if (!page.hasMarkdown) {
       const entry = matchedEntries[0];
       const overlapCount = routeOverlaps[entry.slug]?.count ?? 0;
       const score = scoreBikePath(entry, overlapCount);
       page.score = score;
-      page.listed = score >= SCORE_THRESHOLD;
       page.stub = true; // all YML-only pages are stubs
       page.routeCount = overlapCount;
     } else {

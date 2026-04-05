@@ -31,6 +31,7 @@ beforeAll(() => {
   // Create bikepaths.yml with test entries
   fs.writeFileSync(path.join(cityPath, 'bikepaths.yml'), `bike_paths:
   - name: Ottawa River Pathway
+    type: destination
     osm_relations: [7174864]
     network: rcn
     operator: NCC
@@ -45,6 +46,7 @@ beforeAll(() => {
     highway: cycleway
     surface: asphalt
   - name: Small Local Path
+    type: destination
     highway: cycleway
     member_of: trail-network
   - name: Some Random Road
@@ -77,10 +79,23 @@ beforeAll(() => {
       length_km: 220
       inception: 1970s
   - name: Aviation Pathway
+    type: destination
     member_of: capital-pathway
     osm_relations: [7174865]
     highway: cycleway
     surface: asphalt
+  - name: Bank Street Bike Lane
+    type: infrastructure
+    osm_relations: [5551234]
+    highway: cycleway
+    surface: asphalt
+  - name: Short Connector Segment
+    type: connector
+    highway: cycleway
+  - name: Untyped Old Path
+    osm_relations: [5559999]
+    highway: cycleway
+    operator: NCC
 `);
 
   // Markdown that matches a YML entry by slug
@@ -159,7 +174,7 @@ describe('loadBikePathEntries', () => {
 
   it('parses all YML entries', () => {
     const { allYmlEntries } = loadBikePathEntries();
-    expect(allYmlEntries.length).toBe(8);
+    expect(allYmlEntries.length).toBe(11);
     expect(allYmlEntries.map(e => e.name)).toContain('Ottawa River Pathway');
     expect(allYmlEntries.map(e => e.name)).toContain('Rideau Canal Pathway');
   });
@@ -336,5 +351,47 @@ describe('loadBikePathEntries', () => {
     expect(network!.body).toContain('A lovely network of trails');
     expect(network!.tags).toEqual(['park', 'family']);
     expect(network!.photo_key).toBe('trail-network-photo');
+  });
+
+  it('type: destination entry gets standalone: true and listed: true', () => {
+    const { pages } = loadBikePathEntries();
+    const ottawa = pages.find(p => p.slug === 'ottawa-river-pathway');
+    expect(ottawa).toBeDefined();
+    expect(ottawa!.standalone).toBe(true);
+    expect(ottawa!.listed).toBe(true);
+  });
+
+  it('type: infrastructure entry gets standalone: false and listed: true', () => {
+    const { pages } = loadBikePathEntries();
+    const bikeLane = pages.find(p => p.slug === 'bank-street-bike-lane');
+    expect(bikeLane).toBeDefined();
+    expect(bikeLane!.standalone).toBe(false);
+    expect(bikeLane!.listed).toBe(true);
+  });
+
+  it('type: connector entry gets standalone: false and listed: false', () => {
+    const { pages } = loadBikePathEntries();
+    const connector = pages.find(p => p.slug === 'short-connector-segment');
+    expect(connector).toBeDefined();
+    expect(connector!.standalone).toBe(false);
+    expect(connector!.listed).toBe(false);
+  });
+
+  it('entry without type gets standalone: false and listed: false', () => {
+    const { pages } = loadBikePathEntries();
+    const untyped = pages.find(p => p.slug === 'untyped-old-path');
+    expect(untyped).toBeDefined();
+    expect(untyped!.standalone).toBe(false);
+    expect(untyped!.listed).toBe(false);
+  });
+
+  it('markdown override forces standalone: true regardless of type', () => {
+    const { pages } = loadBikePathEntries();
+    // rideau-canal-pathway has markdown — it should be standalone regardless
+    const rideau = pages.find(p => p.slug === 'rideau-canal-pathway');
+    expect(rideau).toBeDefined();
+    expect(rideau!.hasMarkdown).toBe(true);
+    expect(rideau!.standalone).toBe(true);
+    expect(rideau!.listed).toBe(true);
   });
 });
