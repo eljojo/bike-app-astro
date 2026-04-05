@@ -748,3 +748,107 @@
   @include muted-text;
   font-style: italic;
 }
+
+// Network tab bar
+.network-tabs-wrapper {
+  margin: 1.5rem 0;
+}
+
+.network-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid $color-card-bg;
+  @include dark-mode { border-color: $color-card-bg-dark; }
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.network-tab {
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: $color-text-muted;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+
+  @include dark-mode { color: rgba(255,255,255,0.5); }
+
+  &:hover {
+    color: $color-text;
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  &.active {
+    color: $color-accent;
+    border-bottom-color: $color-accent;
+  }
+}
+
+.network-tab--all {
+  font-style: italic;
+  font-weight: 400;
+}
+
+// Network panel (expanded member list)
+.network-panel {
+  display: none;
+  &.active { display: block; }
+}
+
+.network-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.75rem 0 0.5rem;
+}
+
+.network-panel-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+  color: $color-text;
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.network-panel-link {
+  font-size: 0.8rem;
+  color: $color-accent;
+  text-decoration: none;
+}
+
+// Tier 2 collapsed
+.tier2-collapsed {
+  padding: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.tier2-count {
+  @include muted-text;
+}
+
+.tier2-names {
+  @include muted-text;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+// Independent paths section
+.paths-independent {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid $color-card-bg;
+  @include dark-mode { border-color: $color-card-bg-dark; }
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 500;
+    @include muted-text;
+    margin: 0 0 0.75rem;
+  }
+}
