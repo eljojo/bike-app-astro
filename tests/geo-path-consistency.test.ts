@@ -11,7 +11,7 @@ import { haversineM } from '../src/lib/geo/proximity';
  */
 describe('demo bike path GeoJSON fixture', () => {
   const fixtureDir = path.resolve('e2e', 'fixtures', 'overpass');
-  const geoFile = path.join(fixtureDir, 'name-ciclovia-avenida-ecuador.geojson');
+  const geoFile = path.join(fixtureDir, '99001.geojson');
 
   it('fixture file exists', () => {
     expect(fs.existsSync(geoFile)).toBe(true);
