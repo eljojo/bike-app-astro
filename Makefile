@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-lambda typecheck lint validate-ctx test-e2e test-update test-admin test-blog test-club screenshots full prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video setup-city deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
+.PHONY: help install dev build preview test test-lambda typecheck lint validate-ctx test-e2e test-update test-admin test-blog test-club screenshots full bikepaths bikepaths-dry prebuild map-style icon-paths maps maps-rebuild validate fonts contributors docs-dev docs-build docs-preview setup-video setup-city deploy-lambda record-fixtures record-plausible clean hooks release publish release-scaffolder publish-scaffolder
 
 help: ## Show available targets
 	@awk '/^[a-zA-Z0-9_-]+:.*## /{sub(/:.*## /," "); printf "  \033[36m%-15s\033[0m %s\n", $$1, substr($$0, index($$0,$$2))}' $(MAKEFILE_LIST)
@@ -65,6 +65,12 @@ screenshots: prebuild ## Update all screenshot baselines (public + admin)
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 	npx playwright test --config e2e/admin/fixture.ts --update-snapshots
+
+bikepaths: ## Regenerate bikepaths.yml from OSM (writes to CONTENT_DIR/CITY/)
+	node scripts/pipeline/build-bikepaths.mjs --city $${CITY:-ottawa}
+
+bikepaths-dry: ## Preview bikepaths.yml changes without writing
+	node scripts/pipeline/build-bikepaths.mjs --city $${CITY:-ottawa} --dry-run
 
 prebuild: ## Run all code generators (map style, icons, maps, contributors, path geometry)
 	npx tsx scripts/prebuild.ts
