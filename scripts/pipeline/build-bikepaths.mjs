@@ -1829,24 +1829,45 @@ out geom tags;`;
     }
   }
 
-  // Step 9b: Remove ghost entries — named-way entries that duplicate relation
-  // entries with parenthetical variants. E.g., named ways "Ottawa River Pathway"
-  // create entries alongside relation entries "Ottawa River Pathway (east)".
-  // The ghost entry has no osm_relations and its name matches a relation's base name.
-  // We remove it and clean up any network member references to it.
-  // NOTE: this does NOT remove entries matching park network names — those are
-  // legitimate unnamed chains (e.g. "Parc de la Gatineau" cycleway within the park).
-  if (relationBaseNames.size > 0) {
+  // Step 9b: Remove ghost entries — non-relation entries whose ways are
+  // mostly owned by relation entries. Two strategies:
+  //   1. Structural (preferred): if >=50% of an entry's ways are owned by
+  //      other entries that have osm_relations, it's a ghost.
+  //   2. Name-based fallback: for entries with no way IDs (parallel lanes,
+  //      manual entries), fall back to the old relationBaseNames check.
+  {
     const before = grouped.length;
+    let structuralCount = 0;
+    let nameCount = 0;
     for (let i = grouped.length - 1; i >= 0; i--) {
       const e = grouped[i];
       if (e.type === 'network') continue;
       if (e.osm_relations?.length > 0) continue; // keep relation entries
-      const baseName = e.name?.toLowerCase();
-      if (!baseName || !relationBaseNames.has(baseName)) continue;
-      // This entry's name matches a relation's base name but has no relation IDs
-      // — it's a ghost from named-way discovery. Remove it.
+
+      const wayIds = wayRegistry.wayIdsFor(e);
+
+      if (wayIds.size > 0) {
+        // Strategy 1: structural — check way overlap with relation entries
+        let ownedByOthers = 0;
+        for (const wid of wayIds) {
+          const owner = wayRegistry.ownerOf(wid);
+          if (owner && owner !== e && owner.osm_relations?.length > 0) {
+            ownedByOthers++;
+          }
+        }
+        if (ownedByOthers / wayIds.size < 0.5) continue; // keep — not a ghost
+        structuralCount++;
+      } else {
+        // Strategy 2: name-based fallback for entries without way IDs
+        if (relationBaseNames.size === 0) continue;
+        const baseName = e.name?.toLowerCase();
+        if (!baseName || !relationBaseNames.has(baseName)) continue;
+        nameCount++;
+      }
+
+      // Remove the ghost entry
       const slug = e.slug;
+      wayRegistry.remove(e);
       grouped.splice(i, 1);
       // Clean up network member references
       for (const net of grouped) {
@@ -1857,7 +1878,10 @@ out geom tags;`;
       }
     }
     if (grouped.length < before) {
-      console.log(`  Removed ${before - grouped.length} ghost entries (named-way duplicates of relations)`);
+      const parts = [];
+      if (structuralCount > 0) parts.push(`${structuralCount} by way-overlap`);
+      if (nameCount > 0) parts.push(`${nameCount} by name`);
+      console.log(`  Removed ${before - grouped.length} ghost entries (${parts.join(', ')})`);
     }
   }
 
