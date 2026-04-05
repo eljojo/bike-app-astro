@@ -188,7 +188,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               return (
                 <li>
                   {m.standalone ? (
-                    <a href={paths.bikePath(m.slug, group.networkSlug, locale)} class:list={['path-link', { 'has-thumb': hasThumb }]}>
+                    <a href={paths.bikePath(m.slug, m.memberOf ?? group.networkSlug, locale)} class:list={['path-link', { 'has-thumb': hasThumb }]}>
                       {hasThumb && (
                         <img
                           class="path-thumb"

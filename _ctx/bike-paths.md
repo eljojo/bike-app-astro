@@ -38,19 +38,28 @@ This applies regardless of YML entry type. A markdown matching a `type: network`
 
 A network is a group of connected paths that share a real-world identity (a park trail system, a greenway corridor).
 
+### Multi-Network Membership
+
+A path can belong to multiple networks. Watts Creek Pathway is physically part of both the NCC Greenbelt and Capital Pathway — this is a fact about the world, not a data error.
+
+Each path has one **primary network** (`member_of` in YML / `memberOf` on `BikePathPage`). The primary network determines the path's URL: `/bike-paths/{primary-network}/{slug}`. Only one page is generated per path — under its primary network.
+
+A path can also appear in other networks' `members` arrays as a **secondary member**. Secondary members are listed on the network page but their links point to the path's primary network URL (where the page actually lives).
+
 ### YML Structure
 
 ```yaml
+# Network A — primary network for klondike
 - name: South March Highlands Conservation Forest
   type: network
   members: [klondike, porcupine, brady, ...]
-  osm_names: [Klondike]
-  anchors: [...]
-```
 
-Member paths reference their network:
+# Network B — also lists klondike (secondary member here)
+- name: Capital Pathway
+  type: network
+  members: [klondike, experimental-farm, ...]
 
-```yaml
+# Path — primary network is south-march-highlands
 - name: Klondike
   member_of: south-march-highlands-conservation-forest
 ```
@@ -59,7 +68,9 @@ Member paths reference their network:
 
 Network pages aggregate from their members: geometry, overlapping routes, nearby photos, nearby places. Members with `standalone: true` get their own sub-pages at `/bike-paths/{network}/{member}`.
 
-The `memberOf` field on a path page controls URL structure — paths with `memberOf` live under their network's URL. If a network fails validation (< 2 members, no standalone members), `memberOf` is cleared and members become flat standalone pages.
+The `memberOf` field on a path page is the **primary network** — it controls the path's URL. The path's page lives at `/bike-paths/{memberOf}/{slug}`. If a network fails validation (< 2 members, no standalone members), `memberOf` is cleared and members become flat standalone pages.
+
+When rendering a network's member list, use `m.memberOf` (the member's primary network) to construct URLs — not the current network's slug. For primary members, `m.memberOf === net.slug` so this is the same. For secondary members, `m.memberOf` points to a different network where the page actually lives. Using `net.slug` instead produces broken links.
 
 ## Enrichment Pipeline
 
