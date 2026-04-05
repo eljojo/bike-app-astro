@@ -22,6 +22,31 @@ interface RouteCard {
   name: string;
   distance_km: number;
   coverKey?: string;
+  distanceOnPathKm?: number;
+}
+
+/** Compute the total distance (km) of track segments where points are near a path.
+ *  Exported for testing. */
+export function computeOverlapDistanceKm(
+  trackPoints: Array<{ lat: number; lng: number }>,
+  isNear: (lat: number, lng: number, index: number) => boolean,
+): number {
+  let totalM = 0;
+  let prevNear = false;
+  let prevLat = 0;
+  let prevLng = 0;
+  for (let i = 0; i < trackPoints.length; i++) {
+    const tp = trackPoints[i];
+    const near = isNear(tp.lat, tp.lng, i);
+    if (near && prevNear) {
+      totalM += haversineM(prevLat, prevLng, tp.lat, tp.lng);
+    }
+    prevNear = near;
+    prevLat = tp.lat;
+    prevLng = tp.lng;
+  }
+  const km = totalM / 1000;
+  return km > 0 ? Math.round(km * 10) / 10 : 0;
 }
 
 interface NearbyPhoto {
@@ -211,17 +236,32 @@ export function computeBikePathRelations(
       if (!bboxOverlap(trackBbox, pathBbox)) continue;
 
       let nearCount = 0;
+      let overlapM = 0;
+      let prevNear = false;
+      let prevLat = 0;
+      let prevLng = 0;
       for (const tp of trackPoints) {
         if (tp.lat < pathBbox.minLat || tp.lat > pathBbox.maxLat ||
-            tp.lng < pathBbox.minLng || tp.lng > pathBbox.maxLng) continue;
-        if (isNearPath(tp.lat, tp.lng, entry.slug, 100)) nearCount++;
+            tp.lng < pathBbox.minLng || tp.lng > pathBbox.maxLng) {
+          prevNear = false;
+          continue;
+        }
+        const near = isNearPath(tp.lat, tp.lng, entry.slug, 100);
+        if (near) {
+          nearCount++;
+          if (prevNear) overlapM += haversineM(prevLat, prevLng, tp.lat, tp.lng);
+        }
+        prevNear = near;
+        prevLat = tp.lat;
+        prevLng = tp.lng;
       }
 
       const routePct = nearCount / trackPoints.length * 100;
       if (routePct >= ROUTE_OVERLAP_MIN_PCT) {
         const meta = routeMeta.get(routeSlug);
         if (meta) {
-          overlappingRoutes.push({ slug: routeSlug, ...meta });
+          const distanceOnPathKm = overlapM > 0 ? Math.round(overlapM / 100) / 10 : undefined;
+          overlappingRoutes.push({ slug: routeSlug, ...meta, distanceOnPathKm });
         }
       }
     }

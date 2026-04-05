@@ -86,7 +86,7 @@ export interface BikePathPage {
   /** Number of routes that overlap this path (precomputed at build config time). */
   routeCount: number;
   /** Precomputed route cards for routes that overlap this path. */
-  overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string }>;
+  overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string; distanceOnPathKm?: number }>;
   /** Geolocated photos taken near this path. */
   nearbyPhotos: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }>;
   /** Precomputed nearby places (within 300m). */
