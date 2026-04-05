@@ -385,6 +385,21 @@ describe('findNearestMajorPath', () => {
     expect(result).toBeUndefined();
   });
 
+  it('excludes own parent network', () => {
+    const result = findNearestMajorPath({
+      ...defaults,
+      pageMemberOf: 'ncc-greenbelt',
+      connectedPaths: [],
+      nearbyPaths: [
+        { slug: 'ncc-greenbelt', name: 'NCC Greenbelt', length_km: 118, memberOf: undefined },
+        { slug: 'greenbelt-pathway-east', name: 'Greenbelt Pathway East', length_km: 13.6, memberOf: 'ncc-greenbelt' },
+      ],
+    });
+    // Should pick the sibling path, not the parent network
+    expect(result).toBeDefined();
+    expect(result!.slug).toBe('greenbelt-pathway-east');
+  });
+
   it('deduplicates across connected and nearby', () => {
     const result = findNearestMajorPath({
       ...defaults,

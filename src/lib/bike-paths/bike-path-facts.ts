@@ -380,6 +380,7 @@ export function findNearestMajorPath(opts: {
   nearbyPaths: NearbyPathRef[];
   pageSlug: string;
   pageLengthKm?: number;
+  pageMemberOf?: string;
   hasMembers: boolean;
   memberSlugs: Set<string>;
 }): NearbyPathRef | undefined {
@@ -391,6 +392,7 @@ export function findNearestMajorPath(opts: {
     seen.add(p.slug);
     if (opts.memberSlugs.has(p.slug)) continue;
     if (p.slug === opts.pageSlug) continue;
+    if (p.slug === opts.pageMemberOf) continue; // exclude own parent network
     if ((p.length_km ?? 0) <= (opts.pageLengthKm ?? 0)) continue;
     candidates.push(p);
   }
