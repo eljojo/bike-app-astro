@@ -23,7 +23,7 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: ['e2e/**', 'node_modules/**', 'docs/**', 'aws/**', 'bike-routes/**'],
+    exclude: ['e2e/**', 'node_modules/**', 'docs/**', 'aws/**'],
     setupFiles: ['./tests/setup.ts'],
   },
 });
