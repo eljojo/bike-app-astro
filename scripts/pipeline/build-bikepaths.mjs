@@ -1568,22 +1568,27 @@ out geom tags;`;
       const byId = new Map();
       for (const el of data.elements) {
         if (!byId.has(el.id) && el.members) {
-          // Extract way geometries as _ways for spatial operations
+          // Extract way geometries and way IDs for spatial operations
           const ways = [];
+          const memberWayIds = [];
           for (const m of el.members) {
             if (m.type === 'way' && m.geometry?.length >= 2) {
               ways.push(m.geometry);
+              if (m.ref) memberWayIds.push(m.ref);
             }
           }
-          if (ways.length > 0) byId.set(el.id, ways);
+          if (ways.length > 0) byId.set(el.id, { ways, wayIds: memberWayIds });
         }
       }
       let enriched = 0;
       for (const entry of needWays) {
         for (const relId of entry.osm_relations) {
-          const ways = byId.get(relId);
-          if (ways) {
-            entry._ways = ways;
+          const info = byId.get(relId);
+          if (info) {
+            entry._ways = info.ways;
+            if (info.wayIds.length > 0) {
+              wayRegistry.claim(entry, info.wayIds);
+            }
             enriched++;
             break;
           }
