@@ -737,8 +737,15 @@
 }
 
 .network-here-own .network-here-link {
-  color: $color-accent;
+  color: $color-text;
   font-weight: 500;
+  background: rgba($color-accent, 0.15);
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+  @include dark-mode {
+    color: $color-text-dark;
+    background: rgba($color-accent, 0.2);
+  }
 }
 
 .network-here-link {

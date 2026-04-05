@@ -477,14 +477,34 @@ function mergeWayTags(ways) {
   return merged;
 }
 
+// Identity tags describe the entity (route, bridge, road) — not physical
+// infrastructure. When merging way tags into a relation entry, these must
+// be skipped because a way's identity (e.g. Adàwe Crossing bridge) is not
+// the route's identity (Crosstown Bikeway 3).
+const IDENTITY_TAGS = new Set([
+  'name_fr', 'name_en', 'alt_name',
+  'wikidata', 'wikipedia', 'wikimedia_commons',
+  'operator', 'network', 'ref', 'cycle_network',
+  'distance', 'description',
+]);
+
 /**
  * Enrich an entry with OSM metadata, only adding fields it doesn't
  * already have (hand-edited values take precedence).
+ *
+ * @param {object} entry — the entry to enrich
+ * @param {object} tags — OSM tags to merge in
+ * @param {object} [opts]
+ * @param {boolean} [opts.skipIdentity] — if true, skip identity tags
+ *   (use when merging way-level tags into a relation entry)
  */
-function enrichEntry(entry, tags) {
+function enrichEntry(entry, tags, { skipIdentity = false } = {}) {
   const meta = extractOsmMetadata(tags);
   for (const [key, val] of Object.entries(meta)) {
-    if (entry[key] == null) entry[key] = val;
+    if (entry[key] == null) {
+      if (skipIdentity && IDENTITY_TAGS.has(key)) continue;
+      entry[key] = val;
+    }
   }
 }
 
@@ -678,7 +698,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
         }
         const overlapRatio = bestCount / npWayIds.length;
         if (overlapRatio >= 0.5 && bestEntry) {
-          enrichEntry(bestEntry, np.tags);
+          enrichEntry(bestEntry, np.tags, { skipIdentity: !!bestEntry.osm_relations?.length });
           if (np.anchors?.length > (bestEntry.anchors?.length || 0)) bestEntry.anchors = np.anchors;
           if (np._ways) bestEntry._ways = np._ways;
           const unclaimed = npWayIds.filter(id => !wayRegistry.isClaimed(id));
@@ -708,7 +728,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
         result.push(entry);
         continue;
       }
-      enrichEntry(existing, np.tags);
+      enrichEntry(existing, np.tags, { skipIdentity: !!existing.osm_relations?.length });
       if (np.anchors?.length > (existing.anchors?.length || 0)) existing.anchors = np.anchors;
       if (np._ways) existing._ways = np._ways;
       if (!existing.osm_names) {
