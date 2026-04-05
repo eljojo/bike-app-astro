@@ -105,7 +105,7 @@ function deriveBbox(entries) {
  * @param {{ entries: Array, markdownSlugs: Set<string>, queryOverpass: Function }} config
  * @returns {Promise<Array>} — updated entries array (groups replace absorbed members)
  */
-export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass, bbox }) {
+export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass, bbox, wayRegistry }) {
   // Compute slugs for all entries
   const slugMap = computeSlugs(entries);
 
@@ -248,6 +248,13 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
         dominant.osm_names = [...new Set([...(dominant.osm_names || [dominant.name]), ...(spur.osm_names || [spur.name])])];
         if (spur._ways) dominant._ways = [...(dominant._ways || []), ...spur._ways];
         dominant.anchors = bboxAnchors([...(dominant.anchors || []), ...(spur.anchors || [])]);
+        // Transfer spur's way IDs to the dominant entry in the registry
+        if (wayRegistry) {
+          const spurWayIds = wayRegistry.wayIdsFor(spur);
+          if (spurWayIds.size > 0) {
+            wayRegistry.transfer(spur, dominant, spurWayIds);
+          }
+        }
       }
       // Use the cluster's resolved name (park name or best pick) for the group
       if (cluster.resolvedName) {

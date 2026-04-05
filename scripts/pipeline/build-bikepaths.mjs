@@ -1594,7 +1594,7 @@ out geom tags;`;
   }
 
   // Step 4: Auto-group nearby trail segments (with park containment)
-  const grouped = await autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass: qo, bbox: b });
+  const grouped = await autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass: qo, bbox: b, wayRegistry });
 
   // Step 5: Super-network attributes (from OSM superroutes)
   let superNetworks = [];
