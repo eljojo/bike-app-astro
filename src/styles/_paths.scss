@@ -576,7 +576,7 @@
   transition: background 0.15s;
 
   &:hover {
-    background: darken($color-card-bg, 3%);
+    background: color.adjust($color-card-bg, $lightness: -3%);
   }
 
   @include dark-mode {
