@@ -377,10 +377,11 @@ describe('loadBikePathEntries', () => {
     expect(connector!.listed).toBe(false);
   });
 
-  it('entry without type gets standalone: false and listed: false', () => {
+  it('entry without explicit type gets entryType unknown, not listed, not standalone', () => {
     const { pages } = loadBikePathEntries();
     const untyped = pages.find(p => p.slug === 'untyped-old-path');
     expect(untyped).toBeDefined();
+    expect(untyped!.entryType).toBe('unknown');
     expect(untyped!.standalone).toBe(false);
     expect(untyped!.listed).toBe(false);
   });

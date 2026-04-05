@@ -13,7 +13,7 @@ vi.mock('../src/lib/config/city-config', () => ({
 }));
 
 function entry(overrides: Partial<SluggedBikePathYml> & { name: string }): SluggedBikePathYml {
-  return { slug: 'test', ...overrides };
+  return { slug: 'test', type: 'infrastructure' as const, ...overrides };
 }
 
 describe('isHardExcluded', () => {

@@ -41,7 +41,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
    * destination: local path with real-world identity (Sawmill Creek, park trail).
    * infrastructure: bike lane or short named path, visible on map, no page.
    * connector: tiny segment under 300m, invisible. */
-  type: z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector']).default('infrastructure'),
+  type: z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector', 'unknown']).default('unknown'),
   /** For networks: slugs of member paths. */
   members: z.array(z.string()).optional(),
   /** Slug of the network this path belongs to. */
@@ -55,6 +55,16 @@ export const bikePathYmlEntrySchema = z.looseObject({
   super_network: z.string().optional(),
   /** OSM cycle_network tag (e.g., "National Capital Region"). */
   cycle_network: z.string().optional(),
+  /** Non-cycling route relations that share ways with this entry.
+   *  Discovered by the pipeline's web-spider step. */
+  overlapping_relations: z.array(z.object({
+    id: z.number(),
+    name: z.string(),
+    route: z.string(),
+    operator: z.string().optional(),
+    ref: z.string().optional(),
+    network: z.string().optional(),
+  })).optional(),
   /** Metadata enriched from Wikidata. */
   wikidata_meta: z.object({
     description_en: z.string().optional(),

@@ -453,7 +453,7 @@ export function loadBikePathEntries(): {
       wikidata_description: resolveWikidataDescription(primary),
       inception: primary?.wikidata_meta?.inception,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
-      entryType: primary?.type ?? 'infrastructure',
+      entryType: primary?.type ?? 'unknown',
       translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
   }

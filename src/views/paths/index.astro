@@ -60,9 +60,14 @@ const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
 const memberSlugs = new Set(networkPages.flatMap(n => (n.memberRefs ?? []).map(m => m.slug)));
 
 // Independent paths: standalone destination paths not in any network
-const independentPaths = pages.filter(p =>
+const allIndependent = pages.filter(p =>
   p.standalone && !p.memberRefs && !memberSlugs.has(p.slug)
 ).sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+
+// Long-distance trails get their own section — these are major routes people plan trips around
+const longDistancePaths = allIndependent.filter(p => p.entryType === 'long-distance');
+const longDistanceSlugs = new Set(longDistancePaths.map(p => p.slug));
+const independentPaths = allIndependent.filter(p => !longDistanceSlugs.has(p.slug));
 
 // For each network, split members into tier 1 (>=5km or hasMarkdown) and tier 2
 const TIER1_MIN_KM = 5;
@@ -204,6 +209,25 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           </ul>
         </div>
       </div>
+    )}
+
+    {longDistancePaths.length > 0 && (
+      <section class="paths-long-distance">
+        <h2>{t('paths.long_distance_trails', locale)}</h2>
+        <ul class="paths-list paths-list--long-distance">
+          {longDistancePaths.map(p => (
+            <li data-slug={p.slug}>
+              <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
+                <span class="path-link-name">{pathName(p)}</span>
+                <span class="path-link-meta">
+                  {p.length_km && <span class="path-meta">{p.length_km} km</span>}
+                  {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
     )}
 
     {independentPaths.length > 0 && (
