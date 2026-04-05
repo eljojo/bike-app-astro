@@ -16,6 +16,13 @@ import { scoreBikePath, isHardExcluded, isDestination, SCORE_THRESHOLD } from '.
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
 
+function resolveWikidataDescription(entry?: SluggedBikePathYml): string | undefined {
+  if (!entry?.wikidata_meta) return undefined;
+  const locale = defaultLocale().split('-')[0]; // 'en' from 'en-CA'
+  const meta = entry.wikidata_meta as Record<string, unknown>;
+  return (meta[`description_${locale}`] as string) ?? (meta.description_en as string);
+}
+
 // Resolve project root from this file's location (src/lib/bike-paths/) — avoids CWD dependency.
 // Lazy: import.meta.dirname is undefined in workerd (Cloudflare prerender), but this code
 // only runs at Vite config time (Node.js). The build-data-plugin replaces the consuming
@@ -44,6 +51,8 @@ export interface MemberRef {
   standalone: boolean;
   /** The member's actual memberOf value — may differ from the network page slug. */
   memberOf?: string;
+  /** Whether this member has a markdown file — used for tier 1/tier 2 display on index. */
+  hasMarkdown: boolean;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
@@ -108,6 +117,16 @@ export interface BikePathPage {
   mtb?: boolean;
   /** Infrastructure type (mup, separated-lane, bike-lane, paved-shoulder, mtb-trail, trail). */
   path_type?: string;
+  /** Official website URL (from YML website or wikidata_meta.website). */
+  website?: string;
+  /** Seasonal restriction (e.g., "winter" for winter-only trails). */
+  seasonal?: string;
+  /** Reference code from OSM signs (e.g., "RV1", "CP-7"). */
+  ref?: string;
+  /** Wikidata description for the current build locale — fallback body text for stubs. */
+  wikidata_description?: string;
+  /** Year/date the path was established (from wikidata_meta.inception). */
+  inception?: string;
   /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
 }
@@ -450,6 +469,11 @@ export function loadBikePathEntries(): {
       parallel_to: primary?.parallel_to,
       mtb: primary?.mtb,
       path_type: primary?.path_type,
+      website: primary?.website ?? primary?.wikidata_meta?.website,
+      seasonal: primary?.seasonal,
+      ref: primary?.ref,
+      wikidata_description: resolveWikidataDescription(primary),
+      inception: primary?.wikidata_meta?.inception,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
       translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
@@ -501,6 +525,11 @@ export function loadBikePathEntries(): {
       parallel_to: entry.parallel_to,
       mtb: entry.mtb,
       path_type: entry.path_type,
+      website: entry.website ?? entry.wikidata_meta?.website,
+      seasonal: entry.seasonal,
+      ref: entry.ref,
+      wikidata_description: resolveWikidataDescription(entry),
+      inception: entry.wikidata_meta?.inception,
       wikipedia: entry.wikipedia,
       translations: readBikePathTranslations(entry.slug, entry),
     });
@@ -548,6 +577,7 @@ export function loadBikePathEntries(): {
       thumbnail_key: p.thumbnail_key,
       standalone: p.standalone,
       memberOf: p.memberOf,
+      hasMarkdown: p.hasMarkdown,
     }));
 
     // Aggregate geometry from all members
