@@ -38,14 +38,14 @@ This applies regardless of YML entry type. A markdown matching a `type: network`
 
 Every entry in bikepaths.yml carries provenance metadata tracing it back to OSM:
 
-- `osm_relations` — the OSM relation IDs (route relations, superroutes)
+- `osm_relations` — the OSM relation IDs for this entry. Each relation appears in exactly one entry. Networks only carry their own superroute relation ID — never their members' IDs.
 - `osm_names` — the way names used to discover this entry
-- `osm_way_ids` — the OSM way IDs that compose this entry's geometry
+- `osm_way_ids` — the OSM way IDs that compose this entry's geometry. Ways can legitimately appear in multiple entries (shared pavement between routes).
 
 The pipeline preserves way IDs from Overpass responses through the entire build process. This enables:
 
 1. **Structural dedup** — if two entries share ≥50% of their ways, they're the same path (relation trumps named way)
-2. **Validation** — no way should appear in two entries (a way is one piece of pavement)
+2. **Validation** — each OSM relation appears in exactly one entry (a relation is one route)
 3. **Fast geometry resolution** — `cache-path-geometry.ts` queries ways by ID instead of name
 4. **Provenance audit** — given any fact in bikepaths.yml, trace it to the Overpass query that produced it
 

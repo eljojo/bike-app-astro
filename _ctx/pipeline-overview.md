@@ -19,7 +19,7 @@ related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides]
 3. **Build entries** — merge relations, named ways, parallel lanes, manual entries into one entry per path. Merge priority: way-ID overlap (WayRegistry) → slug match → name match. Relations claim their member ways first; named ways with ≥50% overlap merge into the claiming entry.
 4. **Auto-group** — connectivity-based clustering (shared nodes, endpoint proximity). Park containment splits clusters by park. Spur absorption: clusters with only 1 page-worthy member (>= 1km) absorb the rest.
 5. **Compute slugs** — centralized disambiguation.
-6. **Superroute networks** — promoted sub-superroutes become networks. Top-level superroutes set `super_network` (sorted by scope: ncn < rcn < lcn, most specific wins). Same-named auto-group networks merged into promoted networks.
+6. **Superroute networks** — promoted sub-superroutes become networks. Top-level superroutes set `super_network` (sorted by scope: ncn < rcn < lcn, most specific wins). All leaf routes are members — same-named children are regular members, never absorbed into the network's `osm_relations`. Step 1 skips superroutes (they're containers for network discovery, not paths).
 7. **Route-system networks** — `cycle_network` tag grouping.
 8. **Wikidata enrichment** + MTB detection.
 9. **Markdown overrides** — `member_of` from markdown frontmatter applied last, before zombie cleanup.
@@ -42,7 +42,8 @@ The auto-grouping in `lib/cluster-entries.mjs` merges entries whose OSM ways sha
 - `_ways` is transient — exists in memory during build, stripped before YAML output.
 - `osm_way_ids` persists in YAML — the OSM way IDs composing each entry. Provenance metadata: trace any entry back to its source ways.
 - Way IDs are the merge key. Relations claim ways first. Named ways with ≥50% overlap merge into the relation entry. Names are display metadata, not structural keys.
-- The WayRegistry (`lib/way-registry.mjs`) is the single source of truth for way ownership during the pipeline run. Post-pipeline validation asserts no way appears in two entries.
+- The WayRegistry (`lib/way-registry.mjs`) is the single source of truth for way ownership during the pipeline run.
+- **Each OSM relation appears in exactly one entry's `osm_relations`.** Networks only carry their own superroute relation ID — never their members' relation IDs. Post-pipeline validation enforces this.
 - Anchors are for Overpass name lookups only — never for spatial reasoning (see `~/code/bike-routes/_ctx/spatial-reasoning.md`).
 - bikepaths.yml is the deliverable. Code changes without regenerating data are incomplete.
 - The Astro app reads bikepaths.yml + markdown directly. Both must be correct.
