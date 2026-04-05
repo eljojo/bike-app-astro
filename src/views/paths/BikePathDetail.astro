@@ -53,6 +53,8 @@ const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 const MIN_DISPLAY_KM = 0.5;
 const allMemberRefs = page.memberRefs ?? [];
 const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
+const primaryMembers = memberRefs.filter(m => !m.memberOf || m.memberOf === page.slug);
+const secondaryMembers = memberRefs.filter(m => m.memberOf && m.memberOf !== page.slug);
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
@@ -186,12 +188,12 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
 
         <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
 
-        {/* Member list (network only) */}
+        {/* Member list (network only) — primary members nested under this network, secondary members link to their primary network */}
         {isNetwork && memberRefs.length > 0 && (
           <section class="network-members">
             <h2>{t('paths.member_paths', locale)}</h2>
             <ul class="network-members-list">
-              {memberRefs.map(m => (
+              {primaryMembers.map(m => (
                 <li data-slug={m.slug}>
                   {m.standalone ? (
                     <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
@@ -207,6 +209,28 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
                 </li>
               ))}
             </ul>
+            {secondaryMembers.length > 0 && <h3>{t('paths.shared_members', locale)}</h3>}
+            {secondaryMembers.length > 0 && (
+              <ul class="network-members-list network-members-shared">
+                {secondaryMembers.map(m => (
+                  <li data-slug={m.slug}>
+                    {m.standalone ? (
+                      <a href={paths.bikePath(m.slug, m.memberOf, locale)} class="network-member-link network-member-secondary">
+                        <span class="network-member-name">{m.name}</span>
+                        <span class="network-member-meta">
+                          {m.length_km ? `${m.length_km} km · ` : ''}{networkNames[m.memberOf!] || m.memberOf}
+                        </span>
+                      </a>
+                    ) : (
+                      <span class="network-member-no-page">
+                        <span class="network-member-name">{m.name}</span>
+                        {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 

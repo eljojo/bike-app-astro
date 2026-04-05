@@ -675,6 +675,7 @@
   "paths.page_title": "All Bike Paths in {city}",
   "paths.pathways": "pathways",
   "paths.member_paths": "Pathways in this network",
+  "paths.shared_members": "Also part of this network",
   "paths.part_of": "Part of",
   "paths.fact.established": "Established",
   "paths.fact.website": "Official website",

@@ -675,6 +675,7 @@
   "paths.page_title": "Sentiers cyclables de {city}",
   "paths.pathways": "sentiers",
   "paths.member_paths": "Sentiers de ce r\u00e9seau",
+  "paths.shared_members": "Font aussi partie de ce r\u00e9seau",
   "paths.part_of": "Partie de",
   "paths.fact.established": "\u00c9tabli",
   "paths.fact.website": "Site officiel",

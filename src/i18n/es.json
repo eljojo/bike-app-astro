@@ -675,6 +675,7 @@
   "paths.page_title": "Ciclovías de {city}",
   "paths.pathways": "ciclovías",
   "paths.member_paths": "Ciclovías de esta red",
+  "paths.shared_members": "También parte de esta red",
   "paths.part_of": "Parte de",
   "paths.fact.established": "Establecida",
   "paths.fact.website": "Sitio oficial",

@@ -552,6 +552,18 @@
   margin-left: 1em;
 }
 
+// Secondary members — paths shared with another network
+.network-members h3 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 1.25rem 0 0.5rem;
+  @include muted-text;
+}
+
+.network-member-secondary .network-member-name {
+  font-weight: 400;
+}
+
 // Nearby paths
 .nearby-paths {
   margin-bottom: 1.5rem;
