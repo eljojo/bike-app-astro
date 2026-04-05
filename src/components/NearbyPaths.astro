@@ -12,12 +12,12 @@ interface NearbyPath {
 
 interface Props {
   nearbyPaths: NearbyPath[];
+  networkMeta?: Record<string, { name: string; length_km?: number }>;
   locale?: string;
 }
 
-const { nearbyPaths, locale } = Astro.props;
+const { nearbyPaths, networkMeta, locale } = Astro.props;
 
-// Localize a surface category key into a translated string
 function localizeSurface(raw?: string): string | undefined {
   const cat = displaySurface(raw);
   if (!cat) return undefined;
@@ -25,18 +25,49 @@ function localizeSurface(raw?: string): string | undefined {
   const translated = t(i18nKey, locale);
   return translated !== i18nKey ? translated : cat;
 }
+
+// Group paths by network when networkMeta is available
+const grouped: Array<{ networkSlug?: string; networkName?: string; paths: NearbyPath[] }> = [];
+if (networkMeta && Object.keys(networkMeta).length > 0) {
+  const byNetwork = new Map<string, NearbyPath[]>();
+  const standalone: NearbyPath[] = [];
+  for (const p of nearbyPaths) {
+    if (p.memberOf && networkMeta[p.memberOf]) {
+      const list = byNetwork.get(p.memberOf) ?? [];
+      list.push(p);
+      byNetwork.set(p.memberOf, list);
+    } else {
+      standalone.push(p);
+    }
+  }
+  for (const [slug, paths] of byNetwork) {
+    grouped.push({ networkSlug: slug, networkName: networkMeta[slug].name, paths });
+  }
+  if (standalone.length > 0) {
+    grouped.push({ paths: standalone });
+  }
+} else {
+  grouped.push({ paths: nearbyPaths });
+}
 ---
 
 {nearbyPaths.length > 0 && (
   <section class="nearby-paths">
     <h2>{t('paths.nearby_paths', locale)}</h2>
-    <ul class="nearby-paths-list">
-      {nearbyPaths.map(p => (
-        <li>
-          <a href={urlPaths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-          {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
-        </li>
-      ))}
-    </ul>
+    {grouped.map(group => (
+      <div>
+        {group.networkSlug && group.networkName && (
+          <a href={urlPaths.bikePath(group.networkSlug, undefined, locale)} class="nearby-paths-network">{group.networkName}</a>
+        )}
+        <ul class="nearby-paths-list">
+          {group.paths.map(p => (
+            <li>
+              <a href={urlPaths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
+              {localizeSurface(p.surface) && <span class="path-meta">{localizeSurface(p.surface)}</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
   </section>
 )}

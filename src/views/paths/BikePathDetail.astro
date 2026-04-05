@@ -460,7 +460,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         {(() => {
           const connectedSlugs = new Set(connectedPaths.map(p => p.slug));
           const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug) && !memberSlugSet.has(p.slug)).slice(0, 3);
-          return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
+          return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} networkMeta={networkMeta} locale={locale} /> : null;
         })()}
 
         {/* Website link card */}

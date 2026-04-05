@@ -636,6 +636,16 @@
   }
 }
 
+.nearby-paths-network {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-decoration: none;
+  display: block;
+  margin-top: 0.4rem;
+  &:first-child { margin-top: 0; }
+  &:hover { text-decoration: underline; }
+}
+
 // Photo grid on detail page
 .bike-path-photos {
   margin-bottom: 2rem;
