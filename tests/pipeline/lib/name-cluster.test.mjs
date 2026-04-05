@@ -2,9 +2,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { pickClusterName } from './name-cluster.mjs';
+import { pickClusterName } from '../../../scripts/pipeline/lib/name-cluster.mjs';
 
-const southMarch = JSON.parse(readFileSync(new URL('./fixtures/south-march-trails.json', import.meta.url), 'utf8'));
+const southMarch = JSON.parse(readFileSync(new URL('../fixtures/south-march-trails.json', import.meta.url), 'utf8'));
 
 describe('pickClusterName', () => {
   it('uses park name when Overpass returns a containing area', () => {

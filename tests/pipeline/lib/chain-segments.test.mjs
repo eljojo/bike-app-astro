@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chainSegments } from './chain-segments.mjs';
+import { chainSegments } from '../../../scripts/pipeline/lib/chain-segments.mjs';
 
 // Ottawa roughly: lat ~45.4, lon ~-75.7
 // 1 degree lat ≈ 111km, 1 degree lon ≈ ~78km at 45°

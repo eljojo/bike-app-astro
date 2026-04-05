@@ -9,11 +9,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { clusterByConnectivity, pathType } from './cluster-entries.mjs';
-import { autoGroupNearbyPaths } from './auto-group.mjs';
+import { clusterByConnectivity, pathType } from '../../../scripts/pipeline/lib/cluster-entries.mjs';
+import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.mjs';
 
 const fixture = JSON.parse(
-  readFileSync(new URL('./fixtures/gatineau-trails-52-53.json', import.meta.url), 'utf8')
+  readFileSync(new URL('../fixtures/gatineau-trails-52-53.json', import.meta.url), 'utf8')
 );
 const [trail52, trail53] = fixture.entries;
 

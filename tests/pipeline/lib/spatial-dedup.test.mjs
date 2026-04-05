@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resampleByDistance, isOverlapping } from './spatial-dedup.mjs';
+import { resampleByDistance, isOverlapping } from '../../../scripts/pipeline/lib/spatial-dedup.mjs';
 
 describe('resampleByDistance', () => {
   it('resamples a line at regular intervals', () => {

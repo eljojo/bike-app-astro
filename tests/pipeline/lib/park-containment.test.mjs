@@ -7,9 +7,9 @@
 // RECORD_OVERPASS=lib/fixtures/ottawa-cassette.json node build-bikepaths.mjs --city ottawa
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createPlayer } from './overpass.mjs';
-import { buildBikepathsPipeline } from '../build-bikepaths.mjs';
-import { loadCityAdapter } from './city-adapter.mjs';
+import { createPlayer } from '../../../scripts/pipeline/lib/overpass.mjs';
+import { buildBikepathsPipeline } from '../../../scripts/pipeline/build-bikepaths.mjs';
+import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 
 // Cassette lives in .cache/ (gitignored). Record with:
 // RECORD_OVERPASS=ottawa node scripts/build-bikepaths.mjs --city ottawa

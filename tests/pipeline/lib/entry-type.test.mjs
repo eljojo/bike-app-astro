@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveEntryType, waysLengthM } from './entry-type.mjs';
+import { deriveEntryType, waysLengthM } from '../../../scripts/pipeline/lib/entry-type.mjs';
 
 // Helper: make a simple straight-line _ways array of ~N metres
 // 1 degree lat ≈ 111,320m, so 0.001° ≈ 111m

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectBestRoad } from './select-best-road.mjs';
+import { selectBestRoad } from '../../../scripts/pipeline/lib/select-best-road.mjs';
 
 describe('selectBestRoad', () => {
   // Bug: Irwin Miller Street (residential) was picked over McArthur Avenue

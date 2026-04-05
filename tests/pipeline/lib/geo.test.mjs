@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nearestPointOnPolyline, corridorWidth } from './geo.mjs';
+import { nearestPointOnPolyline, corridorWidth } from '../../../scripts/pipeline/lib/geo.mjs';
 
 describe('nearestPointOnPolyline', () => {
   it('projects a point onto a straight horizontal line', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { derivePathType } from './path-type.mjs';
+import { derivePathType } from '../../../scripts/pipeline/lib/path-type.mjs';
 
 describe('derivePathType', () => {
   it('mtb=true → mtb-trail', () => {

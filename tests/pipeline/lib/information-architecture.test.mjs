@@ -8,9 +8,9 @@
 // Record cassette: RECORD_OVERPASS=ottawa node scripts/build-bikepaths.mjs --city ottawa
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createPlayer } from './overpass.mjs';
-import { buildBikepathsPipeline, parseMarkdownOverrides } from '../build-bikepaths.mjs';
-import { loadCityAdapter } from './city-adapter.mjs';
+import { createPlayer } from '../../../scripts/pipeline/lib/overpass.mjs';
+import { buildBikepathsPipeline, parseMarkdownOverrides } from '../../../scripts/pipeline/build-bikepaths.mjs';
+import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 
 const player = createPlayer('ottawa');
 const describeWithCassette = player ? describe : describe.skip;

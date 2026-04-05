@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBikepathsPipeline } from './build-bikepaths.mjs';
+import { buildBikepathsPipeline } from '../../scripts/pipeline/build-bikepaths.mjs';
 
 // Fixture: a single unnamed cycleway segment near the McArthur/Irwin Miller
 // intersection in Vanier. The road lookup returns both roads — the bug was

@@ -2,10 +2,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { clusterByConnectivity } from './cluster-entries.mjs';
+import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.mjs';
 
-const southMarch = JSON.parse(readFileSync(new URL('./fixtures/south-march-trails.json', import.meta.url), 'utf8'));
-const pineGrove = JSON.parse(readFileSync(new URL('./fixtures/pine-grove-trails.json', import.meta.url), 'utf8'));
+const southMarch = JSON.parse(readFileSync(new URL('../fixtures/south-march-trails.json', import.meta.url), 'utf8'));
+const pineGrove = JSON.parse(readFileSync(new URL('../fixtures/pine-grove-trails.json', import.meta.url), 'utf8'));
 
 describe('clusterByConnectivity', () => {
   it('merges entries whose ways share a node', () => {

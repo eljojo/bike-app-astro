@@ -2,11 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchWikidataEntity, extractBikePathMetadata, enrichWithWikidata } from './wikidata.mjs';
+import { fetchWikidataEntity, extractBikePathMetadata, enrichWithWikidata } from '../../../scripts/pipeline/lib/wikidata.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const realFixture = JSON.parse(
-  readFileSync(join(__dirname, 'fixtures', 'wikidata-Q5035630.json'), 'utf8')
+  readFileSync(join(__dirname, '..', 'fixtures', 'wikidata-Q5035630.json'), 'utf8')
 );
 
 describe('fetchWikidataEntity', () => {

@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discoverNetworks, expandSuperroute, buildNetworkEntry } from './discover-networks.mjs';
+import { discoverNetworks, expandSuperroute, buildNetworkEntry } from '../../../scripts/pipeline/lib/discover-networks.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixture = JSON.parse(
-  readFileSync(join(__dirname, 'fixtures', 'capital-pathway-superroute.json'), 'utf8')
+  readFileSync(join(__dirname, '..', 'fixtures', 'capital-pathway-superroute.json'), 'utf8')
 );
 
 describe('expandSuperroute', () => {

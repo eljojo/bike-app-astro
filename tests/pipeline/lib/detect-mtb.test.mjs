@@ -5,7 +5,7 @@
 // ambient (dirt path without cycling designation = probably MTB).
 
 import { describe, it, expect } from 'vitest';
-import { detectMtb } from './detect-mtb.mjs';
+import { detectMtb } from '../../../scripts/pipeline/lib/detect-mtb.mjs';
 
 describe('detectMtb', () => {
   // Tier 1: explicit mtb:scale tag

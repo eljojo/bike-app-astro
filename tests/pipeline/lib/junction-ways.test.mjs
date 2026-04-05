@@ -13,10 +13,10 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { clusterByConnectivity } from './cluster-entries.mjs';
+import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.mjs';
 
 const fixture = JSON.parse(
-  readFileSync(new URL('./fixtures/gatineau-junction-trails.json', import.meta.url), 'utf8')
+  readFileSync(new URL('../fixtures/gatineau-junction-trails.json', import.meta.url), 'utf8')
 );
 
 const trail54 = fixture.entries.find(e => e.name === 'Trail #54');

@@ -2,10 +2,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { autoGroupNearbyPaths } from './auto-group.mjs';
+import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.mjs';
 
-const southMarch = JSON.parse(readFileSync(new URL('./fixtures/south-march-trails.json', import.meta.url), 'utf8'));
-const pineGrove = JSON.parse(readFileSync(new URL('./fixtures/pine-grove-trails.json', import.meta.url), 'utf8'));
+const southMarch = JSON.parse(readFileSync(new URL('../fixtures/south-march-trails.json', import.meta.url), 'utf8'));
+const pineGrove = JSON.parse(readFileSync(new URL('../fixtures/pine-grove-trails.json', import.meta.url), 'utf8'));
 
 const mockQueryOverpass = async (q) => {
   // Return South March park for containment queries near that area
