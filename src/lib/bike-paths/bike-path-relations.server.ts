@@ -69,8 +69,8 @@ export interface PathRelations {
   overlappingRoutes: RouteCard[];
   nearbyPhotos: NearbyPhoto[];
   nearbyPlaces: NearbyPlace[];
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
-  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
 }
 
 /** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
@@ -553,13 +553,13 @@ export function enrichBikePathPages(
       .filter(p => enrichedBySlug.get(p.slug)?.standalone)
       .map(p => {
         const resolved = enrichedBySlug.get(p.slug)!;
-        return { ...p, memberOf: resolved.memberOf };
+        return { ...p, memberOf: resolved.memberOf, length_km: resolved.length_km };
       });
     page.connectedPaths = page.connectedPaths
       .filter(p => enrichedBySlug.get(p.slug)?.standalone)
       .map(p => {
         const resolved = enrichedBySlug.get(p.slug)!;
-        return { ...p, memberOf: resolved.memberOf };
+        return { ...p, memberOf: resolved.memberOf, length_km: resolved.length_km };
       });
   }
 

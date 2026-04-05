@@ -145,13 +145,19 @@ const externalConnected = connectedPaths.filter(p => {
 
 const showStubCta = !descriptionHtml && (page.stub || !page.hasMarkdown);
 
-// Infrastructure grouping — for ALL pages, groups connected/nearby paths by network
-const infraGroups = groupPathsByNetwork({
-  connectedPaths: externalConnected,
-  nearbyPaths: nearbyPaths.filter(p => !memberSlugSet.has(p.slug)),
-  ownNetwork: page.memberOf,
-  networkMeta,
-});
+// Infrastructure data — what connects to this path/network and what networks are nearby
+const filteredNearby = nearbyPaths.filter(p => !memberSlugSet.has(p.slug));
+// Connected paths sorted by length (longest first = most significant)
+const sortedConnected = [...externalConnected].sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+// Networks present in connected + nearby paths (deduplicated)
+const nearbyNetworkSlugs = new Set<string>();
+for (const p of [...externalConnected, ...filteredNearby]) {
+  if (p.memberOf && p.memberOf !== page.slug && p.memberOf !== page.memberOf) {
+    nearbyNetworkSlugs.add(p.memberOf);
+  }
+}
+// Own network (if this is a member path)
+const ownNetworkMeta = page.memberOf ? networkMeta[page.memberOf] : undefined;
 
 // Website resolution (page.website already includes wikidata_meta.website fallback)
 const websiteUrl = page.website;
@@ -212,59 +218,51 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
         </div>
 
-        {/* Infrastructure section — groups connected+nearby paths by network */}
-        {(infraGroups.networkGroups.length > 0 || infraGroups.otherPaths.length > 0) && (
-          <section data-testid="infrastructure-section" class="infrastructure-section">
-            <h2>{t('paths.infrastructure_here', locale)}</h2>
-
-            {infraGroups.networkGroups.map((group, i) => (
-              <div data-testid="network-card" data-network={group.slug} class="network-card" style={`border-left-color: var(--network-color-${i})`}>
-                <div class="network-card-header">
-                  {group.isOwn ? (
-                    <span data-testid="network-card-own">
-                      <a data-testid="network-card-name" href={paths.bikePath(group.slug, undefined, locale)} class="network-card-name">{group.name}</a>
+        {/* Connects to — paths you can ride to from here */}
+        {sortedConnected.length > 0 && (
+          <section data-testid="infrastructure-section" class="connects-to-section">
+            <h2>{t('paths.connects_to', locale)}</h2>
+            <ul class="connects-to-list">
+              {sortedConnected.slice(0, 5).map(p => (
+                <li data-testid="network-card-path" data-relation="connects" data-slug={p.slug}>
+                  <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="connects-to-link">
+                    <span class="connects-to-name">{p.name}</span>
+                    <span class="connects-to-meta">
+                      {p.length_km && `${p.length_km} km`}
+                      {p.length_km && p.surface && ' · '}
+                      {p.surface && (localizeSurface(p.surface, t, locale) || p.surface)}
                     </span>
-                  ) : (
-                    <a data-testid="network-card-name" href={paths.bikePath(group.slug, undefined, locale)} class="network-card-name">{group.name}</a>
+                  </a>
+                  {p.memberOf && networkMeta[p.memberOf] && (
+                    <a href={paths.bikePath(p.memberOf, undefined, locale)} class="connects-to-network">{networkMeta[p.memberOf].name}</a>
                   )}
-                  <span class="network-card-meta">
-                    {group.length_km && `${group.length_km} km`}
-                    {group.length_km && group.operator && ' · '}
-                    {group.operator}
-                  </span>
-                </div>
-                {group.isOwn && <div class="network-card-label">{t('paths.on_this_network', locale)}</div>}
-                {!group.isOwn && page.memberOf && group.slug !== page.memberOf && (
-                  <div class="network-card-label">{t('paths.also_this_network', locale)}</div>
-                )}
-                <div class="network-card-paths">
-                  {group.paths.map(p => (
-                    <div data-testid="network-card-path" data-relation={p.relation} class="network-card-path">
-                      <a href={paths.bikePath(p.slug, group.slug, locale)}>{p.name}</a>
-                      <span class="network-card-path-relation">
-                        {p.surface && `${localizeSurface(p.surface, t, locale) || p.surface} · `}{t(`paths.relation_${p.relation}`, locale)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-            {infraGroups.otherPaths.length > 0 && (
-              <div data-testid="other-paths" class="network-card" style="border-left-color: var(--color-text-muted)">
-                <div class="network-card-label">{t('paths.other_nearby', locale)}</div>
-                <div class="network-card-paths">
-                  {infraGroups.otherPaths.map(p => (
-                    <div data-testid="network-card-path" data-relation={p.relation} class="network-card-path">
-                      <a href={paths.bikePath(p.slug, undefined, locale)}>{p.name}</a>
-                      <span class="network-card-path-relation">
-                        {p.surface && `${localizeSurface(p.surface, t, locale) || p.surface} · `}{t(`paths.relation_${p.relation}`, locale)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+        {/* Networks — one-line summaries of networks in this area */}
+        {(ownNetworkMeta || nearbyNetworkSlugs.size > 0) && (
+          <section class="networks-here">
+            {ownNetworkMeta && page.memberOf && (
+              <div data-testid="network-card-own" class="network-here-own">
+                <a href={paths.bikePath(page.memberOf, undefined, locale)} class="network-here-link">
+                  {t('paths.on_this_network', locale)}: {ownNetworkMeta.name}
+                </a>
+                {ownNetworkMeta.length_km && <span class="network-here-meta">{ownNetworkMeta.length_km} km</span>}
               </div>
             )}
+            {[...nearbyNetworkSlugs].map(slug => {
+              const meta = networkMeta[slug];
+              if (!meta) return null;
+              return (
+                <div data-testid="network-card" data-network={slug} class="network-here-item">
+                  <a href={paths.bikePath(slug, undefined, locale)} class="network-here-link">{meta.name}</a>
+                  {meta.length_km && <span class="network-here-meta">{meta.length_km} km</span>}
+                </div>
+              );
+            })}
           </section>
         )}
 
@@ -433,10 +431,10 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           </div>
         )}
 
-        {/* Nearby paths — flat sidebar list (infrastructure section in main has the grouped version) */}
+        {/* Nearby paths — compact sidebar list, max 3, excludes connected and own members */}
         {(() => {
           const connectedSlugs = new Set(connectedPaths.map(p => p.slug));
-          const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug) && !memberSlugSet.has(p.slug));
+          const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug) && !memberSlugSet.has(p.slug)).slice(0, 3);
           return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
         })()}
 

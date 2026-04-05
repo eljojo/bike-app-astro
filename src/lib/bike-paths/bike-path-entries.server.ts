@@ -94,9 +94,9 @@ export interface BikePathPage {
   /** Precomputed nearby places (within 300m). */
   nearbyPlaces: Array<{ name: string; category: string; lat: number; lng: number; distance_m: number }>;
   /** Precomputed nearby paths (within 2km). */
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
   /** Precomputed connected paths (endpoints within 200m). */
-  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
   /** Wikipedia article reference — "en:Article Title" format. */
   wikipedia?: string;
   /** Resolved thumbnail key for index display (photo_key → route cover → map PNG). */

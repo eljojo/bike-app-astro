@@ -180,4 +180,71 @@ describe('buildBikepathsPipeline', () => {
     // only one entry, not two
     expect(result.filter(e => e.name === 'McArthur Avenue')).toHaveLength(1);
   });
+
+  it('does not bleed way-level wikidata/wikipedia onto the relation entry', async () => {
+    // Relation "Crosstown Bikeway 3" has no wikidata/wikipedia tags.
+    // One of its member ways is the Adàwe Crossing bridge, which has
+    // wikidata: Q48796246 and wikipedia: en:Adàwe Crossing.
+    // The bridge's tags must NOT bleed up to the bikeway entry.
+    const RELATION = {
+      type: 'relation', id: 10985930,
+      tags: { name: 'Crosstown Bikeway 3', route: 'bicycle', type: 'route',
+              network: 'lcn', ref: '3', cycle_network: 'CA:ON:Ottawa' },
+    };
+    // The bridge way — has wikidata/wikipedia that should NOT propagate
+    const BRIDGE_WAY = {
+      type: 'way', id: 701,
+      tags: {
+        highway: 'cycleway', name: 'Crosstown Bikeway 3',
+        surface: 'concrete', wikidata: 'Q48796246',
+        wikipedia: 'en:Adàwe Crossing', 'name:en': 'Adàwe crossing',
+        'name:fr': 'passerelle Adàwe',
+      },
+      geometry: [{ lat: 45.42, lon: -75.64 }, { lat: 45.43, lon: -75.63 }],
+      nodes: [3001, 3002],
+    };
+    // A normal bikeway way — no wikidata
+    const NORMAL_WAY = {
+      type: 'way', id: 702,
+      tags: { highway: 'cycleway', name: 'Crosstown Bikeway 3', surface: 'asphalt' },
+      geometry: [{ lat: 45.43, lon: -75.63 }, { lat: 45.44, lon: -75.62 }],
+      nodes: [3002, 3003],
+    };
+
+    const adapterWithWays = {
+      ...OTTAWA_ADAPTER,
+      namedWayQueries: (bbox) => [
+        { label: 'cycleways', q: `[out:json];way["highway"="cycleway"]["name"](${bbox});out geom tags;` },
+      ],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [RELATION] }],
+      ['out body', { elements: [{ type: 'relation', id: 10985930, members: [
+        { type: 'way', ref: 701, role: '' },
+        { type: 'way', ref: 702, role: '' },
+      ] }] }],
+      ['highway"="cycleway"]["name"', { elements: [BRIDGE_WAY, NORMAL_WAY] }],
+      ['out geom', { elements: [{ type: 'relation', id: 10985930, members: [
+        { type: 'way', ref: 701, role: '', geometry: BRIDGE_WAY.geometry },
+        { type: 'way', ref: 702, role: '', geometry: NORMAL_WAY.geometry },
+      ] }] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.3,-76.0,45.5,-75.5',
+      adapter: adapterWithWays,
+      manualEntries: [],
+    });
+
+    const bikeway = entries.find(e => e.name === 'Crosstown Bikeway 3');
+    expect(bikeway).toBeDefined();
+    // The relation has no wikidata — bridge way's wikidata must not bleed up
+    expect(bikeway.wikidata).toBeUndefined();
+    expect(bikeway.wikipedia).toBeUndefined();
+    // Bilingual names from bridge must not overwrite relation name
+    expect(bikeway.name_en).toBeUndefined();
+    expect(bikeway.name_fr).toBeUndefined();
+  });
 });

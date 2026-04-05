@@ -673,11 +673,84 @@
   }
 }
 
-// Infrastructure section — network cards (standalone/member detail pages)
-.infrastructure-section {
-  margin-bottom: 1.5rem;
+// Connects to — paths you can ride to from here
+.connects-to-section {
+  margin-bottom: 1.25rem;
 
-  h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+  h2 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+}
+
+.connects-to-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.connects-to-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid $color-card-bg;
+  @include dark-mode { border-color: $color-card-bg-dark; }
+}
+
+.connects-to-link {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: $color-text;
+  flex: 1;
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.connects-to-name {
+  font-weight: 500;
+}
+
+.connects-to-meta {
+  @include muted-text;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.connects-to-network {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+  &:hover { text-decoration: underline; }
+}
+
+// Networks here — one-line summaries
+.networks-here {
+  margin-bottom: 1.25rem;
+}
+
+.network-here-own,
+.network-here-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.network-here-own .network-here-link {
+  color: $color-accent;
+  font-weight: 500;
+}
+
+.network-here-link {
+  text-decoration: none;
+  color: $color-text;
+  font-size: 0.9rem;
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.network-here-meta {
+  @include muted-text;
+  font-size: 0.8rem;
 }
 
 .network-card {
