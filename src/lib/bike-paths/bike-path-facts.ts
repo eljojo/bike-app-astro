@@ -261,6 +261,7 @@ export function factLabelKey(factKey: string): string {
   if (factKey === 'path_type' || factKey === 'path_type_mixed') return 'paths.label.path_type';
   if (factKey === 'surface_width' || factKey === 'surface' || factKey === 'width' || factKey === 'surface_mixed') return 'paths.label.surface';
   if (factKey.startsWith('smoothness_')) return 'paths.label.surface_quality';
+  // mtb fact no longer emitted (replaced by path_type), but keep mapping for backward compatibility
   if (factKey === 'mtb') return 'paths.label.trail_type';
   if (factKey === 'separated_cars' || factKey === 'separated_peds') return 'paths.label.separated';
   if (factKey === 'lit' || factKey === 'not_lit' || factKey === 'lit_mixed') return 'paths.label.lit';

@@ -822,17 +822,17 @@
   text-decoration: none;
 }
 
-// Tier 2 collapsed
-.tier2-collapsed {
+// Tier 2 — collapsed summary of shorter segments
+.network-tier2 {
   padding: 0.5rem 0;
   font-size: 0.8rem;
 }
 
-.tier2-count {
+.network-tier2-label {
   @include muted-text;
 }
 
-.tier2-names {
+.network-tier2-names {
   @include muted-text;
   font-size: 0.8rem;
   margin-top: 0.25rem;

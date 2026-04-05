@@ -46,8 +46,14 @@ const trans = locale ? page.translations[locale] : undefined;
 const localeName = trans?.name || page.name;
 const localeVibe = trans?.vibe || page.vibe;
 const localeBody = trans?.body || page.body;
+// Body fallback: markdown → locale-aware wikidata description → YML description
+const wikidataMeta_ = page.ymlEntries[0]?.wikidata_meta as Record<string, unknown> | undefined;
+const shortLocale = locale?.split('-')[0] ?? 'en';
+const wikidataDesc = wikidataMeta_
+  ? ((wikidataMeta_[`description_${shortLocale}`] as string) ?? (wikidataMeta_.description_en as string))
+  : undefined;
 const bodyText = localeBody
-  || page.wikidata_description
+  || wikidataDesc
   || page.ymlEntries[0]?.description
   || undefined;
 const descriptionHtml = bodyText ? await renderMarkdownHtml(bodyText) : null;

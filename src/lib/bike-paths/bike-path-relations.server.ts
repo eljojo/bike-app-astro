@@ -265,6 +265,8 @@ export function computeBikePathRelations(
         }
       }
     }
+    // Sort by overlap distance descending — most-overlapping route first (used for thumbnail selection)
+    overlappingRoutes.sort((a, b) => (b.distanceOnPathKm ?? 0) - (a.distanceOnPathKm ?? 0));
     routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
 
     // Nearby paths (within 2km) — use spatial grid to find candidates
