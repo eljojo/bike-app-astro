@@ -2,18 +2,7 @@
 import { clusterByConnectivity, pathType } from './cluster-entries.mjs';
 import { pickClusterName } from './name-cluster.mjs';
 import { fetchParkPolygons, splitClusterByPark, classifyByPark } from './park-containment.mjs';
-
-// Duplicate of bike-app-astro's slugifyBikePathName — must stay in sync
-function slugifyBikePathName(name) {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/[\s-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+import { slugifyBikePathName } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
 
 /**
  * Compute disambiguated slugs for an array of entries (matching Astro's logic).

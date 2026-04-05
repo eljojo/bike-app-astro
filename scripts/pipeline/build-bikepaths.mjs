@@ -42,7 +42,7 @@ const queryOverpass = process.env.RECORD_OVERPASS
   ? createRecorder(process.env.RECORD_OVERPASS)
   : _queryOverpass;
 import { haversineM } from './lib/geo.mjs';
-import { slugify } from './lib/slugify.mjs';
+import { slugifyBikePathName as slugify } from '../../src/lib/bike-paths/bikepaths-yml.server.ts';
 import { loadCityAdapter } from './lib/city-adapter.mjs';
 import { chainSegments } from './lib/chain-segments.mjs';
 import { selectBestRoad } from './lib/select-best-road.mjs';
