@@ -1,0 +1,3723 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62 7c32a7d5",
+  "osm3s": {
+    "timestamp_osm_base": "2026-04-01T16:50:17Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "relation",
+      "id": 10990511,
+      "members": [
+        {
+          "type": "relation",
+          "ref": 7369735,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7206766,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7206688,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 9502635,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 215131,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 215128,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7206821,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7369758,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 224841,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 11009280,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7175007,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7369775,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "cycle_network": "CA:ON:NCC",
+        "name": "Capital Pathway",
+        "name:en": "Capital Pathway",
+        "name:fr": "Sentier de la capitale",
+        "network": "rcn",
+        "operator": "NCC",
+        "route": "bicycle",
+        "type": "superroute",
+        "wikidata": "Q5035630",
+        "wikipedia": "en:Capital Pathway",
+        "wikipedia:en": "Capital Pathway"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 215128,
+      "members": [
+        {
+          "type": "way",
+          "ref": 108600193,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 239907038,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418450,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418443,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 589114708,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418444,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418441,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418451,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39407201,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39407200,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 162041009,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 355374908,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311329,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418438,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418437,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39613192,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 750299909,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 950057433,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1119999225,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 950057432,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1119999226,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271825888,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1273475815,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 741966818,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271825886,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271825885,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 815757586,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 587969648,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 750299910,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 653764941,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 587966607,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 587966608,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 506554510,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39660300,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 506554511,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39613018,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39418443,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 499525367,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 638081272,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 132471945,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39660296,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 654089075,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1272745793,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443199534,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443199531,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443195671,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443195670,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39613020,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39451337,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39451338,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 499524725,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39662048,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 534150617,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39662047,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1442936857,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 701841601,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 53373211,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39613017,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 44227069,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311297,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311298,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311299,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311300,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 536666693,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 536666694,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311301,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311305,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311309,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311312,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311315,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 536666695,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311319,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311323,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311325,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1119999241,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311326,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1493777439,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1493777438,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311327,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 521311328,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 780976033,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Sentier des Voyageurs Pathway",
+        "network": "lcn",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 215131,
+      "members": [
+        {
+          "type": "way",
+          "ref": 39661683,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39661684,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39941642,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 808105848,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504587194,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 89734234,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 808110927,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39407197,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39407196,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504587195,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 460904789,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 89734214,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 961704209,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 961704211,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 28309447,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 737618568,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 584768750,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 584768749,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 90754443,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504569899,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504587200,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 460904791,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 460904792,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39941643,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1331130218,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39661686,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278947158,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278947157,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 28313005,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39613004,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443605501,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278947155,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278947153,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278947154,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443604775,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443604776,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443604783,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443604784,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443604782,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 162863560,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 162863574,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 793638071,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1443604785,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 194704615,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 162864652,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 104288800,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 813218899,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 813218898,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 162861776,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 162861773,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 793638072,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Sentier des Pionniers Pathway",
+        "network": "rcn",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 224841,
+      "members": [
+        {
+          "type": "way",
+          "ref": 504502461,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 26142259,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 194703384,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 137281070,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 814030072,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 814030077,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 323157142,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 137281071,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 285493198,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39335926,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 371956039,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 137281067,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 776369512,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 132471948,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 218250355,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 218250356,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39335925,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 137267316,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Sentier du Parc-de-la-Gatineau",
+        "name:en": "Gatineau Park Pathway",
+        "name:fr": "Sentier du Parc-de-la-Gatineau",
+        "network": "lcn",
+        "operator": "Commission de la capitale nationale / National Capital Commission",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7175007,
+      "members": [
+        {
+          "type": "way",
+          "ref": 1190646091,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 5248455,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1190646090,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 516689544,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 516689543,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 132471938,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1190646087,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 996738936,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585178198,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486462187,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486462186,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 775325810,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 435571827,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586002331,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 32856873,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 647120908,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717182,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1118906692,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717185,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 717272451,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 717272452,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1009994039,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486421075,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 352172679,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 352172680,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 610543323,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 610543329,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 55761411,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 793124269,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Watts Creek Pathway",
+        "network": "rcn",
+        "ref": "WCP",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7206688,
+      "members": [
+        {
+          "type": "way",
+          "ref": 656878374,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 708027161,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 275380836,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 40016974,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 766383786,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 275380874,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 275380855,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 690006847,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 690006848,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 490592617,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 490592619,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 275380866,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 40017228,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 589498759,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 305635225,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 305635227,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 40486902,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 790886035,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 790886036,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486685762,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1267500468,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271783814,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 88161323,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486685761,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 744153291,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 27829273,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 496131159,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 496131160,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 766382027,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "cycle_network": "CA:ON:NCC",
+        "name": "Rideau Canal Western Pathway",
+        "network": "rcn",
+        "operator": "NCC",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7206766,
+      "members": [
+        {
+          "type": "way",
+          "ref": 962037105,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 574108658,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 693997985,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1364904301,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 693997986,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 40047343,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 161052730,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 637354665,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1290382406,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 343089292,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 27696099,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 265351394,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504492559,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "cycle_network": "CA:ON:NCC",
+        "name": "Rideau Canal Eastern Pathway",
+        "network": "rcn",
+        "operator": "NCC",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7206821,
+      "members": [
+        {
+          "type": "way",
+          "ref": 746807904,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504503016,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504503017,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 112215391,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 46699610,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 739162848,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 41411189,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 117438993,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 739162850,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 739162849,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 160957585,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585545137,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1341441188,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585545138,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39799910,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 492447297,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 492447296,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 492447295,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 5121265,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585452645,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 130055897,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 490600304,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585481257,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 492692686,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 161375137,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76422002,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1266753416,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1266753415,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76421747,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1355835882,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76422132,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76423143,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1355835881,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 600412844,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76423118,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76423123,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1334532704,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76422196,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76421142,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 258069377,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 5121234,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 814314471,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 814314472,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 490600308,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585481258,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "cycle_network": "CA:ON:NCC",
+        "name": "Experimental Farm Pathway",
+        "network": "rcn",
+        "operator": "NCC",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7369735,
+      "members": [
+        {
+          "type": "way",
+          "ref": 688222158,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 468702042,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76449852,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76449841,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 538141150,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504492197,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 255401617,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 255401615,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 259823504,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 870497020,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 870497021,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486454216,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585807929,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585807928,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 494508600,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 893586864,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013172010,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013172011,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013172014,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 638065598,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1124310963,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191744,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022714794,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191749,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191741,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020955649,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 407463848,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1273523122,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191739,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191751,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 638071795,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013172007,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220194050,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013172008,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1124310953,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 893586863,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022429021,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191735,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022429020,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 220191737,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020955651,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 43932547,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585532964,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585532963,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1014202814,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 43932541,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277976835,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277976834,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 62045672,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 82449168,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277976836,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1014202815,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 62045669,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1298069177,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 734501665,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 161052737,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Rideau River Eastern Pathway",
+        "name:en": "Rideau River Eastern Pathway",
+        "name:fr": "Sentier de l'Est de la rivière Rideau",
+        "network": "lcn",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7369758,
+      "members": [
+        {
+          "type": "way",
+          "ref": 1278357513,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357514,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1351226522,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 27901651,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357512,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357503,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357504,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585807883,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357501,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357500,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585807884,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357498,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357499,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585828779,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357489,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357488,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 887370049,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 737867308,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Aviation Pathway",
+        "network": "lcn",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7369775,
+      "members": [
+        {
+          "type": "way",
+          "ref": 504501328,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 394729782,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277870239,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 109612148,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 109612145,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 109612151,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277870240,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 545107900,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585807844,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 794592232,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585807841,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 296915968,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 506590155,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 506590156,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010038235,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 53064704,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 545104140,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 136885361,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284514465,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284514464,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 62830344,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 392457937,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 386679112,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 204015570,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 248464952,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 248461897,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 136883660,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 148285428,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284514457,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284514456,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504503863,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 496548740,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284514458,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 148285427,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Greenbelt Pathway East",
+        "network": "lcn",
+        "ref": "GPE",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 9502635,
+      "members": [
+        {
+          "type": "relation",
+          "ref": 9502634,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 9502633,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 7174864,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "cycle_network": "CA:ON:NCC",
+        "name": "Ottawa River Pathway",
+        "name:fr": "Sentier de la Rivière des Outaouais",
+        "network": "rcn",
+        "route": "bicycle",
+        "type": "superroute"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 11009280,
+      "members": [
+        {
+          "type": "relation",
+          "ref": 7248705,
+          "role": ""
+        },
+        {
+          "type": "relation",
+          "ref": 11009279,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Greenbelt Pathway West",
+        "network": "rcn",
+        "operator": "NCC",
+        "route": "bicycle",
+        "type": "superroute"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7174864,
+      "members": [
+        {
+          "type": "way",
+          "ref": 1278294940,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278294939,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278294938,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278294937,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278294934,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278294936,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278294935,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504501310,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1227822056,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1240501261,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1240501262,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1127816611,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1127816610,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1127816612,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1126513382,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1278357515,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1014092731,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1021804109,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 878427948,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 877630723,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284516745,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284516746,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028349,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028350,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028351,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028352,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028353,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028354,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504501323,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1012905783,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 498810022,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 498810025,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504501325,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 35555561,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 744995545,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76456158,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504501331,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 734635944,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022335280,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 189408963,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022335282,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022335281,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 151449573,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 479744017,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028355,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022335284,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028357,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010028356,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 479744018,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 35555563,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 877630719,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 151442747,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504506730,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684884575,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 427921121,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586764490,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1349866410,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 188663879,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 188663873,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1341559555,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1341559556,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 188663871,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76449825,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 88778046,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 88778045,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Ottawa River Pathway (east)",
+        "name:fr": "Sentier de la Rivière des Outaouais (Est)",
+        "network": "rcn",
+        "operator": "NCC",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 7248705,
+      "members": [
+        {
+          "type": "way",
+          "ref": 1126128542,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284495146,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022980657,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 67268716,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 493733922,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717186,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284461092,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284461093,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 35674294,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 727317489,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1133538674,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284461094,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284461095,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1133538673,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1284461095,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1133538673,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1248305830,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1008667222,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1008667220,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717182,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1118906692,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717185,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 717272451,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 717272452,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1009994039,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486421075,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 231875520,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 352172663,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717181,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 231875519,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1026530422,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1022455969,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 742639053,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 255858996,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 742639054,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Greenbelt Pathway West",
+        "network": "rcn",
+        "operator": "NCC",
+        "ref": "GPW",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 9502633,
+      "members": [
+        {
+          "type": "way",
+          "ref": 892413806,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1190646092,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504076441,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010007994,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1023801378,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504076449,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1023801373,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 752137819,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1023801374,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010007995,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1190646094,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1023801377,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 752137820,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1239912627,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1190646095,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585178197,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1239979142,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1239912628,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1023801375,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1124879537,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1023801376,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1192176880,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1124879538,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1124879538,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010007997,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1010007999,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504076450,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504076451,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504076452,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 150700655,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1268244557,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 150700653,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864236,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1135492549,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1135492556,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1268244558,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864233,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1137375138,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864234,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864240,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486454215,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864241,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1268244563,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 583485036,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 583485035,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1130736328,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864242,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864243,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864244,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1025327942,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864265,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1025327945,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1025327944,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1137375140,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 489289274,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1137375139,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1135492552,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1135492548,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1135492553,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1135492547,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864267,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864272,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1013864266,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1283023567,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1025327948,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1144841932,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39662612,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1283023566,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1283023570,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1132948786,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 741090558,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271623096,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586749491,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271623097,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1271832574,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586749492,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1137375134,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 23190439,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39636369,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 365121282,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1272553213,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 365121283,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39635225,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 40485145,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1272553212,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 667307235,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 667307236,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 741090592,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 741090591,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 523927651,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 649318378,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684883243,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 337986839,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 337986843,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 337986838,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 649318377,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 23200843,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 499523460,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 499523459,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 210647734,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 733764875,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684883242,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Ottawa River Pathway (Trans Canada Trail)",
+        "name:fr": "Sentier de la Rivière des Outaouais (Sentier Transcanadien)",
+        "network": "ncn",
+        "ref": "TCT",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 9502634,
+      "members": [
+        {
+          "type": "way",
+          "ref": 499523457,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 497186227,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 497186226,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586002345,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1020717184,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684883246,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1368219124,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 486791005,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586002339,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684883248,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586002341,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 510830043,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 643231827,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1338964283,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1338964282,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684883250,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 684883251,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 643231826,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 620965621,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 643231825,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 754969484,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 37563459,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1341984188,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Ottawa River Pathway (west)",
+        "name:fr": "Sentier de la Rivière des Outaouais (Ouest)",
+        "network": "rcn",
+        "route": "bicycle",
+        "type": "route"
+      }
+    },
+    {
+      "type": "relation",
+      "id": 11009279,
+      "members": [
+        {
+          "type": "way",
+          "ref": 438460645,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 438460647,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 438460650,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 438460651,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277689757,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 438460652,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277864835,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 746414254,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585553287,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585553285,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 738995114,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 654260431,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 102808981,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 746414253,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585297984,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 738995059,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 438461349,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 746712818,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 746712819,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 68607844,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 734601329,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277864832,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 236493090,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 102702529,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76288546,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 509010459,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 541648758,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1302757008,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585272515,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1302757009,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586097343,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1302757010,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 586097342,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1302757011,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 509010455,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277927097,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277927093,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277927094,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585267977,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 458503848,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 458503849,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 458503850,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 467652080,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 76289359,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 467652081,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 467652082,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 467652083,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 472629853,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1281932637,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 793120457,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937772,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937773,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39695027,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937775,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937774,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937776,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585267967,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937777,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937778,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585267968,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937780,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277937779,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 540476461,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 540476460,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 540476459,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 540476462,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504641891,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 504641892,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 39698860,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1302755803,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277939153,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1277939154,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 585478533,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 1302755801,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 435509323,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 637294748,
+          "role": ""
+        },
+        {
+          "type": "way",
+          "ref": 637294749,
+          "role": ""
+        }
+      ],
+      "tags": {
+        "name": "Greenbelt Pathway West (Barrhaven)",
+        "network": "rcn",
+        "operator": "NCC",
+        "ref": "GPW",
+        "route": "bicycle",
+        "type": "route"
+      }
+    }
+  ]
+}
