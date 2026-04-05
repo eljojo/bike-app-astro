@@ -54,6 +54,7 @@ import { detectMtb } from './lib/detect-mtb.mjs';
 import { derivePathType } from './lib/path-type.mjs';
 import { deriveEntryType } from './lib/entry-type.mjs';
 import { rankByGeomDistance } from './lib/nearest-park.mjs';
+import { WayRegistry } from './lib/way-registry.mjs';
 
 // ---------------------------------------------------------------------------
 // CLI (only when run directly, not when imported)
@@ -609,7 +610,7 @@ function splitWaysByConnectivity(ways) {
  * Build entries from discovered OSM data and manual entries.
  * No reference to any existing bikepaths.yml — built from scratch.
  */
-function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries) {
+function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, wayRegistry) {
   console.log('Building entries from scratch...');
 
   const bySlug = new Map();
@@ -656,8 +657,37 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries) 
     byName.set(rel.name.toLowerCase(), entry);
   }
 
+  // Register relation member way IDs in the WayRegistry
+  for (const rel of osmRelations) {
+    if (rel._memberWayIds?.length > 0) {
+      const entry = byRelation.get(rel.id);
+      if (entry) wayRegistry.claim(entry, rel._memberWayIds);
+    }
+  }
+
   // Add named ways
   for (const np of osmNamedWays) {
+    // Check if this named-way group's ways are already claimed by a relation
+    const npWayIds = np._wayIds || [];
+    if (npWayIds.length > 0) {
+      const overlap = wayRegistry.overlapWith(npWayIds);
+      if (overlap.size > 0) {
+        let bestEntry = null, bestCount = 0;
+        for (const [entry, sharedIds] of overlap) {
+          if (sharedIds.size > bestCount) { bestEntry = entry; bestCount = sharedIds.size; }
+        }
+        const overlapRatio = bestCount / npWayIds.length;
+        if (overlapRatio >= 0.5 && bestEntry) {
+          enrichEntry(bestEntry, np.tags);
+          if (np.anchors?.length > (bestEntry.anchors?.length || 0)) bestEntry.anchors = np.anchors;
+          if (np._ways) bestEntry._ways = np._ways;
+          const unclaimed = npWayIds.filter(id => !wayRegistry.isClaimed(id));
+          if (unclaimed.length > 0) wayRegistry.claim(bestEntry, unclaimed);
+          continue;
+        }
+      }
+    }
+
     const slug = slugify(np.name);
     const existing = bySlug.get(slug) || byName.get(np.name.toLowerCase());
     if (existing) {
@@ -698,6 +728,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries) 
     result.push(entry);
     bySlug.set(slug, entry);
     byName.set(np.name.toLowerCase(), entry);
+    if (npWayIds.length > 0) wayRegistry.claim(entry, npWayIds);
   }
 
   // Add parallel lanes
@@ -1061,7 +1092,7 @@ export function parseMarkdownOverrides(bikePathsDir) {
  * @param {Array} [opts.manualEntries] — out-of-bounds manual entries
  * @param {Set<string>} [opts.markdownSlugs] — slugs claimed by markdown
  * @param {Map<string, {member_of?: string}>} [opts.markdownOverrides] — frontmatter overrides by slug
- * @returns {Promise<{ entries: Array, superNetworks: Array, slugMap: Map }>}
+ * @returns {Promise<{ entries: Array, superNetworks: Array, slugMap: Map, wayRegistry: WayRegistry }>}
  */
 export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set(), markdownOverrides = new Map() }) {
   // Step 1: Discover cycling relations
@@ -1079,6 +1110,32 @@ out tags;`;
     tags: el.tags || {},
   }));
   console.log(`  Found ${osmRelations.length} cycling relations`);
+
+  // Step 1a: Fetch member way IDs for each relation (for structural dedup).
+  // The discovery query above uses `out tags;` which only returns tags.
+  // We need `out body;` to get member lists with way IDs.
+  const wayRegistry = new WayRegistry();
+  if (osmRelations.length > 0) {
+    const relIds = osmRelations.map(r => r.id);
+    const bodyQ = `[out:json][timeout:120];\n(\n${relIds.map(id => `  relation(${id});`).join('\n')}\n);\nout body;`;
+    try {
+      const bodyData = await qo(bodyQ);
+      const bodyById = new Map();
+      for (const el of bodyData.elements) {
+        if (el.members) bodyById.set(el.id, el.members);
+      }
+      for (const rel of osmRelations) {
+        const members = bodyById.get(rel.id);
+        if (members) {
+          rel._memberWayIds = members.filter(m => m.type === 'way').map(m => m.ref);
+        }
+      }
+      const totalWays = osmRelations.reduce((n, r) => n + (r._memberWayIds?.length || 0), 0);
+      console.log(`  Fetched member way IDs: ${totalWays} ways across ${bodyById.size} relations`);
+    } catch (err) {
+      console.error(`  Failed to fetch relation member way IDs: ${err.message}`);
+    }
+  }
 
   // Step 1b: Resolve relation base names for ghost entry removal in step 8c.
   // Named ways sometimes duplicate relation entries (e.g. "Ottawa River Pathway"
@@ -1214,6 +1271,7 @@ out geom tags;`;
         anchors,
         osmNames: [name],
         _ways: combinedWays.length > 0 ? combinedWays : clusterWays.filter(w => w.geometry?.length >= 2).map(w => w.geometry),
+        _wayIds: clusterWays.filter(w => w.id).map(w => w.id),
       });
     }
   }
@@ -1490,7 +1548,7 @@ out geom tags;`;
 
   // Step 3: Build entries from scratch
   console.log('Building entries from scratch...');
-  const entries = buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries);
+  const entries = buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, wayRegistry);
 
   // Enrich manual entries whose relations fell outside bbox
   const discoveredRelationIds = new Set(osmRelations.map(r => r.id));
@@ -1803,7 +1861,15 @@ out geom tags;`;
     }
   }
 
-  return { entries: grouped, superNetworks, slugMap };
+  // Attach osm_way_ids from the registry to entries (for tests and callers)
+  for (const entry of grouped) {
+    const wayIds = wayRegistry.wayIdsFor(entry);
+    if (wayIds.size > 0) {
+      entry.osm_way_ids = [...wayIds].sort((a, b) => a - b);
+    }
+  }
+
+  return { entries: grouped, superNetworks, slugMap, wayRegistry };
 }
 
 // ---------------------------------------------------------------------------
@@ -1818,7 +1884,7 @@ async function main() {
   const bikePathsDir = path.join(dataDir, 'bike-paths');
   const markdownOverrides = parseMarkdownOverrides(bikePathsDir);
 
-  const { entries, superNetworks, slugMap } = await buildBikepathsPipeline({
+  const { entries, superNetworks, slugMap, wayRegistry } = await buildBikepathsPipeline({
     queryOverpass,
     bbox,
     adapter,
@@ -1843,6 +1909,13 @@ async function main() {
     }
     console.log(`\nTotal: ${entries.length} entries (${networkEntries.length} networks, ${memberEntries.length} members, ${superNetworks.length} super-networks)`);
   } else {
+    // Persist way IDs from the registry before stripping transient fields
+    for (const entry of entries) {
+      const wayIds = wayRegistry.wayIdsFor(entry);
+      if (wayIds.size > 0) {
+        entry.osm_way_ids = [...wayIds].sort((a, b) => a - b);
+      }
+    }
     // Slugs already set by the resolution pass — strip transient fields
     for (const entry of entries) {
       delete entry._ways;
