@@ -561,6 +561,17 @@ export function loadBikePathEntries(): {
       .map(s => pageBySlug.get(s))
       .filter((p): p is BikePathPage => !!p);
 
+    // Inline same-named members: a member whose name matches the parent
+    // doesn't need its own page — its data is shown on the parent page.
+    // E.g., "Ottawa Valley Recreation Trail" member inside the OVRT network
+    // becomes inline (standalone: false) instead of generating a `-1` URL.
+    const parentName = entry.name.toLowerCase();
+    for (const mp of memberPages) {
+      if (mp.name.toLowerCase() === parentName) {
+        mp.standalone = false;
+      }
+    }
+
     // A network needs ≥2 resolved members with at least one standalone page.
     // Otherwise clear memberOf so members stay at flat URLs.
     const standaloneCount = memberPages.filter(p => p.standalone).length;
