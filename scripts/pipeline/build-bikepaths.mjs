@@ -73,7 +73,8 @@ if (isMain) {
     process.exit(1);
   }
 
-  dataDir = path.resolve('..', args.city);
+  const contentDir = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
+  dataDir = path.join(contentDir, args.city);
   bikepathsPath = path.join(dataDir, 'bikepaths.yml');
 
   // Read city bounds from config.yml
