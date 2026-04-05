@@ -1885,6 +1885,17 @@ out geom tags;`;
     }
   }
 
+  // Step 9c: Validate — no way should appear in two entries.
+  const dupes = wayRegistry.conflicts();
+  if (dupes.length > 0) {
+    console.warn(`  ⚠ ${dupes.length} way(s) claimed by multiple entries:`);
+    for (const { wayId, entries: owners } of dupes.slice(0, 10)) {
+      const names = owners.map(e => e.name || e.slug || '?').join(', ');
+      console.warn(`    way ${wayId}: ${names}`);
+    }
+    if (dupes.length > 10) console.warn(`    ... and ${dupes.length - 10} more`);
+  }
+
   // Attach osm_way_ids from the registry to entries (for tests and callers)
   for (const entry of grouped) {
     const wayIds = wayRegistry.wayIdsFor(entry);
