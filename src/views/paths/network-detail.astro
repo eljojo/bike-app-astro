@@ -31,15 +31,38 @@ export async function getStaticPaths() {
         });
       }
     }
+    // Compute member geo IDs for the browse-style map
+    // allMemberGeoIds: ALL member geoFiles (for fit-to-network-extent on hover reset)
+    // interactiveGeoIds: only standalone members (for bold styling + popups)
+    // Use a Set because page.geoFiles may already include aggregated member geo files
+    const allGeoIdSet = new Set<string>();
+    const interactiveGeoIds: string[] = [];
+    for (const gf of page.geoFiles) {
+      allGeoIdSet.add(gf.replace(/\.geojson$/, ''));
+    }
+    for (const m of page.memberRefs ?? []) {
+      const memberPage = pageBySlug.get(m.slug);
+      if (memberPage) {
+        for (const gf of memberPage.geoFiles) {
+          allGeoIdSet.add(gf.replace(/\.geojson$/, ''));
+          if (memberPage.standalone) {
+            interactiveGeoIds.push(gf.replace(/\.geojson$/, ''));
+          }
+        }
+      }
+    }
+    const allMemberGeoIds = [...allGeoIdSet];
+
     return {
       params: { network: page.slug },
-      props: { page, networkMeta, memberMeta },
+      props: { page, networkMeta, memberMeta, allMemberGeoIds, interactiveGeoIds },
     };
   });
 }
 
-interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean; path_type?: string; seasonal?: string; ref?: string; inception?: string; bicycle?: string; cycleway?: string; parallel_to?: string }> }
-const { page, networkMeta, memberMeta } = Astro.props;
+interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean; path_type?: string; seasonal?: string; ref?: string; inception?: string; bicycle?: string; cycleway?: string; parallel_to?: string }>; allMemberGeoIds: string[]; interactiveGeoIds: string[] }
+const { page, networkMeta, memberMeta, allMemberGeoIds, interactiveGeoIds } = Astro.props;
 ---
 
-<BikePathDetail page={page} networkMeta={networkMeta} memberMeta={memberMeta} />
+<BikePathDetail page={page} networkMeta={networkMeta} memberMeta={memberMeta}
+  allMemberGeoIds={allMemberGeoIds} interactiveGeoIds={interactiveGeoIds} />

@@ -28,9 +28,13 @@ interface Props {
   networkMeta: Record<string, NetworkMeta>;
   memberMeta?: PathMeta[];                // network only — member metadata for fact aggregation
   networkPage?: BikePathPage;             // member only
+  /** All member geo IDs — for fit-to-network-extent (network pages only). */
+  allMemberGeoIds?: string[];
+  /** Standalone member geo IDs — for interactive map styling (network pages only). */
+  interactiveGeoIds?: string[];
 }
 
-const { page, networkMeta, memberMeta, networkPage } = Astro.props;
+const { page, networkMeta, memberMeta, networkPage, allMemberGeoIds, interactiveGeoIds } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -123,6 +127,31 @@ const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
 const highlightGeoIds = page.geoFiles.map(f => f.replace(/\.geojson$/, ''));
+
+// --- Network browse map data (slug info for popups, built from memberRefs) ---
+function localizePathType(pt?: string): string | undefined {
+  if (!pt) return undefined;
+  const key = `paths.fact.${pt.replace(/-/g, '_')}`;
+  const val = t(key, locale);
+  return val !== key ? val : undefined;
+}
+
+const networkMapSlugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string }> = {};
+if (hasMembers) {
+  for (const m of page.memberRefs ?? []) {
+    if (m.standalone) {
+      const url = paths.bikePath(m.slug, m.memberOf ?? page.slug, locale);
+      networkMapSlugInfo[m.slug] = {
+        name: m.name,
+        url,
+        length_km: m.length_km,
+        surface: localizeSurface(m.surface, t, locale) || m.surface,
+        path_type: localizePathType(m.path_type),
+        vibe: m.vibe,
+      };
+    }
+  }
+}
 
 // --- Member-specific data ---
 const networkName = networkPage
@@ -228,18 +257,23 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
 
     {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
 
-    {/* Full-width map when page has members (networks, trails with sections) */}
+    {/* Full-width browse-style map for networks — same infrastructure as the index page */}
     {hasMembers && (
       <div class="network-map-full">
-        <BikePathMap
-          highlightGeoIds={highlightGeoIds}
-          center={computeCenter(page.points)}
-          fallbackCenter={fallbackCenter}
-          hintText={t('paths.tap_to_explore', locale)}
-          closeLabel={t('paths.close_map', locale)}
-          cdnUrl={config.cdn_url}
-          highlightSelector=".network-members-list li[data-slug]"
-        />
+        <div class="paths-map-hero-wrapper">
+          <div
+            class="paths-map-hero"
+            id="network-browse-map"
+            data-center={JSON.stringify(computeCenter(page.points) || fallbackCenter)}
+            data-all-member-geo-ids={JSON.stringify(allMemberGeoIds ?? [])}
+            data-interactive-geo-ids={JSON.stringify(interactiveGeoIds ?? [])}
+            data-slug-info={JSON.stringify(networkMapSlugInfo)}
+            style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
+          ></div>
+          <div class="map-touch-lock" id="network-map-touch-lock">
+            <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+          </div>
+        </div>
       </div>
     )}
 
@@ -596,3 +630,31 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
   </div>
 </Base>
 
+<script>
+  import { createPathsBrowseMap } from '../../lib/maps/paths-browse-map';
+
+  const container = document.getElementById('network-browse-map');
+  if (container) {
+    const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+    const allMemberGeoIds: string[] = JSON.parse(container.dataset.allMemberGeoIds || '[]');
+    const interactiveGeoIdsList: string[] = JSON.parse(container.dataset.interactiveGeoIds || '[]');
+    const slugInfo = JSON.parse(container.dataset.slugInfo || '{}');
+
+    createPathsBrowseMap({
+      container,
+      touchLockEl: document.getElementById('network-map-touch-lock'),
+      center,
+      zoom: 11,
+      compactHeight: 400,
+      expandedHeight: 700,
+      slugInfo,
+      interactiveGeoIds: new Set(interactiveGeoIdsList),
+      listSelector: '.network-members-list li[data-slug], .network-member-long-distance[data-slug]',
+      onHighlightClear: (result) => {
+        // Fit to ALL member geometry (including non-standalone) so the
+        // whole network is visible when hover resets
+        result.fitToGeoIds(allMemberGeoIds);
+      },
+    });
+  }
+</script>
