@@ -1,74 +1,109 @@
 ---
-description: How the two-tier _ctx/ context system works — loading protocol, maintenance rules, why it exists
+description: How the _ctx/ knowledge base works — philosophy, loading tiers, types, maintenance
 type: knowledge
 triggers: [adding context files, maintaining docs, onboarding to the repo, wondering how _ctx/ works]
-related: [protocol-drift-correction]
+related: [protocol-ctx-maintenance]
 ---
 
 # Context System
 
-## Why This Exists
+## What This Is
 
-AI attention is finite. When every rule is loaded for every task, they compete with each other. Rules that aren't relevant to the current task dilute the ones that are. Worse: rules don't survive task transitions — an AI that correctly applies a principle during one task drops it when the work reframes as something else.
+`_ctx/` is institutional memory made by AIs for AIs. It's a living knowledge base — the AI equivalent of onboarding docs, tribal knowledge, and design rationale combined into one system. Every file exists to make the next AI session smarter about this project.
 
-The postmortem at `~/code/bike-app/docs/2026-03-28-ai-referent-drift-postmortem.md` documents this in detail. The fix isn't more rules — it's better routing of the right rules to the right task.
+It is not documentation for humans. It doesn't need to be verbose or formatted for readability. Signal density is everything — every sentence must earn its place.
 
-## How It Works
+## Three Functions
 
-Two tiers:
+### Align
 
-- **AGENTS.md** (always loaded) — mission, ownership mindset, mandatory rules, protocol triggers, and a one-line index of `_ctx/` files. This is what every session starts with, regardless of task.
-- **`_ctx/*.md`** (task-relevant) — detail files pulled in when their topic matches the current work. Each has a `triggers` field in its frontmatter listing when to load it.
+Files that communicate the human's vision, values, and long-term direction. These are vectors — they keep every session pointed the same way, even when no specific task triggers them. An AI that builds a technically correct feature but violates the brand voice or the empathy principle has failed. Alignment files are the ones most at risk of being "optimized away" by an AI focused on the immediate task. They're also the ones that matter most across sessions.
 
-This pattern repeats at every level. Subdirectory AGENTS.md files contain must-knows for that directory plus links to `_ctx/` files for the full patterns.
+Type: `vision`
 
-## Loading Protocol
+### Teach
 
-1. **Root AGENTS.md is automatic.** Every session starts with it. The ownership mindset and mandatory rules are always active.
-2. **Before starting work, scan the Context index.** Which `_ctx/` files match your task? A save handler change needs `save-pipeline.md`. A copy edit needs `voice-and-feel.md`. A new content type needs `adding-new-things.md` and `content-model.md`.
-3. **Read matching files. Check their `triggers` field.** If your task appears in the triggers list, the file is relevant.
-4. **When entering a subdirectory, read its AGENTS.md.** It has must-knows specific to that code.
-5. **When the task changes, re-check.** The relevant context may have shifted. This is the most important step — rules that were active during the previous task may not apply, and new ones may.
-6. **Follow `related` links** when you need connected context, but don't rabbit-hole. Related files are adjacent context, not required reading.
+Files that explain how the app works — what things are, how systems connect, why they were built that way. An AI reading these isn't being constrained, it's being educated. The better it understands the domain, the better decisions it makes without needing explicit rules for every case.
 
-## Type Weights
+Type: `knowledge`
 
-| Type | Weight | Meaning |
-|------|--------|---------|
-| `rule` | Highest | Non-negotiable. Violations are bugs. |
-| `protocol` | High | Executable step-by-step procedures. Follow when triggered. |
-| `pattern` | Medium | How we do things. Follow unless there's a specific reason not to. |
-| `guide` | Medium | Shapes judgment calls. Informs decisions. |
-| `gotcha` | Contextual | Read when touching the relevant area. Prevents known mistakes. |
-| `roadmap` | Lowest | Where we're going. Context, not instruction. |
+### Protect
+
+Files that prevent catastrophic mistakes. Rules enforced by CI, protocols triggered by dangerous situations, gotchas that prevent known traps.
+
+Types: `rule`, `protocol`, `gotcha`
+
+## Signal Principle
+
+Every sentence in a `_ctx/` file should pass one of two tests:
+
+1. **Task test:** "Would an AI make a worse decision on a specific task without this?"
+2. **Drift test:** "Would removing this cause drift from the human's vision over time, even if no single task would fail?"
+
+If neither answer is yes, it's noise. Cut it.
+
+Noise trains AI to skim. High signal density means AI actually absorbs what it reads. A 20-line file that gets read carefully beats a 200-line file that gets skimmed.
+
+## Broken Windows
+
+A stale file, a wrong reference, a section that no longer matches the code — these are broken windows. Each one teaches the next AI session that `_ctx/` can't be trusted. Once trust erodes, AI stops reading carefully, starts skimming, makes decisions without context. The whole system fails.
+
+Leave no broken windows unnoticed. See [protocol-ctx-maintenance](protocol-ctx-maintenance.md).
+
+## Loading Tiers
+
+### Always-Read (non-optional)
+
+Five files loaded at the start of every session. **Read these before starting any work. This is not optional.** Listed in AGENTS.md under "Always Read."
+
+### Task-Triggered
+
+The rest of `_ctx/`. Each file has a `triggers` field listing when to load it. Before starting work, scan the Context index in AGENTS.md — which files match your task? Read matching files and check their triggers.
+
+### Related
+
+Each file has a `related` field pointing to adjacent context. Follow these links when you need connected understanding, but don't rabbit-hole.
+
+### On Task Transitions
+
+When the kind of work changes (e.g., from spatial analysis to text editing, from debugging to writing), re-check which files are relevant. Rules and knowledge that were active during the previous task may not apply, and new ones may. This is the most dangerous moment for context loss.
+
+## Type System
+
+| Type | Function | Weight | Meaning |
+|------|----------|--------|---------|
+| `vision` | Align | High | Sets long-term direction. Alignment vectors for the human's values and goals. |
+| `knowledge` | Teach | Medium | Explains how things work. How systems connect, what things are, why decisions were made. |
+| `rule` | Protect | Highest | Non-negotiable. Violations are bugs. Often enforced by ESLint/CI. |
+| `protocol` | Protect | High | Step-by-step procedures. Follow when triggered. |
+| `gotcha` | Protect | Contextual | Known traps. Read when touching the relevant area. |
 
 ## Frontmatter Format
 
 ```yaml
 ---
-description: One-line hook (used in the AGENTS.md index)
-type: rule | pattern | guide | gotcha | protocol | roadmap
+description: One-line hook (AI reads this in the index to decide whether to open the file)
+type: vision | knowledge | rule | protocol | gotcha
 triggers: [plain-language descriptions of when to load this file]
 related: [other-file-stem, another-file-stem]
 ---
 ```
 
-- **`description`** — the AI reads this in the index to decide whether to open the full file. Make it specific enough to be useful in one line.
-- **`type`** — drives how much weight the content carries.
-- **`triggers`** — plain-language cues. An AI checks these against its current task.
-- **`related`** — cross-reference graph. File stems without `.md`.
-
 ## Adding a New File
 
-1. **Check if it's already covered.** Search existing files first.
-2. **Choose the right type.** Most new context is `pattern` or `gotcha`. Use `rule` only for non-negotiable constraints. Use `protocol` only for step-by-step procedures.
+1. **Check if it's already covered.** Grep existing files first.
+2. **Choose the right type.** Most new context is `knowledge`. Use `vision` for directional principles. Use `rule` only for non-negotiable constraints enforced by tooling. Use `protocol` only for step-by-step procedures. Use `gotcha` only for platform-specific traps.
 3. **Write clear triggers.** What task would make an AI need this file?
-4. **Add to the root AGENTS.md index.** One line, under the right type heading.
-5. **Add `related` references** in both directions (the new file references existing ones, and relevant existing files reference the new one).
+4. **Maximize signal density.** Every sentence earns its place. Write for AI comprehension, not human readability.
+5. **Add to the AGENTS.md index.** One line, under the right category heading.
+6. **Add `related` references** in both directions.
 
-## When a File Becomes Stale
+## Maintenance
 
-Update or delete it. Stale context is worse than no context — it trains the AI to ignore docs. Remove the entry from the AGENTS.md index. Update any files that reference it in their `related` field.
+Two tiers:
+
+- **Light (every session):** When you change code that a file describes, update the file in the same commit. When you notice a file is wrong, fix it immediately. See [protocol-ctx-maintenance](protocol-ctx-maintenance.md).
+- **Deep (periodic):** Dedicated review of all files against current code. Check for staleness, gaps, redundancy, noise, broken windows. See [protocol-ctx-maintenance](protocol-ctx-maintenance.md).
 
 ## Contradiction Rule
 
@@ -77,18 +112,13 @@ One source of truth per topic. If two files disagree:
 - More specific wins over more general
 - Fix the contradiction immediately — don't leave it for the next session
 
-Subdirectory AGENTS.md files add local specifics. They must not contradict root AGENTS.md or `_ctx/` files.
-
 ## Validation
 
 Run `make validate-ctx` to check:
 - All `_ctx/` links in AGENTS.md files resolve to real files
-- All `_ctx/` files have required frontmatter
+- All `_ctx/` files have required frontmatter with valid types
 - All `_ctx/` files are listed in the root index
+- All `related` references point to existing files
 - No stray formatting artifacts
 
 This runs in CI.
-
-## The Deeper Principle
-
-The goal isn't documentation — it's alignment. A well-loaded AI makes better decisions because it has the right constraints active for the task at hand. The system works when the AI reads less total text but more relevant text. That's the trade: volume for precision.
