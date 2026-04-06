@@ -39,6 +39,41 @@
   margin-bottom: 0;
 }
 
+// Path info popup on index map
+.path-popup {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.path-popup-name {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.2rem;
+}
+.path-popup-network {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  margin-bottom: 0.2rem;
+}
+.path-popup-meta {
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  margin-bottom: 0.2rem;
+}
+.path-popup-vibe {
+  font-style: italic;
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  margin-bottom: 0.3rem;
+}
+.path-popup-link {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: $color-link;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
 .paths-map-hero {
   border-radius: $border-radius;
   overflow: hidden;

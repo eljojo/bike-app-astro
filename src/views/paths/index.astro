@@ -31,16 +31,29 @@ const relationToSlug: Record<string, string> = {};
 // Pre-compute slug → URL so client-side click handlers use correct (potentially nested) URLs.
 // Only include paths that have a page (standalone) — prevents dead links on the map.
 const slugToUrl: Record<string, string> = {};
+// Popup info for each path — keyed by slug, serialized to JSON for client
+const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string }> = {};
 for (const p of allPages) {
   // Skip connectors — not listed, not standalone, don't appear on the map
   if (!p.listed && !p.standalone) continue;
   // Skip network pages' aggregated geometry — member pages already registered
   // their own geoIds. Network overwrites would route member clicks to the network page.
   if (p.memberRefs && p.memberRefs.length > 0) {
-    if (p.standalone) slugToUrl[p.slug] = paths.bikePath(p.slug, p.memberOf, locale);
+    if (p.standalone) {
+      const url = paths.bikePath(p.slug, p.memberOf, locale);
+      slugToUrl[p.slug] = url;
+      slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: p.surface, path_type: p.path_type, vibe: pathVibe(p), network: undefined };
+    }
     continue;
   }
-  if (p.standalone) slugToUrl[p.slug] = paths.bikePath(p.slug, p.memberOf, locale);
+  if (p.standalone) {
+    const url = paths.bikePath(p.slug, p.memberOf, locale);
+    slugToUrl[p.slug] = url;
+    // Find network name if member
+    const netPage = p.memberOf ? allPages.find(n => n.slug === p.memberOf) : undefined;
+    const netName = netPage ? pathName(netPage) : undefined;
+    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: p.surface, path_type: p.path_type, vibe: pathVibe(p), network: netName };
+  }
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;
     interactiveRelIds.add(String(relId));
@@ -212,6 +225,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               data-listed-ids={JSON.stringify([...listedRelIds])}
               data-network-geo-ids={JSON.stringify(networkGeoIds)}
               data-category-geo-ids={JSON.stringify(categoryGeoIds)}
+          data-slug-info={JSON.stringify(slugInfo)}
               style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
             ></div>
             <div class="map-touch-lock" id="paths-map-touch-lock">
@@ -341,10 +355,11 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 </Base>
 
 <script>
-  import { initMap, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
+  import { initMap, showPopup, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
   import { setupMapTouchLock } from '../../lib/maps/map-touch-lock';
   import { setupPathHighlight } from '../../lib/maps/path-highlight';
+  import { html } from '../../lib/maps/map-helpers';
   import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
   import { createMapExpandButton } from '../../lib/maps/map-expand-button';
   import maplibregl from 'maplibre-gl';
@@ -358,6 +373,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
     const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
     const slugUrls: Record<string, string> = JSON.parse(container.dataset.slugUrls || '{}');
+    const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string }> = JSON.parse(container.dataset.slugInfo || '{}');
     const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
     const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
@@ -496,12 +512,31 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
       // --- Map interaction ---
 
-      // Click on any path → navigate to detail page
+      // Click on any path → show info popup
       function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
         if (!e.features?.length) return;
         const slug = e.features[0].properties?.slug;
-        const url = slug ? slugUrls[slug] : undefined;
-        if (url) window.location.href = url;
+        if (!slug) return;
+        const info = slugInfo[slug];
+        if (!info) return;
+
+        const meta: string[] = [];
+        if (info.length_km) meta.push(`${info.length_km} km`);
+        if (info.surface) meta.push(info.surface);
+        if (info.path_type) meta.push(info.path_type.replace(/-/g, ' '));
+
+        const content = html`<div class="path-popup">
+          <strong class="path-popup-name">${info.name}</strong>
+          ${info.network ? html`<div class="path-popup-network">${info.network}</div>` : ''}
+          ${meta.length > 0 ? html`<div class="path-popup-meta">${meta.join(' · ')}</div>` : ''}
+          ${info.vibe ? html`<div class="path-popup-vibe">${info.vibe}</div>` : ''}
+          <a href="${info.url}" class="path-popup-link">View details &rarr;</a>
+        </div>`;
+
+        const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
+          .setLngLat(e.lngLat)
+          .setHTML(content);
+        showPopup(map, popup);
       }
       map.on('click', 'paths-network-line', handlePathClick);
       map.on('click', 'paths-network-bg', handlePathClick);
