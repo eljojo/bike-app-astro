@@ -97,6 +97,24 @@ describe('TCT segments belong to their local networks', () => {
     const orp = net('ottawa-river-pathway');
     expect(orp.members).toContain('ottawa-river-pathway-trans-canada-trail');
   });
+
+  it('Trans Canada Trail (Sussex Drive) has member_of ottawa-river-pathway', () => {
+    if (!entries) return;
+    const e = entry('trans-canada-trail-sussex-drive');
+    expect(e.member_of).toBe('ottawa-river-pathway');
+  });
+
+  it('Trans Canada Trail (Bells Corners/Watts Creek) has member_of ncc-greenbelt', () => {
+    if (!entries) return;
+    const e = entry('trans-canada-trail-bells-cornerswatts-creek');
+    expect(e.member_of).toBe('ncc-greenbelt');
+  });
+
+  it('Ottawa River Pathway (Trans Canada Trail) has member_of ottawa-river-pathway', () => {
+    if (!entries) return;
+    const e = entry('ottawa-river-pathway-trans-canada-trail');
+    expect(e.member_of).toBe('ottawa-river-pathway');
+  });
 });
 
 // ---------------------------------------------------------------------------

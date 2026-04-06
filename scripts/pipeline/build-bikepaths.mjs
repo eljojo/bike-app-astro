@@ -1957,6 +1957,7 @@ out geom tags;`;
   // stay as members — the pipeline assigned them based on real way overlap.
   // Only truly large trails (>200 ways) get detached.
   const DETACH_WAY_THRESHOLD = 200;
+  const detachedEntries = new Set();
   for (const entry of grouped) {
     if (entry.type === 'long-distance' && entry._networkRef) {
       const wayCount = entry._ways?.length ?? 0;
@@ -1966,6 +1967,7 @@ out geom tags;`;
           net._memberRefs = net._memberRefs.filter(m => m !== entry);
         }
         delete entry._networkRef;
+        detachedEntries.add(entry);
       }
     }
   }
@@ -1976,10 +1978,6 @@ out geom tags;`;
       entry.member_of = slugMap.get(entry._networkRef);
       delete entry._networkRef;
     }
-    // Long-distance entries must not be network members — strip if set through any path
-    if (entry.type === 'long-distance' && entry.member_of) {
-      delete entry.member_of;
-    }
     if (entry._superNetworkRef) {
       entry.super_network = slugMap.get(entry._superNetworkRef);
       delete entry._superNetworkRef;
@@ -1989,6 +1987,11 @@ out geom tags;`;
       delete entry._memberRefs;
     }
     entry.slug = slugMap.get(entry);
+  }
+
+  // Strip member_of from detached long-distance entries (after all resolution)
+  for (const entry of detachedEntries) {
+    delete entry.member_of;
   }
 
   // Resolve superNetworks metadata slugs from final slugMap
@@ -2151,6 +2154,12 @@ async function main() {
         const lngs = entry.anchors.map(a => a[0]);
         const lats = entry.anchors.map(a => a[1]);
         entry.anchors = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
+      }
+    }
+    // Final cleanup: strip member_of from large detached long-distance entries
+    for (const entry of entries) {
+      if (entry.type === 'long-distance' && entry.member_of && (entry.osm_way_ids?.length ?? 0) >= 200) {
+        delete entry.member_of;
       }
     }
     const yamlData = { bike_paths: entries };
