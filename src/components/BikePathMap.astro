@@ -1,21 +1,15 @@
 ---
 interface Props {
-  geoFiles: string[];
+  highlightGeoIds?: string[];
   center?: [number, number];  // [lat, lng] from anchors
   fallbackCenter: [number, number];  // [lat, lng] from city config
   hintText: string;
   closeLabel: string;
   cdnUrl?: string;
-  /** Optional mapping from geo filename to slug — enables list↔map hover highlight */
-  slugMap?: Record<string, string>;
-  /** Optional mapping from slug to display name — enables click popups */
-  nameMap?: Record<string, string>;
-  /** Optional mapping from slug to URL — enables click-through links */
-  urlMap?: Record<string, string>;
   /** CSS selector for list items with data-slug to wire up hover highlight */
   highlightSelector?: string;
 }
-const { geoFiles, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', slugMap, nameMap, urlMap, highlightSelector } = Astro.props;
+const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', highlightSelector } = Astro.props;
 ---
 
 <div class="expandable-map-wrapper">
@@ -23,13 +17,10 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', slu
   <div
     class="expandable-map-card"
     id="bike-path-map"
-    data-geo-files={JSON.stringify(geoFiles)}
+    data-highlight-geo-ids={highlightGeoIds && highlightGeoIds.length > 0 ? JSON.stringify(highlightGeoIds) : ''}
     data-center={center ? JSON.stringify(center) : ''}
     data-fallback-center={JSON.stringify(fallbackCenter)}
     data-cdn-url={cdnUrl}
-    data-slug-map={slugMap ? JSON.stringify(slugMap) : ''}
-    data-name-map={nameMap ? JSON.stringify(nameMap) : ''}
-    data-url-map={urlMap ? JSON.stringify(urlMap) : ''}
     data-highlight-selector={highlightSelector || ''}
     role="button"
     tabindex="0"
@@ -44,33 +35,33 @@ const { geoFiles, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', slu
 
 <script>
   import { setupMapFromElement } from '../lib/maps/map-factory';
-  import { createGeojsonLineLayer } from '../lib/maps/layers';
+  import { createTilePathLayer } from '../lib/maps/layers';
   import { setupPathHighlight } from '../lib/maps/path-highlight';
 
   const container = document.getElementById('bike-path-map');
   if (container) {
-    // BikePathMap uses geojson files instead of encoded polylines — create the layer manually
-    const geoFiles: string[] = JSON.parse(container.dataset.geoFiles || '[]');
-    const slugMap = container.dataset.slugMap ? JSON.parse(container.dataset.slugMap) : {};
-    const nameMap = container.dataset.nameMap ? JSON.parse(container.dataset.nameMap) : {};
-    const urlMap = container.dataset.urlMap ? JSON.parse(container.dataset.urlMap) : {};
+    const rawHighlightGeoIds = container.dataset.highlightGeoIds || '';
+    const highlightGeoIds: Set<string> | undefined = rawHighlightGeoIds
+      ? new Set<string>(JSON.parse(rawHighlightGeoIds))
+      : undefined;
     const highlightSelector = container.dataset.highlightSelector || '';
-    const hasSlugMap = Object.keys(slugMap).length > 0;
 
-    const geojsonLayer = createGeojsonLineLayer({
-      geoFiles,
-      fetchPath: '/bike-paths/geo/',
-      ...(hasSlugMap && { slugMap }),
-      ...(Object.keys(nameMap).length > 0 && { nameMap }),
-      ...(Object.keys(urlMap).length > 0 && { urlMap }),
+    const manifestPromise = fetch('/bike-paths/geo/tiles/manifest.json')
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => []);
+
+    const tilePathLayer = createTilePathLayer({
+      manifestPromise,
+      fetchPath: '/bike-paths/geo/tiles/',
+      highlightGeoIds,
     });
 
     const { map, expandable, photoLayer } = setupMapFromElement(container, {
       expandable: true,
-      primaryLayer: geojsonLayer,
+      primaryLayer: tilePathLayer,
       onReady: () => {
-        if (highlightSelector && hasSlugMap) {
-          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['bike-path-line'] });
+        if (highlightSelector && highlightGeoIds) {
+          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['paths-network-line'] });
         }
       },
     });
