@@ -32,6 +32,13 @@ const relationToSlug: Record<string, string> = {};
 // Only include paths that have a page (standalone) — prevents dead links on the map.
 const slugToUrl: Record<string, string> = {};
 // Popup info for each path — keyed by slug, serialized to JSON for client
+// Localize path_type for popup display
+function localizePathType(pt?: string): string | undefined {
+  if (!pt) return undefined;
+  const key = `paths.fact.${pt.replace(/-/g, '_')}`;
+  const val = t(key, locale);
+  return val !== key ? val : undefined;
+}
 const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string }> = {};
 for (const p of allPages) {
   // Skip connectors — not listed, not standalone, don't appear on the map
@@ -42,7 +49,7 @@ for (const p of allPages) {
     if (p.standalone) {
       const url = paths.bikePath(p.slug, p.memberOf, locale);
       slugToUrl[p.slug] = url;
-      slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: p.surface, path_type: p.path_type, vibe: pathVibe(p), network: undefined };
+      slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: undefined };
     }
     continue;
   }
@@ -52,7 +59,7 @@ for (const p of allPages) {
     // Find network name if member
     const netPage = p.memberOf ? allPages.find(n => n.slug === p.memberOf) : undefined;
     const netName = netPage ? pathName(netPage) : undefined;
-    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: p.surface, path_type: p.path_type, vibe: pathVibe(p), network: netName };
+    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: netName };
   }
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;
@@ -359,7 +366,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
   import { setupMapTouchLock } from '../../lib/maps/map-touch-lock';
   import { setupPathHighlight } from '../../lib/maps/path-highlight';
-  import { html } from '../../lib/maps/map-helpers';
+  import { html, raw } from '../../lib/maps/map-helpers';
   import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
   import { createMapExpandButton } from '../../lib/maps/map-expand-button';
   import maplibregl from 'maplibre-gl';
@@ -523,13 +530,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         const meta: string[] = [];
         if (info.length_km) meta.push(`${info.length_km} km`);
         if (info.surface) meta.push(info.surface);
-        if (info.path_type) meta.push(info.path_type.replace(/-/g, ' '));
+        if (info.path_type) meta.push(info.path_type);
 
         const content = html`<div class="path-popup">
           <strong class="path-popup-name">${info.name}</strong>
-          ${info.network ? html`<div class="path-popup-network">${info.network}</div>` : ''}
-          ${meta.length > 0 ? html`<div class="path-popup-meta">${meta.join(' · ')}</div>` : ''}
-          ${info.vibe ? html`<div class="path-popup-vibe">${info.vibe}</div>` : ''}
+          ${info.network ? raw(html`<div class="path-popup-network">${info.network}</div>`) : ''}
+          ${meta.length > 0 ? raw(html`<div class="path-popup-meta">${meta.join(' · ')}</div>`) : ''}
+          ${info.vibe ? raw(html`<div class="path-popup-vibe">${info.vibe}</div>`) : ''}
           <a href="${info.url}" class="path-popup-link">View details &rarr;</a>
         </div>`;
 
