@@ -368,18 +368,6 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       slugToNetwork: slugToNetworkMap,
       networkGeoIds,
       labels: { viewDetails: container.dataset.labelViewDetails },
-      onHighlightClear: () => {
-        const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
-        const activeSlug = activeTab?.dataset.network;
-        const geoIds = activeSlug && activeSlug !== 'all'
-          ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
-          : undefined;
-        if (geoIds && geoIds.length > 0) {
-          fitToGeoIds(geoIds);
-        } else {
-          map.flyTo({ center, zoom: 11, duration: 500 });
-        }
-      },
       onReady: () => {
         // Activate first tab's highlight once layers are ready
         const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
@@ -432,5 +420,23 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         });
       });
     }
+
+    // --- Fly back to category extent when leaving a group (not between items) ---
+    function flyBackToCategory() {
+      const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
+      const activeSlug = activeTab?.dataset.network;
+      const geoIds = activeSlug && activeSlug !== 'all'
+        ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
+        : undefined;
+      if (geoIds && geoIds.length > 0) {
+        fitToGeoIds(geoIds);
+      } else {
+        map.flyTo({ center, zoom: 11, duration: 500 });
+      }
+    }
+
+    document.querySelectorAll<HTMLElement>('.category-network-group, .network-panel[data-panel="all"] .paths-list').forEach(group => {
+      group.addEventListener('mouseleave', flyBackToCategory);
+    });
   }
 </script>
