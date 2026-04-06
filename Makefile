@@ -22,7 +22,7 @@ test: prebuild ## Run unit tests
 test-lambda: ## Run Lambda unit tests (aws/video-agent)
 	node --test aws/video-agent/handler.test.mjs
 
-typecheck: prebuild ## Run TypeScript type checking
+typecheck: ## Run TypeScript type checking
 	npx astro sync
 	npx tsc --noEmit
 

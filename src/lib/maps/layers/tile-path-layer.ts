@@ -252,6 +252,22 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       removeSourceAndLayers(map);
     },
 
+    getBounds() {
+      if (!tileLoader) return null;
+      const features = tileLoader.allLoadedFeatures();
+      const bounds = new maplibregl.LngLatBounds();
+      for (const f of features) {
+        // In detail mode, only include highlighted features
+        if (isDetailMode && f.properties?._geoId && !highlightGeoIds!.has(f.properties._geoId)) continue;
+        const geom = f.geometry;
+        const coords = geom.type === 'LineString' ? (geom as GeoJSON.LineString).coordinates
+          : geom.type === 'MultiLineString' ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+          : [];
+        for (const c of coords) bounds.extend(c as [number, number]);
+      }
+      return bounds.isEmpty() ? null : bounds;
+    },
+
     setVisible(map: maplibregl.Map, v: boolean) {
       visible = v;
       const vis = v ? 'visible' : 'none';
