@@ -66,6 +66,16 @@ describe('isLongDistance', () => {
   it('already type: long-distance → true', () => {
     expect(isLongDistance({ type: 'long-distance' })).toBe(true);
   });
+
+  it('MTB trail with large geometry → false (MTB is always local)', () => {
+    // Gatineau Park MTB trail system: 95 ways, big relation, but it's a local trail network
+    expect(isLongDistance({ mtb: true, path_type: 'mtb-trail', osm_relations: [1], _ways: makeWays(0.5) })).toBe(false);
+  });
+
+  it('MTB trail with NCN tag → true (long-distance route on rough terrain)', () => {
+    // Sentier Trans-Canada Gatineau-Montréal: MTB-rideable section of the Trans Canada Trail
+    expect(isLongDistance({ mtb: true, path_type: 'mtb-trail', network: 'ncn', osm_relations: [1], _ways: makeWays(0.5) })).toBe(true);
+  });
 });
 
 describe('deriveEntryType', () => {

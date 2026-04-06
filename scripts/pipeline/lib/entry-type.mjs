@@ -42,6 +42,10 @@ const MEGATRAIL_M = 30_000;
  */
 export function isLongDistance(entry) {
   if (entry.type === 'long-distance') return true;
+  // MTB trails are local by nature — a trail system is a network of loops,
+  // not a linear touring route, regardless of total geometry length.
+  // Exception: NCN-tagged MTB entries are long-distance routes on rough terrain.
+  if ((entry.mtb || entry.path_type === 'mtb-trail') && entry.network !== 'ncn') return false;
   const lengthM = waysLengthM(entry._ways);
   const hasRelation = entry.osm_relations?.length > 0;
   if (entry.network === 'ncn' && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
