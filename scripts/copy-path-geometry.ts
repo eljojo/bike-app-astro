@@ -9,6 +9,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+if (process.env.ENABLE_BIKE_PATHS === 'false') {
+  console.log('[path-geo] ENABLE_BIKE_PATHS=false — skipping copy');
+  process.exit(0);
+}
+
 const CITY = process.env.CITY || 'ottawa';
 const cacheDir = path.resolve('.cache', 'bikepath-geometry', CITY);
 const outDir = path.join('public', 'bike-paths', 'geo');

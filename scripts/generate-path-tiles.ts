@@ -121,6 +121,11 @@ export function buildTiles(input: Map<string, FeatureCollection>): {
 const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename);
 
 if (isMainModule) {
+  if (process.env.ENABLE_BIKE_PATHS === 'false') {
+    console.log('[path-tiles] ENABLE_BIKE_PATHS=false — skipping');
+    process.exit(0);
+  }
+
   const geoDir = path.resolve('public', 'bike-paths', 'geo');
   const tilesDir = path.join(geoDir, 'tiles');
 
