@@ -629,30 +629,10 @@ describe('buildNetworkFacts', () => {
     expect(buildNetworkFacts([])).toEqual([]);
   });
 
-  it('returns unanimous bicycle_designated when all members have designated', () => {
+  it('does not emit bicycle facts for networks (redundant on a bike site)', () => {
     const facts = buildNetworkFacts([
       { bicycle: 'designated' },
       { bicycle: 'designated' },
-    ]);
-    const bic = facts.find(f => f.key === 'bicycle_designated');
-    expect(bic).toBeDefined();
-    expect(bic!.consistency).toBe('unanimous');
-  });
-
-  it('returns partial bicycle_yes when some members have bicycle=yes', () => {
-    const facts = buildNetworkFacts([
-      { bicycle: 'yes' },
-      {},
-    ]);
-    const bic = facts.find(f => f.key === 'bicycle_yes');
-    expect(bic).toBeDefined();
-    expect(bic!.consistency).toBe('partial');
-  });
-
-  it('does not emit bicycle fact when members have mixed bicycle values', () => {
-    const facts = buildNetworkFacts([
-      { bicycle: 'designated' },
-      { bicycle: 'yes' },
     ]);
     expect(facts.find(f => f.key === 'bicycle_designated')).toBeUndefined();
     expect(facts.find(f => f.key === 'bicycle_yes')).toBeUndefined();

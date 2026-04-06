@@ -1952,7 +1952,7 @@ out geom tags;`;
   }
 
   // Step 9: Final resolution — compute slugs once, resolve all refs to strings
-  // First: detach long-distance entries from local networks — they pass through
+  // Detach long-distance entries from local networks — they pass through
   // but shouldn't be members (their geometry extends far beyond the network).
   for (const entry of grouped) {
     if (entry.type === 'long-distance' && entry._networkRef) {
@@ -1969,6 +1969,10 @@ out geom tags;`;
     if (entry._networkRef) {
       entry.member_of = slugMap.get(entry._networkRef);
       delete entry._networkRef;
+    }
+    // Long-distance entries must not be network members — strip if set through any path
+    if (entry.type === 'long-distance' && entry.member_of) {
+      delete entry.member_of;
     }
     if (entry._superNetworkRef) {
       entry.super_network = slugMap.get(entry._superNetworkRef);

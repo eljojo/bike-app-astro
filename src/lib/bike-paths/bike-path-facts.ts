@@ -281,18 +281,6 @@ export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
     // Mixed operators: skip — network page already shows its own operator field
   }
 
-  // --- Bicycle access ---
-  const bicycleVals = members.filter(m => m.bicycle).map(m => m.bicycle!);
-  if (bicycleVals.length > 0) {
-    const unique = [...new Set(bicycleVals)];
-    if (unique.length === 1) {
-      facts.push({
-        key: unique[0] === 'designated' ? 'bicycle_designated' : 'bicycle_yes',
-        consistency: bicycleVals.length === members.length ? 'unanimous' : 'partial',
-      });
-    }
-  }
-
   // --- Parallel to road ---
   const parallelCount = members.filter(m => m.parallel_to).length;
   if (parallelCount > 0 && parallelCount < members.length) {

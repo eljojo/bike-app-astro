@@ -25,8 +25,12 @@ describe('waysLengthM', () => {
 });
 
 describe('isLongDistance', () => {
-  it('rcn with relation → true', () => {
-    expect(isLongDistance({ network: 'rcn', osm_relations: [1], _ways: makeWays(0.01) })).toBe(true);
+  it('rcn with short relation → false (rcn alone is not long-distance)', () => {
+    expect(isLongDistance({ network: 'rcn', osm_relations: [1], _ways: makeWays(0.01) })).toBe(false);
+  });
+
+  it('rcn with long relation → true', () => {
+    expect(isLongDistance({ network: 'rcn', osm_relations: [1], _ways: makeWays(0.6) })).toBe(true);
   });
 
   it('ncn with relation → true', () => {
@@ -63,10 +67,10 @@ describe('deriveEntryType', () => {
     })).toBe('long-distance');
   });
 
-  it('rcn route with relation → trail', () => {
+  it('short rcn route with relation → destination (not long-distance)', () => {
     expect(deriveEntryType({
       network: 'rcn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.01),
-    })).toBe('long-distance');
+    })).toBe('destination');
   });
 
   it('ncn without relation → not long-distance (falls to other rules)', () => {
