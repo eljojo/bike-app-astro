@@ -61,7 +61,7 @@ const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = 
       primaryLayer: tilePathLayer,
       onReady: () => {
         if (highlightSelector && highlightGeoIds) {
-          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['paths-network-line'] });
+          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['paths-network-line', 'paths-network-line-dashed'] });
         }
       },
     });
