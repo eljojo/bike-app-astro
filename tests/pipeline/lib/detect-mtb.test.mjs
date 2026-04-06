@@ -33,39 +33,78 @@ describe('detectMtb', () => {
     expect(entries[0].mtb).toBe(true);
   });
 
-  // Tier 2: inferred from grouped_from cluster
-  it('group with one explicit MTB member → all trail members get mtb: true', () => {
-    const entries = [
-      {
-        name: 'Gatineau Trails',
-        grouped_from: ['trail-41', 'trail-42', 'trail-43'],
-        highway: 'path', surface: 'ground',
-      },
-      { name: 'Trail 41', highway: 'path', surface: 'ground' },
-      { name: 'Trail 42', highway: 'path', surface: 'ground', 'mtb:scale': '3' },
-      { name: 'Trail 43', highway: 'path', surface: 'ground' },
-    ];
+  // Tier 2: inferred from network membership via _memberRefs
+  it('network with one explicit MTB member (_memberRefs) → all trail members inherit mtb: true', () => {
+    const trail41 = { name: 'Trail 41', highway: 'path', surface: 'ground' };
+    const trail42 = { name: 'Trail 42', highway: 'path', surface: 'ground', 'mtb:scale': '3' };
+    const trail43 = { name: 'Trail 43', highway: 'path', surface: 'ground' };
+    const network = {
+      name: 'Gatineau Trails',
+      type: 'network',
+      highway: 'path', surface: 'ground',
+      _memberRefs: [trail41, trail42, trail43],
+    };
+    const entries = [network, trail41, trail42, trail43];
     detectMtb(entries);
-    // The group and all its trail-type members should be MTB
-    expect(entries[0].mtb).toBe(true); // group
-    expect(entries[1].mtb).toBe(true); // trail-41 (inferred)
-    expect(entries[2].mtb).toBe(true); // trail-42 (explicit)
-    expect(entries[3].mtb).toBe(true); // trail-43 (inferred)
+    // Explicit MTB member
+    expect(trail42.mtb).toBe(true);
+    // Non-MTB trail members inherit from the network
+    expect(trail41.mtb).toBe(true); // inferred
+    expect(trail43.mtb).toBe(true); // inferred
+    // Network itself inherits (it's trail-type, not paved)
+    expect(network.mtb).toBe(true);
   });
 
-  it('group with MTB member does NOT infect paved members', () => {
-    const entries = [
-      {
-        name: 'Mixed Group',
-        grouped_from: ['paved-connector', 'dirt-trail'],
-        highway: 'cycleway', surface: 'asphalt',
-      },
-      { name: 'Paved Connector', highway: 'cycleway', surface: 'asphalt' },
-      { name: 'Dirt Trail', highway: 'path', surface: 'ground', 'mtb:scale': '1' },
-    ];
+  it('network with one explicit MTB member (slug members) → trail members inherit mtb: true', () => {
+    // Slug for "Trail 42" → "trail-42", etc.
+    const trail41 = { name: 'Trail 41', highway: 'path', surface: 'ground' };
+    const trail42 = { name: 'Trail 42', highway: 'path', surface: 'ground', 'mtb:scale': '3' };
+    const trail43 = { name: 'Trail 43', highway: 'path', surface: 'ground' };
+    const network = {
+      name: 'Gatineau Trails',
+      type: 'network',
+      highway: 'path', surface: 'ground',
+      members: ['trail-41', 'trail-42', 'trail-43'],
+    };
+    const entries = [network, trail41, trail42, trail43];
     detectMtb(entries);
-    expect(entries[1].mtb).toBeUndefined(); // paved stays paved
-    expect(entries[2].mtb).toBe(true);      // dirt trail is MTB
+    expect(trail42.mtb).toBe(true); // explicit
+    expect(trail41.mtb).toBe(true); // inferred via network
+    expect(trail43.mtb).toBe(true); // inferred via network
+  });
+
+  it('network with MTB member does NOT infect paved members', () => {
+    const pavedConnector = { name: 'Paved Connector', highway: 'cycleway', surface: 'asphalt' };
+    const dirtTrail = { name: 'Dirt Trail', highway: 'path', surface: 'ground', 'mtb:scale': '1' };
+    const network = {
+      name: 'Mixed Network',
+      type: 'network',
+      highway: 'cycleway', surface: 'asphalt',
+      _memberRefs: [pavedConnector, dirtTrail],
+    };
+    const entries = [network, pavedConnector, dirtTrail];
+    detectMtb(entries);
+    expect(pavedConnector.mtb).toBeUndefined(); // paved stays paved
+    expect(dirtTrail.mtb).toBe(true);           // dirt trail is MTB (explicit)
+  });
+
+  it('non-network entry with members field is ignored by Tier 2', () => {
+    // Entries without type: 'network' should NOT trigger Tier 2 inference
+    const trail41 = { name: 'Trail 41', highway: 'path', surface: 'ground' };
+    const trail42 = { name: 'Trail 42', highway: 'path', surface: 'ground', 'mtb:scale': '3' };
+    const cluster = {
+      name: 'Some Cluster',
+      // no type: 'network'
+      highway: 'path', surface: 'ground',
+      _memberRefs: [trail41, trail42],
+    };
+    // We need to exclude trail41 from Tier 3 MTB to test Tier 2 isolation.
+    // Make trail41 designated cycling so Tier 3 won't auto-label it.
+    trail41.bicycle = 'designated';
+    const entries = [cluster, trail41, trail42];
+    detectMtb(entries);
+    expect(trail42.mtb).toBe(true);      // explicit Tier 1
+    expect(trail41.mtb).toBeUndefined(); // NOT inferred — cluster is not type: 'network'
   });
 
   // Tier 3: ambient — dirt path without cycling designation

@@ -37,8 +37,16 @@ describe('isLongDistance', () => {
     expect(isLongDistance({ network: 'ncn', osm_relations: [1], _ways: makeWays(0.01) })).toBe(true);
   });
 
-  it('≥30km → true', () => {
-    expect(isLongDistance({ _ways: makeWays(0.28), path_type: 'mup' })).toBe(true);
+  it('≥30km with relation → true', () => {
+    expect(isLongDistance({ _ways: makeWays(0.28), osm_relations: [1], path_type: 'mup' })).toBe(true);
+  });
+
+  it('≥30km with ref → true', () => {
+    expect(isLongDistance({ _ways: makeWays(0.28), ref: 'T1', path_type: 'mup' })).toBe(true);
+  });
+
+  it('≥30km without relation or ref → false', () => {
+    expect(isLongDistance({ _ways: makeWays(0.28), path_type: 'mup' })).toBe(false);
   });
 
   it('short path without network tags → false', () => {
@@ -91,10 +99,16 @@ describe('deriveEntryType', () => {
     })).toBe('destination');
   });
 
-  it('any path ≥30km → long-distance regardless of network tag', () => {
+  it('path ≥30km with relation → long-distance', () => {
     expect(deriveEntryType({
-      path_type: 'mup', _ways: makeWays(0.28), // ~31km
+      path_type: 'mup', _ways: makeWays(0.28), osm_relations: [1], // ~31km
     })).toBe('long-distance');
+  });
+
+  it('path ≥30km without relation or ref → not long-distance', () => {
+    expect(deriveEntryType({
+      path_type: 'mup', _ways: makeWays(0.28), // ~31km, no identity
+    })).not.toBe('long-distance');
   });
 
   it('path just under 30km → not long-distance', () => {

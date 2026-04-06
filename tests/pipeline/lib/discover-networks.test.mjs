@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discoverNetworks, expandSuperroute, buildNetworkEntry } from '../../../scripts/pipeline/lib/discover-networks.mjs';
+import { discoverNetworks, expandSuperroute, buildNetworkEntry, discoverRouteSystemNetworks } from '../../../scripts/pipeline/lib/discover-networks.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixture = JSON.parse(
@@ -215,6 +215,78 @@ describe('discoverNetworks', () => {
     };
 
     const networks = await discoverNetworks({ bbox: '0,0,1,1', queryOverpass: mockQuery });
+    expect(networks).toHaveLength(0);
+  });
+});
+
+describe('discoverRouteSystemNetworks', () => {
+  function makeRoute(id, cycleNetwork, ref) {
+    return { type: 'relation', id, tags: { route: 'bicycle', cycle_network: cycleNetwork, ref } };
+  }
+
+  it('groups routes sharing the same cycle_network into a network', async () => {
+    const mockQuery = async () => ({
+      elements: [
+        makeRoute(1001, 'CA:ON:Ottawa', 'R1'),
+        makeRoute(1002, 'CA:ON:Ottawa', 'R2'),
+        makeRoute(1003, 'CA:ON:Ottawa', 'R3'),
+      ],
+    });
+
+    const networks = await discoverRouteSystemNetworks({ bbox: '0,0,1,1', queryOverpass: mockQuery });
+    expect(networks).toHaveLength(1);
+    const net = networks[0];
+    expect(net.type).toBe('network');
+    expect(net.cycle_network).toBe('CA:ON:Ottawa');
+    expect(net._member_relations).toEqual([1001, 1002, 1003]);
+  });
+
+  it('derives the network name from the last segment of cycle_network', async () => {
+    const mockQuery = async () => ({
+      elements: [
+        makeRoute(2001, 'CA:QC:Montreal', 'B1'),
+        makeRoute(2002, 'CA:QC:Montreal', 'B2'),
+      ],
+    });
+
+    const networks = await discoverRouteSystemNetworks({ bbox: '0,0,1,1', queryOverpass: mockQuery });
+    expect(networks[0].name).toBe('Montreal Bikeways');
+  });
+
+  it('skips cycle_network groups with fewer than 2 members', async () => {
+    const mockQuery = async () => ({
+      elements: [
+        makeRoute(3001, 'CA:ON:Ottawa', 'R1'),
+        makeRoute(3002, 'CA:ON:Ottawa', 'R2'),
+        makeRoute(3003, 'CA:BC:Vancouver', 'V1'), // only one in its group
+      ],
+    });
+
+    const networks = await discoverRouteSystemNetworks({ bbox: '0,0,1,1', queryOverpass: mockQuery });
+    // Ottawa group qualifies; Vancouver group does not
+    expect(networks).toHaveLength(1);
+    expect(networks[0].cycle_network).toBe('CA:ON:Ottawa');
+  });
+
+  it('ignores routes without a cycle_network tag', async () => {
+    const mockQuery = async () => ({
+      elements: [
+        // No cycle_network — should be filtered out
+        { type: 'relation', id: 4001, tags: { route: 'bicycle', ref: 'X1' } },
+        { type: 'relation', id: 4002, tags: { route: 'bicycle', ref: 'X2' } },
+        // Has cycle_network but no ref — also filtered out
+        { type: 'relation', id: 4003, tags: { route: 'bicycle', cycle_network: 'CA:ON:Ottawa' } },
+      ],
+    });
+
+    const networks = await discoverRouteSystemNetworks({ bbox: '0,0,1,1', queryOverpass: mockQuery });
+    expect(networks).toHaveLength(0);
+  });
+
+  it('returns an empty array when there are no matching routes at all', async () => {
+    const mockQuery = async () => ({ elements: [] });
+
+    const networks = await discoverRouteSystemNetworks({ bbox: '0,0,1,1', queryOverpass: mockQuery });
     expect(networks).toHaveLength(0);
   });
 });

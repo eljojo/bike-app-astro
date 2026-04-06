@@ -47,7 +47,9 @@ export function isLongDistance(entry) {
   if (entry.network === 'ncn' && hasRelation) return true;
   if (entry.network === 'rcn' && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
   if (entry.ref && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
-  if (lengthM >= MEGATRAIL_M) return true;
+  // Megatrail: long enough to be a destination, but must have some identity
+  // (relation or ref) — pure length alone could promote unnamed chains
+  if (lengthM >= MEGATRAIL_M && (hasRelation || entry.ref)) return true;
   return false;
 }
 

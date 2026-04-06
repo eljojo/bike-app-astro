@@ -15,6 +15,34 @@ export interface TilePathLayerOptions {
 
 const SOURCE_ID = 'paths-network';
 
+/**
+ * Tag tile features with highlight/interactive properties for map rendering.
+ * Exported for testing — used internally by createTilePathLayer.
+ */
+export function tagTileFeatures(
+  features: GeoJSON.Feature[],
+  isDetailMode: boolean,
+  highlightGeoIds?: Set<string>,
+): GeoJSON.Feature[] {
+  for (const f of features) {
+    if (!f.properties) continue;
+    const geoId = f.properties._geoId;
+    if (isDetailMode) {
+      if (geoId && highlightGeoIds?.has(geoId)) {
+        f.properties.highlight = 'true';
+      }
+      if (f.properties.hasPage) {
+        f.properties.interactive = 'true';
+      }
+    } else {
+      if (f.properties.hasPage) {
+        f.properties.interactive = 'true';
+      }
+    }
+  }
+  return features;
+}
+
 export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
   const { manifestPromise, fetchPath, highlightGeoIds } = opts;
   const isDetailMode = highlightGeoIds != null && highlightGeoIds.size > 0;
@@ -28,23 +56,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
   let leaveHandler: (() => void) | null = null;
 
   function tagFeatures(features: GeoJSON.Feature[]) {
-    for (const f of features) {
-      if (!f.properties) continue;
-      const geoId = f.properties._geoId;
-      if (isDetailMode) {
-        if (geoId && highlightGeoIds!.has(geoId)) {
-          f.properties.highlight = 'true';
-        }
-        if (f.properties.hasPage === 'true') {
-          f.properties.interactive = 'true';
-        }
-      } else {
-        if (f.properties.hasPage === 'true') {
-          f.properties.interactive = 'true';
-        }
-      }
-    }
-    return features;
+    return tagTileFeatures(features, isDetailMode, isDetailMode ? highlightGeoIds : undefined);
   }
 
   function escHtml(s: string): string {

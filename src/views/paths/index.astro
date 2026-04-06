@@ -235,6 +235,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               data-category-geo-ids={JSON.stringify(categoryGeoIds)}
           data-slug-info={JSON.stringify(slugInfo)}
           data-slug-to-network={JSON.stringify(slugToNetwork)}
+          data-label-view-details={t('paths.view_details', locale)}
               style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
             ></div>
             <div class="map-touch-lock" id="paths-map-touch-lock">
@@ -366,6 +367,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       listSelector: '.paths-list li[data-slug], .network-panel-header[data-slug]',
       slugToNetwork: slugToNetworkMap,
       networkGeoIds,
+      labels: { viewDetails: container.dataset.labelViewDetails },
       onHighlightClear: () => {
         const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
         const activeSlug = activeTab?.dataset.network;

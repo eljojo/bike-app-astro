@@ -17,17 +17,9 @@
  * ## Pipeline
  *
  * 1. loadManualEntries() — read manual-entries.yml sidecar
- * 2. discoverOsmRelations() — OSM relations in bbox
- * 3. discoverOsmNamedWays() — named cycling ways
- * 4. discoverParallelLanes() — unnamed cycleways
- * 5. buildEntries() — build from scratch (NO merge with existing)
- * 6. enrichOutOfBoundsRelations() — for manual entries
- * 7. discoverNetworks() — find superroutes, add network entries
- * 8. autoGroupNearbyPaths() — cluster trails (skipping network members)
- * 9. Centralized slug computation
- * 10. resolveNetworkMembers() — _member_relations → slugs, assign member_of
- * 11. enrichWithWikidata()
- * 12. Write YAML (strip transient fields)
+ * 2. buildBikepathsPipeline() — discover relations, named ways, parallel lanes,
+ *    build entries, enrich, network/cluster, slug, resolve members, wikidata
+ * 3. Write YAML (strip transient fields)
  */
 
 import fs from 'node:fs';
@@ -110,228 +102,6 @@ function loadManualEntries() {
     console.log(`  Loaded ${entries.length} manual entries`);
   }
   return entries;
-}
-
-// ---------------------------------------------------------------------------
-// Step 2: Discover cycling relations from OSM
-// ---------------------------------------------------------------------------
-
-async function discoverOsmRelations() {
-  console.log('Discovering cycling relations from OSM...');
-  const q = `[out:json][timeout:120];
-(
-  relation["route"="bicycle"](${bbox});
-  relation["type"="route"]["name"~"${adapter.relationNamePattern}"](${bbox});
-);
-out tags;`;
-  const data = await queryOverpass(q);
-  const relations = data.elements.map(el => ({
-    id: el.id,
-    name: el.tags?.name || `relation-${el.id}`,
-    tags: el.tags || {},
-  }));
-  console.log(`  Found ${relations.length} cycling relations`);
-  return relations;
-}
-
-// ---------------------------------------------------------------------------
-// Step 3: Discover named cycling ways not in relations
-// ---------------------------------------------------------------------------
-
-async function discoverOsmNamedWays() {
-  console.log('Discovering named cycling ways from OSM...');
-
-  const queries = adapter.namedWayQueries(bbox);
-
-  const allElements = [];
-  for (const { label, q } of queries) {
-    try {
-      const data = await queryOverpass(q);
-      console.log(`  ${label}: ${data.elements.length} ways`);
-      allElements.push(...data.elements);
-    } catch (err) {
-      console.error(`  ${label}: failed (${err.message})`);
-    }
-  }
-  const data = { elements: allElements };
-
-  // Group by name — each unique name becomes a potential bike path
-  const byName = new Map();
-  for (const el of data.elements) {
-    const name = el.tags?.name;
-    if (!name) continue;
-    if (!byName.has(name)) byName.set(name, []);
-    byName.get(name).push(el);
-  }
-
-  // Fetch non-cycling ways that share nodes with discovered cycling ways.
-  // Trails in parks connect through hiking-only segments (bicycle:no) that
-  // cycling queries miss. Example: Gatineau Park Trail 73 is entirely
-  // bicycle:no but connects Trails 54, 74, and 50 at junction nodes.
-  // Without Trail 73's geometry, these cycling trails appear isolated.
-  //
-  // Strategy: get cycling way IDs → find their nodes → find other named
-  // ways touching those nodes → add as clustering-only entries.
-  const cyclingWayIds = allElements.filter(e => e.id).map(e => e.id);
-  const allWaysByName = new Map();
-  if (cyclingWayIds.length > 0) {
-    // Overpass: find named ways that share nodes with our cycling ways
-    const junctionQ = `[out:json][timeout:180];
-way(id:${cyclingWayIds.join(',')});
-node(w);
-way(bn)["name"]["highway"~"path|footway|cycleway"](${bbox});
-out geom tags;`;
-    try {
-      const junctionData = await queryOverpass(junctionQ);
-      const cyclingIdSet = new Set(cyclingWayIds);
-      for (const el of junctionData.elements) {
-        if (el.type !== 'way') continue;
-        if (cyclingIdSet.has(el.id)) continue; // already discovered
-        const name = el.tags?.name;
-        if (!name) continue;
-        if (!allWaysByName.has(name)) allWaysByName.set(name, []);
-        allWaysByName.get(name).push(el);
-      }
-
-      // Add non-bikeable trails as clustering-only entries
-      let junctionCount = 0;
-      for (const [name, ways] of allWaysByName) {
-        if (byName.has(name)) {
-          // Already discovered as cycling — merge extra ways for clustering
-          continue;
-        }
-        const anchors = [];
-        for (const w of ways) {
-          if (w.geometry?.length >= 2) {
-            anchors.push([w.geometry[0].lon, w.geometry[0].lat]);
-            anchors.push([w.geometry[w.geometry.length - 1].lon, w.geometry[w.geometry.length - 1].lat]);
-          }
-        }
-        if (anchors.length > 0) {
-          byName.set(name, ways);
-          junctionCount++;
-        }
-      }
-      if (junctionCount > 0) console.log(`  Found ${junctionCount} non-cycling junction trails`);
-    } catch (err) {
-      console.error(`  Junction ways fetch failed: ${err.message}`);
-    }
-  }
-
-  // Also build all-ways lookup for entries that already exist (cycling-discovered names)
-  // so their _ways include non-cycling segments for junction node connectivity.
-  for (const [name, ways] of allWaysByName) {
-    if (!byName.has(name)) continue; // already added above
-    // Merge junction ways into existing cycling ways for this name
-    const existing = allWaysByName.get(name) || [];
-    allWaysByName.set(name, [...existing]);
-  }
-
-  const namedPaths = [];
-  for (const [name, ways] of byName) {
-    const anchors = [];
-    for (const w of ways) {
-      if (w.geometry?.length >= 2) {
-        const first = w.geometry[0];
-        const last = w.geometry[w.geometry.length - 1];
-        anchors.push([first.lon, first.lat]);
-        anchors.push([last.lon, last.lat]);
-      } else if (w.center) {
-        anchors.push([w.center.lon, w.center.lat]);
-      }
-    }
-    if (anchors.length === 0) continue;
-
-    // _ways uses ALL ways with this name (including non-cycling) for junction
-    // node connectivity. Combines cycling ways + junction ways (deduplicated by ID).
-    const junctionWays = allWaysByName.get(name) || [];
-    const seenIds = new Set();
-    const combinedWays = [];
-    for (const w of [...ways, ...junctionWays]) {
-      if (!w.geometry?.length || w.geometry.length < 2) continue;
-      if (w.id && seenIds.has(w.id)) continue;
-      if (w.id) seenIds.add(w.id);
-      combinedWays.push(w.geometry);
-    }
-    const waysForClustering = combinedWays.length > 0
-      ? combinedWays
-      : ways.filter(w => w.geometry?.length >= 2).map(w => w.geometry);
-
-    namedPaths.push({
-      name,
-      wayCount: ways.length,
-      tags: mergeWayTags(ways),
-      anchors,
-      osmNames: [name],
-      _ways: waysForClustering,
-    });
-  }
-  console.log(`  Found ${namedPaths.length} named cycling ways`);
-  return namedPaths;
-}
-
-// ---------------------------------------------------------------------------
-// Step 4: Discover unnamed parallel bike lanes
-// ---------------------------------------------------------------------------
-
-async function discoverParallelLanes() {
-  console.log('Discovering unnamed parallel bike lanes...');
-
-  const filter = adapter.parallelLaneFilter || defaultParallelLaneFilter;
-
-  // Query all unnamed cycleways, excluding crossings
-  const q = `[out:json][timeout:120];
-way["highway"="cycleway"][!"name"][!"crossing"](${bbox});
-out tags center;`;
-
-  const data = await queryOverpass(q);
-  const candidates = data.elements.filter(el => filter(el.tags || {}));
-  console.log(`  ${data.elements.length} unnamed cycleways, ${candidates.length} after filter`);
-
-  if (candidates.length === 0) return [];
-
-  // Chain nearby segments
-  const segments = candidates.map(el => ({
-    id: el.id,
-    center: el.center,
-    tags: el.tags || {},
-  }));
-  const chains = chainSegments(segments, 50);
-  console.log(`  Chained into ${chains.length} groups`);
-
-  // Find nearest named road for each chain
-  const results = [];
-  for (const chain of chains) {
-    const { lat, lon } = chain.midpoint;
-    const roadQ = `[out:json][timeout:15];
-way["highway"~"^(primary|secondary|tertiary|residential|unclassified)$"]["name"]
-  (around:30,${lat},${lon});
-out tags center;`;
-
-    try {
-      const roadData = await queryOverpass(roadQ);
-      if (roadData.elements.length === 0) continue;
-      const best = selectBestRoad(roadData.elements, { lat, lon });
-      if (!best) continue;
-      const roadName = best.name;
-
-      results.push({
-        roadName,
-        chain,
-        tags: mergeWayTags(chain.tags.map((t, i) => ({ tags: t, id: chain.segmentIds[i] }))),
-      });
-    } catch (err) {
-      console.log(`  Road lookup failed for chain at ${lat},${lon}: ${err.message}`);
-    }
-  }
-
-  console.log(`  Matched ${results.length} chains to named roads`);
-
-  // Group by road name + spatial proximity
-  const grouped = groupByRoadAndProximity(results, 500);
-  console.log(`  Grouped into ${grouped.length} parallel lane candidates`);
-
-  return grouped;
 }
 
 /**
@@ -995,7 +765,16 @@ function addSuperrouteNetworks(entries, networks, wayRegistry) {
         // Operator must match (handles NCC variants)
         const op = entry.operator || '';
         const netOp = network.operator || '';
-        if (!op || (!op.includes(netOp) && !netOp.includes(op))) continue;
+        if (!op || !netOp) continue;
+        // Exact match (case-insensitive) or one is an abbreviation/subset of
+        // the other, but require minimum 3 chars to avoid false matches like
+        // "City" matching "City of Ottawa Parks"
+        const opLower = op.toLowerCase();
+        const netLower = netOp.toLowerCase();
+        const match = opLower === netLower
+          || (netLower.length >= 3 && opLower.includes(netLower))
+          || (opLower.length >= 3 && netLower.includes(opLower));
+        if (!match) continue;
         // Must be cycling infrastructure
         if (entry.highway !== 'cycleway' && entry.highway !== 'path') continue;
         if (!networkEntry._memberRefs.includes(entry)) {

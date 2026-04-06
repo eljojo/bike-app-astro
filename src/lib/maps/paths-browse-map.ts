@@ -61,6 +61,8 @@ export interface PathsBrowseMapOptions {
   onHighlightClear?: (result: PathsBrowseMapResult) => void;
   /** Called after tile layers are set up and ready for interaction. */
   onReady?: (result: PathsBrowseMapResult) => void;
+  /** Localized UI labels for the map popup. */
+  labels?: { viewDetails?: string };
 }
 
 export interface PathsBrowseMapResult {
@@ -233,7 +235,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         ${info.network ? raw(info.networkUrl ? html`<div class="path-popup-network"><a href="${info.networkUrl}" class="path-popup-network-link">${info.network}</a></div>` : html`<div class="path-popup-network">${info.network}</div>`) : ''}
         ${meta.length > 0 ? raw(html`<div class="path-popup-meta">${meta.join(' \u00b7 ')}</div>`) : ''}
         ${info.vibe ? raw(html`<div class="path-popup-vibe">${info.vibe}</div>`) : ''}
-        <a href="${info.url}" class="path-popup-link">View details \u2192</a>
+        <a href="${info.url}" class="path-popup-link">${opts.labels?.viewDetails ?? 'View details'} \u2192</a>
       </div>`;
 
       const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })

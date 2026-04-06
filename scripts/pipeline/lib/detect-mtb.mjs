@@ -10,6 +10,8 @@
 //
 // Sets mtb: true on entries. Does not set mtb: false (absence = unknown/not MTB).
 
+import { slugifyBikePathName } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
+
 const UNPAVED = new Set([
   'ground', 'gravel', 'dirt', 'earth', 'grass', 'sand', 'mud',
   'compacted', 'fine_gravel', 'woodchips', 'unpaved', 'dirt/sand',
@@ -62,8 +64,7 @@ export function detectMtb(entries) {
     const memberEntries = entry._memberRefs
       ? entry._memberRefs
       : (entry.members || []).map(slug =>
-          entries.find(e => e.name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-') === slug)
+          entries.find(e => slugifyBikePathName(e.name || '') === slug)
         ).filter(Boolean);
     const hasExplicitMtb = memberEntries.some(m => m.mtb === true);
     if (hasExplicitMtb) {

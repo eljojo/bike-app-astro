@@ -268,6 +268,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             data-all-member-geo-ids={JSON.stringify(allMemberGeoIds ?? [])}
             data-interactive-geo-ids={JSON.stringify(interactiveGeoIds ?? [])}
             data-slug-info={JSON.stringify(networkMapSlugInfo)}
+            data-label-view-details={t('paths.view_details', locale)}
             style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
           ></div>
           <div class="map-touch-lock" id="network-map-touch-lock">
@@ -526,7 +527,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
                 {ownNetworkMeta.length_km && <span class="network-here-meta">{ownNetworkMeta.length_km} km</span>}
               </div>
             )}
-            {nearbyNetworkSlugs.size > 0 && <div class="network-here-heading">Nearby networks</div>}
+            {nearbyNetworkSlugs.size > 0 && <div class="network-here-heading">{t('paths.nearby_networks', locale)}</div>}
             {[...nearbyNetworkSlugs].map(slug => {
               const meta = networkMeta[slug];
               if (!meta) return null;
@@ -650,6 +651,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
       slugInfo,
       interactiveGeoIds: new Set(interactiveGeoIdsList),
       listSelector: '.network-members-list li[data-slug], .network-member-long-distance[data-slug]',
+      labels: { viewDetails: container.dataset.labelViewDetails },
       onHighlightClear: (result) => {
         // Fit to ALL member geometry (including non-standalone) so the
         // whole network is visible when hover resets

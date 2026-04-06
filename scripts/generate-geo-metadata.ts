@@ -36,7 +36,7 @@ for (const page of pages) {
       name: page.name,
       memberOf: page.memberOf ?? '',
       surface: page.surface ?? '',
-      hasPage: page.listed || page.standalone,
+      hasPage: page.standalone,
       path_type: page.path_type ?? '',
       length_km: page.length_km ?? 0,
     };

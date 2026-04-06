@@ -11,13 +11,14 @@ import yaml from 'js-yaml';
 
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME, 'code', 'bike-routes');
 const ymlPath = path.join(CONTENT_DIR, 'ottawa', 'bikepaths.yml');
+const ymlExists = fs.existsSync(ymlPath);
 
 let entries;
 let bySlug;
 let byName;
 
 beforeAll(() => {
-  if (!fs.existsSync(ymlPath)) return;
+  if (!ymlExists) return;
   const data = yaml.load(fs.readFileSync(ymlPath, 'utf-8'));
   entries = data.bike_paths;
   bySlug = new Map(entries.filter(e => e.slug).map(e => [e.slug, e]));
@@ -40,7 +41,7 @@ function entry(slug) {
 // Long-distance classification — only truly long trails
 // ---------------------------------------------------------------------------
 
-describe('long-distance classification', () => {
+describe.skipIf(!ymlExists)('long-distance classification', () => {
   const mustNotBeLongDistance = [
     'sentier-des-pionniers-pathway',
     'watts-creek-pathway',
@@ -56,7 +57,6 @@ describe('long-distance classification', () => {
 
   for (const slug of mustNotBeLongDistance) {
     it(`${slug} is NOT long-distance (it's a local pathway)`, () => {
-      if (!entries) return;
       const e = entry(slug);
       expect(e.type).not.toBe('long-distance');
     });
@@ -79,7 +79,7 @@ describe('long-distance classification', () => {
 // Network membership — trails belong where they physically are
 // ---------------------------------------------------------------------------
 
-describe('TCT segments belong to their local networks', () => {
+describe.skipIf(!ymlExists)('TCT segments belong to their local networks', () => {
   it('Trans Canada Trail (Bells Corners/Watts Creek) is a member of NCC Greenbelt', () => {
     if (!entries) return;
     const greenbelt = net('ncc-greenbelt');
@@ -121,7 +121,7 @@ describe('TCT segments belong to their local networks', () => {
 // Capital Pathway gained its real sections
 // ---------------------------------------------------------------------------
 
-describe('Capital Pathway members', () => {
+describe.skipIf(!ymlExists)('Capital Pathway members', () => {
   const expectedMembers = [
     'sentier-des-pionniers-pathway',
     'watts-creek-pathway',
@@ -136,7 +136,6 @@ describe('Capital Pathway members', () => {
 
   for (const slug of expectedMembers) {
     it(`Capital Pathway includes ${slug}`, () => {
-      if (!entries) return;
       const cp = net('capital-pathway');
       expect(cp.members).toContain(slug);
     });

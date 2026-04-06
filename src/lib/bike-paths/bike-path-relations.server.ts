@@ -151,6 +151,11 @@ export function computeBikePathRelations(
       const coords = geoCoords[String(relId)];
       if (coords) points = points.concat(coords);
     }
+    // GeoJSON for way IDs
+    if (points.length === 0 && (entry as unknown as { osm_way_ids?: unknown[] }).osm_way_ids?.length) {
+      const coords = geoCoords[`ways-${entry.slug}`];
+      if (coords) points = points.concat(coords);
+    }
     // GeoJSON for named ways
     if (points.length === 0 && entry.osm_names?.length) {
       const coords = geoCoords[`name-${entry.slug}`];
@@ -159,6 +164,11 @@ export function computeBikePathRelations(
     // GeoJSON for segments
     if (points.length === 0 && (entry as unknown as { segments?: unknown[] }).segments?.length) {
       const coords = geoCoords[`seg-${entry.slug}`];
+      if (coords) points = points.concat(coords);
+    }
+    // GeoJSON for parallel lanes
+    if (points.length === 0 && entry.parallel_to) {
+      const coords = geoCoords[`parallel-${entry.slug}`];
       if (coords) points = points.concat(coords);
     }
     // Fall back to YML anchors
@@ -475,13 +485,21 @@ export function enrichBikePathPages(
         const ele = geoElevation[String(relId)];
         if (ele) totalElevation += ele.gain_m;
       }
-      // Also check name-based and segment-based geo files
+      // Also check way-ID, name-based, segment-based, and parallel geo files
+      if (totalElevation === 0 && (e as unknown as { osm_way_ids?: unknown[] }).osm_way_ids?.length) {
+        const ele = geoElevation[`ways-${e.slug}`];
+        if (ele) totalElevation += ele.gain_m;
+      }
       if (totalElevation === 0 && e.osm_names?.length) {
         const ele = geoElevation[`name-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
       if (totalElevation === 0 && e.segments?.length) {
         const ele = geoElevation[`seg-${e.slug}`];
+        if (ele) totalElevation += ele.gain_m;
+      }
+      if (totalElevation === 0 && e.parallel_to) {
+        const ele = geoElevation[`parallel-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
     }
