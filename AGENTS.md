@@ -128,6 +128,7 @@ How the app works. Read to understand *what* things are.
 - [media-pipeline](_ctx/media-pipeline.md) — R2 storage, video transcoding, universal media pattern
 - [blog-instance](_ctx/blog-instance.md) — blog city is always blog/, CITY=blog, consumer repo, sync.js
 - [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
+- [bike-path-tiles](_ctx/bike-path-tiles.md) — adaptive quadtree tiles with baked metadata, client-side tile loading
 - [pipeline-overview](_ctx/pipeline-overview.md) — how the bikepaths pipeline discovers, names, clusters, and networks cycling infrastructure
 - [naming-unnamed-chains](_ctx/naming-unnamed-chains.md) — how the pipeline names unnamed chains from nearby parks/roads
 - [path-types](_ctx/path-types.md) — path_type field: classifies infrastructure by safety and bike requirements
