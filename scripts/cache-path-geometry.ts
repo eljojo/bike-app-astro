@@ -121,6 +121,11 @@ function anchorBbox(anchors: Array<[number, number]>): string {
 
 // --- Main ---
 
+if (process.env.ENABLE_BIKE_PATHS === 'false') {
+  console.log('[path-geo] ENABLE_BIKE_PATHS=false — skipping');
+  process.exit(0);
+}
+
 const ymlPath = path.join(CONTENT_DIR, CITY, 'bikepaths.yml');
 
 if (!fs.existsSync(ymlPath)) {
