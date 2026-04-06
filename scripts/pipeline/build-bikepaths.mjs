@@ -1952,6 +1952,18 @@ out geom tags;`;
   }
 
   // Step 9: Final resolution — compute slugs once, resolve all refs to strings
+  // First: detach long-distance entries from local networks — they pass through
+  // but shouldn't be members (their geometry extends far beyond the network).
+  for (const entry of grouped) {
+    if (entry.type === 'long-distance' && entry._networkRef) {
+      const net = entry._networkRef;
+      if (net._memberRefs) {
+        net._memberRefs = net._memberRefs.filter(m => m !== entry);
+      }
+      delete entry._networkRef;
+    }
+  }
+
   const slugMap = computeSlugs(grouped);
   for (const entry of grouped) {
     if (entry._networkRef) {
