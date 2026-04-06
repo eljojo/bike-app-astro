@@ -1,6 +1,6 @@
 ---
 description: Public site design — the iPod for cycling; accessible, curious, warm; restraint and vibrancy in balance
-type: guide
+type: vision
 triggers: [designing public pages, adding components, styling public views, working on homepage, map interactions, route cards]
 related: [voice-and-feel, brand-framing, admin-design-language, css-styling]
 ---

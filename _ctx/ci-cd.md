@@ -1,6 +1,6 @@
 ---
 description: CI/CD workflows, deploy matrix, screenshot auto-update, build order
-type: pattern
+type: knowledge
 triggers: [modifying CI, adding workflows, debugging deploys, changing build order, working with screenshots]
 related: [e2e-testing]
 ---

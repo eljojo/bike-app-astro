@@ -43,7 +43,7 @@ console.log(`Found ${ctxFiles.length} _ctx/ files`);
 // --- 2. Validate frontmatter in each _ctx/ file ---
 
 const REQUIRED_FIELDS = ['description', 'type'];
-const VALID_TYPES = ['rule', 'pattern', 'guide', 'gotcha', 'protocol', 'roadmap'];
+const VALID_TYPES = ['vision', 'knowledge', 'rule', 'protocol', 'gotcha'];
 
 for (const file of ctxFiles) {
   const content = fs.readFileSync(path.join(CTX_DIR, file), 'utf-8');

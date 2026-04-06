@@ -1,6 +1,6 @@
 ---
 description: "path_type field in bikepaths.yml — classifies cycling infrastructure by safety and bike requirements"
-type: pattern
+type: knowledge
 triggers: [working with path_type, adding bike path facts, displaying infrastructure type, filtering paths by type]
 related: [pipeline-overview, markdown-overrides]
 ---

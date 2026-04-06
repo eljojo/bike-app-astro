@@ -1,6 +1,6 @@
 ---
 description: Wiki/blog/club — feature flags vs identity checks, structural decisions, content pipeline differences
-type: pattern
+type: knowledge
 triggers: [adding instance-specific behaviour, checking instance type, working with content loaders, registering routes or virtual modules]
 related: [config-layers, architecture-principles]
 ---

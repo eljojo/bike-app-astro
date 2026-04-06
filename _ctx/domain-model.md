@@ -1,6 +1,6 @@
 ---
 description: The cycling domain — entities, relationships, and why modelling reality truthfully produces better software
-type: pattern
+type: knowledge
 triggers: [adding content types, naming things, designing features, choosing data structures, deciding where data lives]
 related: [content-model, instance-types, architecture-principles, development-principles]
 ---

@@ -1,6 +1,6 @@
 ---
 description: "How build-bikepaths.mjs discovers, names, clusters, and networks cycling infrastructure"
-type: pattern
+type: knowledge
 triggers: [modifying the pipeline, debugging bikepaths.yml output, adding discovery steps, changing naming logic]
 related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides]
 ---

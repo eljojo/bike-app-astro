@@ -1,6 +1,6 @@
 ---
 description: SCSS variables, dark mode pattern, colocated styles, admin.scss for islands
-type: guide
+type: knowledge
 triggers: [adding styles, modifying CSS, working with dark mode, styling preact islands, adding colors or breakpoints]
 related: [preact-islands]
 ---

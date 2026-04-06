@@ -1,6 +1,6 @@
 ---
 description: build-data-plugin virtual modules, ambient types, how to add new ones
-type: pattern
+type: knowledge
 triggers: [adding virtual modules, modifying build-data-plugin, working with admin data, debugging module resolution]
 related: [content-model, adding-new-things]
 ---

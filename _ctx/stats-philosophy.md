@@ -1,6 +1,6 @@
 ---
 description: Stats show community relationship, not performance — "this is liked" not "this performs"
-type: guide
+type: vision
 triggers: [working on stats, analytics dashboard, engagement scoring, writing stats copy, adding metrics]
 related: [voice-and-feel, development-principles]
 ---

@@ -1,6 +1,6 @@
 ---
 description: How the two-tier _ctx/ context system works — loading protocol, maintenance rules, why it exists
-type: guide
+type: knowledge
 triggers: [adding context files, maintaining docs, onboarding to the repo, wondering how _ctx/ works]
 related: [protocol-drift-correction]
 ---

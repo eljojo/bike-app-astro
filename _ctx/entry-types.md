@@ -1,6 +1,6 @@
 ---
 description: "type field in bikepaths.yml — classifies every entry by its role in the user experience"
-type: pattern
+type: knowledge
 triggers: [working with entry types, deciding what gets a page, filtering entries for display, scoring bike paths]
 related: [pipeline-overview, path-types, markdown-overrides]
 ---

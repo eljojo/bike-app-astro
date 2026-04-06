@@ -1,6 +1,6 @@
 ---
 description: How bikepaths.yml (OSM) and markdown files cooperate — overlay model, network resolution, page generation
-type: pattern
+type: knowledge
 triggers: [working with bike paths, modifying bike-path-entries, changing network pages, debugging path page generation, adding bike path features]
 related: [content-model, architecture-principles, virtual-modules]
 ---

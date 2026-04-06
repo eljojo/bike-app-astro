@@ -1,6 +1,6 @@
 ---
 description: "How markdown frontmatter overrides pipeline-computed values — two consumers, two purposes"
-type: pattern
+type: knowledge
 triggers: [adding markdown overrides, debugging network membership, fixing wrong member_of, adding a path to a network manually, understanding how markdown affects the pipeline vs the app]
 related: [pipeline-overview, spatial-reasoning]
 ---

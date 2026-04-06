@@ -1,6 +1,6 @@
 ---
 description: Friend showing you around — no exclamation marks, no absolute fitness language, warmth through clarity
-type: guide
+type: vision
 triggers: [writing UI copy, editing route descriptions, writing user-facing text, reviewing content tone, adding labels or messages]
 related: [brand-framing, development-principles]
 ---

@@ -1,6 +1,6 @@
 ---
 description: Build-time vs runtime config, city config YAML, AppEnv, build-time transforms
-type: pattern
+type: knowledge
 triggers: [adding configuration, reading env vars, accessing city config, changing build-time constants, working with Cloudflare bindings]
 related: [instance-types, architecture-principles]
 ---

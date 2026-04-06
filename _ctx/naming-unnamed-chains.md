@@ -1,6 +1,6 @@
 ---
 description: "How Step 2c names unnamed cycling chains — is_in, nearby parks/roads, geometry-based ranking"
-type: pattern
+type: knowledge
 triggers: [debugging chain names, wrong park name on a path, modifying Step 2c, unnamed chain issues]
 related: [spatial-reasoning, pipeline-overview]
 ---
