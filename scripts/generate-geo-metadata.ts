@@ -1,0 +1,39 @@
+/**
+ * Generate geo-metadata.json — maps geoId → path metadata for tile generation.
+ *
+ * Reads bikepaths.yml + markdown to build the same merged pages as the Astro app,
+ * then writes a JSON file mapping each geoId to its page metadata.
+ *
+ * This runs as part of prebuild, after copy-path-geometry and before generate-path-tiles.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { loadBikePathEntries } from '../src/lib/bike-paths/bike-path-entries.server';
+import type { GeoMetaEntry } from './generate-path-tiles';
+
+const outDir = path.join('public', 'bike-paths', 'geo');
+const outPath = path.join(outDir, 'geo-metadata.json');
+
+const { pages } = loadBikePathEntries();
+
+const metadata: Record<string, GeoMetaEntry> = {};
+
+for (const page of pages) {
+  for (const file of page.geoFiles) {
+    const geoId = file.replace(/\.geojson$/, '');
+    metadata[geoId] = {
+      slug: page.slug,
+      name: page.name,
+      memberOf: page.memberOf ?? '',
+      surface: page.surface ?? '',
+      hasPage: page.standalone,
+      path_type: page.path_type ?? '',
+      length_km: page.length_km ?? 0,
+    };
+  }
+}
+
+fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(outPath, JSON.stringify(metadata));
+
+console.log(`[geo-metadata] Wrote metadata for ${Object.keys(metadata).length} geo IDs`);

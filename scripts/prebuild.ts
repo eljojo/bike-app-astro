@@ -19,7 +19,8 @@
  *                          ├─► done
  *   cache-path-geometry ───┤
  *     └─► copy-path-geometry
- *           ├─► path-tiles
+ *           ├─► geo-metadata
+ *           │     └─► path-tiles
  *           └─► maps
  */
 import { execFile as execFileCb } from 'node:child_process';
@@ -55,7 +56,8 @@ const contributors = minimal ? Promise.resolve() : run('contributors', 'build-co
 
 const geoCache  = run('path-geo-cache', 'cache-path-geometry.ts');
 const geoCopy   = geoCache.then(() => run('path-geo', 'copy-path-geometry.ts'));
-const pathTiles = geoCopy.then(() => run('path-tiles', 'generate-path-tiles.ts'));
+const geoMeta   = geoCopy.then(() => run('geo-metadata', 'generate-geo-metadata.ts'));
+const pathTiles = geoMeta.then(() => run('path-tiles', 'generate-path-tiles.ts'));
 const maps      = minimal ? Promise.resolve() : geoCopy.then(() => run('maps', 'generate-maps.ts'));
 
 await Promise.all([mapStyle, iconPaths, contributors, pathTiles, maps]);
