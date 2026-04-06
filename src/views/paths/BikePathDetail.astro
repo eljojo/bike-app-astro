@@ -500,9 +500,6 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           {page.operator && useNetworkFacts && !networkFacts.some(f => f.key === 'operator') && (
             <tr class="fact-operator"><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
           )}
-          {page.parallel_to && (
-            <tr class="fact-alongside"><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
-          )}
           {wikidataMeta?.inception && !pathFacts.some(f => f.key === 'inception') && (
             <tr class="fact-established"><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
           )}

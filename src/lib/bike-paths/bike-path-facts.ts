@@ -303,8 +303,8 @@ export function factLabelKey(factKey: string): string {
   if (factKey.startsWith('smoothness_')) return 'paths.label.surface_quality';
   if (factKey.startsWith('traffic_')) return 'paths.label.separated';
   if (factKey === 'separated_cars' || factKey === 'separated_peds') return 'paths.label.separated';
-  if (factKey === 'parallel_to') return 'paths.label.parallel_to';
-  if (factKey === 'some_parallel' || factKey === 'all_parallel') return 'paths.label.parallel_to';
+  if (factKey === 'parallel_to') return 'paths.label.alongside';
+  if (factKey === 'some_parallel' || factKey === 'all_parallel') return 'paths.label.alongside';
   if (factKey === 'lit' || factKey === 'not_lit' || factKey === 'lit_mixed') return 'paths.label.lit';
   if (factKey === 'flat' || factKey === 'gentle_hills' || factKey === 'hilly') return 'paths.label.terrain';
   if (factKey === 'operator') return 'paths.label.operator';

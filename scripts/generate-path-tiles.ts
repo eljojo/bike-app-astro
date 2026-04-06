@@ -332,17 +332,16 @@ if (isMainModule) {
     input.set(geoId, JSON.parse(content) as FeatureCollection);
   }
 
-  // Demo city: also read from e2e/fixtures/overpass/
+  // Demo city: read from e2e/fixtures/overpass/ (overwrite cache — cache may have
+  // empty results from failed Overpass fetches for fake relation IDs)
   if (CITY === 'demo') {
     const fixtureDir = path.resolve('e2e', 'fixtures', 'overpass');
     if (fs.existsSync(fixtureDir)) {
       const fixtures = fs.readdirSync(fixtureDir).filter(f => f.endsWith('.geojson'));
       for (const file of fixtures) {
         const geoId = file.replace('.geojson', '');
-        if (!input.has(geoId)) {
-          const content = fs.readFileSync(path.join(fixtureDir, file), 'utf-8');
-          input.set(geoId, JSON.parse(content) as FeatureCollection);
-        }
+        const content = fs.readFileSync(path.join(fixtureDir, file), 'utf-8');
+        input.set(geoId, JSON.parse(content) as FeatureCollection);
       }
     }
   }
@@ -360,10 +359,19 @@ if (isMainModule) {
     console.log(`[path-tiles] Loaded metadata for ${metadata.size} geoIds`);
   }
 
-  const { tiles, manifest } = buildTiles(input, metadata);
+  // Copy raw geojson files to public/ before buildTiles (which may mutate input).
+  // Needed by getPathLengthKm() in bike-path-entries.server.ts during astro build.
+  const geoOutDir = path.resolve('public', 'bike-paths', 'geo');
+  fs.mkdirSync(geoOutDir, { recursive: true });
+  for (const f of fs.readdirSync(geoOutDir)) {
+    if (f.endsWith('.geojson')) fs.unlinkSync(path.join(geoOutDir, f));
+  }
+  for (const [geoId, fc] of input) {
+    fs.writeFileSync(path.join(geoOutDir, `${geoId}.geojson`), JSON.stringify(fc));
+  }
+  console.log(`[path-geo] Copied ${input.size} geometry files to ${geoOutDir}/`);
 
-  // Ensure output directory exists
-  fs.mkdirSync(path.resolve('public', 'bike-paths', 'geo'), { recursive: true });
+  const { tiles, manifest } = buildTiles(input, metadata);
 
   // Clean previous tiles
   if (fs.existsSync(tilesDir)) {
