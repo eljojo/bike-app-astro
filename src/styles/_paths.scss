@@ -53,6 +53,7 @@
   font-size: 0.75rem;
   color: $color-text-muted;
   margin-bottom: 0.2rem;
+  a { color: $color-link; text-decoration: none; &:hover { text-decoration: underline; } }
 }
 .path-popup-meta {
   font-size: 0.8rem;

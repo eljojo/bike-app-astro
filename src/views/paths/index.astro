@@ -39,7 +39,7 @@ function localizePathType(pt?: string): string | undefined {
   const val = t(key, locale);
   return val !== key ? val : undefined;
 }
-const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string }> = {};
+const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = {};
 for (const p of allPages) {
   // Skip connectors — not listed, not standalone, don't appear on the map
   if (!p.listed && !p.standalone) continue;
@@ -59,7 +59,8 @@ for (const p of allPages) {
     // Find network name if member
     const netPage = p.memberOf ? allPages.find(n => n.slug === p.memberOf) : undefined;
     const netName = netPage ? pathName(netPage) : undefined;
-    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: netName };
+    const netUrl = p.memberOf ? paths.bikePath(p.memberOf, undefined, locale) : undefined;
+    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: netName, networkUrl: netUrl };
   }
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;
@@ -380,7 +381,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
     const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
     const slugUrls: Record<string, string> = JSON.parse(container.dataset.slugUrls || '{}');
-    const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string }> = JSON.parse(container.dataset.slugInfo || '{}');
+    const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = JSON.parse(container.dataset.slugInfo || '{}');
     const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
     const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
@@ -534,7 +535,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
         const content = html`<div class="path-popup">
           <strong class="path-popup-name">${info.name}</strong>
-          ${info.network ? raw(html`<div class="path-popup-network">${info.network}</div>`) : ''}
+          ${info.network ? raw(info.networkUrl ? html`<div class="path-popup-network"><a href="${info.networkUrl}" class="path-popup-network-link">${info.network}</a></div>` : html`<div class="path-popup-network">${info.network}</div>`) : ''}
           ${meta.length > 0 ? raw(html`<div class="path-popup-meta">${meta.join(' · ')}</div>`) : ''}
           ${info.vibe ? raw(html`<div class="path-popup-vibe">${info.vibe}</div>`) : ''}
           <a href="${info.url}" class="path-popup-link">View details &rarr;</a>
