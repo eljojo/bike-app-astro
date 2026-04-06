@@ -23,11 +23,6 @@ function pathVibe(p: typeof pages[0]): string | undefined {
   return (locale && p.translations[locale]?.vibe) || p.vibe;
 }
 
-// All paths are interactive (clickable → navigate to detail page).
-// Listed paths render bold; unlisted paths render subtle but still clickable.
-const interactiveRelIds = new Set<string>();
-const listedRelIds = new Set<string>();
-const relationToSlug: Record<string, string> = {};
 // Pre-compute slug → URL so client-side click handlers use correct (potentially nested) URLs.
 // Only include paths that have a page (standalone) — prevents dead links on the map.
 const slugToUrl: Record<string, string> = {};
@@ -64,18 +59,6 @@ for (const p of allPages) {
     const netUrl = p.memberOf ? paths.bikePath(p.memberOf, undefined, locale) : undefined;
     slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: netName, networkUrl: netUrl };
     if (p.memberOf) slugToNetwork[p.slug] = p.memberOf;
-  }
-  for (const relId of p.osmRelationIds) {
-    relationToSlug[String(relId)] = p.slug;
-    interactiveRelIds.add(String(relId));
-    if (p.listed) listedRelIds.add(String(relId));
-  }
-  // Also map name-based and segment-based geo files
-  for (const gf of p.geoFiles) {
-    const geoId = gf.replace(/\.geojson$/, '');
-    relationToSlug[geoId] = p.slug;
-    interactiveRelIds.add(geoId);
-    if (p.listed) listedRelIds.add(geoId);
   }
 }
 
@@ -253,10 +236,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               class="paths-map-hero"
               id="paths-network-map"
               data-center={JSON.stringify(mapCenter)}
-              data-relation-slugs={JSON.stringify(relationToSlug)}
               data-slug-urls={JSON.stringify(slugToUrl)}
-              data-interactive-ids={JSON.stringify([...interactiveRelIds])}
-              data-listed-ids={JSON.stringify([...listedRelIds])}
               data-network-geo-ids={JSON.stringify(networkGeoIds)}
               data-category-geo-ids={JSON.stringify(categoryGeoIds)}
           data-slug-info={JSON.stringify(slugInfo)}
@@ -406,11 +386,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   const container = document.getElementById('paths-network-map');
   if (container) {
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
-    const relationSlugs: Record<string, string> = JSON.parse(container.dataset.relationSlugs || '{}');
     const slugUrls: Record<string, string> = JSON.parse(container.dataset.slugUrls || '{}');
     const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = JSON.parse(container.dataset.slugInfo || '{}');
-    const interactiveIds = new Set<string>(JSON.parse(container.dataset.interactiveIds || '[]'));
-    const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
     const slugToNetworkMap: Record<string, string> = JSON.parse(container.dataset.slugToNetwork || '{}');
@@ -421,17 +398,11 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     setupMapTouchLock(map, document.getElementById('paths-map-touch-lock'));
     createMapExpandButton(map, container, { compactHeight: 400, expandedHeight: 700 });
 
-    function enrichFeatures(features: GeoJSON.Feature[]) {
+    function tagFeatures(features: GeoJSON.Feature[]) {
       for (const f of features) {
-        const geoId = f.properties?._geoId;
-        if (!geoId) continue;
-        const slug = relationSlugs[geoId] || geoId;
-        const interactive = interactiveIds.has(geoId);
-        const listed = listedIds.has(geoId);
-        f.properties!.slug = slug;
-        f.properties!.relationId = geoId;
-        f.properties!.interactive = interactive ? 'true' : '';
-        f.properties!.listed = listed ? 'true' : '';
+        if (!f.properties) continue;
+        f.properties.interactive = f.properties.hasPage ? 'true' : '';
+        f.properties.relationId = f.properties._geoId;
       }
     }
 
@@ -527,12 +498,12 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         data: { type: 'FeatureCollection', features },
       });
 
-      // Unlisted paths: thinner, lower opacity, but still clickable
+      // Non-interactive paths: thinner, lower opacity, but still clickable
       map.addLayer({
         id: 'paths-network-bg',
         type: 'line',
         source: 'paths-network',
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'listed'], 'true']],
+        filter: ['!=', ['get', 'interactive'], 'true'],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
@@ -541,12 +512,12 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         },
       });
 
-      // Listed paths: full width, bold
+      // Interactive paths: full width, bold
       map.addLayer({
         id: 'paths-network-line',
         type: 'line',
         source: 'paths-network',
-        filter: ['==', ['get', 'listed'], 'true'],
+        filter: ['==', ['get', 'interactive'], 'true'],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
@@ -666,7 +637,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
       // Load initial tiles immediately — this page is about paths
       const features = await tileLoader.loadTilesForBounds(getMapBounds());
-      enrichFeatures(features);
+      tagFeatures(features);
       prevFeatureCount = features.length;
 
       if (features.length > 0) {
