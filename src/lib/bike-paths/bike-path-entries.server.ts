@@ -337,6 +337,15 @@ export function loadBikePathEntries(): {
   geoFiles: string[];
 } {
   if (cachedBikePathEntries) return cachedBikePathEntries;
+
+  // Feature flag: return empty data when bike paths are disabled.
+  // Prevents Zod validation of bikepaths.yml when the schema on this
+  // branch may not match the data repo's current format.
+  if (process.env.ENABLE_BIKE_PATHS === 'false') {
+    cachedBikePathEntries = { pages: [], allYmlEntries: [], geoFiles: [] };
+    return cachedBikePathEntries;
+  }
+
   // 1. Parse bikepaths.yml (gracefully handle cities without bike paths)
   const ymlPath = path.join(cityDir, 'bikepaths.yml');
   const parsed = fs.existsSync(ymlPath)
