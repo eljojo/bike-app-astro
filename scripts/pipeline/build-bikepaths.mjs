@@ -1952,15 +1952,21 @@ out geom tags;`;
   }
 
   // Step 9: Final resolution — compute slugs once, resolve all refs to strings
-  // Detach long-distance entries from local networks — they pass through
-  // but shouldn't be members (their geometry extends far beyond the network).
+  // Detach long-distance entries that extend far beyond their network.
+  // Short local segments of national trails (TCT Bells Corners, TCT Sussex Drive)
+  // stay as members — the pipeline assigned them based on real way overlap.
+  // Only truly large trails (>200 ways) get detached.
+  const DETACH_WAY_THRESHOLD = 200;
   for (const entry of grouped) {
     if (entry.type === 'long-distance' && entry._networkRef) {
-      const net = entry._networkRef;
-      if (net._memberRefs) {
-        net._memberRefs = net._memberRefs.filter(m => m !== entry);
+      const wayCount = entry._ways?.length ?? 0;
+      if (wayCount >= DETACH_WAY_THRESHOLD) {
+        const net = entry._networkRef;
+        if (net._memberRefs) {
+          net._memberRefs = net._memberRefs.filter(m => m !== entry);
+        }
+        delete entry._networkRef;
       }
-      delete entry._networkRef;
     }
   }
 
