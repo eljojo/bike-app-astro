@@ -38,8 +38,12 @@ describe('SURFACE_CATEGORIES', () => {
     expect(SURFACE_CATEGORIES['dirt']).toBe('dirt');
   });
 
+  it('maps wood to boardwalk', () => {
+    expect(SURFACE_CATEGORIES['wood']).toBe('boardwalk');
+  });
+
   it('returns undefined for unknown surfaces', () => {
-    expect(SURFACE_CATEGORIES['wood']).toBeUndefined();
+    expect(SURFACE_CATEGORIES['cobblestone']).toBeUndefined();
   });
 });
 
@@ -111,109 +115,175 @@ describe('buildPathFacts', () => {
     expect(buildPathFacts({})).toEqual([]);
   });
 
-  it('emits surface_width when both surface and width present', () => {
-    const facts = buildPathFacts({ surface: 'asphalt', width: '3' });
-    expect(facts).toContainEqual({ key: 'surface_width', value: 'asphalt:3' });
+  // --- path_info: combined path_type + surface + width ---
+
+  it('combines path_type + surface + width into single path_info fact', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', width: '3' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup:asphalt:3' });
   });
 
-  it('emits surface alone when no width', () => {
+  it('path_info with path_type + surface, no width', () => {
+    const facts = buildPathFacts({ path_type: 'mtb-trail', surface: 'ground' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mtb-trail:ground:' });
+  });
+
+  it('path_info with path_type only', () => {
+    const facts = buildPathFacts({ path_type: 'bike-lane' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'bike-lane::' });
+  });
+
+  it('path_info with surface only (no path_type)', () => {
     const facts = buildPathFacts({ surface: 'gravel' });
-    expect(facts).toContainEqual({ key: 'surface', value: 'gravel' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: ':gravel:' });
   });
 
-  it('emits width alone when no surface', () => {
-    const facts = buildPathFacts({ width: '2.5' });
-    expect(facts).toContainEqual({ key: 'width', value: '2.5' });
+  it('path_info with surface + width, no path_type', () => {
+    const facts = buildPathFacts({ surface: 'asphalt', width: '2.5' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: ':asphalt:2.5' });
   });
 
-  it('uses raw surface value for unknown surfaces', () => {
+  it('path_info with width only', () => {
+    const facts = buildPathFacts({ width: '3' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: '::3' });
+  });
+
+  it('path_info passes through unknown surface values', () => {
     const facts = buildPathFacts({ surface: 'cobblestone' });
-    expect(facts).toContainEqual({ key: 'surface', value: 'cobblestone' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: ':cobblestone:' });
   });
 
-  it('emits smoothness fact for known values', () => {
-    const facts = buildPathFacts({ smoothness: 'good' });
-    expect(facts).toContainEqual({ key: 'smoothness_good' });
+  it.each([
+    'mup', 'separated-lane', 'bike-lane', 'paved-shoulder', 'mtb-trail', 'trail',
+  ] as const)('path_info includes path_type %s', (type) => {
+    const facts = buildPathFacts({ path_type: type });
+    expect(facts[0].key).toBe('path_info');
+    expect(facts[0].value).toMatch(new RegExp(`^${type}:`));
   });
 
-  it('emits smoothness fact for rough values', () => {
-    const facts = buildPathFacts({ smoothness: 'very_bad' });
-    expect(facts).toContainEqual({ key: 'smoothness_very_bad' });
+  it('no path_info when nothing available', () => {
+    const facts = buildPathFacts({ lit: 'yes' });
+    expect(facts.map(f => f.key)).not.toContain('path_info');
+  });
+
+  // --- traffic: combined separation + unusual access ---
+
+  it('traffic: separated from both cars and peds', () => {
+    const facts = buildPathFacts({ highway: 'cycleway', segregated: 'yes' });
+    expect(facts).toContainEqual({ key: 'traffic_separated_all' });
+  });
+
+  it('traffic: separated from cars only', () => {
+    const facts = buildPathFacts({ highway: 'cycleway' });
+    expect(facts).toContainEqual({ key: 'traffic_separated_cars' });
+  });
+
+  it('traffic: separated from peds only (unusual)', () => {
+    const facts = buildPathFacts({ segregated: 'yes' });
+    expect(facts).toContainEqual({ key: 'traffic_separated_peds' });
+  });
+
+  it('no traffic fact when no separation', () => {
+    const facts = buildPathFacts({ highway: 'path' });
+    const keys = facts.map(f => f.key);
+    expect(keys.every(k => !k.startsWith('traffic_'))).toBe(true);
+  });
+
+  it('traffic: bikes not allowed (unusual restriction)', () => {
+    const facts = buildPathFacts({ bicycle: 'no' });
+    expect(facts).toContainEqual({ key: 'traffic_no_bikes' });
+  });
+
+  it('traffic: dismount required', () => {
+    const facts = buildPathFacts({ bicycle: 'dismount' });
+    expect(facts).toContainEqual({ key: 'traffic_dismount' });
+  });
+
+  it('does not emit traffic for bicycle=yes or designated (redundant)', () => {
+    for (const val of ['yes', 'designated']) {
+      const facts = buildPathFacts({ bicycle: val });
+      const keys = facts.map(f => f.key);
+      expect(keys.every(k => !k.startsWith('traffic_'))).toBe(true);
+    }
+  });
+
+  it('no traffic fact when segregated=no', () => {
+    const facts = buildPathFacts({ segregated: 'no' });
+    const keys = facts.map(f => f.key);
+    expect(keys.every(k => !k.startsWith('traffic_'))).toBe(true);
+  });
+
+  // --- no separate highway/cycleway/bicycle facts ---
+
+  it('does not emit separate highway fact', () => {
+    const facts = buildPathFacts({ highway: 'path', path_type: 'mtb-trail' });
+    expect(facts.map(f => f.key)).not.toContain('highway');
+  });
+
+  it('does not emit separate cycleway fact', () => {
+    const facts = buildPathFacts({ cycleway: 'track', path_type: 'separated-lane' });
+    expect(facts.map(f => f.key)).not.toContain('cycleway');
+  });
+
+  it('does not emit separate bicycle_designated or bicycle_yes', () => {
+    const facts = buildPathFacts({ bicycle: 'designated' });
+    const keys = facts.map(f => f.key);
+    expect(keys).not.toContain('bicycle_designated');
+    expect(keys).not.toContain('bicycle_yes');
+  });
+
+  // --- unchanged facts ---
+
+  it('emits smoothness', () => {
+    expect(buildPathFacts({ smoothness: 'good' })).toContainEqual({ key: 'smoothness_good' });
+    expect(buildPathFacts({ smoothness: 'very_bad' })).toContainEqual({ key: 'smoothness_very_bad' });
   });
 
   it('does not emit smoothness when undefined', () => {
-    const facts = buildPathFacts({ surface: 'asphalt' });
-    const keys = facts.map(f => f.key);
+    const keys = buildPathFacts({ surface: 'asphalt' }).map(f => f.key);
     expect(keys.some(k => k.startsWith('smoothness_'))).toBe(false);
   });
 
-  it('emits separated_cars for cycleway', () => {
-    const facts = buildPathFacts({ highway: 'cycleway' });
-    expect(facts).toContainEqual({ key: 'separated_cars' });
+  it('emits lit/not_lit', () => {
+    expect(buildPathFacts({ lit: 'yes' })).toContainEqual({ key: 'lit' });
+    expect(buildPathFacts({ lit: 'no' })).toContainEqual({ key: 'not_lit' });
   });
 
-  it('does not emit separated_cars for non-cycleway', () => {
-    const facts = buildPathFacts({ highway: 'path' });
-    const keys = facts.map(f => f.key);
-    expect(keys).not.toContain('separated_cars');
+  it('emits terrain from elevation', () => {
+    expect(buildPathFacts({ elevation_gain_m: 10 })).toContainEqual({ key: 'flat' });
+    expect(buildPathFacts({ elevation_gain_m: 50 })).toContainEqual({ key: 'gentle_hills', value: '50' });
+    expect(buildPathFacts({ elevation_gain_m: 120 })).toContainEqual({ key: 'hilly', value: '120' });
   });
 
-  it('emits separated_peds when segregated=yes', () => {
-    const facts = buildPathFacts({ segregated: 'yes' });
-    expect(facts).toContainEqual({ key: 'separated_peds' });
+  it('emits operator', () => {
+    expect(buildPathFacts({ operator: 'NCC' })).toContainEqual({ key: 'operator', value: 'NCC' });
   });
 
-  it('does not emit separated_peds when segregated=no', () => {
-    const facts = buildPathFacts({ segregated: 'no' });
-    const keys = facts.map(f => f.key);
-    expect(keys).not.toContain('separated_peds');
+  it('emits network label for known codes', () => {
+    expect(buildPathFacts({ network: 'rcn' })).toContainEqual({ key: 'network_regional' });
+    expect(buildPathFacts({ network: 'ncn' })).toContainEqual({ key: 'network_national' });
+    expect(buildPathFacts({ network: 'lcn' })).toContainEqual({ key: 'network_local' });
   });
 
-  it('emits lit when lit=yes', () => {
-    const facts = buildPathFacts({ lit: 'yes' });
-    expect(facts).toContainEqual({ key: 'lit' });
-  });
-
-  it('emits not_lit when lit=no', () => {
-    const facts = buildPathFacts({ lit: 'no' });
-    expect(facts).toContainEqual({ key: 'not_lit' });
-  });
-
-  it('emits flat for elevation < 20', () => {
-    const facts = buildPathFacts({ elevation_gain_m: 10 });
-    expect(facts).toContainEqual({ key: 'flat' });
-  });
-
-  it('emits gentle_hills for elevation 20-79', () => {
-    const facts = buildPathFacts({ elevation_gain_m: 50 });
-    expect(facts).toContainEqual({ key: 'gentle_hills', value: '50' });
-  });
-
-  it('emits hilly for elevation >= 80', () => {
-    const facts = buildPathFacts({ elevation_gain_m: 120 });
-    expect(facts).toContainEqual({ key: 'hilly', value: '120' });
-  });
-
-  it('emits operator with name as value', () => {
-    const facts = buildPathFacts({ operator: 'NCC' });
-    expect(facts).toContainEqual({ key: 'operator', value: 'NCC' });
-  });
-
-  it('emits network label for known network code', () => {
-    const facts = buildPathFacts({ network: 'rcn' });
-    expect(facts).toContainEqual({ key: 'network_regional' });
-  });
-
-  it('does not emit network fact for unknown network code', () => {
-    const facts = buildPathFacts({ network: 'unknown' });
-    const keys = facts.map(f => f.key);
+  it('does not emit network for unknown code', () => {
+    const keys = buildPathFacts({ network: 'unknown' }).map(f => f.key);
     expect(keys).not.toContain('network_regional');
     expect(keys).not.toContain('network_national');
     expect(keys).not.toContain('network_local');
   });
 
+  it('emits parallel_to', () => {
+    expect(buildPathFacts({ parallel_to: 'Bank Street' })).toContainEqual({ key: 'parallel_to', value: 'Bank Street' });
+  });
+
+  it('emits seasonal, ref, inception', () => {
+    expect(buildPathFacts({ seasonal: 'winter' })).toContainEqual({ key: 'seasonal', value: 'winter' });
+    expect(buildPathFacts({ ref: 'RV1' })).toContainEqual({ key: 'ref', value: 'RV1' });
+    expect(buildPathFacts({ inception: '1970s' })).toContainEqual({ key: 'inception', value: '1970s' });
+  });
+
   it('builds full fact list for a rich path', () => {
     const facts = buildPathFacts({
+      path_type: 'mup',
       surface: 'asphalt',
       smoothness: 'good',
       width: '3',
@@ -226,10 +296,9 @@ describe('buildPathFacts', () => {
     });
     const keys = facts.map(f => f.key);
     expect(keys).toEqual([
-      'surface_width',
+      'path_info',
       'smoothness_good',
-      'separated_cars',
-      'separated_peds',
+      'traffic_separated_all',
       'lit',
       'flat',
       'operator',
@@ -238,84 +307,7 @@ describe('buildPathFacts', () => {
   });
 
   it('no longer emits mtb fact (replaced by path_type)', () => {
-    const facts = buildPathFacts({ mtb: true });
-    expect(facts.map(f => f.key)).not.toContain('mtb');
-  });
-
-  it('emits path_type as first fact', () => {
-    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt' });
-    expect(facts[0]).toEqual({ key: 'path_type', value: 'mup' });
-  });
-
-  it.each([
-    'mup', 'separated-lane', 'bike-lane', 'paved-shoulder', 'mtb-trail', 'trail',
-  ] as const)('emits path_type fact for %s', (type) => {
-    const facts = buildPathFacts({ path_type: type });
-    expect(facts).toContainEqual({ key: 'path_type', value: type });
-  });
-
-  it('does not emit path_type when undefined', () => {
-    const facts = buildPathFacts({ surface: 'asphalt' });
-    expect(facts.map(f => f.key)).not.toContain('path_type');
-  });
-
-  it('emits seasonal fact when seasonal is set', () => {
-    const facts = buildPathFacts({ seasonal: 'winter' });
-    expect(facts).toContainEqual({ key: 'seasonal', value: 'winter' });
-  });
-
-  it('emits ref fact when ref is set', () => {
-    const facts = buildPathFacts({ ref: 'RV1' });
-    expect(facts).toContainEqual({ key: 'ref', value: 'RV1' });
-  });
-
-  it('emits inception fact when inception is set', () => {
-    const facts = buildPathFacts({ inception: '1970s' });
-    expect(facts).toContainEqual({ key: 'inception', value: '1970s' });
-  });
-
-  it('emits bicycle_designated when bicycle is designated', () => {
-    const facts = buildPathFacts({ bicycle: 'designated' });
-    expect(facts).toContainEqual({ key: 'bicycle_designated' });
-  });
-
-  it('emits bicycle_yes when bicycle is yes', () => {
-    const facts = buildPathFacts({ bicycle: 'yes' });
-    expect(facts).toContainEqual({ key: 'bicycle_yes' });
-  });
-
-  it('does not emit bicycle fact when bicycle is absent', () => {
-    const facts = buildPathFacts({ surface: 'asphalt' });
-    const keys = facts.map(f => f.key);
-    expect(keys).not.toContain('bicycle_designated');
-    expect(keys).not.toContain('bicycle_yes');
-  });
-
-  it('emits cycleway fact with value for track', () => {
-    const facts = buildPathFacts({ cycleway: 'track' });
-    expect(facts).toContainEqual({ key: 'cycleway', value: 'track' });
-  });
-
-  it('does not emit cycleway fact for crossing', () => {
-    const facts = buildPathFacts({ cycleway: 'crossing' });
-    const keys = facts.map(f => f.key);
-    expect(keys).not.toContain('cycleway');
-  });
-
-  it('emits parallel_to fact with road name', () => {
-    const facts = buildPathFacts({ parallel_to: 'Bank Street' });
-    expect(facts).toContainEqual({ key: 'parallel_to', value: 'Bank Street' });
-  });
-
-  it('emits highway fact for non-cycleway highway', () => {
-    const facts = buildPathFacts({ highway: 'path' });
-    expect(facts).toContainEqual({ key: 'highway', value: 'path' });
-  });
-
-  it('does not emit highway fact when highway is cycleway', () => {
-    const facts = buildPathFacts({ highway: 'cycleway' });
-    const keys = facts.map(f => f.key);
-    expect(keys).not.toContain('highway');
+    expect(buildPathFacts({ mtb: true }).map(f => f.key)).not.toContain('mtb');
   });
 });
 

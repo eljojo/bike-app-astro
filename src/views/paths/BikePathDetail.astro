@@ -475,8 +475,10 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             ))
           ) : (
             pathFacts.map(fact => {
-              const factClass = fact.key === 'surface_width' ? 'fact-surface'
+              const factClass = fact.key === 'path_info' ? 'fact-path-type'
+                : fact.key === 'surface_width' ? 'fact-surface'
                 : fact.key.startsWith('smoothness_') ? 'fact-surface-quality'
+                : fact.key.startsWith('traffic_') ? 'fact-traffic'
                 : fact.key === 'separated_cars' || fact.key === 'separated_peds' ? 'fact-traffic'
                 : fact.key === 'lit' || fact.key === 'not_lit' ? 'fact-lighting'
                 : fact.key === 'flat' || fact.key === 'gentle_hills' || fact.key === 'hilly' ? 'fact-terrain'
