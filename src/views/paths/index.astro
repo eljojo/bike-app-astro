@@ -259,7 +259,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               <div class="category-network-group">
                 <div class="network-panel-header" data-slug={net.slug}>
                   <div class="network-panel-info">
-                    <span class="network-panel-name">{net.name}</span>
+                    <a href={paths.bikePath(net.slug, undefined, locale)} class="network-panel-name">{net.name}</a>
                     {net.length_km && <span class="path-meta">{net.length_km} km</span>}
                     {net.operator && <span class="path-meta path-meta--operator">{net.operator}</span>}
                   </div>
