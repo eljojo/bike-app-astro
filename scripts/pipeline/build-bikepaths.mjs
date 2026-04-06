@@ -1571,6 +1571,53 @@ out geom tags;`;
     console.log(`  Found ${unnamedChains.length} unnamed chains >= ${MIN_CHAIN_LENGTH_M / 1000}km`);
   }
 
+  // Step 2d: Discover non-cycling route relations (hiking, skiing, etc.)
+  // that share ways with our cycling infrastructure ("web spider").
+  // Walk UP from cycling ways to find their parent non-cycling relations.
+  // These are NOT entries — they become overlap metadata on existing entries.
+  const nonCyclingCandidates = [];
+  const allCyclingWayIds = [
+    ...osmRelations.flatMap(r => r._memberWayIds || []),
+    ...osmNamedWays.flatMap(np => np._wayIds || []),
+  ].filter(Boolean);
+
+  if (allCyclingWayIds.length > 0) {
+    console.log('Discovering non-cycling relations sharing cycling infrastructure...');
+    const CHUNK_SIZE = 2000;
+    const allNonCyclingRels = new Map();
+    for (let i = 0; i < allCyclingWayIds.length; i += CHUNK_SIZE) {
+      const chunk = allCyclingWayIds.slice(i, i + CHUNK_SIZE);
+      const spiderQ = `[out:json][timeout:120];\nway(id:${chunk.join(',')});\nrel(bw)["route"]["route"!="bicycle"]["route"!="mtb"]["type"="route"];\nout body tags;`;
+      try {
+        const spiderData = await qo(spiderQ);
+        for (const el of spiderData.elements) {
+          if (!allNonCyclingRels.has(el.id)) allNonCyclingRels.set(el.id, el);
+        }
+      } catch (err) {
+        console.error(`  Non-cycling relation discovery failed: ${err.message}`);
+      }
+    }
+
+    const cyclingWayIdSet = new Set(allCyclingWayIds);
+    for (const [relId, el] of allNonCyclingRels) {
+      const memberWayIds = (el.members || []).filter(m => m.type === 'way').map(m => m.ref);
+      const bikeableWayIds = memberWayIds.filter(id => cyclingWayIdSet.has(id));
+      if (bikeableWayIds.length === 0) continue;
+      nonCyclingCandidates.push({
+        id: relId,
+        name: el.tags?.name || `relation-${relId}`,
+        route: el.tags?.route || 'unknown',
+        operator: el.tags?.operator,
+        ref: el.tags?.ref,
+        network: el.tags?.network,
+        bikeableWayIds,
+      });
+    }
+    if (nonCyclingCandidates.length > 0) {
+      console.log(`  Found ${nonCyclingCandidates.length} non-cycling relations sharing cycling ways`);
+    }
+  }
+
   // Step 3: Build entries from scratch
   console.log('Building entries from scratch...');
   const entries = buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, wayRegistry);
@@ -1920,6 +1967,38 @@ out geom tags;`;
     const wayIds = wayRegistry.wayIdsFor(entry);
     if (wayIds.size > 0) {
       entry.osm_way_ids = [...wayIds].sort((a, b) => a - b);
+    }
+  }
+
+  // Step 10: Attach non-cycling relation overlap metadata to entries.
+  // For each non-cycling candidate found in step 2d, find all entries
+  // that own any of its bikeable ways and tag them with the relation info.
+  if (nonCyclingCandidates.length > 0) {
+    for (const candidate of nonCyclingCandidates) {
+      const entrySet = new Set();
+      for (const wayId of candidate.bikeableWayIds) {
+        // Check all entries that claim this way (not just primary owner)
+        for (const [entry, ways] of wayRegistry._entryToWays) {
+          if (ways.has(wayId)) entrySet.add(entry);
+        }
+      }
+      for (const entry of entrySet) {
+        if (!entry.overlapping_relations) entry.overlapping_relations = [];
+        if (!entry.overlapping_relations.some(r => r.id === candidate.id)) {
+          entry.overlapping_relations.push({
+            id: candidate.id,
+            name: candidate.name,
+            route: candidate.route,
+            operator: candidate.operator,
+            ref: candidate.ref,
+            network: candidate.network,
+          });
+        }
+      }
+    }
+    const overlapped = grouped.filter(e => e.overlapping_relations?.length > 0).length;
+    if (overlapped > 0) {
+      console.log(`  Attached non-cycling overlap metadata to ${overlapped} entries`);
     }
   }
 

@@ -672,6 +672,7 @@
   "paths.label.cycleway": "Lane type",
   "paths.label.parallel_to": "Alongside",
   "paths.label.highway": "Path type",
+  "paths.label.also_part_of": "Also part of",
   "paths.label.seasonal": "Seasonal",
   "paths.label.ref": "Route ref",
   "paths.label.established": "Established",

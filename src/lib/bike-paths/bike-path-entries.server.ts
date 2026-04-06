@@ -55,6 +55,8 @@ export interface MemberRef {
   hasMarkdown: boolean;
   /** The member's entry type — used to distinguish long-distance trails from regular members. */
   entryType?: string;
+  /** Non-cycling relations this member overlaps with — for network page grouping. */
+  overlappingRelations?: Array<{ id: number; name: string; route: string }>;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
@@ -135,6 +137,15 @@ export interface BikePathPage {
   inception?: string;
   /** Entry type from the pipeline: long-distance, network, destination, infrastructure, connector. */
   entryType: string;
+  /** Non-cycling route relations that share ways with this entry. */
+  overlapping_relations?: Array<{
+    id: number;
+    name: string;
+    route: string;
+    operator?: string;
+    ref?: string;
+    network?: string;
+  }>;
   /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
 }
@@ -454,6 +465,7 @@ export function loadBikePathEntries(): {
       inception: primary?.wikidata_meta?.inception,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
       entryType: primary?.type ?? 'unknown',
+      overlapping_relations: primary?.overlapping_relations,
       translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
   }
@@ -513,6 +525,7 @@ export function loadBikePathEntries(): {
       inception: entry.wikidata_meta?.inception,
       wikipedia: entry.wikipedia,
       entryType: entry.type,
+      overlapping_relations: entry.overlapping_relations,
       translations: readBikePathTranslations(entry.slug, entry),
     });
   }
@@ -572,6 +585,7 @@ export function loadBikePathEntries(): {
       memberOf: p.memberOf,
       hasMarkdown: p.hasMarkdown,
       entryType: p.ymlEntries[0]?.type,
+      overlappingRelations: p.overlapping_relations?.map(r => ({ id: r.id, name: r.name, route: r.route })),
     }));
 
     // Aggregate geometry from all members

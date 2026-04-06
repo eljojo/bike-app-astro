@@ -11,11 +11,12 @@ related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides]
 
 ## Steps
 
-1. **Discover cycling relations** — `relation["route"="bicycle"]` in bbox
+1. **Discover cycling relations** — `relation["route"="bicycle"]` and `relation["route"="mtb"]` in bbox
 1b. **Claim relation member ways** — fetch member way IDs for all discovered relations via `out body;`. Register in the WayRegistry (`lib/way-registry.mjs`). These ways are "claimed" — named-way discovery will merge them into the relation entry instead of creating duplicates.
 2. **Discover named cycling ways** — cycleways, paths, bike lanes with names. Split same-named ways by connectivity (shared nodes + 100m endpoint snap + 2km bbox merge). Junction trail expansion for non-cycling connectors. Way IDs (`_wayIds`) are preserved through splitting.
 2b. **Discover unnamed parallel lanes** — `highway=cycleway` without names, chained by proximity, matched to nearby roads.
 2c. **Discover unnamed cycling chains** — unnamed cycleways/paths >= 1.5km, named from nearby parks/roads using real geometry (`around.chain` + geometry-to-geometry distance).
+2d. **Discover non-cycling relations** — walk UP from cycling ways to find hiking, skiing, and other route relations that share cycling infrastructure. These are NOT entries — they become `overlapping_relations` metadata on existing entries. Threshold: ≥2km bikeable.
 3. **Build entries** — merge relations, named ways, parallel lanes, manual entries into one entry per path. Merge priority: way-ID overlap (WayRegistry) → slug match → name match. Relations claim their member ways first; named ways with ≥50% overlap merge into the claiming entry.
 4. **Auto-group** — connectivity-based clustering (shared nodes, endpoint proximity). Park containment splits clusters by park. Spur absorption: clusters with only 1 page-worthy member (>= 1km) absorb the rest.
 5. **Compute slugs** — centralized disambiguation.

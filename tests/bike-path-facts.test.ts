@@ -665,3 +665,32 @@ describe('buildNetworkFacts', () => {
     expect(facts.find(f => f.key === 'all_parallel')).toBeUndefined();
   });
 });
+
+describe('overlapping_relations facts', () => {
+  it('produces overlapping_relation fact from overlap metadata', () => {
+    const facts = buildPathFacts({
+      overlapping_relations: [
+        { id: 123, name: 'Rideau Trail', route: 'hiking' },
+      ],
+    });
+    const overlap = facts.find(f => f.key === 'overlapping_relation');
+    expect(overlap).toBeDefined();
+    expect(overlap!.value).toBe('Rideau Trail');
+  });
+
+  it('produces multiple facts for multiple overlaps', () => {
+    const facts = buildPathFacts({
+      overlapping_relations: [
+        { id: 1, name: 'Rideau Trail', route: 'hiking' },
+        { id: 2, name: 'NCC Ski Trail', route: 'ski' },
+      ],
+    });
+    const overlaps = facts.filter(f => f.key === 'overlapping_relation');
+    expect(overlaps).toHaveLength(2);
+  });
+
+  it('produces no overlap fact when absent', () => {
+    const facts = buildPathFacts({ surface: 'asphalt' });
+    expect(facts.find(f => f.key === 'overlapping_relation')).toBeUndefined();
+  });
+});

@@ -68,6 +68,7 @@ export interface PathMeta {
   bicycle?: string;
   cycleway?: string;
   parallel_to?: string;
+  overlapping_relations?: Array<{ id: number; name: string; route: string; operator?: string }>;
 }
 
 /**
@@ -171,6 +172,11 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Inception / Established
   if (meta.inception) {
     facts.push({ key: 'inception', value: meta.inception });
+  }
+
+  // Overlapping non-cycling relations
+  for (const rel of meta.overlapping_relations ?? []) {
+    facts.push({ key: 'overlapping_relation', value: rel.name });
   }
 
   return facts;
@@ -321,6 +327,7 @@ export function factLabelKey(factKey: string): string {
   if (factKey === 'seasonal') return 'paths.label.seasonal';
   if (factKey === 'ref') return 'paths.label.ref';
   if (factKey === 'inception') return 'paths.label.established';
+  if (factKey === 'overlapping_relation') return 'paths.label.also_part_of';
   return `paths.label.${factKey}`;
 }
 
@@ -347,6 +354,8 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
       return translated !== i18nKey ? translated : fact.value || '';
     }
     case 'parallel_to':
+      return fact.value || '';
+    case 'overlapping_relation':
       return fact.value || '';
     case 'highway': {
       const i18nKey = `paths.fact.highway_${fact.value}`;

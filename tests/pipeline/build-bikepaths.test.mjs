@@ -289,4 +289,65 @@ describe('buildBikepathsPipeline', () => {
     expect(mtb).toBeDefined();
     expect(mtb.osm_relations).toContain(7770001);
   });
+
+  it('attaches hiking relation overlap metadata to cycling entries', async () => {
+    const BIKE_RELATION = {
+      type: 'relation', id: 9990001,
+      tags: { name: 'Greenbelt Trail', route: 'bicycle', type: 'route' },
+    };
+    const HIKING_RELATION = {
+      type: 'relation', id: 9990002,
+      tags: { name: 'Rideau Trail - Ottawa', route: 'hiking', type: 'route',
+              operator: 'Rideau Trail Association', ref: 'RTO' },
+      members: [
+        { type: 'way', ref: 5501, role: '' },
+        { type: 'way', ref: 5502, role: '' },
+      ],
+    };
+    const CYCLING_WAYS = [
+      { type: 'way', id: 5501, tags: { highway: 'cycleway', name: 'Trail 25', surface: 'ground' },
+        geometry: [{ lat: 45.3, lon: -75.8 }, { lat: 45.31, lon: -75.79 }], nodes: [1, 2] },
+      { type: 'way', id: 5502, tags: { highway: 'path', name: 'Trail 25', surface: 'ground', bicycle: 'yes' },
+        geometry: [{ lat: 45.31, lon: -75.79 }, { lat: 45.32, lon: -75.78 }], nodes: [2, 3] },
+    ];
+
+    const adapterWithWays = {
+      ...OTTAWA_ADAPTER,
+      namedWayQueries: (bbox) => [
+        { label: 'cycleways', q: `[out:json];way["highway"="cycleway"]["name"](${bbox});out geom tags;` },
+        { label: 'paths', q: `[out:json];way["highway"="path"]["bicycle"~"yes|designated"]["name"](${bbox});out geom tags;` },
+      ],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [BIKE_RELATION] }],
+      ['relation["route"="mtb"]', { elements: [] }],
+      // Spider query (must come before 'out body' since it also contains that substring)
+      ['route"!="bicycle"', { elements: [HIKING_RELATION] }],
+      ['out body', { elements: [{ type: 'relation', id: 9990001, members: [
+        { type: 'way', ref: 5501, role: '' },
+        { type: 'way', ref: 5502, role: '' },
+      ] }] }],
+      ['highway"="cycleway"]["name"', { elements: [CYCLING_WAYS[0]] }],
+      ['highway"="path"]["bicycle"', { elements: [CYCLING_WAYS[1]] }],
+      ['out geom', { elements: [{ type: 'relation', id: 9990001, members: CYCLING_WAYS.map(w => ({
+        type: 'way', ref: w.id, role: '', geometry: w.geometry,
+      })) }] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.2,-76.0,45.4,-75.6',
+      adapter: adapterWithWays,
+      manualEntries: [],
+    });
+
+    const trail = entries.find(e => e.osm_relations?.includes(9990001));
+    expect(trail).toBeDefined();
+    expect(trail.overlapping_relations).toBeDefined();
+    expect(trail.overlapping_relations).toHaveLength(1);
+    expect(trail.overlapping_relations[0].name).toBe('Rideau Trail - Ottawa');
+    expect(trail.overlapping_relations[0].route).toBe('hiking');
+    expect(trail.overlapping_relations[0].operator).toBe('Rideau Trail Association');
+  });
 });

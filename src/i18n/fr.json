@@ -672,6 +672,7 @@
   "paths.label.cycleway": "Type de voie",
   "paths.label.parallel_to": "Le long de",
   "paths.label.highway": "Type de chemin",
+  "paths.label.also_part_of": "Aussi partie de",
   "paths.label.seasonal": "Saison",
   "paths.label.ref": "Référence",
   "paths.label.established": "Établi",
