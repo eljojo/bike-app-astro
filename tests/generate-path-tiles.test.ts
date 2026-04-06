@@ -273,6 +273,31 @@ describe('adaptive splitting', () => {
     expect(tiles.size).toBeGreaterThan(1);
   });
 
+  it('city-spanning feature does not cause tile explosion', () => {
+    // A single long path spanning a wide area plus many small local paths.
+    // Without counting only in-box coords, the long path's total coord count
+    // inflates every quadrant, causing exponential splitting.
+    const longCoords: [number, number][] = Array.from({ length: 500 }, (_, i) => [
+      -76 + i * 0.006, 45 + i * 0.002,
+    ]);
+    const input = new Map<string, FeatureCollection>();
+    input.set('long-trail', fc(line(longCoords)));
+
+    // Add 20 small local paths clustered in one area
+    for (let i = 0; i < 20; i++) {
+      const coords: [number, number][] = Array.from({ length: 50 }, (_, j) => [
+        -75.6 + j * 0.001 + i * 0.01, 45.4 + j * 0.001,
+      ]);
+      input.set(`local-${i}`, fc(line(coords)));
+    }
+
+    const { tiles } = buildTiles(input, undefined, { maxCoords: 200 });
+
+    // Should produce a reasonable number of tiles, not thousands
+    expect(tiles.size).toBeLessThan(50);
+    expect(tiles.size).toBeGreaterThan(1);
+  });
+
   it('max depth stops infinite recursion', () => {
     // Use threshold of 1 so every tile exceeds budget, forcing max-depth termination
     // A single feature with many coords cannot be split further than max depth

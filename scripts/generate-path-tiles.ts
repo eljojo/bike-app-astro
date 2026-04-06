@@ -74,11 +74,15 @@ function extractCoordinates(feature: Feature): Position[] {
   }
 }
 
-/** Count coordinates in a set of features. */
-function countCoords(features: Feature[]): number {
+/** Count only coordinates that fall within a bounding box. */
+function countCoordsInBox(features: Feature[], box: SplitBox): number {
   let total = 0;
   for (const f of features) {
-    total += extractCoordinates(f).length;
+    for (const [lng, lat] of extractCoordinates(f)) {
+      if (lng >= box.minLng && lng <= box.maxLng && lat >= box.minLat && lat <= box.maxLat) {
+        total++;
+      }
+    }
   }
   return total;
 }
@@ -181,7 +185,10 @@ function splitAdaptive(
 ): void {
   if (features.length === 0) return;
 
-  const coordCount = countCoords(features);
+  // Count only coordinates within this tile's bounds — not the feature's total.
+  // A long path spanning the city is one feature; without this, its full coord
+  // count would inflate every quadrant it touches, causing infinite splitting.
+  const coordCount = countCoordsInBox(features, box);
 
   // Emit tile if within budget or at max depth
   if (coordCount <= maxCoords || depth >= MAX_DEPTH) {

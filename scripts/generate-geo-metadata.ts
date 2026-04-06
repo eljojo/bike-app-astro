@@ -24,15 +24,19 @@ const { pages } = loadBikePathEntries();
 
 const metadata: Record<string, GeoMetaEntry> = {};
 
+// Member pages are processed before network pages (loadBikePathEntries order).
+// Network pages aggregate their members' geoFiles, so without first-write-wins
+// the network slug would overwrite the member slug for shared geoIds.
 for (const page of pages) {
   for (const file of page.geoFiles) {
     const geoId = file.replace(/\.geojson$/, '');
+    if (metadata[geoId]) continue; // member already registered this geoId
     metadata[geoId] = {
       slug: page.slug,
       name: page.name,
       memberOf: page.memberOf ?? '',
       surface: page.surface ?? '',
-      hasPage: page.standalone,
+      hasPage: page.listed || page.standalone,
       path_type: page.path_type ?? '',
       length_km: page.length_km ?? 0,
     };

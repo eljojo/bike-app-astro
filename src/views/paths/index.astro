@@ -649,7 +649,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         const updated = await tileLoader.loadTilesForBounds(getMapBounds());
         if (updated.length === prevFeatureCount) return;
 
-        enrichFeatures(updated);
+        tagFeatures(updated);
         prevFeatureCount = updated.length;
 
         if (!layersSetUp) {
