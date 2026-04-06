@@ -288,7 +288,10 @@ async function main() {
         .digest('hex').slice(0, 16);
       const mapSlug = `path-${page.slug}`;
 
-      for (const lang of languages) {
+      // Bike paths: single thumbnail in default locale only (no localized variants).
+      // The map is just geometry on tiles — locale doesn't change the content.
+      // Routes and rides keep per-locale generation.
+      for (const lang of [defaultLang]) {
         const langPrefix = lang === defaultLang ? undefined : lang;
 
         if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {

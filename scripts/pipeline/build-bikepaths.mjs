@@ -1587,14 +1587,33 @@ out geom tags;`;
     const allNonCyclingRels = new Map();
     for (let i = 0; i < allCyclingWayIds.length; i += CHUNK_SIZE) {
       const chunk = allCyclingWayIds.slice(i, i + CHUNK_SIZE);
-      const spiderQ = `[out:json][timeout:120];\nway(id:${chunk.join(',')});\nrel(bw)["route"]["route"!="bicycle"]["route"!="mtb"]["type"="route"];\nout body tags;`;
+      const spiderQ = `[out:json][timeout:120];\nway(id:${chunk.join(',')});\nrel(bw)["route"]["route"!="bicycle"]["route"!="mtb"]["route"!="bus"]["route"!="road"]["route"!="detour"]["route"!="ski"]["type"="route"];\nout tags;`;
       try {
         const spiderData = await qo(spiderQ);
+        // Chunks are logged at debug level only
         for (const el of spiderData.elements) {
           if (!allNonCyclingRels.has(el.id)) allNonCyclingRels.set(el.id, el);
         }
       } catch (err) {
-        console.error(`  Non-cycling relation discovery failed: ${err.message}`);
+        console.error(`  Non-cycling relation discovery chunk failed: ${err.message}`);
+      }
+    }
+
+    console.log(`  ${allNonCyclingRels.size} unique non-cycling relations found`);
+
+    // rel(bw) returns relations without member lists. Fetch full body separately.
+    if (allNonCyclingRels.size > 0) {
+      const relIds = [...allNonCyclingRels.keys()];
+      const bodyQ = `[out:json][timeout:120];\n(\n${relIds.map(id => `  relation(${id});`).join('\n')}\n);\nout body;`;
+      try {
+        const bodyData = await qo(bodyQ);
+        for (const el of bodyData.elements) {
+          if (el.members && allNonCyclingRels.has(el.id)) {
+            allNonCyclingRels.get(el.id).members = el.members;
+          }
+        }
+      } catch (err) {
+        console.error(`  Failed to fetch non-cycling relation members: ${err.message}`);
       }
     }
 
@@ -1603,14 +1622,17 @@ out geom tags;`;
       const memberWayIds = (el.members || []).filter(m => m.type === 'way').map(m => m.ref);
       const bikeableWayIds = memberWayIds.filter(id => cyclingWayIdSet.has(id));
       if (bikeableWayIds.length === 0) continue;
+      if (!el.tags?.name) continue; // skip unnamed relations — no display value
+      const bikeablePct = bikeableWayIds.length / memberWayIds.length;
       nonCyclingCandidates.push({
         id: relId,
-        name: el.tags?.name || `relation-${relId}`,
+        name: el.tags.name,
         route: el.tags?.route || 'unknown',
         operator: el.tags?.operator,
         ref: el.tags?.ref,
         network: el.tags?.network,
         bikeableWayIds,
+        bikeablePct,
       });
     }
     if (nonCyclingCandidates.length > 0) {
@@ -1852,6 +1874,69 @@ out geom tags;`;
     console.log(`  Removed ${zombies.length} empty networks`);
   }
 
+  // Step 8d: Process non-cycling relation candidates (before slug computation).
+  // 90%+ bikeable → the ways tell us this IS cycling infrastructure. Promote to
+  // a real entry — the relation's route tag (hiking, piste) is a fact, not its identity.
+  // Below 90% → attach as overlap metadata on existing entries.
+  const PROMOTE_THRESHOLD = 0.9;
+  if (nonCyclingCandidates.length > 0) {
+    const promoted = [];
+    const overlapOnly = [];
+    for (const c of nonCyclingCandidates) {
+      if (c.bikeablePct >= PROMOTE_THRESHOLD) promoted.push(c);
+      else overlapOnly.push(c);
+    }
+
+    // Promote high-bikeable relations to real entries
+    let promotedCount = 0;
+    for (const candidate of promoted) {
+      const existingEntry = grouped.find(e => e.osm_relations?.includes(candidate.id));
+      if (existingEntry) continue;
+
+      const entry = {
+        name: candidate.name,
+        osm_relations: [candidate.id],
+        osm_way_ids: candidate.bikeableWayIds.sort((a, b) => a - b),
+        route_type: candidate.route,
+      };
+      if (candidate.operator) entry.operator = candidate.operator;
+      if (candidate.ref) entry.ref = candidate.ref;
+      if (candidate.network) entry.network = candidate.network;
+      grouped.push(entry);
+      promotedCount++;
+    }
+    if (promotedCount > 0) {
+      console.log(`  Promoted ${promotedCount} non-cycling relations to entries (≥${Math.round(PROMOTE_THRESHOLD * 100)}% bikeable)`);
+    }
+
+    // Attach overlap metadata for below-threshold relations
+    for (const candidate of overlapOnly) {
+      const entrySet = new Set();
+      for (const wayId of candidate.bikeableWayIds) {
+        for (const [entry, ways] of wayRegistry._entryToWays) {
+          if (ways.has(wayId)) entrySet.add(entry);
+        }
+      }
+      for (const entry of entrySet) {
+        if (!entry.overlapping_relations) entry.overlapping_relations = [];
+        if (!entry.overlapping_relations.some(r => r.id === candidate.id)) {
+          entry.overlapping_relations.push({
+            id: candidate.id,
+            name: candidate.name,
+            route: candidate.route,
+            operator: candidate.operator,
+            ref: candidate.ref,
+            network: candidate.network,
+          });
+        }
+      }
+    }
+    const overlapped = grouped.filter(e => e.overlapping_relations?.length > 0).length;
+    if (overlapped > 0) {
+      console.log(`  Attached overlap metadata to ${overlapped} entries (below ${Math.round(PROMOTE_THRESHOLD * 100)}%)`);
+    }
+  }
+
   // Step 9: Final resolution — compute slugs once, resolve all refs to strings
   const slugMap = computeSlugs(grouped);
   for (const entry of grouped) {
@@ -1970,37 +2055,7 @@ out geom tags;`;
     }
   }
 
-  // Step 10: Attach non-cycling relation overlap metadata to entries.
-  // For each non-cycling candidate found in step 2d, find all entries
-  // that own any of its bikeable ways and tag them with the relation info.
-  if (nonCyclingCandidates.length > 0) {
-    for (const candidate of nonCyclingCandidates) {
-      const entrySet = new Set();
-      for (const wayId of candidate.bikeableWayIds) {
-        // Check all entries that claim this way (not just primary owner)
-        for (const [entry, ways] of wayRegistry._entryToWays) {
-          if (ways.has(wayId)) entrySet.add(entry);
-        }
-      }
-      for (const entry of entrySet) {
-        if (!entry.overlapping_relations) entry.overlapping_relations = [];
-        if (!entry.overlapping_relations.some(r => r.id === candidate.id)) {
-          entry.overlapping_relations.push({
-            id: candidate.id,
-            name: candidate.name,
-            route: candidate.route,
-            operator: candidate.operator,
-            ref: candidate.ref,
-            network: candidate.network,
-          });
-        }
-      }
-    }
-    const overlapped = grouped.filter(e => e.overlapping_relations?.length > 0).length;
-    if (overlapped > 0) {
-      console.log(`  Attached non-cycling overlap metadata to ${overlapped} entries`);
-    }
-  }
+  // (Non-cycling relation processing moved to step 8d, before slug computation)
 
   return { entries: grouped, superNetworks, slugMap, wayRegistry };
 }

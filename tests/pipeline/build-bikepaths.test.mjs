@@ -342,12 +342,148 @@ describe('buildBikepathsPipeline', () => {
       manualEntries: [],
     });
 
-    const trail = entries.find(e => e.osm_relations?.includes(9990001));
-    expect(trail).toBeDefined();
-    expect(trail.overlapping_relations).toBeDefined();
-    expect(trail.overlapping_relations).toHaveLength(1);
-    expect(trail.overlapping_relations[0].name).toBe('Rideau Trail - Ottawa');
-    expect(trail.overlapping_relations[0].route).toBe('hiking');
-    expect(trail.overlapping_relations[0].operator).toBe('Rideau Trail Association');
+    // The hiking relation is 100% bikeable (2/2 ways) so it gets promoted
+    // to a real entry, not attached as overlap metadata
+    const promoted = entries.find(e => e.osm_relations?.includes(9990002));
+    expect(promoted).toBeDefined();
+    expect(promoted.name).toBe('Rideau Trail - Ottawa');
+    expect(promoted.route_type).toBe('hiking');
+
+    // The cycling entry should NOT have overlap metadata (relation was promoted)
+    const cycling = entries.find(e => e.osm_relations?.includes(9990001));
+    expect(cycling).toBeDefined();
+    expect(cycling.overlapping_relations).toBeUndefined();
+  });
+
+  it('promotes a piste relation to a real entry when 100% of its ways are cycling infrastructure', async () => {
+    // Le P'tit Train du Nord: tagged route=piste in OSM, but every single
+    // way is highway=cycleway. The ways are the truth — this IS a bike path.
+    // The piste tag is a fact about the entry, not its identity.
+    const CYCLING_RELATION = {
+      type: 'relation', id: 8880001,
+      tags: { name: 'Trans Canada Trail', route: 'bicycle', type: 'route' },
+    };
+    const PISTE_RELATION = {
+      type: 'relation', id: 8880002,
+      tags: { name: "Le P'tit Train du Nord", route: 'piste', type: 'route' },
+      members: [
+        { type: 'way', ref: 7701, role: '' },
+        { type: 'way', ref: 7702, role: '' },
+        { type: 'way', ref: 7703, role: '' },
+      ],
+    };
+    // All three ways are cycleways — discovered by the pipeline as cycling infrastructure
+    const WAYS = [
+      { type: 'way', id: 7701, tags: { highway: 'cycleway', name: "Le P'tit Train du Nord", surface: 'compacted', bicycle: 'designated' },
+        geometry: [{ lat: 45.81, lon: -74.03 }, { lat: 45.82, lon: -74.04 }], nodes: [1, 2] },
+      { type: 'way', id: 7702, tags: { highway: 'cycleway', name: "Le P'tit Train du Nord", surface: 'compacted', bicycle: 'designated' },
+        geometry: [{ lat: 45.82, lon: -74.04 }, { lat: 45.83, lon: -74.05 }], nodes: [2, 3] },
+      { type: 'way', id: 7703, tags: { highway: 'cycleway', name: "Le P'tit Train du Nord", surface: 'asphalt', bicycle: 'designated' },
+        geometry: [{ lat: 45.83, lon: -74.05 }, { lat: 45.84, lon: -74.06 }], nodes: [3, 4] },
+    ];
+
+    const adapterWithWays = {
+      ...OTTAWA_ADAPTER,
+      namedWayQueries: (bbox) => [
+        { label: 'cycleways', q: `[out:json];way["highway"="cycleway"]["name"](${bbox});out geom tags;` },
+      ],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [CYCLING_RELATION] }],
+      ['relation["route"="mtb"]', { elements: [] }],
+      ['route"!="bicycle"', { elements: [PISTE_RELATION] }],
+      // Body query for both relations
+      ['out body', { elements: [
+        { type: 'relation', id: 8880001, members: WAYS.map(w => ({ type: 'way', ref: w.id, role: '' })) },
+        { type: 'relation', id: 8880002, members: WAYS.map(w => ({ type: 'way', ref: w.id, role: '' })) },
+      ] }],
+      ['highway"="cycleway"]["name"', { elements: WAYS }],
+      ['out geom', { elements: [{ type: 'relation', id: 8880001, members: WAYS.map(w => ({
+        type: 'way', ref: w.id, role: '', geometry: w.geometry,
+      })) }] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.7,-74.2,45.9,-73.9',
+      adapter: adapterWithWays,
+      manualEntries: [],
+    });
+
+    // The piste relation should be promoted to a real entry
+    const ptdn = entries.find(e => e.osm_relations?.includes(8880002));
+    expect(ptdn).toBeDefined();
+    expect(ptdn.name).toBe("Le P'tit Train du Nord");
+    expect(ptdn.route_type).toBe('piste');
+    expect(ptdn.slug).toBeDefined(); // slug was computed
+    expect(ptdn.osm_way_ids).toEqual(expect.arrayContaining([7701, 7702, 7703]));
+  });
+
+  it('keeps low-bikeable relation as overlap metadata, does not promote', async () => {
+    // RT Bells Corners Blue Loop: 43% bikeable. Should be overlap metadata,
+    // not a promoted entry. Only the bikeable ways matter to us.
+    const CYCLING_RELATION = {
+      type: 'relation', id: 6660001,
+      tags: { name: 'Greenbelt Pathway', route: 'bicycle', type: 'route' },
+    };
+    const HIKING_RELATION = {
+      type: 'relation', id: 6660002,
+      tags: { name: 'RT Bells Corners Blue Loop', route: 'hiking', type: 'route' },
+      // 3 ways total, only 1 is cycling — 33%, below threshold
+      members: [
+        { type: 'way', ref: 6601, role: '' },
+        { type: 'way', ref: 6602, role: '' },
+        { type: 'way', ref: 6603, role: '' },
+      ],
+    };
+    const CYCLING_WAY = {
+      type: 'way', id: 6601, tags: { highway: 'cycleway', name: 'Greenbelt Pathway West', surface: 'asphalt', bicycle: 'designated' },
+      geometry: [{ lat: 45.33, lon: -75.85 }, { lat: 45.34, lon: -75.84 }], nodes: [1, 2],
+    };
+
+    const adapterWithWays = {
+      ...OTTAWA_ADAPTER,
+      namedWayQueries: (bbox) => [
+        { label: 'cycleways', q: `[out:json];way["highway"="cycleway"]["name"](${bbox});out geom tags;` },
+      ],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [CYCLING_RELATION] }],
+      ['relation["route"="mtb"]', { elements: [] }],
+      ['route"!="bicycle"', { elements: [HIKING_RELATION] }],
+      ['out body', { elements: [
+        { type: 'relation', id: 6660001, members: [{ type: 'way', ref: 6601, role: '' }] },
+        { type: 'relation', id: 6660002, members: [
+          { type: 'way', ref: 6601, role: '' },
+          { type: 'way', ref: 6602, role: '' },
+          { type: 'way', ref: 6603, role: '' },
+        ] },
+      ] }],
+      ['highway"="cycleway"]["name"', { elements: [CYCLING_WAY] }],
+      ['out geom', { elements: [{ type: 'relation', id: 6660001, members: [
+        { type: 'way', ref: 6601, role: '', geometry: CYCLING_WAY.geometry },
+      ] }] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.2,-76.0,45.4,-75.6',
+      adapter: adapterWithWays,
+      manualEntries: [],
+    });
+
+    // The hiking relation should NOT be promoted (only 33% bikeable)
+    const promoted = entries.find(e => e.osm_relations?.includes(6660002));
+    expect(promoted).toBeUndefined();
+
+    // The cycling entry should have overlap metadata instead
+    const cycling = entries.find(e => e.osm_relations?.includes(6660001));
+    expect(cycling).toBeDefined();
+    expect(cycling.overlapping_relations).toBeDefined();
+    expect(cycling.overlapping_relations).toHaveLength(1);
+    expect(cycling.overlapping_relations[0].name).toBe('RT Bells Corners Blue Loop');
+    expect(cycling.overlapping_relations[0].route).toBe('hiking');
   });
 });

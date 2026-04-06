@@ -55,6 +55,9 @@ export const bikePathYmlEntrySchema = z.looseObject({
   super_network: z.string().optional(),
   /** OSM cycle_network tag (e.g., "National Capital Region"). */
   cycle_network: z.string().optional(),
+  /** Original OSM route type for entries promoted from non-cycling relations.
+   *  'hiking', 'piste', 'foot', etc. Absent for cycling-first entries. */
+  route_type: z.string().optional(),
   /** Non-cycling route relations that share ways with this entry.
    *  Discovered by the pipeline's web-spider step. */
   overlapping_relations: z.array(z.object({
