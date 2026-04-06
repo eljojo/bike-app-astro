@@ -174,11 +174,6 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
     facts.push({ key: 'inception', value: meta.inception });
   }
 
-  // Overlapping non-cycling relations
-  for (const rel of meta.overlapping_relations ?? []) {
-    facts.push({ key: 'overlapping_relation', value: rel.name });
-  }
-
   return facts;
 }
 

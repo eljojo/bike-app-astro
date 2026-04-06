@@ -173,6 +173,18 @@ const externalConnected = connectedPaths.filter(p => {
 
 const showStubCta = !descriptionHtml && (page.stub || !page.hasMarkdown);
 
+// Overlapping non-cycling relations (hiking trails, ski trails sharing this path)
+const ROUTE_LABELS: Record<string, string> = { hiking: 'paths.shared_hiking', piste: 'paths.shared_ski', foot: 'paths.shared_walking', ski: 'paths.shared_ski' };
+const overlappingRelations = (page.overlapping_relations ?? [])
+  .filter(r => ROUTE_LABELS[r.route]);
+// Deduplicate by name (same trail can appear via multiple ways)
+const seenRelNames = new Set<string>();
+const uniqueOverlaps = overlappingRelations.filter(r => {
+  if (seenRelNames.has(r.name)) return false;
+  seenRelNames.add(r.name);
+  return true;
+});
+
 // Infrastructure data — what connects to this path/network and what networks are nearby
 const filteredNearby = nearbyPaths.filter(p => !memberSlugSet.has(p.slug));
 // Connected paths sorted by length (longest first = most significant)
@@ -504,6 +516,23 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             <tr class="fact-established"><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
           )}
         </table>
+
+        {/* Shared with non-cycling routes (hiking trails, ski trails) */}
+        {uniqueOverlaps.length > 0 && (
+          <div class="shared-routes">
+            <h3>{t('paths.shared_with', locale)}</h3>
+            <ul>
+              {uniqueOverlaps.map(r => (
+                <li>
+                  <a href={`https://openstreetmap.org/relation/${r.id}`} target="_blank" rel="noopener" class="shared-route-link">
+                    {r.name}
+                  </a>
+                  <span class="shared-route-type">{t(ROUTE_LABELS[r.route], locale)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {nearbyPlaces.length > 0 && (
           <div>

@@ -666,31 +666,14 @@ describe('buildNetworkFacts', () => {
   });
 });
 
-describe('overlapping_relations facts', () => {
-  it('produces overlapping_relation fact from overlap metadata', () => {
+describe('overlapping_relations', () => {
+  it('are not emitted as facts (displayed in their own sidebar section)', () => {
     const facts = buildPathFacts({
       overlapping_relations: [
         { id: 123, name: 'Rideau Trail', route: 'hiking' },
+        { id: 456, name: 'NCC Ski Trail', route: 'ski' },
       ],
     });
-    const overlap = facts.find(f => f.key === 'overlapping_relation');
-    expect(overlap).toBeDefined();
-    expect(overlap!.value).toBe('Rideau Trail');
-  });
-
-  it('produces multiple facts for multiple overlaps', () => {
-    const facts = buildPathFacts({
-      overlapping_relations: [
-        { id: 1, name: 'Rideau Trail', route: 'hiking' },
-        { id: 2, name: 'NCC Ski Trail', route: 'ski' },
-      ],
-    });
-    const overlaps = facts.filter(f => f.key === 'overlapping_relation');
-    expect(overlaps).toHaveLength(2);
-  });
-
-  it('produces no overlap fact when absent', () => {
-    const facts = buildPathFacts({ surface: 'asphalt' });
     expect(facts.find(f => f.key === 'overlapping_relation')).toBeUndefined();
   });
 });
