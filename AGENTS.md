@@ -91,53 +91,68 @@ See `.env.example`. Key: `RUNTIME=local` for offline dev, `CONTENT_DIR` for data
 
 ---
 
+## Always Read
+
+**Read these five files at the start of every session. This is not optional.** They prevent catastrophic mistakes and provide foundational knowledge required for any task.
+
+- [protocol-destructive-actions](_ctx/protocol-destructive-actions.md) — before any git command that modifies working tree: list files, explain, confirm
+- [git-conventions](_ctx/git-conventions.md) — commit granularity, no co-author, no auto-commit, no push unless told
+- [domain-model](_ctx/domain-model.md) — the cycling domain: entities, relationships, why truthful modelling matters
+- [architecture-principles](_ctx/architecture-principles.md) — Static is Sacred, Develop on a Train, Data Locality, Tags as Behaviour
+- [codex-reference](_ctx/codex-reference.md) — how to use Codex for second opinions, debugging, and review
+
+---
+
 ## Context
 
-This repo uses a two-tier context system. The rules and mindset above are always active. The files below contain detail for specific tasks — read the one-line description to decide if you need the full file. Files with `type: protocol` are step-by-step procedures to follow when triggered. Files with `type: rule` are non-negotiable. Files with `type: pattern` or `type: guide` inform your approach. Each file has a `triggers` field in its frontmatter listing when to load it. See [context-system](_ctx/context-system.md) for the full loading protocol and maintenance rules.
+This repo uses a knowledge base system in `_ctx/`. The always-read files above are loaded every session. The files below are loaded when their topic matches the current task — read the one-line description to decide if you need the full file. See [context-system](_ctx/context-system.md) for the full loading protocol, maintenance process, and how to add new files.
 
-### Protocols
-- [protocol-drift-correction](_ctx/protocol-drift-correction.md) — when drifting: stop, restate, re-read, verify match
-- [protocol-verify-before-done](_ctx/protocol-verify-before-done.md) — run verification commands, show output, never claim without evidence
-- [protocol-destructive-actions](_ctx/protocol-destructive-actions.md) — before git stash/checkout/reset/push: list files, explain, confirm
+### Vision
+Long-term direction. Read to understand *why* decisions are made.
+- [development-principles](_ctx/development-principles.md) — empathy, universality, show don't tell, domain-driven design, durability
+- [public-design-language](_ctx/public-design-language.md) — the iPod for cycling; restraint and warmth, progressive revelation, physical metaphors
+- [admin-design-language](_ctx/admin-design-language.md) — Keynote not Numbers; inevitability with personality, warm darks
+- [voice-and-feel](_ctx/voice-and-feel.md) — friend showing you around; no exclamation marks, no absolute fitness language
+- [brand-framing](_ctx/brand-framing.md) — whereto.bike umbrella, instance types, positioning
+- [stats-philosophy](_ctx/stats-philosophy.md) — "this is liked" not "this performs"; community relationship, not metrics
 
-### Rules
-- [spatial-reasoning](_ctx/spatial-reasoning.md) — NEVER use midpoints, centers, anchors, or bboxes as proxy for real geometry
-- [vendor-isolation](_ctx/vendor-isolation.md) — every cloud service behind an adapter; 6 boundary points
-- [server-boundary](_ctx/server-boundary.md) — .server.ts naming, what can import what, ESLint enforcement
-- [git-conventions](_ctx/git-conventions.md) — commit granularity, no co-author, message style
-- [test-quality](_ctx/test-quality.md) — real SQLite not mocks, assert known values, break code to validate
-
-### Patterns
-- [save-pipeline](_ctx/save-pipeline.md) — SaveHandlers factory, conflict detection, D1 cache overlay
-- [domain-model](_ctx/domain-model.md) — the cycling domain: entities, relationships, why truthful modelling matters
-- [content-model](_ctx/content-model.md) — model schemas as source of truth, content type registry
-- [virtual-modules](_ctx/virtual-modules.md) — build-data-plugin, ambient types, how to add new ones
+### Knowledge
+How the app works. Read to understand *what* things are.
+- [context-system](_ctx/context-system.md) — how the _ctx/ knowledge base works: philosophy, loading tiers, types, maintenance
+- [content-model](_ctx/content-model.md) — model schemas as source of truth, content type registry, ContentOps, GitFiles
+- [config-layers](_ctx/config-layers.md) — build-time vs runtime config, city config YAML, AppEnv, build-time transforms
 - [instance-types](_ctx/instance-types.md) — wiki/blog/club, feature flags vs identity checks
-- [ci-cd](_ctx/ci-cd.md) — workflows, deploy matrix, screenshot auto-update
-- [adding-new-things](_ctx/adding-new-things.md) — checklists for content types, endpoints, routes, tables
-- [media-pipeline](_ctx/media-pipeline.md) — R2 storage, video transcoding, universal media pattern
+- [save-pipeline](_ctx/save-pipeline.md) — SaveHandlers factory, conflict detection, D1 cache overlay
+- [virtual-modules](_ctx/virtual-modules.md) — build-data-plugin, ambient types, how to add new ones
 - [i18n](_ctx/i18n.md) — three layers (UI strings, URL paths, content sidecars)
-- [config-layers](_ctx/config-layers.md) — build-time vs runtime config, city config, AppEnv
+- [media-pipeline](_ctx/media-pipeline.md) — R2 storage, video transcoding, universal media pattern
 - [blog-instance](_ctx/blog-instance.md) — blog city is always blog/, CITY=blog, consumer repo, sync.js
 - [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
-- [markdown-overrides](_ctx/markdown-overrides.md) — how markdown frontmatter is consumed by pipeline and app
 - [pipeline-overview](_ctx/pipeline-overview.md) — how the bikepaths pipeline discovers, names, clusters, and networks cycling infrastructure
 - [naming-unnamed-chains](_ctx/naming-unnamed-chains.md) — how the pipeline names unnamed chains from nearby parks/roads
 - [path-types](_ctx/path-types.md) — path_type field: classifies infrastructure by safety and bike requirements
 - [entry-types](_ctx/entry-types.md) — type field: network, destination, infrastructure, connector
-
-### Guides
-- [public-design-language](_ctx/public-design-language.md) — the iPod for cycling; restraint and warmth, progressive revelation, physical metaphors
-- [admin-design-language](_ctx/admin-design-language.md) — Keynote not Numbers; inevitability with personality, warm darks
-- [stats-philosophy](_ctx/stats-philosophy.md) — "this is liked" not "this performs"; community relationship, not metrics
-- [voice-and-feel](_ctx/voice-and-feel.md) — friend showing you around; no exclamation marks, no absolute fitness language
-- [brand-framing](_ctx/brand-framing.md) — whereto.bike umbrella, instance types, positioning
-- [architecture-principles](_ctx/architecture-principles.md) — Static is Sacred, Develop on a Train, Data Locality, Tags as Behaviour
-- [development-principles](_ctx/development-principles.md) — empathy, universality, DDD, durability
+- [markdown-overrides](_ctx/markdown-overrides.md) — how markdown frontmatter is consumed by pipeline and app
+- [adding-new-things](_ctx/adding-new-things.md) — checklists for content types, endpoints, routes, tables, virtual modules, islands
+- [ci-cd](_ctx/ci-cd.md) — workflows, deploy matrix, screenshot auto-update
 - [css-styling](_ctx/css-styling.md) — SCSS variables, dark mode, colocated styles, admin.scss
 - [e2e-testing](_ctx/e2e-testing.md) — fixtures, hydration waits, screenshot conventions
 
+### Rules
+Non-negotiable constraints. Violations are bugs.
+- [vendor-isolation](_ctx/vendor-isolation.md) — every cloud service behind an adapter; 6 boundary points
+- [server-boundary](_ctx/server-boundary.md) — .server.ts naming, what can import what, ESLint enforcement
+- [spatial-reasoning](_ctx/spatial-reasoning.md) — NEVER use midpoints, centers, anchors, or bboxes as proxy for real geometry
+- [test-quality](_ctx/test-quality.md) — real SQLite not mocks, assert known values, break code to validate
+
+### Safety
+Procedures that prevent catastrophic mistakes. Follow when triggered.
+- [protocol-drift-correction](_ctx/protocol-drift-correction.md) — when drifting: stop, restate, re-read, verify match
+- [protocol-verify-before-done](_ctx/protocol-verify-before-done.md) — run verification commands, show output, never claim without evidence
+- [protocol-ctx-maintenance](_ctx/protocol-ctx-maintenance.md) — light per-session and deep periodic review of _ctx/ knowledge base
+
 ### Gotchas
+Known traps. Read when touching the relevant area.
 - [platform-gotchas](_ctx/platform-gotchas.md) — Cloudflare fetch deadlock, Rollup dead-code, Preact hydration, CSP
 - [preact-islands](_ctx/preact-islands.md) — textarea bug, scoped CSS pitfall, useHydrated, content hash sync
 - [astro-cloudflare](_ctx/astro-cloudflare.md) — wrangler config, renderer stripping, cache versioning, import.meta.dirname
