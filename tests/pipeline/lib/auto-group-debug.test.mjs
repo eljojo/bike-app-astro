@@ -9,7 +9,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { clusterByConnectivity, pathType } from '../../../scripts/pipeline/lib/cluster-entries.mjs';
+import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.ts';
+import { pathTypeForClustering } from '../../../src/lib/bike-paths/classify-path.ts';
 import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.mjs';
 
 const fixture = JSON.parse(
@@ -81,7 +82,7 @@ describe('networks v2 — auto-groups become networks', () => {
   it('paved cycleways with >3km corridor width do not cluster', () => {
     const sharedNode = { lat: 45.42, lon: -75.70 };
     const a = {
-      name: 'Cycleway A', highway: 'cycleway', surface: 'asphalt',
+      name: 'Cycleway A', highway: 'cycleway', surface: 'asphalt', path_type: 'mup',
       anchors: [[-75.70, 45.42]],
       _ways: [
         [sharedNode, { lat: 45.45, lon: -75.70 }],
@@ -89,7 +90,7 @@ describe('networks v2 — auto-groups become networks', () => {
       ],
     };
     const b = {
-      name: 'Cycleway B', highway: 'cycleway', surface: 'asphalt',
+      name: 'Cycleway B', highway: 'cycleway', surface: 'asphalt', path_type: 'mup',
       anchors: [[-75.70, 45.39]],
       _ways: [
         [sharedNode, { lat: 45.39, lon: -75.70 }],
@@ -103,12 +104,12 @@ describe('networks v2 — auto-groups become networks', () => {
   it('paved cycleways within 3km cluster normally', () => {
     const sharedNode = { lat: 45.42, lon: -75.70 };
     const a = {
-      name: 'Cycleway A', highway: 'cycleway', surface: 'asphalt',
+      name: 'Cycleway A', highway: 'cycleway', surface: 'asphalt', path_type: 'mup',
       anchors: [[-75.70, 45.42]],
       _ways: [[sharedNode, { lat: 45.421, lon: -75.71 }]],
     };
     const b = {
-      name: 'Cycleway B', highway: 'cycleway', surface: 'asphalt',
+      name: 'Cycleway B', highway: 'cycleway', surface: 'asphalt', path_type: 'mup',
       anchors: [[-75.69, 45.42]],
       _ways: [[sharedNode, { lat: 45.419, lon: -75.69 }]],
     };
@@ -116,9 +117,9 @@ describe('networks v2 — auto-groups become networks', () => {
     expect(clusters).toHaveLength(1);
   });
 
-  // mtb:scale heuristic
-  it('cycleway with mtb:scale is classified as trail, not paved', () => {
-    expect(pathType({ highway: 'cycleway' })).toBe('paved');
-    expect(pathType({ highway: 'cycleway', 'mtb:scale': '1' })).toBe('trail');
+  // pathTypeForClustering maps path_type to clustering buckets
+  it('mup maps to paved, mtb-trail maps to trail', () => {
+    expect(pathTypeForClustering({ path_type: 'mup' })).toBe('paved');
+    expect(pathTypeForClustering({ path_type: 'mtb-trail' })).toBe('trail');
   });
 });

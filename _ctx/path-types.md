@@ -24,15 +24,18 @@ Listed from most separated to least:
 
 ## Derivation
 
-The pipeline computes `path_type` from OSM tags. Markdown frontmatter can override it. The derivation order matters — first match wins:
+`src/lib/bike-paths/classify-path.ts` computes `path_type` from OSM tags. Markdown frontmatter can override it. The derivation order matters — first match wins:
 
-1. `mtb == true` or `mtb:scale` present → `mtb-trail`
+1. `mtb == true` → `mtb-trail`
 2. `parallel_to` + `cycleway == "track"` → `separated-lane`
-3. `parallel_to` + `cycleway == "lane"` → `bike-lane`
-4. `parallel_to` + `cycleway == "shoulder"` → `paved-shoulder`
-5. `parallel_to` (any other) → `bike-lane`
-6. Surface is unpaved (`ground`, `gravel`, `dirt`, `earth`, `grass`, `sand`, `mud`, `compacted`, `fine_gravel`, `woodchips`) → `trail`
-7. Everything else → `mup`
+3. `parallel_to` + `cycleway == "shoulder"` → `paved-shoulder`
+4. `parallel_to` (any other) or road highway + `cycleway` tag → `bike-lane`
+5. Surface is unpaved → `trail`
+6. `highway=cycleway` (implies pavement) → `mup`
+7. Known paved surface → `mup`
+8. Everything else → `trail`
+
+MUP requires evidence of pavement. `highway=path` or `highway=footway` with no surface data defaults to trail, not mup. `highway=cycleway` implies pavement even without an explicit surface tag.
 
 ## Networks
 
@@ -40,7 +43,7 @@ Network entries (`type: network`) do not carry `path_type`. The Astro app aggreg
 
 ## Relationship to `mtb`
 
-The `mtb: true` boolean stays in bikepaths.yml because the pipeline uses it for clustering (MTB trails cluster separately from paved paths). For display, the app should use `path_type: mtb-trail` instead of the raw boolean. The `mtb` fact in the facts table is replaced by the `path_type` fact.
+The `mtb: true` boolean stays in bikepaths.yml. MTB detection runs in two phases in `src/lib/bike-paths/classify-path.ts`: tier-1 (explicit `mtb:scale` tags) before clustering, tier-2/3 (network inference + ambient) after. `mtb:scale=0` means "any bike, no difficulty" and does NOT trigger MTB detection. For display, the app uses `path_type: mtb-trail` rather than the raw boolean.
 
 ## Facts table
 

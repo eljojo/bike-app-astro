@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.mjs';
+import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.ts';
 
 const fixture = JSON.parse(
   readFileSync(new URL('../fixtures/gatineau-junction-trails.json', import.meta.url), 'utf8')
@@ -43,7 +43,7 @@ describe('junction ways — non-cycling ways for clustering', () => {
     // Trail 73 connects 54 and 74 through hiking-only junction nodes.
     // Trail 50 may not share nodes with this subgraph — test the core 3.
     const entries = [
-      { ...trail54, _ways: trail54._ways_all, highway: 'cycleway', surface: 'ground' },
+      { ...trail54, _ways: trail54._ways_all, highway: 'cycleway', surface: 'ground', path_type: 'trail' },
       { ...trail73, _ways: trail73._ways_all, highway: 'path', surface: 'ground' },
       { ...trail74, _ways: trail74._ways_all, highway: 'path', surface: 'ground' },
     ];
@@ -71,7 +71,7 @@ describe('junction ways — non-cycling ways for clustering', () => {
   // page-worthy entries for trails with bikeable ways.
   it('clustering with all ways connects them, non-bikeable entries can be filtered after', () => {
     const entries = [
-      { ...trail54, _ways: trail54._ways_all, _bikeable: true, highway: 'cycleway', surface: 'ground' },
+      { ...trail54, _ways: trail54._ways_all, _bikeable: true, highway: 'cycleway', surface: 'ground', path_type: 'trail' },
       { ...trail73, _ways: trail73._ways_all, _bikeable: false, highway: 'path', surface: 'ground' },
       { ...trail74, _ways: trail74._ways_all, _bikeable: true, highway: 'path', surface: 'ground' },
     ];

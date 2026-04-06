@@ -5,7 +5,7 @@
     {
       "name": "Coconut Tree",
       "anchors": [[-75.9450698, 45.3444396], [-75.9457016, 45.3453954], [-75.9429988, 45.3422837]],
-      "surface": "ground", "width": "0.5", "highway": "path",
+      "surface": "ground", "width": "0.5", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3444396, "lon": -75.9450698 },
         { "lat": 45.3453954, "lon": -75.9457016 },
@@ -16,7 +16,7 @@
     {
       "name": "Beartree",
       "anchors": [[-75.9450914, 45.3423769]],
-      "surface": "ground", "width": "0.5", "highway": "path",
+      "surface": "ground", "width": "0.5", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3423769, "lon": -75.9430000 },
         { "lat": 45.3423769, "lon": -75.9450914 },
@@ -27,7 +27,7 @@
     {
       "name": "North Dogsled",
       "anchors": [[-75.9471191, 45.3394192], [-75.9537096, 45.3359859], [-75.9463835, 45.3386567]],
-      "surface": "ground", "width": "0.5", "highway": "path",
+      "surface": "ground", "width": "0.5", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3400000, "lon": -75.9465000 },
         { "lat": 45.3394192, "lon": -75.9471191 },
@@ -38,7 +38,7 @@
     {
       "name": "South Dogsled",
       "anchors": [[-75.950814, 45.3355962], [-75.9462207, 45.3374566]],
-      "surface": "ground", "width": "0.5", "highway": "path",
+      "surface": "ground", "width": "0.5", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3375000, "lon": -75.9480000 },
         { "lat": 45.3374566, "lon": -75.9462207 },
@@ -49,7 +49,7 @@
     {
       "name": "DeerDrop Baypass",
       "anchors": [[-75.9483134, 45.3395093]],
-      "surface": "ground", "width": "0.5", "highway": "path",
+      "surface": "ground", "width": "0.5", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3360000, "lon": -75.9500000 },
         { "lat": 45.3395093, "lon": -75.9483134 },
@@ -60,7 +60,7 @@
     {
       "name": "Staycation",
       "anchors": [[-75.9491041, 45.334585]],
-      "surface": "ground", "width": "0.5", "highway": "path",
+      "surface": "ground", "width": "0.5", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3355000, "lon": -75.9492000 },
         { "lat": 45.334585, "lon": -75.9491041 },

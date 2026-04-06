@@ -8,33 +8,14 @@
  * Browser-safe — no .server.ts, no node:* imports.
  */
 
+// Re-export from surfaces.ts for backwards compatibility
+export { SURFACE_CATEGORIES, displaySurface } from './surfaces.ts';
+
+import { displaySurface } from './surfaces.ts';
+import { isSeparatedFromCars, isExplicitMtb } from './classify-path.ts';
+
 /** Minimal translator type — compatible with the `t()` function from @/i18n. */
 export type Translator = (key: string, locale?: string, vars?: Record<string, string | number>) => string;
-
-/** Maps OSM surface values to display category keys. */
-export const SURFACE_CATEGORIES: Record<string, string> = {
-  asphalt: 'paved',
-  concrete: 'paved',
-  paved: 'paved',
-  fine_gravel: 'gravel',
-  gravel: 'gravel',
-  compacted: 'gravel',
-  ground: 'dirt',
-  dirt: 'dirt',
-  earth: 'dirt',
-  sand: 'dirt',
-  mud: 'dirt',
-  grass: 'dirt',
-  woodchips: 'dirt',
-  wood: 'boardwalk',
-  paving_stones: 'paved',
-};
-
-/** Returns category key for known surfaces, or the raw value for unknown ones. */
-export function displaySurface(raw?: string): string | undefined {
-  if (!raw) return undefined;
-  return SURFACE_CATEGORIES[raw] || raw;
-}
 
 /** Maps OSM network codes to i18n key suffixes. */
 export const NETWORK_LABELS: Record<string, string> = {
@@ -69,6 +50,8 @@ export interface PathMeta {
   operator?: string;
   network?: string;
   mtb?: boolean;
+  'mtb:scale'?: string | number;
+  'mtb:scale:imba'?: string | number;
   path_type?: string;
   seasonal?: string;
   ref?: string;
@@ -115,7 +98,7 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
 
   // Traffic — combined separation + unusual access restrictions.
   // Normal bicycle access (yes, designated) is redundant on a bike site — not shown.
-  const sepCars = meta.highway === 'cycleway';
+  const sepCars = isSeparatedFromCars(meta);
   const sepPeds = meta.segregated === 'yes';
   if (sepCars && sepPeds) {
     facts.push({ key: 'traffic_separated_all' });
@@ -124,9 +107,9 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   } else if (sepPeds) {
     facts.push({ key: 'traffic_separated_peds' });
   }
-  // Unusual restrictions only — but mtb:true overrides bicycle:no
+  // Unusual restrictions only — MTB overrides bicycle:no
   // (OSM bicycle:no on mtb trails means "no road bikes", not "no bikes")
-  if (meta.bicycle === 'no' && !meta.mtb) {
+  if (meta.bicycle === 'no' && !meta.mtb && !isExplicitMtb(meta)) {
     facts.push({ key: 'traffic_no_bikes' });
   } else if (meta.bicycle === 'dismount') {
     facts.push({ key: 'traffic_dismount' });
@@ -245,8 +228,8 @@ export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
   }
 
   // --- Separated from cars ---
-  const cycleways = members.filter(m => m.highway === 'cycleway').length;
-  const nonCycleways = members.filter(m => m.highway && m.highway !== 'cycleway').length;
+  const cycleways = members.filter(m => isSeparatedFromCars(m)).length;
+  const nonCycleways = members.filter(m => m.highway && !isSeparatedFromCars(m)).length;
   if (cycleways > 0 && nonCycleways === 0) {
     facts.push({
       key: 'separated_cars',

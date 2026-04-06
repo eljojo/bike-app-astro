@@ -1,5 +1,6 @@
 // auto-group.mjs
-import { clusterByConnectivity, pathType } from './cluster-entries.mjs';
+import { clusterByConnectivity } from './cluster-entries.ts';
+import { pathTypeForClustering } from '../../../src/lib/bike-paths/classify-path.ts';
 import { pickClusterName } from './name-cluster.mjs';
 import { fetchParkPolygons, splitClusterByPark, classifyByPark } from './park-containment.mjs';
 import { slugifyBikePathName } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
@@ -311,7 +312,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
       );
       if (hasCollision) {
         // Use "Trails" for trail-type clusters, "Network" for urban/paved
-        const types = cluster.members.map(m => pathType(m));
+        const types = cluster.members.map(m => pathTypeForClustering(m));
         const isTrail = types.filter(t => t === 'trail').length > types.length / 2;
         networkName = networkName + (isTrail ? ' Trails' : ' Network');
         networkSlug = slugifyBikePathName(networkName);

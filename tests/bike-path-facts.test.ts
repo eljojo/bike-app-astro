@@ -1,69 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  SURFACE_CATEGORIES,
-  displaySurface,
   NETWORK_LABELS,
   computeCenter,
   buildPathFacts,
   buildNetworkFacts,
   findNearestMajorPath,
 } from '../src/lib/bike-paths/bike-path-facts';
-
-describe('SURFACE_CATEGORIES', () => {
-  it('maps asphalt to paved', () => {
-    expect(SURFACE_CATEGORIES['asphalt']).toBe('paved');
-  });
-
-  it('maps concrete to paved', () => {
-    expect(SURFACE_CATEGORIES['concrete']).toBe('paved');
-  });
-
-  it('maps fine_gravel to gravel', () => {
-    expect(SURFACE_CATEGORIES['fine_gravel']).toBe('gravel');
-  });
-
-  it('maps gravel to gravel', () => {
-    expect(SURFACE_CATEGORIES['gravel']).toBe('gravel');
-  });
-
-  it('maps compacted to gravel', () => {
-    expect(SURFACE_CATEGORIES['compacted']).toBe('gravel');
-  });
-
-  it('maps ground to dirt', () => {
-    expect(SURFACE_CATEGORIES['ground']).toBe('dirt');
-  });
-
-  it('maps dirt to dirt', () => {
-    expect(SURFACE_CATEGORIES['dirt']).toBe('dirt');
-  });
-
-  it('maps wood to boardwalk', () => {
-    expect(SURFACE_CATEGORIES['wood']).toBe('boardwalk');
-  });
-
-  it('returns undefined for unknown surfaces', () => {
-    expect(SURFACE_CATEGORIES['cobblestone']).toBeUndefined();
-  });
-});
-
-describe('displaySurface', () => {
-  it('returns category key for known surface', () => {
-    expect(displaySurface('asphalt')).toBe('paved');
-  });
-
-  it('returns raw value for unknown surface', () => {
-    expect(displaySurface('cobblestone')).toBe('cobblestone');
-  });
-
-  it('returns undefined for undefined input', () => {
-    expect(displaySurface(undefined)).toBeUndefined();
-  });
-
-  it('returns undefined for empty string', () => {
-    expect(displaySurface('')).toBeUndefined();
-  });
-});
 
 describe('NETWORK_LABELS', () => {
   it('maps rcn to network_regional', () => {

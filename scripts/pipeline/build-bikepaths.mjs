@@ -42,8 +42,7 @@ import { defaultParallelLaneFilter } from './lib/city-adapter.mjs';
 import { autoGroupNearbyPaths, computeSlugs } from './lib/auto-group.mjs';
 import { discoverNetworks, discoverRouteSystemNetworks } from './lib/discover-networks.mjs';
 import { enrichWithWikidata } from './lib/wikidata.mjs';
-import { detectMtb } from './lib/detect-mtb.mjs';
-import { derivePathType } from './lib/path-type.mjs';
+import { classifyPathsEarly, classifyPathsLate } from '../../src/lib/bike-paths/classify-path.ts';
 import { deriveEntryType, isLongDistance } from './lib/entry-type.mjs';
 import { rankByGeomDistance } from './lib/nearest-park.mjs';
 import { WayRegistry } from './lib/way-registry.mjs';
@@ -1442,11 +1441,18 @@ out geom tags;`;
   await enrichOutOfBoundsRelations(entries, discoveredRelationIds);
 
   // Enrich relation entries with _ways (transient geometry) for park
-  // containment. NOT anchors — anchors are for Overpass name lookups only
-  // (see AGENTS.md). _ways is stripped before YAML output.
-  const needWays = entries.filter(e => e.osm_relations?.length > 0 && !e._ways?.length);
-  if (needWays.length > 0) {
-    const relIds = needWays.flatMap(e => e.osm_relations);
+  // containment and entry-type classification. NOT anchors — anchors are
+  // for Overpass name lookups only (see AGENTS.md). _ways is stripped
+  // before YAML output.
+  //
+  // Fetch geometry for ALL entries with osm_relations, not just those
+  // missing _ways. Name-based discovery (step 2) sometimes finds only a
+  // tiny fragment (e.g. 33m for a 494km trail), and that fragment prevents
+  // the relation geometry from loading. Use the relation geometry when it's
+  // more complete than whatever name-based discovery found.
+  const withRelations = entries.filter(e => e.osm_relations?.length > 0);
+  if (withRelations.length > 0) {
+    const relIds = [...new Set(withRelations.flatMap(e => e.osm_relations))];
     const q = `[out:json][timeout:120];\n(\n${relIds.map(id => `  relation(${id});`).join('\n')}\n);\nout geom;`;
     try {
       const data = await qo(q);
@@ -1466,11 +1472,14 @@ out geom tags;`;
         }
       }
       let enriched = 0;
-      for (const entry of needWays) {
+      for (const entry of withRelations) {
         for (const relId of entry.osm_relations) {
           const info = byId.get(relId);
           if (info) {
-            entry._ways = info.ways;
+            // Use relation geometry if more complete than name-based discovery
+            if (!entry._ways?.length || info.ways.length > entry._ways.length) {
+              entry._ways = info.ways;
+            }
             if (info.wayIds.length > 0) {
               wayRegistry.claim(entry, info.wayIds);
             }
@@ -1479,11 +1488,16 @@ out geom tags;`;
           }
         }
       }
-      if (enriched > 0) console.log(`  Enriched ${enriched} relation entries with anchors`);
+      if (enriched > 0) console.log(`  Enriched ${enriched} relation entries with geometry`);
     } catch (err) {
-      console.error(`  Relation anchor enrichment failed: ${err.message}`);
+      console.error(`  Relation geometry enrichment failed: ${err.message}`);
     }
   }
+
+  // Step 3b: Initial classification (tier-1 MTB + path_type)
+  // Needed before clustering so cluster-entries can use path_type.
+  const { mtbCount: tier1MtbCount } = classifyPathsEarly(entries);
+  if (tier1MtbCount > 0) console.log(`  Tier-1 MTB: ${tier1MtbCount} entries`);
 
   // Step 4: Auto-group nearby trail segments (with park containment)
   const grouped = await autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass: qo, bbox: b, wayRegistry });
@@ -1593,16 +1607,11 @@ out geom tags;`;
   const wdCount = await enrichWithWikidata(grouped);
   if (wdCount > 0) console.log(`  Enriched ${wdCount} entries`);
 
-  // Step 7: MTB detection
-  detectMtb(grouped);
-  const mtbCount = grouped.filter(e => e.mtb).length;
-  if (mtbCount > 0) console.log(`  Labelled ${mtbCount} entries as MTB`);
-
-  // Step 7b: Derive path_type from OSM tags (depends on mtb from step 7)
-  for (const entry of grouped) {
-    const pt = derivePathType(entry);
-    if (pt) entry.path_type = pt;
-  }
+  // Step 7: Complete classification (tier-2/3 MTB + path_type update)
+  // Networks now exist from clustering. Tier-2 inherits MTB across networks.
+  // Tier-3 labels ambient dirt trails. path_type updated for affected entries.
+  const { mtbCount } = classifyPathsLate(grouped);
+  if (mtbCount > 0) console.log(`  Labelled ${mtbCount} entries as MTB (tier 2+3)`);
 
   // Step 7c: Derive entry type (destination/infrastructure/connector)
   // Depends on path_type and _ways (still available, stripped later).

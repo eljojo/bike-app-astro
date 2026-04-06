@@ -4,7 +4,7 @@
     {
       "name": "Pine Grove Forestry Trail",
       "anchors": [[-75.5988784, 45.3576271], [-75.5995362, 45.3573625], [-75.5999409, 45.3573831]],
-      "surface": "ground", "highway": "path",
+      "surface": "ground", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3576271, "lon": -75.5988784 },
         { "lat": 45.3573625, "lon": -75.5995362 },
@@ -15,7 +15,7 @@
     {
       "name": "Trail 43 - Pine Grove Forestry Trail",
       "anchors": [[-75.6022154, 45.3508324], [-75.6033429, 45.3552865], [-75.5988974, 45.3504072]],
-      "surface": "ground", "highway": "path",
+      "surface": "ground", "highway": "path", "path_type": "trail",
       "_ways": [[
         { "lat": 45.3565000, "lon": -75.6010000 },
         { "lat": 45.3552865, "lon": -75.6033429 },

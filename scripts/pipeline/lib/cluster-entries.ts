@@ -1,51 +1,24 @@
-// cluster-entries.mjs
+// cluster-entries.ts
 import { haversineM, corridorWidth } from './geo.mjs';
+import { pathTypeForClustering } from '../../../src/lib/bike-paths/classify-path.ts';
 
 // Type-based corridor width limits. Trails in parks span large areas
 // (Gatineau Park is 20km across) — a single limit blocks legitimate
 // connections. Urban paved cycleways need a tighter limit to prevent
 // mega-groups from chaining through shared intersection nodes.
-const CORRIDOR_WIDTH_BY_TYPE = {
+const CORRIDOR_WIDTH_BY_TYPE: Record<string, number> = {
   trail: 20000,  // 20km — parks, forests, conservation areas
   paved: 3000,   // 3km — urban MUPs, separated cycleways
   road: 2000,    // 2km — parallel bike lanes along roads
 };
 const DEFAULT_CORRIDOR_WIDTH_M = 3000; // for null/unknown pathType
 
-const UNPAVED = new Set(['ground', 'gravel', 'dirt', 'earth', 'grass', 'sand', 'mud', 'compacted', 'fine_gravel', 'woodchips', 'unpaved', 'dirt/sand']);
-
-/**
- * Classify an entry as 'trail', 'paved', or 'road'.
- * Entries of different types don't merge — trails stay with trails,
- * paved paths with paved paths, road lanes with road lanes.
- */
-export function pathType(entry) {
-  if (entry.parallel_to) return 'road';
-  const hw = entry.highway;
-  const surface = entry.surface;
-  if (hw === 'path' || hw === 'footway') {
-    return (surface && !UNPAVED.has(surface)) ? 'paved' : 'trail';
-  }
-  if (hw === 'cycleway') {
-    if (surface && UNPAVED.has(surface)) return 'trail';
-    // mtb:scale means it's a mountain bike trail regardless of highway tag —
-    // OSM mappers sometimes tag dirt trails as cycleway. Without this,
-    // trails like Gatineau Park Trail #55 get classified as 'paved' and
-    // can't cluster with their neighboring 'trail' entries.
-    if (entry['mtb:scale'] != null) return 'trail';
-    return 'paved';
-  }
-  // Roads with bike lanes (tertiary, secondary, etc.)
-  if (hw && hw !== 'path' && hw !== 'cycleway' && hw !== 'footway') return 'road';
-  return null; // unknown — compatible with anything
-}
-
-function operatorsCompatible(a, b) {
+function operatorsCompatible(a: string | undefined, b: string | undefined) {
   if (!a || !b) return true;
   return a === b;
 }
 
-function typesCompatible(a, b) {
+function typesCompatible(a: string | null, b: string | null) {
   if (!a || !b) return true; // unknown type merges with anything
   return a === b;
 }
@@ -53,14 +26,14 @@ function typesCompatible(a, b) {
 // Type-based endpoint proximity thresholds. Trail junctions in forests
 // are imprecise — endpoints 20-40m apart are clearly the same junction.
 // Urban paved paths are precisely mapped.
-const TOUCHING_M_BY_TYPE = {
+const TOUCHING_M_BY_TYPE: Record<string, number> = {
   trail: 1200, // forest trail systems — separate trailheads linked by unmarked paths
   paved: 10,   // urban MUPs — precisely mapped
   road: 10,    // parallel lanes — precise
 };
 const DEFAULT_TOUCHING_M = 10;
 
-export function clusterByConnectivity(entries) {
+export function clusterByConnectivity(entries: any[]) {
   const withWays = entries
     .map((e, i) => ({ entry: e, index: i }))
     .filter(({ entry }) => entry._ways && entry._ways.length > 0);
@@ -69,12 +42,12 @@ export function clusterByConnectivity(entries) {
   if (n < 2) return [];
 
   const parent = Array.from({ length: n }, (_, i) => i);
-  function find(i) {
+  function find(i: number) {
     while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
     return i;
   }
 
-  const entryTypes = withWays.map(({ entry }) => pathType(entry));
+  const entryTypes = withWays.map(({ entry }) => pathTypeForClustering(entry));
   const entryEndpoints = withWays.map(({ entry }) => {
     const eps = [];
     for (const way of entry._ways) {
@@ -87,10 +60,10 @@ export function clusterByConnectivity(entries) {
   });
 
   const compEndpoints = entryEndpoints.map(eps =>
-    eps.map(p => [p.lon, p.lat])
+    eps.map((p: { lon: number; lat: number }) => [p.lon, p.lat])
   );
 
-  function tryUnion(i, j) {
+  function tryUnion(i: number, j: number) {
     const ri = find(i), rj = find(j);
     if (ri === rj) return;
     if (!operatorsCompatible(withWays[ri].entry.operator, withWays[rj].entry.operator)) return;
@@ -98,10 +71,10 @@ export function clusterByConnectivity(entries) {
     const mergedPts = [...compEndpoints[ri], ...compEndpoints[rj]];
     // Use the wider limit of the two types — if one is a trail, use trail limit
     const typeI = entryTypes[i], typeJ = entryTypes[j];
-    const limitI = CORRIDOR_WIDTH_BY_TYPE[typeI] ?? DEFAULT_CORRIDOR_WIDTH_M;
-    const limitJ = CORRIDOR_WIDTH_BY_TYPE[typeJ] ?? DEFAULT_CORRIDOR_WIDTH_M;
+    const limitI = CORRIDOR_WIDTH_BY_TYPE[typeI ?? ''] ?? DEFAULT_CORRIDOR_WIDTH_M;
+    const limitJ = CORRIDOR_WIDTH_BY_TYPE[typeJ ?? ''] ?? DEFAULT_CORRIDOR_WIDTH_M;
     const limit = Math.max(limitI, limitJ);
-    if (corridorWidth(mergedPts) > limit) return;
+    if (corridorWidth(mergedPts as [number, number][]) > limit) return;
     parent[ri] = rj;
     compEndpoints[rj] = mergedPts;
   }
@@ -155,8 +128,8 @@ export function clusterByConnectivity(entries) {
         // Use the wider threshold of the two types
         const typeA = entryTypes[eps[a].entryIdx];
         const typeB = entryTypes[eps[b].entryIdx];
-        const limitA = TOUCHING_M_BY_TYPE[typeA] ?? DEFAULT_TOUCHING_M;
-        const limitB = TOUCHING_M_BY_TYPE[typeB] ?? DEFAULT_TOUCHING_M;
+        const limitA = TOUCHING_M_BY_TYPE[typeA ?? ''] ?? DEFAULT_TOUCHING_M;
+        const limitB = TOUCHING_M_BY_TYPE[typeB ?? ''] ?? DEFAULT_TOUCHING_M;
         if (d <= Math.max(limitA, limitB)) {
           tryUnion(eps[a].entryIdx, eps[b].entryIdx);
         }
@@ -173,15 +146,15 @@ export function clusterByConnectivity(entries) {
   }
 
   return [...groups.values()]
-    .filter(members => members.length >= 2)
-    .map(members => {
-      const allAnchors = members.flatMap(m => m.anchors || []);
-      const lngs = allAnchors.map(a => a[0]);
-      const lats = allAnchors.map(a => a[1]);
+    .filter((members: any[]) => members.length >= 2)
+    .map((members: any[]) => {
+      const allAnchors = members.flatMap((m: any) => m.anchors || []);
+      const lngs = allAnchors.map((a: any) => a[0]);
+      const lats = allAnchors.map((a: any) => a[1]);
 
-      const existingGroup = members.find(m => m.type === 'network');
+      const existingGroup = members.find((m: any) => m.type === 'network');
       const newMembers = existingGroup
-        ? members.filter(m => m !== existingGroup)
+        ? members.filter((m: any) => m !== existingGroup)
         : members;
 
       return {
@@ -191,8 +164,8 @@ export function clusterByConnectivity(entries) {
           west: Math.min(...lngs), east: Math.max(...lngs),
         },
         centroid: {
-          lat: lats.reduce((a, b) => a + b, 0) / lats.length,
-          lon: lngs.reduce((a, b) => a + b, 0) / lngs.length,
+          lat: lats.reduce((a: number, b: number) => a + b, 0) / lats.length,
+          lon: lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length,
         },
         existingGroup: existingGroup || null,
         newMembers,

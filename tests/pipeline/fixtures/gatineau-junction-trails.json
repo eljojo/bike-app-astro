@@ -5,6 +5,7 @@
       "name": "Trail 73",
       "highway": "path",
       "surface": "ground",
+      "path_type": "trail",
       "bicycle": "no",
       "anchors": [
         [
@@ -1747,6 +1748,7 @@
       "name": "Trail 50",
       "highway": "path",
       "surface": "gravel",
+      "path_type": "trail",
       "bicycle": "designated",
       "anchors": [
         [
@@ -2502,6 +2504,7 @@
       "name": "Trail 74",
       "highway": "path",
       "surface": "ground",
+      "path_type": "trail",
       "bicycle": "yes",
       "anchors": [
         [
@@ -3458,6 +3461,7 @@
     {
       "name": "Trail #54",
       "highway": "cycleway",
+      "path_type": "mup",
       "bicycle": "designated",
       "anchors": [
         [
