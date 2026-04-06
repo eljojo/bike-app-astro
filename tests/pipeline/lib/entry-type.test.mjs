@@ -65,6 +65,18 @@ describe('deriveEntryType', () => {
     })).toBe('destination');
   });
 
+  it('any path ≥30km → long-distance regardless of network tag', () => {
+    expect(deriveEntryType({
+      path_type: 'mup', _ways: makeWays(0.28), // ~31km
+    })).toBe('long-distance');
+  });
+
+  it('path just under 30km → not long-distance', () => {
+    expect(deriveEntryType({
+      path_type: 'mup', _ways: makeWays(0.25), osm_names: ['Some Trail'], // ~28km
+    })).toBe('destination');
+  });
+
   // --- Destinations ---
 
   it('entries with osm_relations (no network tag) → destination', () => {

@@ -85,14 +85,27 @@ export interface PathMeta {
  * Returns `PathFact[]` with locale-independent keys and optional values.
  * The view layer is responsible for mapping these to localized strings.
  */
+/** Sanitize width — reject outrageous values from OSM data. */
+function sanitizeWidth(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  if (!/^\d+(\.\d+)?$/.test(raw.trim())) return undefined; // must be a plain number
+  const n = parseFloat(raw);
+  if (isNaN(n)) return undefined;
+  if (n < 0.3) return undefined;          // <30cm is not a real path width
+  if (n > 6) return undefined;            // >6m is likely the road width, not the bike lane
+  return String(n);
+}
+
 export function buildPathFacts(meta: PathMeta): PathFact[] {
   const facts: PathFact[] = [];
+
+  const width = sanitizeWidth(meta.width);
 
   // Path info — combined path_type + surface + width in one row.
   // Value format: "path_type:surface:width" (any part can be empty).
   // The view layer parses and localizes each component.
-  if (meta.path_type || meta.surface || meta.width) {
-    facts.push({ key: 'path_info', value: `${meta.path_type || ''}:${meta.surface || ''}:${meta.width || ''}` });
+  if (meta.path_type || meta.surface || width) {
+    facts.push({ key: 'path_info', value: `${meta.path_type || ''}:${meta.surface || ''}:${width || ''}` });
   }
 
   // Smoothness
@@ -111,8 +124,9 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   } else if (sepPeds) {
     facts.push({ key: 'traffic_separated_peds' });
   }
-  // Unusual restrictions only
-  if (meta.bicycle === 'no') {
+  // Unusual restrictions only — but mtb:true overrides bicycle:no
+  // (OSM bicycle:no on mtb trails means "no road bikes", not "no bikes")
+  if (meta.bicycle === 'no' && !meta.mtb) {
     facts.push({ key: 'traffic_no_bikes' });
   } else if (meta.bicycle === 'dismount') {
     facts.push({ key: 'traffic_dismount' });

@@ -421,7 +421,17 @@ function extractOsmMetadata(tags) {
   // Physical characteristics
   if (tags.surface) meta.surface = tags.surface;
   if (tags.smoothness) meta.smoothness = tags.smoothness;
-  if (tags.width) meta.width = tags.width;
+  if (tags.width) {
+    const w = parseFloat(tags.width);
+    if (isNaN(w)) {
+      console.warn(`  ⚠ width "${tags.width}" unparseable — ${tags.name || 'unnamed'}`);
+    } else if (w < 0.3) {
+      console.warn(`  ⚠ width ${w}m suspiciously narrow — ${tags.name || 'unnamed'}`);
+    } else if (w > 6) {
+      console.warn(`  ⚠ width ${w}m likely road width, not bike lane — ${tags.name || 'unnamed'}`);
+    }
+    meta.width = tags.width;
+  }
   if (tags.lit) meta.lit = tags.lit;
   if (tags.incline) meta.incline = tags.incline;
 

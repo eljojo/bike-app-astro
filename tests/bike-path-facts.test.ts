@@ -160,6 +160,31 @@ describe('buildPathFacts', () => {
     expect(facts[0].value).toMatch(new RegExp(`^${type}:`));
   });
 
+  it('path_info strips outrageous widths (>6m likely road width)', () => {
+    const facts = buildPathFacts({ path_type: 'bike-lane', surface: 'asphalt', width: '11' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'bike-lane:asphalt:' });
+  });
+
+  it('path_info strips tiny widths (<0.3m not a real path)', () => {
+    const facts = buildPathFacts({ surface: 'asphalt', width: '0.1' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: ':asphalt:' });
+  });
+
+  it('path_info strips unparseable widths', () => {
+    const facts = buildPathFacts({ surface: 'ground', width: '1 mm' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: ':ground:' });
+  });
+
+  it('path_info keeps valid widths', () => {
+    const facts = buildPathFacts({ path_type: 'mup', width: '3' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup::3' });
+  });
+
+  it('path_info keeps 0.5m width (narrow but real)', () => {
+    const facts = buildPathFacts({ path_type: 'trail', width: '0.5' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'trail::0.5' });
+  });
+
   it('no path_info when nothing available', () => {
     const facts = buildPathFacts({ lit: 'yes' });
     expect(facts.map(f => f.key)).not.toContain('path_info');
@@ -191,6 +216,12 @@ describe('buildPathFacts', () => {
   it('traffic: bikes not allowed (unusual restriction)', () => {
     const facts = buildPathFacts({ bicycle: 'no' });
     expect(facts).toContainEqual({ key: 'traffic_no_bikes' });
+  });
+
+  it('mtb:true overrides bicycle:no (mtb trails allow bikes)', () => {
+    const facts = buildPathFacts({ bicycle: 'no', mtb: true, path_type: 'mtb-trail' });
+    const keys = facts.map(f => f.key);
+    expect(keys).not.toContain('traffic_no_bikes');
   });
 
   it('traffic: dismount required', () => {
