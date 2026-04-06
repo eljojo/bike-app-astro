@@ -8,8 +8,14 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadBikePathEntries } from '../src/lib/bike-paths/bike-path-entries.server';
 import type { GeoMetaEntry } from './generate-path-tiles';
+
+if (!process.env.CITY) {
+  console.log('[geo-metadata] No CITY set — skipping');
+  process.exit(0);
+}
+
+const { loadBikePathEntries } = await import('../src/lib/bike-paths/bike-path-entries.server');
 
 const outDir = path.join('public', 'bike-paths', 'geo');
 const outPath = path.join(outDir, 'geo-metadata.json');
