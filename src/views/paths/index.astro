@@ -422,13 +422,21 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       const geoIds = slug ? (categoryGeoIds[slug] ?? networkGeoIds[slug]) : undefined;
       if (geoIds && geoIds.length > 0) {
         map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
-        map.setPaintProperty('paths-network-line', 'line-opacity', 0.3);
-        map.setPaintProperty('paths-network-bg', 'line-opacity', 0.15);
+        for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
+          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.3);
+        }
+        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.15);
+        }
         if (fly) fitToGeoIds(geoIds);
       } else {
         map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
-        map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
-        map.setPaintProperty('paths-network-bg', 'line-opacity', 0.5);
+        for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
+          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.8);
+        }
+        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.5);
+        }
       }
     }
 
@@ -479,32 +487,44 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         data: { type: 'FeatureCollection', features },
       });
 
-      // Non-interactive paths: thinner, lower opacity, but still clickable
+      const TRAIL_DASH: [number, number] = [3, 1];
+
+      // Non-interactive paths: solid
       map.addLayer({
         id: 'paths-network-bg',
         type: 'line',
         source: 'paths-network',
-        filter: ['!=', ['get', 'interactive'], 'true'],
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': PATH_WIDTH_UNLISTED,
-          'line-opacity': 0.5,
-        },
+        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5 },
+      });
+      // Non-interactive trails: dashed
+      map.addLayer({
+        id: 'paths-network-bg-dashed',
+        type: 'line',
+        source: 'paths-network',
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5, 'line-dasharray': TRAIL_DASH },
       });
 
-      // Interactive paths: full width, bold
+      // Interactive paths: solid
       map.addLayer({
         id: 'paths-network-line',
         type: 'line',
         source: 'paths-network',
-        filter: ['==', ['get', 'interactive'], 'true'],
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': PATH_WIDTH,
-          'line-opacity': 0.8,
-        },
+        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8 },
+      });
+      // Interactive trails: dashed
+      map.addLayer({
+        id: 'paths-network-line-dashed',
+        type: 'line',
+        source: 'paths-network',
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8, 'line-dasharray': TRAIL_DASH },
       });
 
       // Highlight layer for network hover/selection
@@ -549,10 +569,11 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           .setHTML(content);
         showPopup(map, popup);
       }
-      map.on('click', 'paths-network-line', handlePathClick);
-      map.on('click', 'paths-network-bg', handlePathClick);
+      for (const id of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed']) {
+        map.on('click', id, handlePathClick);
+      }
 
-      for (const layerId of ['paths-network-line', 'paths-network-bg', 'paths-network-highlight']) {
+      for (const layerId of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed', 'paths-network-highlight']) {
         map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
       }
@@ -560,7 +581,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       // List hover → highlight path on map + fly to if off-screen
       setupPathHighlight(map, {
         listSelector: '.paths-list li[data-slug], .network-panel-header[data-slug]',
-        layerIds: ['paths-network-line'],
+        layerIds: ['paths-network-line', 'paths-network-line-dashed'],
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: 0.8,
@@ -569,7 +590,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         networkGeoIds,
         onHighlight: (slug) => {
           // Hide other layers when hovering so only the hovered path is visible
-          for (const id of ['paths-network-highlight', 'paths-network-bg']) {
+          for (const id of ['paths-network-highlight', 'paths-network-bg', 'paths-network-bg-dashed']) {
             if (map.getLayer(id)) {
               map.setLayoutProperty(id, 'visibility', slug ? 'none' : 'visible');
             }

@@ -64,20 +64,18 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
     layersCreated = false;
   }
 
+  const LINE_LAYERS = ['paths-network-line', 'paths-network-line-dashed'];
+
   function removeListeners(map: maplibregl.Map) {
     if (moveEndHandler) { map.off('moveend', moveEndHandler); moveEndHandler = null; }
-    if (clickHandler && map.getLayer('paths-network-line')) {
-      map.off('click', 'paths-network-line', clickHandler);
-      clickHandler = null;
+    for (const id of LINE_LAYERS) {
+      if (clickHandler && map.getLayer(id)) map.off('click', id, clickHandler);
+      if (enterHandler && map.getLayer(id)) map.off('mouseenter', id, enterHandler);
+      if (leaveHandler && map.getLayer(id)) map.off('mouseleave', id, leaveHandler);
     }
-    if (enterHandler && map.getLayer('paths-network-line')) {
-      map.off('mouseenter', 'paths-network-line', enterHandler);
-      enterHandler = null;
-    }
-    if (leaveHandler && map.getLayer('paths-network-line')) {
-      map.off('mouseleave', 'paths-network-line', leaveHandler);
-      leaveHandler = null;
-    }
+    clickHandler = null;
+    enterHandler = null;
+    leaveHandler = null;
   }
 
   function setupLayers(map: maplibregl.Map, features: GeoJSON.Feature[]) {
@@ -88,11 +86,13 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       data: { type: 'FeatureCollection', features },
     });
 
+    const TRAIL_DASH: [number, number] = [3, 1];
+
     if (isDetailMode) {
-      // Detail page: very faded context for surrounding paths
+      // Detail page: very faded context for surrounding paths (solid)
       map.addLayer({
         id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-        filter: ['!=', ['get', 'highlight'], 'true'],
+        filter: ['all', ['!=', ['get', 'highlight'], 'true'], ['!=', ['get', 'dashed'], true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
@@ -100,16 +100,40 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
           'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.04, 12, 0.08, 14, 0.15],
         },
       });
+      // Detail page: very faded context for surrounding trails (dashed)
+      map.addLayer({
+        id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
+        filter: ['all', ['!=', ['get', 'highlight'], 'true'], ['==', ['get', 'dashed'], true]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 1, 14, 2],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.04, 12, 0.08, 14, 0.15],
+          'line-dasharray': TRAIL_DASH,
+        },
+      });
 
-      // Highlighted path: bold
+      // Highlighted path: bold (solid)
       map.addLayer({
         id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-        filter: ['==', ['get', 'highlight'], 'true'],
+        filter: ['all', ['==', ['get', 'highlight'], 'true'], ['!=', ['get', 'dashed'], true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
           'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
           'line-opacity': 0.8,
+        },
+      });
+      // Highlighted trail: bold (dashed)
+      map.addLayer({
+        id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
+        filter: ['all', ['==', ['get', 'highlight'], 'true'], ['==', ['get', 'dashed'], true]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
+          'line-opacity': 0.8,
+          'line-dasharray': TRAIL_DASH,
         },
       });
 
@@ -136,10 +160,10 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
         },
       });
     } else {
-      // Index/BigMap mode: non-interactive paths faded
+      // Index/BigMap mode: non-interactive paths faded (solid)
       map.addLayer({
         id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-        filter: ['!=', ['get', 'interactive'], 'true'],
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
@@ -147,16 +171,40 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
           'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.08, 12, 0.2, 14, 0.45],
         },
       });
+      // Non-interactive trails (dashed)
+      map.addLayer({
+        id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1, 12, 2, 14, 4],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.08, 12, 0.2, 14, 0.45],
+          'line-dasharray': TRAIL_DASH,
+        },
+      });
 
-      // Interactive paths: bold
+      // Interactive paths: bold (solid)
       map.addLayer({
         id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-        filter: ['==', ['get', 'interactive'], 'true'],
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
           'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
           'line-opacity': 0.8,
+        },
+      });
+      // Interactive trails: bold (dashed)
+      map.addLayer({
+        id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+        paint: {
+          'line-color': ROUTE_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
+          'line-opacity': 0.8,
+          'line-dasharray': TRAIL_DASH,
         },
       });
 
@@ -201,12 +249,18 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
         .setLngLat(e.lngLat)
         .setHTML(`<div class="place-popup">${nameLink}${surfaceInfo}</div>`));
     };
-    map.on('click', 'paths-network-line', clickHandler);
+    for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
+      if (map.getLayer(id)) map.on('click', id, clickHandler);
+    }
 
     enterHandler = () => { map.getCanvas().style.cursor = 'pointer'; };
     leaveHandler = () => { map.getCanvas().style.cursor = ''; };
-    map.on('mouseenter', 'paths-network-line', enterHandler);
-    map.on('mouseleave', 'paths-network-line', leaveHandler);
+    for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
+      if (map.getLayer(id)) {
+        map.on('mouseenter', id, enterHandler);
+        map.on('mouseleave', id, leaveHandler);
+      }
+    }
 
     layersCreated = true;
   }
@@ -271,9 +325,9 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
     setVisible(map: maplibregl.Map, v: boolean) {
       visible = v;
       const vis = v ? 'visible' : 'none';
-      if (map.getLayer('paths-network-bg')) map.setLayoutProperty('paths-network-bg', 'visibility', vis);
-      if (map.getLayer('paths-network-line')) map.setLayoutProperty('paths-network-line', 'visibility', vis);
-      if (map.getLayer('paths-network-labels')) map.setLayoutProperty('paths-network-labels', 'visibility', vis);
+      for (const id of ['paths-network-bg', 'paths-network-bg-dashed', 'paths-network-line', 'paths-network-line-dashed', 'paths-network-labels']) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+      }
     },
   };
 }
