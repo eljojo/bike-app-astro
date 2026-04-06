@@ -210,7 +210,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           data-listed-ids={JSON.stringify([...listedRelIds])}
           data-network-geo-ids={JSON.stringify(networkGeoIds)}
           data-category-geo-ids={JSON.stringify(categoryGeoIds)}
-          style="height: 400px; background: var(--color-surface-alt, #f0f0f0);"
+          style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
         ></div>
         <div class="map-touch-lock" id="paths-map-touch-lock">
           <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
@@ -347,6 +347,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   import { setupMapTouchLock } from '../../lib/maps/map-touch-lock';
   import { setupPathHighlight } from '../../lib/maps/path-highlight';
   import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
+  import { createMapExpandButton } from '../../lib/maps/map-expand-button';
   import maplibregl from 'maplibre-gl';
 
   const PATH_WIDTH = ROUTE_LINE_WIDTH;
@@ -367,6 +368,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
 
     setupMapTouchLock(map, document.getElementById('paths-map-touch-lock'));
+    createMapExpandButton(map, container, { compactHeight: 400, expandedHeight: 700 });
 
     function enrichFeatures(features: GeoJSON.Feature[]) {
       for (const f of features) {
