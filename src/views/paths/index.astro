@@ -23,9 +23,6 @@ function pathVibe(p: typeof pages[0]): string | undefined {
   return (locale && p.translations[locale]?.vibe) || p.vibe;
 }
 
-// Pre-compute slug → URL so client-side click handlers use correct (potentially nested) URLs.
-// Only include paths that have a page (standalone) — prevents dead links on the map.
-const slugToUrl: Record<string, string> = {};
 // Popup info for each path — keyed by slug, serialized to JSON for client
 // Localize path_type for popup display
 function localizePathType(pt?: string): string | undefined {
@@ -45,14 +42,12 @@ for (const p of allPages) {
   if (p.memberRefs && p.memberRefs.length > 0) {
     if (p.standalone) {
       const url = paths.bikePath(p.slug, p.memberOf, locale);
-      slugToUrl[p.slug] = url;
       slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: undefined };
     }
     continue;
   }
   if (p.standalone) {
     const url = paths.bikePath(p.slug, p.memberOf, locale);
-    slugToUrl[p.slug] = url;
     // Find network name if member
     const netPage = p.memberOf ? allPages.find(n => n.slug === p.memberOf) : undefined;
     const netName = netPage ? pathName(netPage) : undefined;
@@ -236,7 +231,6 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               class="paths-map-hero"
               id="paths-network-map"
               data-center={JSON.stringify(mapCenter)}
-              data-slug-urls={JSON.stringify(slugToUrl)}
               data-network-geo-ids={JSON.stringify(networkGeoIds)}
               data-category-geo-ids={JSON.stringify(categoryGeoIds)}
           data-slug-info={JSON.stringify(slugInfo)}
@@ -351,96 +345,51 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 </Base>
 
 <script>
-  import { initMap, showPopup, ROUTE_COLOR, ROUTE_LINE_WIDTH } from '../../lib/maps/map-init';
-  import { loadStylePreference, getStyleUrl } from '../../lib/maps/map-style-switch';
-  import { setupMapTouchLock } from '../../lib/maps/map-touch-lock';
-  import { setupPathHighlight } from '../../lib/maps/path-highlight';
-  import { html, raw } from '../../lib/maps/map-helpers';
-  import { createTileLoader, type TileLoader } from '../../lib/maps/tile-loader';
-  import { createMapExpandButton } from '../../lib/maps/map-expand-button';
-  import maplibregl from 'maplibre-gl';
-
-  const PATH_WIDTH = ROUTE_LINE_WIDTH;
-  const PATH_WIDTH_UNLISTED = Math.max(2, ROUTE_LINE_WIDTH - 2);
-  const PATH_WIDTH_HOVER = ROUTE_LINE_WIDTH + 2;
+  import { createPathsBrowseMap } from '../../lib/maps/paths-browse-map';
 
   const container = document.getElementById('paths-network-map');
   if (container) {
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
-    const slugUrls: Record<string, string> = JSON.parse(container.dataset.slugUrls || '{}');
-    const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = JSON.parse(container.dataset.slugInfo || '{}');
+    const slugInfo = JSON.parse(container.dataset.slugInfo || '{}');
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
     const slugToNetworkMap: Record<string, string> = JSON.parse(container.dataset.slugToNetwork || '{}');
 
-    const styleKey = loadStylePreference();
-    const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
-
-    setupMapTouchLock(map, document.getElementById('paths-map-touch-lock'));
-    createMapExpandButton(map, container, { compactHeight: 400, expandedHeight: 700 });
-
-    function tagFeatures(features: GeoJSON.Feature[]) {
-      for (const f of features) {
-        if (!f.properties) continue;
-        f.properties.interactive = f.properties.hasPage ? 'true' : '';
-        f.properties.relationId = f.properties._geoId;
-      }
-    }
-
-    // --- Network highlight ---
-    let activeNetwork: string | null = null;
-
-    function fitToGeoIds(geoIds: string[]) {
-      if (!map.getSource('paths-network')) return;
-      const features = map.querySourceFeatures('paths-network', {
-        filter: ['in', ['get', 'relationId'], ['literal', geoIds]],
-      });
-      if (features.length === 0) return;
-      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-      for (const f of features) {
-        const coords = f.geometry.type === 'LineString' ? (f.geometry as GeoJSON.LineString).coordinates
-          : f.geometry.type === 'MultiLineString' ? (f.geometry as GeoJSON.MultiLineString).coordinates.flat()
-          : [];
-        for (const [lng, lat] of coords as [number, number][]) {
-          if (lng < minLng) minLng = lng;
-          if (lng > maxLng) maxLng = lng;
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
+    const { map, highlightGeoIds, fitToGeoIds } = createPathsBrowseMap({
+      container,
+      touchLockEl: document.getElementById('paths-map-touch-lock'),
+      center,
+      zoom: 11,
+      compactHeight: 400,
+      expandedHeight: 700,
+      slugInfo,
+      listSelector: '.paths-list li[data-slug], .network-panel-header[data-slug]',
+      slugToNetwork: slugToNetworkMap,
+      networkGeoIds,
+      onHighlightClear: () => {
+        const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
+        const activeSlug = activeTab?.dataset.network;
+        const geoIds = activeSlug && activeSlug !== 'all'
+          ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
+          : undefined;
+        if (geoIds && geoIds.length > 0) {
+          fitToGeoIds(geoIds);
+        } else {
+          map.flyTo({ center, zoom: 11, duration: 500 });
         }
-      }
-      if (minLng === Infinity) return;
-      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, animate: true, duration: 500 });
-    }
-
-    function highlightNetwork(slug: string | null, fly = false) {
-      if (activeNetwork === slug) return;
-      activeNetwork = slug;
-
-      if (!map.getLayer('paths-network-highlight')) return;
-
-      // Check category IDs first, then individual network IDs
-      const geoIds = slug ? (categoryGeoIds[slug] ?? networkGeoIds[slug]) : undefined;
-      if (geoIds && geoIds.length > 0) {
-        map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
-        for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
-          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.3);
+      },
+      onReady: () => {
+        // Activate first tab's highlight once layers are ready
+        const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
+        const activeSlug = activeTab?.dataset.network;
+        if (activeSlug && activeSlug !== 'all') {
+          const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
+          highlightGeoIds(geoIds ?? null);
         }
-        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
-          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.15);
-        }
-        if (fly) fitToGeoIds(geoIds);
-      } else {
-        map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
-        for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
-          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.8);
-        }
-        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
-          if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.5);
-        }
-      }
-    }
+      },
+    });
 
-    // --- Tab interaction ---
+    // --- Tab interaction (index-specific) ---
     const tabBar = document.getElementById('network-tabs');
     if (tabBar) {
       const tabs = tabBar.querySelectorAll<HTMLButtonElement>('.network-tab');
@@ -450,9 +399,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
         panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
         if (networkSlug === 'all') {
-          highlightNetwork(null, true);
+          highlightGeoIds(null, true);
         } else {
-          highlightNetwork(networkSlug, true);
+          const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
+          highlightGeoIds(geoIds ?? null, true);
         }
       }
 
@@ -463,208 +413,22 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         });
         tab.addEventListener('mouseenter', () => {
           const slug = tab.dataset.network;
-          if (slug && slug !== 'all') highlightNetwork(slug);
+          if (slug && slug !== 'all') {
+            const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
+            highlightGeoIds(geoIds ?? null);
+          }
         });
         tab.addEventListener('mouseleave', () => {
-          // Restore to active tab's highlight
           const activeTab = tabBar.querySelector<HTMLButtonElement>('.network-tab.active');
           const activeSlug = activeTab?.dataset.network;
           if (activeSlug && activeSlug !== 'all') {
-            highlightNetwork(activeSlug);
+            const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
+            highlightGeoIds(geoIds ?? null);
           } else {
-            highlightNetwork(null);
+            highlightGeoIds(null);
           }
         });
       });
     }
-
-    let layersSetUp = false;
-    let prevFeatureCount = 0;
-
-    function setupPathsLayers(features: GeoJSON.Feature[]) {
-      map.addSource('paths-network', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features },
-      });
-
-      const TRAIL_DASH: [number, number] = [3, 1];
-
-      // Non-interactive paths: solid
-      map.addLayer({
-        id: 'paths-network-bg',
-        type: 'line',
-        source: 'paths-network',
-        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5 },
-      });
-      // Non-interactive trails: dashed
-      map.addLayer({
-        id: 'paths-network-bg-dashed',
-        type: 'line',
-        source: 'paths-network',
-        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
-        layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5, 'line-dasharray': TRAIL_DASH },
-      });
-
-      // Interactive paths: solid
-      map.addLayer({
-        id: 'paths-network-line',
-        type: 'line',
-        source: 'paths-network',
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8 },
-      });
-      // Interactive trails: dashed
-      map.addLayer({
-        id: 'paths-network-line-dashed',
-        type: 'line',
-        source: 'paths-network',
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
-        layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8, 'line-dasharray': TRAIL_DASH },
-      });
-
-      // Highlight layer for network hover/selection
-      map.addLayer({
-        id: 'paths-network-highlight',
-        type: 'line',
-        source: 'paths-network',
-        filter: ['==', ['get', 'relationId'], ''],
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': PATH_WIDTH + 2,
-          'line-opacity': 1,
-        },
-      });
-
-      // --- Map interaction ---
-
-      // Click on any path → show info popup
-      function handlePathClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
-        if (!e.features?.length) return;
-        const slug = e.features[0].properties?.slug;
-        if (!slug) return;
-        const info = slugInfo[slug];
-        if (!info) return;
-
-        const meta: string[] = [];
-        if (info.length_km) meta.push(`${info.length_km} km`);
-        if (info.surface) meta.push(info.surface);
-        if (info.path_type) meta.push(info.path_type);
-
-        const content = html`<div class="path-popup">
-          <strong class="path-popup-name">${info.name}</strong>
-          ${info.network ? raw(info.networkUrl ? html`<div class="path-popup-network"><a href="${info.networkUrl}" class="path-popup-network-link">${info.network}</a></div>` : html`<div class="path-popup-network">${info.network}</div>`) : ''}
-          ${meta.length > 0 ? raw(html`<div class="path-popup-meta">${meta.join(' · ')}</div>`) : ''}
-          ${info.vibe ? raw(html`<div class="path-popup-vibe">${info.vibe}</div>`) : ''}
-          <a href="${info.url}" class="path-popup-link">View details &rarr;</a>
-        </div>`;
-
-        const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
-          .setLngLat(e.lngLat)
-          .setHTML(content);
-        showPopup(map, popup);
-      }
-      for (const id of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed']) {
-        map.on('click', id, handlePathClick);
-      }
-
-      for (const layerId of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed', 'paths-network-highlight']) {
-        map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
-      }
-
-      // List hover → highlight path on map + fly to if off-screen
-      setupPathHighlight(map, {
-        listSelector: '.paths-list li[data-slug], .network-panel-header[data-slug]',
-        layerIds: ['paths-network-line', 'paths-network-line-dashed'],
-        lineWidth: PATH_WIDTH,
-        lineWidthHover: PATH_WIDTH_HOVER,
-        lineOpacity: 0.8,
-        sourceId: 'paths-network',
-        slugToNetwork: slugToNetworkMap,
-        networkGeoIds,
-        onHighlight: (slug) => {
-          // Hide other layers when hovering so only the hovered path is visible
-          for (const id of ['paths-network-highlight', 'paths-network-bg', 'paths-network-bg-dashed']) {
-            if (map.getLayer(id)) {
-              map.setLayoutProperty(id, 'visibility', slug ? 'none' : 'visible');
-            }
-          }
-          // On mouseleave, fly back to active tab's extent (or city center)
-          if (!slug) {
-            const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
-            const activeSlug = activeTab?.dataset.network;
-            const geoIds = activeSlug && activeSlug !== 'all'
-              ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
-              : undefined;
-            if (geoIds && geoIds.length > 0) {
-              fitToGeoIds(geoIds);
-            } else {
-              map.flyTo({ center, zoom: 11, duration: 500 });
-            }
-          }
-        },
-      });
-
-      layersSetUp = true;
-
-      // Activate the first network tab's highlight once layers are ready
-      const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
-      const activeSlug = activeTab?.dataset.network;
-      if (activeSlug && activeSlug !== 'all') {
-        highlightNetwork(activeSlug);
-      }
-    }
-
-    function getMapBounds(): [number, number, number, number] {
-      const b = map.getBounds();
-      return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
-    }
-
-    map.on('load', async () => {
-      let tileLoader: TileLoader;
-      try {
-        const res = await fetch('/bike-paths/geo/tiles/manifest.json');
-        if (!res.ok) return;
-        const manifest = await res.json();
-        tileLoader = createTileLoader(manifest, '/bike-paths/geo/tiles/');
-      } catch {
-        return;
-      }
-
-      // Load initial tiles immediately — this page is about paths
-      const features = await tileLoader.loadTilesForBounds(getMapBounds());
-      tagFeatures(features);
-      prevFeatureCount = features.length;
-
-      if (features.length > 0) {
-        setupPathsLayers(features);
-      }
-
-      // On pan/zoom, load new tiles and update source if new features arrived
-      map.on('moveend', async () => {
-        const updated = await tileLoader.loadTilesForBounds(getMapBounds());
-        if (updated.length === prevFeatureCount) return;
-
-        tagFeatures(updated);
-        prevFeatureCount = updated.length;
-
-        if (!layersSetUp) {
-          if (updated.length > 0) setupPathsLayers(updated);
-          return;
-        }
-
-        const source = map.getSource('paths-network') as maplibregl.GeoJSONSource;
-        if (source) {
-          source.setData({ type: 'FeatureCollection', features: updated });
-        }
-      });
-    });
   }
-
 </script>
