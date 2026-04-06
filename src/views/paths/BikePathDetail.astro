@@ -653,8 +653,9 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
       listSelector: '.network-members-list li[data-slug], .network-member-long-distance[data-slug]',
       labels: { viewDetails: container.dataset.labelViewDetails },
       onHighlightClear: (result) => {
-        // Fit to ALL member geometry (including non-standalone) so the
-        // whole network is visible when hover resets
+        result.fitToGeoIds(allMemberGeoIds);
+      },
+      onReady: (result) => {
         result.fitToGeoIds(allMemberGeoIds);
       },
     });
