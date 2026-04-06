@@ -656,6 +656,12 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         result.fitToGeoIds(allMemberGeoIds);
       },
       onReady: (result) => {
+        // Hide surrounding city paths — only show this network's members
+        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+          if (result.map.getLayer(id)) {
+            result.map.setLayoutProperty(id, 'visibility', 'none');
+          }
+        }
         result.fitToGeoIds(allMemberGeoIds);
       },
     });
