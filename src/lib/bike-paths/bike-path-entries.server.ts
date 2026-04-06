@@ -57,6 +57,12 @@ export interface MemberRef {
   entryType?: string;
   /** Non-cycling relations this member overlaps with — for network page grouping. */
   overlappingRelations?: Array<{ id: number; name: string; route: string }>;
+  /** Surface type — for map popup display. */
+  surface?: string;
+  /** Infrastructure type — for map popup display. */
+  path_type?: string;
+  /** Short description — for map popup display. */
+  vibe?: string;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
@@ -586,6 +592,9 @@ export function loadBikePathEntries(): {
       hasMarkdown: p.hasMarkdown,
       entryType: p.ymlEntries[0]?.type,
       overlappingRelations: p.overlapping_relations?.map(r => ({ id: r.id, name: r.name, route: r.route })),
+      surface: p.surface,
+      path_type: p.path_type,
+      vibe: p.vibe,
     }));
 
     // Aggregate geometry from all members
