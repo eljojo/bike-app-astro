@@ -259,7 +259,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           <div class:list={['network-panel', { active: i === 0 }]} data-panel={cat.key}>
             {cat.networks.map(net => (
               <div class="category-network-group">
-                <div class="network-panel-header">
+                <div class="network-panel-header" data-slug={net.slug}>
                   <div class="network-panel-info">
                     <span class="network-panel-name">{net.name}</span>
                     {net.length_km && <span class="path-meta">{net.length_km} km</span>}
@@ -561,7 +561,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
       // List hover → highlight path on map + fly to if off-screen
       setupPathHighlight(map, {
-        listSelector: '.paths-list li[data-slug]',
+        listSelector: '.paths-list li[data-slug], .network-panel-header[data-slug]',
         layerIds: ['paths-network-line'],
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,

@@ -53,21 +53,21 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
 
     if (flyTimeout) { clearTimeout(flyTimeout); flyTimeout = null; }
 
+    // If the slug is a network, build a filter matching all its geo IDs
+    const isNetwork = slug && o.networkGeoIds?.[slug];
+    const matchFilter: maplibregl.ExpressionSpecification = isNetwork
+      ? ['in', ['get', 'relationId'], ['literal', o.networkGeoIds![slug!]]]
+      : ['==', ['get', o.property], slug ?? ''];
+
     for (const layerId of o.layerIds) {
       if (!map.getLayer(layerId)) continue;
 
       if (slug) {
         map.setPaintProperty(layerId, 'line-width', [
-          'case',
-          ['==', ['get', o.property], slug],
-          o.lineWidthHover,
-          o.lineWidth,
+          'case', matchFilter, o.lineWidthHover, o.lineWidth,
         ]);
         map.setPaintProperty(layerId, 'line-opacity', [
-          'case',
-          ['==', ['get', o.property], slug],
-          o.lineOpacityHover,
-          o.lineOpacityDim,
+          'case', matchFilter, o.lineOpacityHover, o.lineOpacityDim,
         ]);
       } else {
         map.setPaintProperty(layerId, 'line-width', o.lineWidth);
