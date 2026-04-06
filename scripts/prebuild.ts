@@ -18,10 +18,9 @@
  *   contributors ──────────┤
  *                          ├─► done
  *   cache-path-geometry ───┤
- *     └─► copy-path-geometry
- *           ├─► geo-metadata
- *           │     └─► path-tiles
- *           └─► maps
+ *     ├─► geo-metadata
+ *     │     └─► path-tiles
+ *     └─► maps
  */
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -55,9 +54,8 @@ const iconPaths    = run('icon-paths',     'build-icon-paths.ts');
 const contributors = minimal ? Promise.resolve() : run('contributors', 'build-contributors.ts');
 
 const geoCache  = run('path-geo-cache', 'cache-path-geometry.ts');
-const geoCopy   = geoCache.then(() => run('path-geo', 'copy-path-geometry.ts'));
-const geoMeta   = geoCopy.then(() => run('geo-metadata', 'generate-geo-metadata.ts'));
+const geoMeta   = geoCache.then(() => run('geo-metadata', 'generate-geo-metadata.ts'));
 const pathTiles = geoMeta.then(() => run('path-tiles', 'generate-path-tiles.ts'));
-const maps      = minimal ? Promise.resolve() : geoCopy.then(() => run('maps', 'generate-maps.ts'));
+const maps      = minimal ? Promise.resolve() : geoCache.then(() => run('maps', 'generate-maps.ts'));
 
 await Promise.all([mapStyle, iconPaths, contributors, pathTiles, maps]);

@@ -303,30 +303,48 @@ if (isMainModule) {
     process.exit(0);
   }
 
-  const geoDir = path.resolve('public', 'bike-paths', 'geo');
-  const tilesDir = path.join(geoDir, 'tiles');
+  const CITY = process.env.CITY || 'ottawa';
+  const cacheDir = path.resolve('.cache', 'bikepath-geometry', CITY);
 
-  if (!fs.existsSync(geoDir)) {
-    console.log(`[path-tiles] No geo directory at ${geoDir} — skipping`);
+  const tilesDir = path.resolve('public', 'bike-paths', 'geo', 'tiles');
+  const metaPath = path.resolve('public', 'bike-paths', 'geo', 'geo-metadata.json');
+
+  if (!fs.existsSync(cacheDir)) {
+    console.log(`[path-tiles] No cache directory at ${cacheDir} — skipping`);
     process.exit(0);
   }
 
-  const files = fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
-  if (files.length === 0) {
+  const files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.geojson'));
+
+  // Read all geojson files from cache
+  const input = new Map<string, FeatureCollection>();
+  for (const file of files) {
+    const geoId = file.replace('.geojson', '');
+    const content = fs.readFileSync(path.join(cacheDir, file), 'utf-8');
+    input.set(geoId, JSON.parse(content) as FeatureCollection);
+  }
+
+  // Demo city: also read from e2e/fixtures/overpass/
+  if (CITY === 'demo') {
+    const fixtureDir = path.resolve('e2e', 'fixtures', 'overpass');
+    if (fs.existsSync(fixtureDir)) {
+      const fixtures = fs.readdirSync(fixtureDir).filter(f => f.endsWith('.geojson'));
+      for (const file of fixtures) {
+        const geoId = file.replace('.geojson', '');
+        if (!input.has(geoId)) {
+          const content = fs.readFileSync(path.join(fixtureDir, file), 'utf-8');
+          input.set(geoId, JSON.parse(content) as FeatureCollection);
+        }
+      }
+    }
+  }
+
+  if (input.size === 0) {
     console.log('[path-tiles] No geojson files found — skipping');
     process.exit(0);
   }
 
-  // Read all geojson files
-  const input = new Map<string, FeatureCollection>();
-  for (const file of files) {
-    const geoId = file.replace('.geojson', '');
-    const content = fs.readFileSync(path.join(geoDir, file), 'utf-8');
-    input.set(geoId, JSON.parse(content) as FeatureCollection);
-  }
-
   // Read optional metadata
-  const metaPath = path.join(geoDir, 'geo-metadata.json');
   let metadata: Map<string, GeoMetaEntry> | undefined;
   if (fs.existsSync(metaPath)) {
     const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as Record<string, GeoMetaEntry>;
@@ -335,6 +353,9 @@ if (isMainModule) {
   }
 
   const { tiles, manifest } = buildTiles(input, metadata);
+
+  // Ensure output directory exists
+  fs.mkdirSync(path.resolve('public', 'bike-paths', 'geo'), { recursive: true });
 
   // Clean previous tiles
   if (fs.existsSync(tilesDir)) {
