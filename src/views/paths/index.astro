@@ -105,10 +105,21 @@ interface NetworkInfo {
   tier2: typeof networkPages[0]['memberRefs'] extends (infer T)[] | undefined ? NonNullable<T>[] : never[];
 }
 
+// Long-distance members extracted from all networks — shown in the Long-distance tab, not in their network
+const longDistanceMemberRefs: Array<{ slug: string; name: string; length_km?: number; standalone: boolean; memberOf?: string }> = [];
+
 function buildNetworkInfo(net: typeof networkPages[0]): NetworkInfo {
   const refs = (net.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= 0.5);
-  const tier1 = refs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
-  const tier2 = refs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
+  // Separate long-distance members — they go to the Long-distance category tab
+  const localRefs = refs.filter(m => {
+    if (m.entryType === 'long-distance') {
+      longDistanceMemberRefs.push({ slug: m.slug, name: m.name, length_km: m.length_km, standalone: m.standalone, memberOf: m.memberOf });
+      return false;
+    }
+    return true;
+  });
+  const tier1 = localRefs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
+  const tier2 = localRefs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
   tier1.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
   return { slug: net.slug, name: pathName(net), length_km: net.length_km, operator: net.operator, tier1, tier2 };
 }
@@ -168,12 +179,24 @@ if (categoryMap.pathways.length > 0) {
 if (categoryMap.mtb.length > 0) {
   categories.push({ key: 'mtb', label: t('paths.cat_mtb', locale), networks: categoryMap.mtb });
 }
-if (categoryMap['long-distance'].length > 0 || longDistancePaths.length > 0) {
+// Combine standalone long-distance paths + long-distance members extracted from networks
+const allLongDistanceStandalone = [...longDistancePaths];
+const ldSlugs = new Set(allLongDistanceStandalone.map(p => p.slug));
+// Add member refs as lightweight entries (they have enough data to render links)
+for (const m of longDistanceMemberRefs) {
+  if (ldSlugs.has(m.slug)) continue;
+  ldSlugs.add(m.slug);
+  const page = pageBySlug.get(m.slug);
+  if (page) allLongDistanceStandalone.push(page);
+}
+allLongDistanceStandalone.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+
+if (categoryMap['long-distance'].length > 0 || allLongDistanceStandalone.length > 0) {
   categories.push({
     key: 'long-distance',
     label: t('paths.cat_long_distance', locale),
     networks: categoryMap['long-distance'],
-    standalonePaths: longDistancePaths,
+    standalonePaths: allLongDistanceStandalone,
   });
 }
 if (categoryMap.bikeways.length > 0) {
