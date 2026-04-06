@@ -344,25 +344,6 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       </div>
     )}
 
-    {independentPaths.length > 0 && (
-      <section class="paths-independent">
-        <h2>{t('paths.independent_paths', locale)}</h2>
-        <ul class="paths-list">
-          {independentPaths.map(p => (
-            <li data-slug={p.slug}>
-              <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
-                <span class="path-link-name">{pathName(p)}</span>
-                <span class="path-link-meta">
-                  {p.length_km && <span class="path-meta">{p.length_km} km</span>}
-                  {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
-
     <p class="paths-osm-attribution">
       {t('paths.index_osm_attribution', locale)} <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>. {t('paths.index_osm_edit', locale)}
     </p>
