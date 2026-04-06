@@ -72,10 +72,10 @@ const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km 
 const TIER1_MIN_KM = 5;
 const allPrimary = memberRefs
   .filter(m => !m.memberOf || m.memberOf === page.slug)
-  .sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+  .sort((a, b) => a.name.localeCompare(b.name));
 const allSecondary = memberRefs
   .filter(m => m.memberOf && m.memberOf !== page.slug)
-  .sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+  .sort((a, b) => a.name.localeCompare(b.name));
 // Long-distance members get their own section regardless of primary/secondary
 const longDistanceMembers = [...allPrimary, ...allSecondary]
   .filter(m => m.entryType === 'long-distance');
@@ -117,7 +117,7 @@ for (const [, g] of overlapGroups) {
   }
 }
 // Sort ungrouped same as before (by length)
-ungroupedPrimary.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+ungroupedPrimary.sort((a, b) => a.name.localeCompare(b.name));
 
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;

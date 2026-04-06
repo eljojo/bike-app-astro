@@ -103,7 +103,7 @@ function buildNetworkInfo(net: typeof networkPages[0]): NetworkInfo {
   });
   const tier1 = localRefs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
   const tier2 = localRefs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
-  tier1.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+  tier1.sort((a, b) => a.name.localeCompare(b.name));
   return { slug: net.slug, name: pathName(net), length_km: net.length_km, operator: net.operator, tier1, tier2 };
 }
 
