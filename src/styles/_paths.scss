@@ -27,8 +27,16 @@
   }
 }
 
+.paths-browse-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: $color-bg;
+  @include dark-mode { background: $color-bg-dark; }
+}
+
 .paths-map-hero-wrapper {
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 }
 
 .paths-map-hero {
@@ -924,7 +932,7 @@
 }
 
 // Network tab bar
-.network-tabs-wrapper {
+.paths-browse {
   margin: 1.5rem 0;
 }
 

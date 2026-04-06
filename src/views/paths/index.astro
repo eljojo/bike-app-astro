@@ -197,37 +197,36 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
 
-    {/* TODO: add MTB trail filter toggle on the map — entries have mtb: true (125 in Ottawa) */}
-    {allPages.length > 0 && (
-      <div class="paths-map-hero-wrapper">
-        <div
-          class="paths-map-hero"
-          id="paths-network-map"
-          data-center={JSON.stringify(mapCenter)}
-          data-relation-slugs={JSON.stringify(relationToSlug)}
-          data-slug-urls={JSON.stringify(slugToUrl)}
-          data-interactive-ids={JSON.stringify([...interactiveRelIds])}
-          data-listed-ids={JSON.stringify([...listedRelIds])}
-          data-network-geo-ids={JSON.stringify(networkGeoIds)}
-          data-category-geo-ids={JSON.stringify(categoryGeoIds)}
-          style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
-        ></div>
-        <div class="map-touch-lock" id="paths-map-touch-lock">
-          <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
-        </div>
-      </div>
-    )}
-
-    {categories.length > 0 && (
-      <div class="network-tabs-wrapper">
-        <div class="network-tabs" id="network-tabs">
-          {categories.map((cat, i) => (
-            <button
-              class:list={['network-tab', { active: i === 0 }]}
-              data-network={cat.key}
-            >{cat.label}</button>
-          ))}
-          <button class="network-tab network-tab--all" data-network="all">{t('paths.all_paths_tab', locale)}</button>
+    {allPages.length > 0 && categories.length > 0 && (
+      <div class="paths-browse">
+        {/* Sticky header: map + tabs stick as you scroll through panels */}
+        <div class="paths-browse-header">
+          <div class="paths-map-hero-wrapper">
+            <div
+              class="paths-map-hero"
+              id="paths-network-map"
+              data-center={JSON.stringify(mapCenter)}
+              data-relation-slugs={JSON.stringify(relationToSlug)}
+              data-slug-urls={JSON.stringify(slugToUrl)}
+              data-interactive-ids={JSON.stringify([...interactiveRelIds])}
+              data-listed-ids={JSON.stringify([...listedRelIds])}
+              data-network-geo-ids={JSON.stringify(networkGeoIds)}
+              data-category-geo-ids={JSON.stringify(categoryGeoIds)}
+              style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
+            ></div>
+            <div class="map-touch-lock" id="paths-map-touch-lock">
+              <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+            </div>
+          </div>
+          <div class="network-tabs" id="network-tabs">
+            {categories.map((cat, i) => (
+              <button
+                class:list={['network-tab', { active: i === 0 }]}
+                data-network={cat.key}
+              >{cat.label}</button>
+            ))}
+            <button class="network-tab network-tab--all" data-network="all">{t('paths.all_paths_tab', locale)}</button>
+          </div>
         </div>
 
         {categories.map((cat, i) => (
