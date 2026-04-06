@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveEntryType, waysLengthM } from '../../../scripts/pipeline/lib/entry-type.mjs';
+import { deriveEntryType, waysLengthM, isLongDistance } from '../../../scripts/pipeline/lib/entry-type.mjs';
 
 // Helper: make a simple straight-line _ways array of ~N metres
 // 1 degree lat ≈ 111,320m, so 0.001° ≈ 111m
@@ -21,6 +21,28 @@ describe('waysLengthM', () => {
     const len = waysLengthM(ways);
     expect(len).toBeGreaterThan(1000);
     expect(len).toBeLessThan(1200);
+  });
+});
+
+describe('isLongDistance', () => {
+  it('rcn with relation → true', () => {
+    expect(isLongDistance({ network: 'rcn', osm_relations: [1], _ways: makeWays(0.01) })).toBe(true);
+  });
+
+  it('ncn with relation → true', () => {
+    expect(isLongDistance({ network: 'ncn', osm_relations: [1], _ways: makeWays(0.01) })).toBe(true);
+  });
+
+  it('≥30km → true', () => {
+    expect(isLongDistance({ _ways: makeWays(0.28), path_type: 'mup' })).toBe(true);
+  });
+
+  it('short path without network tags → false', () => {
+    expect(isLongDistance({ _ways: makeWays(0.01), path_type: 'mup' })).toBe(false);
+  });
+
+  it('already type: long-distance → true', () => {
+    expect(isLongDistance({ type: 'long-distance' })).toBe(true);
   });
 });
 

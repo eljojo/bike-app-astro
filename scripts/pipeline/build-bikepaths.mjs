@@ -52,7 +52,7 @@ import { discoverNetworks, discoverRouteSystemNetworks } from './lib/discover-ne
 import { enrichWithWikidata } from './lib/wikidata.mjs';
 import { detectMtb } from './lib/detect-mtb.mjs';
 import { derivePathType } from './lib/path-type.mjs';
-import { deriveEntryType } from './lib/entry-type.mjs';
+import { deriveEntryType, isLongDistance } from './lib/entry-type.mjs';
 import { rankByGeomDistance } from './lib/nearest-park.mjs';
 import { WayRegistry } from './lib/way-registry.mjs';
 
@@ -917,6 +917,10 @@ function addSuperrouteNetworks(entries, networks, wayRegistry) {
     for (const relId of network._member_relations || []) {
       const member = byRelation.get(relId);
       if (!member) continue;
+
+      // Long-distance paths are significant rides people plan trips for.
+      // They get their own top-level pages, never subordinated under a network.
+      if (isLongDistance(member)) continue;
 
       if (member.type === 'network') {
         // Park networks are NOT intermediaries — don't flatten them.

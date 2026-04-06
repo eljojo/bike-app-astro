@@ -30,6 +30,27 @@ export function waysLengthM(ways) {
   return total;
 }
 
+const LONG_DISTANCE_M = 50_000;
+const MEGATRAIL_M = 30_000;
+
+/**
+ * Check if an entry qualifies as long-distance.
+ * Usable before deriveEntryType runs (e.g. during network member resolution).
+ *
+ * @param {object} entry — a bikepaths.yml entry with _ways still attached
+ * @returns {boolean}
+ */
+export function isLongDistance(entry) {
+  if (entry.type === 'long-distance') return true;
+  const lengthM = waysLengthM(entry._ways);
+  const hasRelation = entry.osm_relations?.length > 0;
+  if (entry.network === 'ncn' && hasRelation) return true;
+  if (entry.network === 'rcn' && hasRelation) return true;
+  if (entry.ref && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
+  if (lengthM >= MEGATRAIL_M) return true;
+  return false;
+}
+
 /**
  * Derive entry type. Returns undefined for entries that already have a type
  * (networks). Returns 'destination', 'infrastructure', or 'connector'.
@@ -54,15 +75,7 @@ export function deriveEntryType(entry, thresholds = {}) {
   const hasOsmName = entry.osm_names?.length > 0;
 
   // Long-distance: named routes people plan trips for.
-  // 1. National/regional cycling network routes with OSM relations
-  // 2. Any route with a ref code and length > 50km
-  // 3. Any path ≥30km — if it's that long, it's a ride people plan for
-  const LONG_DISTANCE_M = 50_000;
-  const MEGATRAIL_M = 30_000;
-  if (entry.network === 'ncn' && hasRelation) return 'long-distance';
-  if (entry.network === 'rcn' && hasRelation) return 'long-distance';
-  if (entry.ref && hasRelation && lengthM >= LONG_DISTANCE_M) return 'long-distance';
-  if (lengthM >= MEGATRAIL_M) return 'long-distance';
+  if (isLongDistance(entry)) return 'long-distance';
 
   // Named cycling routes (OSM relations) are destinations — someone created
   // a relation for this path, which means it has real-world identity.
