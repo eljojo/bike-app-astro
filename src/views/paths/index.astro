@@ -40,6 +40,8 @@ function localizePathType(pt?: string): string | undefined {
   return val !== key ? val : undefined;
 }
 const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = {};
+// slug → network slug for fly-to framing
+const slugToNetwork: Record<string, string> = {};
 for (const p of allPages) {
   // Skip connectors — not listed, not standalone, don't appear on the map
   if (!p.listed && !p.standalone) continue;
@@ -61,6 +63,7 @@ for (const p of allPages) {
     const netName = netPage ? pathName(netPage) : undefined;
     const netUrl = p.memberOf ? paths.bikePath(p.memberOf, undefined, locale) : undefined;
     slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: netName, networkUrl: netUrl };
+    if (p.memberOf) slugToNetwork[p.slug] = p.memberOf;
   }
   for (const relId of p.osmRelationIds) {
     relationToSlug[String(relId)] = p.slug;
@@ -234,6 +237,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               data-network-geo-ids={JSON.stringify(networkGeoIds)}
               data-category-geo-ids={JSON.stringify(categoryGeoIds)}
           data-slug-info={JSON.stringify(slugInfo)}
+          data-slug-to-network={JSON.stringify(slugToNetwork)}
               style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
             ></div>
             <div class="map-touch-lock" id="paths-map-touch-lock">
@@ -386,6 +390,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const listedIds = new Set<string>(JSON.parse(container.dataset.listedIds || '[]'));
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
+    const slugToNetworkMap: Record<string, string> = JSON.parse(container.dataset.slugToNetwork || '{}');
 
     const styleKey = loadStylePreference();
     const map = initMap({ el: container, center, zoom: 11, styleUrl: getStyleUrl(styleKey) });
@@ -554,13 +559,16 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
       }
 
-      // List hover → highlight path on map
+      // List hover → highlight path on map + fly to if off-screen
       setupPathHighlight(map, {
         listSelector: '.paths-list li[data-slug]',
         layerIds: ['paths-network-line'],
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: 0.8,
+        sourceId: 'paths-network',
+        slugToNetwork: slugToNetworkMap,
+        networkGeoIds,
       });
 
       layersSetUp = true;
