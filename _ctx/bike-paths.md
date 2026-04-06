@@ -47,7 +47,7 @@ The pipeline preserves way IDs from Overpass responses through the entire build 
 
 1. **Structural dedup** — if two entries share ≥50% of their ways, they're the same path (relation trumps named way)
 2. **Validation** — each OSM relation appears in exactly one entry (a relation is one route)
-3. **Fast geometry resolution** — `cache-path-geometry.ts` queries ways by ID instead of name
+3. **Fast geometry resolution** — `scripts/cache-path-geometry.ts` queries ways by ID instead of name
 4. **Provenance audit** — given any fact in bikepaths.yml, trace it to the Overpass query that produced it
 
 ## Networks

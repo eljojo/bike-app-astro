@@ -1,6 +1,6 @@
 ---
 description: "How bike path geometry is tiled, what metadata tiles carry, how detail pages use tiles for highlight + context"
-type: pattern
+type: knowledge
 triggers: [working with bike path map, modifying tile generation, changing map layers, debugging path rendering, adding tile metadata]
 related: [bike-paths, pipeline-overview]
 ---
