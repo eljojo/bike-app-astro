@@ -27,6 +27,8 @@ export interface PathHighlightOptions {
   slugToNetwork?: Record<string, string>;
   /** Network slug → geo IDs, for computing network bounds */
   networkGeoIds?: Record<string, string[]>;
+  /** Called when highlight changes — slug is the hovered slug or null on leave */
+  onHighlight?: (slug: string | null) => void;
 }
 
 const DEFAULTS = {
@@ -35,7 +37,7 @@ const DEFAULTS = {
   lineWidthHover: 8,
   lineOpacity: 0.85,
   lineOpacityHover: 1,
-  lineOpacityDim: 0.3,
+  lineOpacityDim: 0,
 };
 
 /**
@@ -75,6 +77,8 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
       }
     }
 
+    o.onHighlight?.(slug);
+
     // Fly to path if it's off-screen (debounced to avoid jitter)
     if (slug && o.sourceId) {
       flyTimeout = setTimeout(() => flyToSlug(slug), 300);
@@ -84,14 +88,11 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   function flyToSlug(slug: string) {
     if (!o.sourceId) return;
 
-    // Determine which geo IDs to frame: network if available, else just the path
-    const networkSlug = o.slugToNetwork?.[slug];
-    const geoIdsToFrame = (networkSlug && o.networkGeoIds?.[networkSlug]) ?? null;
-
-    // Query rendered features for bounds — works with both GeoJSON and vector tile sources
+    // Frame what's highlighted: network slug → all its geo IDs, path slug → just that path
+    const isNetwork = o.networkGeoIds?.[slug];
     const features = map.querySourceFeatures(o.sourceId, {
-      filter: geoIdsToFrame
-        ? ['in', ['get', 'relationId'], ['literal', geoIdsToFrame]]
+      filter: isNetwork
+        ? ['in', ['get', 'relationId'], ['literal', o.networkGeoIds![slug]]]
         : ['==', ['get', o.property], slug],
     });
 
@@ -114,14 +115,10 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
 
     if (minLng === Infinity) return;
 
-    // Check if the path is already visible
-    const mapBounds = map.getBounds();
-    if (mapBounds.contains([minLng, minLat]) && mapBounds.contains([maxLng, maxLat])) return;
-
-    // Ease to show the path/network
+    // Ease to frame the highlighted path/network
     map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
       padding: 60,
-      maxZoom: map.getZoom(), // don't zoom in further than current
+      maxZoom: 14,
       animate: true,
       duration: 500,
     });

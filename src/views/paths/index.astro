@@ -415,7 +415,29 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     // --- Network highlight ---
     let activeNetwork: string | null = null;
 
-    function highlightNetwork(slug: string | null) {
+    function fitToGeoIds(geoIds: string[]) {
+      if (!map.getSource('paths-network')) return;
+      const features = map.querySourceFeatures('paths-network', {
+        filter: ['in', ['get', 'relationId'], ['literal', geoIds]],
+      });
+      if (features.length === 0) return;
+      let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      for (const f of features) {
+        const coords = f.geometry.type === 'LineString' ? (f.geometry as GeoJSON.LineString).coordinates
+          : f.geometry.type === 'MultiLineString' ? (f.geometry as GeoJSON.MultiLineString).coordinates.flat()
+          : [];
+        for (const [lng, lat] of coords as [number, number][]) {
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+        }
+      }
+      if (minLng === Infinity) return;
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, animate: true, duration: 500 });
+    }
+
+    function highlightNetwork(slug: string | null, fly = false) {
       if (activeNetwork === slug) return;
       activeNetwork = slug;
 
@@ -427,6 +449,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
         map.setPaintProperty('paths-network-line', 'line-opacity', 0.3);
         map.setPaintProperty('paths-network-bg', 'line-opacity', 0.15);
+        if (fly) fitToGeoIds(geoIds);
       } else {
         map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
         map.setPaintProperty('paths-network-line', 'line-opacity', 0.8);
@@ -444,9 +467,9 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
         panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
         if (networkSlug === 'all') {
-          highlightNetwork(null);
+          highlightNetwork(null, true);
         } else {
-          highlightNetwork(networkSlug);
+          highlightNetwork(networkSlug, true);
         }
       }
 
@@ -569,6 +592,27 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         sourceId: 'paths-network',
         slugToNetwork: slugToNetworkMap,
         networkGeoIds,
+        onHighlight: (slug) => {
+          // Hide other layers when hovering so only the hovered path is visible
+          for (const id of ['paths-network-highlight', 'paths-network-bg']) {
+            if (map.getLayer(id)) {
+              map.setLayoutProperty(id, 'visibility', slug ? 'none' : 'visible');
+            }
+          }
+          // On mouseleave, fly back to active tab's extent (or city center)
+          if (!slug) {
+            const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
+            const activeSlug = activeTab?.dataset.network;
+            const geoIds = activeSlug && activeSlug !== 'all'
+              ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
+              : undefined;
+            if (geoIds && geoIds.length > 0) {
+              fitToGeoIds(geoIds);
+            } else {
+              map.flyTo({ center, zoom: 11, duration: 500 });
+            }
+          }
+        },
       });
 
       layersSetUp = true;
