@@ -89,15 +89,15 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
     });
 
     if (isDetailMode) {
-      // Detail page: faded context for everything not highlighted
+      // Detail page: very faded context for surrounding paths
       map.addLayer({
         id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
         filter: ['!=', ['get', 'highlight'], 'true'],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1, 12, 2, 14, 4],
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.08, 12, 0.2, 14, 0.45],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 1, 14, 2],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.04, 12, 0.08, 14, 0.15],
         },
       });
 
