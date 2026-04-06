@@ -136,8 +136,8 @@ function classifyNetwork(net: typeof networkPages[0]): 'mtb' | 'long-distance' |
   }).length;
   if (mtbCount / members.length >= 0.5) return 'mtb';
 
-  // Long-distance: ncn or rcn network tag
-  if (net.network === 'ncn' || net.network === 'rcn') return 'long-distance';
+  // Long-distance: use the pipeline's classification, not OSM tags
+  if (net.entryType === 'long-distance') return 'long-distance';
 
   // Bikeways: lcn network tag and mostly mup/separated-lane/bike-lane
   if (net.network === 'lcn') return 'bikeways';
