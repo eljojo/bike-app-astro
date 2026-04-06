@@ -33,8 +33,18 @@ describe('isLongDistance', () => {
     expect(isLongDistance({ network: 'rcn', osm_relations: [1], _ways: makeWays(0.6) })).toBe(true);
   });
 
-  it('ncn with relation → true', () => {
-    expect(isLongDistance({ network: 'ncn', osm_relations: [1], _ways: makeWays(0.01) })).toBe(true);
+  it('ncn with relation and long geometry → true', () => {
+    expect(isLongDistance({ network: 'ncn', osm_relations: [1], _ways: makeWays(0.5) })).toBe(true);
+  });
+
+  it('ncn with relation but short (4.4km bike lane) → false', () => {
+    // Trans Canada Trail (Sussex Drive): 4.4km bike lane tagged ncn — not long-distance
+    expect(isLongDistance({ network: 'ncn', osm_relations: [7369782], ref: 'TCT', path_type: 'bike-lane', _ways: makeWays(0.04) })).toBe(false);
+  });
+
+  it('ncn with relation but medium (14.9km MUP) → false', () => {
+    // Ottawa River Pathway (Trans Canada Trail): 14.9km MUP tagged ncn — not long-distance
+    expect(isLongDistance({ network: 'ncn', osm_relations: [9502633], ref: 'TCT', path_type: 'mup', _ways: makeWays(0.134) })).toBe(false);
   });
 
   it('≥30km with relation → true', () => {
@@ -69,10 +79,24 @@ describe('deriveEntryType', () => {
 
   // --- Trails (long-distance routes) ---
 
-  it('ncn route with relation → trail', () => {
+  it('long ncn route with relation → trail', () => {
     expect(deriveEntryType({
-      network: 'ncn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.01),
+      network: 'ncn', osm_relations: [12345], path_type: 'mup', _ways: makeWays(0.5),
     })).toBe('long-distance');
+  });
+
+  it('short ncn route with relation → destination (not long-distance)', () => {
+    // 4.4km bike lane on Sussex Drive tagged ncn/TCT — just a local segment
+    expect(deriveEntryType({
+      network: 'ncn', osm_relations: [7369782], ref: 'TCT', path_type: 'bike-lane', _ways: makeWays(0.04),
+    })).toBe('destination');
+  });
+
+  it('medium ncn route with relation → destination (not long-distance)', () => {
+    // 14.9km MUP section of TCT — part of a network, not a standalone long-distance route
+    expect(deriveEntryType({
+      network: 'ncn', osm_relations: [9502633], ref: 'TCT', path_type: 'mup', _ways: makeWays(0.134),
+    })).toBe('destination');
   });
 
   it('short rcn route with relation → destination (not long-distance)', () => {

@@ -44,7 +44,7 @@ export function isLongDistance(entry) {
   if (entry.type === 'long-distance') return true;
   const lengthM = waysLengthM(entry._ways);
   const hasRelation = entry.osm_relations?.length > 0;
-  if (entry.network === 'ncn' && hasRelation) return true;
+  if (entry.network === 'ncn' && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
   if (entry.network === 'rcn' && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
   if (entry.ref && hasRelation && lengthM >= LONG_DISTANCE_M) return true;
   // Megatrail: long enough to be a destination, but must have some identity

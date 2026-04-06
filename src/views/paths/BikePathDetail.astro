@@ -73,7 +73,7 @@ const MIN_DISPLAY_KM = 0.5;
 const allMemberRefs = page.memberRefs ?? [];
 const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
 // Split by primary/secondary network membership, then sort and tier
-const TIER1_MIN_KM = 5;
+const TIER1_MIN_KM = 3;
 const allPrimary = memberRefs
   .filter(m => !m.memberOf || m.memberOf === page.slug)
   .sort((a, b) => a.name.localeCompare(b.name));

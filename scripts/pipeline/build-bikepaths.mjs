@@ -1607,7 +1607,11 @@ out geom tags;`;
   // Step 7c: Derive entry type (destination/infrastructure/connector)
   // Depends on path_type and _ways (still available, stripped later).
   // Networks already have type: 'network' — deriveEntryType skips them.
+  // Clear previously derived long-distance type so classification rules
+  // are re-evaluated from geometry (the pipeline may have written this
+  // type in a previous run under different rules).
   for (const entry of grouped) {
+    if (entry.type === 'long-distance') delete entry.type;
     const et = deriveEntryType(entry);
     if (et) entry.type = et;
   }

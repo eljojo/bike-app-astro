@@ -72,7 +72,7 @@ const longDistanceSlugs = new Set(longDistancePaths.map(p => p.slug));
 const independentPaths = allIndependent.filter(p => !longDistanceSlugs.has(p.slug));
 
 // --- Classify networks into riding categories ---
-const TIER1_MIN_KM = 5;
+const TIER1_MIN_KM = 3;
 
 interface NetworkInfo {
   slug: string;
