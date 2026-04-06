@@ -53,6 +53,10 @@ describe.skipIf(!ymlExists)('long-distance classification', () => {
     'ottawa-river-pathway-east',
     'ottawa-river-pathway-west',
     'prescott-russell-trail-link',
+    // NCN-tagged but short — being part of a national route doesn't make
+    // a 4.4km bike lane or 14.9km MUP section long-distance
+    'trans-canada-trail-sussex-drive',
+    'ottawa-river-pathway-trans-canada-trail',
   ];
 
   for (const slug of mustNotBeLongDistance) {
@@ -140,4 +144,27 @@ describe.skipIf(!ymlExists)('Capital Pathway members', () => {
       expect(cp.members).toContain(slug);
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Geometry enrichment — relation entries must use relation geometry, not tiny
+// name-match fragments. Without this, entries like Sentier Trans-Canada get
+// 33m of geometry instead of 494km, breaking all length-based classification.
+// ---------------------------------------------------------------------------
+
+describe.skipIf(!ymlExists)('relation geometry enrichment', () => {
+  // These entries have osm_relations pointing to large routes. The pipeline
+  // must use the relation geometry, not a tiny name-match fragment from the
+  // local area. We verify via osm_way_ids count — relation geometry produces
+  // hundreds of way IDs, while a name-match fragment produces < 10.
+  it('Sentier Trans-Canada Gatineau-Montréal has substantial geometry from its relation', () => {
+    const e = entry('sentier-trans-canada-gatineau-montreal');
+    expect(e.osm_way_ids?.length, 'should have many way IDs from the full relation').toBeGreaterThan(50);
+  });
+
+  it('Route Verte 1 has substantial geometry from its relation', () => {
+    const e = bySlug.get('route-verte-1');
+    if (!e) return; // may not exist in all cities
+    expect(e.osm_way_ids?.length, 'should have many way IDs from the full relation').toBeGreaterThan(50);
+  });
 });
