@@ -387,9 +387,13 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
     case 'inception':
       return fact.value || '';
     case 'gentle_hills':
-      return t('paths.fact.gentle_hills', locale, { meters: fact.value || '' });
+      return fact.value
+        ? t('paths.fact.gentle_hills', locale, { meters: fact.value })
+        : t('paths.fact.gentle_hills_no_meters', locale);
     case 'hilly':
-      return t('paths.fact.hilly', locale, { meters: fact.value || '' });
+      return fact.value
+        ? t('paths.fact.hilly', locale, { meters: fact.value })
+        : t('paths.fact.hilly_no_meters', locale);
     default: {
       const i18nKey = `paths.fact.${fact.key}`;
       const translated = t(i18nKey, locale);
