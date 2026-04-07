@@ -155,6 +155,22 @@ console.log(`[path-geo] ${relationEntries.length} relations + ${wayIdEntries.len
 
 if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
+// --- Pre-seed cache from e2e fixture files (avoids Overpass for fictional demo IDs) ---
+const FIXTURE_DIR = path.resolve('e2e', 'fixtures', 'overpass');
+if (!dryRun && fs.existsSync(FIXTURE_DIR)) {
+  const allGeoFiles = new Set(cacheEntries.flatMap(e => geoFilesForEntry(e)));
+  let seeded = 0;
+  for (const file of allGeoFiles) {
+    const fixturePath = path.join(FIXTURE_DIR, file);
+    const cachePath = path.join(CACHE_DIR, file);
+    if (fs.existsSync(fixturePath) && (!fs.existsSync(cachePath) || forceRefresh)) {
+      fs.copyFileSync(fixturePath, cachePath);
+      seeded++;
+    }
+  }
+  if (seeded > 0) console.log(`[path-geo] Pre-seeded ${seeded} geometry files from e2e fixtures`);
+}
+
 let fetched = 0;
 let skipped = 0;
 
