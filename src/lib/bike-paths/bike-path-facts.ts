@@ -11,7 +11,7 @@
 // Re-export from surfaces.ts for backwards compatibility
 export { SURFACE_CATEGORIES, displaySurface } from './surfaces.ts';
 
-import { displaySurface } from './surfaces.ts';
+import { displaySurface, isPaved } from './surfaces.ts';
 import { isSeparatedFromCars, isExplicitMtb } from './classify-path.ts';
 
 /** Minimal translator type — compatible with the `t()` function from @/i18n. */
@@ -63,6 +63,9 @@ export interface PathMeta {
   foot?: string;
   incline?: string;
   access?: string;
+  route_type?: string;
+  /** Park name from OSM containment. */
+  park?: string;
   overlapping_relations?: Array<{ id: number; name: string; route: string; operator?: string }>;
 }
 
@@ -88,6 +91,23 @@ function sanitizeWidth(raw?: string): string | undefined {
   if (n < 0.3) return undefined;          // <30cm is not a real path width
   if (n > 6) return undefined;            // >6m is likely the road width, not the bike lane
   return String(n);
+}
+
+/**
+ * Auto-detect family-friendly paths from OSM metadata.
+ * A paved MUP separated from cars is safe for beginners and families.
+ * Park paths get a lower bar — lighting not required since parks are
+ * inherently low-stress environments for daytime family rides.
+ */
+function isFamilyFriendly(meta: PathMeta): boolean {
+  if (meta.path_type !== 'mup') return false;
+  if (meta.mtb) return false;
+  if (!isPaved(meta.surface)) return false;
+  // Park paths: paved MUP is enough
+  if (meta.park) return true;
+  // Non-park paths: also require lighting
+  if (meta.lit !== 'yes') return false;
+  return true;
 }
 
 export function buildPathFacts(meta: PathMeta): PathFact[] {
@@ -167,8 +187,10 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
     facts.push({ key: 'operator', value: meta.operator });
   }
 
-  // Network
-  if (meta.network && NETWORK_LABELS[meta.network]) {
+  // Network — suppress for non-cycling relations (e.g. route=foot with network=lcn
+  // means "local walking network", not "local cycling network").
+  const NON_CYCLING_ROUTE_TYPES = new Set(['foot', 'hiking', 'horse', 'running', 'piste', 'fitness_trail', 'inline_skates', 'ski']);
+  if (meta.network && NETWORK_LABELS[meta.network] && !NON_CYCLING_ROUTE_TYPES.has(meta.route_type ?? '')) {
     facts.push({ key: NETWORK_LABELS[meta.network] });
   }
 
@@ -193,6 +215,12 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Inception / Established
   if (meta.inception) {
     facts.push({ key: 'inception', value: meta.inception });
+  }
+
+  // Family-friendly — auto-detected from metadata.
+  // A paved, lit, separated-from-cars pathway is safe for beginners and families.
+  if (isFamilyFriendly(meta)) {
+    facts.push({ key: 'family_friendly' });
   }
 
   return facts;

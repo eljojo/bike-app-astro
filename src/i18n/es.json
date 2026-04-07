@@ -693,6 +693,8 @@
   "paths.fact.access_permissive": "Acceso tolerado",
   "paths.label.ref": "Referencia",
   "paths.label.established": "Establecido",
+  "paths.label.family_friendly": "Idoneidad",
+  "paths.fact.family_friendly": "Apto para familias",
   "paths.fact.seasonal_winter": "Solo invierno",
   "paths.fact.seasonal_yes": "Estacional",
   "paths.fact.seasonal_only": "Solo {season}",

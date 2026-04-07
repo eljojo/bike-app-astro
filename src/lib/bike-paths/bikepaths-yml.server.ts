@@ -61,6 +61,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
   super_network: z.string().optional(),
   /** OSM cycle_network tag (e.g., "National Capital Region"). */
   cycle_network: z.string().optional(),
+  /** Park name from OSM containment — set when the path is inside a leisure=park polygon. */
+  park: z.string().optional(),
   /** Original OSM route type for entries promoted from non-cycling relations.
    *  'hiking', 'piste', 'foot', etc. Absent for cycling-first entries. */
   route_type: z.string().optional(),

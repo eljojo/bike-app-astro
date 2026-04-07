@@ -96,6 +96,26 @@ beforeAll(() => {
     osm_relations: [5559999]
     highway: cycleway
     operator: NCC
+  - name: Crosstown Bikeway 5
+    type: network
+    members:
+      - oconnor-bikeway
+      - crosstown-bikeway-5-1
+    osm_relations: [10986756]
+    highway: cycleway
+  - name: O'Connor Bikeway
+    type: destination
+    member_of: crosstown-bikeway-5
+    osm_relations: [7201612]
+    highway: cycleway
+    surface: asphalt
+  - name: Crosstown Bikeway 5
+    type: destination
+    member_of: crosstown-bikeway-5
+    osm_relations: [10986755]
+    highway: cycleway
+    surface: asphalt
+    slug: crosstown-bikeway-5-1
 `);
 
   // Markdown that matches a YML entry by slug
@@ -174,7 +194,7 @@ describe('loadBikePathEntries', () => {
 
   it('parses all YML entries', () => {
     const { allYmlEntries } = loadBikePathEntries();
-    expect(allYmlEntries.length).toBe(11);
+    expect(allYmlEntries.length).toBe(14);
     expect(allYmlEntries.map(e => e.name)).toContain('Ottawa River Pathway');
     expect(allYmlEntries.map(e => e.name)).toContain('Rideau Canal Pathway');
   });
@@ -384,6 +404,21 @@ describe('loadBikePathEntries', () => {
     expect(untyped!.entryType).toBe('unknown');
     expect(untyped!.standalone).toBe(false);
     expect(untyped!.listed).toBe(false);
+  });
+
+  // ── Failing test: same-named member absorption ─────────────────
+
+  it('same-named member with own OSM relation keeps standalone: true', () => {
+    // Crosstown Bikeway 5: the network (superroute 10986756) has a member
+    // also called "Crosstown Bikeway 5" (relation 10986755) — genuinely
+    // distinct infrastructure (on-street bike lanes vs. the network umbrella).
+    // The current absorption logic sets standalone: false for any member
+    // whose name matches the network, but a member with its own osm_relations
+    // is distinct infrastructure that deserves its own page.
+    const { pages } = loadBikePathEntries();
+    const member = pages.find(p => p.slug === 'crosstown-bikeway-5-1');
+    expect(member).toBeDefined();
+    expect(member!.standalone).toBe(true);
   });
 
   it('markdown override forces standalone: true regardless of type', () => {

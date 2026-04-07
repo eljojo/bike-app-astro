@@ -348,6 +348,7 @@ describe('buildPathFacts', () => {
       'flat',
       'operator',
       'network_national',
+      'family_friendly',
     ]);
   });
 
@@ -695,6 +696,128 @@ describe('overlapping_relations', () => {
       ],
     });
     expect(facts.find(f => f.key === 'overlapping_relation')).toBeUndefined();
+  });
+});
+
+// ── Failing tests: issues to fix ─────────────────────────────────
+
+describe('network fact suppression for non-cycling relations', () => {
+  // Bill Holland Trail: OSM relation 8450027 is route=foot with network=lcn.
+  // The pipeline copies network: lcn into bikepaths.yml, but the fact engine
+  // should not display "Part of the local cycling network" for walking routes.
+  // The route_type field (already in the YML schema) should be used to suppress.
+
+  it('suppresses network_local when route_type is foot', () => {
+    const facts = buildPathFacts({ network: 'lcn', route_type: 'foot' });
+    expect(facts.find(f => f.key === 'network_local')).toBeUndefined();
+  });
+
+  it('suppresses network_regional when route_type is hiking', () => {
+    const facts = buildPathFacts({ network: 'rcn', route_type: 'hiking' });
+    expect(facts.find(f => f.key === 'network_regional')).toBeUndefined();
+  });
+
+  it('still emits network fact when route_type is absent (cycling-first entry)', () => {
+    const facts = buildPathFacts({ network: 'lcn' });
+    expect(facts.find(f => f.key === 'network_local')).toBeDefined();
+  });
+
+  it('still emits network fact when route_type is bicycle', () => {
+    const facts = buildPathFacts({ network: 'rcn', route_type: 'bicycle' });
+    expect(facts.find(f => f.key === 'network_regional')).toBeDefined();
+  });
+});
+
+describe('family-friendly auto-detection from metadata', () => {
+  // Beaverpond Park: asphalt, lit, 2m wide, good smoothness, MUP.
+  // The app should automatically detect this as family-friendly
+  // without requiring manual tags.
+
+  it('emits family_friendly for a paved lit MUP with good surface', () => {
+    const facts = buildPathFacts({
+      path_type: 'mup',
+      surface: 'asphalt',
+      lit: 'yes',
+      width: '2',
+      smoothness: 'good',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeDefined();
+  });
+
+  it('emits family_friendly for a concrete lit MUP with excellent smoothness', () => {
+    const facts = buildPathFacts({
+      path_type: 'mup',
+      surface: 'concrete',
+      lit: 'yes',
+      width: '3',
+      smoothness: 'excellent',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeDefined();
+  });
+
+  it('does not emit family_friendly for MTB trails', () => {
+    const facts = buildPathFacts({
+      path_type: 'mtb-trail',
+      surface: 'ground',
+      mtb: true,
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeUndefined();
+  });
+
+  it('does not emit family_friendly for unlit paths', () => {
+    const facts = buildPathFacts({
+      path_type: 'mup',
+      surface: 'asphalt',
+      lit: 'no',
+      width: '3',
+      smoothness: 'good',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeUndefined();
+  });
+
+  it('does not emit family_friendly for bike lanes (not separated from cars)', () => {
+    const facts = buildPathFacts({
+      path_type: 'bike-lane',
+      surface: 'asphalt',
+      lit: 'yes',
+      width: '2',
+      smoothness: 'good',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeUndefined();
+  });
+
+  it('does not emit family_friendly for unpaved trails', () => {
+    const facts = buildPathFacts({
+      path_type: 'trail',
+      surface: 'gravel',
+      lit: 'yes',
+      width: '2',
+      smoothness: 'intermediate',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeUndefined();
+  });
+
+  it('emits family_friendly for an unlit paved MUP in a park', () => {
+    // Beaverpond Park: paved MUP in a park — safe for families even without lighting
+    const facts = buildPathFacts({
+      path_type: 'mup',
+      surface: 'asphalt',
+      lit: 'no',
+      width: '2',
+      smoothness: 'good',
+      park: 'Beaverpond Park',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeDefined();
+  });
+
+  it('does not emit family_friendly for unpaved park trails', () => {
+    // Being in a park doesn't override the paved requirement
+    const facts = buildPathFacts({
+      path_type: 'trail',
+      surface: 'ground',
+      park: 'South March Highlands',
+    });
+    expect(facts.find(f => f.key === 'family_friendly')).toBeUndefined();
   });
 });
 

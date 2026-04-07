@@ -147,6 +147,10 @@ export interface BikePathPage {
   wikidata_description?: string;
   /** Year/date the path was established (from wikidata_meta.inception). */
   inception?: string;
+  /** Park name from OSM containment — set when the path is inside a park polygon. */
+  park?: string;
+  /** Original OSM route type for non-cycling relations (foot, hiking, piste). Absent for cycling-first. */
+  route_type?: string;
   /** Entry type from the pipeline: long-distance, network, destination, infrastructure, connector. */
   entryType: string;
   /** Non-cycling route relations that share ways with this entry. */
@@ -481,6 +485,8 @@ export function loadBikePathEntries(): {
       website: primary?.website ?? primary?.wikidata_meta?.website,
       seasonal: primary?.seasonal,
       ref: primary?.ref,
+      park: primary?.park,
+      route_type: primary?.route_type,
       wikidata_description: resolveWikidataDescription(primary),
       inception: primary?.wikidata_meta?.inception,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
@@ -544,6 +550,8 @@ export function loadBikePathEntries(): {
       website: entry.website ?? entry.wikidata_meta?.website,
       seasonal: entry.seasonal,
       ref: entry.ref,
+      park: entry.park,
+      route_type: entry.route_type,
       wikidata_description: resolveWikidataDescription(entry),
       inception: entry.wikidata_meta?.inception,
       wikipedia: entry.wikipedia,
@@ -577,17 +585,6 @@ export function loadBikePathEntries(): {
       .filter(s => !nestedMemberSlugs.includes(s))
       .map(s => pageBySlug.get(s))
       .filter((p): p is BikePathPage => !!p);
-
-    // Inline same-named members: a member whose name matches the parent
-    // doesn't need its own page — its data is shown on the parent page.
-    // E.g., "Ottawa Valley Recreation Trail" member inside the OVRT network
-    // becomes inline (standalone: false) instead of generating a `-1` URL.
-    const parentName = entry.name.toLowerCase();
-    for (const mp of memberPages) {
-      if (mp.name.toLowerCase() === parentName) {
-        mp.standalone = false;
-      }
-    }
 
     // A network needs ≥2 resolved members with at least one standalone page.
     // Otherwise clear memberOf so members stay at flat URLs.

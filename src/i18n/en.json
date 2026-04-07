@@ -686,6 +686,8 @@
   "paths.fact.access_permissive": "Permissive access",
   "paths.label.ref": "Route ref",
   "paths.label.established": "Established",
+  "paths.label.family_friendly": "Suitability",
+  "paths.fact.family_friendly": "Family-friendly",
   "paths.fact.bicycle_designated": "Designed for cycling",
   "paths.fact.bicycle_yes": "Bikes allowed",
   "paths.fact.cycleway_track": "Protected bike lane",

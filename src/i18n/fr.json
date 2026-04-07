@@ -686,6 +686,8 @@
   "paths.fact.access_permissive": "Accès toléré",
   "paths.label.ref": "Référence",
   "paths.label.established": "Établi",
+  "paths.label.family_friendly": "Convenance",
+  "paths.fact.family_friendly": "Familial",
   "paths.fact.bicycle_designated": "Conçu pour le vélo",
   "paths.fact.bicycle_yes": "Vélos autorisés",
   "paths.fact.cycleway_track": "Piste cyclable protégée",

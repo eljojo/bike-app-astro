@@ -2061,6 +2061,7 @@ async function main() {
     for (const entry of entries) {
       delete entry._ways;
       delete entry._member_relations;
+      if (entry._parkName) { entry.park = entry._parkName; }
       delete entry._parkName;
       delete entry._discovery_source;
       delete entry._isUnnamedChain;

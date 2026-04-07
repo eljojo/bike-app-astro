@@ -560,3 +560,58 @@ describe('no geoId lost', () => {
     }
   });
 });
+
+// ── Failing tests: stale geometry produces ghost features ────────
+
+describe('ghost feature exclusion', () => {
+  // The tile generator reads ALL geojson files from the cache directory,
+  // but some are stale (from previous pipeline runs). These produce
+  // features with no metadata — empty slug, empty name, hasPage: false.
+  // 74.5% of Ottawa's tile features are ghosts.
+  //
+  // buildTiles should exclude features that have no metadata entry.
+
+  it('excludes features without metadata when metadata map is provided', () => {
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['known-path', { slug: 'known-path', name: 'Known Path', memberOf: '', surface: 'asphalt', hasPage: true, path_type: 'mup', length_km: 2 }],
+    ]);
+
+    const input = new Map<string, FeatureCollection>([
+      ['known-path', fc(line([[-75.6, 45.4], [-75.5, 45.3]]))],
+      ['stale-ghost', fc(line([[-75.4, 45.2], [-75.3, 45.1]]))],
+    ]);
+
+    const { tiles } = buildTiles(input, metadata);
+
+    // Collect all geoIds from tile features
+    const geoIds = new Set<string>();
+    for (const tile of tiles.values()) {
+      for (const f of tile.features) {
+        geoIds.add(f.properties!._geoId as string);
+      }
+    }
+
+    expect(geoIds).toContain('known-path');
+    expect(geoIds).not.toContain('stale-ghost');
+  });
+
+  it('every tile feature has a non-empty slug when metadata is provided', () => {
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['path-a', { slug: 'path-a', name: 'Path A', memberOf: '', surface: 'asphalt', hasPage: true, path_type: 'mup', length_km: 1 }],
+    ]);
+
+    const input = new Map<string, FeatureCollection>([
+      ['path-a', fc(line([[-75.6, 45.4], [-75.5, 45.3]]))],
+      ['orphan-1', fc(line([[-75.4, 45.2], [-75.3, 45.1]]))],
+      ['orphan-2', fc(line([[-75.2, 45.0], [-75.1, 44.9]]))],
+    ]);
+
+    const { tiles } = buildTiles(input, metadata);
+
+    for (const tile of tiles.values()) {
+      for (const f of tile.features) {
+        expect(f.properties!.slug, `feature ${f.properties!._geoId} has empty slug`).not.toBe('');
+      }
+    }
+  });
+});
