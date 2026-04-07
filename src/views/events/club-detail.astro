@@ -27,7 +27,7 @@ import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { slugify } from '@/lib/slug';
 import { findSimilarEvents, type EventSimilarityInput } from '@/lib/event-similarity';
-import { organizerLink, normalizeSocialLinks, parseInstagramUsername, type OrganizerEntry } from '@/lib/models/organizer-model';
+import { organizerLink, normalizeSocialLinks, parseInstagramUsername, organizerInitials, type OrganizerEntry } from '@/lib/models/organizer-model';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -203,6 +203,10 @@ if (typeof data.organizer === 'string') {
 }
 const regUrl = data.registration?.url || data.registration_url;
 
+// Organizer photo — from entry or inline
+const organizerPhotoKey = organizerEntry?.data.photo_key
+  ?? (typeof data.organizer !== 'string' ? data.organizer?.photo_key : undefined);
+
 // Organizer social links — resolve from entry or inline fields
 const organizerSocialLinks = organizerEntry
   ? normalizeSocialLinks(
@@ -214,7 +218,7 @@ const organizerSocialLinks = organizerEntry
       { instagram: organizerInstagram, website: organizerWebsite },
     ).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
 
-// Exclude links already shown as organizer name link or event website
+// Exclude links already surfaced elsewhere on the page
 const shownUrls = new Set<string>();
 if (organizerUrl) shownUrls.add(organizerUrl);
 if (data.event_url) shownUrls.add(data.event_url);
@@ -546,24 +550,66 @@ function editionDateLabel(startDate: string, loc?: string): string {
             </a>
           )}
 
-          <div class="event-detail-facts-links">
-            {organizerName && organizerUrl && organizerUrl !== '#' ? (
-              <a href={organizerUrl} {...(organizerUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{organizerName}</a>
-            ) : organizerName ? (
-              <span>{organizerName}</span>
-            ) : null}
-            {data.event_url && regUrl && (
+          {data.event_url && regUrl && (
+            <div class="event-detail-facts-links">
               <a href={data.event_url} target="_blank" rel="noopener noreferrer">
                 {t('events.event_website', locale)}
               </a>
-            )}
-            {extraSocialLinks.map(link => (
-              <a href={link.url} target="_blank" rel="noopener noreferrer">
-                {socialLinkLabel(link)}
-              </a>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
+
+        {organizerName && (
+          <div class="event-organizer">
+            <div class="event-organizer-avatar">
+              {organizerUrl && organizerUrl !== '#' ? (
+                <a href={organizerUrl} {...(!organizerUrl.startsWith('http') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
+                  {organizerPhotoKey ? (
+                    <ResponsiveImage
+                      blobKey={organizerPhotoKey}
+                      alt={organizerName}
+                      widths={[80, 160]}
+                      width={48}
+                      height={48}
+                      class="event-organizer-photo"
+                    />
+                  ) : (
+                    <div class="event-organizer-initials">{organizerInitials(organizerName)}</div>
+                  )}
+                </a>
+              ) : organizerPhotoKey ? (
+                <ResponsiveImage
+                  blobKey={organizerPhotoKey}
+                  alt={organizerName}
+                  widths={[80, 160]}
+                  width={48}
+                  height={48}
+                  class="event-organizer-photo"
+                />
+              ) : (
+                <div class="event-organizer-initials">{organizerInitials(organizerName)}</div>
+              )}
+            </div>
+            <div class="event-organizer-info">
+              {organizerUrl && organizerUrl !== '#' ? (
+                <a class="event-organizer-name" href={organizerUrl} {...(!organizerUrl.startsWith('http') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
+                  {organizerName}
+                </a>
+              ) : (
+                <span class="event-organizer-name">{organizerName}</span>
+              )}
+              {extraSocialLinks.length > 0 && (
+                <div class="event-organizer-links">
+                  {extraSocialLinks.map(link => (
+                    <a href={link.url} target="_blank" rel="noopener noreferrer">
+                      {socialLinkLabel(link)}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {getInstanceFeatures().allowsReactions && !isPastEvent && (
           <div class="event-reactions-zone">

@@ -183,6 +183,99 @@
   }
 }
 
+// Organizer card — avatar + name + social links
+.event-organizer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    border-color: $color-border-dark;
+  }
+}
+
+.event-organizer-avatar {
+  flex-shrink: 0;
+
+  a {
+    display: block;
+    text-decoration: none;
+  }
+}
+
+.event-organizer-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.event-organizer-initials {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: $color-accent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.event-organizer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-organizer-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95em;
+  color: inherit;
+  text-decoration: none;
+
+  a& {
+    color: $color-link;
+
+    @include dark-mode {
+      color: $color-link-dark;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.event-organizer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+  font-size: 0.8em;
+
+  a {
+    color: $color-accent;
+    text-decoration: none;
+    border: 1px solid $color-accent;
+    border-radius: 99px;
+    padding: 0.15em 0.6em;
+
+    &:hover {
+      background: $color-accent;
+      color: #fff;
+      text-decoration: none;
+    }
+  }
+}
+
 .event-detail-departure-groups {
   list-style: none;
   padding: 0;
