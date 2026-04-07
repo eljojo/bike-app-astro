@@ -165,4 +165,51 @@ describe('autoGroupNearbyPaths', () => {
     expect(allNames).not.toContain('Coconut Tree');
     expect(allNames).not.toContain('Beartree');
   });
+
+  it('MTB cluster with 3+ short members → network (no spur absorption)', async () => {
+    // Three short MTB trails sharing endpoints — should become network, not absorb
+    const entries = [
+      {
+        name: 'Loop A', highway: 'path', surface: 'ground', mtb: true,
+        path_type: 'mtb-trail',
+        anchors: [[-75.945, 45.344], [-75.943, 45.342]],
+        _ways: [[
+          { lat: 45.344, lon: -75.945 },
+          { lat: 45.343, lon: -75.944 },
+          { lat: 45.342, lon: -75.943 },
+        ]],
+      },
+      {
+        name: 'Loop B', highway: 'path', surface: 'ground', mtb: true,
+        path_type: 'mtb-trail',
+        anchors: [[-75.943, 45.342], [-75.941, 45.340]],
+        _ways: [[
+          { lat: 45.342, lon: -75.943 },
+          { lat: 45.341, lon: -75.942 },
+          { lat: 45.340, lon: -75.941 },
+        ]],
+      },
+      {
+        name: 'Loop C', highway: 'path', surface: 'ground', mtb: true,
+        path_type: 'mtb-trail',
+        anchors: [[-75.941, 45.340], [-75.939, 45.338]],
+        _ways: [[
+          { lat: 45.340, lon: -75.941 },
+          { lat: 45.339, lon: -75.940 },
+          { lat: 45.338, lon: -75.939 },
+        ]],
+      },
+    ];
+
+    const result = await autoGroupNearbyPaths({
+      entries,
+      markdownSlugs: new Set(),
+      queryOverpass: async () => ({ elements: [] }),
+    });
+
+    // Should create a network, not absorb into one entry
+    const networks = result.filter(e => e.type === 'network');
+    expect(networks.length).toBe(1);
+    expect(networks[0]._memberRefs.length).toBe(3);
+  });
 });

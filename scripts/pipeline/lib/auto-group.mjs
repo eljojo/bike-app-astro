@@ -240,6 +240,13 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
     }
     const lengths = cluster.members.map(m => entryLength(m));
     const pageWorthy = cluster.members.filter((_, i) => lengths[i] >= PAGE_MIN_LENGTH_M);
+    // MTB clusters with 3+ members always become networks — short loops
+    // are real trails in a trail system, not spurs.
+    const isMtbCluster = cluster.members.some(m => m.mtb || m.path_type === 'mtb-trail');
+    if (isMtbCluster && cluster.members.length >= 3) {
+      networkClusters.push(cluster);
+      continue;
+    }
     if (pageWorthy.length <= 1 && pageWorthy.length < cluster.members.length) {
       // 0 or 1 page-worthy member — absorb spurs into the longest member
       const longestIdx = lengths.indexOf(Math.max(...lengths));
