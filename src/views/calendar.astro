@@ -140,6 +140,17 @@ const nonSeasonalUpcoming = upcoming.filter(e => classifyEvent(e.event.data.tags
 
 const upcomingByMonth = groupByMonth(nonSeasonalUpcoming, fmtLocale);
 
+// Month display names: drop year when same as page heading year
+const monthDisplayNames = new Map<string, string>();
+for (const [key, evts] of Object.entries(upcomingByMonth)) {
+  const firstDate = parseLocalDate(effectiveDate(evts[0]));
+  const display = firstDate.toLocaleString(fmtLocale, {
+    month: 'long',
+    ...(firstDate.getFullYear() !== currentYear ? { year: 'numeric' } : {}),
+  });
+  monthDisplayNames.set(key, display);
+}
+
 // Organizer spotlight: organizers with >=2 total events and instagram
 const totalOrganizerCounts = new Map<string, number>();
 const organizerYears = new Map<string, Set<number>>();
@@ -293,7 +304,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
       <div class="calendar-months-grid">
         {Object.entries(upcomingByMonth).map(([month, evts]) => (
           <div class="calendar-month-card">
-            <h3 class="month-header">{month}</h3>
+            <h3 class="month-header">{monthDisplayNames.get(month)}</h3>
             <div class="events-list">
               {evts.map(e => (
                 <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} seriesBadge={getSeriesBadge(e)} organizerName={resolveOrganizerName(e)} muted={isEntryMuted(e)} locale={locale} />

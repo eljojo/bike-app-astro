@@ -3,7 +3,7 @@
 import './EventCardCompact.scss';
 import { getCollection } from 'astro:content';
 import ResponsiveImage from './ResponsiveImage.astro';
-import { formatDateRange, parseLocalDate } from '../lib/date-utils';
+import { parseLocalDate } from '../lib/date-utils';
 import { tagPillColor } from '../lib/event-tags';
 import { tTag } from '../lib/i18n/tag-translations.server';
 import { paths } from '../lib/paths';
@@ -51,7 +51,6 @@ if (!organizerName) {
 
 const displayStartDate = occurrenceDate || data.start_date;
 const displayEndDate = occurrenceDate ? undefined : data.end_date;
-const dateDisplay = formatDateRange(displayStartDate, displayEndDate, locale);
 const href = paths.event(event.id, locale);
 
 const firstTag = data.tags?.[0];
@@ -60,45 +59,29 @@ const tagLabel = firstTag ? tTag(firstTag, locale) : null;
 
 const distanceDisplay = data.distance ? `${data.distance} km` : null;
 
-// For series occurrences, append the short date to the name so each card is distinguishable
-const isSeriesOccurrence = !!occurrenceDate;
-const shortDate = isSeriesOccurrence
-  ? (() => {
-      const d = parseLocalDate(occurrenceDate);
-      const mon = d.toLocaleString(locale || 'en-CA', { month: 'short' });
-      return `${mon} ${d.getDate()}`;
-    })()
-  : '';
-const displayName = isSeriesOccurrence ? `${data.name} — ${shortDate}` : data.name;
-const DISTANCE_FIRST_TAGS = new Set(['race', 'brevet', 'gravel', 'gran-fondo', 'triathlon', 'duathlon', 'criterium', 'charity-ride']);
-const ORGANIZER_FIRST_TAGS = new Set(['workshop', 'conference']);
+const displayName = data.name;
 
-const metaParts = DISTANCE_FIRST_TAGS.has(firstTag)
-  ? [distanceDisplay, dateDisplay, organizerName]
-  : ORGANIZER_FIRST_TAGS.has(firstTag)
-  ? [organizerName, dateDisplay, distanceDisplay]
-  : [dateDisplay, organizerName, distanceDisplay];
+// Day number for left-column calendar anchor
+const dayStart = parseLocalDate(displayStartDate);
+const dayNum = dayStart.getDate();
+let dayDisplay = `${dayNum}`;
+if (displayEndDate && displayEndDate !== displayStartDate) {
+  const dayEnd = parseLocalDate(displayEndDate);
+  if (dayEnd.getMonth() === dayStart.getMonth() && dayEnd.getDate() !== dayNum) {
+    dayDisplay = `${dayNum}–${dayEnd.getDate()}`;
+  }
+}
 
-const meta = metaParts.filter(Boolean).join(' · ');
+const weekday = dayStart.toLocaleString(locale || 'en-CA', { weekday: 'short' }).replace(/\.$/, '');
+
+const meta = [organizerName, distanceDisplay].filter(Boolean).join(' · ');
 ---
 
 <div class:list={['event-card-compact', { 'event-card-compact--muted': muted }]} data-event-slug={event.id} data-start-date={displayStartDate}>
-  {!muted && (
-    <div class="event-card-compact-thumb">
-      {coverKey ? (
-        <ResponsiveImage
-          blobKey={coverKey}
-          alt={displayName}
-          widths={[56, 112]}
-          width={56}
-          height={56}
-          fit="cover"
-        />
-      ) : (
-        <div class="event-card-compact-placeholder">🚲</div>
-      )}
-    </div>
-  )}
+  <div class="event-card-compact-day">
+    <span class="event-card-compact-weekday">{weekday}</span>
+    <span class="event-card-compact-daynum">{dayDisplay}</span>
+  </div>
   <div class="event-card-compact-body">
     <div class="event-card-compact-line1">
       <a href={href} class="event-card-compact-name">{displayName}</a>
@@ -114,6 +97,18 @@ const meta = metaParts.filter(Boolean).join(' · ');
         </span>
       )}
     </div>
-    {!muted && <span class="event-card-compact-meta">{meta}</span>}
+    {!muted && meta && <span class="event-card-compact-meta">{meta}</span>}
   </div>
+  {!muted && coverKey && (
+    <div class="event-card-compact-thumb">
+      <ResponsiveImage
+        blobKey={coverKey}
+        alt={displayName}
+        widths={[56, 112]}
+        width={56}
+        height={56}
+        fit="cover"
+      />
+    </div>
+  )}
 </div>
