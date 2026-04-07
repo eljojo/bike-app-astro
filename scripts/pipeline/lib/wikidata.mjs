@@ -9,6 +9,29 @@ const WIKIDATA_API = 'https://www.wikidata.org/w/rest.php/wikibase/v1/entities/i
 const P_LENGTH = 'P2043';
 const P_INCEPTION = 'P571';
 const P_WEBSITE = 'P856';
+const P_IMAGE = 'P18';
+const P_COMMONS_CAT = 'P373';
+const P_OPERATOR = 'P126';
+const P_INSTANCE_OF = 'P31';
+const P_SOCIAL = 'P3984';
+const P_PLATFORM = 'P553';
+
+// Social media platform map: Q-ID → { name, urlTemplate }
+const PLATFORM_MAP = {
+  Q984:    { name: 'reddit',    urlTemplate: 'https://www.reddit.com/r/{username}' },
+  Q918:    { name: 'x',         urlTemplate: 'https://x.com/{username}' },
+  Q209330: { name: 'instagram', urlTemplate: 'https://www.instagram.com/{username}' },
+  Q355:    { name: 'facebook',  urlTemplate: 'https://www.facebook.com/{username}' },
+};
+
+// Detect platform from a reference URL
+function detectPlatformFromUrl(url) {
+  if (url.includes('reddit.com'))    return PLATFORM_MAP.Q984;
+  if (url.includes('x.com') || url.includes('twitter.com')) return PLATFORM_MAP.Q918;
+  if (url.includes('instagram.com')) return PLATFORM_MAP.Q209330;
+  if (url.includes('facebook.com'))  return PLATFORM_MAP.Q355;
+  return null;
+}
 
 const Q_KILOMETRE = 'Q828224';
 const Q_METRE = 'Q11573';
@@ -57,6 +80,78 @@ export function extractBikePathMetadata(entity) {
   if (websiteClaim) {
     // website value is a plain URL string in content
     meta.website = websiteClaim.value.content;
+  }
+
+  // P18 — Commons image filename
+  const imageClaim = entity.statements?.[P_IMAGE]?.[0];
+  if (imageClaim) {
+    meta.commons_image = imageClaim.value.content;
+  }
+
+  // P373 — Commons category name
+  const commonsCatClaim = entity.statements?.[P_COMMONS_CAT]?.[0];
+  if (commonsCatClaim) {
+    meta.commons_category = commonsCatClaim.value.content;
+  }
+
+  // P126 — operator Q-ID
+  const operatorClaim = entity.statements?.[P_OPERATOR]?.[0];
+  if (operatorClaim) {
+    meta.operator_qid = operatorClaim.value.content;
+  }
+
+  // P31 — instance of (multiple Q-IDs)
+  const instanceOfClaims = entity.statements?.[P_INSTANCE_OF];
+  if (instanceOfClaims?.length) {
+    meta.instance_of = instanceOfClaims.map(c => c.value.content);
+  }
+
+  // P3984 — social media accounts
+  const socialClaims = entity.statements?.[P_SOCIAL] || [];
+  const social = [];
+  for (const claim of socialClaims) {
+    const username = claim.value.content;
+
+    // Try P553 qualifier first for platform identification
+    const platformQualifier = claim.qualifiers?.find(q => q.property.id === P_PLATFORM);
+    let platform = null;
+    if (platformQualifier) {
+      platform = PLATFORM_MAP[platformQualifier.value.content] || null;
+    }
+
+    // Fallback: detect platform from P854 reference URL
+    if (!platform) {
+      for (const ref of claim.references || []) {
+        for (const part of ref.parts || []) {
+          if (part.property.id === 'P854') {
+            platform = detectPlatformFromUrl(part.value.content);
+            if (platform) break;
+          }
+        }
+        if (platform) break;
+      }
+    }
+
+    if (platform) {
+      social.push({
+        platform: platform.name,
+        username,
+        url: platform.urlTemplate.replace('{username}', username),
+      });
+    }
+  }
+  meta.social = social;
+
+  // sitelinks — Wikipedia links for en and fr
+  const sitelinks = {};
+  if (entity.sitelinks?.enwiki) {
+    sitelinks.en = { title: entity.sitelinks.enwiki.title, url: entity.sitelinks.enwiki.url };
+  }
+  if (entity.sitelinks?.frwiki) {
+    sitelinks.fr = { title: entity.sitelinks.frwiki.title, url: entity.sitelinks.frwiki.url };
+  }
+  if (Object.keys(sitelinks).length > 0) {
+    meta.wikipedia_sitelinks = sitelinks;
   }
 
   return meta;

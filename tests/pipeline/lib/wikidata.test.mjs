@@ -36,12 +36,61 @@ describe('extractBikePathMetadata', () => {
     expect(meta.website).toContain('ncc-ccn.gc.ca');
   });
 
+  it('extracts commons_image from P18', () => {
+    const meta = extractBikePathMetadata(realFixture);
+    expect(meta.commons_image).toBe('Ottawa Sept 09 2006 068.jpg');
+  });
+
+  it('extracts commons_category from P373', () => {
+    const meta = extractBikePathMetadata(realFixture);
+    expect(meta.commons_category).toBe('Capital Pathway');
+  });
+
+  it('extracts operator_qid from P126', () => {
+    const meta = extractBikePathMetadata(realFixture);
+    expect(meta.operator_qid).toBe('Q613449');
+  });
+
+  it('extracts instance_of from P31 (multiple values)', () => {
+    const meta = extractBikePathMetadata(realFixture);
+    expect(meta.instance_of).toEqual(['Q221722', 'Q12670591']);
+  });
+
+  it('extracts social from P3984 with URL-based platform detection', () => {
+    const meta = extractBikePathMetadata(realFixture);
+    expect(meta.social).toEqual([
+      {
+        platform: 'reddit',
+        username: 'bikeinottawa',
+        url: 'https://www.reddit.com/r/bikeinottawa',
+      },
+    ]);
+  });
+
+  it('extracts wikipedia_sitelinks from sitelinks', () => {
+    const meta = extractBikePathMetadata(realFixture);
+    expect(meta.wikipedia_sitelinks).toEqual({
+      en: {
+        title: 'Capital Pathway',
+        url: 'https://en.wikipedia.org/wiki/Capital_Pathway',
+      },
+    });
+    // frwiki not present in fixture — should not have fr key
+    expect(meta.wikipedia_sitelinks.fr).toBeUndefined();
+  });
+
   it('handles entity with no statements', () => {
     const empty = { id: 'Q999', labels: {}, descriptions: {}, statements: {} };
     const meta = extractBikePathMetadata(empty);
     expect(meta.length_km).toBeUndefined();
     expect(meta.inception).toBeUndefined();
     expect(meta.website).toBeUndefined();
+    expect(meta.commons_image).toBeUndefined();
+    expect(meta.commons_category).toBeUndefined();
+    expect(meta.operator_qid).toBeUndefined();
+    expect(meta.instance_of).toBeUndefined();
+    expect(meta.social).toEqual([]);
+    expect(meta.wikipedia_sitelinks).toBeUndefined();
   });
 });
 
