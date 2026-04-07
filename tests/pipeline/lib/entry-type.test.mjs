@@ -159,9 +159,24 @@ describe('deriveEntryType', () => {
     })).toBe('destination');
   });
 
-  it('mtb-trail → destination regardless of length', () => {
+  it('short mtb-trail without relation → not destination', () => {
+    // Parc Lattion: pipeline-named unnamed chain, no OSM relation, short.
+    // MTB trails go through the same length threshold as MUPs/trails.
     expect(deriveEntryType({
-      path_type: 'mtb-trail', _ways: makeWays(0.001),
+      path_type: 'mtb-trail', mtb: true, _ways: makeWays(0.001),
+    })).not.toBe('destination');
+  });
+
+  it('long mtb-trail without relation → destination', () => {
+    expect(deriveEntryType({
+      path_type: 'mtb-trail', mtb: true, _ways: makeWays(0.02),
+    })).toBe('destination');
+  });
+
+  it('short mtb-trail with relation → destination', () => {
+    // An OSM cycling relation means someone gave this trail real-world identity
+    expect(deriveEntryType({
+      path_type: 'mtb-trail', mtb: true, osm_relations: [12345], _ways: makeWays(0.001),
     })).toBe('destination');
   });
 
