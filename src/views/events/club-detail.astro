@@ -647,10 +647,14 @@ function editionDateLabel(startDate: string, loc?: string): string {
           </div>
         )}
 
-        {event.body?.trim() && (
+        {event.body?.trim() ? (
           <div class="event-detail-body">
             <div class="event-description" set:html={await renderMarkdownHtml(cleanBody)} />
           </div>
+        ) : getInstanceFeatures().showsContributeLink && (
+          <p class="contribution-invite">
+            Know about this event? <a href={`/admin/events/${event.id}?focus=description`}>Add details so people can plan.</a>
+          </p>
         )}
 
         {heroSelfHosted && (

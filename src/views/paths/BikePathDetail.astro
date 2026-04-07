@@ -22,6 +22,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, localizePathType, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
 import { groupPathsByNetwork, tierNetworkMembers, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
+import { getInstanceFeatures } from '@/lib/config/instance-features';
 
 interface Props {
   page: BikePathPage;
@@ -229,8 +230,8 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
     <div class="bike-path-layout">
       {/* ===== Main column ===== */}
       <div class="bike-path-main">
-        {showStubCta && (
-          <p class="bike-path-stub-cta">
+        {showStubCta && getInstanceFeatures().showsContributeLink && (
+          <p class="contribution-invite">
             {t('paths.stub_cta', locale)} <a href={`/admin/bike-paths/${page.slug}`}>{t('paths.stub_cta_link', locale)}</a>
           </p>
         )}

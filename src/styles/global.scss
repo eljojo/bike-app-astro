@@ -775,6 +775,23 @@ body.fullbleed {
   }
 }
 
+// Contribution invitation — inline empty-state prompt for missing content
+.contribution-invite {
+  @include muted-text;
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 1rem 0;
+
+  a {
+    color: $color-link;
+    text-decoration: underline;
+
+    @include dark-mode {
+      color: $color-link-dark;
+    }
+  }
+}
+
 // ============================================================
 // Pages
 // ============================================================
