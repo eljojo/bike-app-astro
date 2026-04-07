@@ -87,12 +87,13 @@ export function deriveEntryType(entry, thresholds = {}) {
   // a relation for this path, which means it has real-world identity.
   if (hasRelation) return 'destination';
 
-  // MTB trails are recreation destinations, not road infrastructure.
-  // Either they deserve a page (destination) or they're too small to matter
-  // (connector). Network members always get pages. Standalone MTB trails
-  // need sufficient length.
+  // MTB trails: classification depends on discovery provenance.
+  // Network members always get pages. Unnamed chains (pipeline artifacts
+  // auto-named from nearby parks) go on the map but don't get pages.
+  // Named-way trails use the standard length threshold.
   if (pt === 'mtb-trail') {
     if (entry.member_of) return 'destination';
+    if (entry._discovery_source === 'unnamed-chain') return 'infrastructure';
     if (lengthM >= destinationLengthM) return 'destination';
     return 'connector';
   }
