@@ -5,6 +5,7 @@ import {
   buildPathFacts,
   buildNetworkFacts,
   findNearestMajorPath,
+  localizeFactValue,
 } from '../src/lib/bike-paths/bike-path-facts';
 
 describe('NETWORK_LABELS', () => {
@@ -694,5 +695,52 @@ describe('overlapping_relations', () => {
       ],
     });
     expect(facts.find(f => f.key === 'overlapping_relation')).toBeUndefined();
+  });
+});
+
+describe('localizeFactValue — seasonal', () => {
+  // Stub translator that returns the key with vars interpolated
+  const t = (key: string, _locale?: string, vars?: Record<string, string | number>) => {
+    const translations: Record<string, string> = {
+      'paths.fact.seasonal_yes': 'Seasonal',
+      'paths.fact.seasonal_winter': 'Winter only',
+      'paths.fact.seasonal_only': '{season} only',
+      'paths.fact.seasonal_closed': 'Closed in {seasons}',
+      'paths.fact.season_spring': 'spring',
+      'paths.fact.season_summer': 'summer',
+      'paths.fact.season_autumn': 'autumn',
+      'paths.fact.season_winter': 'winter',
+    };
+    let result = translations[key];
+    if (result === undefined) return key; // unknown key → return key itself
+    if (vars) {
+      for (const [k, v] of Object.entries(vars)) result = result.replace(`{${k}}`, String(v));
+    }
+    return result;
+  };
+
+  it('yes → generic "Seasonal"', () => {
+    expect(localizeFactValue({ key: 'seasonal', value: 'yes' }, t)).toBe('Seasonal');
+  });
+
+  it('winter → "Winter only" (direct key)', () => {
+    expect(localizeFactValue({ key: 'seasonal', value: 'winter' }, t)).toBe('Winter only');
+  });
+
+  it('spring;summer;autumn → "Closed in winter"', () => {
+    expect(localizeFactValue({ key: 'seasonal', value: 'spring;summer;autumn' }, t)).toBe('Closed in winter');
+  });
+
+  it('spring;summer → "Closed in autumn, winter"', () => {
+    expect(localizeFactValue({ key: 'seasonal', value: 'spring;summer' }, t)).toBe('Closed in autumn, winter');
+  });
+
+  it('summer → "summer only" (fallback, no direct key for summer)', () => {
+    // No paths.fact.seasonal_summer key → falls through to seasonal_only template
+    expect(localizeFactValue({ key: 'seasonal', value: 'summer' }, t)).toBe('summer only');
+  });
+
+  it('all four seasons → generic "Seasonal"', () => {
+    expect(localizeFactValue({ key: 'seasonal', value: 'spring;summer;autumn;winter' }, t)).toBe('Seasonal');
   });
 });

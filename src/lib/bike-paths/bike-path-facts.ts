@@ -388,7 +388,7 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
     case 'operator':
       return fact.value || '';
     case 'seasonal':
-      return t(`paths.fact.seasonal_${fact.value}`, locale);
+      return localizeSeasonal(fact.value || '', t, locale);
     case 'access_private':
       return t('paths.fact.access_private', locale);
     case 'access_permissive':
@@ -501,6 +501,41 @@ export function findNearestMajorPath(opts: {
   }
   candidates.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
   return candidates[0] ?? undefined;
+}
+
+const ALL_SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
+
+/**
+ * Localize a seasonal value by describing the complement when shorter.
+ * "spring;summer;autumn" → "Closed in winter" (1 missing beats listing 3 present).
+ */
+function localizeSeasonal(value: string, t: Translator, locale?: string): string {
+  if (value === 'yes') return t('paths.fact.seasonal_yes', locale);
+
+  const present = value.split(';').map(s => s.trim()).filter(s => (ALL_SEASONS as readonly string[]).includes(s));
+
+  if (present.length === 0) {
+    // Not parseable as season list — try direct key (e.g. seasonal_winter)
+    const key = `paths.fact.seasonal_${value}`;
+    const translated = t(key, locale);
+    return translated !== key ? translated : value;
+  }
+
+  if (present.length >= 4) return t('paths.fact.seasonal_yes', locale);
+
+  const missing = ALL_SEASONS.filter(s => !present.includes(s));
+  const seasonName = (s: string) => t(`paths.fact.season_${s}`, locale);
+
+  // 1 open season → "Winter only" (prefer direct key for backwards compat)
+  if (present.length === 1) {
+    const directKey = `paths.fact.seasonal_${present[0]}`;
+    const direct = t(directKey, locale);
+    if (direct !== directKey) return direct;
+    return t('paths.fact.seasonal_only', locale, { season: seasonName(present[0]) });
+  }
+
+  // 2–3 open seasons → describe by what's closed
+  return t('paths.fact.seasonal_closed', locale, { seasons: missing.map(seasonName).join(', ') });
 }
 
 /** Localize a raw OSM surface value (e.g. "fine_gravel" → "Gravel"). */
