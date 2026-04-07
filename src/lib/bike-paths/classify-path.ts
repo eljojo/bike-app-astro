@@ -148,8 +148,8 @@ export function pathTypeForClustering(entry: ClassifiableEntry): 'trail' | 'pave
 // ---------------------------------------------------------------------------
 
 /**
- * Early classification: tier-1 MTB + path_type derivation.
- * Run BEFORE clustering so cluster-entries can use path_type.
+ * Early classification: tier-1 MTB + tier-3 ambient MTB + path_type derivation.
+ * Run BEFORE clustering so cluster-entries can use path_type and mtb status.
  * Mutates entries in place.
  */
 export function classifyPathsEarly(entries: ClassifiableEntry[]): { mtbCount: number } {
@@ -168,11 +168,30 @@ export function classifyPathsEarly(entries: ClassifiableEntry[]): { mtbCount: nu
     if (pt) entry.path_type = pt;
   }
 
+  // Tier 3: ambient — dirt trail without cycling designation
+  for (const entry of entries) {
+    if (entry.mtb) continue;
+    if (entry.parallel_to) continue;
+    if (isDesignatedCycling(entry)) continue;
+    if (!isTrailType(entry)) continue;
+    if (isPaved(entry.surface)) continue;
+    if (isMaintainedUnpaved(entry.surface)) continue;
+    entry.mtb = true;
+    mtbCount++;
+  }
+
+  // Update path_type for entries whose mtb changed (trail → mtb-trail)
+  for (const entry of entries) {
+    if (entry.mtb && entry.path_type === 'trail') {
+      entry.path_type = 'mtb-trail';
+    }
+  }
+
   return { mtbCount };
 }
 
 /**
- * Late classification: tier-2 network inference + tier-3 ambient MTB.
+ * Late classification: tier-2 network inference.
  * Run AFTER clustering creates networks with _memberRefs.
  * Mutates entries in place.
  */
@@ -194,18 +213,6 @@ export function classifyPathsLate(entries: ClassifiableEntry[]): { mtbCount: num
         }
       }
     }
-  }
-
-  // Tier 3: ambient — dirt trail without cycling designation
-  for (const entry of entries) {
-    if (entry.mtb) continue;
-    if (entry.parallel_to) continue;
-    if (isDesignatedCycling(entry)) continue;
-    if (!isTrailType(entry)) continue;
-    if (isPaved(entry.surface)) continue;
-    if (isMaintainedUnpaved(entry.surface)) continue;
-    entry.mtb = true;
-    mtbCount++;
   }
 
   // Update path_type for entries whose mtb changed (trail → mtb-trail)

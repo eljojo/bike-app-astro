@@ -275,7 +275,7 @@ describe('classifyPathsEarly', () => {
     ];
     classifyPathsEarly(entries);
     expect(entries[0].path_type).toBe('mup');
-    expect(entries[1].path_type).toBe('trail');
+    expect(entries[1].path_type).toBe('mtb-trail'); // tier-3 ambient promotes to mtb-trail
     expect(entries[2].path_type).toBeUndefined();
   });
 
@@ -286,6 +286,68 @@ describe('classifyPathsEarly', () => {
     ];
     const { mtbCount } = classifyPathsEarly(entries);
     expect(mtbCount).toBe(1);
+  });
+
+  it('tier 3: ambient dirt trail → mtb (moved from late)', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Forest Path', highway: 'path', surface: 'ground' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBe(true);
+    expect(entries[0].path_type).toBe('mtb-trail');
+  });
+
+  it('tier 3: bicycle=designated → NOT ambient mtb (early)', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Designated', highway: 'path', surface: 'ground', bicycle: 'designated' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBeUndefined();
+    expect(entries[0].path_type).toBe('trail');
+  });
+
+  it('tier 3: fine_gravel → NOT ambient mtb (early)', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Gravel Path', highway: 'path', surface: 'fine_gravel' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBeUndefined();
+    expect(entries[0].path_type).toBe('trail');
+  });
+
+  it('tier 3: highway=path with no surface → mtb', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Mystery', highway: 'path' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBe(true);
+    expect(entries[0].path_type).toBe('mtb-trail');
+  });
+
+  it('tier 3: parallel_to → NOT ambient mtb', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Bank St', highway: 'cycleway', parallel_to: 'Bank Street' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBeUndefined();
+  });
+
+  it('tier 3: paved cycleway → NOT ambient mtb', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Laurier Bikelane', highway: 'cycleway', surface: 'asphalt' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBeUndefined();
+    expect(entries[0].path_type).toBe('mup');
+  });
+
+  it('tier 3: highway=cycleway + ground → mtb', () => {
+    const entries: ClassifiableEntry[] = [
+      { name: 'Trail 55', highway: 'cycleway', surface: 'ground' },
+    ];
+    classifyPathsEarly(entries);
+    expect(entries[0].mtb).toBe(true);
+    expect(entries[0].path_type).toBe('mtb-trail');
   });
 });
 
@@ -329,63 +391,53 @@ describe('classifyPathsLate', () => {
     expect(trail41.mtb).toBeUndefined();
   });
 
-  it('tier 3: ambient dirt trail without cycling designation → mtb', () => {
+  it('tier 3 does NOT run in late (moved to early)', () => {
     const entries: ClassifiableEntry[] = [
       { name: 'Forest Path', highway: 'path', surface: 'ground', path_type: 'trail' },
     ];
     classifyPathsLate(entries);
-    expect(entries[0].mtb).toBe(true);
-    expect(entries[0].path_type).toBe('mtb-trail');
+    expect(entries[0].mtb).toBeUndefined();
   });
 
-  it('tier 3: highway=path with no surface → mtb', () => {
+  it('tier 2: fine_gravel member does NOT inherit MTB', () => {
+    const gravel: ClassifiableEntry = { name: 'Greenbelt West', highway: 'path', surface: 'fine_gravel', path_type: 'trail' };
+    const dirt: ClassifiableEntry = { name: 'Trail 42', highway: 'path', surface: 'ground', mtb: true, 'mtb:scale': '3', path_type: 'mtb-trail' };
+    const network: ClassifiableEntry = {
+      name: 'NCC Greenbelt', type: 'network',
+      highway: 'path', surface: 'fine_gravel',
+      _memberRefs: [gravel, dirt],
+    };
+    classifyPathsLate([network, gravel, dirt]);
+    expect(gravel.mtb).toBeUndefined();
+    expect(gravel.path_type).toBe('trail');
+  });
+
+  it('tier 3: fine_gravel path is NOT ambient MTB', () => {
     const entries: ClassifiableEntry[] = [
-      { name: 'Mystery', highway: 'path', path_type: 'trail' },
+      { name: 'Moore Farm', highway: 'path', surface: 'fine_gravel', bicycle: 'yes', path_type: 'trail' },
     ];
     classifyPathsLate(entries);
-    expect(entries[0].mtb).toBe(true);
+    expect(entries[0].mtb).toBeUndefined();
+    expect(entries[0].path_type).toBe('trail');
   });
 
-  it('tier 3: bicycle=designated → NOT ambient mtb', () => {
+  it('tier 3: compacted path is NOT ambient MTB', () => {
     const entries: ClassifiableEntry[] = [
-      { name: 'Designated', highway: 'path', surface: 'asphalt', bicycle: 'designated', path_type: 'mup' },
+      { name: 'Gravel MUP', highway: 'path', surface: 'compacted', path_type: 'trail' },
     ];
     classifyPathsLate(entries);
     expect(entries[0].mtb).toBeUndefined();
   });
 
-  it('tier 3: parallel_to → NOT ambient mtb', () => {
-    const entries: ClassifiableEntry[] = [
-      { name: 'Bank St', highway: 'cycleway', parallel_to: 'Bank Street', path_type: 'bike-lane' },
-    ];
-    classifyPathsLate(entries);
-    expect(entries[0].mtb).toBeUndefined();
-  });
-
-  it('tier 3: paved cycleway → NOT ambient mtb', () => {
-    const entries: ClassifiableEntry[] = [
-      { name: 'Laurier Bikelane', highway: 'cycleway', surface: 'asphalt', path_type: 'mup' },
-    ];
-    classifyPathsLate(entries);
-    expect(entries[0].mtb).toBeUndefined();
-    expect(entries[0].path_type).toBe('mup');
-  });
-
-  it('tier 3: highway=cycleway + ground → mtb', () => {
-    const entries: ClassifiableEntry[] = [
-      { name: 'Trail 55', highway: 'cycleway', surface: 'ground', path_type: 'trail' },
-    ];
-    classifyPathsLate(entries);
-    expect(entries[0].mtb).toBe(true);
-    expect(entries[0].path_type).toBe('mtb-trail');
-  });
-
-  it('returns mtbCount for entries newly labelled', () => {
-    const entries: ClassifiableEntry[] = [
-      { name: 'Dirt', highway: 'path', surface: 'ground', path_type: 'trail' },
-      { name: 'Paved', highway: 'cycleway', surface: 'asphalt', path_type: 'mup' },
-    ];
-    const { mtbCount } = classifyPathsLate(entries);
-    expect(mtbCount).toBe(1);
+  it('returns mtbCount for tier-2 entries newly labelled', () => {
+    const trail: ClassifiableEntry = { name: 'Trail 41', highway: 'path', surface: 'ground', path_type: 'trail' };
+    const mtbTrail: ClassifiableEntry = { name: 'Trail 42', highway: 'path', surface: 'ground', mtb: true, 'mtb:scale': '2', path_type: 'mtb-trail' };
+    const network: ClassifiableEntry = {
+      name: 'Gatineau', type: 'network',
+      highway: 'path', surface: 'ground',
+      _memberRefs: [trail, mtbTrail],
+    };
+    const { mtbCount } = classifyPathsLate([network, trail, mtbTrail]);
+    expect(mtbCount).toBe(2); // trail + network
   });
 });
