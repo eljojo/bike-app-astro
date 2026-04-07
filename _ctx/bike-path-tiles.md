@@ -25,7 +25,7 @@ Bike path geometry is served to the browser via **meta tiles** — GeoJSON files
         1. Merges all features per geoId into one MultiLineString
         2. Truncates coordinates to 5 decimal places (1m precision)
         3. Injects metadata from geo-metadata.json
-        4. Splits via adaptive quadtree (target: <15K coords per tile)
+        4. Splits via adaptive quadtree (target: <300K coords per tile)
         Output: tile-{id}.geojson + manifest.json
 ```
 
@@ -49,7 +49,7 @@ Each feature in a tile carries these properties:
 
 Instead of a fixed grid, tiles are split recursively:
 - Start from data bounds of all paths
-- If a tile exceeds the coordinate threshold (~15K), split into 4 quadrants
+- If a tile exceeds the coordinate threshold (~300K), split into 4 quadrants
 - Recurse until all tiles fit (max depth 12)
 - Dense urban areas get small tiles; sparse rural areas keep large ones
 - Cross-boundary paths are duplicated (same `_fid` enables client-side dedup)

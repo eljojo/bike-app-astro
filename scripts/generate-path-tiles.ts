@@ -40,7 +40,7 @@ export interface TileData {
   maxLat: number;
 }
 
-export const DEFAULT_MAX_COORDS = 15_000;
+export const DEFAULT_MAX_COORDS = 300_000;
 const MAX_DEPTH = 12;
 
 // ── Helpers ──────────────────────────────────────────────────────

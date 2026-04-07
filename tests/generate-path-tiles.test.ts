@@ -243,7 +243,7 @@ describe('metadata injection', () => {
 
 describe('adaptive splitting', () => {
   it('small dataset stays in a single tile', () => {
-    // A small number of features well within the default 15,000 coord budget
+    // A small number of features well within the default 300,000 coord budget
     const input = new Map([
       ['a', fc(line([[-75.6, 45.4], [-75.5, 45.3]]))],
       ['b', fc(line([[-75.4, 45.2], [-75.3, 45.1]]))],
