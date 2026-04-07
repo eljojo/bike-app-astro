@@ -526,6 +526,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
         const entry = { name: np.name, osm_names: np.osmNames, anchors: np.anchors, _ways: np._ways, ...meta };
         entry._discovery_source = np._isUnnamedChain ? 'unnamed-chain' : 'named-way';
         result.push(entry);
+        if (npWayIds.length > 0) wayRegistry.claim(entry, npWayIds);
         continue;
       }
       enrichEntry(existing, np.tags, { skipIdentity: !!existing.osm_relations?.length });
