@@ -522,17 +522,17 @@ describe('buildNetworkFacts', () => {
 
   it('returns mixed surface when members have different surface categories', () => {
     const facts = buildNetworkFacts([
-      { surface: 'asphalt' },
-      { surface: 'fine_gravel' },
-      { surface: 'asphalt' },
+      { surface: 'asphalt', length_km: 5 },
+      { surface: 'fine_gravel', length_km: 3 },
+      { surface: 'asphalt', length_km: 7 },
     ]);
     const surface = facts.find(f => f.key === 'surface_mixed');
     expect(surface).toBeDefined();
     expect(surface!.consistency).toBe('mixed');
     expect(surface!.breakdown).toHaveLength(2);
-    // Paved should come first (count 2 > count 1)
-    expect(surface!.breakdown![0]).toEqual({ value: 'paved', count: 2 });
-    expect(surface!.breakdown![1]).toEqual({ value: 'gravel', count: 1 });
+    // Paved should come first (12km > 3km)
+    expect(surface!.breakdown![0]).toEqual({ value: 'paved', count: 2, km: 12 });
+    expect(surface!.breakdown![1]).toEqual({ value: 'gravel', count: 1, km: 3 });
   });
 
   it('returns unanimous path_type when all members agree', () => {
@@ -559,18 +559,21 @@ describe('buildNetworkFacts', () => {
     expect(pt!.consistency).toBe('partial');
   });
 
-  it('returns mixed path_type when members have different types', () => {
+  it('returns mixed path_type with km breakdown', () => {
     const facts = buildNetworkFacts([
-      { path_type: 'mup' },
-      { path_type: 'mup' },
-      { path_type: 'bike-lane' },
-      { path_type: 'trail' },
+      { path_type: 'mup', length_km: 5.2 },
+      { path_type: 'mup', length_km: 3.1 },
+      { path_type: 'bike-lane', length_km: 2.5 },
+      { path_type: 'trail', length_km: 1.0 },
     ]);
     const pt = facts.find(f => f.key === 'path_type_mixed');
     expect(pt).toBeDefined();
     expect(pt!.consistency).toBe('mixed');
     expect(pt!.breakdown).toHaveLength(3);
-    expect(pt!.breakdown![0]).toEqual({ value: 'mup', count: 2 });
+    // Sorted by km descending
+    expect(pt!.breakdown![0]).toEqual({ value: 'mup', count: 2, km: 8.3 });
+    expect(pt!.breakdown![1]).toEqual({ value: 'bike-lane', count: 1, km: 2.5 });
+    expect(pt!.breakdown![2]).toEqual({ value: 'trail', count: 1, km: 1 });
   });
 
   it('path_type appears before surface in network facts', () => {

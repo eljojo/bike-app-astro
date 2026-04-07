@@ -19,10 +19,12 @@ export async function getStaticPaths() {
         memberMeta.push({
           surface: memberPage.surface, smoothness: memberPage.smoothness, width: memberPage.width,
           highway: memberPage.highway, segregated: memberPage.segregated, lit: memberPage.lit,
-          elevation_gain_m: memberPage.elevation_gain_m, operator: memberPage.operator,
+          elevation_gain_m: memberPage.elevation_gain_m, length_km: memberPage.length_km,
+          operator: memberPage.operator,
           network: memberPage.network, mtb: memberPage.mtb, path_type: memberPage.path_type,
           seasonal: memberPage.seasonal, ref: memberPage.ref, inception: memberPage.inception,
           bicycle: memberPage.bicycle, cycleway: memberPage.cycleway, parallel_to: memberPage.parallel_to,
+          foot: memberPage.foot, incline: memberPage.incline, access: memberPage.access,
         });
       }
     }

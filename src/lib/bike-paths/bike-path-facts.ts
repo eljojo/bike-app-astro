@@ -47,6 +47,7 @@ export interface PathMeta {
   segregated?: string;
   lit?: string;
   elevation_gain_m?: number;
+  length_km?: number;
   operator?: string;
   network?: string;
   mtb?: boolean;
@@ -211,8 +212,8 @@ export type FactConsistency = 'unanimous' | 'partial' | 'mixed';
 
 export interface NetworkFact extends PathFact {
   consistency: FactConsistency;
-  /** For mixed facts: breakdown of values with counts. */
-  breakdown?: Array<{ value: string; count: number }>;
+  /** For mixed facts: breakdown of values with distance (km) or counts. */
+  breakdown?: Array<{ value: string; count: number; km?: number }>;
 }
 
 /**
@@ -227,34 +228,43 @@ export function buildNetworkFacts(members: PathMeta[]): NetworkFact[] {
   const facts: NetworkFact[] = [];
 
   // --- Path type ---
-  const pathTypes = members.filter(m => m.path_type).map(m => m.path_type!);
-  if (pathTypes.length > 0) {
-    const unique = [...new Set(pathTypes)];
+  const withPathType = members.filter(m => m.path_type);
+  if (withPathType.length > 0) {
+    const unique = [...new Set(withPathType.map(m => m.path_type!))];
     if (unique.length === 1) {
       facts.push({
         key: 'path_type', value: unique[0],
-        consistency: pathTypes.length === members.length ? 'unanimous' : 'partial',
+        consistency: withPathType.length === members.length ? 'unanimous' : 'partial',
       });
     } else {
-      const counts = unique.map(v => ({ value: v, count: pathTypes.filter(pt => pt === v).length }));
-      counts.sort((a, b) => b.count - a.count);
-      facts.push({ key: 'path_type_mixed', consistency: 'mixed', breakdown: counts });
+      const breakdown = unique.map(v => {
+        const matching = withPathType.filter(m => m.path_type === v);
+        const km = matching.reduce((s, m) => s + (m.length_km ?? 0), 0);
+        return { value: v, count: matching.length, km: Math.round(km * 10) / 10 };
+      });
+      breakdown.sort((a, b) => (b.km || b.count) - (a.km || a.count));
+      facts.push({ key: 'path_type_mixed', consistency: 'mixed', breakdown });
     }
   }
 
   // --- Surface ---
-  const surfaces = members.filter(m => m.surface).map(m => displaySurface(m.surface)!);
-  if (surfaces.length > 0) {
-    const unique = [...new Set(surfaces)];
+  const withSurface = members.filter(m => m.surface);
+  if (withSurface.length > 0) {
+    const surfaceOf = (m: PathMeta) => displaySurface(m.surface)!;
+    const unique = [...new Set(withSurface.map(surfaceOf))];
     if (unique.length === 1) {
       facts.push({
         key: 'surface', value: unique[0],
-        consistency: surfaces.length === members.length ? 'unanimous' : 'partial',
+        consistency: withSurface.length === members.length ? 'unanimous' : 'partial',
       });
     } else {
-      const counts = unique.map(v => ({ value: v, count: surfaces.filter(s => s === v).length }));
-      counts.sort((a, b) => b.count - a.count);
-      facts.push({ key: 'surface_mixed', consistency: 'mixed', breakdown: counts });
+      const breakdown = unique.map(v => {
+        const matching = withSurface.filter(m => surfaceOf(m) === v);
+        const km = matching.reduce((s, m) => s + (m.length_km ?? 0), 0);
+        return { value: v, count: matching.length, km: Math.round(km * 10) / 10 };
+      });
+      breakdown.sort((a, b) => (b.km || b.count) - (a.km || a.count));
+      facts.push({ key: 'surface_mixed', consistency: 'mixed', breakdown });
     }
   }
 
@@ -420,23 +430,24 @@ export function localizeFactSentence(fact: PathFact, t: Translator, locale?: str
 
 /** Localize a network fact's value, handling mixed/partial consistency. */
 export function localizeNetworkFactValue(fact: NetworkFact, t: Translator, locale?: string): string {
-  // Mixed path type: "Multi-use pathway (3), Bike lane (2)"
+  // Mixed path type: "Mountain bike trail (142 km), Multi-use pathway (8 km)"
   if (fact.key === 'path_type_mixed' && fact.breakdown) {
     return fact.breakdown
       .map(b => {
         const i18nKey = `paths.fact.${b.value.replace(/-/g, '_')}`;
         const translated = t(i18nKey, locale);
-        return `${translated !== i18nKey ? translated : b.value} (${b.count})`;
+        const label = translated !== i18nKey ? translated : b.value;
+        return b.km ? `${label} (${b.km} km)` : `${label} (${b.count})`;
       })
       .join(', ');
   }
 
-  // Mixed surface: "Paved (3), Gravel (2)"
+  // Mixed surface: "Gravel (142 km), Paved (8 km)"
   if (fact.key === 'surface_mixed' && fact.breakdown) {
     return fact.breakdown
       .map(b => {
         const label = localizeSurface(b.value, t, locale) || b.value;
-        return `${label} (${b.count})`;
+        return b.km ? `${label} (${b.km} km)` : `${label} (${b.count})`;
       })
       .join(', ');
   }
