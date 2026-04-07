@@ -355,6 +355,70 @@ describe('buildPathFacts', () => {
   it('no longer emits mtb fact (replaced by path_type)', () => {
     expect(buildPathFacts({ mtb: true }).map(f => f.key)).not.toContain('mtb');
   });
+
+  // --- surface_mix: mixed surface distributions ---
+
+  it('emits surface_mixed fact when surface_mix is present', () => {
+    const facts = buildPathFacts({
+      surface: 'asphalt',
+      path_type: 'mup',
+      surface_mix: [
+        { value: 'asphalt', km: 3 },
+        { value: 'fine_gravel', km: 1 },
+      ],
+    });
+    const mixed = facts.find(f => f.key === 'surface_mixed');
+    expect(mixed).toBeDefined();
+    expect(mixed!.breakdown).toEqual([
+      { value: 'asphalt', km: 3 },
+      { value: 'fine_gravel', km: 1 },
+    ]);
+  });
+
+  it('still emits path_info with dominant surface when surface_mix present', () => {
+    const facts = buildPathFacts({
+      surface: 'asphalt',
+      path_type: 'mup',
+      width: '3',
+      surface_mix: [
+        { value: 'asphalt', km: 3 },
+        { value: 'fine_gravel', km: 1 },
+      ],
+    });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup:asphalt:3' });
+    expect(facts.some(f => f.key === 'surface_mixed')).toBe(true);
+  });
+
+  it('does NOT emit surface_mixed when no surface_mix field', () => {
+    const facts = buildPathFacts({ surface: 'asphalt', path_type: 'mup' });
+    expect(facts.find(f => f.key === 'surface_mixed')).toBeUndefined();
+  });
+
+  // --- lit_mix: mixed lighting distributions ---
+
+  it('emits lit_mixed fact when lit_mix has both yes and no', () => {
+    const facts = buildPathFacts({
+      lit: 'yes',
+      lit_mix: [
+        { value: 'yes', km: 2 },
+        { value: 'no', km: 1 },
+      ],
+    });
+    const mixed = facts.find(f => f.key === 'lit_mixed');
+    expect(mixed).toBeDefined();
+    expect(mixed!.breakdown).toEqual([
+      { value: 'yes', km: 2 },
+      { value: 'no', km: 1 },
+    ]);
+    expect(facts.find(f => f.key === 'lit')).toBeUndefined();
+    expect(facts.find(f => f.key === 'not_lit')).toBeUndefined();
+  });
+
+  it('does NOT emit lit_mixed when no lit_mix field', () => {
+    const facts = buildPathFacts({ lit: 'yes' });
+    expect(facts.find(f => f.key === 'lit')).toBeDefined();
+    expect(facts.find(f => f.key === 'lit_mixed')).toBeUndefined();
+  });
 });
 
 describe('findNearestMajorPath', () => {

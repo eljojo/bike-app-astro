@@ -36,6 +36,8 @@ export function computeCenter(pts: Array<{ lat: number; lng: number }>): [number
 export interface PathFact {
   key: string;
   value?: string;
+  /** For mixed facts: breakdown of values with distance. */
+  breakdown?: Array<{ value: string; count?: number; km?: number }>;
 }
 
 /** Input metadata for buildPathFacts. Mirrors the relevant fields from BikePathPage. */
@@ -67,6 +69,8 @@ export interface PathMeta {
   /** Park name from OSM containment. */
   park?: string;
   overlapping_relations?: Array<{ id: number; name: string; route: string; operator?: string }>;
+  surface_mix?: Array<{ value: string; km: number }>;
+  lit_mix?: Array<{ value: string; km: number }>;
 }
 
 /**
@@ -122,6 +126,14 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
     facts.push({ key: 'path_info', value: `${meta.path_type || ''}:${meta.surface || ''}:${width || ''}` });
   }
 
+  // Surface mix — distribution across ways
+  if (meta.surface_mix && meta.surface_mix.length > 1) {
+    facts.push({
+      key: 'surface_mixed',
+      breakdown: meta.surface_mix.map(m => ({ value: m.value, km: m.km })),
+    });
+  }
+
   // Smoothness
   if (meta.smoothness) {
     facts.push({ key: `smoothness_${meta.smoothness}` });
@@ -154,8 +166,13 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
     facts.push({ key: 'parallel_to', value: meta.parallel_to });
   }
 
-  // Lit
-  if (meta.lit === 'yes') {
+  // Lit — use distribution when available
+  if (meta.lit_mix && meta.lit_mix.some(m => m.value === 'yes') && meta.lit_mix.some(m => m.value === 'no')) {
+    facts.push({
+      key: 'lit_mixed',
+      breakdown: meta.lit_mix.map(m => ({ value: m.value, km: m.km })),
+    });
+  } else if (meta.lit === 'yes') {
     facts.push({ key: 'lit' });
   } else if (meta.lit === 'no') {
     facts.push({ key: 'not_lit' });
@@ -432,6 +449,18 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
       return fact.value
         ? t('paths.fact.hilly', locale, { meters: fact.value })
         : t('paths.fact.hilly_no_meters', locale);
+    case 'surface_mixed': {
+      if (!fact.breakdown) return '';
+      return fact.breakdown
+        .map(b => {
+          const label = localizeSurface(b.value, t, locale) || b.value;
+          return b.km ? `${label} (${Math.round(b.km)} km)` : label;
+        })
+        .filter(s => !s.includes('(0 km)'))
+        .join(', ');
+    }
+    case 'lit_mixed':
+      return t('paths.fact.partially_lit', locale);
     default: {
       const i18nKey = `paths.fact.${fact.key}`;
       const translated = t(i18nKey, locale);

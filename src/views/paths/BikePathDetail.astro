@@ -465,6 +465,8 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
                 : fact.key === 'flat' || fact.key === 'gentle_hills' || fact.key === 'hilly' ? 'fact-terrain'
                 : fact.key.startsWith('network_') ? 'fact-network'
                 : fact.key === 'inception' ? 'fact-established'
+                : fact.key === 'surface_mixed' ? 'fact-surface'
+                : fact.key === 'lit_mixed' ? 'fact-lighting'
                 : `fact-${fact.key.replace(/_/g, '-')}`;
               return (
                 <tr class={factClass}><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
