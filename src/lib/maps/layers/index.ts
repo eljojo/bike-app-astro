@@ -4,6 +4,6 @@ export { createPolylineLayer, type PolylineLayer, type PolylineLayerOptions } fr
 export { createPhotoLayer, type PhotoLayerOptions } from './photo-layer';
 export { createPlaceLayer, type PlaceLayerOptions } from './place-layer';
 export { createWaypointLayer, type WaypointLayerOptions } from './waypoint-layer';
-export { createTilePathLayer, type TilePathLayerOptions } from './tile-path-layer';
+export { createTilePathLayer, type TilePathLayerOptions, type TilePathLayer } from './tile-path-layer';
 export { createGpsLayer } from './gps-layer';
 export { createElevationSyncLayer } from './elevation-sync-layer';
