@@ -85,6 +85,18 @@ export const bikePathYmlEntrySchema = z.looseObject({
     length_km: z.number().optional(),
     inception: z.string().optional(),
     website: z.string().optional(),
+    commons_image: z.string().optional(),
+    commons_category: z.string().optional(),
+    operator: z.string().optional(),
+    operator_qid: z.string().optional(),
+    instance_of: z.array(z.string()).optional(),
+    social: z.array(z.object({
+      platform: z.string(),
+      username: z.string(),
+      url: z.string(),
+    })).optional(),
+    wikipedia_extract_en: z.string().optional(),
+    wikipedia_extract_fr: z.string().optional(),
   }).optional(),
 });
 
