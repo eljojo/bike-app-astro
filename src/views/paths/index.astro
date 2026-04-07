@@ -383,7 +383,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       compactHeight: 400,
       expandedHeight: 700,
       slugInfo,
-      listSelector: '.paths-list li[data-slug], .network-panel-header[data-slug]',
+      listSelector: '.paths-list li[data-slug], .network-members-list li[data-slug], .network-panel-header[data-slug]',
       slugToNetwork: slugToNetworkMap,
       networkGeoIds,
       labels: { viewDetails: container.dataset.labelViewDetails },
