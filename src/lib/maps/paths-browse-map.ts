@@ -15,6 +15,7 @@ import { setupMapTouchLock } from './map-touch-lock';
 import { setupPathHighlight } from './path-highlight';
 import { createMapExpandButton } from './map-expand-button';
 import { createTilePathLayer } from './layers/tile-path-layer';
+import { muteBaseCyclingLayers } from './base-layer-control';
 import maplibregl from 'maplibre-gl';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -131,6 +132,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   // ── On map load: set up layer, then wire list hover ─────────────
 
   map.on('load', async () => {
+    muteBaseCyclingLayers(map);
+
     const ctx = {
       map,
       styleKey,
