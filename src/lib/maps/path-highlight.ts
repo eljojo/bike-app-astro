@@ -25,8 +25,10 @@ export interface PathHighlightOptions {
   lineOpacityHover?: number;
   /** Line opacity for non-highlighted paths when one is highlighted */
   lineOpacityDim?: number;
-  /** GeoJSON source ID to query for fly-to bounds */
+  /** GeoJSON source ID to query for fly-to bounds (fallback if queryFeatures not provided) */
   sourceId?: string;
+  /** Query in-memory features by slug or network geoIds. Avoids querySourceFeatures race condition. */
+  queryFeatures?: (slug: string) => GeoJSON.Feature[];
   /** Slug → network slug mapping, for framing the whole network on hover */
   slugToNetwork?: Record<string, string>;
   /** Network slug → geo IDs, for computing network bounds */
@@ -128,14 +130,20 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   // --- Fly-to ---
 
   function flyToSlug(slug: string, instant = false) {
-    if (!o.sourceId) return;
+    if (!o.sourceId && !o.queryFeatures) return;
 
-    const isNetwork = o.networkGeoIds?.[slug];
-    const features = map.querySourceFeatures(o.sourceId, {
-      filter: isNetwork
-        ? ['in', ['get', 'relationId'], ['literal', o.networkGeoIds![slug]]]
-        : ['==', ['get', o.property], slug],
-    });
+    let features: GeoJSON.Feature[];
+    if (o.queryFeatures) {
+      // Use in-memory features — no renderer race condition
+      features = o.queryFeatures(slug);
+    } else {
+      const isNetwork = o.networkGeoIds?.[slug];
+      features = map.querySourceFeatures(o.sourceId!, {
+        filter: isNetwork
+          ? ['in', ['get', 'relationId'], ['literal', o.networkGeoIds![slug]]]
+          : ['==', ['get', o.property], slug],
+      });
+    }
 
     if (features.length === 0) return;
 

@@ -390,7 +390,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         const activeSlug = activeTab?.dataset.network;
         if (activeSlug && activeSlug !== 'all') {
           const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
-          highlightGeoIds(geoIds ?? null);
+          highlightGeoIds(geoIds ?? null, true);
         }
       },
     });

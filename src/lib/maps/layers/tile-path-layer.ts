@@ -30,6 +30,8 @@ export interface TilePathLayerOptions {
 export interface TilePathLayer extends MapLayer {
   highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean): void;
   fitToGeoIds(map: maplibregl.Map, geoIds: string[]): void;
+  /** Query in-memory features by slug or network geoIds. No renderer dependency. */
+  queryFeaturesBySlug(slug: string, networkGeoIds?: Record<string, string[]>): GeoJSON.Feature[];
 }
 
 const SOURCE_ID = 'paths-network';
@@ -405,10 +407,14 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
     },
 
     fitToGeoIds(map: maplibregl.Map, geoIds: string[]) {
-      if (!map.getSource(SOURCE_ID)) return;
-      const features = map.querySourceFeatures(SOURCE_ID, {
-        filter: ['in', ['get', 'relationId'], ['literal', geoIds]],
-      });
+      // Use in-memory features from tileLoader instead of querySourceFeatures.
+      // querySourceFeatures depends on the renderer having processed the GeoJSON
+      // into internal tiles, which may not have happened yet after addSource().
+      if (!tileLoader) return;
+      const geoIdSet = new Set(geoIds);
+      const features = tileLoader.allLoadedFeatures().filter(
+        f => f.properties?.relationId && geoIdSet.has(f.properties.relationId),
+      );
       if (features.length === 0) return;
       let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
       for (const f of features) {
@@ -424,6 +430,17 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       }
       if (minLng === Infinity) return;
       map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, animate: true, duration: 500 });
+    },
+
+    queryFeaturesBySlug(slug: string, netGeoIds?: Record<string, string[]>) {
+      if (!tileLoader) return [];
+      const all = tileLoader.allLoadedFeatures();
+      const isNetwork = netGeoIds?.[slug];
+      if (isNetwork) {
+        const ids = new Set(netGeoIds![slug]);
+        return all.filter(f => f.properties?.relationId && ids.has(f.properties.relationId));
+      }
+      return all.filter(f => f.properties?.slug === slug);
     },
   };
 
