@@ -2,20 +2,19 @@
  * Browse-style map for bike paths — always-interactive, with tile loading,
  * rich popups, hover highlight, and expand button.
  *
- * Extracted from the index page's inline map setup. Used by both the
- * paths index and network detail pages.
+ * Thin orchestrator: delegates all rendering to tile-path-layer.
+ * Owns only UI concerns: map init, touch lock, expand button, list hover.
  *
  * Browser-only — uses DOM APIs and MapLibre. Import only from <script> blocks.
  */
 
-import { initMap, showPopup } from './map-init';
-import { pathForeground, TRAIL_DASH, IS_TRAIL_EXPR } from './map-swatch';
+import { initMap } from './map-init';
+import { pathForeground } from './map-swatch';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
 import { setupPathHighlight } from './path-highlight';
-import { buildPathPopup } from './map-helpers';
-import { createTileLoader, type TileLoader } from './tile-loader';
 import { createMapExpandButton } from './map-expand-button';
+import { createTilePathLayer } from './layers/tile-path-layer';
 import maplibregl from 'maplibre-gl';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -77,15 +76,16 @@ export interface PathsBrowseMapResult {
   expandButton: ReturnType<typeof createMapExpandButton>;
 }
 
-// ── Implementation ───────────────────────────────────────────────────
+// ── Swatch values for list hover ─────────────────────────────────────
 
 const PATH_WIDTH = pathForeground.interactive.width;
 const PATH_WIDTH_UNLISTED = pathForeground.other.width;
 const PATH_WIDTH_HOVER = pathForeground.hover.width;
 const PATH_OPACITY = pathForeground.interactive.opacity;
 const PATH_OPACITY_UNLISTED = pathForeground.other.opacity;
-const PATH_COLOR = pathForeground.color;
 const SOURCE_ID = 'paths-network';
+
+// ── Implementation ───────────────────────────────────────────────────
 
 export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMapResult {
   const {
@@ -97,165 +97,49 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     onHighlightClear, onReady,
   } = opts;
 
+  // ── Map creation ────────────────────────────────────────────────
+
   const styleKey = loadStylePreference();
   const map = initMap({ el: container, center, zoom, styleUrl: getStyleUrl(styleKey) });
 
   setupMapTouchLock(map, touchLockEl);
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
 
-  // Build result early so callbacks can reference it
+  // ── Tile path layer ─────────────────────────────────────────────
+
+  const manifestPromise = fetch('/bike-paths/geo/tiles/manifest.json')
+    .then(r => r.ok ? r.json() : []).catch(() => []);
+
+  const tilePathLayer = createTilePathLayer({
+    manifestPromise,
+    fetchPath: '/bike-paths/geo/tiles/',
+    foreground: true,
+    interactiveGeoIds,
+    slugInfo,
+    labels: opts.labels,
+  });
+
+  // ── Result object (delegates to layer) ──────────────────────────
+
   const result: PathsBrowseMapResult = {
     map,
-    highlightGeoIds: highlightGeoIdsFn,
-    fitToGeoIds: fitToGeoIdsFn,
+    highlightGeoIds: (geoIds, fly) => tilePathLayer.highlightGeoIds(map, geoIds, fly),
+    fitToGeoIds: (geoIds) => tilePathLayer.fitToGeoIds(map, geoIds),
     expandButton,
   };
 
-  // ── Feature tagging ──────────────────────────────────────────────
+  // ── On map load: set up layer, then wire list hover ─────────────
 
-  function tagFeatures(features: GeoJSON.Feature[]) {
-    for (const f of features) {
-      if (!f.properties) continue;
-      if (interactiveGeoIds) {
-        f.properties.interactive = interactiveGeoIds.has(f.properties._geoId) ? 'true' : '';
-      } else {
-        f.properties.interactive = f.properties.hasPage ? 'true' : '';
-      }
-      f.properties.relationId = f.properties._geoId;
-    }
-  }
+  map.on('load', async () => {
+    const ctx = {
+      map,
+      styleKey,
+      generation: 0,
+      isCurrent: () => true,
+    };
+    await tilePathLayer.setup(ctx);
 
-  // ── Highlight layer control ──────────────────────────────────────
-
-  function highlightGeoIdsFn(geoIds: string[] | null, fly = false) {
-    if (!map.getLayer('paths-network-highlight')) return;
-
-    if (geoIds && geoIds.length > 0) {
-      map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
-      for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', pathForeground.highlight.dimInteractive);
-      }
-      for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', pathForeground.highlight.dimOther);
-      }
-      if (fly) fitToGeoIdsFn(geoIds);
-    } else {
-      map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
-      for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', PATH_OPACITY);
-      }
-      for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', PATH_OPACITY_UNLISTED);
-      }
-    }
-  }
-
-  function fitToGeoIdsFn(geoIds: string[]) {
-    if (!map.getSource(SOURCE_ID)) return;
-    const features = map.querySourceFeatures(SOURCE_ID, {
-      filter: ['in', ['get', 'relationId'], ['literal', geoIds]],
-    });
-    if (features.length === 0) return;
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-    for (const f of features) {
-      const coords = f.geometry.type === 'LineString' ? (f.geometry as GeoJSON.LineString).coordinates
-        : f.geometry.type === 'MultiLineString' ? (f.geometry as GeoJSON.MultiLineString).coordinates.flat()
-        : [];
-      for (const [lng, lat] of coords as [number, number][]) {
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      }
-    }
-    if (minLng === Infinity) return;
-    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, animate: true, duration: 500 });
-  }
-
-  // ── Layer setup ──────────────────────────────────────────────────
-
-  let layersSetUp = false;
-  let prevFeatureCount = 0;
-
-  function setupLayers(features: GeoJSON.Feature[]) {
-    map.addSource(SOURCE_ID, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features },
-    });
-
-    // Non-interactive: solid
-    map.addLayer({
-      id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': PATH_OPACITY_UNLISTED },
-    });
-    // Non-interactive: dashed
-    map.addLayer({
-      id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
-      layout: { 'line-cap': 'butt', 'line-join': 'round' },
-      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': PATH_OPACITY_UNLISTED, 'line-dasharray': TRAIL_DASH },
-    });
-    // Interactive: solid
-    map.addLayer({
-      id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': PATH_OPACITY },
-    });
-    // Interactive: dashed
-    map.addLayer({
-      id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
-      layout: { 'line-cap': 'butt', 'line-join': 'round' },
-      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': PATH_OPACITY, 'line-dasharray': TRAIL_DASH },
-    });
-    // Highlight layer (for category/network selection from outside)
-    map.addLayer({
-      id: 'paths-network-highlight', type: 'line', source: SOURCE_ID,
-      filter: ['==', ['get', 'relationId'], ''],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': PATH_COLOR, 'line-width': pathForeground.highlight.width, 'line-opacity': pathForeground.highlight.opacity },
-    });
-
-    // Click → rich popup (shared builder with tile-path-layer)
-    function handleClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
-      if (!e.features?.length) return;
-      const slug = e.features[0].properties?.slug;
-      if (!slug) return;
-      const info = slugInfo[slug];
-      if (!info) return;
-
-      const content = buildPathPopup({
-        name: info.name,
-        url: info.url,
-        length_km: info.length_km,
-        surface: info.surface,
-        path_type: info.path_type,
-        vibe: info.vibe,
-        network: info.network,
-        networkUrl: info.networkUrl,
-      }, opts.labels);
-
-      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
-        .setLngLat(e.lngLat)
-        .setHTML(content);
-      showPopup(map, popup);
-    }
-
-    for (const id of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed']) {
-      map.on('click', id, handleClick);
-    }
-    for (const layerId of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed', 'paths-network-highlight']) {
-      map.on('mouseenter', layerId, (e) => {
-        const slug = e.features?.[0]?.properties?.slug;
-        if (slug && slugInfo[slug]) map.getCanvas().style.cursor = 'pointer';
-      });
-      map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
-    }
-
-    // List hover → highlight path on map + fly to
+    // Wire list hover (browse-specific UI concern)
     if (listSelector) {
       let clearDebounce: ReturnType<typeof setTimeout> | null = null;
 
@@ -307,53 +191,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
       });
     }
 
-    layersSetUp = true;
     onReady?.(result);
-  }
-
-  // ── Tile loading ─────────────────────────────────────────────────
-
-  function getMapBounds(): [number, number, number, number] {
-    const b = map.getBounds();
-    return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
-  }
-
-  map.on('load', async () => {
-    let tileLoader: TileLoader;
-    try {
-      const res = await fetch('/bike-paths/geo/tiles/manifest.json');
-      if (!res.ok) return;
-      const manifest = await res.json();
-      tileLoader = createTileLoader(manifest, '/bike-paths/geo/tiles/');
-    } catch {
-      return;
-    }
-
-    const features = await tileLoader.loadTilesForBounds(getMapBounds());
-    tagFeatures(features);
-    prevFeatureCount = features.length;
-
-    if (features.length > 0) {
-      setupLayers(features);
-    }
-
-    map.on('moveend', async () => {
-      const updated = await tileLoader.loadTilesForBounds(getMapBounds());
-      if (updated.length === prevFeatureCount) return;
-
-      tagFeatures(updated);
-      prevFeatureCount = updated.length;
-
-      if (!layersSetUp) {
-        if (updated.length > 0) setupLayers(updated);
-        return;
-      }
-
-      const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData({ type: 'FeatureCollection', features: updated });
-      }
-    });
   });
 
   return result;

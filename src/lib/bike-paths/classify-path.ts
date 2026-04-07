@@ -7,7 +7,7 @@
  * Browser-safe — no .server.ts, no node:* imports.
  */
 
-import { isUnpaved, isPaved } from './surfaces.ts';
+import { isUnpaved, isPaved, isMaintainedUnpaved } from './surfaces.ts';
 
 // ---------------------------------------------------------------------------
 // Predicates — shared vocabulary for classification and facts
@@ -185,11 +185,11 @@ export function classifyPathsLate(entries: ClassifiableEntry[]): { mtbCount: num
     const memberEntries = (entry._memberRefs || []) as ClassifiableEntry[];
     const hasExplicitMtb = memberEntries.some(m => m.mtb === true);
     if (hasExplicitMtb) {
-      if (isTrailType(entry) || !isPaved(entry.surface)) {
+      if ((isTrailType(entry) || !isPaved(entry.surface)) && !isMaintainedUnpaved(entry.surface)) {
         if (!entry.mtb) { entry.mtb = true; mtbCount++; }
       }
       for (const m of memberEntries) {
-        if (isTrailType(m) && !isPaved(m.surface)) {
+        if (isTrailType(m) && !isPaved(m.surface) && !isMaintainedUnpaved(m.surface)) {
           if (!m.mtb) { m.mtb = true; mtbCount++; }
         }
       }
@@ -203,6 +203,7 @@ export function classifyPathsLate(entries: ClassifiableEntry[]): { mtbCount: num
     if (isDesignatedCycling(entry)) continue;
     if (!isTrailType(entry)) continue;
     if (isPaved(entry.surface)) continue;
+    if (isMaintainedUnpaved(entry.surface)) continue;
     entry.mtb = true;
     mtbCount++;
   }
