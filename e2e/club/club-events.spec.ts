@@ -53,7 +53,10 @@ test.describe('Club event detail — past event with results', () => {
     await expect(facts).toContainText('Plaza Italia, Santiago');
     await expect(facts).toContainText('$15.000 CLP');
     await expect(facts).toContainText('80');
-    await expect(facts).toContainText('Randonneurs Chile');
+
+    // Organizer card
+    const organizer = page.locator('.event-organizer');
+    await expect(organizer).toContainText('Randonneurs Chile');
 
     // Departure groups
     await expect(facts.locator('.event-detail-departure-groups li')).toHaveCount(2);
@@ -150,8 +153,9 @@ test.describe('Club event detail — upcoming event', () => {
     await expect(regLink).toBeVisible();
     await expect(regLink).toHaveAttribute('href', 'https://example.com/register-200');
 
-    // Organizer link
-    await expect(facts).toContainText('Randonneurs Chile');
+    // Organizer card
+    const organizer = page.locator('.event-organizer');
+    await expect(organizer).toContainText('Randonneurs Chile');
   });
 
   test('renders waypoint for upcoming event', async ({ page }) => {
