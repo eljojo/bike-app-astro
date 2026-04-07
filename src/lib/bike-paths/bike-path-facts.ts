@@ -59,6 +59,9 @@ export interface PathMeta {
   bicycle?: string;
   cycleway?: string;
   parallel_to?: string;
+  foot?: string;
+  incline?: string;
+  access?: string;
   overlapping_relations?: Array<{ id: number; name: string; route: string; operator?: string }>;
 }
 
@@ -68,6 +71,13 @@ export interface PathMeta {
  * Returns `PathFact[]` with locale-independent keys and optional values.
  * The view layer is responsible for mapping these to localized strings.
  */
+/** Parse OSM incline tag to a numeric percentage. Returns null for qualitative values like "up"/"down". */
+function parseInclinePercent(raw: string): number | null {
+  const m = raw.match(/[<>]?\s*(-?\d+(?:\.\d+)?)\s*%/);
+  if (!m) return null;
+  return Math.abs(parseFloat(m[1]));
+}
+
 /** Sanitize width — reject outrageous values from OSM data. */
 function sanitizeWidth(raw?: string): string | undefined {
   if (!raw) return undefined;
@@ -99,7 +109,10 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Traffic — combined separation + unusual access restrictions.
   // Normal bicycle access (yes, designated) is redundant on a bike site — not shown.
   const sepCars = isSeparatedFromCars(meta);
-  const sepPeds = meta.segregated === 'yes';
+  // Pedestrian separation: explicit segregation, foot=no (bikes only),
+  // or access=no with bicycle explicitly allowed (bike-only facility).
+  const bikeOnly = meta.access === 'no' && (meta.bicycle === 'designated' || meta.bicycle === 'yes');
+  const sepPeds = meta.segregated === 'yes' || meta.foot === 'no' || bikeOnly;
   if (sepCars && sepPeds) {
     facts.push({ key: 'traffic_separated_all' });
   } else if (sepCars) {
@@ -127,7 +140,8 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
     facts.push({ key: 'not_lit' });
   }
 
-  // Elevation
+  // Elevation — GPX-derived elevation_gain_m is authoritative. When unavailable,
+  // fall back to OSM incline tag (grade percentage or qualitative up/down).
   if (meta.elevation_gain_m != null) {
     if (meta.elevation_gain_m < 20) {
       facts.push({ key: 'flat' });
@@ -135,6 +149,15 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
       facts.push({ key: 'gentle_hills', value: String(meta.elevation_gain_m) });
     } else {
       facts.push({ key: 'hilly', value: String(meta.elevation_gain_m) });
+    }
+  } else if (meta.incline) {
+    const pct = parseInclinePercent(meta.incline);
+    if (pct !== null) {
+      if (pct < 2) facts.push({ key: 'flat' });
+      else if (pct < 6) facts.push({ key: 'gentle_hills' });
+      else facts.push({ key: 'hilly' });
+    } else if (meta.incline === 'up' || meta.incline === 'down') {
+      facts.push({ key: 'gentle_hills' });
     }
   }
 
@@ -151,6 +174,14 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   // Seasonal
   if (meta.seasonal) {
     facts.push({ key: 'seasonal', value: meta.seasonal });
+  }
+
+  // Access restrictions — private land or permissive access worth noting.
+  // access=no with bicycle allowed is already handled above (bikeOnly → separation).
+  if (meta.access === 'private') {
+    facts.push({ key: 'access_private' });
+  } else if (meta.access === 'permissive') {
+    facts.push({ key: 'access_permissive' });
   }
 
   // Reference code
@@ -293,6 +324,7 @@ export function factLabelKey(factKey: string): string {
   if (factKey === 'operator') return 'paths.label.operator';
   if (factKey.startsWith('network_')) return 'paths.label.network';
   if (factKey === 'seasonal') return 'paths.label.seasonal';
+  if (factKey === 'access_private' || factKey === 'access_permissive') return 'paths.label.access';
   if (factKey === 'ref') return 'paths.label.ref';
   if (factKey === 'inception') return 'paths.label.established';
   if (factKey === 'overlapping_relation') return 'paths.label.also_part_of';
@@ -347,6 +379,10 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
       return fact.value || '';
     case 'seasonal':
       return t(`paths.fact.seasonal_${fact.value}`, locale);
+    case 'access_private':
+      return t('paths.fact.access_private', locale);
+    case 'access_permissive':
+      return t('paths.fact.access_permissive', locale);
     case 'ref':
     case 'inception':
       return fact.value || '';

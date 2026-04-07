@@ -125,6 +125,12 @@ export interface BikePathPage {
   cycleway?: string;
   /** OSM bicycle access: 'designated', 'yes', 'no'. */
   bicycle?: string;
+  /** OSM foot access: 'designated', 'yes', 'no'. */
+  foot?: string;
+  /** OSM incline: '0%', 'up', 'down', '>10%'. */
+  incline?: string;
+  /** OSM access: 'yes', 'no', 'private', 'permissive'. */
+  access?: string;
   /** Road name this path runs alongside (for parallel bike lanes). */
   parallel_to?: string;
   /** Mountain bike trail (not road-bike-friendly). Set by detect-mtb in the data pipeline. */
@@ -466,6 +472,9 @@ export function loadBikePathEntries(): {
       highway: primary?.highway,
       cycleway: primary?.cycleway,
       bicycle: primary?.bicycle,
+      foot: primary?.foot,
+      incline: primary?.incline,
+      access: primary?.access,
       parallel_to: primary?.parallel_to,
       mtb: primary?.mtb,
       path_type: primary?.path_type,
@@ -526,6 +535,9 @@ export function loadBikePathEntries(): {
       highway: entry.highway,
       cycleway: entry.cycleway,
       bicycle: entry.bicycle,
+      foot: entry.foot,
+      incline: entry.incline,
+      access: entry.access,
       parallel_to: entry.parallel_to,
       mtb: entry.mtb,
       path_type: entry.path_type,

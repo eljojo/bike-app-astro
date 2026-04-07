@@ -171,6 +171,28 @@ describe('buildPathFacts', () => {
     expect(facts).toContainEqual({ key: 'traffic_dismount' });
   });
 
+  it('traffic: foot=no on cycleway → separated from all (not just cars)', () => {
+    const facts = buildPathFacts({ highway: 'cycleway', foot: 'no' });
+    expect(facts).toContainEqual({ key: 'traffic_separated_all' });
+  });
+
+  it('traffic: foot=no without cycleway → separated from peds only', () => {
+    const facts = buildPathFacts({ highway: 'path', foot: 'no' });
+    expect(facts).toContainEqual({ key: 'traffic_separated_peds' });
+  });
+
+  it('traffic: access=no + bicycle=designated → separated from peds (bike-only)', () => {
+    const facts = buildPathFacts({ highway: 'cycleway', access: 'no', bicycle: 'designated' });
+    expect(facts).toContainEqual({ key: 'traffic_separated_all' });
+  });
+
+  it('traffic: foot=designated does not imply ped separation', () => {
+    const facts = buildPathFacts({ highway: 'cycleway', foot: 'designated' });
+    // foot=designated means shared with pedestrians, not separated
+    expect(facts).toContainEqual({ key: 'traffic_separated_cars' });
+    expect(facts).not.toContainEqual({ key: 'traffic_separated_all' });
+  });
+
   it('does not emit traffic for bicycle=yes or designated (redundant)', () => {
     for (const val of ['yes', 'designated']) {
       const facts = buildPathFacts({ bicycle: val });
@@ -227,6 +249,40 @@ describe('buildPathFacts', () => {
     expect(buildPathFacts({ elevation_gain_m: 120 })).toContainEqual({ key: 'hilly', value: '120' });
   });
 
+  // --- incline as elevation fallback ---
+
+  it('incline: 0% → flat (when no GPX elevation)', () => {
+    expect(buildPathFacts({ incline: '0%' })).toContainEqual({ key: 'flat' });
+  });
+
+  it('incline: 3% → gentle_hills (without meters value)', () => {
+    const facts = buildPathFacts({ incline: '3%' });
+    const hill = facts.find(f => f.key === 'gentle_hills');
+    expect(hill).toBeDefined();
+    expect(hill!.value).toBeUndefined();
+  });
+
+  it('incline: >10% → hilly', () => {
+    expect(buildPathFacts({ incline: '>10%' })).toContainEqual({ key: 'hilly' });
+  });
+
+  it('incline: "up" → gentle_hills (has slope, unknown magnitude)', () => {
+    const facts = buildPathFacts({ incline: 'up' });
+    expect(facts.find(f => f.key === 'gentle_hills')).toBeDefined();
+  });
+
+  it('incline: "down" → gentle_hills', () => {
+    const facts = buildPathFacts({ incline: 'down' });
+    expect(facts.find(f => f.key === 'gentle_hills')).toBeDefined();
+  });
+
+  it('GPX elevation_gain_m takes precedence over incline', () => {
+    const facts = buildPathFacts({ elevation_gain_m: 10, incline: '>10%' });
+    // Should be flat (from GPX), not hilly (from incline)
+    expect(facts).toContainEqual({ key: 'flat' });
+    expect(facts.find(f => f.key === 'hilly')).toBeUndefined();
+  });
+
   it('emits operator', () => {
     expect(buildPathFacts({ operator: 'NCC' })).toContainEqual({ key: 'operator', value: 'NCC' });
   });
@@ -246,6 +302,21 @@ describe('buildPathFacts', () => {
 
   it('emits parallel_to', () => {
     expect(buildPathFacts({ parallel_to: 'Bank Street' })).toContainEqual({ key: 'parallel_to', value: 'Bank Street' });
+  });
+
+  // --- access ---
+
+  it('emits access_private for private land', () => {
+    expect(buildPathFacts({ access: 'private' })).toContainEqual({ key: 'access_private' });
+  });
+
+  it('emits access_permissive for permissive access', () => {
+    expect(buildPathFacts({ access: 'permissive' })).toContainEqual({ key: 'access_permissive' });
+  });
+
+  it('does not emit access fact for access=yes (normal)', () => {
+    const keys = buildPathFacts({ access: 'yes' }).map(f => f.key);
+    expect(keys.every(k => !k.startsWith('access_'))).toBe(true);
   });
 
   it('emits seasonal, ref, inception', () => {

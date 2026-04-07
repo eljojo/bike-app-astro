@@ -32,6 +32,12 @@ export const bikePathYmlEntrySchema = z.looseObject({
   cycleway: z.string().optional(),
   /** OSM bicycle access tag: 'designated', 'yes', 'no', 'permissive', etc. */
   bicycle: z.string().optional(),
+  /** OSM foot access tag: 'designated', 'yes', 'no'. */
+  foot: z.string().optional(),
+  /** OSM incline tag: '0%', 'up', 'down', '>10%', etc. */
+  incline: z.string().optional(),
+  /** OSM access tag: 'yes', 'no', 'private', 'permissive', etc. */
+  access: z.string().optional(),
   ref: z.string().optional(),
   parallel_to: z.string().optional(),
   segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
