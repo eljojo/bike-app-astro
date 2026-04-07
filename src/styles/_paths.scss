@@ -78,6 +78,10 @@
 .paths-map-hero {
   border-radius: $border-radius;
   overflow: hidden;
+
+  @media (max-width: $breakpoint-tablet) {
+    max-height: 40vh;
+  }
 }
 
 // Touch-lock overlay moved to global — see _map-touch-lock.scss
@@ -219,6 +223,11 @@
     transition: background 0.15s ease;
     padding: 0.15rem 0.3rem;
     border-radius: 3px;
+
+    @media (max-width: $breakpoint-tablet) {
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
   }
 
   li.path-highlight {
@@ -1023,6 +1032,11 @@
   justify-content: space-between;
   align-items: baseline;
   padding: 0.75rem 0 0.5rem;
+
+  @media (max-width: $breakpoint-tablet) {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
 }
 
 .network-panel-name {
@@ -1046,6 +1060,13 @@
 
   .network-members-list {
     margin-top: 0.5rem;
+
+    li[data-slug] {
+      @media (max-width: $breakpoint-tablet) {
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+    }
   }
 
   &[open] .network-tier2-names {
