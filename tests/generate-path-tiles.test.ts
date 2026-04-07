@@ -223,31 +223,8 @@ describe('metadata injection', () => {
     expect(props.length_km).toBe(0);
   });
 
-  it('sets dashed: true for trail and mtb-trail path_types, false for others', () => {
-    const makeInput = (geoId: string) =>
-      new Map([[geoId, fc(line([[-75.6, 45.4], [-75.5, 45.3]]))]]);
-
-    // trail → dashed: true
-    const { tiles: trailTiles } = buildTiles(
-      makeInput('geo-trail'),
-      new Map([['geo-trail', meta({ path_type: 'trail' })]]),
-    );
-    expect(allFeatures(trailTiles)[0].properties!.dashed).toBe(true);
-
-    // mtb-trail → dashed: true
-    const { tiles: mtbTiles } = buildTiles(
-      makeInput('geo-mtb'),
-      new Map([['geo-mtb', meta({ path_type: 'mtb-trail' })]]),
-    );
-    expect(allFeatures(mtbTiles)[0].properties!.dashed).toBe(true);
-
-    // mup → dashed: false
-    const { tiles: mupTiles } = buildTiles(
-      makeInput('geo-mup'),
-      new Map([['geo-mup', meta({ path_type: 'mup' })]]),
-    );
-    expect(allFeatures(mupTiles)[0].properties!.dashed).toBe(false);
-  });
+  // dashed field was removed — trail vs solid is now derived at render time
+  // from path_type via IS_TRAIL_EXPR in map-swatch.ts
 
   it('sets _geoId and _fid both to the geoId', () => {
     const input = new Map([
