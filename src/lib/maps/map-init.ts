@@ -135,7 +135,7 @@ export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.
     center: [center[1], center[0]], // MapLibre uses [lng, lat]
     zoom,
     fadeDuration: 0,
-    attributionControl: {},
+    attributionControl: { compact: true },
     transformRequest,
   });
 }
