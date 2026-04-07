@@ -289,15 +289,34 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                 )}
 
                 {net.tier2.length > 0 && (
-                  <div class="network-tier2">
-                    <span class="network-tier2-label">{t('paths.shorter_segments', locale, { count: String(net.tier2.length) })}</span>
-                    <span class="network-tier2-names">
-                      {net.tier2.slice(0, 5).map((m, j) => (
-                        <span>{m.name}{j < Math.min(4, net.tier2.length - 1) ? ', ' : ''}</span>
+                  <details class="network-tier2">
+                    <summary class="network-tier2-label">
+                      {t('paths.shorter_segments', locale, { count: String(net.tier2.length) })}
+                      <span class="network-tier2-names">
+                        {net.tier2.slice(0, 5).map((m, j) => (
+                          <span>{m.name}{j < Math.min(4, net.tier2.length - 1) ? ', ' : ''}</span>
+                        ))}
+                        {net.tier2.length > 5 && <span class="network-tier2-ellipsis">&hellip;</span>}
+                      </span>
+                    </summary>
+                    <ul class="network-members-list">
+                      {net.tier2.map(m => (
+                        <li data-slug={m.slug}>
+                          {m.standalone ? (
+                            <a href={paths.bikePath(m.slug, m.memberOf ?? net.slug, locale)} class="network-member-link">
+                              <span class="network-member-name">{m.name}</span>
+                              {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                            </a>
+                          ) : (
+                            <span class="network-member-no-page">
+                              <span class="network-member-name">{m.name}</span>
+                              {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                            </span>
+                          )}
+                        </li>
                       ))}
-                      {net.tier2.length > 5 && <span class="network-tier2-ellipsis">&hellip;</span>}
-                    </span>
-                  </div>
+                    </ul>
+                  </details>
                 )}
               </div>
             ))}
@@ -405,7 +424,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           const slug = tab.dataset.network;
           if (slug && slug !== 'all') {
             const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
-            highlightGeoIds(geoIds ?? null);
+            highlightGeoIds(geoIds ?? null, true);
           }
         });
         tab.addEventListener('mouseleave', () => {
