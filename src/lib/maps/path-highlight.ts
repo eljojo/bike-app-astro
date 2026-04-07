@@ -33,6 +33,13 @@ export interface PathHighlightOptions {
   networkGeoIds?: Record<string, string[]>;
   /** Called when highlight changes — slug is the hovered slug or null on leave */
   onHighlight?: (slug: string | null) => void;
+  /** Use click (tap) events instead of mouseenter/mouseleave */
+  mobile?: boolean;
+}
+
+export interface PathHighlightHandle {
+  /** Clear the current highlight (set wantSlug to null, sync). */
+  clear: () => void;
 }
 
 const DEFAULTS = {
@@ -53,7 +60,7 @@ const SETTLE_MS = 1500;
  * Wire up list hover → map path highlight + optional fly-to.
  * List items must have `data-slug` attributes matching the feature property.
  */
-export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptions): void {
+export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptions): PathHighlightHandle {
   const o = { ...DEFAULTS, ...opts };
 
   // --- State: what the mouse wants vs what the map shows ---
@@ -156,13 +163,29 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
     });
   }
 
-  // --- DOM events: just write wantSlug, schedule sync ---
-  // Enter always wins. Leave only clears if this element still owns the slug
-  // (prevents a stale leave from clobbering a newer enter on an adjacent item).
+  function clear() {
+    wantSlug = null;
+    scheduleSync();
+  }
 
+  // --- DOM events: just write wantSlug, schedule sync ---
   document.querySelectorAll<HTMLElement>(o.listSelector).forEach(el => {
     const slug = el.dataset.slug || null;
-    el.addEventListener('mouseenter', () => { wantSlug = slug; scheduleSync(); });
-    el.addEventListener('mouseleave', () => { if (wantSlug === slug) { wantSlug = null; scheduleSync(); } });
+
+    if (o.mobile) {
+      el.addEventListener('click', (e) => {
+        // Prevent link navigation — tap highlights, popup link navigates
+        e.preventDefault();
+        wantSlug = slug;
+        scheduleSync();
+      });
+    } else {
+      // Enter always wins. Leave only clears if this element still owns the slug
+      // (prevents a stale leave from clobbering a newer enter on an adjacent item).
+      el.addEventListener('mouseenter', () => { wantSlug = slug; scheduleSync(); });
+      el.addEventListener('mouseleave', () => { if (wantSlug === slug) { wantSlug = null; scheduleSync(); } });
+    }
   });
+
+  return { clear };
 }
