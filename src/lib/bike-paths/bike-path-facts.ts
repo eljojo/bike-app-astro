@@ -490,11 +490,12 @@ export function localizeNetworkFactValue(fact: NetworkFact, t: Translator, local
   // Mixed path type: "Mountain bike trail (142 km), Multi-use pathway (8 km)"
   if (fact.key === 'path_type_mixed' && fact.breakdown) {
     return fact.breakdown
+      .filter(b => !b.km || Math.round(b.km) > 0)
       .map(b => {
         const i18nKey = `paths.fact.${b.value.replace(/-/g, '_')}`;
         const translated = t(i18nKey, locale);
         const label = translated !== i18nKey ? translated : b.value;
-        return b.km ? `${label} (${b.km} km)` : `${label} (${b.count})`;
+        return b.km ? `${label} (${Math.round(b.km)} km)` : `${label} (${b.count})`;
       })
       .join(', ');
   }
@@ -502,9 +503,10 @@ export function localizeNetworkFactValue(fact: NetworkFact, t: Translator, local
   // Mixed surface: "Gravel (142 km), Paved (8 km)"
   if (fact.key === 'surface_mixed' && fact.breakdown) {
     return fact.breakdown
+      .filter(b => !b.km || Math.round(b.km) > 0)
       .map(b => {
         const label = localizeSurface(b.value, t, locale) || b.value;
-        return b.km ? `${label} (${b.km} km)` : `${label} (${b.count})`;
+        return b.km ? `${label} (${Math.round(b.km)} km)` : `${label} (${b.count})`;
       })
       .join(', ');
   }

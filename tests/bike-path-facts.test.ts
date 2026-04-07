@@ -6,6 +6,8 @@ import {
   buildNetworkFacts,
   findNearestMajorPath,
   localizeFactValue,
+  localizeNetworkFactValue,
+  type NetworkFact,
 } from '../src/lib/bike-paths/bike-path-facts';
 
 describe('NETWORK_LABELS', () => {
@@ -929,5 +931,46 @@ describe('localizeFactValue — seasonal', () => {
 
   it('all four seasons → generic "Seasonal"', () => {
     expect(localizeFactValue({ key: 'seasonal', value: 'spring;summer;autumn;winter' }, t)).toBe('Seasonal');
+  });
+});
+
+describe('localizeNetworkFactValue', () => {
+  const t = (key: string) => {
+    const map: Record<string, string> = {
+      'paths.surface.asphalt': 'Paved',
+      'paths.surface.fine_gravel': 'Gravel',
+      'paths.fact.partially_lit': 'Partially lit',
+    };
+    return map[key] || key;
+  };
+
+  it('rounds km to whole numbers in surface_mixed breakdown', () => {
+    const fact: NetworkFact = {
+      key: 'surface_mixed',
+      consistency: 'mixed',
+      breakdown: [
+        { value: 'asphalt', count: 5, km: 3.7 },
+        { value: 'fine_gravel', count: 2, km: 1.2 },
+      ],
+    };
+    const result = localizeNetworkFactValue(fact, t);
+    expect(result).toContain('4 km');
+    expect(result).toContain('1 km');
+    expect(result).not.toMatch(/\d+\.\d+ km/);
+  });
+
+  it('drops breakdown entries that round to 0 km', () => {
+    const fact: NetworkFact = {
+      key: 'surface_mixed',
+      consistency: 'mixed',
+      breakdown: [
+        { value: 'asphalt', count: 10, km: 5.2 },
+        { value: 'wood', count: 1, km: 0.3 },
+      ],
+    };
+    const result = localizeNetworkFactValue(fact, t);
+    expect(result).toContain('5 km');
+    expect(result).not.toContain('wood');
+    expect(result).not.toContain('0 km');
   });
 });
