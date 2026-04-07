@@ -254,9 +254,10 @@ export function buildTiles(
 } {
   const maxCoords = options?.maxCoords ?? DEFAULT_MAX_COORDS;
 
-  // Step 1: Merge features per geoId
+  // Step 1: Merge features per geoId (skip stale entries with no metadata)
   const merged: Feature[] = [];
   for (const [geoId, fc] of input) {
+    if (metadata && !metadata.has(geoId)) continue;
     const feature = mergeFeatures(geoId, fc, metadata);
     if (feature) merged.push(feature);
   }
@@ -365,10 +366,13 @@ if (isMainModule) {
   for (const f of fs.readdirSync(geoOutDir)) {
     if (f.endsWith('.geojson')) fs.unlinkSync(path.join(geoOutDir, f));
   }
+  let geoCopied = 0;
   for (const [geoId, fc] of input) {
+    if (metadata && !metadata.has(geoId)) continue;
     fs.writeFileSync(path.join(geoOutDir, `${geoId}.geojson`), JSON.stringify(fc));
+    geoCopied++;
   }
-  console.log(`[path-geo] Copied ${input.size} geometry files to ${geoOutDir}/`);
+  console.log(`[path-geo] Copied ${geoCopied} geometry files to ${geoOutDir}/ (${input.size - geoCopied} stale skipped)`);
 
   const { tiles, manifest } = buildTiles(input, metadata);
 

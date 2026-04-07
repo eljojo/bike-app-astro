@@ -207,7 +207,7 @@ describe('metadata injection', () => {
     expect(props.length_km).toBe(0);
   });
 
-  it('uses empty defaults when metadata map exists but does not contain the geoId', () => {
+  it('excludes features when metadata map exists but does not contain the geoId', () => {
     const input = new Map([
       ['geo-missing', fc(line([[-75.6, 45.4], [-75.5, 45.3]]))],
     ]);
@@ -215,12 +215,7 @@ describe('metadata injection', () => {
     const { tiles } = buildTiles(input, metadata);
 
     const features = allFeatures(tiles);
-    expect(features).toHaveLength(1);
-    const props = features[0].properties!;
-    expect(props.slug).toBe('');
-    expect(props.name).toBe('');
-    expect(props.hasPage).toBe(false);
-    expect(props.length_km).toBe(0);
+    expect(features).toHaveLength(0);
   });
 
   // dashed field was removed — trail vs solid is now derived at render time
