@@ -1043,16 +1043,29 @@
 .network-tier2 {
   padding: 0.5rem 0;
   font-size: 0.8rem;
+
+  .network-members-list {
+    margin-top: 0.5rem;
+  }
+
+  &[open] .network-tier2-names {
+    display: none;
+  }
 }
 
 .network-tier2-label {
   @include muted-text;
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker { display: none; }
+  &::marker { display: none; content: ''; }
 }
 
 .network-tier2-names {
   @include muted-text;
   font-size: 0.8rem;
-  margin-top: 0.25rem;
+  margin-left: 0.25rem;
 }
 
 // Independent paths section

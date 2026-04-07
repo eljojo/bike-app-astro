@@ -264,6 +264,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: 0.8,
+        lineOpacityDim: 0.15,
         sourceId: SOURCE_ID,
         slugToNetwork,
         networkGeoIds,
@@ -271,12 +272,29 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
           // Cancel any pending fly-back when a new path is highlighted
           if (clearDebounce) { clearTimeout(clearDebounce); clearDebounce = null; }
 
-          // When hovering a path, hide bg and highlight layers for clean focus
-          for (const id of ['paths-network-highlight', 'paths-network-bg', 'paths-network-bg-dashed']) {
-            if (map.getLayer(id)) {
-              map.setLayoutProperty(id, 'visibility', slug ? 'none' : 'visible');
+          // Always hide the category highlight layer during hover
+          if (map.getLayer('paths-network-highlight')) {
+            map.setLayoutProperty('paths-network-highlight', 'visibility', slug ? 'none' : 'visible');
+          }
+
+          // For bg layers: instead of hiding entirely, apply the same highlight
+          // filter so matching features stay visible. This is needed because some
+          // network members have hasPage=false and only exist on bg layers.
+          for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+            if (!map.getLayer(id)) continue;
+            if (slug) {
+              const isNetwork = networkGeoIds?.[slug];
+              const matchFilter: maplibregl.ExpressionSpecification = isNetwork
+                ? ['in', ['get', 'relationId'], ['literal', networkGeoIds![slug]]]
+                : ['==', ['get', 'slug'], slug];
+              map.setPaintProperty(id, 'line-opacity', ['case', matchFilter, 0.8, 0]);
+              map.setPaintProperty(id, 'line-width', ['case', matchFilter, PATH_WIDTH, PATH_WIDTH_UNLISTED]);
+            } else {
+              map.setPaintProperty(id, 'line-opacity', 0.5);
+              map.setPaintProperty(id, 'line-width', PATH_WIDTH_UNLISTED);
             }
           }
+
           if (!slug) {
             // Debounce fly-back so moving between paths within a group
             // doesn't cause jumpy zoom (only fires when truly leaving the list)

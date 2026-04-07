@@ -72,6 +72,8 @@ const useNetworkFacts = networkFacts.length > 0;
 const MIN_DISPLAY_KM = 0.5;
 const allMemberRefs = page.memberRefs ?? [];
 const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
+// MTB networks: every trail is a distinct ride — show all members, don't tier
+const isMtbNetwork = memberMeta ? memberMeta.filter(m => m.path_type === 'mtb-trail').length > memberMeta.length / 2 : false;
 // Split by primary/secondary network membership, then sort and tier
 const TIER1_MIN_KM = 3;
 const allPrimary = memberRefs
@@ -86,12 +88,20 @@ const longDistanceMembers = [...allPrimary, ...allSecondary]
 const longDistanceSlugs = new Set(longDistanceMembers.map(m => m.slug));
 // Primary tier 1/2 (excluding long-distance, which are shown separately)
 const nonLdPrimary = allPrimary.filter(m => !longDistanceSlugs.has(m.slug));
-let primaryMembers = nonLdPrimary.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
-let primaryTier2 = nonLdPrimary.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
-// If tiering hides everything (all members are short, no markdown), show all instead
-if (primaryMembers.length === 0 && primaryTier2.length > 0) {
+let primaryMembers: typeof nonLdPrimary;
+let primaryTier2: typeof nonLdPrimary;
+if (isMtbNetwork) {
+  // MTB networks: show all members — each trail is a distinct ride
   primaryMembers = nonLdPrimary;
   primaryTier2 = [];
+} else {
+  primaryMembers = nonLdPrimary.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
+  primaryTier2 = nonLdPrimary.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
+  // If tiering hides everything (all members are short, no markdown), show all instead
+  if (primaryMembers.length === 0 && primaryTier2.length > 0) {
+    primaryMembers = nonLdPrimary;
+    primaryTier2 = [];
+  }
 }
 // Secondary (excluding long-distance)
 const secondaryMembers = allSecondary.filter(m => !longDistanceSlugs.has(m.slug));
@@ -398,17 +408,36 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
               </div>
             ))}
 
-            {/* Tier 2: shorter segments, collapsed */}
+            {/* Tier 2: shorter segments, expandable */}
             {primaryTier2.length > 0 && (
-              <div class="network-tier2">
-                <span class="network-tier2-label">{t('paths.shorter_segments', locale, { count: String(primaryTier2.length) })}</span>
-                <span class="network-tier2-names">
-                  {primaryTier2.slice(0, 8).map((m, j) => (
-                    <span>{m.name}{j < Math.min(7, primaryTier2.length - 1) ? ', ' : ''}</span>
+              <details class="network-tier2">
+                <summary class="network-tier2-label">
+                  {t('paths.shorter_segments', locale, { count: String(primaryTier2.length) })}
+                  <span class="network-tier2-names">
+                    {primaryTier2.slice(0, 8).map((m, j) => (
+                      <span>{m.name}{j < Math.min(7, primaryTier2.length - 1) ? ', ' : ''}</span>
+                    ))}
+                    {primaryTier2.length > 8 && <span>&hellip;</span>}
+                  </span>
+                </summary>
+                <ul class="network-members-list">
+                  {primaryTier2.map(m => (
+                    <li data-slug={m.slug}>
+                      {m.standalone ? (
+                        <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
+                          <span class="network-member-name">{m.name}</span>
+                          {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                        </a>
+                      ) : (
+                        <span class="network-member-no-page">
+                          <span class="network-member-name">{m.name}</span>
+                          {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                        </span>
+                      )}
+                    </li>
                   ))}
-                  {primaryTier2.length > 8 && <span>&hellip;</span>}
-                </span>
-              </div>
+                </ul>
+              </details>
             )}
 
             {/* Secondary members — paths that also belong to this network but live under another */}
