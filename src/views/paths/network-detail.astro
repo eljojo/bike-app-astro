@@ -2,22 +2,17 @@
 export const prerender = true;
 import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import BikePathDetail from './BikePathDetail.astro';
-import type { NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
+import { buildNetworkMeta, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
+import type { PathMeta } from '@/lib/bike-paths/bike-path-facts';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
   const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
-  // Build network slug → meta lookup for "Connects to" display
-  const networkMeta: Record<string, NetworkMeta> = {};
-  for (const p of pages) {
-    if (p.memberRefs && p.memberRefs.length > 0) {
-      networkMeta[p.slug] = { name: p.name, length_km: p.length_km, operator: p.operator };
-    }
-  }
+  const networkMeta = buildNetworkMeta(pages);
   // Build member metadata for fact aggregation
   const pageBySlug = new Map(pages.map(p => [p.slug, p]));
   return networkPages.map(page => {
-    const memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean; path_type?: string; seasonal?: string; ref?: string; inception?: string; bicycle?: string; cycleway?: string; parallel_to?: string }> = [];
+    const memberMeta: PathMeta[] = [];
     for (const m of page.memberRefs ?? []) {
       const memberPage = pageBySlug.get(m.slug);
       if (memberPage) {
@@ -60,7 +55,7 @@ export async function getStaticPaths() {
   });
 }
 
-interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberMeta: Array<{ surface?: string; smoothness?: string; width?: string; highway?: string; segregated?: string; lit?: string; elevation_gain_m?: number; operator?: string; network?: string; mtb?: boolean; path_type?: string; seasonal?: string; ref?: string; inception?: string; bicycle?: string; cycleway?: string; parallel_to?: string }>; allMemberGeoIds: string[]; interactiveGeoIds: string[] }
+interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta>; memberMeta: PathMeta[]; allMemberGeoIds: string[]; interactiveGeoIds: string[] }
 const { page, networkMeta, memberMeta, allMemberGeoIds, interactiveGeoIds } = Astro.props;
 ---
 

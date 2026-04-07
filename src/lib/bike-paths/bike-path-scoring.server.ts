@@ -59,7 +59,6 @@ export const SCORE_THRESHOLD = 4;
  */
 export function isDestination(
   entry: SluggedBikePathYml,
-  _lengthKm: number | undefined,
   hasMarkdown: boolean,
   hidden: boolean,
 ): boolean {

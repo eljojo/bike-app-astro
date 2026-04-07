@@ -460,3 +460,11 @@ export function localizeSurface(raw: string | undefined, t: Translator, locale?:
   const translated = t(i18nKey, locale);
   return translated !== i18nKey ? translated : cat;
 }
+
+/** Localize a path_type value (e.g. 'mtb-trail' → 'Mountain bike trail'). */
+export function localizePathType(pt: string | undefined, t: Translator, locale?: string): string | undefined {
+  if (!pt) return undefined;
+  const key = `paths.fact.${pt.replace(/-/g, '_')}`;
+  const val = t(key, locale);
+  return val !== key ? val : undefined;
+}

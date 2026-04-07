@@ -4,7 +4,7 @@
  * Reads bikepaths.yml + markdown to build the same merged pages as the Astro app,
  * then writes a JSON file mapping each geoId to its page metadata.
  *
- * This runs as part of prebuild, after copy-path-geometry and before generate-path-tiles.
+ * This runs as part of prebuild, after cache-path-geometry and before generate-path-tiles.
  */
 import fs from 'node:fs';
 import path from 'node:path';

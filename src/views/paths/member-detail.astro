@@ -3,7 +3,7 @@ export const prerender = true;
 import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 import BikePathDetail from './BikePathDetail.astro';
-import type { NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
+import { buildNetworkMeta, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -16,12 +16,7 @@ export async function getStaticPaths() {
   const networksBySlug = new Map(
     pages.filter(p => p.memberRefs).map(p => [p.slug, p]),
   );
-  const networkMeta: Record<string, NetworkMeta> = {};
-  for (const p of pages) {
-    if (p.memberRefs && p.memberRefs.length > 0) {
-      networkMeta[p.slug] = { name: p.name, length_km: p.length_km, operator: p.operator };
-    }
-  }
+  const networkMeta = buildNetworkMeta(pages);
   return filtered.map(page => ({
     params: { network: page.memberOf!, slug: page.slug },
     props: { page, networkPage: networksBySlug.get(page.memberOf!), networkMeta },

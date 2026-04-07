@@ -7,7 +7,7 @@ import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
-import { localizeSurface } from '@/lib/bike-paths/bike-path-facts';
+import { localizeSurface, localizePathType } from '@/lib/bike-paths/bike-path-facts';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -24,13 +24,6 @@ function pathVibe(p: typeof pages[0]): string | undefined {
 }
 
 // Popup info for each path — keyed by slug, serialized to JSON for client
-// Localize path_type for popup display
-function localizePathType(pt?: string): string | undefined {
-  if (!pt) return undefined;
-  const key = `paths.fact.${pt.replace(/-/g, '_')}`;
-  const val = t(key, locale);
-  return val !== key ? val : undefined;
-}
 const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = {};
 // slug → network slug for fly-to framing
 const slugToNetwork: Record<string, string> = {};
@@ -42,7 +35,7 @@ for (const p of allPages) {
   if (p.memberRefs && p.memberRefs.length > 0) {
     if (p.standalone) {
       const url = paths.bikePath(p.slug, p.memberOf, locale);
-      slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: undefined };
+      slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type, t, locale), vibe: pathVibe(p), network: undefined };
     }
     continue;
   }
@@ -52,7 +45,7 @@ for (const p of allPages) {
     const netPage = p.memberOf ? allPages.find(n => n.slug === p.memberOf) : undefined;
     const netName = netPage ? pathName(netPage) : undefined;
     const netUrl = p.memberOf ? paths.bikePath(p.memberOf, undefined, locale) : undefined;
-    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type), vibe: pathVibe(p), network: netName, networkUrl: netUrl };
+    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type, t, locale), vibe: pathVibe(p), network: netName, networkUrl: netUrl };
     if (p.memberOf) slugToNetwork[p.slug] = p.memberOf;
   }
 }

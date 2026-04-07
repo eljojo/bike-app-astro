@@ -20,8 +20,8 @@ import { paths, assets } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
-import { groupPathsByNetwork, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
+import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, localizePathType, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
+import { groupPathsByNetwork, tierNetworkMembers, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 interface Props {
   page: BikePathPage;
@@ -69,69 +69,10 @@ const networkFacts = memberMeta ? buildNetworkFacts(memberMeta) : [];
 const useNetworkFacts = networkFacts.length > 0;
 
 // --- Network-specific data ---
-const MIN_DISPLAY_KM = 0.5;
-const allMemberRefs = page.memberRefs ?? [];
-const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
-// MTB networks: every trail is a distinct ride — show all members, don't tier
 const isMtbNetwork = memberMeta ? memberMeta.filter(m => m.path_type === 'mtb-trail').length > memberMeta.length / 2 : false;
-// Split by primary/secondary network membership, then sort and tier
-const TIER1_MIN_KM = 3;
-const allPrimary = memberRefs
-  .filter(m => !m.memberOf || m.memberOf === page.slug)
-  .sort((a, b) => a.name.localeCompare(b.name));
-const allSecondary = memberRefs
-  .filter(m => m.memberOf && m.memberOf !== page.slug)
-  .sort((a, b) => a.name.localeCompare(b.name));
-// Long-distance members get their own section regardless of primary/secondary
-const longDistanceMembers = [...allPrimary, ...allSecondary]
-  .filter(m => m.entryType === 'long-distance');
-const longDistanceSlugs = new Set(longDistanceMembers.map(m => m.slug));
-// Primary tier 1/2 (excluding long-distance, which are shown separately)
-const nonLdPrimary = allPrimary.filter(m => !longDistanceSlugs.has(m.slug));
-let primaryMembers: typeof nonLdPrimary;
-let primaryTier2: typeof nonLdPrimary;
-if (isMtbNetwork) {
-  // MTB networks: show all members — each trail is a distinct ride
-  primaryMembers = nonLdPrimary;
-  primaryTier2 = [];
-} else {
-  primaryMembers = nonLdPrimary.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
-  primaryTier2 = nonLdPrimary.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
-  // If tiering hides everything (all members are short, no markdown), show all instead
-  if (primaryMembers.length === 0 && primaryTier2.length > 0) {
-    primaryMembers = nonLdPrimary;
-    primaryTier2 = [];
-  }
-}
-// Secondary (excluding long-distance)
-const secondaryMembers = allSecondary.filter(m => !longDistanceSlugs.has(m.slug));
-
-// Group primary members by shared non-cycling relation (e.g. Rideau Trail section)
-const overlapGroups = new Map<number, { name: string; route: string; members: typeof primaryMembers }>();
-const ungroupedPrimary: typeof primaryMembers = [];
-for (const m of primaryMembers) {
-  const rels = m.overlappingRelations ?? [];
-  if (rels.length > 0) {
-    const rel = rels[0]; // group by first overlapping relation
-    if (!overlapGroups.has(rel.id)) {
-      overlapGroups.set(rel.id, { name: rel.name, route: rel.route, members: [] });
-    }
-    overlapGroups.get(rel.id)!.members.push(m);
-  } else {
-    ungroupedPrimary.push(m);
-  }
-}
-// Only show groups with ≥2 members (single member isn't a meaningful group)
-const displayOverlapGroups: Array<{ name: string; route: string; members: typeof primaryMembers }> = [];
-for (const [, g] of overlapGroups) {
-  if (g.members.length >= 2) {
-    displayOverlapGroups.push(g);
-  } else {
-    ungroupedPrimary.push(...g.members);
-  }
-}
-// Sort ungrouped same as before (by length)
-ungroupedPrimary.sort((a, b) => a.name.localeCompare(b.name));
+const { longDistanceMembers, ungroupedPrimary, displayOverlapGroups, primaryTier2, secondaryMembers } =
+  tierNetworkMembers(page.memberRefs ?? [], page.slug, isMtbNetwork);
+const memberRefs = (page.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= 0.5);
 
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
@@ -139,13 +80,6 @@ const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 const highlightGeoIds = page.geoFiles.map(f => f.replace(/\.geojson$/, ''));
 
 // --- Network browse map data (slug info for popups, built from memberRefs) ---
-function localizePathType(pt?: string): string | undefined {
-  if (!pt) return undefined;
-  const key = `paths.fact.${pt.replace(/-/g, '_')}`;
-  const val = t(key, locale);
-  return val !== key ? val : undefined;
-}
-
 const networkMapSlugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string }> = {};
 if (hasMembers) {
   for (const m of page.memberRefs ?? []) {
@@ -156,7 +90,7 @@ if (hasMembers) {
         url,
         length_km: m.length_km,
         surface: localizeSurface(m.surface, t, locale) || m.surface,
-        path_type: localizePathType(m.path_type),
+        path_type: localizePathType(m.path_type, t, locale),
         vibe: m.vibe,
       };
     }

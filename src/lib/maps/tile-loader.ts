@@ -26,8 +26,10 @@ function bboxIntersects(
 export function createTileLoader(manifest: TileManifestEntry[], basePath: string): TileLoader {
   const cachedFeatures = new Map<string, Feature[]>();
   const inFlight = new Map<string, Promise<Feature[]>>();
-  const seenFids = new Set<string>();
-  const allFeatures: Feature[] = [];
+  /** IDs of tiles that contributed to the current allFeatures snapshot. */
+  let loadedTileIds = new Set<string>();
+  /** Deduplicated features from all loaded tiles — rebuilt when new tiles arrive. */
+  let allFeatures: Feature[] = [];
 
   async function fetchTile(entry: TileManifestEntry): Promise<Feature[]> {
     const url = `${basePath}${entry.file}`;
@@ -57,18 +59,35 @@ export function createTileLoader(manifest: TileManifestEntry[], basePath: string
     return promise;
   }
 
+  /** Rebuild allFeatures from the given tile IDs, deduplicating by _fid. */
+  function rebuildFeatures(tileIds: Set<string>): Feature[] {
+    const seenFids = new Set<string>();
+    const features: Feature[] = [];
+    for (const id of tileIds) {
+      const tileFeatures = cachedFeatures.get(id);
+      if (!tileFeatures) continue;
+      for (const feature of tileFeatures) {
+        const fid = feature.properties?._fid as string | undefined;
+        if (fid && seenFids.has(fid)) continue;
+        if (fid) seenFids.add(fid);
+        features.push(feature);
+      }
+    }
+    return features;
+  }
+
   return {
     async loadTilesForBounds(bounds) {
       const matching = manifest.filter((entry) => bboxIntersects(entry.bounds, bounds));
-      const tileResults = await Promise.all(matching.map((entry) => loadTile(entry)));
+      await Promise.all(matching.map((entry) => loadTile(entry)));
 
-      for (const features of tileResults) {
-        for (const feature of features) {
-          const fid = feature.properties?._fid as string | undefined;
-          if (fid && seenFids.has(fid)) continue;
-          if (fid) seenFids.add(fid);
-          allFeatures.push(feature);
-        }
+      // Rebuild features only when the set of loaded tiles has changed
+      const matchingIds = new Set(matching.map((e) => e.id));
+      // Include previously-loaded tiles too (panning back to an area should still show those)
+      for (const id of loadedTileIds) matchingIds.add(id);
+      if (matchingIds.size !== loadedTileIds.size) {
+        loadedTileIds = matchingIds;
+        allFeatures = rebuildFeatures(loadedTileIds);
       }
 
       return [...allFeatures];

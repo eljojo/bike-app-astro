@@ -42,6 +42,8 @@ export function isUnpaved(surface?: string): boolean {
   return !!surface && UNPAVED.has(surface);
 }
 
+/** Returns true if the surface is not in the known unpaved set.
+ *  Unknown values are treated as paved (erring on "rideable"). */
 export function isPaved(surface?: string): boolean {
   return !!surface && !UNPAVED.has(surface);
 }

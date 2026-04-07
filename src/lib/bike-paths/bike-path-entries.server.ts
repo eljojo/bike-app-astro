@@ -156,20 +156,25 @@ export interface BikePathPage {
   translations: Record<string, BikePathTranslation>;
 }
 
-function buildOperatorAliases(): Array<{ pattern: RegExp; canonical: string }> {
+let cachedOperatorAliases: Array<{ pattern: RegExp; canonical: string }> | null = null;
+
+function getOperatorAliases(): Array<{ pattern: RegExp; canonical: string }> {
+  if (cachedOperatorAliases) return cachedOperatorAliases;
   const config = getCityConfig();
   const aliases = (config as unknown as Record<string, unknown>).operator_aliases as Record<string, string[]> | undefined;
-  if (!aliases) return [];
-  return Object.entries(aliases).map(([canonical, variants]) => ({
-    pattern: new RegExp(`\\b(${variants.join('|')})\\b`, 'i'),
-    canonical,
-  }));
+  cachedOperatorAliases = aliases
+    ? Object.entries(aliases).map(([canonical, variants]) => ({
+        pattern: new RegExp(`\\b(${variants.join('|')})\\b`, 'i'),
+        canonical,
+      }))
+    : [];
+  return cachedOperatorAliases;
 }
 
 /** Normalize operator names — OSM has many variants for the same org. */
 export function normalizeOperator(operator: string | undefined): string | undefined {
   if (!operator) return undefined;
-  for (const alias of buildOperatorAliases()) {
+  for (const alias of getOperatorAliases()) {
     if (alias.pattern.test(operator)) return alias.canonical;
   }
   return operator;
@@ -495,7 +500,7 @@ export function loadBikePathEntries(): {
       score,
       hasMarkdown: false,
       listed: entry.type === 'long-distance' || entry.type === 'destination' || entry.type === 'infrastructure',
-      standalone: isDestination(entry, getPathLengthKm(entry), false, false),
+      standalone: isDestination(entry, false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,
       memberOf: entry.member_of,
