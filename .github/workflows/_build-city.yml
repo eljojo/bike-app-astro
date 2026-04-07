@@ -200,7 +200,7 @@ jobs:
         run: npx tsx scripts/merge-incremental-build.ts
 
       - name: Upload dist artifact
-        if: ${{ !inputs.deploy-only }}
+        if: ${{ !inputs.deploy-only && !inputs.deploy }}
         uses: actions/upload-artifact@v7
         with:
           name: dist-${{ inputs.city }}
