@@ -47,7 +47,8 @@ test.describe('Admin list — anonymous', () => {
     await expect(page).toHaveURL(/\/admin\/communities/);
     await expect(page.locator('h1')).toContainText('Communities');
 
-    // Fixture organizer from fixture-setup.ts
-    await expect(page.getByText('Demo Cycling Club')).toBeVisible({ timeout: 10000 });
+    // Fixture organizer from fixture-setup.ts — use exact match to avoid
+    // matching both the community card and the admin list link
+    await expect(page.getByRole('link', { name: 'Demo Cycling Club', exact: true })).toBeVisible({ timeout: 10000 });
   });
 });
