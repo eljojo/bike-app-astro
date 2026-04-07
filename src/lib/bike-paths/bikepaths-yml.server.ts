@@ -20,6 +20,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
   smoothness: z.string().optional(),
   width: z.string().optional(),
   lit: z.string().optional(),
+  surface_mix: z.array(z.object({ value: z.string(), km: z.number() })).optional(),
+  lit_mix: z.array(z.object({ value: z.string(), km: z.number() })).optional(),
   segregated: z.string().optional(),
   highway: z.string().optional(),
   network: z.string().optional(),
