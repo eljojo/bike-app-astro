@@ -1356,6 +1356,7 @@ out geom tags;`;
       anchors,
       osmNames: [chainName],
       _ways,
+      _wayIds: indices.map(i => unchainedWays[i].id).filter(Boolean),
     });
     unnamedChains.push(chainName);
   }
