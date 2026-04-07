@@ -23,6 +23,21 @@ function resolveWikidataDescription(entry?: SluggedBikePathYml): string | undefi
   return (meta[`description_${locale}`] as string) ?? (meta.description_en as string);
 }
 
+function resolveWikipediaExtract(entry?: SluggedBikePathYml): { extract?: string; url?: string } {
+  if (!entry?.wikidata_meta) return {};
+  const locale = defaultLocale().split('-')[0];
+  const meta = entry.wikidata_meta as Record<string, unknown>;
+  const extract = (meta[`wikipedia_extract_${locale}`] as string) ?? (meta.wikipedia_extract_en as string);
+  const wp = entry.wikipedia;
+  let url: string | undefined;
+  if (wp) {
+    const [lang, ...titleParts] = wp.split(':');
+    const title = titleParts.join(':');
+    url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+  }
+  return { extract, url };
+}
+
 // Resolve project root from this file's location (src/lib/bike-paths/) — avoids CWD dependency.
 // Lazy: import.meta.dirname is undefined in workerd (Cloudflare prerender), but this code
 // only runs at Vite config time (Node.js). The build-data-plugin replaces the consuming
@@ -147,6 +162,18 @@ export interface BikePathPage {
   wikidata_description?: string;
   /** Year/date the path was established (from wikidata_meta.inception). */
   inception?: string;
+  /** Wikimedia Commons image filename — from wikidata_meta.commons_image. */
+  commons_image?: string;
+  /** Wikimedia Commons category name — from wikidata_meta.commons_category. */
+  commons_category?: string;
+  /** Wikidata operator Q-ID — for linking to Wikidata entity page. */
+  wikidata_operator_qid?: string;
+  /** Social media links from Wikidata. */
+  wikidata_social?: Array<{ platform: string; username: string; url: string }>;
+  /** Wikipedia extract (plain text first paragraph) for the current build locale. */
+  wikipedia_extract?: string;
+  /** Wikipedia article URL for the current build locale. */
+  wikipedia_url?: string;
   /** Park name from OSM containment — set when the path is inside a park polygon. */
   park?: string;
   /** Original OSM route type for non-cycling relations (foot, hiking, piste). Absent for cycling-first. */
@@ -471,7 +498,7 @@ export function loadBikePathEntries(): {
       lit: primary?.lit,
       segregated: primary?.segregated,
       smoothness: primary?.smoothness,
-      operator: normalizeOperator(md.data.operator ?? primary?.operator),
+      operator: normalizeOperator(md.data.operator ?? primary?.operator) ?? primary?.wikidata_meta?.operator,
       network: primary?.network,
       highway: primary?.highway,
       cycleway: primary?.cycleway,
@@ -489,6 +516,12 @@ export function loadBikePathEntries(): {
       route_type: primary?.route_type,
       wikidata_description: resolveWikidataDescription(primary),
       inception: primary?.wikidata_meta?.inception,
+      commons_image: primary?.wikidata_meta?.commons_image,
+      commons_category: primary?.wikidata_meta?.commons_category,
+      wikidata_operator_qid: primary?.wikidata_meta?.operator_qid,
+      wikidata_social: primary?.wikidata_meta?.social,
+      wikipedia_extract: resolveWikipediaExtract(primary).extract,
+      wikipedia_url: resolveWikipediaExtract(primary).url,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
       entryType: primary?.type ?? 'unknown',
       overlapping_relations: primary?.overlapping_relations,
@@ -536,7 +569,7 @@ export function loadBikePathEntries(): {
       lit: entry.lit,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
-      operator: normalizeOperator(entry.operator),
+      operator: normalizeOperator(entry.operator) ?? entry.wikidata_meta?.operator,
       network: entry.network,
       highway: entry.highway,
       cycleway: entry.cycleway,
@@ -554,6 +587,12 @@ export function loadBikePathEntries(): {
       route_type: entry.route_type,
       wikidata_description: resolveWikidataDescription(entry),
       inception: entry.wikidata_meta?.inception,
+      commons_image: entry.wikidata_meta?.commons_image,
+      commons_category: entry.wikidata_meta?.commons_category,
+      wikidata_operator_qid: entry.wikidata_meta?.operator_qid,
+      wikidata_social: entry.wikidata_meta?.social,
+      wikipedia_extract: resolveWikipediaExtract(entry).extract,
+      wikipedia_url: resolveWikipediaExtract(entry).url,
       wikipedia: entry.wikipedia,
       entryType: entry.type,
       overlapping_relations: entry.overlapping_relations,
@@ -659,9 +698,17 @@ export function loadBikePathEntries(): {
       lit: entry.lit,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
-      operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator),
+      operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator) ?? entry.wikidata_meta?.operator,
       network: entry.network,
       highway: entry.highway,
+      wikidata_description: resolveWikidataDescription(entry),
+      inception: entry.wikidata_meta?.inception,
+      commons_image: entry.wikidata_meta?.commons_image,
+      commons_category: entry.wikidata_meta?.commons_category,
+      wikidata_operator_qid: entry.wikidata_meta?.operator_qid,
+      wikidata_social: entry.wikidata_meta?.social,
+      wikipedia_extract: resolveWikipediaExtract(entry).extract,
+      wikipedia_url: resolveWikipediaExtract(entry).url,
       wikipedia: mdOverlay?.data.wikipedia ?? entry.wikipedia,
       entryType: entry.type,
       translations: readBikePathTranslations(entry.slug, entry, mdOverlay?.rawFrontmatter),
