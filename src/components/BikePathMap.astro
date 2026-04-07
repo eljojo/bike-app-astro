@@ -37,6 +37,7 @@ const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = 
   import { setupMapFromElement } from '../lib/maps/map-factory';
   import { createTilePathLayer } from '../lib/maps/layers';
   import { setupPathHighlight } from '../lib/maps/path-highlight';
+  import { muteBaseCyclingLayers } from '../lib/maps/base-layer-control';
 
   const container = document.getElementById('bike-path-map');
   if (container) {
@@ -60,6 +61,7 @@ const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = 
       expandable: true,
       primaryLayer: tilePathLayer,
       onReady: () => {
+        muteBaseCyclingLayers(map);
         if (highlightSelector && highlightGeoIds) {
           setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['paths-network-line', 'paths-network-line-dashed'] });
         }
