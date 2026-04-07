@@ -106,6 +106,16 @@ export function overpassToGeoJSON(data: any, id: number | string): GeoJSON.Featu
   return { type: 'FeatureCollection', features };
 }
 
+/** Build the Overpass query for name-based geometry fetching.
+ *  Filters by highway tag to exclude park boundary ways (leisure=park). */
+export function buildNameQuery(osmNames: string[], bbox: string): string {
+  const nameFilters = osmNames.map(n => {
+    const escaped = n.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `way["name"="${escaped}"]["highway"~"cycleway|path|footway|track|service|residential|tertiary|secondary|primary"](${bbox});`;
+  }).join('\n');
+  return `[out:json][timeout:60];\n(\n${nameFilters}\n);\nout geom;`;
+}
+
 /** Build Overpass bbox from anchor coordinates: south,west,north,east */
 export function anchorBbox(anchors: Array<[number, number]>): string {
   const lngs = anchors.map(a => a[0]);
@@ -115,6 +125,8 @@ export function anchorBbox(anchors: Array<[number, number]>): string {
 }
 
 // --- Main ---
+
+async function main() {
 
 if (process.env.ENABLE_BIKE_PATHS === 'false') {
   console.log('[path-geo] ENABLE_BIKE_PATHS=false — skipping');
@@ -226,14 +238,7 @@ for (const entry of nameEntries) {
   console.log(`  Fetching by name: ${entry.osm_names![0]} (${entry.name})...`);
   try {
     const bbox = anchorBbox(entry.anchors!);
-    // Query cycling-tagged ways matching any of the osm_names within the bbox.
-    // The highway filter prevents fetching park boundary ways (leisure=park)
-    // that share the same name as cycling infrastructure inside the park.
-    const nameFilters = entry.osm_names!.map(n => {
-      const escaped = n.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      return `way["name"="${escaped}"]["highway"~"cycleway|path|footway|track|service|residential|tertiary|secondary|primary"](${bbox});`;
-    }).join('\n');
-    const query = `[out:json][timeout:60];\n(\n${nameFilters}\n);\nout geom;`;
+    const query = buildNameQuery(entry.osm_names!, bbox);
     const data = await queryOverpass(query);
     const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
@@ -472,3 +477,8 @@ if (!dryRun) {
     }
   }
 }
+
+}
+
+const _isDirectRun = process.argv[1]?.endsWith('cache-path-geometry.ts');
+if (_isDirectRun) main();

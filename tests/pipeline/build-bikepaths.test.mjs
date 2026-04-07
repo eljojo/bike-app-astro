@@ -486,4 +486,73 @@ describe('buildBikepathsPipeline', () => {
     expect(cycling.overlapping_relations[0].name).toBe('RT Bells Corners Blue Loop');
     expect(cycling.overlapping_relations[0].route).toBe('hiking');
   });
+
+  it('unnamed chains inside a park get osm_way_ids (not just osm_names)', async () => {
+    // Scenario: unnamed cycling ways inside "Beauclaire Park".
+    // Step 2c discovers these as an unnamed chain ≥1.5km and names them
+    // after the park via is_in containment. The entry MUST get osm_way_ids
+    // so the geo cache fetches by way ID — NOT by name, which would find
+    // the park boundary (leisure=park) instead of the cycling ways.
+    const UNNAMED_CHAIN_WAYS = [
+      {
+        type: 'way', id: 27806926,
+        tags: { highway: 'path', bicycle: 'yes', surface: 'asphalt' },
+        geometry: [
+          { lat: 45.328, lon: -75.930 },
+          { lat: 45.329, lon: -75.928 },
+          { lat: 45.330, lon: -75.926 },
+          { lat: 45.331, lon: -75.924 },
+          { lat: 45.332, lon: -75.922 },
+          { lat: 45.333, lon: -75.920 },
+        ],
+        nodes: [100, 101, 102, 103, 104, 105],
+      },
+      {
+        type: 'way', id: 80207516,
+        tags: { highway: 'path', bicycle: 'yes', surface: 'asphalt' },
+        geometry: [
+          { lat: 45.333, lon: -75.920 },
+          { lat: 45.334, lon: -75.918 },
+          { lat: 45.335, lon: -75.916 },
+          { lat: 45.336, lon: -75.914 },
+          { lat: 45.337, lon: -75.912 },
+        ],
+        nodes: [105, 106, 107, 108, 109],
+      },
+    ];
+
+    const queryOverpass = makeFixtureOverpass([
+      // No cycling relations
+      ['relation["route"="bicycle"]', { elements: [] }],
+      // No named cycling ways
+      ['highway"="cycleway"]["name"', { elements: [] }],
+      // No unnamed cycleways (parallel lane step)
+      ['highway"="cycleway"][!"name"]', { elements: [] }],
+      // Unnamed chains step — finds our ways
+      ['bicycle"~"designated|yes"][!"name"]', { elements: UNNAMED_CHAIN_WAYS }],
+      // is_in containment — returns the park
+      ['is_in', { elements: [{ type: 'area', id: 999, tags: { name: 'Beauclaire Park', leisure: 'park' } }] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.15,-76.35,45.65,-75.35',
+      adapter: OTTAWA_ADAPTER,
+      manualEntries: [],
+    });
+
+    const parkEntry = entries.find(e => e.name === 'Beauclaire Park');
+    expect(parkEntry, 'unnamed chain named after park should exist').toBeDefined();
+    // CRITICAL: must have osm_way_ids for way-ID-based geo cache fetching
+    expect(
+      parkEntry.osm_way_ids,
+      'unnamed chain must get osm_way_ids to avoid name-based geo cache fetching park boundary'
+    ).toBeDefined();
+    expect(parkEntry.osm_way_ids).toContain(27806926);
+    expect(parkEntry.osm_way_ids).toContain(80207516);
+    // osm_names should be the park name (from is_in containment)
+    expect(parkEntry.osm_names).toContain('Beauclaire Park');
+    // Must NOT have osm_relations (it's an unnamed chain, not a relation)
+    expect(parkEntry.osm_relations).toBeUndefined();
+  });
 });

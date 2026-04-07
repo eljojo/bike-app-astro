@@ -53,6 +53,7 @@ Before claiming work is complete:
 - **Never hardcode city/locale.** Import `CITY` from `src/lib/config/config.ts`. Check city config for locales.
 - **No deprecated Sass.** Use `color.adjust()`/`color.scale()` from `sass:color`, never `lighten()`/`darken()`. See [css-styling](_ctx/css-styling.md).
 - **Zod v4.** Import from `zod/v4`, not `zod` or `astro/zod`.
+- **Overpass API.** Always use `https://overpass.whereto.bike/api/interpreter` for OSM queries. Never hit public Overpass instances directly — they rate-limit and are unreliable.
 - **Prerender flags.** Every page/endpoint MUST export `prerender` (true or false).
 - **Content model layer.** All content data goes through `src/lib/models/`. Never hand-roll JSON serialization.
 - **Virtual module types.** `src/virtual-modules.d.ts` is ambient — NO top-level imports.
