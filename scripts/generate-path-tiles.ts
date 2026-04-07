@@ -322,9 +322,20 @@ if (isMainModule) {
     process.exit(0);
   }
 
-  const files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.geojson'));
+  // Read geo files from manifest (authoritative list from cache-path-geometry).
+  // Falls back to globbing the directory if no manifest exists (first run / old cache).
+  const manifestPath = path.join(cacheDir, 'manifest.json');
+  let files: string[];
+  if (fs.existsSync(manifestPath)) {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    files = (manifest.files as string[]).filter(f => fs.existsSync(path.join(cacheDir, f)));
+    console.log(`[path-tiles] Reading ${files.length} files from manifest (${manifest.files.length} listed)`);
+  } else {
+    files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.geojson'));
+    console.log(`[path-tiles] No manifest found — falling back to directory glob (${files.length} files)`);
+  }
 
-  // Read all geojson files from cache
+  // Read geojson files
   const input = new Map<string, FeatureCollection>();
   for (const file of files) {
     const geoId = file.replace('.geojson', '');

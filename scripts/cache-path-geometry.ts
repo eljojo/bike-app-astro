@@ -353,6 +353,20 @@ out geom;`;
 
 console.log(`[path-geo] Done. Fetched: ${fetched}, Cached: ${skipped}`);
 
+// --- Write manifest: the authoritative list of geo files for this build ---
+// generate-path-tiles reads this instead of globbing the cache directory,
+// preventing stale/orphaned files from poisoning the tile build.
+if (!dryRun) {
+  const expectedFiles = new Set(cacheEntries.flatMap(e => geoFilesForEntry(e)));
+  const manifest = {
+    city: CITY,
+    generated: new Date().toISOString(),
+    files: [...expectedFiles].sort(),
+  };
+  fs.writeFileSync(path.join(CACHE_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  console.log(`[path-geo] Wrote manifest with ${manifest.files.length} expected geo files`);
+}
+
 // --- Elevation enrichment (featured paths only) ---
 // Only enrich files belonging to featured bike paths (those with `featured: true`
 // in their markdown frontmatter). Skips files that already have elevation data,
