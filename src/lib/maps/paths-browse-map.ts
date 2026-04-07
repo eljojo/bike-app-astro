@@ -8,7 +8,8 @@
  * Browser-only — uses DOM APIs and MapLibre. Import only from <script> blocks.
  */
 
-import { initMap } from './map-init';
+import { initMap, showPopup, closePopup } from './map-init';
+import { buildPathPopup } from './map-helpers';
 import { pathForeground } from './map-swatch';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
@@ -98,12 +99,15 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     onHighlightClear, onReady,
   } = opts;
 
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
   // ── Map creation ────────────────────────────────────────────────
 
   const styleKey = loadStylePreference();
   const map = initMap({ el: container, center, zoom, styleUrl: getStyleUrl(styleKey) });
 
-  setupMapTouchLock(map, touchLockEl);
+  setupMapTouchLock(map, isMobile ? null : touchLockEl);
+  if (isMobile && touchLockEl) touchLockEl.style.display = 'none';
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
 
   // ── Tile path layer ─────────────────────────────────────────────
@@ -146,7 +150,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     if (listSelector) {
       let clearDebounce: ReturnType<typeof setTimeout> | null = null;
 
-      setupPathHighlight(map, {
+      const highlight = setupPathHighlight(map, {
         listSelector,
         layerIds: ['paths-network-line', 'paths-network-line-dashed'],
         lineWidth: PATH_WIDTH,
@@ -156,9 +160,50 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         sourceId: SOURCE_ID,
         slugToNetwork,
         networkGeoIds,
+        mobile: isMobile,
         onHighlight: (slug) => {
           // Cancel any pending fly-back when a new path is highlighted
           if (clearDebounce) { clearTimeout(clearDebounce); clearDebounce = null; }
+
+          // Mobile: show/dismiss popup at path geometry centroid
+          if (isMobile) {
+            if (slug && slugInfo[slug]) {
+              const info = slugInfo[slug];
+              const features = map.querySourceFeatures(SOURCE_ID, {
+                filter: ['==', ['get', 'slug'], slug],
+              });
+              if (features.length > 0) {
+                let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+                for (const f of features) {
+                  const coords = f.geometry.type === 'LineString'
+                    ? (f.geometry as GeoJSON.LineString).coordinates
+                    : f.geometry.type === 'MultiLineString'
+                      ? (f.geometry as GeoJSON.MultiLineString).coordinates.flat()
+                      : [];
+                  for (const [lng, lat] of coords as [number, number][]) {
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                  }
+                }
+                if (minLng !== Infinity) {
+                  const centerLng = (minLng + maxLng) / 2;
+                  const centerLat = (minLat + maxLat) / 2;
+                  const content = buildPathPopup({
+                    name: info.name, url: info.url,
+                    length_km: info.length_km, surface: info.surface,
+                    path_type: info.path_type, vibe: info.vibe,
+                    network: info.network, networkUrl: info.networkUrl,
+                  }, opts.labels);
+                  showPopup(map, new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
+                    .setLngLat([centerLng, centerLat]).setHTML(content));
+                }
+              }
+            } else {
+              closePopup(map);
+            }
+          }
 
           // Always hide the category highlight layer during hover
           if (map.getLayer('paths-network-highlight')) {
@@ -192,6 +237,19 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
           }
         },
       });
+
+      // Mobile: tap on map background dismisses popup and clears highlight
+      if (isMobile) {
+        map.on('click', (e) => {
+          // Don't dismiss if the click was on a path feature (tile layer handles those)
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: ['paths-network-line', 'paths-network-line-dashed',
+                     'paths-network-bg', 'paths-network-bg-dashed'],
+          });
+          if (features.length > 0) return;
+          highlight.clear();
+        });
+      }
     }
 
     onReady?.(result);
