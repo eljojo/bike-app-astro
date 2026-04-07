@@ -248,7 +248,10 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
       map.on('click', id, handleClick);
     }
     for (const layerId of ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed', 'paths-network-highlight']) {
-      map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseenter', layerId, (e) => {
+        const slug = e.features?.[0]?.properties?.slug;
+        if (slug && slugInfo[slug]) map.getCanvas().style.cursor = 'pointer';
+      });
       map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
     }
 
