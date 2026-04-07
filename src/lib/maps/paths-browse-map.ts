@@ -219,6 +219,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
 
     // Click → rich popup
     function handleClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
+      // TODO: remove debug log once popup click issue is diagnosed on staging
+      console.log('[paths-popup] click', { features: e.features?.length, props: e.features?.[0]?.properties, slugInfoKeys: Object.keys(slugInfo).length });
       if (!e.features?.length) return;
       const slug = e.features[0].properties?.slug;
       if (!slug) return;
