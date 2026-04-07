@@ -87,15 +87,24 @@ export function deriveEntryType(entry, thresholds = {}) {
   // a relation for this path, which means it has real-world identity.
   if (hasRelation) return 'destination';
 
+  // MTB trails are recreation destinations, not road infrastructure.
+  // Either they deserve a page (destination) or they're too small to matter
+  // (connector). Network members always get pages. Standalone MTB trails
+  // need sufficient length.
+  if (pt === 'mtb-trail') {
+    if (entry.member_of) return 'destination';
+    if (lengthM >= destinationLengthM) return 'destination';
+    return 'connector';
+  }
+
   // Bike lanes and paved shoulders: infrastructure at best, connector if tiny
   if (pt === 'bike-lane' || pt === 'paved-shoulder' || pt === 'separated-lane') {
     return lengthM >= infrastructureLengthM ? 'infrastructure' : 'connector';
   }
 
-  // MUPs, trails, and MTB trails: destination if long enough, infrastructure
-  // if named, connector if short and unnamed. MTB doesn't get a free pass —
-  // short unnamed MTB trails without a network aren't page-worthy.
-  if (pt === 'mup' || pt === 'trail' || pt === 'mtb-trail') {
+  // MUPs and trails: destination if long enough, infrastructure if named,
+  // connector if short and unnamed
+  if (pt === 'mup' || pt === 'trail') {
     if (lengthM >= destinationLengthM) return 'destination';
     if (hasOsmName) return 'infrastructure';
     return lengthM >= infrastructureLengthM ? 'infrastructure' : 'connector';

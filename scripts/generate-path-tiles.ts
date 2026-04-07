@@ -130,7 +130,6 @@ function mergeFeatures(
     surface: meta?.surface ?? '',
     hasPage: meta?.hasPage ?? false,
     path_type: meta?.path_type ?? '',
-    dashed: meta?.path_type === 'trail' || meta?.path_type === 'mtb-trail',
     length_km: meta?.length_km ?? 0,
   };
 

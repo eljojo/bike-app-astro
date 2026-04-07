@@ -159,25 +159,53 @@ describe('deriveEntryType', () => {
     })).toBe('destination');
   });
 
-  it('short mtb-trail without relation → not destination', () => {
-    // Parc Lattion: pipeline-named unnamed chain, no OSM relation, short.
-    // MTB trails go through the same length threshold as MUPs/trails.
+  // --- MTB trail classification ---
+  // MTB trails are recreation destinations, not road infrastructure.
+  // They are NEVER 'infrastructure' — either destination or connector.
+
+  it('mtb-trail is never infrastructure', () => {
+    // Short standalone, no relation, no network
     expect(deriveEntryType({
       path_type: 'mtb-trail', mtb: true, _ways: makeWays(0.001),
-    })).not.toBe('destination');
+    })).not.toBe('infrastructure');
+    // Short with OSM name (would be infrastructure for a MUP — not for MTB)
+    expect(deriveEntryType({
+      path_type: 'mtb-trail', mtb: true, osm_names: ['Some Trail'], _ways: makeWays(0.005),
+    })).not.toBe('infrastructure');
   });
 
-  it('long mtb-trail without relation → destination', () => {
+  it('short mtb-trail member of network → destination', () => {
+    // Gatineau Park "the-sweet-line": 400m loop inside a trail network
+    expect(deriveEntryType({
+      path_type: 'mtb-trail', mtb: true, member_of: 'parc-de-la-gatineau',
+      _ways: makeWays(0.001),
+    })).toBe('destination');
+  });
+
+  it('tiny mtb-trail member of network → still destination', () => {
+    expect(deriveEntryType({
+      path_type: 'mtb-trail', mtb: true, member_of: 'south-march-highlands',
+      _ways: makeWays(0.0003), // ~33m
+    })).toBe('destination');
+  });
+
+  it('short mtb-trail with relation → destination', () => {
+    expect(deriveEntryType({
+      path_type: 'mtb-trail', mtb: true, osm_relations: [12345], _ways: makeWays(0.001),
+    })).toBe('destination');
+  });
+
+  it('long standalone mtb-trail → destination', () => {
     expect(deriveEntryType({
       path_type: 'mtb-trail', mtb: true, _ways: makeWays(0.02),
     })).toBe('destination');
   });
 
-  it('short mtb-trail with relation → destination', () => {
-    // An OSM cycling relation means someone gave this trail real-world identity
+  it('short standalone mtb-trail → connector', () => {
+    // Parc Lattion: pipeline-named unnamed chain, no relation, no network, short.
     expect(deriveEntryType({
-      path_type: 'mtb-trail', mtb: true, osm_relations: [12345], _ways: makeWays(0.001),
-    })).toBe('destination');
+      path_type: 'mtb-trail', mtb: true, _ways: makeWays(0.001),
+    })).toBe('connector');
   });
 
   it('long MUP → destination', () => {

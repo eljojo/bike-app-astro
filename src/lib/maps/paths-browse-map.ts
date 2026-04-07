@@ -12,7 +12,7 @@ import { initMap, showPopup, ROUTE_COLOR, ROUTE_LINE_WIDTH } from './map-init';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
 import { setupPathHighlight } from './path-highlight';
-import { html, raw } from './map-helpers';
+import { buildPathPopup } from './map-helpers';
 import { createTileLoader, type TileLoader } from './tile-loader';
 import { createMapExpandButton } from './map-expand-button';
 import maplibregl from 'maplibre-gl';
@@ -184,28 +184,28 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     // Non-interactive: solid
     map.addLayer({
       id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
+      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5 },
     });
     // Non-interactive: dashed
     map.addLayer({
       id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
+      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5, 'line-dasharray': TRAIL_DASH },
     });
     // Interactive: solid
     map.addLayer({
       id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['get', 'dashed'], true]],
+      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8 },
     });
     // Interactive: dashed
     map.addLayer({
       id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['get', 'dashed'], true]],
+      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8, 'line-dasharray': TRAIL_DASH },
     });
@@ -217,28 +217,24 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
       paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH + 2, 'line-opacity': 1 },
     });
 
-    // Click → rich popup
+    // Click → rich popup (shared builder with tile-path-layer)
     function handleClick(e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) {
-      // TODO: remove debug log once popup click issue is diagnosed on staging
-      console.log('[paths-popup] click', { features: e.features?.length, props: e.features?.[0]?.properties, slugInfoKeys: Object.keys(slugInfo).length });
       if (!e.features?.length) return;
       const slug = e.features[0].properties?.slug;
       if (!slug) return;
       const info = slugInfo[slug];
       if (!info) return;
 
-      const meta: string[] = [];
-      if (info.length_km) meta.push(`${info.length_km} km`);
-      if (info.surface) meta.push(info.surface);
-      if (info.path_type) meta.push(info.path_type);
-
-      const content = html`<div class="path-popup">
-        <strong class="path-popup-name">${info.name}</strong>
-        ${info.network ? raw(info.networkUrl ? html`<div class="path-popup-network"><a href="${info.networkUrl}" class="path-popup-network-link">${info.network}</a></div>` : html`<div class="path-popup-network">${info.network}</div>`) : ''}
-        ${meta.length > 0 ? raw(html`<div class="path-popup-meta">${meta.join(' \u00b7 ')}</div>`) : ''}
-        ${info.vibe ? raw(html`<div class="path-popup-vibe">${info.vibe}</div>`) : ''}
-        <a href="${info.url}" class="path-popup-link">${opts.labels?.viewDetails ?? 'View details'} \u2192</a>
-      </div>`;
+      const content = buildPathPopup({
+        name: info.name,
+        url: info.url,
+        length_km: info.length_km,
+        surface: info.surface,
+        path_type: info.path_type,
+        vibe: info.vibe,
+        network: info.network,
+        networkUrl: info.networkUrl,
+      }, opts.labels);
 
       const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
         .setLngLat(e.lngLat)

@@ -105,6 +105,48 @@ export function buildPlacePopup(place: PlacePopupData, cdnUrl?: string): string 
   return popup;
 }
 
+// --- Path popup (shared between paths-browse-map and tile-path-layer) ---
+
+export interface PathPopupData {
+  name: string;
+  url?: string;
+  length_km?: number;
+  surface?: string;
+  path_type?: string;
+  vibe?: string;
+  network?: string;
+  networkUrl?: string;
+}
+
+export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: string }): string {
+  const meta: string[] = [];
+  if (data.length_km) meta.push(`${data.length_km} km`);
+  if (data.surface) meta.push(escapeHtml(data.surface));
+  if (data.path_type) meta.push(escapeHtml(data.path_type));
+
+  let popup = '<div class="path-popup">';
+  popup += data.url
+    ? html`<strong class="path-popup-name"><a href="${data.url}">${data.name}</a></strong>`
+    : html`<strong class="path-popup-name">${data.name}</strong>`;
+
+  if (data.network) {
+    popup += data.networkUrl
+      ? html`<div class="path-popup-network"><a href="${data.networkUrl}" class="path-popup-network-link">${data.network}</a></div>`
+      : html`<div class="path-popup-network">${data.network}</div>`;
+  }
+  if (meta.length > 0) {
+    popup += `<div class="path-popup-meta">${meta.join(' \u00b7 ')}</div>`;
+  }
+  if (data.vibe) {
+    popup += html`<div class="path-popup-vibe">${data.vibe}</div>`;
+  }
+  if (data.url) {
+    popup += html`<a href="${data.url}" class="path-popup-link">${labels?.viewDetails ?? 'View details'} \u2192</a>`;
+  }
+  popup += '</div>';
+  return popup;
+}
+
 export interface WaypointPopupData {
   label: string;
   type: string;

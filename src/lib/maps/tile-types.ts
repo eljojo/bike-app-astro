@@ -15,6 +15,5 @@ export interface TileFeatureMeta {
   surface: string;
   hasPage: boolean;
   path_type: string;
-  dashed: boolean;
   length_km: number;
 }
