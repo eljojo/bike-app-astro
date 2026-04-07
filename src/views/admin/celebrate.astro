@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import CelebrationIsland from '../../components/admin/CelebrationIsland.tsx';
+import { getCityConfig } from '../../lib/config/city-config';
+import { fetchJson } from '../../lib/content/load-admin-content.server';
+
+const { contentType, id } = Astro.params;
+const contentId = id || '';
+const isFirst = Astro.url.searchParams.get('first') === 'true';
+const skipped = Astro.url.searchParams.get('skipped')?.split(',').filter(Boolean) || [];
+
+let contentName = contentId.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+try {
+  const detailUrl = new URL(`/admin/data/${contentType}s/${contentId}.json`, Astro.url);
+  const detail = await fetchJson<{ name?: string }>(detailUrl);
+  if (detail?.name) contentName = detail.name;
+} catch {
+  // Fallback to slug-derived name
+}
+
+const cityConfig = getCityConfig();
+const domain = cityConfig.domain;
+const cityName = cityConfig.name;
+const publicPath = contentType === 'event' ? `/events/${contentId}` : `/${contentType}s/${contentId}`;
+const publicUrl = `https://${domain}${publicPath}`;
+
+const user = Astro.locals.user;
+const isGuest = user?.role === 'guest';
+const currentTab = contentType === 'event' ? 'events' : 'routes';
+---
+
+<AdminEditorLayout title="Contribution saved" user={user} currentTab={currentTab} hideTitle>
+  <CelebrationIsland client:load
+    contentType={contentType || 'route'} contentId={contentId} contentName={contentName}
+    cityName={cityName} publicUrl={publicUrl} isFirst={isFirst} isGuest={isGuest} skipped={skipped} />
+</AdminEditorLayout>

@@ -3,26 +3,33 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import EventCreator from '../../components/admin/EventCreator.tsx';
+import EventWizard from '../../components/admin/EventWizard.tsx';
 import { eventDetailFromCache } from '../../lib/models/event-model';
 import { loadDetailFromJson, loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { env } from '../../lib/env/env.service';
 import { getCityConfig } from '../../lib/config/city-config';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
+import { t } from '@/i18n';
 import type { AdminEvent } from '../../types/admin';
 
 const { organizers: adminOrganizers, events: buildTimeEvents } = await fetchJson<{ organizers: _AdminOrganizer[]; events: AdminEvent[] }>(new URL('/admin/data/events.json', Astro.url));
 const { events: allEvents } = await loadAdminEventList(buildTimeEvents);
 const organizers = adminOrganizers;
-const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
+const cityConfig = getCityConfig();
+const cdnUrl = env.R2_PUBLIC_URL || cityConfig.cdn_url;
+const countryCode = cityConfig.locale.includes('-') ? cityConfig.locale.split('-').pop()!.toLowerCase() : undefined;
 const tagTranslations = loadTagTranslations();
 const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
 const eventOptions = allEvents
   .map((e: AdminEvent) => ({ id: e.id, name: e.name, year: e.year }))
   .sort((a: { year: string; name: string }, b: { year: string; name: string }) => b.year.localeCompare(a.year) || a.name.localeCompare(b.name));
 
-// Load source event data for copy/duplicate
-const copyFromId = Astro.url.searchParams.get('copy');
+const fullEditor = Astro.url.searchParams.get('full') === '1';
+
+// Load source event data for copy/duplicate (full editor only)
+const copyFromId = fullEditor ? Astro.url.searchParams.get('copy') : null;
 let copyData: Record<string, unknown> | undefined;
 
 if (copyFromId) {
@@ -54,6 +61,10 @@ if (copyFromId) {
 }
 ---
 
-<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events">
-  <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} />
+<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events" hideTitle={!fullEditor}>
+  {fullEditor ? (
+    <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
+  ) : (
+    <EventWizard client:load cdnUrl={cdnUrl} organizers={organizers} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} siteName={cityConfig.display_name} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
+  )}
 </AdminEditorLayout>
