@@ -54,7 +54,9 @@ const shortLocale = locale?.split('-')[0] ?? 'en';
 const wikidataDesc = wikidataMeta_
   ? ((wikidataMeta_[`description_${shortLocale}`] as string) ?? (wikidataMeta_.description_en as string))
   : undefined;
+const bodyFromWikipedia = !localeBody && !!page.wikipedia_extract;
 const bodyText = localeBody
+  || page.wikipedia_extract
   || wikidataDesc
   || page.ymlEntries[0]?.description
   || undefined;
@@ -233,6 +235,30 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
 
         {descriptionHtml && (
           <div class="bike-path-description" set:html={descriptionHtml} />
+        )}
+        {bodyFromWikipedia && page.wikipedia_url && (
+          <p class="bike-path-wikipedia-attribution">
+            {t('paths.wikipedia_source', locale)}{' '}
+            <a href={page.wikipedia_url} target="_blank" rel="noopener">
+              {t('paths.wikipedia_link', locale)}
+            </a>
+          </p>
+        )}
+
+        {page.commons_image && (
+          <div class="bike-path-commons-image">
+            <img
+              src={`/api/commons-image/${encodeURIComponent(page.commons_image)}`}
+              alt={t('paths.commons_image_alt', locale)}
+              loading="lazy"
+              class="commons-image"
+            />
+            <p class="commons-image-attribution">
+              <a href={`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.commons_image)}`} target="_blank" rel="noopener">
+                Wikimedia Commons
+              </a>
+            </p>
+          </div>
         )}
 
         <div class="bike-path-edit-cta">
@@ -474,7 +500,15 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             })
           )}
           {page.operator && useNetworkFacts && !networkFacts.some(f => f.key === 'operator') && (
-            <tr class="fact-operator"><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
+            <tr class="fact-operator">
+              <td>{t('paths.label.operator', locale)}</td>
+              <td>
+                {page.wikidata_operator_qid
+                  ? <a href={`https://www.wikidata.org/wiki/${page.wikidata_operator_qid}`} target="_blank" rel="noopener">{page.operator}</a>
+                  : page.operator
+                }
+              </td>
+            </tr>
           )}
           {wikidataMeta?.inception && !pathFacts.some(f => f.key === 'inception') && (
             <tr class="fact-established"><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
@@ -558,6 +592,22 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             </a>
           );
         })()}
+
+        {page.wikidata_social?.map(social => (
+          <a href={social.url} target="_blank" rel="noopener" class="external-link-card external-link-social">
+            <span class="external-link-icon" style="color: var(--color-text-muted)">{social.platform[0]}</span>
+            <span>{social.platform}</span>
+            <span class="external-link-arrow">&nearr;</span>
+          </a>
+        ))}
+
+        {page.commons_category && (
+          <a href={`https://commons.wikimedia.org/wiki/Category:${encodeURIComponent(page.commons_category)}`} target="_blank" rel="noopener" class="external-link-card external-link-commons">
+            <span class="external-link-icon" style="color: var(--color-text-muted)">&#x1f5bc;</span>
+            <span>{t('paths.commons_photos', locale)}</span>
+            <span class="external-link-arrow">&nearr;</span>
+          </a>
+        )}
 
         {/* OSM attribution */}
         {(page.osmRelationIds.length > 0 || page.osmNames.length > 0 || page.ymlEntries.some(e => e.osm_way_ids?.length)) && (
