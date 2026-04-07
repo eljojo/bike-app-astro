@@ -250,12 +250,24 @@ function mergeWayTags(ways) {
   }
   // Pick the most common value for each tag
   const merged = {};
+  const losses = [];
   for (const [key, vals] of Object.entries(tagCounts)) {
-    let bestVal = null, bestCount = 0;
+    let bestVal = null, bestCount = 0, totalCount = 0;
     for (const [val, count] of Object.entries(vals)) {
+      totalCount += count;
       if (count > bestCount) { bestCount = count; bestVal = val; }
     }
     merged[key] = bestVal;
+    // Flag when >30% of ways disagree on a physical tag
+    const PHYSICAL_TAGS = ['surface', 'width', 'lit', 'smoothness', 'incline', 'segregated'];
+    if (PHYSICAL_TAGS.includes(key) && totalCount > 2 && bestCount / totalCount < 0.7) {
+      const alternatives = Object.entries(vals).filter(([v]) => v !== bestVal).map(([v, c]) => `${v}(${c})`).join(', ');
+      losses.push(`${key}: picked "${bestVal}"(${bestCount}/${totalCount}), lost ${alternatives}`);
+    }
+  }
+  if (losses.length > 0) {
+    const name = ways[0]?.tags?.name || ways[0]?.name || '?';
+    console.log(`  [tag-merge] ${name}: ${losses.join('; ')}`);
   }
   return merged;
 }
