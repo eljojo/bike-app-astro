@@ -567,6 +567,27 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       expect(cbt, 'Carp Barrens Trail should exist').toBeDefined();
     });
 
+    it('Greenboro Park is absorbed into Greenboro Pathway (43% way overlap)', () => {
+      const gpStandalone = entries.find(e =>
+        e.name === 'Greenboro Park' && e.type !== 'network' && !e.member_of
+      );
+      expect(gpStandalone, 'Greenboro Park should not be a separate standalone entry').toBeUndefined();
+    });
+
+    it('RREP path entry is member_of capital-pathway', () => {
+      const rrep = entries.find(e =>
+        e.name === 'Rideau River Eastern Pathway' && e.type !== 'network'
+      );
+      expect(rrep, 'RREP path entry should exist').toBeDefined();
+      expect(rrep.member_of).toBe('capital-pathway');
+    });
+
+    it('Capital Pathway does not have super_network pointing to RREP', () => {
+      const cp = network('Capital Pathway');
+      expect(cp, 'Capital Pathway should exist').toBeDefined();
+      expect(cp.super_network).toBeUndefined();
+    });
+
     it('Greenbelt Pathway West is in NCC Greenbelt, not Bruce Pit', () => {
       // GPW is a 21km trail through the Greenbelt. It passes through
       // Bruce Pit (a small dog park) but belongs to the Greenbelt system.

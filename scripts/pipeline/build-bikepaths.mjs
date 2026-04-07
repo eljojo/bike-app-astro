@@ -496,7 +496,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
           if (sharedIds.size > bestCount) { bestEntry = entry; bestCount = sharedIds.size; }
         }
         const overlapRatio = bestCount / npWayIds.length;
-        if (overlapRatio >= 0.5 && bestEntry) {
+        if (overlapRatio >= 0.4 && bestEntry) {
           enrichEntry(bestEntry, np.tags, { skipIdentity: !!bestEntry.osm_relations?.length });
           if (np.anchors?.length > (bestEntry.anchors?.length || 0)) bestEntry.anchors = np.anchors;
           if (np._ways) bestEntry._ways = np._ways;
@@ -756,9 +756,35 @@ function addSuperrouteNetworks(entries, networks, wayRegistry) {
       }
 
       if (member._networkRef) {
-        // Already in a network (auto-group or park) — add as secondary
-        // member and tag with _superNetworkRef for index grouping.
-        member._networkRef._superNetworkRef = networkEntry;
+        const existingNet = member._networkRef;
+
+        // If the member is in a non-park auto-group (no osm_relations),
+        // flatten the auto-group into this superroute network.
+        if (!parkNetworks.has(existingNet) && !existingNet.osm_relations?.length) {
+          for (const sub of [...(existingNet._memberRefs || [])]) {
+            if (sub.type === 'network') continue;
+            if (sub._networkRef === existingNet || !sub._networkRef) {
+              networkEntry._memberRefs.push(sub);
+              sub._networkRef = networkEntry;
+              if (existingNet._memberRefs) {
+                existingNet._memberRefs = existingNet._memberRefs.filter(m => m !== sub);
+              }
+            } else if (!networkEntry._memberRefs.includes(sub)) {
+              networkEntry._memberRefs.push(sub);
+            }
+          }
+          existingNet._superNetworkRef = networkEntry;
+          if (wayRegistry) wayRegistry.remove(existingNet);
+          continue;
+        }
+
+        // Already in a park or superroute network — add as secondary member.
+        // Only set _superNetworkRef if this network has wider scope.
+        const existingPriority = NET_PRIORITY[existingNet.network] ?? 3;
+        const currentPriority = NET_PRIORITY[networkEntry.network] ?? 3;
+        if (currentPriority < existingPriority) {
+          existingNet._superNetworkRef = networkEntry;
+        }
         member._superNetworkRef = networkEntry;
         if (!networkEntry._memberRefs.includes(member)) {
           networkEntry._memberRefs.push(member);
