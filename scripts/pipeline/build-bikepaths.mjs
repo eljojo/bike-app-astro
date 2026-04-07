@@ -232,6 +232,10 @@ function extractOsmMetadata(tags) {
   if (tags.foot) meta.foot = tags.foot;
   if (tags.sport) meta.sport = tags.sport;
 
+  // Pipeline-computed distributions (from mergeWayTags)
+  if (tags.surface_mix) meta.surface_mix = tags.surface_mix;
+  if (tags.lit_mix) meta.lit_mix = tags.lit_mix;
+
   return meta;
 }
 
