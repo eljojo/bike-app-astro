@@ -239,7 +239,7 @@ function extractOsmMetadata(tags) {
  * For named ways grouped by name, pick the most common value for each tag
  * across all ways in the group.
  */
-function mergeWayTags(ways) {
+export function mergeWayTags(ways) {
   const tagCounts = {};
   for (const way of ways) {
     const tags = way.tags || {};
@@ -269,7 +269,55 @@ function mergeWayTags(ways) {
     const name = ways[0]?.tags?.name || ways[0]?.name || '?';
     console.log(`  [tag-merge] ${name}: ${losses.join('; ')}`);
   }
+
+  // --- Compute distributions for surface and lit ---
+  const MIX_TAGS = ['surface', 'lit'];
+  for (const tag of MIX_TAGS) {
+    const vals = tagCounts[tag];
+    if (!vals || Object.keys(vals).length <= 1) continue;
+    // For lit: only produce lit_mix when both 'yes' and 'no' are present
+    if (tag === 'lit' && !(vals['yes'] && vals['no'])) continue;
+
+    // Compute length per value
+    const valueLengths = {};
+    for (const way of ways) {
+      const val = (way.tags || {})[tag];
+      if (!val) continue;
+      const km = wayLengthKm(way);
+      valueLengths[val] = (valueLengths[val] || 0) + km;
+    }
+
+    const mix = Object.entries(valueLengths)
+      .map(([value, km]) => ({ value, km: Math.round(km) }))
+      .filter(m => m.km > 0)
+      .sort((a, b) => b.km - a.km);
+
+    if (mix.length > 1) {
+      merged[`${tag}_mix`] = mix;
+    }
+  }
+
   return merged;
+}
+
+/** Compute length of a way in km from its geometry. Falls back to 1 if no geometry.
+ * Accepts geometry nodes as [lon, lat] arrays or {lon, lat} objects. */
+function wayLengthKm(way) {
+  const geom = way.geometry;
+  if (!geom || geom.length < 2) return 1; // fallback: 1 km per way
+  let totalM = 0;
+  for (let i = 1; i < geom.length; i++) {
+    const p1 = geom[i - 1];
+    const p2 = geom[i];
+    const lon1 = Array.isArray(p1) ? p1[0] : p1.lon;
+    const lat1 = Array.isArray(p1) ? p1[1] : p1.lat;
+    const lon2 = Array.isArray(p2) ? p2[0] : p2.lon;
+    const lat2 = Array.isArray(p2) ? p2[1] : p2.lat;
+    const dlat = (lat2 - lat1) * 111320;
+    const dlng = (lon2 - lon1) * 111320 * Math.cos(((lat1 + lat2) / 2) * Math.PI / 180);
+    totalM += Math.sqrt(dlat * dlat + dlng * dlng);
+  }
+  return totalM / 1000;
 }
 
 // Identity tags describe the entity (route, bridge, road) — not physical
