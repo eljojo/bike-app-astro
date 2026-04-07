@@ -460,6 +460,11 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
     byName.set(rel.name.toLowerCase(), entry);
   }
 
+  // Tag all relation-sourced entries with provenance
+  for (const entry of byRelation.values()) {
+    entry._discovery_source = 'relation';
+  }
+
   // Register relation member way IDs in the WayRegistry
   for (const rel of osmRelations) {
     if (rel._memberWayIds?.length > 0) {
@@ -508,6 +513,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
         // Different trail, same slug — create separate entry (slug will be disambiguated later)
         const meta = extractOsmMetadata(np.tags);
         const entry = { name: np.name, osm_names: np.osmNames, anchors: np.anchors, _ways: np._ways, ...meta };
+        entry._discovery_source = np._isUnnamedChain ? 'unnamed-chain' : 'named-way';
         result.push(entry);
         continue;
       }
@@ -528,6 +534,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
       _ways: np._ways,
       ...meta,
     };
+    entry._discovery_source = np._isUnnamedChain ? 'unnamed-chain' : 'named-way';
     result.push(entry);
     bySlug.set(slug, entry);
     byName.set(np.name.toLowerCase(), entry);
@@ -558,6 +565,7 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
     for (const key of ['surface', 'lit', 'width', 'smoothness']) {
       if (candidate.tags[key]) entry[key] = candidate.tags[key];
     }
+    entry._discovery_source = 'parallel-lane';
     result.push(entry);
     bySlug.set(slug, entry);
     byName.set(candidate.name.toLowerCase(), entry);
@@ -1361,6 +1369,7 @@ out geom tags;`;
       osmNames: [chainName],
       _ways,
       _wayIds: indices.map(i => unchainedWays[i].id).filter(Boolean),
+      _isUnnamedChain: true,
     });
     unnamedChains.push(chainName);
   }
@@ -1945,6 +1954,8 @@ async function main() {
       delete entry._ways;
       delete entry._member_relations;
       delete entry._parkName;
+      delete entry._discovery_source;
+      delete entry._isUnnamedChain;
     }
     for (const entry of entries) {
       if (entry.anchors?.length > 2) {
