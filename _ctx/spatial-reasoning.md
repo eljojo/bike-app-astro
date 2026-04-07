@@ -22,7 +22,7 @@ Never use a single point (midpoint, center, anchor, centroid) or a bounding box 
 
 - **Overpass `around.chain`** — `way(id:...)->.chain; (around.chain:500)` searches along the actual way shape.
 - **Geometry-to-geometry distance** — `minGeomDist()` from `nearest-park.mjs` computes minimum distance between two sets of real points.
-- **Shared OSM nodes** — `clusterByConnectivity` in `cluster-entries.mjs` uses node-level connectivity.
+- **Shared OSM nodes** — `clusterByConnectivity` in `cluster-entries.ts` uses node-level connectivity.
 - **Point-in-polygon** — `classifyByPark` in `park-containment.mjs` samples multiple points along the trail.
 - **`_ways` field** — transient full geometry available during the build. Use it. It's stripped before YAML output.
 

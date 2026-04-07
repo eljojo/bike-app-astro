@@ -133,7 +133,7 @@ How the app works. Read to understand *what* things are.
 - [pipeline-overview](_ctx/pipeline-overview.md) — how the bikepaths pipeline discovers, names, clusters, and networks cycling infrastructure
 - [naming-unnamed-chains](_ctx/naming-unnamed-chains.md) — how the pipeline names unnamed chains from nearby parks/roads
 - [path-types](_ctx/path-types.md) — path_type field: classifies infrastructure by safety and bike requirements
-- [entry-types](_ctx/entry-types.md) — type field: network, destination, infrastructure, connector
+- [entry-types](_ctx/entry-types.md) — type field: long-distance, network, destination, infrastructure, connector, unknown
 - [markdown-overrides](_ctx/markdown-overrides.md) — how markdown frontmatter is consumed by pipeline and app
 - [adding-new-things](_ctx/adding-new-things.md) — checklists for content types, endpoints, routes, tables, virtual modules, islands
 - [ci-cd](_ctx/ci-cd.md) — workflows, deploy matrix, screenshot auto-update
@@ -142,6 +142,7 @@ How the app works. Read to understand *what* things are.
 
 ### Rules
 Non-negotiable constraints. Violations are bugs.
+- [debugging-pipeline-data](_ctx/debugging-pipeline-data.md) — query Overpass first, trace way IDs, never dismiss location complaints
 - [vendor-isolation](_ctx/vendor-isolation.md) — every cloud service behind an adapter; 6 boundary points
 - [server-boundary](_ctx/server-boundary.md) — .server.ts naming, what can import what, ESLint enforcement
 - [spatial-reasoning](_ctx/spatial-reasoning.md) — NEVER use midpoints, centers, anchors, or bboxes as proxy for real geometry

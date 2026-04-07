@@ -2,7 +2,7 @@
 description: "How build-bikepaths.mjs discovers, names, clusters, and networks cycling infrastructure"
 type: knowledge
 triggers: [modifying the pipeline, debugging bikepaths.yml output, adding discovery steps, changing naming logic]
-related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides]
+related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides, entry-types, path-types]
 ---
 
 # Pipeline Overview
@@ -36,7 +36,7 @@ related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides]
 
 ## Clustering
 
-The auto-grouping in `lib/cluster-entries.mjs` merges entries whose OSM ways share nodes or have endpoints within ~10m. It does NOT use anchor distance. Guards: operator compatibility, path type (trail/paved/road), corridor width (type-dependent: 20km trails, 3km paved, 2km road).
+The auto-grouping in `lib/cluster-entries.ts` merges entries whose OSM ways share nodes or have endpoints within ~10m. It does NOT use anchor distance. Guards: operator compatibility, path type (trail/paved/road), corridor width (type-dependent: 20km trails, 3km paved, 2km road).
 
 ## Key Invariants
 
@@ -46,7 +46,7 @@ The auto-grouping in `lib/cluster-entries.mjs` merges entries whose OSM ways sha
 - Way IDs are the merge key. Relations claim ways first. Named ways with ≥50% overlap merge into the relation entry. Names are display metadata, not structural keys.
 - The WayRegistry (`lib/way-registry.mjs`) is the single source of truth for way ownership during the pipeline run.
 - **Each OSM relation appears in exactly one entry's `osm_relations`.** Networks only carry their own superroute relation ID — never their members' relation IDs. Post-pipeline validation enforces this.
-- Anchors are for Overpass name lookups only — never for spatial reasoning (see `~/code/bike-routes/_ctx/spatial-reasoning.md`).
+- Anchors are for Overpass name lookups only — never for spatial reasoning (see `_ctx/spatial-reasoning.md`).
 - bikepaths.yml is the deliverable. Code changes without regenerating data are incomplete.
 - The Astro app reads bikepaths.yml + markdown directly. Both must be correct.
 - One slug function: `slugifyBikePathName` from `src/lib/bike-paths/bikepaths-yml.server.ts`. The pipeline imports it directly — no duplicates.

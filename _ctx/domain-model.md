@@ -100,7 +100,7 @@ Not all entities are active in all instances:
 | Place | yes | — | yes |
 | Waypoint | — | — | yes |
 | Organiser | yes | — | yes |
-| Bike Path | yes | — | — |
+| Bike Path | yes | — | yes |
 | Guide | yes | — | — |
 
 Use `getInstanceFeatures()` for capability checks, not entity existence checks.

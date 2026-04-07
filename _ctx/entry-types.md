@@ -18,8 +18,9 @@ Every entry in `bikepaths.yml` has a `type` field that determines what role it p
 | `destination` | Yes (standalone or member page) | Yes | No | Sawmill Creek, Trans Orléans, La Boucle |
 | `infrastructure` | No | Yes | No | Bank Street bike lane, Greenbank Road |
 | `connector` | No | No | No | Trilby Court, unnamed park connector |
+| `unknown` | No | Yes (no interaction) | No | (default for missing `type` in YAML) |
 
-When absent, the app treats the entry as `infrastructure` (visible on map, no standalone page).
+When absent, the schema defaults to `unknown`. Unknown entries appear on the map but are not listed in the index and don't get standalone pages — similar to connector but with map visibility.
 
 ## Trail vs Network vs Destination
 
@@ -57,4 +58,4 @@ entry.type === 'destination'   // is this a local destination path?
 entry.members?.length > 0     // does this have members? (long-distance OR networks)
 ```
 
-The Zod schema validates `type` as an enum: `z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector']).optional()`.
+The Zod schema validates `type` as an enum: `z.enum(['long-distance', 'network', 'destination', 'infrastructure', 'connector', 'unknown']).default('unknown')`.

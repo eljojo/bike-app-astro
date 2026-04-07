@@ -2,7 +2,7 @@
 description: "path_type field in bikepaths.yml — classifies cycling infrastructure by safety and bike requirements"
 type: knowledge
 triggers: [working with path_type, adding bike path facts, displaying infrastructure type, filtering paths by type]
-related: [pipeline-overview, markdown-overrides]
+related: [pipeline-overview, markdown-overrides, entry-types]
 ---
 
 # Path Types
@@ -29,7 +29,7 @@ Listed from most separated to least:
 1. `mtb == true` → `mtb-trail`
 2. `parallel_to` + `cycleway == "track"` → `separated-lane`
 3. `parallel_to` + `cycleway == "shoulder"` → `paved-shoulder`
-4. `parallel_to` (any other) or road highway + `cycleway` tag → `bike-lane`
+4. `parallel_to` (on a road highway, or non-cycleway) or road highway + `cycleway` tag → `bike-lane`. Exception: `parallel_to` + `highway=cycleway` (not a road) falls through to `mup` — standalone cycleways alongside roads (e.g. canal paths) are MUPs, not bike lanes.
 5. Surface is unpaved → `trail`
 6. `highway=cycleway` (implies pavement) → `mup`
 7. Known paved surface → `mup`

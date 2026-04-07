@@ -2,7 +2,7 @@
 description: "How bike path geometry is tiled, what metadata tiles carry, how detail pages use tiles for highlight + context"
 type: knowledge
 triggers: [working with bike path map, modifying tile generation, changing map layers, debugging path rendering, adding tile metadata]
-related: [bike-paths, pipeline-overview]
+related: [bike-paths, pipeline-overview, path-types]
 ---
 
 # Bike Path Tiles
@@ -81,6 +81,26 @@ The client loads the manifest once, then fetches tiles whose bounds intersect th
 - `highlightGeoIds` prop (set of `_geoId` values for the current path)
 - Highlighted features render bold; everything else renders as faded context
 - Neighboring paths appear automatically from loaded tiles — no extra fetches
+
+## Map Style Coordination
+
+`src/lib/maps/map-swatch.ts` is the single source of truth for all overlay line styles (colors, widths, opacities). All map rendering code reads from here — never hardcode visual properties in layer setup.
+
+Two contexts:
+- **Routes foreground** — curated route polylines are the star. Bike path overlay is thin, faded background. Base map cycling layers at full strength.
+- **Paths foreground** — bike path overlay is the star. Base map cycling layers mute (they show the same data). Interactive paths (has page) are bold; non-interactive are dimmed.
+
+Trails (`path_type: mtb-trail` or `trail`) render with dashed lines via `TRAIL_DASH` / `IS_TRAIL_EXPR`.
+
+## Interaction Model
+
+`src/lib/maps/paths-browse-map.ts` orchestrates the browse/index map. `src/lib/maps/path-highlight.ts` handles list-to-map hover synchronization.
+
+**Desktop:** mouseenter/mouseleave on list items triggers hover highlight on map + delayed fly-to (300ms delay to avoid jitter when scanning).
+
+**Mobile:** tap on list item toggles highlight. Tap on map background dismisses. Map capped at 40vh. iOS long-press prevention applied. Desktop hover listeners gated behind a mobile check.
+
+**State decoupling:** DOM events write to a `wantSlug` variable; an animation loop reads and applies. This eliminates race conditions from event ordering when tiles haven't loaded yet.
 
 ## Key Files
 
