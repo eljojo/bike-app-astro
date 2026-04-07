@@ -1,3 +1,4 @@
+import { useEffect } from 'preact/hooks';
 import SaveSuccessModal from './SaveSuccessModal';
 
 interface Props {
@@ -22,12 +23,19 @@ interface Props {
   disabled?: boolean;
   /** Dismiss the saved state (hides modal/success message) */
   onDismiss?: () => void;
+  /** When provided, redirect here instead of showing inline success */
+  celebrateUrl?: string;
+}
+
+function CelebrateRedirect({ url }: { url: string }) {
+  useEffect(() => { window.location.href = url; }, [url]);
+  return <div class="save-success">Saved. Redirecting...</div>;
 }
 
 export default function EditorActions({
   error, githubUrl, saved, saving, onSave,
   contentType, userRole, guestCreated, viewLink,
-  showLicenseNotice = true, licenseDocsUrl, disabled = false, onDismiss,
+  showLicenseNotice = true, licenseDocsUrl, disabled = false, onDismiss, celebrateUrl,
 }: Props) {
   return (
     <div class="editor-actions">
@@ -52,16 +60,20 @@ export default function EditorActions({
         <SaveSuccessModal viewLink={viewLink} onClose={onDismiss} />
       )}
       {saved && userRole !== 'guest' && !guestCreated && (
-        <div class="save-success">
-          Saved. Your edit will be live in a few minutes.
-          {viewLink && <>{' '}<a href={viewLink}>View live</a></>}
-        </div>
+        celebrateUrl
+          ? <CelebrateRedirect url={celebrateUrl} />
+          : (
+            <div class="save-success">
+              Saved. Your edit will be live in a few minutes.
+              {viewLink && <>{' '}<a href={viewLink}>View live</a></>}
+            </div>
+          )
       )}
       {showLicenseNotice && (
         <p class="editor-license-notice">
           Your contribution will be shared under{' '}
           <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
-          {licenseDocsUrl && <>{' '}<a href={licenseDocsUrl}>What does this mean?</a></>}
+          {licenseDocsUrl && <>{' '}<a href={licenseDocsUrl} target="_blank" rel="noopener">What does this mean?</a></>}
         </p>
       )}
       <button type="button" class="btn-primary" onClick={onSave} disabled={saving || disabled}>

@@ -160,6 +160,14 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
   const beforeTabs = (
     <>
+      {!initialData.isNew && (
+        <div class="editor-preamble">
+          <h1>{initialData.name || 'Route'}</h1>
+          <div class="editor-preamble-meta">
+            <a href={`/routes/${initialData.slug}`} target="_blank" rel="noopener">View live</a>
+          </div>
+        </div>
+      )}
       {dragging && (
         <div class="drop-overlay">
           <div class="drop-overlay-content">Drop photos, videos, or GPX files here</div>
@@ -257,11 +265,12 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       contentType="route"
       userRole={userRole}
       guestLabel={guestLabel}
-      viewLink={`/routes/${initialData.slug}`}
+      viewLink={initialData.isNew ? '' : `/routes/${initialData.slug}`}
       showLicenseNotice={showLicenseNotice !== false}
       hideTabs={!!effectiveFocus}
       beforeTabs={beforeTabs}
       afterForm={afterForm}
+      celebrateUrl={initialData.isNew ? undefined : `/admin/celebrate/route/${initialData.slug}`}
       preview={
         <RoutePreview
           name={getField('name')}
@@ -316,6 +325,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
           <div class="form-field">
             <label for="route-tagline">Tagline</label>
+            <span class="form-field-hint">A one-sentence hook — what would make someone click?</span>
             <input
               id="route-tagline"
               type="text"
@@ -326,6 +336,7 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
 
           <div class="form-field">
             <label>Tags</label>
+            <span class="form-field-hint">Help people find this route</span>
             <TagEditor
               tags={tags}
               onTagsChange={setTags}
@@ -352,7 +363,8 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           )}
 
           <div class="form-field">
-            <label for="route-body">Body (markdown)</label>
+            <label for="route-body">Description</label>
+            <span class="form-field-hint">What makes this ride worth doing?</span>
             <MarkdownEditor
               id="route-body"
               value={getField('body')}

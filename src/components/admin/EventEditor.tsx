@@ -18,6 +18,7 @@ import type { Waypoint } from './WaypointEditor';
 import ResultsEditor from './ResultsEditor';
 import type { Result } from './ResultsEditor';
 import SeriesEditor from './SeriesEditor';
+import LocationField from './LocationField';
 import type { EventDetail, EventSeries } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
@@ -38,6 +39,10 @@ interface Props {
   knownTags?: string[];
   defaultLocale?: string;
   guestLabel?: string;
+  cityCenter?: [number, number];
+  cityBounds?: { north: number; south: number; east: number; west: number };
+  cityName?: string;
+  countryCode?: string;
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -76,7 +81,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel, cityCenter, cityBounds, cityName, countryCode }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -275,6 +280,15 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   const activeLocale = defaultLocale; // events don't have per-editor locale switching
 
+  const beforeTabs = initialData.id ? (
+    <div class="editor-preamble">
+      <h1>{initialData.name || 'Event'}</h1>
+      <div class="editor-preamble-meta">
+        <a href={`/events/${initialData.id}`} target="_blank" rel="noopener">View live</a>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <EditorLayout
       editor={editor}
@@ -282,10 +296,12 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       contentType="event"
       userRole={userRole}
       guestLabel={guestLabel}
-      viewLink={`/events/${initialData.id}`}
+      viewLink={initialData.id ? `/events/${initialData.id}` : ''}
       showLicenseNotice={showLicenseNotice !== false}
       disabled={readOnly}
       as="fieldset"
+      beforeTabs={beforeTabs}
+      celebrateUrl={initialData.id ? `/admin/celebrate/event/${initialData.id}` : undefined}
       preview={
         <EventPreview
           name={name}
@@ -554,8 +570,22 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           {disclosure.isOpen('location') && (
             <div class="form-field">
               <label for="event-location">Location</label>
-              <input id="event-location" type="text" {...bindText(location, setLocation)}
-                placeholder="111 Wellington St, K1A 0A6" />
+              <span class="form-field-hint">Address or landmark — where do people show up?</span>
+              {cityCenter ? (
+                <LocationField
+                  id="event-location"
+                  value={location}
+                  onChange={setLocation}
+                  cityCenter={cityCenter}
+                  cityBounds={cityBounds}
+                  cityName={cityName}
+                  countryCode={countryCode}
+                  placeholder="111 Wellington St, K1A 0A6"
+                />
+              ) : (
+                <input id="event-location" type="text" {...bindText(location, setLocation)}
+                  placeholder="111 Wellington St, K1A 0A6" />
+              )}
             </div>
           )}
 
@@ -678,7 +708,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           )}
 
           <div class="form-field">
-            <label for="event-body">Description (markdown)</label>
+            <label for="event-body">Description</label>
+            <span class="form-field-hint">What should people know about this event?</span>
             <MarkdownEditor
               id="event-body"
               value={body}
