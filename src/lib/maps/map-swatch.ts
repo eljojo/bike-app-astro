@@ -48,14 +48,14 @@ export const pathForeground = {
   hover: {
     width: 6,              // interactive width + 2
     opacity: 1.0,
-    dimOpacity: 0.15,       // non-hovered paths dim to this
+    dimOpacity: 0,          // hide non-hovered paths entirely
   },
 
   highlight: {
     width: 6,              // category/network selection
     opacity: 1.0,
-    dimInteractive: 0.3,   // interactive paths dim when highlight active
-    dimOther: 0.15,         // other paths dim when highlight active
+    dimInteractive: 0,     // hide non-highlighted interactive paths
+    dimOther: 0,            // hide non-highlighted other paths
   },
 } as const;
 
