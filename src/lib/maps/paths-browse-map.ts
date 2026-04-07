@@ -8,7 +8,8 @@
  * Browser-only — uses DOM APIs and MapLibre. Import only from <script> blocks.
  */
 
-import { initMap, showPopup, ROUTE_COLOR, ROUTE_LINE_WIDTH } from './map-init';
+import { initMap, showPopup } from './map-init';
+import { pathForeground, TRAIL_DASH, IS_TRAIL_EXPR } from './map-swatch';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
 import { setupPathHighlight } from './path-highlight';
@@ -78,9 +79,12 @@ export interface PathsBrowseMapResult {
 
 // ── Implementation ───────────────────────────────────────────────────
 
-const PATH_WIDTH = ROUTE_LINE_WIDTH;
-const PATH_WIDTH_UNLISTED = Math.max(2, ROUTE_LINE_WIDTH - 2);
-const PATH_WIDTH_HOVER = ROUTE_LINE_WIDTH + 2;
+const PATH_WIDTH = pathForeground.interactive.width;
+const PATH_WIDTH_UNLISTED = pathForeground.other.width;
+const PATH_WIDTH_HOVER = pathForeground.hover.width;
+const PATH_OPACITY = pathForeground.interactive.opacity;
+const PATH_OPACITY_UNLISTED = pathForeground.other.opacity;
+const PATH_COLOR = pathForeground.color;
 const SOURCE_ID = 'paths-network';
 
 export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMapResult {
@@ -129,19 +133,19 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     if (geoIds && geoIds.length > 0) {
       map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
       for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.3);
+        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', pathForeground.highlight.dimInteractive);
       }
       for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.15);
+        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', pathForeground.highlight.dimOther);
       }
       if (fly) fitToGeoIdsFn(geoIds);
     } else {
       map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
       for (const id of ['paths-network-line', 'paths-network-line-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.8);
+        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', PATH_OPACITY);
       }
       for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', 0.5);
+        if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', PATH_OPACITY_UNLISTED);
       }
     }
   }
@@ -179,42 +183,40 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
       data: { type: 'FeatureCollection', features },
     });
 
-    const TRAIL_DASH: [number, number] = [3, 1];
-
     // Non-interactive: solid
     map.addLayer({
       id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5 },
+      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': PATH_OPACITY_UNLISTED },
     });
     // Non-interactive: dashed
     map.addLayer({
       id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+      filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
-      paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': 0.5, 'line-dasharray': TRAIL_DASH },
+      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH_UNLISTED, 'line-opacity': PATH_OPACITY_UNLISTED, 'line-dasharray': TRAIL_DASH },
     });
     // Interactive: solid
     map.addLayer({
       id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8 },
+      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': PATH_OPACITY },
     });
     // Interactive: dashed
     map.addLayer({
       id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+      filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
-      paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': 0.8, 'line-dasharray': TRAIL_DASH },
+      paint: { 'line-color': PATH_COLOR, 'line-width': PATH_WIDTH, 'line-opacity': PATH_OPACITY, 'line-dasharray': TRAIL_DASH },
     });
     // Highlight layer (for category/network selection from outside)
     map.addLayer({
       id: 'paths-network-highlight', type: 'line', source: SOURCE_ID,
       filter: ['==', ['get', 'relationId'], ''],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': ROUTE_COLOR, 'line-width': PATH_WIDTH + 2, 'line-opacity': 1 },
+      paint: { 'line-color': PATH_COLOR, 'line-width': pathForeground.highlight.width, 'line-opacity': pathForeground.highlight.opacity },
     });
 
     // Click → rich popup (shared builder with tile-path-layer)
@@ -259,8 +261,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         layerIds: ['paths-network-line', 'paths-network-line-dashed'],
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,
-        lineOpacity: 0.8,
-        lineOpacityDim: 0.15,
+        lineOpacity: PATH_OPACITY,
+        lineOpacityDim: pathForeground.hover.dimOpacity,
         sourceId: SOURCE_ID,
         slugToNetwork,
         networkGeoIds,
@@ -283,10 +285,10 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
               const matchFilter: maplibregl.ExpressionSpecification = isNetwork
                 ? ['in', ['get', 'relationId'], ['literal', networkGeoIds![slug]]]
                 : ['==', ['get', 'slug'], slug];
-              map.setPaintProperty(id, 'line-opacity', ['case', matchFilter, 0.8, 0]);
+              map.setPaintProperty(id, 'line-opacity', ['case', matchFilter, PATH_OPACITY, 0]);
               map.setPaintProperty(id, 'line-width', ['case', matchFilter, PATH_WIDTH, PATH_WIDTH_UNLISTED]);
             } else {
-              map.setPaintProperty(id, 'line-opacity', 0.5);
+              map.setPaintProperty(id, 'line-opacity', PATH_OPACITY_UNLISTED);
               map.setPaintProperty(id, 'line-width', PATH_WIDTH_UNLISTED);
             }
           }

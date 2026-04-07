@@ -6,6 +6,7 @@
  * lets us mute or restore those layers at runtime via setPaintProperty.
  */
 import type maplibregl from 'maplibre-gl';
+import { baseCycling } from './map-swatch';
 
 /** Base map layer IDs for cycling infrastructure (from build-map-style.ts) */
 const OASIS_LAYERS = [
@@ -49,11 +50,11 @@ export function setBaseCyclingOpacity(map: maplibregl.Map, opacity: number): voi
 
 /**
  * Mute the base map's cycling infrastructure layers.
- * Keeps them present as orientation context (teal at 0.3) but subordinate
+ * Keeps them present as orientation context but subordinate
  * to the foreground path overlay.
  */
 export function muteBaseCyclingLayers(map: maplibregl.Map): void {
-  setBaseCyclingOpacity(map, 0.3);
+  setBaseCyclingOpacity(map, baseCycling.mutedOpacity);
 }
 
 /**
@@ -68,9 +69,6 @@ export function restoreBaseCyclingLayers(map: maplibregl.Map): void {
     const type = layer.type;
 
     if (type === 'line') {
-      // Restore to the original opacity values from build-map-style.ts
-      // Most oasis layers are 0.7-0.8, exposed is 0.7, casings are 1.0
-      // Using null removes the override and restores the style-spec default
       map.setPaintProperty(id, 'line-opacity', null);
     } else if (type === 'symbol') {
       map.setPaintProperty(id, 'text-opacity', null);

@@ -1,7 +1,8 @@
 // src/lib/maps/layers/tile-path-layer.ts
 import maplibregl from 'maplibre-gl';
-import { ROUTE_COLOR, ROUTE_LINE_WIDTH, showPopup } from '../map-init';
+import { showPopup } from '../map-init';
 import { buildPathPopup } from '../map-helpers';
+import { pathForeground, pathBackground, pathDetail, TRAIL_DASH, IS_TRAIL_EXPR } from '../map-swatch';
 import { createTileLoader, type TileLoader, type TileManifestEntry } from '../tile-loader';
 import type { MapLayer, LayerContext } from './types';
 
@@ -97,15 +98,9 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
     leaveHandler = null;
   }
 
-  // Line widths depend on whether paths are foreground (main content) or
-  // background (context for routes). Foreground uses flat widths (dense data),
-  // background uses zoom-interpolated widths.
-  const FG_WIDTH_INTERACTIVE = 4;
-  const FG_OPACITY_INTERACTIVE = 0.8;
-  const FG_WIDTH_BG = 2.5;
-  const FG_OPACITY_BG = 0.1;
-  const BG_WIDTH_INTERACTIVE: [number, number][] = [[8, 2], [12, 4], [14, ROUTE_LINE_WIDTH]];
-  const BG_WIDTH_NON_INTERACTIVE: [number, number][] = [[8, 1], [12, 2], [14, 4]];
+  function zoomInterp(stops: readonly (readonly [number, number])[]): maplibregl.ExpressionSpecification {
+    return ['interpolate', ['linear'], ['zoom'], ...stops.flatMap(([z, v]) => [z, v])] as unknown as maplibregl.ExpressionSpecification;
+  }
 
   const CLICKABLE_LAYERS = ['paths-network-line', 'paths-network-line-dashed', 'paths-network-bg', 'paths-network-bg-dashed'];
 
@@ -117,206 +112,109 @@ export function createTilePathLayer(opts: TilePathLayerOptions): MapLayer {
       data: { type: 'FeatureCollection', features },
     });
 
-    const TRAIL_DASH: [number, number] = [3, 1];
-
     if (isDetailMode) {
+      const s = pathDetail;
       // Detail page: very faded context for surrounding paths (solid)
       map.addLayer({
         id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['!=', ['get', 'highlight'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['!=', ['get', 'highlight'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 1, 14, 2],
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.04, 12, 0.08, 14, 0.15],
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.context.width), 'line-opacity': zoomInterp(s.context.opacity) },
       });
-      // Detail page: very faded context for surrounding trails (dashed)
       map.addLayer({
         id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['!=', ['get', 'highlight'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['!=', ['get', 'highlight'], 'true'], ['==', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 12, 1, 14, 2],
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.04, 12, 0.08, 14, 0.15],
-          'line-dasharray': TRAIL_DASH,
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.context.width), 'line-opacity': zoomInterp(s.context.opacity), 'line-dasharray': TRAIL_DASH },
       });
-
-      // Highlighted path: bold (solid)
+      // Highlighted path: bold
       map.addLayer({
         id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['==', ['get', 'highlight'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['==', ['get', 'highlight'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
-          'line-opacity': 0.8,
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.highlighted.width), 'line-opacity': s.highlighted.opacity },
       });
-      // Highlighted trail: bold (dashed)
       map.addLayer({
         id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['==', ['get', 'highlight'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['==', ['get', 'highlight'], 'true'], ['==', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 12, 4, 14, ROUTE_LINE_WIDTH],
-          'line-opacity': 0.8,
-          'line-dasharray': TRAIL_DASH,
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.highlighted.width), 'line-opacity': s.highlighted.opacity, 'line-dasharray': TRAIL_DASH },
       });
-
       // Labels on highlighted path
       map.addLayer({
         id: 'paths-network-labels', type: 'symbol', source: SOURCE_ID,
         filter: ['==', ['get', 'highlight'], 'true'],
         minzoom: 11,
-        layout: {
-          'symbol-placement': 'line',
-          'text-field': ['get', 'name'],
-          'text-size': 12,
-          'text-font': ['Open Sans Regular'],
-          'text-anchor': 'center',
-          'text-offset': [0, -1],
-          'text-max-angle': 30,
-          'symbol-spacing': 300,
-          'text-allow-overlap': false,
-        },
-        paint: {
-          'text-color': ROUTE_COLOR,
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2,
-        },
+        layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Regular'], 'text-anchor': 'center', 'text-offset': [0, -1], 'text-max-angle': 30, 'symbol-spacing': 300, 'text-allow-overlap': false },
+        paint: { 'text-color': s.color, 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
       });
     } else if (foreground) {
-      // Foreground mode: paths are the main content. Thinner lines (data is dense),
-      // but all visible. No zoom interpolation — flat widths for consistency.
-
-      // Non-interactive: solid
+      const s = pathForeground;
+      // Foreground mode: paths are the main content. Flat widths (dense data).
       map.addLayer({
         id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': FG_WIDTH_BG, 'line-opacity': FG_OPACITY_BG },
+        paint: { 'line-color': s.color, 'line-width': s.other.width, 'line-opacity': s.other.opacity },
       });
-      // Non-interactive: dashed
       map.addLayer({
         id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': FG_WIDTH_BG, 'line-opacity': FG_OPACITY_BG, 'line-dasharray': TRAIL_DASH },
+        paint: { 'line-color': s.color, 'line-width': s.other.width, 'line-opacity': s.other.opacity, 'line-dasharray': TRAIL_DASH },
       });
-      // Interactive: solid
       map.addLayer({
         id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': FG_WIDTH_INTERACTIVE, 'line-opacity': FG_OPACITY_INTERACTIVE },
+        paint: { 'line-color': s.color, 'line-width': s.interactive.width, 'line-opacity': s.interactive.opacity },
       });
-      // Interactive: dashed
       map.addLayer({
         id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': ROUTE_COLOR, 'line-width': FG_WIDTH_INTERACTIVE, 'line-opacity': FG_OPACITY_INTERACTIVE, 'line-dasharray': TRAIL_DASH },
+        paint: { 'line-color': s.color, 'line-width': s.interactive.width, 'line-opacity': s.interactive.opacity, 'line-dasharray': TRAIL_DASH },
       });
-      // Labels on interactive paths
       map.addLayer({
         id: 'paths-network-labels', type: 'symbol', source: SOURCE_ID,
         filter: ['==', ['get', 'interactive'], 'true'],
         minzoom: 11,
-        layout: {
-          'symbol-placement': 'line',
-          'text-field': ['get', 'name'],
-          'text-size': 12,
-          'text-font': ['Open Sans Regular'],
-          'text-anchor': 'center',
-          'text-offset': [0, -1],
-          'text-max-angle': 30,
-          'symbol-spacing': 300,
-          'text-allow-overlap': false,
-        },
-        paint: {
-          'text-color': ROUTE_COLOR,
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2,
-        },
+        layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Regular'], 'text-anchor': 'center', 'text-offset': [0, -1], 'text-max-angle': 30, 'symbol-spacing': 300, 'text-allow-overlap': false },
+        paint: { 'text-color': s.color, 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
       });
     } else {
-      // Background mode: paths as context behind route polylines.
-      // Zoom-interpolated widths, faded non-interactive.
-
-      // Non-interactive: solid
+      const s = pathBackground;
+      // Background mode: paths as context behind route polylines. Zoom-interpolated.
       map.addLayer({
         id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], ...BG_WIDTH_NON_INTERACTIVE.flat()],
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.08, 12, 0.2, 14, 0.45],
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.other.width), 'line-opacity': zoomInterp(s.other.opacity) },
       });
-      // Non-interactive trails (dashed)
       map.addLayer({
         id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['!=', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], ...BG_WIDTH_NON_INTERACTIVE.flat()],
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.08, 12, 0.2, 14, 0.45],
-          'line-dasharray': TRAIL_DASH,
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.other.width), 'line-opacity': zoomInterp(s.other.opacity), 'line-dasharray': TRAIL_DASH },
       });
-
-      // Interactive paths: bold (solid)
       map.addLayer({
         id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['!=', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], ...BG_WIDTH_INTERACTIVE.flat()],
-          'line-opacity': 0.8,
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.interactive.width), 'line-opacity': s.interactive.opacity },
       });
-      // Interactive trails: bold (dashed)
       map.addLayer({
         id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]], true]],
+        filter: ['all', ['==', ['get', 'interactive'], 'true'], ['==', IS_TRAIL_EXPR, true]],
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: {
-          'line-color': ROUTE_COLOR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], ...BG_WIDTH_INTERACTIVE.flat()],
-          'line-opacity': 0.8,
-          'line-dasharray': TRAIL_DASH,
-        },
+        paint: { 'line-color': s.color, 'line-width': zoomInterp(s.interactive.width), 'line-opacity': s.interactive.opacity, 'line-dasharray': TRAIL_DASH },
       });
-
-      // Labels on interactive paths
       map.addLayer({
         id: 'paths-network-labels', type: 'symbol', source: SOURCE_ID,
         filter: ['==', ['get', 'interactive'], 'true'],
         minzoom: 11,
-        layout: {
-          'symbol-placement': 'line',
-          'text-field': ['get', 'name'],
-          'text-size': 12,
-          'text-font': ['Open Sans Regular'],
-          'text-anchor': 'center',
-          'text-offset': [0, -1],
-          'text-max-angle': 30,
-          'symbol-spacing': 300,
-          'text-allow-overlap': false,
-        },
-        paint: {
-          'text-color': ROUTE_COLOR,
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 2,
-        },
+        layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Open Sans Regular'], 'text-anchor': 'center', 'text-offset': [0, -1], 'text-max-angle': 30, 'symbol-spacing': 300, 'text-allow-overlap': false },
+        paint: { 'text-color': s.color, 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
       });
     }
 
