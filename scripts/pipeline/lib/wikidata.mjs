@@ -13,8 +13,26 @@ const P_IMAGE = 'P18';
 const P_COMMONS_CAT = 'P373';
 const P_OPERATOR = 'P126';
 const P_INSTANCE_OF = 'P31';
+const P_OSM_RELATION = 'P402';
+const P_ACTIVITIES = 'P2789';
 const P_SOCIAL = 'P3984';
 const P_PLATFORM = 'P553';
+
+const EXPECTED_INSTANCE_OF = new Set([
+  'Q221722',   // bike path
+  'Q12670591', // trail
+  'Q34442',    // road
+  'Q1529437',  // rail trail
+  'Q170826',   // greenway
+  'Q786014',   // pedestrian path
+  'Q3352369',  // multi-use path
+]);
+
+const CYCLING_ACTIVITIES = new Set([
+  'Q53121',   // cycling
+  'Q2024660', // cross-country cycling
+  'Q3095844', // bicycle touring
+]);
 
 // Social media platform map: Q-ID → { name, urlTemplate }
 const PLATFORM_MAP = {
@@ -157,6 +175,40 @@ export function extractBikePathMetadata(entity) {
   return meta;
 }
 
+export function validateWikidataEntity(entity, entry) {
+  const name = entry.name || entry.wikidata;
+
+  // P402 — OSM relation ID cross-check
+  const p402Claims = entity.statements?.[P_OSM_RELATION];
+  if (p402Claims?.length && entry.osm_relations?.length) {
+    const osmRelId = p402Claims[0].value.content;
+    const entryIds = entry.osm_relations.map(String);
+    if (!entryIds.includes(String(osmRelId))) {
+      console.warn(`  ⚠ ${name}: Wikidata P402=${osmRelId} not found in osm_relations [${entryIds.join(', ')}]`);
+    }
+  }
+
+  // P31 — instance-of sanity check
+  const p31Claims = entity.statements?.[P_INSTANCE_OF];
+  if (p31Claims?.length) {
+    const qids = p31Claims.map(c => c.value.content);
+    const hasExpected = qids.some(q => EXPECTED_INSTANCE_OF.has(q));
+    if (!hasExpected) {
+      console.warn(`  ⚠ ${name}: unexpected Wikidata instance_of [${qids.join(', ')}] — verify correct entity`);
+    }
+  }
+
+  // P2789 — compatible activities cycling check
+  const p2789Claims = entity.statements?.[P_ACTIVITIES];
+  if (p2789Claims?.length) {
+    const activityQids = p2789Claims.map(c => c.value.content);
+    const hasCycling = activityQids.some(q => CYCLING_ACTIVITIES.has(q));
+    if (!hasCycling) {
+      console.warn(`  ⚠ ${name}: Wikidata entity has no cycling activity in P2789 — may be wrong entity`);
+    }
+  }
+}
+
 export async function enrichWithWikidata(entries, { fetchFn = fetch, concurrency = 4 } = {}) {
   const candidates = entries.filter(e => e.wikidata && !e.wikidata_meta);
   if (candidates.length === 0) return 0;
@@ -170,6 +222,7 @@ export async function enrichWithWikidata(entries, { fetchFn = fetch, concurrency
       try {
         const entity = await fetchWikidataEntity(entry.wikidata, fetchFn);
         const meta = extractBikePathMetadata(entity);
+        validateWikidataEntity(entity, entry);
         // labels are plain strings in the REST API response
         if (!entry.name_fr && entity.labels?.fr) entry.name_fr = entity.labels.fr;
         if (!entry.name_en && entity.labels?.en) entry.name_en = entity.labels.en;

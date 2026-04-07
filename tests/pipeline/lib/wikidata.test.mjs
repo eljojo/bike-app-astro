@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchWikidataEntity, extractBikePathMetadata, enrichWithWikidata } from '../../../scripts/pipeline/lib/wikidata.mjs';
+import { fetchWikidataEntity, extractBikePathMetadata, enrichWithWikidata, validateWikidataEntity } from '../../../scripts/pipeline/lib/wikidata.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const realFixture = JSON.parse(
@@ -121,5 +121,78 @@ describe('enrichWithWikidata', () => {
     const count = await enrichWithWikidata(entries, { fetchFn: mockFetch });
     expect(count).toBe(0);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('validateWikidataEntity', () => {
+  let warnSpy;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  it('warns when P402 does not match entry osm_relations', () => {
+    validateWikidataEntity(realFixture, {
+      name: 'Capital Pathway',
+      osm_relations: [99999],
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Wikidata P402=10990511 not found in osm_relations')
+    );
+  });
+
+  it('does not warn when P402 matches entry osm_relations', () => {
+    validateWikidataEntity(realFixture, {
+      name: 'Capital Pathway',
+      osm_relations: [10990511],
+    });
+    // P402 should not warn — but P31 and P2789 are valid too, so no warnings at all
+    const p402Warnings = warnSpy.mock.calls.filter(c => c[0].includes('P402'));
+    expect(p402Warnings).toHaveLength(0);
+  });
+
+  it('warns when P31 has no expected Q-IDs', () => {
+    const entity = {
+      statements: {
+        P31: [
+          { value: { content: 'Q99999' } },
+        ],
+      },
+    };
+    validateWikidataEntity(entity, { name: 'Weird Path' });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('unexpected Wikidata instance_of [Q99999]')
+    );
+  });
+
+  it('does not warn for real fixture P31 (has expected Q-IDs)', () => {
+    validateWikidataEntity(realFixture, { name: 'Capital Pathway' });
+    const p31Warnings = warnSpy.mock.calls.filter(c => c[0].includes('instance_of'));
+    expect(p31Warnings).toHaveLength(0);
+  });
+
+  it('warns when P2789 has no cycling activities', () => {
+    const entity = {
+      statements: {
+        P2789: [
+          { value: { content: 'Q999' } },
+          { value: { content: 'Q888' } },
+        ],
+      },
+    };
+    validateWikidataEntity(entity, { name: 'Hiking Trail' });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('no cycling activity in P2789')
+    );
+  });
+
+  it('does not warn when P2789 includes cycling (real fixture)', () => {
+    validateWikidataEntity(realFixture, { name: 'Capital Pathway' });
+    const p2789Warnings = warnSpy.mock.calls.filter(c => c[0].includes('P2789'));
+    expect(p2789Warnings).toHaveLength(0);
   });
 });
