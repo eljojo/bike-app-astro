@@ -93,7 +93,7 @@ async function queryOverpass(query: string): Promise<any> {
   throw new Error('Overpass API: all servers failed after retries');
 }
 
-function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureCollection {
+export function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureCollection {
   const ways = data.elements.filter((e: any) => e.type === 'way' && e.geometry);
   const features = ways.map((way: any) => ({
     type: 'Feature' as const,
@@ -107,7 +107,7 @@ function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureColle
 }
 
 /** Build Overpass bbox from anchor coordinates: south,west,north,east */
-function anchorBbox(anchors: Array<[number, number]>): string {
+export function anchorBbox(anchors: Array<[number, number]>): string {
   const lngs = anchors.map(a => a[0]);
   const lats = anchors.map(a => a[1]);
   const pad = 0.005; // ~500m padding
@@ -226,9 +226,13 @@ for (const entry of nameEntries) {
   console.log(`  Fetching by name: ${entry.osm_names![0]} (${entry.name})...`);
   try {
     const bbox = anchorBbox(entry.anchors!);
-    // Query all ways matching any of the osm_names within the bbox
-    // Escape double quotes in OSM names to prevent Overpass QL injection
-    const nameFilters = entry.osm_names!.map(n => `way["name"="${n.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"](${bbox});`).join('\n');
+    // Query cycling-tagged ways matching any of the osm_names within the bbox.
+    // The highway filter prevents fetching park boundary ways (leisure=park)
+    // that share the same name as cycling infrastructure inside the park.
+    const nameFilters = entry.osm_names!.map(n => {
+      const escaped = n.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      return `way["name"="${escaped}"]["highway"~"cycleway|path|footway|track|service|residential|tertiary|secondary|primary"](${bbox});`;
+    }).join('\n');
     const query = `[out:json][timeout:60];\n(\n${nameFilters}\n);\nout geom;`;
     const data = await queryOverpass(query);
     const geojson = overpassToGeoJSON(data, entry.slug);
