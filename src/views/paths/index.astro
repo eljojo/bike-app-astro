@@ -368,6 +368,9 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
     const slugToNetworkMap: Record<string, string> = JSON.parse(container.dataset.slugToNetwork || '{}');
 
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    let flyBackFn: (() => void) | undefined;
+
     const { map, highlightGeoIds, fitToGeoIds } = createPathsBrowseMap({
       container,
       touchLockEl: document.getElementById('paths-map-touch-lock'),
@@ -380,6 +383,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       slugToNetwork: slugToNetworkMap,
       networkGeoIds,
       labels: { viewDetails: container.dataset.labelViewDetails },
+      onHighlightClear: isMobile ? () => flyBackFn?.() : undefined,
       onReady: () => {
         // Activate first tab's highlight once layers are ready
         const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
@@ -413,23 +417,25 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           const slug = tab.dataset.network;
           if (slug) activateTab(slug);
         });
-        tab.addEventListener('mouseenter', () => {
-          const slug = tab.dataset.network;
-          if (slug && slug !== 'all') {
-            const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
-            highlightGeoIds(geoIds ?? null, true);
-          }
-        });
-        tab.addEventListener('mouseleave', () => {
-          const activeTab = tabBar.querySelector<HTMLButtonElement>('.network-tab.active');
-          const activeSlug = activeTab?.dataset.network;
-          if (activeSlug && activeSlug !== 'all') {
-            const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
-            highlightGeoIds(geoIds ?? null);
-          } else {
-            highlightGeoIds(null);
-          }
-        });
+        if (!isMobile) {
+          tab.addEventListener('mouseenter', () => {
+            const slug = tab.dataset.network;
+            if (slug && slug !== 'all') {
+              const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
+              highlightGeoIds(geoIds ?? null, true);
+            }
+          });
+          tab.addEventListener('mouseleave', () => {
+            const activeTab = tabBar.querySelector<HTMLButtonElement>('.network-tab.active');
+            const activeSlug = activeTab?.dataset.network;
+            if (activeSlug && activeSlug !== 'all') {
+              const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
+              highlightGeoIds(geoIds ?? null);
+            } else {
+              highlightGeoIds(null);
+            }
+          });
+        }
       });
     }
 
@@ -446,9 +452,12 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         map.flyTo({ center, zoom: 11, duration: 500 });
       }
     }
+    flyBackFn = flyBackToCategory;
 
-    document.querySelectorAll<HTMLElement>('.category-network-group, .network-panel[data-panel="all"] .paths-list').forEach(group => {
-      group.addEventListener('mouseleave', flyBackToCategory);
-    });
+    if (!isMobile) {
+      document.querySelectorAll<HTMLElement>('.category-network-group, .network-panel[data-panel="all"] .paths-list').forEach(group => {
+        group.addEventListener('mouseleave', flyBackToCategory);
+      });
+    }
   }
 </script>
