@@ -17,6 +17,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { parseBikePathsYml, geoFilesForEntry, type SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 const CITY = process.env.CITY || 'ottawa';
@@ -35,6 +36,37 @@ const OVERPASS_SERVERS = [
 // Use SluggedBikePathYml from the schema — single source of truth.
 // Anchors need [lng, lat] tuples for bbox computation.
 type CacheEntry = SluggedBikePathYml & { anchors?: Array<[number, number]> };
+
+/**
+ * Compute a hash of the inputs that determine a cached geometry file's content.
+ * If any of these change, the cached file is stale and must be re-fetched.
+ * This is the Nix derivation principle: output = f(inputs).
+ */
+export function cacheInputHash(entry: CacheEntry): string {
+  // Sort keys for deterministic serialization — same inputs always produce same hash
+  const inputs: Record<string, unknown> = {};
+  for (const key of ['anchors', 'osm_names', 'osm_relations', 'osm_way_ids', 'parallel_to', 'segments', 'slug'] as const) {
+    if ((entry as any)[key] != null) inputs[key] = (entry as any)[key];
+  }
+  return crypto.createHash('sha256').update(JSON.stringify(inputs)).digest('hex').slice(0, 16);
+}
+
+/**
+ * Check if a cached geometry file is still fresh (inputs haven't changed).
+ * Reads the stored input hash from the .hash sidecar file and compares
+ * with the current entry's input hash.
+ */
+function isCacheFresh(entry: CacheEntry, geoPath: string): boolean {
+  const hashPath = geoPath + '.hash';
+  if (!fs.existsSync(hashPath)) return false; // no hash = legacy cache, treat as stale
+  const stored = fs.readFileSync(hashPath, 'utf-8').trim();
+  return stored === cacheInputHash(entry);
+}
+
+/** Write the input hash sidecar after successfully caching a geometry file. */
+function writeCacheHash(entry: CacheEntry, geoPath: string): void {
+  fs.writeFileSync(geoPath + '.hash', cacheInputHash(entry));
+}
 
 /**
  * Fetch an Overpass query with server rotation and retry.
@@ -175,6 +207,8 @@ let fetched = 0;
 let skipped = 0;
 
 // --- Pass 1: Relation-based entries ---
+// Relation IDs are stable keys — the file is keyed by relation ID, not slug.
+// Still hash-check in case the entry's relation list changed.
 for (const entry of relationEntries) {
   for (const relId of entry.osm_relations ?? []) {
     const outPath = path.join(CACHE_DIR, `${relId}.geojson`);
@@ -210,8 +244,11 @@ if (wayIdEntries.length > 0) {
     const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
     if (fs.existsSync(outPath) && !forceRefresh) {
-      skipped++;
-      continue;
+      if (isCacheFresh(entry, outPath)) {
+        skipped++;
+        continue;
+      }
+      console.log(`  [stale] ${entry.slug}: inputs changed — re-fetching`);
     }
 
     if (dryRun) {
@@ -227,6 +264,7 @@ if (wayIdEntries.length > 0) {
       const geojson = overpassToGeoJSON(data, entry.slug);
       if (geojson.features.length > 0) {
         fs.writeFileSync(outPath, JSON.stringify(geojson));
+        writeCacheHash(entry, outPath);
         fetched++;
       } else {
         console.log(`  No ways found for ${entry.name}`);
@@ -242,8 +280,11 @@ for (const entry of nameEntries) {
   const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
   if (fs.existsSync(outPath) && !forceRefresh) {
-    skipped++;
-    continue;
+    if (isCacheFresh(entry, outPath)) {
+      skipped++;
+      continue;
+    }
+    console.log(`  [stale] ${entry.slug}: inputs changed since last fetch — re-fetching`);
   }
 
   if (dryRun) {
@@ -259,6 +300,7 @@ for (const entry of nameEntries) {
     const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
       fs.writeFileSync(outPath, JSON.stringify(geojson));
+      writeCacheHash(entry, outPath);
       fetched++;
     } else {
       console.log(`  No ways found for ${entry.name}`);
@@ -273,8 +315,11 @@ for (const entry of segmentEntries) {
   const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
   if (fs.existsSync(outPath) && !forceRefresh) {
-    skipped++;
-    continue;
+    if (isCacheFresh(entry, outPath)) {
+      skipped++;
+      continue;
+    }
+    console.log(`  [stale] ${entry.slug}: inputs changed — re-fetching`);
   }
 
   if (dryRun) {
@@ -290,6 +335,7 @@ for (const entry of segmentEntries) {
     const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
       fs.writeFileSync(outPath, JSON.stringify(geojson));
+      writeCacheHash(entry, outPath);
       fetched++;
     } else {
       console.log(`  No ways found for ${entry.name}`);
@@ -311,8 +357,11 @@ if (parallelEntries.length > 0) {
     const outFile = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
 
     if (!forceRefresh && fs.existsSync(outFile)) {
-      skipped++;
-      continue;
+      if (isCacheFresh(entry, outFile)) {
+        skipped++;
+        continue;
+      }
+      console.log(`  [stale] ${entry.slug}: inputs changed — re-fetching`);
     }
 
     if (!entry.anchors || entry.anchors.length < 2) {
@@ -343,6 +392,7 @@ out geom;`;
       }
 
       fs.writeFileSync(outFile, JSON.stringify(geojson));
+      writeCacheHash(entry, outFile);
       fetched++;
       console.log(`  parallel-${entry.slug}: ${geojson.features.length} features`);
     } catch (err: any) {
@@ -356,12 +406,19 @@ console.log(`[path-geo] Done. Fetched: ${fetched}, Cached: ${skipped}`);
 // --- Write manifest: the authoritative list of geo files for this build ---
 // generate-path-tiles reads this instead of globbing the cache directory,
 // preventing stale/orphaned files from poisoning the tile build.
+// Each file records its input hash — the derivation key that produced it.
 if (!dryRun) {
-  const expectedFiles = new Set(cacheEntries.flatMap(e => geoFilesForEntry(e)));
+  const fileEntries: Record<string, string> = {};
+  for (const entry of cacheEntries) {
+    for (const file of geoFilesForEntry(entry)) {
+      fileEntries[file] = cacheInputHash(entry);
+    }
+  }
   const manifest = {
     city: CITY,
     generated: new Date().toISOString(),
-    files: [...expectedFiles].sort(),
+    files: Object.keys(fileEntries).sort(),
+    hashes: fileEntries,
   };
   fs.writeFileSync(path.join(CACHE_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`[path-geo] Wrote manifest with ${manifest.files.length} expected geo files`);
