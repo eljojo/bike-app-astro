@@ -416,9 +416,10 @@ const heroSelfHosted = selfHostedVideos[0];
 const heroYouTubeId = !heroSelfHosted ? youtubeIds[0] : undefined;
 const hasHeroVideo = !!heroSelfHosted || !!heroYouTubeId;
 
-// Exclude hero video from gallery (shown separately); keep poster so PhotoSwipe has it
+// Exclude hero video and poster from gallery (both are shown separately)
 const excludeKeys = new Set<string>();
 if (heroSelfHosted) excludeKeys.add(heroSelfHosted.key);
+if (coverKey) excludeKeys.add(coverKey);
 const galleryMediaFiltered = galleryMedia.filter(m => !excludeKeys.has(m.key));
 
 // TODO: Render additional YouTube videos (youtubeIds.slice(1)) in gallery
@@ -450,7 +451,6 @@ function editionDateLabel(startDate: string, loc?: string): string {
             widths={[400, 800]}
             fit="contain"
             loading="eager"
-            class="gallery-cover-photo"
             data-pswp-width={data.poster_width || 800}
             data-pswp-height={data.poster_height || 1200}
           />
@@ -899,5 +899,27 @@ function editionDateLabel(startDate: string, loc?: string): string {
     });
 
 
+    /** Poster lightbox: standalone PhotoSwipe instance for the event poster. */
+    const poster = document.querySelector('.event-detail-hero-poster img') as HTMLImageElement | null;
+    if (poster) {
+      poster.style.cursor = 'pointer';
+      poster.addEventListener('click', async () => {
+        const { default: PhotoSwipeLightbox } = await import('photoswipe/lightbox');
+        await import('photoswipe/style.css');
+        const { default: PhotoSwipe } = await import('photoswipe');
+
+        const w = Number(poster.dataset.pswpWidth) || 800;
+        const h = Number(poster.dataset.pswpHeight) || 1200;
+        const src = poster.src.replace(/width=\d+/, 'width=1600');
+
+        const lightbox = new PhotoSwipeLightbox({
+          dataSource: [{ src, width: w, height: h, msrc: poster.src }],
+          pswpModule: () => Promise.resolve(PhotoSwipe),
+          showHideAnimationType: 'fade',
+        });
+        lightbox.init();
+        lightbox.loadAndOpen(0);
+      });
+    }
   </script>
 </Base>
