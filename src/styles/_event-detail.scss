@@ -234,24 +234,26 @@
   min-width: 0;
 }
 
-.event-organizer-name {
+a.event-organizer-name {
   display: block;
   font-weight: 600;
   font-size: 0.95em;
-  color: inherit;
+  color: $color-link;
   text-decoration: none;
 
-  a& {
-    color: $color-link;
-
-    @include dark-mode {
-      color: $color-link-dark;
-    }
-
-    &:hover {
-      text-decoration: underline;
-    }
+  @include dark-mode {
+    color: $color-link-dark;
   }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+span.event-organizer-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95em;
 }
 
 .event-organizer-links {
