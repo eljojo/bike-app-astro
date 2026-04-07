@@ -416,10 +416,9 @@ const heroSelfHosted = selfHostedVideos[0];
 const heroYouTubeId = !heroSelfHosted ? youtubeIds[0] : undefined;
 const hasHeroVideo = !!heroSelfHosted || !!heroYouTubeId;
 
-// Exclude hero video and poster from gallery (both are shown separately)
+// Exclude hero video from gallery (shown separately); keep poster so PhotoSwipe has it
 const excludeKeys = new Set<string>();
 if (heroSelfHosted) excludeKeys.add(heroSelfHosted.key);
-if (coverKey) excludeKeys.add(coverKey);
 const galleryMediaFiltered = galleryMedia.filter(m => !excludeKeys.has(m.key));
 
 // TODO: Render additional YouTube videos (youtubeIds.slice(1)) in gallery
@@ -451,6 +450,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
             widths={[400, 800]}
             fit="contain"
             loading="eager"
+            class="gallery-cover-photo"
             data-pswp-width={data.poster_width || 800}
             data-pswp-height={data.poster_height || 1200}
           />
@@ -898,51 +898,6 @@ function editionDateLabel(startDate: string, loc?: string): string {
       faqH2.after(faqSection);
     });
 
-    /** Poster lightbox: click poster to open full-size in overlay with zoom. */
-    document.addEventListener('DOMContentLoaded', () => {
-      const poster = document.querySelector('.event-detail-hero-poster img') as HTMLImageElement;
-      if (!poster) return;
 
-      poster.addEventListener('click', () => {
-        const overlay = document.createElement('div');
-        overlay.className = 'event-lightbox';
-
-        const img = document.createElement('img');
-        const blobKey = poster.dataset.blobKey || poster.src;
-        // Use original resolution if available
-        const w = poster.dataset.pswpWidth;
-        const h = poster.dataset.pswpHeight;
-        img.src = poster.src.replace(/width=\d+/, 'width=1600');
-        if (w) img.dataset.width = w;
-        if (h) img.dataset.height = h;
-        img.alt = poster.alt;
-
-        const close = document.createElement('button');
-        close.className = 'event-lightbox-close';
-        close.textContent = '\u00d7';
-        close.setAttribute('aria-label', 'Close');
-
-        function closeLightbox() {
-          overlay.remove();
-          document.body.style.overflow = '';
-        }
-
-        close.addEventListener('click', closeLightbox);
-        overlay.addEventListener('click', (e) => {
-          if (e.target === overlay) closeLightbox();
-        });
-        document.addEventListener('keydown', function onKey(e) {
-          if (e.key === 'Escape') {
-            closeLightbox();
-            document.removeEventListener('keydown', onKey);
-          }
-        });
-
-        overlay.appendChild(img);
-        overlay.appendChild(close);
-        document.body.appendChild(overlay);
-        document.body.style.overflow = 'hidden';
-      });
-    });
   </script>
 </Base>
