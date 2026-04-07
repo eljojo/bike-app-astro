@@ -13,6 +13,10 @@ interface Props {
   tagTranslations?: Record<string, Record<string, string>>;
   knownTags?: string[];
   defaultLocale?: string;
+  cityCenter?: [number, number];
+  cityBounds?: { north: number; south: number; east: number; west: number };
+  cityName?: string;
+  countryCode?: string;
 }
 
 /** Draft fields returned by the server, already in EventDetail shape. */
@@ -78,7 +82,7 @@ function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
   return organizer.name || '';
 }
 
-export default function EventCreator({ cdnUrl, organizers, copyData, eventOptions, tagTranslations, knownTags, defaultLocale }: Props) {
+export default function EventCreator({ cdnUrl, organizers, copyData, eventOptions, tagTranslations, knownTags, defaultLocale, cityCenter, cityBounds, cityName, countryCode }: Props) {
   const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>(copyData ? 'edit' : 'upload');
   const [dragOver, setDragOver] = useState(false);
   const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
@@ -357,6 +361,10 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       tagTranslations={tagTranslations}
       knownTags={knownTags}
       defaultLocale={defaultLocale}
+      cityCenter={cityCenter}
+      cityBounds={cityBounds}
+      cityName={cityName}
+      countryCode={countryCode}
     />
   );
 }

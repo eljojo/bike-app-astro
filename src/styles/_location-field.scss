@@ -1,0 +1,88 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.location-field {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.location-field-input-wrap {
+  flex: 1;
+  position: relative;
+
+  input {
+    width: 100%;
+    @include form-control;
+  }
+}
+
+.location-field-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-top: none;
+  border-radius: 0 0 $border-radius $border-radius;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  @include dark-mode {
+    background: $color-bg-dark;
+    border-color: $color-border-dark;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.location-field-option {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: $color-text;
+  line-height: 1.4;
+
+  @include dark-mode {
+    color: $color-text-dark;
+  }
+
+  &:hover,
+  &--active {
+    background: $color-card-bg;
+
+    @include dark-mode {
+      background: $color-card-bg-dark;
+    }
+  }
+
+  & + & {
+    border-top: 1px solid $color-border;
+
+    @include dark-mode {
+      border-top-color: $color-border-dark;
+    }
+  }
+}
+
+.location-field-map {
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  border-radius: $border-radius;
+  overflow: hidden;
+}
+
+.location-field-marker {
+  width: 14px;
+  height: 14px;
+  background: $color-accent;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}

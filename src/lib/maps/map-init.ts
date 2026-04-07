@@ -75,6 +75,10 @@ export interface MapOptions {
   center: [number, number];
   zoom: number;
   styleUrl: string;
+  /** Disable pan/zoom/rotate (default true) */
+  interactive?: boolean;
+  /** Show attribution control (default true) */
+  showAttribution?: boolean;
 }
 
 export interface PolylineOptions {
@@ -128,14 +132,15 @@ export function transformRequest(url: string): { url: string } {
   return { url };
 }
 
-export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.Map {
+export function initMap({ el, center, zoom, styleUrl, interactive = true, showAttribution = true }: MapOptions): maplibregl.Map {
   return new maplibregl.Map({
     container: el,
     style: styleUrl,
     center: [center[1], center[0]], // MapLibre uses [lng, lat]
     zoom,
     fadeDuration: 0,
-    attributionControl: { compact: true },
+    interactive,
+    attributionControl: showAttribution ? { compact: true } : false,
     transformRequest,
   });
 }
