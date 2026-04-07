@@ -37,7 +37,7 @@ The pipeline computes `type` after `path_type` and MTB detection. Markdown front
 
 - **`long-distance`** — has `network: ncn` (national) or `network: rcn` (regional) AND has `osm_relations`. Also assigned to superroutes with ncn/rcn tags.
 - **`network`** — assigned by the pipeline's network discovery step for metro-level superroutes and park groupings.
-- **`destination`** — has `osm_relations` (a named cycling route in OSM), OR MUP/trail/MTB-trail above the city's length threshold.
+- **`destination`** — has `osm_relations` (a named cycling route in OSM), OR MUP/trail above the city's length threshold. For MTB trails: network members are always destination; named-way MTB trails use the length threshold; unnamed-chain MTB trails are infrastructure (on map, no page).
 - **`infrastructure`** — `bike-lane` or `paved-shoulder` on a real road, OR short named MUP/trail.
 - **`connector`** — tiny bike lane on a minor street, unnamed chain below minimum length.
 

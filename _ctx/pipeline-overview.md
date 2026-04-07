@@ -41,6 +41,7 @@ The auto-grouping in `lib/cluster-entries.mjs` merges entries whose OSM ways sha
 ## Key Invariants
 
 - `_ways` is transient — exists in memory during build, stripped before YAML output.
+- `_discovery_source` is transient — set during entry building, stripped before YAML output. Values: `relation` (Step 1), `named-way` (Step 2), `unnamed-chain` (Step 2c), `parallel-lane` (Step 2b). Used by `deriveEntryType` for provenance-aware MTB classification.
 - `osm_way_ids` persists in YAML — the OSM way IDs composing each entry. Provenance metadata: trace any entry back to its source ways.
 - Way IDs are the merge key. Relations claim ways first. Named ways with ≥50% overlap merge into the relation entry. Names are display metadata, not structural keys.
 - The WayRegistry (`lib/way-registry.mjs`) is the single source of truth for way ownership during the pipeline run.

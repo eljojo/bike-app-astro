@@ -43,7 +43,7 @@ Network entries (`type: network`) do not carry `path_type`. The Astro app aggreg
 
 ## Relationship to `mtb`
 
-The `mtb: true` boolean stays in bikepaths.yml. MTB detection runs in two phases in `src/lib/bike-paths/classify-path.ts`: tier-1 (explicit `mtb:scale` tags) before clustering, tier-2/3 (network inference + ambient) after. `mtb:scale=0` means "any bike, no difficulty" and does NOT trigger MTB detection. For display, the app uses `path_type: mtb-trail` rather than the raw boolean.
+The `mtb: true` boolean stays in bikepaths.yml. MTB detection runs in three tiers in `src/lib/bike-paths/classify-path.ts`: tier-1 (explicit `mtb:scale` tags) and tier-3 (ambient — unpaved trail without `bicycle=designated`) run before clustering in `classifyPathsEarly`; tier-2 (network inference) runs after clustering in `classifyPathsLate`. Tier-3 ambient detection skips entries with `fine_gravel` or `compacted` surface — these are maintained multi-use paths, not MTB terrain. `mtb:scale=0` means "any bike, no difficulty" and does NOT trigger MTB detection. For display, the app uses `path_type: mtb-trail` rather than the raw boolean.
 
 ## Facts table
 
