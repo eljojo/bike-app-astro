@@ -228,6 +228,10 @@ function extractOsmMetadata(tags) {
   if (tags.seasonal) meta.seasonal = tags.seasonal;
   if (tags.access) meta.access = tags.access;
 
+  // Pedestrian access and facility type (for facts engine)
+  if (tags.foot) meta.foot = tags.foot;
+  if (tags.sport) meta.sport = tags.sport;
+
   return meta;
 }
 
