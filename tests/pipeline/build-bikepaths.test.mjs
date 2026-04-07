@@ -487,6 +487,68 @@ describe('buildBikepathsPipeline', () => {
     expect(cycling.overlapping_relations[0].route).toBe('hiking');
   });
 
+  it('aggregates way-level tags into relation entries that lack physical characteristics', async () => {
+    // Real-world bug: East–West Crosstown Bikeway (relation 7234399).
+    // The relation itself has only route-level tags (name, network, operator,
+    // ref, route=bicycle) — no highway, no surface. Its 146 member ways are
+    // mostly highway=cycleway + surface=asphalt, but almost none have name
+    // tags, so named-way discovery never finds them.
+    //
+    // Without way-tag aggregation the entry gets no highway/surface, and
+    // derivePathType() falls through to the default → trail. It should be mup.
+    const RELATION = {
+      type: 'relation', id: 7234399,
+      tags: {
+        name: 'East–West Crosstown Bikeway', route: 'bicycle', type: 'route',
+        network: 'lcn', operator: 'City of Ottawa', ref: '2',
+      },
+    };
+
+    // Simplified member set: 4 unnamed cycleways (asphalt) + 1 unnamed path (asphalt).
+    // No name tags on any of them — named-way discovery won't find these.
+    const MEMBER_WAYS = [
+      { type: 'way', id: 1001, tags: { highway: 'cycleway', surface: 'asphalt', width: '3', bicycle: 'designated' } },
+      { type: 'way', id: 1002, tags: { highway: 'cycleway', surface: 'asphalt', width: '2.5' } },
+      { type: 'way', id: 1003, tags: { highway: 'cycleway', surface: 'asphalt', lit: 'yes' } },
+      { type: 'way', id: 1004, tags: { highway: 'cycleway', surface: 'asphalt' } },
+      { type: 'way', id: 1005, tags: { highway: 'path', surface: 'asphalt', bicycle: 'designated', foot: 'designated' } },
+    ];
+
+    const memberRefs = MEMBER_WAYS.map(w => ({ type: 'way', ref: w.id, role: '' }));
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [RELATION] }],
+      ['out body', { elements: [{ type: 'relation', id: 7234399, members: memberRefs }] }],
+      // Way-tag aggregation step — fetches tags for relation member ways
+      ['way(id:', { elements: MEMBER_WAYS }],
+      // Geometry
+      ['out geom', { elements: [{ type: 'relation', id: 7234399, members: memberRefs.map((m, i) => ({
+        ...m, geometry: [
+          { lat: 45.41 + i * 0.002, lon: -75.70 },
+          { lat: 45.41 + i * 0.002 + 0.001, lon: -75.69 },
+        ],
+      })) }] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.15,-76.35,45.65,-75.35',
+      adapter: OTTAWA_ADAPTER,
+      manualEntries: [],
+    });
+
+    const bikeway = entries.find(e => e.osm_relations?.includes(7234399));
+    expect(bikeway, 'relation entry should exist').toBeDefined();
+    expect(bikeway.name).toBe('East–West Crosstown Bikeway');
+
+    // Way-level tags must be aggregated onto the relation entry
+    expect(bikeway.highway, 'should aggregate highway from member ways').toBe('cycleway');
+    expect(bikeway.surface, 'should aggregate surface from member ways').toBe('asphalt');
+
+    // With highway=cycleway, derivePathType should produce mup, not trail
+    expect(bikeway.path_type, 'paved cycleway relation must not be classified as trail').toBe('mup');
+  });
+
   it('unnamed chains inside a park get osm_way_ids (not just osm_names)', async () => {
     // Scenario: unnamed cycling ways inside "Beauclaire Park".
     // Step 2c discovers these as an unnamed chain ≥1.5km and names them

@@ -460,6 +460,17 @@ function buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, 
     byName.set(rel.name.toLowerCase(), entry);
   }
 
+  // Enrich relation entries with aggregated way-level tags.
+  // Route relations lack physical characteristics (highway, surface, width,
+  // lit) — those live on member ways. enrichEntry() only sets missing fields,
+  // so explicit relation-level tags take precedence.
+  for (const rel of osmRelations) {
+    if (rel._aggregatedWayTags) {
+      const entry = byRelation.get(rel.id);
+      if (entry) enrichEntry(entry, rel._aggregatedWayTags, { skipIdentity: true });
+    }
+  }
+
   // Tag all relation-sourced entries with provenance
   for (const entry of byRelation.values()) {
     entry._discovery_source = 'relation';
@@ -963,6 +974,47 @@ out tags;`;
       console.log(`  Fetched member way IDs: ${totalWays} ways across ${bodyById.size} relations`);
     } catch (err) {
       console.error(`  Failed to fetch relation member way IDs: ${err.message}`);
+    }
+  }
+
+  // Step 1a-2: Fetch way-level tags for relation members.
+  // Route relations typically lack physical tags (highway, surface, width,
+  // lit) — those live on the member ways. Aggregate them via majority vote
+  // so relation entries get correct classification in derivePathType().
+  if (osmRelations.length > 0) {
+    const wayIdToRels = new Map();
+    for (const rel of osmRelations) {
+      for (const wid of (rel._memberWayIds || [])) {
+        if (!wayIdToRels.has(wid)) wayIdToRels.set(wid, []);
+        wayIdToRels.get(wid).push(rel);
+      }
+    }
+    const allWayIds = [...wayIdToRels.keys()];
+    if (allWayIds.length > 0) {
+      const wayTagQ = `[out:json][timeout:120];\nway(id:${allWayIds.join(',')});\nout tags;`;
+      try {
+        const wayTagData = await qo(wayTagQ);
+        const waysByRel = new Map();
+        for (const el of wayTagData.elements) {
+          const rels = wayIdToRels.get(el.id);
+          if (!rels) continue;
+          for (const rel of rels) {
+            if (!waysByRel.has(rel.id)) waysByRel.set(rel.id, []);
+            waysByRel.get(rel.id).push(el);
+          }
+        }
+        let enrichedCount = 0;
+        for (const rel of osmRelations) {
+          const ways = waysByRel.get(rel.id);
+          if (ways?.length > 0) {
+            rel._aggregatedWayTags = mergeWayTags(ways);
+            enrichedCount++;
+          }
+        }
+        console.log(`  Aggregated way-level tags for ${enrichedCount} relations`);
+      } catch (err) {
+        console.error(`  Failed to fetch way-level tags: ${err.message}`);
+      }
     }
   }
 
