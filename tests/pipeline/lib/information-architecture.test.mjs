@@ -911,7 +911,31 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
   });
 
   // =====================================================================
-  // 9. NETWORK NAMING — no "Trails" suffix on road networks
+  // 9. UNNAMED RELATIONS — should merge into named relations in same network
+  // =====================================================================
+
+  describe('unnamed relation merging', () => {
+    it('no entries named relation-NNNN (unnamed relations should merge into named ones)', () => {
+      const unnamed = entries.filter(e => /^relation-\d+$/.test(e.name));
+      expect(
+        unnamed.map(e => `${e.name} (network: ${e.network}, slug: ${e.slug})`),
+        'Unnamed relations should be merged into named relations sharing the same network tag'
+      ).toEqual([]);
+    });
+
+    it('Osgoode Link Pathway absorbs unnamed lcn relation 18537256', () => {
+      const osgoode = entries.find(e => e.name === 'Osgoode Link Pathway');
+      expect(osgoode, 'Osgoode Link Pathway should exist').toBeDefined();
+      // The unnamed relation's way IDs should be part of this entry
+      expect(
+        osgoode.osm_way_ids,
+        'should include way 68586974 from relation 18537256'
+      ).toContain(68586974);
+    });
+  });
+
+  // =====================================================================
+  // 10. NETWORK NAMING — no "Trails" suffix on road networks
   // =====================================================================
 
   describe('network naming', () => {

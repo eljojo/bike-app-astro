@@ -1508,6 +1508,62 @@ out geom tags;`;
     }
   }
 
+  // Step 3a-2: Merge unnamed relations into named ones in the same network.
+  // Unnamed relations get synthetic names like "relation-18537256". When a
+  // named relation with the same network tag exists and their ways connect
+  // (shared endpoint within 200m), merge the unnamed into the named.
+  {
+    const CONNECT_M = 200;
+    const unnamed = entries.filter(e => /^relation-\d+$/.test(e.name) && e.network && e._ways?.length);
+    let mergedCount = 0;
+    for (const entry of unnamed) {
+      // Collect this entry's way endpoints
+      const eps = [];
+      for (const way of entry._ways) {
+        if (way.length >= 2) {
+          eps.push(way[0], way[way.length - 1]);
+        }
+      }
+      if (eps.length === 0) continue;
+
+      // Find named entries with same network tag that have connecting endpoints
+      let bestTarget = null;
+      let bestDist = Infinity;
+      for (const candidate of entries) {
+        if (candidate === entry) continue;
+        if (candidate.network !== entry.network) continue;
+        if (/^relation-\d+$/.test(candidate.name)) continue;
+        if (!candidate._ways?.length) continue;
+        // Check endpoint-to-endpoint distance
+        for (const cWay of candidate._ways) {
+          if (cWay.length < 2) continue;
+          const cEps = [cWay[0], cWay[cWay.length - 1]];
+          for (const ep of eps) {
+            for (const cEp of cEps) {
+              const d = haversineM([ep.lon, ep.lat], [cEp.lon, cEp.lat]);
+              if (d < bestDist) { bestDist = d; bestTarget = candidate; }
+            }
+          }
+        }
+      }
+      if (!bestTarget || bestDist > CONNECT_M) continue;
+
+      // Merge: transfer relation IDs, geometry, way IDs
+      bestTarget.osm_relations = [...(bestTarget.osm_relations || []), ...(entry.osm_relations || [])];
+      bestTarget._ways = [...(bestTarget._ways || []), ...entry._ways];
+      if (entry.anchors) bestTarget.anchors = [...(bestTarget.anchors || []), ...entry.anchors];
+      const wayIds = wayRegistry.wayIdsFor(entry);
+      if (wayIds.size > 0) wayRegistry.transfer(entry, bestTarget, wayIds);
+
+      // Remove the unnamed entry
+      const idx = entries.indexOf(entry);
+      if (idx >= 0) entries.splice(idx, 1);
+      mergedCount++;
+      console.log(`  ~ merged ${entry.name} into ${bestTarget.name} (${Math.round(bestDist)}m endpoint distance)`);
+    }
+    if (mergedCount > 0) console.log(`  Merged ${mergedCount} unnamed relations into named entries`);
+  }
+
   // Step 3b: Initial classification (tier-1 MTB + path_type)
   // Needed before clustering so cluster-entries can use path_type.
   const { mtbCount: tier1MtbCount } = classifyPathsEarly(entries);
