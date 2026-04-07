@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchWikidataEntity, extractBikePathMetadata, enrichWithWikidata, validateWikidataEntity } from '../../../scripts/pipeline/lib/wikidata.mjs';
+import { fetchWikidataEntity, extractBikePathMetadata, enrichWithWikidata, validateWikidataEntity, resolveOperatorNames, fetchWikipediaExtracts } from '../../../scripts/pipeline/lib/wikidata.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const realFixture = JSON.parse(
@@ -194,5 +194,148 @@ describe('validateWikidataEntity', () => {
     validateWikidataEntity(realFixture, { name: 'Capital Pathway' });
     const p2789Warnings = warnSpy.mock.calls.filter(c => c[0].includes('P2789'));
     expect(p2789Warnings).toHaveLength(0);
+  });
+});
+
+describe('resolveOperatorNames', () => {
+  it('resolves operator Q-ID to human-readable name, deduplicating fetches', async () => {
+    const operatorEntity = {
+      id: 'Q613449',
+      labels: { en: 'National Capital Commission', fr: 'Commission de la capitale nationale' },
+    };
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(operatorEntity),
+    });
+
+    const entries = [
+      { name: 'Path A', wikidata_meta: { operator_qid: 'Q613449' } },
+      { name: 'Path B', wikidata_meta: { operator_qid: 'Q613449' } },
+    ];
+
+    await resolveOperatorNames(entries, mockFetch);
+
+    expect(entries[0].wikidata_meta.operator).toBe('National Capital Commission');
+    expect(entries[1].wikidata_meta.operator).toBe('National Capital Commission');
+    // Only one fetch for the deduplicated Q-ID
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to Q-ID string on fetch error', async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error('network error'));
+
+    const entries = [
+      { name: 'Path A', wikidata_meta: { operator_qid: 'Q999999' } },
+    ];
+
+    await resolveOperatorNames(entries, mockFetch);
+
+    expect(entries[0].wikidata_meta.operator).toBe('Q999999');
+  });
+
+  it('skips entries without operator_qid', async () => {
+    const mockFetch = vi.fn();
+    const entries = [
+      { name: 'Path A', wikidata_meta: {} },
+      { name: 'Path B' },
+    ];
+
+    await resolveOperatorNames(entries, mockFetch);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchWikipediaExtracts', () => {
+  it('fetches English extract and deletes sitelinks afterward', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ extract: 'The Capital Pathway is a multi-use path network.' }),
+    });
+
+    const entries = [
+      {
+        name: 'Capital Pathway',
+        wikidata_meta: {
+          wikipedia_sitelinks: {
+            en: { title: 'Capital Pathway', url: 'https://en.wikipedia.org/wiki/Capital_Pathway' },
+          },
+        },
+      },
+    ];
+
+    await fetchWikipediaExtracts(entries, mockFetch);
+
+    expect(entries[0].wikidata_meta.wikipedia_extract_en).toBe('The Capital Pathway is a multi-use path network.');
+    expect(entries[0].wikidata_meta.wikipedia_sitelinks).toBeUndefined();
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://en.wikipedia.org/api/rest_v1/page/summary/Capital%20Pathway',
+      expect.objectContaining({
+        headers: { 'User-Agent': 'whereto.bike/1.0 (https://ottawabybike.ca)' },
+      })
+    );
+  });
+
+  it('fetches extracts for multiple languages', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ extract: 'English extract.' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ extract: 'Extrait en français.' }),
+      });
+
+    const entries = [
+      {
+        name: 'Some Path',
+        wikidata_meta: {
+          wikipedia_sitelinks: {
+            en: { title: 'Some Path', url: 'https://en.wikipedia.org/wiki/Some_Path' },
+            fr: { title: 'Un sentier', url: 'https://fr.wikipedia.org/wiki/Un_sentier' },
+          },
+        },
+      },
+    ];
+
+    await fetchWikipediaExtracts(entries, mockFetch);
+
+    expect(entries[0].wikidata_meta.wikipedia_extract_en).toBe('English extract.');
+    expect(entries[0].wikidata_meta.wikipedia_extract_fr).toBe('Extrait en français.');
+    expect(entries[0].wikidata_meta.wikipedia_sitelinks).toBeUndefined();
+  });
+
+  it('skips entries without sitelinks', async () => {
+    const mockFetch = vi.fn();
+    const entries = [
+      { name: 'Path A', wikidata_meta: {} },
+      { name: 'Path B' },
+    ];
+
+    await fetchWikipediaExtracts(entries, mockFetch);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('skips failed fetches silently', async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error('network error'));
+
+    const entries = [
+      {
+        name: 'Path A',
+        wikidata_meta: {
+          wikipedia_sitelinks: {
+            en: { title: 'Path A', url: 'https://en.wikipedia.org/wiki/Path_A' },
+          },
+        },
+      },
+    ];
+
+    await fetchWikipediaExtracts(entries, mockFetch);
+
+    expect(entries[0].wikidata_meta.wikipedia_extract_en).toBeUndefined();
+    // sitelinks should still be deleted
+    expect(entries[0].wikidata_meta.wikipedia_sitelinks).toBeUndefined();
   });
 });

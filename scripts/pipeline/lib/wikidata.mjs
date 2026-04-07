@@ -209,6 +209,63 @@ export function validateWikidataEntity(entity, entry) {
   }
 }
 
+export async function resolveOperatorNames(entries, fetchFn = fetch) {
+  // Collect unique operator Q-IDs
+  const qidToEntries = new Map();
+  for (const entry of entries) {
+    const qid = entry.wikidata_meta?.operator_qid;
+    if (!qid) continue;
+    if (!qidToEntries.has(qid)) qidToEntries.set(qid, []);
+    qidToEntries.get(qid).push(entry);
+  }
+
+  for (const [qid, group] of qidToEntries) {
+    let name = qid;
+    try {
+      const entity = await fetchWikidataEntity(qid, fetchFn);
+      name = entity.labels?.en || entity.labels?.fr || qid;
+    } catch {
+      // fall back to Q-ID string
+    }
+    for (const entry of group) {
+      entry.wikidata_meta.operator = name;
+    }
+  }
+}
+
+export async function fetchWikipediaExtracts(entries, fetchFn = fetch, { concurrency = 4 } = {}) {
+  const candidates = entries.filter(e => e.wikidata_meta?.wikipedia_sitelinks);
+  if (candidates.length === 0) return;
+
+  const queue = [...candidates];
+
+  async function worker() {
+    let entry;
+    while ((entry = queue.shift()) !== undefined) {
+      const sitelinks = entry.wikidata_meta.wikipedia_sitelinks;
+      for (const lang of Object.keys(sitelinks)) {
+        const title = sitelinks[lang].title;
+        const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        try {
+          const res = await fetchFn(url, {
+            headers: { 'User-Agent': 'whereto.bike/1.0 (https://ottawabybike.ca)' },
+          });
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.extract) {
+            entry.wikidata_meta[`wikipedia_extract_${lang}`] = data.extract;
+          }
+        } catch {
+          // skip failed fetches silently
+        }
+      }
+      delete entry.wikidata_meta.wikipedia_sitelinks;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, () => worker()));
+}
+
 export async function enrichWithWikidata(entries, { fetchFn = fetch, concurrency = 4 } = {}) {
   const candidates = entries.filter(e => e.wikidata && !e.wikidata_meta);
   if (candidates.length === 0) return 0;
@@ -235,5 +292,9 @@ export async function enrichWithWikidata(entries, { fetchFn = fetch, concurrency
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, () => worker()));
+
+  await resolveOperatorNames(entries, fetchFn);
+  await fetchWikipediaExtracts(entries, fetchFn, { concurrency });
+
   return enriched;
 }
