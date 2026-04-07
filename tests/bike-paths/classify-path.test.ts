@@ -10,6 +10,7 @@ import {
   classifyPathsLate,
   type ClassifiableEntry,
 } from '../../src/lib/bike-paths/classify-path';
+import { isMaintainedUnpaved } from '../../src/lib/bike-paths/surfaces';
 
 describe('isTrailType', () => {
   it('highway=path is trail type', () => {
@@ -77,6 +78,30 @@ describe('isDesignatedCycling', () => {
   });
   it('no bicycle tag is not designated', () => {
     expect(isDesignatedCycling({})).toBe(false);
+  });
+});
+
+describe('isMaintainedUnpaved', () => {
+  it('fine_gravel is maintained unpaved', () => {
+    expect(isMaintainedUnpaved('fine_gravel')).toBe(true);
+  });
+  it('compacted is maintained unpaved', () => {
+    expect(isMaintainedUnpaved('compacted')).toBe(true);
+  });
+  it('ground is NOT maintained unpaved', () => {
+    expect(isMaintainedUnpaved('ground')).toBe(false);
+  });
+  it('gravel is NOT maintained unpaved', () => {
+    expect(isMaintainedUnpaved('gravel')).toBe(false);
+  });
+  it('dirt is NOT maintained unpaved', () => {
+    expect(isMaintainedUnpaved('dirt')).toBe(false);
+  });
+  it('asphalt is NOT maintained unpaved', () => {
+    expect(isMaintainedUnpaved('asphalt')).toBe(false);
+  });
+  it('undefined is NOT maintained unpaved', () => {
+    expect(isMaintainedUnpaved(undefined)).toBe(false);
   });
 });
 

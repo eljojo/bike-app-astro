@@ -46,6 +46,13 @@ export function isPaved(surface?: string): boolean {
   return !!surface && !UNPAVED.has(surface);
 }
 
+/** Maintained unpaved surfaces: rideable on a hybrid/gravel bike, not MTB terrain. */
+const MAINTAINED_UNPAVED = new Set(['fine_gravel', 'compacted']);
+
+export function isMaintainedUnpaved(surface?: string): boolean {
+  return !!surface && MAINTAINED_UNPAVED.has(surface);
+}
+
 /** Returns category key for known surfaces, or the raw value for unknown ones. */
 export function displaySurface(raw?: string): string | undefined {
   if (!raw) return undefined;
