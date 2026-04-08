@@ -49,6 +49,9 @@ import { WayRegistry } from './lib/way-registry.mjs';
 import { extractOsmMetadata, mergeWayTags, wayLengthKm, enrichEntry, IDENTITY_TAGS } from './lib/osm-tags.ts';
 // Re-export for test compatibility (tests import mergeWayTags from this file)
 export { mergeWayTags };
+import { loadManualEntries, loadMarkdownSlugs, parseMarkdownOverrides, writeYaml } from './lib/pipeline-io.ts';
+// Re-export for test compatibility (tests import parseMarkdownOverrides from this file)
+export { parseMarkdownOverrides };
 
 // ---------------------------------------------------------------------------
 // CLI (only when run directly, not when imported)
@@ -92,19 +95,8 @@ if (isMain) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Load manual entries from sidecar file
+// Step 1: Load manual entries from sidecar file — see lib/pipeline-io.ts
 // ---------------------------------------------------------------------------
-
-function loadManualEntries() {
-  const manualPath = path.join(dataDir, 'manual-entries.yml');
-  if (!fs.existsSync(manualPath)) return [];
-  const data = yaml.load(fs.readFileSync(manualPath, 'utf8'));
-  const entries = data?.manual_entries || [];
-  if (entries.length > 0) {
-    console.log(`  Loaded ${entries.length} manual entries`);
-  }
-  return entries;
-}
 
 /**
  * Group chains with the same road name only if their bboxes are within proximityM of each other.
@@ -751,64 +743,8 @@ function addSuperrouteNetworks(entries, networks, wayRegistry) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: load markdown slugs
+// Helper functions: loadMarkdownSlugs, parseMarkdownOverrides — see lib/pipeline-io.ts
 // ---------------------------------------------------------------------------
-
-function loadMarkdownSlugs() {
-  const bikePathsDir = path.join(dataDir, 'bike-paths');
-  const slugs = new Set();
-  if (fs.existsSync(bikePathsDir)) {
-    for (const f of fs.readdirSync(bikePathsDir)) {
-      if (!f.endsWith('.md') || f.includes('.fr.')) continue;
-      slugs.add(f.replace(/\.md$/, ''));
-      // Parse includes from frontmatter — claims those slugs too
-      try {
-        const content = fs.readFileSync(path.join(bikePathsDir, f), 'utf8');
-        const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-        if (fmMatch) {
-          const includes = fmMatch[1].match(/includes:\n((?:\s+-\s+.+\n?)*)/);
-          if (includes) {
-            for (const line of includes[1].split('\n')) {
-              const slug = line.replace(/^\s+-\s+/, '').trim();
-              if (slug) slugs.add(slug);
-            }
-          }
-        }
-      } catch {}
-    }
-  }
-  return slugs;
-}
-
-/**
- * Parse markdown frontmatter overrides into a structured map.
- * Currently supports: member_of.
- */
-// Fields that markdown frontmatter can override on bikepaths.yml entries.
-// member_of has special handling (network reassignment). Everything else
-// is a simple field overwrite — if a human puts it in markdown, it wins.
-const MARKDOWN_OVERRIDE_FIELDS = [
-  'member_of', 'operator', 'path_type', 'type',
-];
-
-export function parseMarkdownOverrides(bikePathsDir) {
-  const overrides = new Map();
-  if (!bikePathsDir || !fs.existsSync(bikePathsDir)) return overrides;
-  for (const f of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md') && !f.includes('.fr.'))) {
-    const content = fs.readFileSync(path.join(bikePathsDir, f), 'utf8');
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!fmMatch) continue;
-    let fm;
-    try { fm = yaml.load(fmMatch[1]); } catch { continue; }
-    const mdSlug = f.replace('.md', '');
-    const override = {};
-    for (const field of MARKDOWN_OVERRIDE_FIELDS) {
-      if (fm?.[field] != null) override[field] = fm[field];
-    }
-    if (Object.keys(override).length > 0) overrides.set(mdSlug, override);
-  }
-  return overrides;
-}
 
 // ---------------------------------------------------------------------------
 // Main
@@ -1996,8 +1932,8 @@ out geom tags;`;
 async function main() {
   console.log(`Building bikepaths.yml for ${args.city} (bbox: ${bbox})`);
 
-  const manualEntries = loadManualEntries();
-  const markdownSlugs = loadMarkdownSlugs();
+  const manualEntries = loadManualEntries(dataDir);
+  const markdownSlugs = loadMarkdownSlugs(dataDir);
   const bikePathsDir = path.join(dataDir, 'bike-paths');
   const markdownOverrides = parseMarkdownOverrides(bikePathsDir);
 
@@ -2026,33 +1962,7 @@ async function main() {
     }
     console.log(`\nTotal: ${entries.length} entries (${networkEntries.length} networks, ${memberEntries.length} members, ${superNetworks.length} super-networks)`);
   } else {
-    // Slugs already set by the resolution pass — strip transient fields
-    for (const entry of entries) {
-      delete entry._ways;
-      delete entry._member_relations;
-      if (entry._parkName) { entry.park = entry._parkName; }
-      delete entry._parkName;
-      delete entry._discovery_source;
-      delete entry._isUnnamedChain;
-    }
-    for (const entry of entries) {
-      if (entry.anchors?.length > 2) {
-        const lngs = entry.anchors.map(a => a[0]);
-        const lats = entry.anchors.map(a => a[1]);
-        entry.anchors = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
-      }
-    }
-    // Final cleanup: strip member_of from large detached long-distance entries
-    for (const entry of entries) {
-      if (entry.type === 'long-distance' && entry.member_of && (entry.osm_way_ids?.length ?? 0) >= 200) {
-        delete entry.member_of;
-      }
-    }
-    const yamlData = { bike_paths: entries };
-    if (superNetworks.length > 0) yamlData.super_networks = superNetworks;
-    const output = yaml.dump(yamlData, { lineWidth: -1, noRefs: true });
-    fs.writeFileSync(bikepathsPath, output);
-    console.log(`\nWrote ${entries.length} entries (${networkEntries.length} networks, ${memberEntries.length} members) to ${bikepathsPath}`);
+    writeYaml(entries, superNetworks, bikepathsPath, slugMap);
   }
 }
 
