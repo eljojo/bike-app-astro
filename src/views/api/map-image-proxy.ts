@@ -12,6 +12,7 @@
  */
 import type { APIRoute } from 'astro';
 import { env } from '../../lib/env/env.service';
+import { getCityConfig } from '../../lib/config/city-config';
 import {
   MAP_SIZE_PRESETS, parseMapImagePath,
   buildGoogleMapsUrl, buildGoogleMapsUrlFromPolyline, buildGoogleMapsUrlFromPolylines,
@@ -57,7 +58,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
   // --- Tier 2: R2 (raw PNG, one per slug+hash+lang) ---
   const r2Key = `maps/${type}/${slug}/${hash}-${lang}.png`;
   const bucket = env.BUCKET;
-  const r2Public = env.R2_PUBLIC_URL;
+  const r2Public = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
   const r2CdnUrl = `${r2Public}/${r2Key}`;
 
   const r2Head = await bucket.head(r2Key);
@@ -76,8 +77,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
   // --- Transform via cf.image (Cloudflare) or serve raw (local) ---
   let response: Response;
 
-  if (!isLocal && size !== 'full') {
-    // cf.image transforms the R2-hosted raw PNG
+  if (!isLocal && size !== 'full' && r2Public) {
+    // cf.image transforms the R2-hosted raw PNG via its public URL
     const cfOptions = { ...preset.cfImage, format: 'auto' as const };
     response = await fetch(r2CdnUrl, { cf: { image: cfOptions } } as RequestInit);
     if (!response.ok) {
@@ -89,7 +90,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
       });
     }
   } else {
-    // Local dev or 'full' size: serve raw PNG
+    // Local dev, 'full' size, or no R2 public URL: serve raw PNG from R2 binding
     const raw = await bucket.get(r2Key);
     if (!raw) return new Response('R2 read failed', { status: 500 });
     response = new Response(await raw.arrayBuffer(), {
