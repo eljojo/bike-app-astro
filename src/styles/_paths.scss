@@ -764,14 +764,14 @@
   h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 }
 
-.bike-path-photo-hidden {
-  display: none;
-}
-
 .bike-path-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.5rem;
+
+  .bike-path-photo-hidden {
+    display: none;
+  }
 
   .bike-path-photo {
     display: block;
