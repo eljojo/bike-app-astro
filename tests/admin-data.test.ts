@@ -157,12 +157,4 @@ describe('buildDataPlugin virtual modules', () => {
     expect(Object.keys(data).length).toBeGreaterThan(0);
   });
 
-  it('still loads cached-maps virtual module', async () => {
-    const plugin = buildDataPlugin();
-    const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/cached-maps');
-    expect(resolved).toBe('\0virtual:bike-app/cached-maps');
-    const result = await (plugin.load as Function).call(plugin, '\0virtual:bike-app/cached-maps');
-    expect(typeof result).toBe('string');
-    expect(result).toContain('export default new Set(');
-  });
 });

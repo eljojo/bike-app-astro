@@ -63,7 +63,7 @@ describe('mergeAdjacentSegments', () => {
 });
 
 describe('bike path map URL construction', () => {
-  // Simulates the exact flow from generate-maps.ts:
+  // Simulates the flow for constructing bike path map URLs:
   // GeoJSON coords → [lat, lng] segments → merge → encode → buildStaticMapUrl
   //
   // Points must be within 150m of each other (gapKm: 0.15) to stay in the

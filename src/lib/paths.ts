@@ -66,24 +66,3 @@ export function allRouteSlugs(route: { id: string; data: { translations?: Record
   return slugs;
 }
 
-// Static asset paths (map thumbnails)
-export const assets = {
-  mapThumbnail: (slug: string, size: 375 | 750 | 1500 = 750) => {
-    return `/maps/${slug}/map-${size}.webp`;
-  },
-  mapThumbnailSrcset: (slug: string) => {
-    return `/maps/${slug}/map-375.webp 1x, /maps/${slug}/map-750.webp 2x`;
-  },
-  mapThumbnailSrcsetLarge: (slug: string) => {
-    return `/maps/${slug}/map-750.webp 1x, /maps/${slug}/map-1500.webp 2x`;
-  },
-  mapVariantThumbnail: (slug: string, variant: string, size: 375 | 750 = 750) => {
-    return `/maps/${slug}/${variant}/map-${size}.webp`;
-  },
-  mapPng: (slug: string, variant: string) => {
-    return `/maps/${slug}/${variant}/map.png`;
-  },
-  mapSocial: (slug: string) => {
-    return `/maps/${slug}/map-social.jpg`;
-  },
-};

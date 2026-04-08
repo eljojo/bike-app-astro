@@ -19,9 +19,8 @@
  *   map-manifests ─────────┤
  *                          ├─► done
  *   cache-path-geometry ───┤
- *     ├─► geo-metadata
- *     │     └─► path-tiles
- *     └─► maps
+ *     └─► geo-metadata
+ *           └─► path-tiles
  */
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -57,7 +56,6 @@ const contributors = minimal ? Promise.resolve() : run('contributors', 'build-co
 const geoCache  = run('path-geo-cache', 'cache-path-geometry.ts');
 const geoMeta   = geoCache.then(() => run('geo-metadata', 'generate-geo-metadata.ts'));
 const pathTiles = geoMeta.then(() => run('path-tiles', 'generate-path-tiles.ts'));
-const maps      = minimal ? Promise.resolve() : geoCache.then(() => run('maps', 'generate-maps.ts'));
 const mapManifests = run('map-manifests', 'generate-map-manifests.ts');
 
-await Promise.all([mapStyle, iconPaths, contributors, pathTiles, maps, mapManifests]);
+await Promise.all([mapStyle, iconPaths, contributors, pathTiles, mapManifests]);
