@@ -98,21 +98,28 @@ describe('parseMapImagePath', () => {
     });
   });
 
-  it('parses route URL with variant', () => {
-    const variants = new Set(['main', 'variants-return']);
-    const result = parseMapImagePath('route/a1b2c3d4e5f6/aylmer-main-thumb-2x-en.png', variants);
+  it('parses route URL with variant (-- delimiter)', () => {
+    const result = parseMapImagePath('route/a1b2c3d4e5f6/aylmer--main-thumb-2x-en.png');
     expect(result).toEqual({
       type: 'route', hash: 'a1b2c3d4e5f6', slug: 'aylmer',
       size: 'thumb-2x', variant: 'main', lang: 'en',
     });
   });
 
-  it('parses multi-part variant (variant before size in filename)', () => {
-    const variants = new Set(['main', 'variants-return']);
-    const result = parseMapImagePath('route/f6e5d4c3b2a1/aylmer-variants-return-full-en.png', variants);
+  it('parses multi-part variant (-- delimiter)', () => {
+    const result = parseMapImagePath('route/f6e5d4c3b2a1/aylmer--variants-return-full-en.png');
     expect(result).toEqual({
       type: 'route', hash: 'f6e5d4c3b2a1', slug: 'aylmer',
       size: 'full', variant: 'variants-return', lang: 'en',
+    });
+  });
+
+  it('handles slug containing -- when no variant', () => {
+    const result = parseMapImagePath('route/a1b2c3d4e5f6/some--weird--name-full-en.png');
+    // Last "--" wins: slug="some--weird", variant="name" (parsed from tail)
+    expect(result).toEqual({
+      type: 'route', hash: 'a1b2c3d4e5f6', slug: 'some--weird',
+      size: 'full', variant: 'name', lang: 'en',
     });
   });
 

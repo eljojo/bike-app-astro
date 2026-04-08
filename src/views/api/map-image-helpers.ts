@@ -204,14 +204,11 @@ export interface ParsedMapImageUrl {
 
 /**
  * Parse the map image URL path: {type}/{hash}/{filename}.png
- * Filename format: {slug}-{variant?}-{size}-{lang}.png
- * The slug can contain dashes. We parse from the right: lang (last), then
- * check if the next segment is a known size or a variant+size combo.
+ * Filename format: {slug}--{variant}-{size}-{lang}.png  (variant present)
+ *              or: {slug}-{size}-{lang}.png              (no variant)
+ * The "--" delimiter separates slug from variant unambiguously.
  */
-export function parseMapImagePath(
-  rawPath: string,
-  knownVariants?: Set<string>,
-): ParsedMapImageUrl | null {
+export function parseMapImagePath(rawPath: string): ParsedMapImageUrl | null {
   // Strip .png extension
   const withoutExt = rawPath.replace(/\.png$/, '');
   const segments = withoutExt.split('/');
@@ -221,20 +218,32 @@ export function parseMapImagePath(
   if (!['bike-path', 'route', 'ride', 'tour'].includes(type)) return null;
   if (!hash || !/^[a-f0-9]{12,16}$/.test(hash)) return null;
 
-  // Parse filename from the right: last part is lang, then size, optionally variant
-  const parts = filename.split('-');
-  if (parts.length < 3) return null; // need at least slug-size-lang
+  // Split on "--" to separate slug from variant+size+lang
+  let slug: string;
+  let variant: string | undefined;
+  let tail: string;
+
+  const doubleDashIdx = filename.lastIndexOf('--');
+  if (doubleDashIdx > 0) {
+    slug = filename.slice(0, doubleDashIdx);
+    tail = filename.slice(doubleDashIdx + 2); // variant-size-lang
+  } else {
+    tail = filename; // slug-size-lang (no variant)
+    slug = '';       // extracted below from tail
+  }
+
+  // Parse tail from the right: lang, then size, then (if "--") variant, else slug
+  const parts = tail.split('-');
+  if (parts.length < 2) return null;
 
   const lang = parts.pop()!;
   if (!/^[a-z]{2}$/.test(lang)) return null;
 
   // Try to find size from the right
-  // Sizes can be multi-part: "thumb-2x", "thumb-lg"
   let size: string | null = null;
-  let variant: string | undefined;
 
   // Check for 2-part sizes first: "thumb-2x", "thumb-lg"
-  if (parts.length >= 3) {
+  if (parts.length >= 2) {
     const twoPartSize = `${parts[parts.length - 2]}-${parts[parts.length - 1]}`;
     if (MAP_SIZE_PRESETS[twoPartSize]) {
       size = twoPartSize;
@@ -244,7 +253,7 @@ export function parseMapImagePath(
   }
 
   // Check for 1-part sizes: "social", "thumb", "full"
-  if (!size && parts.length >= 2) {
+  if (!size && parts.length >= 1) {
     const onePartSize = parts[parts.length - 1];
     if (MAP_SIZE_PRESETS[onePartSize]) {
       size = onePartSize;
@@ -254,22 +263,14 @@ export function parseMapImagePath(
 
   if (!size) return null;
 
-  // Remaining parts: could be "slug" or "slug-...-variant"
-  // Check if the last remaining part is a known variant
-  if (knownVariants && parts.length >= 2) {
-    // Variants can be multi-part like "variants-return"
-    // Try progressively longer suffixes
-    for (let i = parts.length - 1; i >= 1; i--) {
-      const candidateVariant = parts.slice(i).join('-');
-      if (knownVariants.has(candidateVariant)) {
-        variant = candidateVariant;
-        parts.splice(i);
-        break;
-      }
-    }
+  if (doubleDashIdx > 0) {
+    // Remaining parts are the variant
+    variant = parts.join('-') || undefined;
+  } else {
+    // No "--" delimiter: remaining parts are the slug
+    slug = parts.join('-');
   }
 
-  const slug = parts.join('-');
   if (!slug) return null;
 
   return { type, hash, slug, size, variant, lang };

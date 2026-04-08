@@ -13,7 +13,7 @@ describe('mapImageUrl', () => {
     const url = mapImageUrl('route', 'aylmer', 'thumb-2x', {
       hash: 'a1b2c3d4e5f6', variant: 'main', lang: 'en',
     });
-    expect(url).toBe('/api/map-image/route/a1b2c3d4e5f6/aylmer-main-thumb-2x-en.png');
+    expect(url).toBe('/api/map-image/route/a1b2c3d4e5f6/aylmer--main-thumb-2x-en.png');
   });
 
   it('builds tour URL', () => {

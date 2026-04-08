@@ -9,9 +9,9 @@ export function mapImageUrl(
   size: string,
   options: { hash: string; variant?: string; lang: string },
 ): string {
-  const parts = [slug];
-  if (options.variant) parts.push(options.variant);
-  parts.push(size);
-  parts.push(options.lang);
-  return `/api/map-image/${type}/${options.hash}/${parts.join('-')}.png`;
+  const suffix = [size, options.lang].join('-');
+  const filename = options.variant
+    ? `${slug}--${options.variant}-${suffix}`
+    : `${slug}-${suffix}`;
+  return `/api/map-image/${type}/${options.hash}/${filename}.png`;
 }
