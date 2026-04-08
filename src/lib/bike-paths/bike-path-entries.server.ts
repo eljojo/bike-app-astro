@@ -106,6 +106,8 @@ export interface BikePathPage {
   osmNames: string[];
   /** GeoJSON filenames for this path (e.g., "12345.geojson", "name-foo.geojson"). */
   geoFiles: string[];
+  /** Geometry content hash from slug-index.json — used for map image proxy cache busting. */
+  geoHash?: string;
   /** Geographic points for this path — from YML anchors or sampled GeoJSON geometry. */
   points: Array<{ lat: number; lng: number }>;
   /** Number of routes that overlap this path (precomputed at build config time). */
@@ -170,6 +172,8 @@ export interface BikePathPage {
   commons_category?: string;
   /** Wikidata operator Q-ID — for linking to Wikidata entity page. */
   wikidata_operator_qid?: string;
+  /** Operator's official website — from Wikidata P856 on the operator entity. */
+  operator_website?: string;
   /** Social media links from Wikidata. */
   wikidata_social?: Array<{ platform: string; username: string; url: string }>;
   /** Wikipedia extract (plain text first paragraph) for the current build locale. */
@@ -190,6 +194,8 @@ export interface BikePathPage {
     operator?: string;
     ref?: string;
     network?: string;
+    wikipedia?: string;
+    website?: string;
   }>;
   /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
@@ -523,6 +529,7 @@ export function loadBikePathEntries(): {
       commons_image: primary?.wikidata_meta?.commons_image,
       commons_category: primary?.wikidata_meta?.commons_category,
       wikidata_operator_qid: primary?.wikidata_meta?.operator_qid,
+      operator_website: primary?.wikidata_meta?.operator_website,
       wikidata_social: primary?.wikidata_meta?.social,
       wikipedia_extract: resolveWikipediaExtract(primary).extract,
       wikipedia_url: resolveWikipediaExtract(primary).url,
@@ -596,6 +603,7 @@ export function loadBikePathEntries(): {
       commons_image: entry.wikidata_meta?.commons_image,
       commons_category: entry.wikidata_meta?.commons_category,
       wikidata_operator_qid: entry.wikidata_meta?.operator_qid,
+      operator_website: entry.wikidata_meta?.operator_website,
       wikidata_social: entry.wikidata_meta?.social,
       wikipedia_extract: resolveWikipediaExtract(entry).extract,
       wikipedia_url: resolveWikipediaExtract(entry).url,
@@ -714,6 +722,7 @@ export function loadBikePathEntries(): {
       commons_image: entry.wikidata_meta?.commons_image,
       commons_category: entry.wikidata_meta?.commons_category,
       wikidata_operator_qid: entry.wikidata_meta?.operator_qid,
+      operator_website: entry.wikidata_meta?.operator_website,
       wikidata_social: entry.wikidata_meta?.social,
       wikipedia_extract: resolveWikipediaExtract(entry).extract,
       wikipedia_url: resolveWikipediaExtract(entry).url,

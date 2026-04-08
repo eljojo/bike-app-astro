@@ -6,7 +6,6 @@
  *   - page.memberOf                -> member
  *   - neither                      -> standalone
  */
-import { loadSlugIndex } from '@/lib/bike-paths/slug-index.server';
 import Base from '@/layouts/Base.astro';
 import { type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
@@ -117,10 +116,9 @@ const seoDescription = (() => {
   return seoFacts.length > 0 ? seoFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`;
 })();
 
-// ogImage: use map image proxy URL (cache-busted via geometry hash from slug index)
-const geoEntry = loadSlugIndex()[page.slug];
-const mapProxyUrl = geoEntry
-  ? `/api/map-image/bike-path/${page.slug}?size=social&h=${geoEntry.hash}`
+// ogImage: use map image proxy URL (cache-busted via geometry hash baked at build time)
+const mapProxyUrl = page.geoHash
+  ? `/api/map-image/bike-path/${page.slug}?size=social&h=${page.geoHash}`
   : undefined;
 const firstCoverKey = page.thumbnail_key || overlappingRoutes.find(r => r.coverKey)?.coverKey;
 const ogImage = mapProxyUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);

@@ -460,6 +460,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
   // Enrich Tier 1 pages with Tier 2 relations at config time
   const enrichedPages = enrichBikePathPages(bikePathBase.pages, bikePathRelations, routeOverlaps, geoElevation);
+  // Bake geometry hashes from slug index onto pages (for map image proxy URLs)
+  const slugIndexPath = path.join(CONSUMER_ROOT, 'public', 'bike-paths', 'geo', 'tiles', 'slug-index.json');
+  if (fs.existsSync(slugIndexPath)) {
+    const slugIndex = JSON.parse(fs.readFileSync(slugIndexPath, 'utf-8')) as Record<string, { hash: string }>;
+    for (const page of enrichedPages) {
+      const entry = slugIndex[page.slug];
+      if (entry) page.geoHash = entry.hash;
+    }
+  }
   // Filter all path references to only include slugs that have generated pages
   const validSlugs = new Set(enrichedPages.map(p => p.slug));
   for (const page of enrichedPages) {
