@@ -6,8 +6,7 @@
  *   - page.memberOf                -> member
  *   - neither                      -> standalone
  */
-import fs from 'node:fs';
-import path from 'node:path';
+import { loadSlugIndex } from '@/lib/bike-paths/slug-index.server';
 import Base from '@/layouts/Base.astro';
 import { type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
@@ -119,11 +118,7 @@ const seoDescription = (() => {
 })();
 
 // ogImage: use map image proxy URL (cache-busted via geometry hash from slug index)
-const slugIndexPath = path.join(process.cwd(), 'public', 'bike-paths', 'geo', 'tiles', 'slug-index.json');
-const slugIndex = fs.existsSync(slugIndexPath)
-  ? JSON.parse(fs.readFileSync(slugIndexPath, 'utf-8'))
-  : {};
-const geoEntry = slugIndex[page.slug];
+const geoEntry = loadSlugIndex()[page.slug];
 const mapProxyUrl = geoEntry
   ? `/api/map-image/bike-path/${page.slug}?size=social&h=${geoEntry.hash}`
   : undefined;
@@ -510,9 +505,11 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             <tr class="fact-operator">
               <td>{t('paths.label.operator', locale)}</td>
               <td>
-                {page.wikidata_operator_qid
-                  ? <a href={`https://www.wikidata.org/wiki/${page.wikidata_operator_qid}`} target="_blank" rel="noopener">{page.operator}</a>
-                  : page.operator
+                {page.operator_website
+                  ? <a href={page.operator_website} target="_blank" rel="noopener">{page.operator}</a>
+                  : page.wikidata_operator_qid
+                    ? <a href={`https://www.wikidata.org/wiki/${page.wikidata_operator_qid}`} target="_blank" rel="noopener">{page.operator}</a>
+                    : page.operator
                 }
               </td>
             </tr>
