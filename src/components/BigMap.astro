@@ -77,7 +77,7 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createTilePathLayer, createGpsLayer } from '../lib/maps/layers';
   import { html, raw } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
-  import { muteBaseCyclingLayers, setBaseCyclingOpacity, restoreBaseCyclingLayers } from '../lib/maps/base-layer-control';
+  import { muteBaseCyclingLayers, restoreBaseCyclingLayers } from '../lib/maps/base-layer-control';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState, saveToggleState } from './admin/MapControls';
 
@@ -189,6 +189,14 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
       }
     });
 
+    // Dev tuning panel — dynamic import, tree-shaken in production
+    let showTuning = (_show: boolean) => {};
+    if (import.meta.env.DEV) {
+      const { initDevTuningPanel } = await import('../lib/maps/dev-tuning-panel');
+      showTuning = initDevTuningPanel(map);
+      if (initialShowPaths) showTuning(true);
+    }
+
     // Sub-tab toggle
     function switchToView(view: 'routes' | 'paths') {
       const showingPaths = view === 'paths';
@@ -223,77 +231,5 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
         switchToView(btn.dataset.mapView as 'routes' | 'paths');
       });
     }
-
-    // --- Tuning panel (temporary — for live style exploration) ---
-    const tuningEl = document.getElementById('map-tuning');
-    function showTuning(show: boolean) {
-      if (tuningEl) tuningEl.style.display = show ? 'block' : 'none';
-    }
-    if (initialShowPaths) showTuning(true);
-
-    const FG_LINES = ['paths-network-line', 'paths-network-line-dashed'];
-    const BG_LINES = ['paths-network-bg', 'paths-network-bg-dashed'];
-    const ALL_PATH_LINES = [...FG_LINES, ...BG_LINES];
-
-    function slider(id: string, valId: string, fmt: (v: number) => string, handler: (v: number) => void) {
-      const input = document.getElementById(id) as HTMLInputElement | null;
-      const display = document.getElementById(valId);
-      input?.addEventListener('input', () => {
-        const raw = parseInt(input.value);
-        handler(raw);
-        if (display) display.textContent = fmt(raw);
-      });
-    }
-
-    // Base map cycling layer opacity
-    slider('t-base-opacity', 't-base-opacity-val', v => (v / 100).toFixed(2), v => {
-      setBaseCyclingOpacity(map, v / 100);
-    });
-
-    // Foreground path interactive width
-    slider('t-fg-width', 't-fg-width-val', v => (v / 10).toFixed(1), v => {
-      for (const id of FG_LINES) if (map.getLayer(id)) map.setPaintProperty(id, 'line-width', v / 10);
-    });
-
-    // Foreground path interactive opacity
-    slider('t-fg-opacity', 't-fg-opacity-val', v => (v / 100).toFixed(2), v => {
-      for (const id of FG_LINES) if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', v / 100);
-    });
-
-    // Other paths width
-    slider('t-bg-width', 't-bg-width-val', v => (v / 10).toFixed(1), v => {
-      for (const id of BG_LINES) if (map.getLayer(id)) map.setPaintProperty(id, 'line-width', v / 10);
-    });
-
-    // Other paths opacity
-    slider('t-bg-opacity', 't-bg-opacity-val', v => (v / 100).toFixed(2), v => {
-      for (const id of BG_LINES) if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', v / 100);
-    });
-
-    // Path overlay color
-    const colorInput = document.getElementById('t-path-color') as HTMLInputElement | null;
-    colorInput?.addEventListener('input', () => {
-      for (const id of ALL_PATH_LINES) {
-        if (map.getLayer(id)) map.setPaintProperty(id, 'line-color', colorInput.value);
-      }
-    });
-
-    // Log current values to console for recording
-    document.getElementById('t-log-values')?.addEventListener('click', () => {
-      const vals = {
-        baseCyclingOpacity: parseFloat(document.getElementById('t-base-opacity-val')!.textContent!),
-        pathInteractiveWidth: parseFloat(document.getElementById('t-fg-width-val')!.textContent!),
-        pathInteractiveOpacity: parseFloat(document.getElementById('t-fg-opacity-val')!.textContent!),
-        pathOtherWidth: parseFloat(document.getElementById('t-bg-width-val')!.textContent!),
-        pathOtherOpacity: parseFloat(document.getElementById('t-bg-opacity-val')!.textContent!),
-        pathColor: colorInput?.value ?? '#350091',
-      };
-      console.log('[map-tuning]', JSON.stringify(vals, null, 2));
-      // Also copy to clipboard
-      navigator.clipboard?.writeText(JSON.stringify(vals, null, 2));
-      const btn = document.getElementById('t-log-values')!;
-      btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = 'Log current values'; }, 1500);
-    });
   }
 </script>
