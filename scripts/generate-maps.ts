@@ -59,10 +59,8 @@ async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof map
 
 async function main() {
   const config = getCityConfig();
-  const allLocales = config.locales || [config.locale];
   const defaultLang = shortLang(config.locale);
-  // Languages to generate: default (no prefix) + additional languages (with prefix)
-  const languages = allLocales.map(shortLang);
+  const languages = [defaultLang];
 
   let generated = 0;
   let skipped = 0;
