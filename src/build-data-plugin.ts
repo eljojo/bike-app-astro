@@ -564,6 +564,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     'tours': async () => {
       if (!adminRideDataPromise) return `export default [];`;
       const { tours } = await adminRideDataPromise;
+      // Bake gpxHash from tour-index.json onto tour data (for map image proxy URLs)
+      const tourIndexPath = path.join(CONSUMER_ROOT, 'public', 'maps', 'tour-index.json');
+      if (fs.existsSync(tourIndexPath)) {
+        const tourIndex = JSON.parse(fs.readFileSync(tourIndexPath, 'utf-8')) as Record<string, { hash: string }>;
+        for (const tour of tours) {
+          const entry = tourIndex[tour.slug];
+          if (entry) tour.gpxHash = entry.hash;
+        }
+      }
       return `export default ${JSON.stringify(tours)};`;
     },
 

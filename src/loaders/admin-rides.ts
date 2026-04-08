@@ -63,6 +63,7 @@ export interface AdminTour {
   start_date: string;
   end_date: string;
   rides: string[];
+  gpxHash?: string;
 }
 
 export interface RideStats {
