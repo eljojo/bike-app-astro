@@ -246,22 +246,6 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           </p>
         )}
 
-        {page.commons_image && (
-          <div class="bike-path-commons-image">
-            <img
-              src={`/api/commons-image/${encodeURIComponent(page.commons_image)}`}
-              alt={t('paths.commons_image_alt', locale)}
-              loading="lazy"
-              class="commons-image"
-            />
-            <p class="commons-image-attribution">
-              <a href={`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.commons_image)}`} target="_blank" rel="noopener">
-                Wikimedia Commons
-              </a>
-            </p>
-          </div>
-        )}
-
         <div class="bike-path-edit-cta">
           <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
         </div>
@@ -468,6 +452,22 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
               closeLabel={t('paths.close_map', locale)}
               cdnUrl={config.cdn_url}
             />
+          </div>
+        )}
+
+        {page.commons_image && (
+          <div class="bike-path-commons-image">
+            <img
+              src={`/api/commons-image/${encodeURIComponent(page.commons_image)}`}
+              alt={t('paths.commons_image_alt', locale)}
+              loading="lazy"
+              class="commons-image"
+            />
+            <p class="commons-image-attribution">
+              <a href={`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.commons_image)}`} target="_blank" rel="noopener">
+                Wikimedia Commons
+              </a>
+            </p>
           </div>
         )}
 
