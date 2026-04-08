@@ -61,16 +61,12 @@ describe('buildPathFacts', () => {
     expect(buildPathFacts({})).toEqual([]);
   });
 
-  // --- path_info: combined path_type + surface + width ---
+  // --- path_info: path_type + width (surface is a separate fact) ---
 
-  it('combines path_type + surface + width into single path_info fact', () => {
+  it('path_info has path_type and width, surface is separate', () => {
     const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', width: '3' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup:asphalt:3' });
-  });
-
-  it('path_info with path_type + surface, no width', () => {
-    const facts = buildPathFacts({ path_type: 'mtb-trail', surface: 'ground' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: 'mtb-trail:ground:' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup::3' });
+    expect(facts.some(f => f.key === 'surface')).toBe(true);
   });
 
   it('path_info with path_type only', () => {
@@ -78,24 +74,27 @@ describe('buildPathFacts', () => {
     expect(facts[0]).toEqual({ key: 'path_info', value: 'bike-lane::' });
   });
 
-  it('path_info with surface only (no path_type)', () => {
+  it('surface only (no path_type) → surface fact, no path_info', () => {
     const facts = buildPathFacts({ surface: 'gravel' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: ':gravel:' });
+    expect(facts[0].key).toBe('surface');
+    expect(facts.some(f => f.key === 'path_info')).toBe(false);
   });
 
-  it('path_info with surface + width, no path_type', () => {
+  it('surface + width, no path_type → separate facts', () => {
     const facts = buildPathFacts({ surface: 'asphalt', width: '2.5' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: ':asphalt:2.5' });
+    // width alone triggers path_info
+    expect(facts.some(f => f.key === 'path_info' && f.value === '::2.5')).toBe(true);
+    expect(facts.some(f => f.key === 'surface')).toBe(true);
   });
 
-  it('path_info with width only', () => {
+  it('width only → path_info', () => {
     const facts = buildPathFacts({ width: '3' });
     expect(facts[0]).toEqual({ key: 'path_info', value: '::3' });
   });
 
-  it('path_info passes through unknown surface values', () => {
+  it('unknown surface values still produce a surface fact', () => {
     const facts = buildPathFacts({ surface: 'cobblestone' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: ':cobblestone:' });
+    expect(facts.some(f => f.key === 'surface' && f.value === 'cobblestone')).toBe(true);
   });
 
   it.each([
@@ -108,17 +107,17 @@ describe('buildPathFacts', () => {
 
   it('path_info strips outrageous widths (>6m likely road width)', () => {
     const facts = buildPathFacts({ path_type: 'bike-lane', surface: 'asphalt', width: '11' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: 'bike-lane:asphalt:' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'bike-lane::' });
   });
 
   it('path_info strips tiny widths (<0.3m not a real path)', () => {
-    const facts = buildPathFacts({ surface: 'asphalt', width: '0.1' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: ':asphalt:' });
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', width: '0.1' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup::' });
   });
 
   it('path_info strips unparseable widths', () => {
-    const facts = buildPathFacts({ surface: 'ground', width: '1 mm' });
-    expect(facts[0]).toEqual({ key: 'path_info', value: ':ground:' });
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'ground', width: '1 mm' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup::' });
   });
 
   it('path_info keeps valid widths', () => {
@@ -232,8 +231,10 @@ describe('buildPathFacts', () => {
 
   // --- unchanged facts ---
 
-  it('emits smoothness', () => {
-    expect(buildPathFacts({ smoothness: 'good' })).toContainEqual({ key: 'smoothness_good' });
+  it('emits smoothness as standalone warning when no surface and bad+', () => {
+    // good → dropped (expected default)
+    expect(buildPathFacts({ smoothness: 'good' }).some(f => f.key.startsWith('smoothness_'))).toBe(false);
+    // very_bad without surface → standalone warning
     expect(buildPathFacts({ smoothness: 'very_bad' })).toContainEqual({ key: 'smoothness_very_bad' });
   });
 
@@ -323,9 +324,9 @@ describe('buildPathFacts', () => {
     expect(keys.every(k => !k.startsWith('access_'))).toBe(true);
   });
 
-  it('emits seasonal, ref, inception', () => {
+  it('emits seasonal and inception (ref is hidden)', () => {
     expect(buildPathFacts({ seasonal: 'winter' })).toContainEqual({ key: 'seasonal', value: 'winter' });
-    expect(buildPathFacts({ ref: 'RV1' })).toContainEqual({ key: 'ref', value: 'RV1' });
+    expect(buildPathFacts({ ref: 'RV1' }).some(f => f.key === 'ref')).toBe(false);
     expect(buildPathFacts({ inception: '1970s' })).toContainEqual({ key: 'inception', value: '1970s' });
   });
 
@@ -344,14 +345,14 @@ describe('buildPathFacts', () => {
     });
     const keys = facts.map(f => f.key);
     expect(keys).toEqual([
-      'path_info',
-      'smoothness_good',
+      'path_info',       // mup + 3m wide
+      'family_friendly', // paved lit MUP → family friendly (moved before surface)
+      'surface',         // asphalt, no smoothness adj (good is dropped)
       'traffic_separated_all',
       'lit',
       'flat',
       'operator',
       'network_national',
-      'family_friendly',
     ]);
   });
 
@@ -378,7 +379,7 @@ describe('buildPathFacts', () => {
     ]);
   });
 
-  it('still emits path_info with dominant surface when surface_mix present', () => {
+  it('path_info excludes surface even when surface_mix present', () => {
     const facts = buildPathFacts({
       surface: 'asphalt',
       path_type: 'mup',
@@ -388,7 +389,7 @@ describe('buildPathFacts', () => {
         { value: 'fine_gravel', km: 1 },
       ],
     });
-    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup:asphalt:3' });
+    expect(facts[0]).toEqual({ key: 'path_info', value: 'mup::3' });
     expect(facts.some(f => f.key === 'surface_mixed')).toBe(true);
   });
 
@@ -1019,5 +1020,148 @@ describe('localizeNetworkFactValue', () => {
     expect(result).toContain('5 km');
     expect(result).not.toContain('wood');
     expect(result).not.toContain('0 km');
+  });
+});
+
+describe('surface + smoothness integration', () => {
+  const t = (key: string) => {
+    const keys: Record<string, string> = {
+      'paths.fact.surface_adj_smooth': 'Smooth',
+      'paths.fact.surface_adj_uneven': 'Uneven',
+      'paths.fact.surface_adj_rough': 'Rough',
+      'paths.fact.surface_adj_very_rough': 'Very rough',
+      'paths.fact.surface_adj_extremely_rough': 'Extremely rough',
+      'paths.fact.surface_adj_impassable': 'Impassable',
+      'paths.fact.mup': 'Multi-use pathway',
+      // displaySurface maps: asphalt→paved, fine_gravel→gravel, gravel→gravel, ground→dirt
+      'paths.fact.paved': 'Pavement',
+      'paths.fact.gravel': 'Gravel',
+      'paths.fact.dirt': 'Dirt',
+      'paths.fact.smoothness_bad': 'Rough — mountain bike recommended',
+      'paths.fact.smoothness_intermediate': 'Uneven surface — hybrid or wider tyres',
+      'paths.label.surface': 'Surface',
+      'paths.label.surface_quality': 'Surface quality',
+    };
+    return keys[key] || key;
+  };
+
+  it('excellent on paved → "Smooth pavement"', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', smoothness: 'excellent' } as any);
+    const surfaceFact = facts.find(f => f.key === 'surface');
+    expect(surfaceFact).toBeDefined();
+    expect(surfaceFact!.breakdown?.[0]?.value).toBe('smooth');
+    const rendered = localizeFactValue(surfaceFact!, t);
+    expect(rendered).toBe('Smooth pavement');
+  });
+
+  it('excellent on unpaved → no adjective (just surface name)', () => {
+    const facts = buildPathFacts({ path_type: 'trail', surface: 'fine_gravel', smoothness: 'excellent' } as any);
+    const surfaceFact = facts.find(f => f.key === 'surface');
+    expect(surfaceFact).toBeDefined();
+    expect(surfaceFact!.breakdown).toBeUndefined();
+    const rendered = localizeFactValue(surfaceFact!, t);
+    expect(rendered).toBe('Gravel');
+  });
+
+  it('good → dropped entirely (no smoothness shown)', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', smoothness: 'good' } as any);
+    const surfaceFact = facts.find(f => f.key === 'surface');
+    expect(surfaceFact!.breakdown).toBeUndefined();
+    const smoothnessFact = facts.find(f => f.key.startsWith('smoothness_'));
+    expect(smoothnessFact).toBeUndefined();
+  });
+
+  it('intermediate → "Uneven pavement"', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', smoothness: 'intermediate' } as any);
+    const surfaceFact = facts.find(f => f.key === 'surface');
+    expect(surfaceFact!.breakdown?.[0]?.value).toBe('uneven');
+    const rendered = localizeFactValue(surfaceFact!, t);
+    expect(rendered).toBe('Uneven pavement');
+  });
+
+  it('bad on gravel → "Rough gravel"', () => {
+    const facts = buildPathFacts({ path_type: 'trail', surface: 'gravel', smoothness: 'bad' } as any);
+    const surfaceFact = facts.find(f => f.key === 'surface');
+    expect(surfaceFact!.breakdown?.[0]?.value).toBe('rough');
+    const rendered = localizeFactValue(surfaceFact!, t);
+    expect(rendered).toBe('Rough gravel');
+  });
+
+  it('mixed surface + bad smoothness → separate warning row', () => {
+    const mix = [{ value: 'asphalt', km: 10 }, { value: 'gravel', km: 7 }];
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', smoothness: 'bad', surface_mix: mix } as any);
+    const mixFact = facts.find(f => f.key === 'surface_mixed');
+    expect(mixFact).toBeDefined();
+    const smoothnessFact = facts.find(f => f.key === 'smoothness_bad');
+    expect(smoothnessFact).toBeDefined();
+  });
+
+  it('mixed surface + good smoothness → no smoothness shown', () => {
+    const mix = [{ value: 'asphalt', km: 10 }, { value: 'gravel', km: 7 }];
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', smoothness: 'good', surface_mix: mix } as any);
+    const smoothnessFact = facts.find(f => f.key.startsWith('smoothness_'));
+    expect(smoothnessFact).toBeUndefined();
+  });
+
+  it('no surface but bad smoothness → standalone warning', () => {
+    const facts = buildPathFacts({ smoothness: 'bad' } as any);
+    const smoothnessFact = facts.find(f => f.key === 'smoothness_bad');
+    expect(smoothnessFact).toBeDefined();
+  });
+
+  it('no smoothness → plain surface, no adjective', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt' } as any);
+    const surfaceFact = facts.find(f => f.key === 'surface');
+    expect(surfaceFact!.breakdown).toBeUndefined();
+    const rendered = localizeFactValue(surfaceFact!, t);
+    expect(rendered).toBe('Pavement');
+  });
+});
+
+describe('facts table ordering', () => {
+  it('family_friendly appears before surface', () => {
+    const facts = buildPathFacts({
+      path_type: 'mup', surface: 'asphalt', smoothness: 'good',
+      lit: 'yes', park: 'Test Park',
+    } as any);
+    const familyIdx = facts.findIndex(f => f.key === 'family_friendly');
+    const surfaceIdx = facts.findIndex(f => f.key === 'surface');
+    expect(familyIdx).toBeGreaterThan(-1);
+    expect(surfaceIdx).toBeGreaterThan(-1);
+    expect(familyIdx).toBeLessThan(surfaceIdx);
+  });
+
+  it('path_info is always first', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt' } as any);
+    expect(facts[0].key).toBe('path_info');
+  });
+
+  it('route ref is not emitted', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', ref: 'GPW' } as any);
+    const refFact = facts.find(f => f.key === 'ref');
+    expect(refFact).toBeUndefined();
+  });
+});
+
+describe('path_info excludes surface, shows width as "wide"', () => {
+  it('does not include surface in path_info value', () => {
+    const facts = buildPathFacts({ path_type: 'mup', surface: 'asphalt', width: '3' } as any);
+    const pathInfo = facts.find(f => f.key === 'path_info');
+    // Format: "mup::3" — surface slot is empty
+    expect(pathInfo!.value).toBe('mup::3');
+  });
+
+  it('renders width as "3m wide"', () => {
+    const wideT = (key: string) => {
+      const keys: Record<string, string> = {
+        'paths.fact.mup': 'Multi-use pathway',
+        'paths.fact.wide': 'wide',
+      };
+      return keys[key] || key;
+    };
+    const facts = buildPathFacts({ path_type: 'mup', width: '3' } as any);
+    const pathInfo = facts.find(f => f.key === 'path_info');
+    const rendered = localizeFactValue(pathInfo!, wideT);
+    expect(rendered).toContain('3m wide');
   });
 });

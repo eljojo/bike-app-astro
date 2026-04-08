@@ -68,7 +68,7 @@ export interface PathMeta {
   route_type?: string;
   /** Park name from OSM containment. */
   park?: string;
-  overlapping_relations?: Array<{ id: number; name: string; route: string; operator?: string }>;
+  overlapping_relations?: Array<{ id: number; name: string; route: string; operator?: string; wikipedia?: string; website?: string }>;
   surface_mix?: Array<{ value: string; km: number }>;
   lit_mix?: Array<{ value: string; km: number }>;
 }
@@ -118,24 +118,51 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   const facts: PathFact[] = [];
 
   const width = sanitizeWidth(meta.width);
+  const hasSurfaceMix = meta.surface_mix && meta.surface_mix.length > 1;
 
-  // Path info — combined path_type + surface + width in one row.
-  // Value format: "path_type:surface:width" (any part can be empty).
-  // The view layer parses and localizes each component.
-  if (meta.path_type || meta.surface || width) {
-    facts.push({ key: 'path_info', value: `${meta.path_type || ''}:${meta.surface || ''}:${width || ''}` });
+  // Path info — path_type + width only. Surface is shown separately to avoid
+  // redundancy (e.g. "Multi-use pathway · Paved" + "Surface: Paved (10 km)").
+  // Value format: "path_type::width" (surface slot left empty).
+  if (meta.path_type || width) {
+    facts.push({ key: 'path_info', value: `${meta.path_type || ''}::${width || ''}` });
   }
 
-  // Surface mix — distribution across ways
-  if (meta.surface_mix && meta.surface_mix.length > 1) {
+  // Family-friendly — shown early (before surface) because it's the most
+  // important signal for someone deciding whether to ride here.
+  if (isFamilyFriendly(meta)) {
+    facts.push({ key: 'family_friendly' });
+  }
+
+  // Surface — smoothness is integrated as an adjective on the surface name
+  // when it tells you something you wouldn't expect:
+  //   - "excellent" on paved → "Smooth pavement" (great for road bikes)
+  //   - "intermediate" or worse → "Uneven pavement", "Rough gravel" (bring right tires)
+  //   - "good" → drop (expected default)
+  //   - "excellent" on unpaved → drop ("smooth gravel" sounds wrong)
+  // For mixed surfaces: only show smoothness as a separate warning when bad+.
+  const SMOOTHNESS_ADJECTIVES: Record<string, string> = {
+    intermediate: 'uneven', bad: 'rough', very_bad: 'very_rough',
+    horrible: 'extremely_rough', impassable: 'impassable',
+  };
+  const smoothnessAdj = meta.smoothness ? SMOOTHNESS_ADJECTIVES[meta.smoothness] : undefined;
+  const showSmooth = meta.smoothness === 'excellent' && isPaved(meta.surface);
+  // Combine smoothness into the surface fact when single surface
+  const surfaceSmoothness = smoothnessAdj ? smoothnessAdj : showSmooth ? 'smooth' : undefined;
+
+  if (hasSurfaceMix) {
     facts.push({
       key: 'surface_mixed',
-      breakdown: meta.surface_mix.map(m => ({ value: m.value, km: m.km })),
+      breakdown: meta.surface_mix!.map(m => ({ value: m.value, km: m.km })),
     });
-  }
-
-  // Smoothness
-  if (meta.smoothness) {
+    // For mixed surfaces, only warn about bad+ conditions as a separate fact
+    if (smoothnessAdj) {
+      facts.push({ key: `smoothness_${meta.smoothness}` });
+    }
+  } else if (meta.surface) {
+    // Single surface — smoothness becomes an adjective: "Smooth pavement", "Rough gravel"
+    facts.push({ key: 'surface', value: meta.surface, ...(surfaceSmoothness ? { breakdown: [{ value: surfaceSmoothness, km: 0 }] } : {}) });
+  } else if (smoothnessAdj) {
+    // No surface known, but smoothness is a warning — show standalone
     facts.push({ key: `smoothness_${meta.smoothness}` });
   }
 
@@ -224,20 +251,12 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
     facts.push({ key: 'access_permissive' });
   }
 
-  // Reference code
-  if (meta.ref) {
-    facts.push({ key: 'ref', value: meta.ref });
-  }
+  // Route ref — hidden from the facts table. Available in data but not
+  // useful enough for most users to warrant a table row.
 
   // Inception / Established
   if (meta.inception) {
     facts.push({ key: 'inception', value: meta.inception });
-  }
-
-  // Family-friendly — auto-detected from metadata.
-  // A paved, lit, separated-from-cars pathway is safe for beginners and families.
-  if (isFamilyFriendly(meta)) {
-    facts.push({ key: 'family_friendly' });
   }
 
   return facts;
@@ -390,18 +409,15 @@ export function factLabelKey(factKey: string): string {
 export function localizeFactValue(fact: PathFact, t: Translator, locale?: string): string {
   switch (fact.key) {
     case 'path_info': {
-      // Value format: "path_type:surface:width" — parse and localize each part
-      const [pt, surface, width] = (fact.value || '').split(':');
+      // Value format: "path_type::width" — parse and localize each part
+      const [pt, , width] = (fact.value || '').split(':');
       const parts: string[] = [];
       if (pt) {
         const ptKey = `paths.fact.${pt.replace(/-/g, '_')}`;
         const ptTranslated = t(ptKey, locale);
         parts.push(ptTranslated !== ptKey ? ptTranslated : pt);
       }
-      const surfDetail: string[] = [];
-      if (surface) surfDetail.push(localizeSurface(surface, t, locale) || surface);
-      if (width) surfDetail.push(`${width}m`);
-      if (surfDetail.length > 0) parts.push(surfDetail.join(', '));
+      if (width) parts.push(`${width}m ${t('paths.fact.wide', locale)}`);
       return parts.join(' · ');
     }
     case 'path_type': {
@@ -414,8 +430,22 @@ export function localizeFactValue(fact: PathFact, t: Translator, locale?: string
       const surfaceStr = localizeSurface(surface, t, locale) || surface;
       return `${surfaceStr}, ${width}m`;
     }
-    case 'surface':
-      return localizeSurface(fact.value, t, locale) || fact.value || '';
+    case 'surface': {
+      const surfLabel = localizeSurface(fact.value, t, locale) || fact.value || '';
+      // Smoothness as adjective: EN "Smooth pavement", FR "Asphalté lisse"
+      const adj = fact.breakdown?.[0]?.value;
+      if (adj) {
+        const adjKey = `paths.fact.surface_adj_${adj}`;
+        const adjLabel = t(adjKey, locale);
+        if (adjLabel === adjKey) return surfLabel;
+        // Template handles word order: EN "{adj} {surface}", FR "{surface} {adj}"
+        const tmpl = t('paths.fact.surface_condition', locale);
+        return tmpl !== 'paths.fact.surface_condition'
+          ? tmpl.replace('{adj}', adjLabel).replace('{surface}', surfLabel.toLowerCase())
+          : `${adjLabel} ${surfLabel.toLowerCase()}`;
+      }
+      return surfLabel;
+    }
     case 'width':
       return `${fact.value}m`;
     case 'traffic_separated_all':
