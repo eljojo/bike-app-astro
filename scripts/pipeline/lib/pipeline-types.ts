@@ -79,6 +79,8 @@ export interface NonCyclingCandidate {
   operator?: string;
   ref?: string;
   network?: string;
+  wikipedia?: string;
+  website?: string;
   bikeableWayIds: number[];
   bikeablePct: number;
 }

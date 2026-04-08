@@ -807,6 +807,8 @@ async function discoverNonCycling(ctx: PipelineContext, osmRelations: OsmRelatio
         operator: el.tags?.operator,
         ref: el.tags?.ref,
         network: el.tags?.network,
+        wikipedia: el.tags?.wikipedia,
+        website: el.tags?.website || el.tags?.['contact:website'],
         bikeableWayIds,
         bikeablePct,
       });

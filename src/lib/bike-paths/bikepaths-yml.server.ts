@@ -77,6 +77,8 @@ export const bikePathYmlEntrySchema = z.looseObject({
     operator: z.string().optional(),
     ref: z.string().optional(),
     network: z.string().optional(),
+    wikipedia: z.string().optional(),
+    website: z.string().optional(),
   })).optional(),
   /** Metadata enriched from Wikidata. */
   wikidata_meta: z.object({
@@ -89,6 +91,7 @@ export const bikePathYmlEntrySchema = z.looseObject({
     commons_category: z.string().optional(),
     operator: z.string().optional(),
     operator_qid: z.string().optional(),
+    operator_website: z.string().optional(),
     instance_of: z.array(z.string()).optional(),
     social: z.array(z.object({
       platform: z.string(),

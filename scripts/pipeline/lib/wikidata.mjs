@@ -226,14 +226,18 @@ export async function resolveOperatorNames(entries, fetchFn = fetch) {
 
   for (const [qid, group] of qidToEntries) {
     let name = qid;
+    let website = null;
     try {
       const entity = await fetchWikidataEntity(qid, fetchFn);
       name = entity.labels?.en || entity.labels?.fr || qid;
+      const websiteClaim = entity.statements?.[P_WEBSITE]?.[0];
+      if (websiteClaim) website = websiteClaim.value.content;
     } catch {
       // fall back to Q-ID string
     }
     for (const entry of group) {
       entry.wikidata_meta.operator = name;
+      if (website) entry.wikidata_meta.operator_website = website;
     }
   }
 }

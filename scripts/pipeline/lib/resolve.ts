@@ -548,6 +548,8 @@ export async function resolve(opts: {
             operator: candidate.operator,
             ref: candidate.ref,
             network: candidate.network,
+            wikipedia: candidate.wikipedia,
+            website: candidate.website,
           });
         }
       }
