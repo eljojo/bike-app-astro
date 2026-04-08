@@ -184,7 +184,8 @@ const nearestMajorPath = findNearestMajorPath({
 });
 
 // Website resolution (page.website already includes wikidata_meta.website fallback)
-const websiteUrl = page.website;
+// Suppress website card if it's the exact same URL as the operator website (already shown in facts table)
+const websiteUrl = page.website && page.website !== page.operator_website ? page.website : undefined;
 const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).hostname; } catch { return undefined; } })() : undefined;
 ---
 
@@ -485,16 +486,15 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           ) : (
             pathFacts.map(fact => {
               const factClass = fact.key === 'path_info' ? 'fact-path-type'
-                : fact.key === 'surface_width' ? 'fact-surface'
+                : fact.key === 'surface_width' || fact.key === 'surface' || fact.key === 'surface_mixed' ? 'fact-surface'
                 : fact.key.startsWith('smoothness_') ? 'fact-surface-quality'
                 : fact.key.startsWith('traffic_') ? 'fact-traffic'
                 : fact.key === 'separated_cars' || fact.key === 'separated_peds' ? 'fact-traffic'
-                : fact.key === 'lit' || fact.key === 'not_lit' ? 'fact-lighting'
+                : fact.key === 'lit' || fact.key === 'not_lit' || fact.key === 'lit_mixed' ? 'fact-lighting'
                 : fact.key === 'flat' || fact.key === 'gentle_hills' || fact.key === 'hilly' ? 'fact-terrain'
+                : fact.key === 'operator' ? 'fact-operator'
                 : fact.key.startsWith('network_') ? 'fact-network'
                 : fact.key === 'inception' ? 'fact-established'
-                : fact.key === 'surface_mixed' ? 'fact-surface'
-                : fact.key === 'lit_mixed' ? 'fact-lighting'
                 : `fact-${fact.key.replace(/_/g, '-')}`;
               return (
                 <tr class={factClass}><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
@@ -549,14 +549,21 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
           <div class="shared-routes">
             <h3>{t('paths.shared_with', locale)}</h3>
             <ul>
-              {uniqueOverlaps.map(r => (
-                <li>
-                  <a href={`https://openstreetmap.org/relation/${r.id}`} target="_blank" rel="noopener" class="shared-route-link">
-                    {r.name}
-                  </a>
-                  <span class="shared-route-type">{t(ROUTE_LABELS[r.route], locale)}</span>
-                </li>
-              ))}
+              {uniqueOverlaps.map(r => {
+                const wpUrl = r.wikipedia ? (() => {
+                  const [lang, ...parts] = r.wikipedia.split(':');
+                  return `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(parts.join(':').replace(/ /g, '_'))}`;
+                })() : undefined;
+                const linkUrl = r.website || wpUrl || `https://openstreetmap.org/relation/${r.id}`;
+                return (
+                  <li>
+                    <a href={linkUrl} target="_blank" rel="noopener" class="shared-route-link">
+                      {r.name}
+                    </a>
+                    <span class="shared-route-type">{t(ROUTE_LABELS[r.route], locale)}</span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
