@@ -418,25 +418,47 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         )}
 
         {/* Photos */}
-        {nearbyPhotos.length > 0 && (
-          <section class="bike-path-photos">
-            <h2>{t('paths.photos', locale)}</h2>
-            <div class="bike-path-photo-grid">
-              {nearbyPhotos.map(photo => (
-                <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo">
-                  <img
-                    src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
-                    srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
-                    alt={photo.caption || localeName}
-                    width="300"
-                    height="200"
-                    loading="lazy"
-                  />
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
+        {nearbyPhotos.length > 0 && (() => {
+          const photoLimit = 10;
+          const hasMore = nearbyPhotos.length > photoLimit;
+          const visiblePhotos = hasMore ? nearbyPhotos.slice(0, photoLimit) : nearbyPhotos;
+          return (
+            <section class="bike-path-photos">
+              <h2>{t('paths.photos', locale)}</h2>
+              <div class="bike-path-photo-grid">
+                {visiblePhotos.map(photo => (
+                  <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo">
+                    <img
+                      src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
+                      srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                      alt={photo.caption || localeName}
+                      width="300"
+                      height="200"
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+                {hasMore && nearbyPhotos.slice(photoLimit).map(photo => (
+                  <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo bike-path-photo-hidden">
+                    <img
+                      src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
+                      srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                      alt={photo.caption || localeName}
+                      width="300"
+                      height="200"
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+              {hasMore && (
+                <button class="action-button" id="show-all-path-photos">
+                  {t('paths.show_all_photos', locale, { count: nearbyPhotos.length })}
+                </button>
+              )}
+            </section>
+          );
+        })()}
       </div>
 
       {/* ===== Sidebar (infobox) ===== */}
@@ -686,6 +708,18 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         }
         result.fitToGeoIds(allMemberGeoIds);
       },
+    });
+  }
+</script>
+
+<script>
+  const showAllBtn = document.getElementById('show-all-path-photos');
+  if (showAllBtn) {
+    showAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('.bike-path-photo-hidden').forEach(el => {
+        (el as HTMLElement).classList.remove('bike-path-photo-hidden');
+      });
+      showAllBtn.style.display = 'none';
     });
   }
 </script>

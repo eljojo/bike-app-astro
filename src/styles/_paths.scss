@@ -273,6 +273,8 @@
     // 6. External links
     .external-link-website { order: 11; }
     .external-link-wikipedia { order: 12; }
+    .external-link-social { order: 12; }
+    .external-link-commons { order: 12; }
 
     // 7. Secondary info
     .connects-to-section { order: 13; }
@@ -283,6 +285,7 @@
     .nearby-paths { order: 18; }
 
     // 8. Bottom
+    .bike-path-wikipedia-attribution { order: 19; }
     .bike-path-edit-cta { order: 19; }
     .bike-path-osm { order: 20; }
     .bike-path-back { order: 21; }
@@ -759,6 +762,10 @@
   margin-bottom: 2rem;
 
   h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+}
+
+.bike-path-photo-hidden {
+  display: none;
 }
 
 .bike-path-photo-grid {

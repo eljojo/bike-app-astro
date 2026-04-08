@@ -608,6 +608,7 @@
   "paths.connects_to": "Se connecte à",
   "paths.distance_on_path": "{distance} sur ce sentier",
   "paths.photos": "Photos",
+  "paths.show_all_photos": "Afficher les {count} photos",
   "paths.routes_count": "{count} parcours",
   "paths.follows": "Ce parcours suit le",
   "paths.and": "et",

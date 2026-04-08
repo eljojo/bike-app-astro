@@ -604,6 +604,7 @@
   "paths.connects_to": "Se conecta con",
   "paths.distance_on_path": "{distance} en este sendero",
   "paths.photos": "Fotos",
+  "paths.show_all_photos": "Mostrar las {count} fotos",
   "paths.routes_count": "{count} rutas",
   "paths.follows": "Esta ruta sigue el",
   "paths.and": "y",

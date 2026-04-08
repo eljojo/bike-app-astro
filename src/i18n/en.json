@@ -608,6 +608,7 @@
   "paths.connects_to": "Connects to",
   "paths.distance_on_path": "{distance} on this path",
   "paths.photos": "Photos",
+  "paths.show_all_photos": "Show all {count} photos",
   "paths.routes_count": "{count} routes",
   "paths.follows": "This route follows the",
   "paths.and": "and",
