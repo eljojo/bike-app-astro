@@ -93,8 +93,11 @@ export const GET: APIRoute = async ({ params, url }) => {
 
   const data = await upstream.arrayBuffer();
 
-  // Cache (fire-and-forget)
-  tileCache.put(cacheKey, data, CACHE_TTL).catch(() => {});
+  // Cache before responding — must await to ensure the write completes
+  // before the Worker terminates (unlike tile/commons proxies which are
+  // hit frequently enough for fire-and-forget to land, this endpoint is
+  // only called by social crawlers so the Worker exits immediately after).
+  await tileCache.put(cacheKey, data, CACHE_TTL).catch(() => {});
 
   return new Response(data, {
     headers: {
