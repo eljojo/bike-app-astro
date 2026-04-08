@@ -26,6 +26,11 @@ const EXPECTED_INSTANCE_OF = new Set([
   'Q170826',   // greenway
   'Q786014',   // pedestrian path
   'Q3352369',  // multi-use path
+  'Q79007',    // street
+  'Q12280',    // bridge
+  'Q537127',   // bridge (alt)
+  'Q1068842',  // footbridge
+  'Q353027',   // cycling route
 ]);
 
 const CYCLING_ACTIVITIES = new Set([
