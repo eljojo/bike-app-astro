@@ -3,8 +3,8 @@ import Icon from './Icon.astro';
 import { getCityConfig } from '@/lib/config/city-config';
 import { variantKey as variantKeyFromGpx, variantSlug as variantSlugFromGpx } from '@/lib/gpx/filenames';
 import { t } from '@/i18n';
-import { paths, assets } from '@/lib/paths';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import { paths } from '@/lib/paths';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
 
 interface Props {
   routeSlug: string;
@@ -16,21 +16,22 @@ interface Props {
   };
   locale?: string;
   variantKey?: string;
+  gpxHash?: string;
 }
 
-const { routeSlug, variant, locale, variantKey } = Astro.props;
+const { routeSlug, variant, locale, variantKey, gpxHash } = Astro.props;
 const siteUrl = getCityConfig().url;
 const vKey = variantKeyFromGpx(variant.gpx);
 const vSlug = variantSlugFromGpx(variant.gpx);
 const gpxUrl = `${siteUrl}${paths.routeGpx(routeSlug, vSlug)}`;
 const exploreUrl = `https://gpx.studio/app?files=%5B%22${encodeURIComponent(gpxUrl)}%22%5D`;
-const hasMapPng = hasCachedMap(routeSlug, vKey);
+const lang = locale || 'en';
 ---
 
 <div class="route-downloads" data-variant={variantKey || undefined}>
-  {hasMapPng && (
+  {gpxHash && (
     <Fragment>
-      <a href={assets.mapPng(routeSlug, vKey)} class="action-button" download title={t('map.download_png_title', locale)} onclick="window.BikeApp?.tE?.('download png', { props: { page: location.pathname } })">
+      <a href={mapImageUrl('route', routeSlug, 'full', { hash: gpxHash, variant: vKey, lang })} class="action-button" download title={t('map.download_png_title', locale)} onclick="window.BikeApp?.tE?.('download png', { props: { page: location.pathname } })">
         <Icon name="download-simple" size={16} /> {t('map.download_png', locale)}
       </a>
       {' '}

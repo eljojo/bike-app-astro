@@ -5,8 +5,7 @@ import { getCollection } from 'astro:content';
 import tours from 'virtual:bike-app/tours';
 import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { assets } from '@/lib/paths';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
 import { formatDateRange } from '@/lib/date-utils';
@@ -63,8 +62,8 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
   {/* Hero: featured tour */}
   {hero && (() => {
     const coverKey = getTourCover(hero);
-    const tourMapSlug = `tour-${hero.slug}`;
-    const hasMap = hasCachedMap(tourMapSlug);
+    const heroGpxHash = hero.gpxHash;
+    const heroLang = locale || 'en';
     return (
       <a href={`/tours/${hero.slug}`} class="tour-hero">
         <div class="tour-hero--images">
@@ -78,11 +77,11 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
               height="450"
             />
           )}
-          {hasMap && (
+          {heroGpxHash && (
             <img
               class="tour-hero--map"
-              src={assets.mapThumbnail(tourMapSlug, 750)}
-              srcset={assets.mapThumbnailSrcsetLarge(tourMapSlug)}
+              src={mapImageUrl('tour', hero.slug, 'thumb', { hash: heroGpxHash, lang: heroLang })}
+              srcset={`${mapImageUrl('tour', hero.slug, 'thumb', { hash: heroGpxHash, lang: heroLang })} 1x, ${mapImageUrl('tour', hero.slug, 'thumb-2x', { hash: heroGpxHash, lang: heroLang })} 2x`}
               alt={`Map of ${hero.name}`}
               width="800"
               height="450"
@@ -114,8 +113,8 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
       <div class="tour-postcards">
         {byYear.get(year)!.map(tour => {
           const coverKey = getTourCover(tour);
-          const tourMapSlug = `tour-${tour.slug}`;
-          const hasMap = hasCachedMap(tourMapSlug);
+          const tourGpxHash = tour.gpxHash;
+          const tourLang = locale || 'en';
           return (
             <a href={`/tours/${tour.slug}`} class="tour-postcard">
               <div class="tour-postcard--images">
@@ -130,11 +129,11 @@ const years = [...byYear.keys()].sort((a, b) => b - a);
                     height="300"
                   />
                 )}
-                {hasMap && (
+                {tourGpxHash && (
                   <img
                     class="tour-postcard--map"
-                    src={assets.mapThumbnail(tourMapSlug, 375)}
-                    srcset={assets.mapThumbnailSrcset(tourMapSlug)}
+                    src={mapImageUrl('tour', tour.slug, 'thumb', { hash: tourGpxHash, lang: tourLang })}
+                    srcset={`${mapImageUrl('tour', tour.slug, 'thumb', { hash: tourGpxHash, lang: tourLang })} 1x, ${mapImageUrl('tour', tour.slug, 'thumb-2x', { hash: tourGpxHash, lang: tourLang })} 2x`}
                     alt={`Map of ${tour.name}`}
                     loading="lazy"
                     width="450"

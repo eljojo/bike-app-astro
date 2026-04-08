@@ -19,6 +19,7 @@ import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, localizePathType, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
 import { groupPathsByNetwork, tierNetworkMembers, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
@@ -118,7 +119,7 @@ const seoDescription = (() => {
 
 // ogImage: use map image proxy URL (cache-busted via geometry hash baked at build time)
 const mapProxyUrl = page.geoHash
-  ? `/api/map-image/bike-path/${page.slug}?size=social&h=${page.geoHash}`
+  ? mapImageUrl('bike-path', page.slug, 'social', { hash: page.geoHash, lang: locale || 'en' })
   : undefined;
 const firstCoverKey = page.thumbnail_key || overlappingRoutes.find(r => r.coverKey)?.coverKey;
 const ogImage = mapProxyUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
