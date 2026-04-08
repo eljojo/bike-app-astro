@@ -16,6 +16,7 @@
  *   map-style ─────────────┐
  *   icon-paths ────────────┤
  *   contributors ──────────┤
+ *   map-manifests ─────────┤
  *                          ├─► done
  *   cache-path-geometry ───┤
  *     ├─► geo-metadata
@@ -57,5 +58,6 @@ const geoCache  = run('path-geo-cache', 'cache-path-geometry.ts');
 const geoMeta   = geoCache.then(() => run('geo-metadata', 'generate-geo-metadata.ts'));
 const pathTiles = geoMeta.then(() => run('path-tiles', 'generate-path-tiles.ts'));
 const maps      = minimal ? Promise.resolve() : geoCache.then(() => run('maps', 'generate-maps.ts'));
+const mapManifests = run('map-manifests', 'generate-map-manifests.ts');
 
-await Promise.all([mapStyle, iconPaths, contributors, pathTiles, maps]);
+await Promise.all([mapStyle, iconPaths, contributors, pathTiles, maps, mapManifests]);
