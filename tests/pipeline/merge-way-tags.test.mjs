@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeWayTags } from '../../scripts/pipeline/build-bikepaths.mjs';
+import { mergeWayTags } from '../../scripts/pipeline/build-bikepaths.ts';
 
 describe('mergeWayTags', () => {
   it('returns dominant surface when all ways agree', () => {

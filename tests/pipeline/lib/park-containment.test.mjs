@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createPlayer } from '../../../scripts/pipeline/lib/overpass.mjs';
-import { buildBikepathsPipeline } from '../../../scripts/pipeline/build-bikepaths.mjs';
+import { buildBikepathsPipeline } from '../../../scripts/pipeline/build-bikepaths.ts';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 
 // Cassette lives in .cache/ (gitignored). Record with:

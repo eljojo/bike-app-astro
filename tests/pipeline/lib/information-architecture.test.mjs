@@ -9,7 +9,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createPlayer } from '../../../scripts/pipeline/lib/overpass.mjs';
-import { buildBikepathsPipeline, parseMarkdownOverrides } from '../../../scripts/pipeline/build-bikepaths.mjs';
+import { buildBikepathsPipeline, parseMarkdownOverrides } from '../../../scripts/pipeline/build-bikepaths.ts';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 
 const player = createPlayer('ottawa');

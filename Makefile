@@ -71,10 +71,10 @@ test-pipeline: ## Run bikepaths pipeline tests
 	npx vitest run tests/pipeline/
 
 bikepaths: ## Regenerate bikepaths.yml from OSM (writes to CONTENT_DIR/CITY/)
-	node scripts/pipeline/build-bikepaths.mjs --city $${CITY:-ottawa}
+	node scripts/pipeline/build-bikepaths.ts --city $${CITY:-ottawa}
 
 bikepaths-dry: ## Preview bikepaths.yml changes without writing
-	node scripts/pipeline/build-bikepaths.mjs --city $${CITY:-ottawa} --dry-run
+	node scripts/pipeline/build-bikepaths.ts --city $${CITY:-ottawa} --dry-run
 
 prebuild: ## Run all code generators (map style, icons, maps, contributors, path geometry)
 	npx tsx scripts/prebuild.ts

@@ -11,8 +11,8 @@
  * defined in lib/city-adapter.mjs.
  *
  * Usage:
- *   node scripts/build-bikepaths.mjs --city santiago
- *   node scripts/build-bikepaths.mjs --city ottawa --dry-run
+ *   node scripts/build-bikepaths.ts --city santiago
+ *   node scripts/build-bikepaths.ts --city ottawa --dry-run
  *
  * ## Pipeline
  *
@@ -28,7 +28,7 @@ import yaml from 'js-yaml';
 import { queryOverpass as _queryOverpass, createRecorder } from './lib/overpass.mjs';
 
 // Record all Overpass calls to a cassette in .cache/ (gitignored) for test replay.
-// Usage: RECORD_OVERPASS=ottawa node scripts/build-bikepaths.mjs --city ottawa
+// Usage: RECORD_OVERPASS=ottawa node scripts/build-bikepaths.ts --city ottawa
 // Replay: createPlayer('ottawa') in tests
 const queryOverpass = process.env.RECORD_OVERPASS
   ? createRecorder(process.env.RECORD_OVERPASS)
@@ -51,7 +51,11 @@ import { resolve } from './lib/resolve.ts';
 // CLI (only when run directly, not when imported)
 // ---------------------------------------------------------------------------
 
-let args = {}, dataDir, bikepathsPath, bbox, adapter;
+let args: Record<string, any> = {};
+let dataDir: string;
+let bikepathsPath: string;
+let bbox: string;
+let adapter: any;
 
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/.*\//, ''));
 if (isMain) {
@@ -61,7 +65,7 @@ if (isMain) {
     if (process.argv[i] === '--dry-run') args.dryRun = true;
   }
   if (!args.city) {
-    console.error('Usage: node scripts/build-bikepaths.mjs --city <city>');
+    console.error('Usage: node scripts/build-bikepaths.ts --city <city>');
     process.exit(1);
   }
 
@@ -75,7 +79,7 @@ if (isMain) {
     console.error(`No config.yml found for city: ${args.city} (looked at ${configPath})`);
     process.exit(1);
   }
-  const cityConfig = yaml.load(fs.readFileSync(configPath, 'utf8'));
+  const cityConfig = yaml.load(fs.readFileSync(configPath, 'utf8')) as Record<string, any>;
   if (!cityConfig.bounds) {
     console.error(`No bounds defined in ${configPath}`);
     process.exit(1);
@@ -107,17 +111,15 @@ if (isMain) {
 
 /**
  * Run the full bikepaths pipeline. No file I/O — returns entries + metadata.
- *
- * @param {object} opts
- * @param {Function} opts.queryOverpass — async (q) => { elements: [] }
- * @param {string} opts.bbox — "south,west,north,east"
- * @param {object} opts.adapter — city adapter (from city-adapter.mjs)
- * @param {Array} [opts.manualEntries] — out-of-bounds manual entries
- * @param {Set<string>} [opts.markdownSlugs] — slugs claimed by markdown
- * @param {Map<string, {member_of?: string}>} [opts.markdownOverrides] — frontmatter overrides by slug
- * @returns {Promise<{ entries: Array, superNetworks: Array, slugMap: Map, wayRegistry: WayRegistry }>}
  */
-export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set(), markdownOverrides = new Map() }) {
+export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set<string>(), markdownOverrides = new Map<string, { member_of?: string }>() }: {
+  queryOverpass: (q: string) => Promise<{ elements: any[] }>;
+  bbox: string;
+  adapter: any;
+  manualEntries?: any[];
+  markdownSlugs?: Set<string>;
+  markdownOverrides?: Map<string, { member_of?: string }>;
+}): Promise<{ entries: any[]; superNetworks: any[]; slugMap: Map<any, string>; wayRegistry: WayRegistry }> {
   // Steps 1-2d: Discover all OSM cycling infrastructure
   const wayRegistry = new WayRegistry();
   const { osmRelations, osmNamedWays, parallelLanes, nonCyclingCandidates, relationBaseNames } =
@@ -132,9 +134,10 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
   });
 
   // Step 4: Auto-group nearby trail segments (with park containment)
-  const grouped = await autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass: qo, bbox: b, wayRegistry });
+  // @ts-expect-error — auto-group.mjs JSDoc omits bbox/wayRegistry but the function uses them
+  const grouped: any[] = await autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass: qo, bbox: b, wayRegistry });
 
-  // Steps 5–9: Resolve networks, apply overrides, validate
+  // Steps 5-9: Resolve networks, apply overrides, validate
   const { superNetworks, slugMap } = await resolve({
     entries: grouped,
     discovered: { osmRelations, osmNamedWays, parallelLanes, nonCyclingCandidates, relationBaseNames },
@@ -151,7 +154,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 // main() — thin wrapper: load config, run pipeline, write YAML
 // ---------------------------------------------------------------------------
 
-async function main() {
+async function main(): Promise<void> {
   console.log(`Building bikepaths.yml for ${args.city} (bbox: ${bbox})`);
 
   const manualEntries = loadManualEntries(dataDir);
@@ -159,7 +162,7 @@ async function main() {
   const bikePathsDir = path.join(dataDir, 'bike-paths');
   const markdownOverrides = parseMarkdownOverrides(bikePathsDir);
 
-  const { entries, superNetworks, slugMap, wayRegistry } = await buildBikepathsPipeline({
+  const { entries, superNetworks, slugMap } = await buildBikepathsPipeline({
     queryOverpass,
     bbox,
     adapter,
@@ -169,8 +172,8 @@ async function main() {
   });
 
   // Write output
-  const networkEntries = entries.filter(e => e.type === 'network');
-  const memberEntries = entries.filter(e => e.member_of);
+  const networkEntries = entries.filter((e: any) => e.type === 'network');
+  const memberEntries = entries.filter((e: any) => e.member_of);
   if (args.dryRun) {
     console.log('\n--- DRY RUN — would write: ---');
     for (const entry of entries) {
@@ -189,7 +192,7 @@ async function main() {
 }
 
 if (isMain) {
-  main().catch(err => {
+  main().catch((err: unknown) => {
     console.error(err);
     process.exit(1);
   });
