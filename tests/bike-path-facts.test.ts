@@ -5,6 +5,7 @@ import {
   buildPathFacts,
   buildNetworkFacts,
   findNearestMajorPath,
+  factLabelKey,
   localizeFactValue,
   localizeNetworkFactValue,
   type NetworkFact,
@@ -931,6 +932,52 @@ describe('localizeFactValue — seasonal', () => {
 
   it('all four seasons → generic "Seasonal"', () => {
     expect(localizeFactValue({ key: 'seasonal', value: 'spring;summer;autumn;winter' }, t)).toBe('Seasonal');
+  });
+});
+
+describe('localizeFactValue — surface_mixed and lit_mixed', () => {
+  const t = (key: string, _locale?: string) => {
+    const map: Record<string, string> = {
+      'paths.fact.paved': 'Paved',
+      'paths.fact.gravel': 'Gravel',
+      'paths.fact.dirt': 'Unpaved',
+      'paths.fact.boardwalk': 'Boardwalk',
+      'paths.fact.partially_lit': 'Some paths lit, some not',
+    };
+    return map[key] || key;
+  };
+
+  it('renders surface_mixed as localized breakdown with km', () => {
+    const result = localizeFactValue(
+      { key: 'surface_mixed', breakdown: [{ value: 'asphalt', km: 8 }, { value: 'gravel', km: 1 }] },
+      t,
+    );
+    expect(result).toBe('Paved (8 km), Gravel (1 km)');
+  });
+
+  it('renders lit_mixed as partially_lit translation', () => {
+    const result = localizeFactValue(
+      { key: 'lit_mixed', breakdown: [{ value: 'yes', km: 6 }, { value: 'no', km: 3 }] },
+      t,
+    );
+    expect(result).toBe('Some paths lit, some not');
+  });
+
+  it('surface_mixed uses displaySurface categories', () => {
+    // fine_gravel → gravel category, wood → boardwalk category
+    const result = localizeFactValue(
+      { key: 'surface_mixed', breakdown: [{ value: 'fine_gravel', km: 5 }, { value: 'wood', km: 2 }] },
+      t,
+    );
+    expect(result).toBe('Gravel (5 km), Boardwalk (2 km)');
+  });
+
+  it('factLabelKey maps surface_mixed to surface label', () => {
+    expect(factLabelKey('surface_mixed')).toBe('paths.label.surface');
+  });
+
+  it('factLabelKey maps lit_mixed to lit label', () => {
+    expect(factLabelKey('lit_mixed')).toBe('paths.label.lit');
   });
 });
 

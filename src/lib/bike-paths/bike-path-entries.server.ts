@@ -129,8 +129,10 @@ export interface BikePathPage {
   /** Elevation gain in meters (from enriched GeoJSON, if available). */
   elevation_gain_m?: number;
   surface?: string;
+  surface_mix?: Array<{ value: string; km: number }>;
   width?: string;
   lit?: string;
+  lit_mix?: Array<{ value: string; km: number }>;
   segregated?: string;
   smoothness?: string;
   operator?: string;
@@ -494,8 +496,10 @@ export function loadBikePathEntries(): {
       nearbyPaths: [],
       connectedPaths: [],
       surface: primary?.surface,
+      surface_mix: primary?.surface_mix,
       width: primary?.width,
       lit: primary?.lit,
+      lit_mix: primary?.lit_mix,
       segregated: primary?.segregated,
       smoothness: primary?.smoothness,
       operator: normalizeOperator(md.data.operator ?? primary?.operator) ?? primary?.wikidata_meta?.operator,
@@ -565,8 +569,10 @@ export function loadBikePathEntries(): {
       nearbyPaths: [],
       connectedPaths: [],
       surface: entry.surface,
+      surface_mix: entry.surface_mix,
       width: entry.width,
       lit: entry.lit,
+      lit_mix: entry.lit_mix,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
       operator: normalizeOperator(entry.operator) ?? entry.wikidata_meta?.operator,
@@ -694,8 +700,10 @@ export function loadBikePathEntries(): {
       nearbyPaths: [],
       connectedPaths: [],
       surface: entry.surface,
+      surface_mix: entry.surface_mix,
       width: entry.width,
       lit: entry.lit,
+      lit_mix: entry.lit_mix,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
       operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator) ?? entry.wikidata_meta?.operator,
