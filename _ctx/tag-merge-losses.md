@@ -1,5 +1,5 @@
 ---
-description: "mergeWayTags loses minority tag values — paths need mixed-surface/mixed-width facts like networks already have"
+description: "mergeWayTags majority-vote for physical tags, plus surface_mix/lit_mix distributions for mixed entries"
 type: knowledge
 triggers: [working with mergeWayTags, surface facts, width facts, path detail facts, mixed surface]
 related: [pipeline-overview, bike-paths, path-types]
@@ -11,28 +11,32 @@ related: [pipeline-overview, bike-paths, path-types]
 
 `mergeWayTags` in `build-bikepaths.mjs` picks the most common value for each OSM tag across all ways in an entry. When a path has mixed surfaces (e.g. Watts Creek: asphalt + unpaved + ground + fine_gravel), only the majority value survives. The minority values are lost.
 
-This matters for physical tags that directly affect ride planning: `surface`, `width`, `lit`, `smoothness`.
+This matters for physical tags that directly affect ride planning: `surface`, `width`, `lit`, `smoothness`. The `[tag-merge]` log line fires when >30% of ways disagree on a physical tag.
 
-## Current State
+## How It's Handled
 
-The `[tag-merge]` log line fires when >30% of ways disagree on a physical tag. Running the pipeline on Ottawa produces ~150 lossy merges. Notable examples:
+`mergeWayTags` still picks a majority winner for `surface` and `lit` (other code depends on a single canonical value), but it now also computes length-weighted distributions for mixed entries:
 
-- **Watts Creek Pathway**: reported as "asphalt" but has significant unpaved/ground/fine_gravel sections
-- **Véloroute des Grandes Fourches**: "asphalt" wins with 1889/2818 ways — 929 ways across 13 surface types are lost
-- **Sentier des Pionniers**: `lit` is nearly 50/50 yes/no — reported as "yes"
+- **`surface_mix`** — `Array<{ value: string, km: number }>`, sorted by km descending. Only produced when 2+ distinct surfaces exist. Stored in bikepaths.yml alongside the majority `surface` value.
+- **`lit_mix`** — same shape, only produced when both `yes` and `no` are present.
 
-## The Insight
+Distributions are weighted by real way geometry (`wayLengthKm()`), not way count. The Overpass enrichment query uses `out geom tags` so relation member ways carry geometry for accurate length computation.
 
-The facts system already handles this for **networks** — aggregating member surfaces with unanimous/partial/mixed consistency breakdowns. Individual entries composed of multiple ways need the same treatment. A path isn't "asphalt" or "gravel" — it's "3.2 km asphalt, 1.1 km fine gravel, 0.3 km boardwalk."
+## Schema
 
-## Future Direction
+```yaml
+# bikepaths-yml.server.ts
+surface_mix: z.array(z.object({ value: z.string(), km: z.number() })).optional()
+lit_mix: z.array(z.object({ value: z.string(), km: z.number() })).optional()
+```
 
-Instead of picking a winner, `mergeWayTags` should preserve the distribution for physical tags. The facts engine can then render the same unanimous/partial/mixed pattern it already uses for networks. This requires:
+## Facts Engine
 
-1. Storing per-way tag distributions (or at least per-tag breakdowns) on entries
-2. Extending the facts rendering to handle individual entries, not just networks
-3. Ideally weighting by way length, not way count
+The facts engine (`bike-path-facts.ts`) emits `surface_mixed` and `lit_mixed` facts for individual entries — the same breakdown pattern already used for networks:
 
-### Lit needs its own "mixed"
+- **`surface_mixed`** renders as "Paved (8 km), Gravel (1 km)" using `localizeSurface()` per breakdown entry. All surface categories are translated in en/es/fr.
+- **`lit_mixed`** renders as a single localized string via `paths.fact.partially_lit` ("Some paths lit, some not" / "Certains sentiers éclairés, d'autres non" / "Algunos senderos iluminados, otros no").
 
-Boolean tags like `lit` can't use the surface consistency pattern directly. A path that's lit for half its length and unlit for the other half isn't "lit: yes" or "lit: no" — it's "partially lit." This needs a dedicated representation: e.g. `lit: partial` or a breakdown like "2.1 km lit, 1.4 km unlit."
+## What's Still Majority-Vote Only
+
+`width` and `smoothness` still lose minority values. These are less critical for ride planning than surface and lighting, but the same distribution approach could be applied if needed.
