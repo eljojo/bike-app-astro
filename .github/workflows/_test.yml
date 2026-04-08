@@ -78,12 +78,12 @@ jobs:
         uses: actions/cache@v5
         with:
           path: scripts/pipeline/.cache
-          key: pipeline-cassette-${{ hashFiles('scripts/pipeline/build-bikepaths.mjs', 'scripts/pipeline/lib/overpass.mjs') }}
+          key: pipeline-cassette-${{ hashFiles('scripts/pipeline/build-bikepaths.ts', 'scripts/pipeline/lib/overpass.mjs') }}
           restore-keys: pipeline-cassette-
 
       - name: Record pipeline cassettes
         if: steps.cassette-cache.outputs.cache-hit != 'true'
-        run: RECORD_OVERPASS=ottawa node scripts/pipeline/build-bikepaths.mjs --city ottawa
+        run: RECORD_OVERPASS=ottawa node scripts/pipeline/build-bikepaths.ts --city ottawa
         env:
           CONTENT_DIR: ${{ github.workspace }}/bike-routes
 
