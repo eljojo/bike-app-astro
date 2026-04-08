@@ -140,6 +140,7 @@ How the app works. Read to understand *what* things are.
 - [ci-cd](_ctx/ci-cd.md) — workflows, deploy matrix, screenshot auto-update
 - [css-styling](_ctx/css-styling.md) — SCSS variables, dark mode, colocated styles, admin.scss
 - [e2e-testing](_ctx/e2e-testing.md) — fixtures, hydration waits, screenshot conventions
+- [setup-infrastructure](_ctx/setup-infrastructure.md) — secrets manifest, setup scripts, how to add env vars
 
 ### Rules
 Non-negotiable constraints. Violations are bugs.
