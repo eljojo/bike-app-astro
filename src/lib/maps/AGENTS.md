@@ -1,6 +1,6 @@
 # Maps (`src/lib/maps/`)
 
-MapLibre GL JS initialization, style management, polyline/marker rendering, and map thumbnail generation.
+MapLibre GL JS initialization, style management, polyline/marker rendering, and map image URL building.
 
 ## Files
 
@@ -11,9 +11,8 @@ MapLibre GL JS initialization, style management, polyline/marker rendering, and 
 | `map-style-url.ts` | **Generated** — content-hashed style JSON URLs. Do not edit manually |
 | `map-helpers.ts` | `html` tagged template with auto-escaping, popup builders |
 | `map-paths.ts` | Browser-safe URL builders (no `node:path`) |
-| `map-paths.server.ts` | Filesystem path construction (server-only) |
-| `map-thumbnails.ts` | Runtime helpers depending on virtual modules |
-| `map-generation.server.ts` | Node-only helpers for `scripts/generate-maps.ts` |
+| `map-image-url.ts` | `mapImageUrl()` — builds proxy URLs for map images |
+| `map-generation.server.ts` | `gpxHash()` utility for content-hashing GPX data |
 | `layers/` | Composable layer system: `MapLayer` interface, `createMapSession()`, layer implementations |
 
 ## Gotchas

@@ -56,6 +56,6 @@ const contributors = minimal ? Promise.resolve() : run('contributors', 'build-co
 const geoCache  = run('path-geo-cache', 'cache-path-geometry.ts');
 const geoMeta   = geoCache.then(() => run('geo-metadata', 'generate-geo-metadata.ts'));
 const pathTiles = geoMeta.then(() => run('path-tiles', 'generate-path-tiles.ts'));
-const mapManifests = run('map-manifests', 'generate-map-manifests.ts');
+const mapManifests = minimal ? Promise.resolve() : run('map-manifests', 'generate-map-manifests.ts');
 
 await Promise.all([mapStyle, iconPaths, contributors, pathTiles, mapManifests]);

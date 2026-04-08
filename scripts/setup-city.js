@@ -527,6 +527,12 @@ async function main() {
     console.log('\n  R2 CORS:\n');
     await ensureR2CorsForCity(city, wranglerConfig, accountId, apiToken);
 
+    // TODO: Step 4b: R2 lifecycle rule — expire maps/ prefix after 90 days.
+    // Map images cached in R2 by the map image proxy should auto-expire so
+    // Google tile/label updates are picked up. Add via S3 putBucketLifecycleConfiguration
+    // or Cloudflare dashboard (R2 → bucket → Settings → Object lifecycle).
+    // See: docs/plans/2026-04-08-universal-map-proxy-design.md
+
     // Step 5: Custom domain
     console.log('\n  Domain:\n');
     await ensureCustomDomain(city, accountId, apiToken);

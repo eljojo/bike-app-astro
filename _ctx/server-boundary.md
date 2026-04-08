@@ -39,7 +39,7 @@ Not everything follows this convention:
 - Adapter files (`*.adapter-*.ts`) — these exist at the vendor boundary
 - `git/` directory — git operations are inherently server-side
 - Build-time transform files (`city-config.ts`) — run only during build
-- Virtual-module-dependent files (`map-thumbnails.ts`) — resolved at build time
+- Map image URL builder (`map-image-url.ts`) — browser-safe, no Node APIs
 
 ## Splitting a mixed file
 

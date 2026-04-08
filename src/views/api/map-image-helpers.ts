@@ -181,10 +181,13 @@ export function buildGoogleMapsUrlFromPolylines(
     + `&markers=color:yellow|label:S|${start[0]},${start[1]}`
     + `&markers=color:green|label:F|${end[0]},${end[1]}`;
 
+  const MAX_URL = 16384;
+  const BUFFER = 200;
+  const PATH_PREFIX = '&path=enc:';
   for (const segment of allSegments) {
-    const remaining = 16384 - url.length - '&path=enc:'.length - 100;
+    const remaining = MAX_URL - url.length - PATH_PREFIX.length - BUFFER;
     if (remaining < 50) break;
-    url += `&path=enc:${sampleToFit(segment as [number, number][], remaining)}`;
+    url += `${PATH_PREFIX}${sampleToFit(segment as [number, number][], remaining)}`;
   }
 
   return url;
@@ -201,7 +204,7 @@ export interface ParsedMapImageUrl {
 
 /**
  * Parse the map image URL path: {type}/{hash}/{filename}.png
- * Filename format: {slug}-{size}-{variant?}-{lang}.png
+ * Filename format: {slug}-{variant?}-{size}-{lang}.png
  * The slug can contain dashes. We parse from the right: lang (last), then
  * check if the next segment is a known size or a variant+size combo.
  */
