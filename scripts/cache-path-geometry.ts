@@ -74,16 +74,44 @@ function writeCacheHash(entry: CacheEntry, geoPath: string): void {
  * Each server gets up to 2 attempts across the full rotation.
  */
 async function queryOverpass(query: string): Promise<any> {
-  const servers = process.env.OVERPASS_URL
-    ? [process.env.OVERPASS_URL, ...OVERPASS_SERVERS.filter(s => s !== process.env.OVERPASS_URL)]
-    : OVERPASS_SERVERS;
-  const MAX_ROUNDS = 2; // try the full server list up to 2 times
+  const PRIMARY = process.env.OVERPASS_URL || OVERPASS_SERVERS[0];
+  const fallbacks = OVERPASS_SERVERS.filter(s => s !== PRIMARY);
 
+  // Try primary server first — it has no rate limiting, so XML means bad query
+  let res: Response;
+  try {
+    res = await fetch(PRIMARY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.timeout(90_000),
+    });
+
+    if (res.ok) {
+      const text = await res.text();
+      if (text.startsWith('<?xml') || text.startsWith('<html')) {
+        // Primary has no rate limiting — XML means the query itself is wrong
+        console.log(`  [overpass] bad query (${new URL(PRIMARY).hostname} returned XML):`);
+        console.log(`    ${query.replace(/\n/g, '\n    ')}`);
+        return null;
+      }
+      return JSON.parse(text);
+    }
+
+    if ([429, 502, 503, 504].includes(res.status)) {
+      console.log(`  [overpass] ${new URL(PRIMARY).hostname} returned ${res.status}, trying fallbacks...`);
+    } else {
+      throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
+    }
+  } catch (err: any) {
+    if (err instanceof Error && err.message.startsWith('Overpass API error')) throw err;
+    console.log(`  [overpass] ${new URL(PRIMARY).hostname} network error: ${err.message}, trying fallbacks...`);
+  }
+
+  // Primary is down — try fallback servers with retry
+  const MAX_ROUNDS = 2;
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    for (let si = 0; si < servers.length; si++) {
-      const serverUrl = servers[si];
-
-      let res: Response;
+    for (const serverUrl of fallbacks) {
       try {
         res = await fetch(serverUrl, {
           method: 'POST',
@@ -96,28 +124,26 @@ async function queryOverpass(query: string): Promise<any> {
         continue;
       }
 
-      if (res.ok) {
-        const text = await res.text();
-        // Overpass sometimes returns XML error pages with 200 OK
+      if (res!.ok) {
+        const text = await res!.text();
         if (text.startsWith('<?xml') || text.startsWith('<html')) {
-          console.log(`  [overpass] ${new URL(serverUrl).hostname} returned XML instead of JSON, rotating...`);
+          console.log(`  [overpass] ${new URL(serverUrl).hostname} returned XML, rotating...`);
           continue;
         }
         return JSON.parse(text);
       }
 
-      if ([429, 502, 503, 504].includes(res.status)) {
-        console.log(`  [overpass] ${new URL(serverUrl).hostname} returned ${res.status}, rotating...`);
+      if ([429, 502, 503, 504].includes(res!.status)) {
+        console.log(`  [overpass] ${new URL(serverUrl).hostname} returned ${res!.status}, rotating...`);
         continue;
       }
 
-      throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
+      throw new Error(`Overpass API error ${res!.status}: ${await res!.text()}`);
     }
 
-    // Finished one full round of all servers — wait before retrying
     if (round < MAX_ROUNDS - 1) {
       const wait = (round + 1) * 15;
-      console.log(`  [overpass] All servers failed, retrying in ${wait}s...`);
+      console.log(`  [overpass] All fallbacks failed, retrying in ${wait}s...`);
       await new Promise(r => setTimeout(r, wait * 1000));
     }
   }
@@ -190,14 +216,19 @@ if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 // --- Pre-seed cache from e2e fixture files (avoids Overpass for fictional demo IDs) ---
 const FIXTURE_DIR = path.resolve('e2e', 'fixtures', 'overpass');
 if (!dryRun && fs.existsSync(FIXTURE_DIR)) {
-  const allGeoFiles = new Set(cacheEntries.flatMap(e => geoFilesForEntry(e)));
   let seeded = 0;
-  for (const file of allGeoFiles) {
-    const fixturePath = path.join(FIXTURE_DIR, file);
-    const cachePath = path.join(CACHE_DIR, file);
-    if (fs.existsSync(fixturePath) && (!fs.existsSync(cachePath) || forceRefresh)) {
-      fs.copyFileSync(fixturePath, cachePath);
-      seeded++;
+  for (const entry of cacheEntries) {
+    for (const file of geoFilesForEntry(entry)) {
+      const fixturePath = path.join(FIXTURE_DIR, file);
+      const cachePath = path.join(CACHE_DIR, file);
+      if (!fs.existsSync(fixturePath)) continue;
+      const needsGeo = !fs.existsSync(cachePath) || forceRefresh;
+      const needsHash = !isCacheFresh(entry, cachePath);
+      if (needsGeo || needsHash) {
+        if (needsGeo) fs.copyFileSync(fixturePath, cachePath);
+        writeCacheHash(entry, cachePath);
+        seeded++;
+      }
     }
   }
   if (seeded > 0) console.log(`[path-geo] Pre-seeded ${seeded} geometry files from e2e fixtures`);
@@ -227,6 +258,7 @@ for (const entry of relationEntries) {
     try {
       const query = `[out:json][timeout:60];relation(${relId});(._;>;);out geom;`;
       const data = await queryOverpass(query);
+      if (!data) continue;
       const geojson = overpassToGeoJSON(data, relId);
       fs.writeFileSync(outPath, JSON.stringify(geojson));
       fetched++;
@@ -261,6 +293,7 @@ if (wayIdEntries.length > 0) {
       const wayIds = entry.osm_way_ids!;
       const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
       const data = await queryOverpass(query);
+      if (!data) continue;
       const geojson = overpassToGeoJSON(data, entry.slug);
       if (geojson.features.length > 0) {
         fs.writeFileSync(outPath, JSON.stringify(geojson));
@@ -297,6 +330,7 @@ for (const entry of nameEntries) {
     const bbox = anchorBbox(entry.anchors!);
     const query = buildNameQuery(entry.osm_names!, bbox);
     const data = await queryOverpass(query);
+    if (!data) continue;
     const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
       fs.writeFileSync(outPath, JSON.stringify(geojson));
@@ -332,6 +366,7 @@ for (const entry of segmentEntries) {
     const wayIds = entry.segments!.map(s => s.osm_way);
     const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
     const data = await queryOverpass(query);
+    if (!data) continue;
     const geojson = overpassToGeoJSON(data, entry.slug);
     if (geojson.features.length > 0) {
       fs.writeFileSync(outPath, JSON.stringify(geojson));
@@ -385,6 +420,7 @@ out geom;`;
 
     try {
       const data = await queryOverpass(q);
+      if (!data) continue;
       const geojson = overpassToGeoJSON(data, `parallel-${entry.slug}`);
       if (geojson.features.length === 0) {
         console.log(`  [empty] parallel-${entry.slug}: no geometry found`);
