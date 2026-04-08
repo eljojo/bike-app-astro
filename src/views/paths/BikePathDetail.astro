@@ -558,9 +558,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         )}
 
         {nearbyPlaces.length > 0 && (
-          <div>
-            <NearbyPlaces nearby={nearbyPlaces} limit={8} />
-          </div>
+          <NearbyPlaces nearby={nearbyPlaces} limit={8} />
         )}
 
         {/* Nearby paths — compact sidebar list, max 3, excludes connected and own members */}

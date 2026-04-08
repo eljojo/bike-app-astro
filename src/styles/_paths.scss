@@ -243,6 +243,49 @@
   padding: 0 1rem;
 
   h1 { margin: 0 0 0.25rem; }
+
+  @media (max-width: $breakpoint-tablet) {
+    display: grid;
+    grid-template-columns: 1fr;
+
+    // 1. Map (network or standalone/member)
+    .network-map-full { order: 1; }
+    .bike-path-sidebar-map { order: 1; }
+
+    // 2. Title area
+    .bike-path-title { order: 2; }
+    .network-badge { order: 3; }
+    .bike-path-vibe { order: 4; }
+
+    // 3. Key info
+    .nearest-major-path { order: 5; }
+    .bike-path-facts-table { order: 6; }
+    .bike-path-description { order: 7; }
+    .bike-path-stub-cta { order: 8; }
+
+    // 4. Network members (network pages)
+    .network-members { order: 9; }
+
+    // 5. Photos
+    .bike-path-photos { order: 10; }
+
+    // 6. External links
+    .external-link-website { order: 11; }
+    .external-link-wikipedia { order: 12; }
+
+    // 7. Secondary info
+    .connects-to-section { order: 13; }
+    .bike-path-routes { order: 14; }
+    .networks-here { order: 15; }
+    .shared-routes { order: 16; }
+    .nearby-places { order: 17; }
+    .nearby-paths { order: 18; }
+
+    // 8. Bottom
+    .bike-path-edit-cta { order: 19; }
+    .bike-path-osm { order: 20; }
+    .bike-path-back { order: 21; }
+  }
 }
 
 .network-badge {
@@ -278,44 +321,13 @@
   align-items: start;
 
   @media (max-width: $breakpoint-tablet) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    // Flatten into parent .bike-path-detail grid
+    display: contents;
 
-    // Flatten both containers so children become direct grid items,
-    // allowing interleaved ordering: map+facts → description → nearby → routes
     .bike-path-main,
     .bike-path-sidebar {
       display: contents;
     }
-
-    // 1. Map + facts
-    .bike-path-map-wrapper { order: 1; }
-    .bike-path-facts-table { order: 2; }
-
-    // 2. Description / body content
-    .bike-path-stub-cta { order: 3; }
-    .bike-path-description { order: 4; }
-    .edit-entry-point { order: 5; }
-
-    // 3. Infrastructure section (standalone/member)
-    .infrastructure-section { order: 6; }
-
-    // 4. Routes on this path
-    .routes-on-path { order: 7; }
-
-    // 5. Nearby places
-    .nearby-places { order: 8; }
-
-    // 6. Photos
-    .bike-path-photos { order: 9; }
-
-    // 7. Nearby paths + connects to (network pages)
-    .nearby-paths { order: 10; }
-    .connected-paths { order: 11; }
-
-    // 8. External links
-    .external-link-card { order: 12; }
-    .bike-path-osm { order: 13; }
   }
 }
 
