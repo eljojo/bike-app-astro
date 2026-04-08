@@ -73,6 +73,20 @@ jobs:
           CITY: demo
           PREBUILD_MINIMAL: '1'
 
+      - name: Restore pipeline cassette cache
+        id: cassette-cache
+        uses: actions/cache@v5
+        with:
+          path: scripts/pipeline/.cache
+          key: pipeline-cassette-${{ hashFiles('scripts/pipeline/build-bikepaths.mjs', 'scripts/pipeline/lib/overpass.mjs') }}
+          restore-keys: pipeline-cassette-
+
+      - name: Record pipeline cassettes
+        if: steps.cassette-cache.outputs.cache-hit != 'true'
+        run: RECORD_OVERPASS=ottawa node scripts/pipeline/build-bikepaths.mjs --city ottawa
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+
       - name: Run unit tests
         run: npx vitest run
         env:
