@@ -1,6 +1,6 @@
 ---
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
+import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import { t } from '@/i18n';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
@@ -28,7 +28,6 @@ const locale = Astro.currentLocale;
 
 const cover = media.find((m: any) => m.cover);
 const hasMap = hasCachedMap(route.id);
-const mapLang = cachedMapLocale(route.id, undefined, locale);
 
 const primaryGpx = route.data.variants[0]?.gpx;
 const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
@@ -94,7 +93,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
       <div class="route-detail--static-map">
         <a href={paths.rideMap(route.id, route.data.tour_slug)} title={t('ride.view_map', locale)}>
           <img
-            src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
+            src={`/maps/${route.id}/map-750.webp`}
             alt={t('route.map_of', locale, { name })}
           />
         </a>

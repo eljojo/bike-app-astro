@@ -152,16 +152,7 @@ function scanMapDir(dir: string, prefix?: string) {
 
 function loadCachedMaps(rootDir?: string) {
   const cacheDir = path.join(rootDir || PROJECT_ROOT, 'public', 'maps');
-  const maps: string[] = scanMapDir(cacheDir);
-  // Scan locale subdirectories (2-letter dirs like "fr", "es")
-  if (fs.existsSync(cacheDir)) {
-    for (const entry of fs.readdirSync(cacheDir)) {
-      if (entry.length === 2 && fs.statSync(path.join(cacheDir, entry)).isDirectory()) {
-        maps.push(...scanMapDir(path.join(cacheDir, entry), entry));
-      }
-    }
-  }
-  return maps;
+  return scanMapDir(cacheDir);
 }
 
 // --- Admin module registration ---

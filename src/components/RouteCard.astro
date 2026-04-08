@@ -1,7 +1,7 @@
 ---
 import './RouteCard.scss';
 import { imageUrl } from '../lib/media/image-service';
-import { hasCachedMap, cachedMapLocale } from '../lib/maps/map-thumbnails';
+import { hasCachedMap } from '../lib/maps/map-thumbnails';
 import { formatDistance } from '../lib/geo/distance';
 import { paths, assets } from '../lib/paths';
 import { makePreview } from '../lib/markdown/markdown-preview';
@@ -35,8 +35,7 @@ const variantDistances = variants?.map(v => v.distance_km).filter((d): d is numb
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
 const allTags = [distanceTag, ...tags];
 const previewParagraphs = makePreview(body);
-const hasMap = hasCachedMap(slug, undefined, locale);
-const mapLang = cachedMapLocale(slug, undefined, locale);
+const hasMap = hasCachedMap(slug);
 const loading = lazy ? 'lazy' : 'eager';
 ---
 
@@ -56,8 +55,8 @@ const loading = lazy ? 'lazy' : 'eager';
       )}
       {hasMap && (
         <img
-          src={assets.mapThumbnail(slug, 375, mapLang)}
-          srcset={assets.mapThumbnailSrcset(slug, mapLang)}
+          src={assets.mapThumbnail(slug, 375)}
+          srcset={assets.mapThumbnailSrcset(slug)}
           alt={`map of ${name}`}
           width="300"
           height="300"

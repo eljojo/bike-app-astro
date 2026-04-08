@@ -2,7 +2,7 @@
 import RouteMap from './RouteMap.astro';
 import InteractiveElevation from './InteractiveElevation.tsx';
 import { computeElevationPoints } from '../lib/geo/elevation-profile';
-import { hasCachedMap, cachedMapLocale } from '../lib/maps/map-thumbnails';
+import { hasCachedMap } from '../lib/maps/map-thumbnails';
 import { variantKey as variantKeyFromGpx } from '../lib/gpx/filenames';
 import { getCityConfig } from '../lib/config/city-config';
 import { t } from '../i18n';
@@ -55,8 +55,7 @@ function gpxStudioUrl(gpxUrl: string): string {
 
 const gpxUrl = `${siteUrl}${gpxPath || paths.routeGpx(routeSlug, variantKey)}`;
 const exploreUrl = gpxStudioUrl(gpxUrl);
-const hasVariantMap = hasCachedMap(routeSlug, variantKey, locale);
-const variantMapLang = cachedMapLocale(routeSlug, variantKey, locale);
+const hasVariantMap = hasCachedMap(routeSlug, variantKey);
 
 const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 ---
@@ -98,7 +97,7 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
   {hasVariantMap && (
     <Fragment>
       {' '}
-      <a href={assets.mapPng(routeSlug, variantKey, variantMapLang)} class="action-button" target="_blank" rel="noopener">
+      <a href={assets.mapPng(routeSlug, variantKey)} class="action-button" target="_blank" rel="noopener">
         <Icon name="map-trifold" size={18} /> PNG
       </a>
     </Fragment>
