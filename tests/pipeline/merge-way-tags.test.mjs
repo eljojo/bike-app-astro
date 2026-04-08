@@ -70,6 +70,16 @@ describe('mergeWayTags', () => {
     expect(result.surface_mix.every(m => typeof m.km === 'number')).toBe(true);
   });
 
+  it('picks majority by distance, not way count', () => {
+    // 2 short gravel ways vs 1 long asphalt way — asphalt should win by distance
+    const result = mergeWayTags([
+      { tags: { surface: 'gravel' }, geometry: [[0,45],[0.001,45]] },
+      { tags: { surface: 'gravel' }, geometry: [[0.001,45],[0.002,45]] },
+      { tags: { surface: 'asphalt' }, geometry: [[0.002,45],[0.1,45]] },
+    ]);
+    expect(result.surface).toBe('asphalt');
+  });
+
   it('sorts surface_mix by km descending', () => {
     const result = mergeWayTags([
       { tags: { surface: 'gravel' }, geometry: [[0,45],[0.05,45]] },

@@ -90,29 +90,31 @@ export function extractOsmMetadata(tags: Tags | null | undefined): Tags {
  * across all ways in the group.
  */
 export function mergeWayTags(ways: WayElement[]): Tags {
-  const tagCounts: Record<string, Record<string, number>> = {};
+  // Weight each tag value by way length (km) instead of way count
+  const tagKm: Record<string, Record<string, number>> = {};
   for (const way of ways) {
     const tags = way.tags || {};
+    const km = wayLengthKm(way);
     for (const [key, val] of Object.entries(tags)) {
-      if (!tagCounts[key]) tagCounts[key] = {};
-      tagCounts[key][val] = (tagCounts[key][val] || 0) + 1;
+      if (!tagKm[key]) tagKm[key] = {};
+      tagKm[key][val] = (tagKm[key][val] || 0) + km;
     }
   }
-  // Pick the most common value for each tag
+  // Pick the value with the most distance for each tag
   const merged: Tags = {};
   const losses: string[] = [];
-  for (const [key, vals] of Object.entries(tagCounts)) {
-    let bestVal: string | null = null, bestCount = 0, totalCount = 0;
-    for (const [val, count] of Object.entries(vals)) {
-      totalCount += count;
-      if (count > bestCount) { bestCount = count; bestVal = val; }
+  for (const [key, vals] of Object.entries(tagKm)) {
+    let bestVal: string | null = null, bestKm = 0, totalKm = 0;
+    for (const [val, km] of Object.entries(vals)) {
+      totalKm += km;
+      if (km > bestKm) { bestKm = km; bestVal = val; }
     }
     merged[key] = bestVal;
-    // Flag when >30% of ways disagree on a physical tag
+    // Flag when >30% of distance disagrees on a physical tag
     const PHYSICAL_TAGS = ['surface', 'width', 'lit', 'smoothness', 'incline', 'segregated'];
-    if (PHYSICAL_TAGS.includes(key) && totalCount > 2 && bestCount / totalCount < 0.7) {
-      const alternatives = Object.entries(vals).filter(([v]) => v !== bestVal).map(([v, c]) => `${v}(${c})`).join(', ');
-      losses.push(`${key}: picked "${bestVal}"(${bestCount}/${totalCount}), lost ${alternatives}`);
+    if (PHYSICAL_TAGS.includes(key) && Object.keys(vals).length > 1 && bestKm / totalKm < 0.7) {
+      const alternatives = Object.entries(vals).filter(([v]) => v !== bestVal).map(([v, km]) => `${v}(${km.toFixed(1)}km)`).join(', ');
+      losses.push(`${key}: picked "${bestVal}"(${bestKm.toFixed(1)}/${totalKm.toFixed(1)}km), lost ${alternatives}`);
     }
   }
   if (losses.length > 0) {
@@ -120,24 +122,15 @@ export function mergeWayTags(ways: WayElement[]): Tags {
     console.log(`  [tag-merge] ${name}: ${losses.join('; ')}`);
   }
 
-  // --- Compute distributions for surface and lit ---
+  // --- Compute distributions for surface and lit (reuse tagKm) ---
   const MIX_TAGS = ['surface', 'lit'];
   for (const tag of MIX_TAGS) {
-    const vals = tagCounts[tag];
+    const vals = tagKm[tag];
     if (!vals || Object.keys(vals).length <= 1) continue;
     // For lit: only produce lit_mix when both 'yes' and 'no' are present
     if (tag === 'lit' && !(vals['yes'] && vals['no'])) continue;
 
-    // Compute length per value
-    const valueLengths: Record<string, number> = {};
-    for (const way of ways) {
-      const val = (way.tags || {} as Tags)[tag];
-      if (!val) continue;
-      const km = wayLengthKm(way);
-      valueLengths[val] = (valueLengths[val] || 0) + km;
-    }
-
-    const mix = Object.entries(valueLengths)
+    const mix = Object.entries(vals)
       .map(([value, km]) => ({ value, km: Math.round(km) }))
       .filter(m => m.km > 0)
       .sort((a, b) => b.km - a.km);
