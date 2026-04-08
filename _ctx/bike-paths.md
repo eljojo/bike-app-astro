@@ -41,7 +41,7 @@ Every entry in bikepaths.yml carries provenance metadata tracing it back to OSM:
 - `osm_relations` — the OSM relation IDs for this entry. Each relation appears in exactly one entry. Networks only carry their own superroute relation ID — never their members' IDs.
 - `osm_names` — the way names used to discover this entry
 - `osm_way_ids` — the OSM way IDs that compose this entry's geometry. Ways can legitimately appear in multiple entries (shared pavement between routes).
-- `overlapping_relations` — non-cycling route relations (hiking, skiing, etc.) that share ways with this entry. Discovered by the pipeline's web-spider step (2d). Not entries themselves — metadata on existing cycling entries. Used by the facts engine and for network page member grouping.
+- `overlapping_relations` — non-cycling route relations (hiking, skiing, etc.) that share ways with this entry. Discovered by the pipeline's web-spider step (2d). Most are metadata on existing cycling entries. Exception: non-cycling relations with ≥90% bikeable ways are promoted to full entries with `path_type` derived from the cycling entries that own their ways.
 
 The pipeline preserves way IDs from Overpass responses through the entire build process. This enables:
 

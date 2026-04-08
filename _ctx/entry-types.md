@@ -34,11 +34,11 @@ Both trails and networks can have `members` arrays. A trail with members has sec
 
 ## Derivation
 
-The pipeline computes `type` after `path_type` and MTB detection. Markdown frontmatter can override it.
+The pipeline computes `type` after `path_type` and MTB detection. Markdown frontmatter can override it. Classification order: long-distance → relations → MTB → bike-lane/shoulder/separated → MUP/trail.
 
-- **`long-distance`** — has `network: ncn` (national) or `network: rcn` (regional) AND has `osm_relations`. Also assigned to superroutes with ncn/rcn tags.
-- **`network`** — assigned by the pipeline's network discovery step for metro-level superroutes and park groupings.
-- **`destination`** — has `osm_relations` (a named cycling route in OSM), OR MUP/trail above the city's length threshold. For MTB trails: network members are always destination; named-way MTB trails use the length threshold; unnamed-chain MTB trails are infrastructure (on map, no page).
+- **`long-distance`** — has `network: ncn` (national) or `network: rcn` (regional) AND has `osm_relations` AND length ≥50km. Also: any route ≥30km with a relation or ref code (megatrail rule). MTB trails excluded unless NCN-tagged.
+- **`network`** — assigned by the pipeline's network discovery step for metro-level superroutes, park groupings, and route-system networks (cycle_network tags).
+- **`destination`** — has `osm_relations` (a named cycling route in OSM), OR MUP/trail above the city's length threshold. For MTB trails: network members are always destination; named-way MTB trails use the length threshold; unnamed-chain MTB trails are infrastructure (on map, no page). Promoted non-cycling relations (≥90% bikeable) get `path_type` derived from the cycling entries that own their ways, then entry type classification.
 - **`infrastructure`** — `bike-lane` or `paved-shoulder` on a real road, OR short named MUP/trail.
 - **`connector`** — tiny bike lane on a minor street, unnamed chain below minimum length.
 
