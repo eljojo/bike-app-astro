@@ -166,7 +166,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
      pathname !== '/api/event' &&
      pathname !== '/api/video/webhook' &&
      !pathname.startsWith('/api/tiles/') &&
-     !pathname.startsWith('/api/commons-image/'));
+     !pathname.startsWith('/api/commons-image/') &&
+     !pathname.startsWith('/api/map-image/'));
 
   if (!isProtected) {
     // For reactions GET, optionally load user for personalized responses

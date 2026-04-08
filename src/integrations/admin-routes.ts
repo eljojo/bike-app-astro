@@ -113,6 +113,7 @@ const routes = [
   { pattern: '/api/dev/upload', entrypoint: view('dev/upload.ts') },
   { pattern: '/api/tiles/[...path]', entrypoint: view('api/tile-proxy.ts') },
   { pattern: '/api/commons-image/[...path]', entrypoint: view('api/commons-image-proxy.ts') },
+  { pattern: '/api/map-image/[...path]', entrypoint: view('api/map-image-proxy.ts') },
   { pattern: '/dev-uploads/[...path]', entrypoint: view('dev/dev-uploads.ts') },
   // Event preview (server-rendered fallback for pending events — middleware rewrites here)
   { pattern: '/_event-preview/[...id]', entrypoint: view('events/preview.astro') },
