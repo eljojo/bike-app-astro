@@ -8,7 +8,7 @@ export default defineConfig({
   testMatch: ['screenshots.spec.ts', 'functional.spec.ts', 'expandable-map.spec.ts', 'map-components.spec.ts', 'big-map-layers.spec.ts'],
   fullyParallel: true,
   retries: 2,
-  workers: '100%',
+  workers: '75%',
   outputDir: './test-results',
   snapshotDir: './snapshots',
   snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
@@ -28,5 +28,8 @@ export default defineConfig({
     port: 4322,
     cwd: '..',
     reuseExistingServer: true,
+    // Workerd logs noisy kj:: disconnected/broken-pipe errors when browsers
+    // close connections mid-request (normal in test teardown). Silence them.
+    stderr: 'ignore',
   },
 });
