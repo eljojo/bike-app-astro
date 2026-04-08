@@ -6,6 +6,8 @@
  *   - page.memberOf                -> member
  *   - neither                      -> standalone
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import Base from '@/layouts/Base.astro';
 import { type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { getCityConfig } from '@/lib/config/city-config';
@@ -16,10 +18,9 @@ import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import NearbyPaths from '@/components/NearbyPaths.astro';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { t, localePath } from '@/i18n';
-import { paths, assets } from '@/lib/paths';
+import { paths } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
 import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, localizePathType, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
 import { groupPathsByNetwork, tierNetworkMembers, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
@@ -117,11 +118,17 @@ const seoDescription = (() => {
   return seoFacts.length > 0 ? seoFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`;
 })();
 
-// ogImage: network uses thumbnail_key fallback, standalone/member use route cover photo
-const hasMapThumb = hasCachedMap(`path-${page.slug}`);
-const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
+// ogImage: use map image proxy URL (cache-busted via geometry hash from slug index)
+const slugIndexPath = path.join(process.cwd(), 'public', 'bike-paths', 'geo', 'tiles', 'slug-index.json');
+const slugIndex = fs.existsSync(slugIndexPath)
+  ? JSON.parse(fs.readFileSync(slugIndexPath, 'utf-8'))
+  : {};
+const geoEntry = slugIndex[page.slug];
+const mapProxyUrl = geoEntry
+  ? `/api/map-image/bike-path/${page.slug}?size=social&h=${geoEntry.hash}`
+  : undefined;
 const firstCoverKey = page.thumbnail_key || overlappingRoutes.find(r => r.coverKey)?.coverKey;
-const ogImage = mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
+const ogImage = mapProxyUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
 
 // Breadcrumbs: member gets 4 levels (home > paths > network > name)
 const breadcrumbs = breadcrumbJsonLd([
